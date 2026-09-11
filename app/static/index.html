@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaperDigHelper</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 24px; max-width: 900px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { opacity: .65; font-size: 13px; margin-bottom: 18px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #8884; background: #8881; cursor: pointer; }
+  button:hover { background: #8882; }
+  button[data-action="useful"] { border-color: #2e7d3255; }
+  button[data-action="irrelevant"] { border-color: #c6282855; }
+  .card { border: 1px solid #8883; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 16px; margin: 0 0 6px; }
+  .meta { font-size: 12px; opacity: .65; margin-bottom: 8px; }
+  .abs { font-size: 14px; opacity: .9; }
+  .why { font-size: 13px; margin-top: 8px; padding: 6px 8px; background: #8881; border-radius: 6px; }
+  .ai { font-size: 13px; margin-top: 8px; border-left: 3px solid #4a90d9; padding-left: 8px; }
+  .actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .profile { font-size: 13px; white-space: pre-wrap; background: #8881; padding: 10px 12px; border-radius: 8px; margin-top: 18px; }
+  .pill { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: #8882; margin-left: 6px; }
+  input { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid #8884; background: transparent; min-width: 260px; }
+</style>
+</head>
+<body>
+<h1>PaperDigHelper</h1>
+<div class="sub">本地推荐 + 可解释画像 · 默认零 token；AI 速览按已批准额度</div>
+
+<div class="bar">
+  <button id="refresh">抓取新论文</button>
+  <button id="daily">生成今日 5 篇</button>
+  <button id="triage">AI 速览（dry-run）</button>
+  <button id="drytoggle">切换真实调用</button>
+  <span id="status" class="sub"></span>
+</div>
+
+<div id="cards"></div>
+
+<div class="profile" id="profile"></div>
+<div class="bar" style="margin-top:12px">
+  <input id="pin" placeholder="钉死关键词，逗号分隔，例如 world model,JEPA">
+  <button id="pinbtn">保存关键词</button>
+</div>
+
+<script>
+const status = (msg) => { document.getElementById('status').textContent = msg; };
+let dryRun = true;
+let cards = [];
+
+async function api(path, body) {
+  const opts = body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {};
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+function renderProfile(p) {
+  document.getElementById('profile').textContent =
+    `项目: ${p.project}\n` +
+    `钉死关键词: ${(p.pinned_terms || []).join(', ') || '(无)'}\n` +
+    `正向种子: ${(p.positive_seeds || []).length} 篇\n` +
+    `反馈正例: ${(p.positive_feedback || []).length} · 显式负例: ${(p.explicit_negatives || []).length}\n` +
+    `中性(以后再看/没空/看不懂): ${(p.neutral_feedback || []).length}`;
+}
+
+function renderCards(list) {
+  cards = list;
+  const root = document.getElementById('cards');
+  root.innerHTML = '';
+  if (!list.length) { root.innerHTML = '<p class="sub">还没有卡片，先点「抓取新论文」再点「生成今日 5 篇」。</p>'; return; }
+  for (const c of list) {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <h2>${c.rank}. ${c.title}<span class="pill">${c.mode}</span></h2>
+      <div class="meta">${c.published || ''} · ${c.source || ''}</div>
+      <div class="abs">${(c.abstract || '').slice(0, 420)}</div>
+      <div class="why">推荐理由：${c.why}</div>
+      <div class="ai" data-key="${c.key}"></div>
+      <div class="actions">
+        <button data-key="${c.key}" data-action="useful">有用</button>
+        <button data-key="${c.key}" data-action="irrelevant">不相关</button>
+        <button data-key="${c.key}" data-action="later">以后再看</button>
+        <button data-key="${c.key}" data-action="busy">没空</button>
+        <button data-key="${c.key}" data-action="confused">看不懂</button>
+        <a href="${c.url}" target="_blank" rel="noreferrer"><button>原文</button></a>
+        <button data-key="${c.key}" data-pdf="1">下载 PDF</button>
+      </div>`;
+    root.appendChild(el);
+  }
+}
+
+document.getElementById('cards').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.dataset.action) {
+    const r = await api('/api/feedback', {key: btn.dataset.key, action: btn.dataset.action});
+    status(`已记录：${btn.dataset.action}（兴趣变化：${r.interest_changed}）`);
+    const st = await api('/api/state');
+    renderProfile(st.profile);
+  } else if (btn.dataset.pdf) {
+    status('下载中…');
+    const r = await api('/api/pdf', {key: btn.dataset.key});
+    status(r.ok ? `已保存：${r.path}` : `未下载：${r.reason}`);
+  }
+});
+
+document.getElementById('refresh').onclick = async () => {
+  status('抓取中…（OpenAlex 公开元数据）');
+  const r = await api('/api/refresh', {pages: 1});
+  status(`抓取 ${r.fetched} 条，新入库 ${r.added} 条`);
+};
+document.getElementById('daily').onclick = async () => {
+  status('生成中…');
+  const r = await api('/api/daily', {limit: 5});
+  renderCards(r.cards || []);
+  status(r.cards && r.cards.length ? `批次 ${r.batch_id}` : (r.reason || '没有新候选'));
+};
+document.getElementById('triage').onclick = async () => {
+  status(dryRun ? '预演（不花钱）…' : '调用 DeepSeek…');
+  const r = await api('/api/triage', {dry_run: dryRun});
+  if (!r.ok) { status(`降级为本地模式：${r.reason || '不可用'}`); return; }
+  for (const item of r.items || []) {
+    const el = document.querySelector(`.ai[data-key="${item.paper_id}"]`);
+    if (el) el.textContent = `AI：${item.one_liner || ''} ｜ 相关：${item.why_relevant || ''} ｜ 注意：${item.caution || ''}`;
+  }
+  status(`速览完成 ${r.items ? r.items.length : 0} 条，USD ${r.usd}`);
+};
+document.getElementById('drytoggle').onclick = () => {
+  dryRun = !dryRun;
+  document.getElementById('drytoggle').textContent = dryRun ? '切换真实调用' : '切换预演（不花钱）';
+  status(dryRun ? '当前：预演，不发请求' : '当前：真实调用（会消耗额度）');
+};
+document.getElementById('pinbtn').onclick = async () => {
+  const r = await api('/api/pin', {terms: document.getElementById('pin').value});
+  renderProfile(r.profile);
+  status('关键词已保存（会作为画像的一部分参与排序）');
+};
+
+(async () => {
+  const st = await api('/api/state');
+  renderProfile(st.profile);
+  renderCards(st.cards || []);
+})();
+</script>
+</body>
+</html>

@@ -104,11 +104,13 @@ class HarnessTests(unittest.TestCase):
         self.assertFalse(errors)
         self.assertIn('ARXIV-SANITY-X', stale)
 
-    def test_release_truthfully_blocked_before_implementation(self):
+    def test_release_still_blocked_by_unrun_gates(self):
         errors = harness.check_release(self.root)
         self.assertTrue(any('E-PERFORMANCE' in e for e in errors))
         self.assertTrue(any('enforcement is not implemented' in e for e in errors))
-        self.assertTrue(any('approval missing' in e for e in errors))
+        self.assertTrue(any('E-RANKING' in e for e in errors))
+        # Owner approval is recorded, so it must not appear as a blocker any more.
+        self.assertFalse(any('implementation approval missing' in e for e in errors))
 
     def test_record_cannot_downgrade_or_omit_changed_files(self):
         record = {'schema_version': 1, 'class': 'docs', 'summary': 'test', 'files': [],

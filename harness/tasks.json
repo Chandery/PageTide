@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "plan_id": "2026-09-11-recommendation-first-plan",
-  "approved_for_implementation": false,
-  "approval_note": "Owner requested full research/replanning and a pre-build token budget, not implementation of this proposal, paid/model calls or data sharing. Legacy implementation approval does not carry over.",
+  "approved_for_implementation": true,
+  "approval_note": "Owner approved implementation on 2026-09-11: start building the usable app (Python core + SQLite + local web/Tauri shell) with AI triage in the first slice. Quality gates (E-RANKING, E-FEEDBACK-VALUE, E-LLM-LABEL-VALIDITY) remain not_run; implementation approval is not a claim that recommendations work.",
   "stages": [
     "research",
     "benchmark",
@@ -284,7 +284,7 @@
       "id": "PDF-01",
       "stage": "reading",
       "title": "首版：下载并本地归档 PDF，可离线打开，不绕过付费墙",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "CORE-01"
       ],
@@ -299,7 +299,11 @@
         "离线可打开已下载文件；断网不阻塞推荐与反馈",
         "记录来源、抓取时间与许可线索；不自动上传或重分发"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/decisions/0005-implementation-start-tauri-python.md",
+        "app/service.py",
+        "app/gateway.py"
+      ]
     },
     {
       "id": "READ-01",
@@ -373,7 +377,7 @@
       "id": "AI-01",
       "stage": "assist",
       "title": "唯一预算网关 + 每日五篇速览（可关闭、默认前先授权）",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "EVAL-01",
         "PLAN-02"
@@ -390,7 +394,11 @@
         "失败/超时/无Key时降级为纯本地卡片，不静默切换模型或重试循环",
         "未经授权不发起真实调用；关闭AI时模型请求为0"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/decisions/0005-implementation-start-tauri-python.md",
+        "app/service.py",
+        "app/gateway.py"
+      ]
     },
     {
       "id": "AI-02",
@@ -440,7 +448,7 @@
       "id": "PILOT-01",
       "stage": "delivery",
       "title": "最小结果/反馈/阅读界面与日常试用，验证价值与资源",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "EVAL-01",
         "READ-01",

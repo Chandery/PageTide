@@ -63,7 +63,23 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 - 新增 `LABEL-01` 大模型辅助评估标注；运行时用 DeepSeek 官方，评估裁判用 taomu/gpt-6-astra（[ADR 0004](decisions/0004-evaluation-annotator-separation.md)）。两个 key 都**仅存于 `.local/`（未入 Git）**，建议实验后轮换；已跑通两次非私密探针（deepseek 122 token；taomu 发现每次注入 ~4.4k 隐藏 token）。
 - 随后跑 `REUSE-01`（ASReview/X 受限探针）与 `DATA-01`（领域覆盖），再按 [EVALUATION](EVALUATION.md) 跑 `LABEL-01`。
 
-### DATA-01 首轮结果（in_progress）
+### 实现（第一切片，2026-09-11）
+
+owner 已批准实现（`harness/tasks.json` `approved_for_implementation=true`）并选定 **Python 核心 + SQLite + 本地网页（Tauri 壳后续）**，第一切片包含 AI 速览。见 [ADR 0005](decisions/0005-implementation-start-tauri-python.md)。
+
+已具备（`app/`，stdlib）：
+
+- `db.py` SQLite：papers / exposures / feedback / profile_versions / pdfs / settings；反馈可撤销、画像版本追加不可变。
+- `sources.py` OpenAlex：发现（arXiv源 + title.search + 日期上界，DATA-01 验证的配方）+ 种子解析；响应缓存可回放；限流时容错。
+- `ranking.py`：TF-IDF 余弦 + Rocchio 画像 + MMR 多样性。
+- `gateway.py`：唯一预算网关（先预留、再发送、记账；超限拒绝；失败降级）。
+- `service.py`：每日 5 卡、反馈语义（`busy/confused/later` 不改兴趣）、画像可见可改、PDF 下载、AI 速览。
+- `server.py` + `static/index.html`：本地 loopback 网页（单线程，只绑 127.0.0.1）。
+- `cli.py`：headless 全流程。
+
+已验证：82 个单测通过；`harness.py check` 通过；真实 AI 速览一次成功（1469 token, $0.00106，ledger 已记）；网页 `GET /` 200、`/api/state` 返回 5 张卡。
+
+尚未做：Tauri 壳、打包与签名、AI 追问、Zotero 导入、笔记/高亮（后置），以及修标注提示词的种子标题偏差。
 
 - **10/10 种子解析成功**（owner 补了两个 arXiv ID）；显式 ID 作权威，标题不符会记录 mismatch。
 - **发现配方已确定**：arXiv source（`S4306400194`）+ `title.search` + 日期上界 → 3,226 条且 200/200 全是世界模型；裸关键词 328 万条且被污染。
@@ -71,6 +87,8 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 - **日期必须带 `to_publication_date`**，否则出现 2036 年记录。
 - 费用：OpenAlex $0.001/search、1000 credits 与 $0.10/日；arXiv 本机 IP 本次持续 429。
 - 下一步：修正测量（加非世界模型干扰项、改分级相关度、标更多低排名样本），再做 `E-LLM-LABEL-VALIDITY` 抽检，然后才可能碰 `E-RANKING`。
+
+### DATA-01 首轮结果（in_progress）
 
 ### 实验 1–2 结果（CORE-01 in_progress）
 

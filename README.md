@@ -15,6 +15,31 @@
 7. [Harness](docs/HARNESS.md) 与 [当前交接](docs/HANDOFF.md)：如何记录、审查、验证与换 agent。
 8. 任务与验收事实源：`harness/tasks.json`、`harness/requirements.json`、`harness/evaluations.json`。
 
+## 运行（第一切片，开发模式）
+
+```sh
+# 1) 初始化：解析 10 篇种子（OpenAlex 公开元数据）
+python3 -m app.cli init
+
+# 2) 抓候选（可用 --no-distractors；OpenAlex 限流时会跳过并报错）
+python3 -m app.cli refresh --pages 1 --per-page 100
+
+# 3) 生成今日 5 篇，可选 AI 速览（--dry-run 不花钱）
+python3 -m app.cli daily --triage --dry-run
+python3 -m app.cli daily --triage          # 真实调用 DeepSeek，走预算网关
+
+# 4) 反馈与画像
+python3 -m app.cli fb 1 useful             # useful / irrelevant / later / busy / confused
+python3 -m app.cli profile --pin "world model,JEPA"
+
+# 5) 网页界面（本地 loopback；Tauri 壳后续包它）
+python3 -m app.server        # http://127.0.0.1:8765
+```
+
+离线/开发时可用已冻结的候选集：`python3 -m app.cli import-candidates .local/experiments/candidates.json`。
+
+**默认零 token**；AI 速览/追问经唯一预算网关（`app/gateway.py`），失败降级为本地卡片。反馈里的“没空/看不懂/以后再看”**不改变兴趣**。
+
 ## 暂保留的安全边界
 
 本地保存、低资源、无默认模型权重下载、无托管后端/云同步/遥测；模型和新数据外发先授权；没选/没空/看不懂不等于不喜欢。论文软件连接和预览器都不是核心前提。

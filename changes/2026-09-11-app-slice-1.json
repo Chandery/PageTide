@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-app-slice-1",
+  "class": "critical",
+  "summary": "First working application slice after owner-approved implementation start: app/ with SQLite storage, OpenAlex source adapters, TF-IDF/Rocchio/MMR ranking, a single budgeted model gateway, the daily 5-card loop, feedback semantics, PDF download, optional AI triage, a loopback web UI and a headless CLI. 82 tests pass; one real DeepSeek triage call succeeded and was ledgered. Recommendation quality remains unproven; gates stay not_run.",
+  "tasks": [
+    "PILOT-01",
+    "AI-01",
+    "PDF-01"
+  ],
+  "files": [
+    "README.md",
+    "app/__init__.py",
+    "app/cli.py",
+    "app/db.py",
+    "app/gateway.py",
+    "app/ranking.py",
+    "app/server.py",
+    "app/service.py",
+    "app/sources.py",
+    "app/static/index.html",
+    "changes/2026-09-11-app-slice-1.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0005-implementation-start-tauri-python.md",
+    "docs/evidence/2026-09-11-app-slice-1-checks.txt",
+    "docs/evidence/2026-09-11-app-slice-1-self-review.md",
+    "harness/tasks.json",
+    "tests/test_app_core.py",
+    "tests/test_app_server.py",
+    "tests/test_harness.py"
+  ],
+  "scope_note": "Covers the diff since commit f16b070. New app package + tests + docs/registry; one real model call (~$0.0011).",
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "The app now contains a runtime model path (daily_triage via the single gateway) which was exercised once for $0.0010608 / 1469 tokens. Ceilings and prices are unchanged; the ledger lives in .local and the call is recorded. This is a first slice, not a passing budget gate.",
+    "before": "No runtime application; model calls only in offline probes.",
+    "after": "Runtime path exists behind app/gateway.py with reserve-then-send accounting; one triage call recorded; enforcement still not implemented for concurrency/restart.",
+    "period": "single call on 2026-09-11",
+    "quantified": {
+      "period": "one call",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 780,
+        "output_tokens": 689,
+        "usd": "0.0010608"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-app-slice-1-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-app-slice-1-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-app-slice-1-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 -m app.cli daily --limit 3",
+      "exit_code": 0,
+      "scope": "Cards generated from the local DB"
+    },
+    {
+      "command": "GET / and /api/state via app.server",
+      "exit_code": 0,
+      "scope": "Loopback UI serves the page and five cards"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; first working slice, not a release",
+      "evidence": "docs/evidence/2026-09-11-app-slice-1-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Recommendation quality unproven: E-RANKING/E-FEEDBACK-VALUE/E-LLM-LABEL-VALIDITY remain not_run.",
+    "Labelling prompt seed-title bias unfixed; evaluation numbers are not product evidence.",
+    "No Tauri shell/packaging; OpenAlex 429s can make refresh unreliable.",
+    "Budget gateway untested near ceilings or across restart with unknown usage.",
+    "No Zotero import, notes/highlights, follow-up QA or export UI yet."
+  ]
+}
