@@ -85,6 +85,22 @@ class ServerSmokeTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("server_version", json.loads(body))
 
+    def test_pdf_view_404_when_not_downloaded(self):
+        status, body = self._get("/api/pdf/view?key=missing")
+        self.assertEqual(status, 404)
+        self.assertIn("error", json.loads(body))
+
+    def test_pdf_view_serves_stored_file(self):
+        app = server.make_app(str(self.root))
+        app.store.upsert_papers([{"key": "pdf1", "title": "PDF Paper", "abstract": "x",
+                                  "published": "2026-08-01", "group_name": "field"}])
+        path = Path(self.root) / "sample.pdf"
+        path.write_bytes(b"%PDF-1.4 test")
+        app.store.record_pdf("pdf1", path, "local")
+        status, body = self._get("/api/pdf/view?key=pdf1")
+        self.assertEqual(status, 200)
+        self.assertTrue(body.startswith(b"%PDF"))
+
     def test_feedback_round_trip_over_http(self):
         # Seed one paper directly so the UI has something to show.
         app = server.make_app(str(self.root))

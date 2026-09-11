@@ -133,13 +133,20 @@
   .card:hover .hint { opacity:1; }
 
   /* --------------------------------------------------------------- preview */
-  #preview { position:fixed; z-index:70; width:min(440px,92vw); padding:18px; background:var(--base);
-             box-shadow:var(--sh-out); border-radius:var(--r-lg); pointer-events:none;
+  #preview { position:fixed; z-index:70; width:min(460px,92vw); padding:18px; background:var(--base);
+             box-shadow:var(--sh-out); border-radius:var(--r-lg); pointer-events:auto;
+             max-height:min(74vh,660px); display:flex; flex-direction:column;
              opacity:0; transform:translateY(8px) scale(.98); transition:opacity .16s, transform .16s; }
   #preview.show { opacity:1; transform:none; }
   #preview h4 { margin:0 0 9px; font-size:14px; line-height:1.44; }
-  #preview .pabs { font-size:12.5px; max-height:190px; overflow:hidden; color:var(--muted); }
+  #preview .pabs { font-size:12.5px; overflow:auto; color:var(--muted); flex:1; padding-right:8px; }
   #preview .phint { margin-top:11px; font-size:11.5px; color:var(--accent); }
+  .whyline { font-size:12.5px; color:var(--muted); margin-top:13px; }
+  .whyline span { box-shadow:var(--sh-in-sm); padding:5px 11px; border-radius:999px; display:inline-block; }
+  .pdfbox { box-shadow:var(--sh-in); border-radius:var(--r-md); height:min(72vh,640px); overflow:hidden; margin-top:6px; }
+  .pdfbox iframe { width:100%; height:100%; border:0; background:#fff; }
+  .pdfbox .ph { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;
+                gap:12px; color:var(--muted); font-size:13px; }
 
   /* ----------------------------------------------------------- detail page */
   .page { position:fixed; inset:0; z-index:80; overflow:auto; padding:28px 16px 70px; background:var(--base);
@@ -288,14 +295,11 @@ function cardHTML(c, i) {
     </div>
     <div class="abs">${esc(c.abstract || '（无摘要）')}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
-    <div class="why"><span>推荐理由：${esc(c.why)}</span></div>
+    <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
     <div class="actions">
       <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
         ${saved ? '✓ 已收藏（点此取消）' : '☆ 收藏'}</button>
       <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
-      <button class="tiny" data-fb="later" data-key="${esc(c.key)}">以后再看</button>
-      <button class="tiny" data-fb="busy" data-key="${esc(c.key)}">没空</button>
-      <button class="tiny" data-fb="confused" data-key="${esc(c.key)}">看不懂</button>
     </div>
     <div class="hint">点击查看详情 →</div>
   </article>`;
@@ -421,9 +425,12 @@ $('#library').addEventListener('click', (e) => {
 });
 
 // hover preview
-let hoverTimer = null, hoverKey = null;
+let hoverTimer = null, hideTimer = null, hoverKey = null;
+function scheduleHide() { clearTimeout(hideTimer); hideTimer = setTimeout(hidePreview, 240); }
+function cancelHide() { clearTimeout(hideTimer); }
 $('#cards').addEventListener('mouseover', (e) => {
   const card = e.target.closest('.card[data-key]'); if (!card) return;
+  cancelHide();
   if (card.dataset.key === hoverKey) return;
   hoverKey = card.dataset.key; clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => showPreview(card), 500);
@@ -431,21 +438,25 @@ $('#cards').addEventListener('mouseover', (e) => {
 $('#cards').addEventListener('mouseout', (e) => {
   const card = e.target.closest('.card[data-key]'); if (!card) return;
   if (e.relatedTarget && card.contains(e.relatedTarget)) return;
-  clearTimeout(hoverTimer); hidePreview(); hoverKey = null;
+  clearTimeout(hoverTimer); scheduleHide();
 });
+// Keep the preview open while the pointer is inside it so the abstract can be scrolled.
+$('#preview').addEventListener('mouseenter', cancelHide);
+$('#preview').addEventListener('mouseleave', scheduleHide);
 function showPreview(card) {
   const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
   const p = $('#preview');
   p.innerHTML = `<h4>${esc(c.title)}</h4><div class="pabs">${esc(c.abstract || '（无摘要）')}</div>
-    <div class="phint">点击卡片打开详情页</div>`;
-  const r = card.getBoundingClientRect();
+    <div class="phint">点击卡片打开详情页（含 PDF 预览）</div>`;
+  p.style.left = '0px'; p.style.top = '0px';
   p.classList.add('show');
+  const r = card.getBoundingClientRect();
   const w = p.offsetWidth, h = p.offsetHeight;
   let left = Math.min(r.right + 16, window.innerWidth - w - 16); if (left < 12) left = 12;
-  let top = Math.min(Math.max(12, r.top), window.innerHeight - h - 16);
+  let top = Math.min(Math.max(12, r.top), Math.max(12, window.innerHeight - h - 16));
   p.style.left = `${left}px`; p.style.top = `${top}px`;
 }
-function hidePreview() { $('#preview').classList.remove('show'); }
+function hidePreview() { $('#preview').classList.remove('show'); hoverKey = null; }
 
 // ------------------------------------------------------------ detail page
 async function openDetail(key) {
@@ -468,14 +479,14 @@ async function openDetail(key) {
           <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div>` : ''}
         <div class="label">完整摘要</div>
         <div class="full">${esc(d.abstract || '（无摘要）')}</div>
+        <div class="label">PDF 预览</div>
+        <div class="pdfbox" id="pdfBox">${d.has_pdf
+          ? `<iframe src="/api/pdf/view?key=${encodeURIComponent(d.key)}" title="PDF"></iframe>`
+          : `<div class="ph"><div>尚未下载 PDF</div><button id="pdfLoad">获取并预览 PDF</button><div class="sub">仅开放获取来源（arXiv）</div></div>`}</div>
         <div class="row" style="margin-top:24px">
           <button id="dToggle" class="${d.saved ? 'saved' : 'primary'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
             ${d.saved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库'}</button>
           <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
-          <button class="tiny" data-fb="later" data-key="${esc(d.key)}">以后再看</button>
-          <button class="tiny" data-fb="busy" data-key="${esc(d.key)}">没空</button>
-          <button class="tiny" data-fb="confused" data-key="${esc(d.key)}">看不懂</button>
-          <button class="tiny" id="dPdf">下载 PDF</button>
           <a class="btn" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>
         </div>
       </div>`;
@@ -489,11 +500,20 @@ async function openDetail(key) {
       btn.className = now ? 'saved' : 'primary';
       btn.textContent = now ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库';
     };
-    $('#dPdf').onclick = async () => {
-      toast('下载中…', 'warn');
-      const r = await api('/api/pdf', { key: d.key });
-      toast(r.ok ? `已保存：${r.path}` : `未下载：${r.reason}`, r.ok ? 'ok' : 'warn', 5000);
-    };
+    $('#dPdf') && ($('#dPdf').onclick = loadPdf);
+    const pdfLoad = $('#pdfLoad');
+    if (pdfLoad) pdfLoad.onclick = loadPdf;
+    async function loadPdf() {
+      const box = $('#pdfBox');
+      box.innerHTML = '<div class="ph"><span class="spin"></span>正在获取 PDF…</div>';
+      try {
+        const r = await api('/api/pdf/prepare', { key: d.key });
+        if (!r.ok) { box.innerHTML = `<div class="ph"><div>无法预览：${esc(r.reason || '未知')}</div></div>`; return; }
+        box.innerHTML = `<iframe src="/api/pdf/view?key=${encodeURIComponent(d.key)}" title="PDF"></iframe>`;
+      } catch (e) {
+        box.innerHTML = `<div class="ph"><div>无法预览：${esc(e.message)}</div></div>`;
+      }
+    }
   } catch (e) {
     toast(`打不开详情：${e.message}`, 'err', 6000);
   }

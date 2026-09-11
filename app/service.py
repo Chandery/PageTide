@@ -131,6 +131,9 @@ class App:
             "feedback": self.latest_feedback().get(key),
             "saved": self.store.in_library(key),
             "summary": self.store.summaries().get(key),
+            "topic": paper.get("topic"),
+            "why": self.explain(paper)["why"],
+            "has_pdf": self.pdf_path(key) is not None,
         }
 
     def refresh_candidates(self, search="world model", from_date="2024-01-01", pages=1, per_page=100,
@@ -181,23 +184,69 @@ class App:
         batch_id = self.store.create_batch(run_date, chosen)
         return {"batch_id": batch_id, "cards": self.cards(batch_id)}
 
+    def _reference_docs(self):
+        """Seeds and saved papers, used to explain *which* direction a card resembles."""
+        references = []
+        for key in self.seed_keys():
+            paper = self.store.paper(key)
+            if paper:
+                references.append((f"种子《{paper['title']}》", f"{paper['title']} {paper['abstract'] or ''}"))
+        for paper in self.store.library():
+            references.append((f"已收藏《{paper['title']}》", f"{paper['title']} {paper['abstract'] or ''}"))
+        return references
+
+    def explain(self, paper):
+        """Human-readable reason: pinned terms hit, nearest reference, shared topics."""
+        text = f"{paper.get('title') or ''} {paper.get('abstract') or ''}"
+        tokens = set(ranking.tokenize(text))
+        pinned = [t for t in self.profile()["pinned_terms"] if t.lower() in tokens]
+        references = self._reference_docs()
+        nearest_label, nearest_score, shared = None, 0.0, []
+        if references:
+            docs = [doc for _, doc in references]
+            idf = ranking.build_idf([ranking.tokenize(d) for d in docs + [text]])
+            doc_vec = ranking.l2_normalize(ranking.vectorize(ranking.tokenize(text), idf))
+            for (label, doc) in references:
+                ref_tokens = set(ranking.tokenize(doc))
+                score = ranking.cosine(doc_vec, ranking.l2_normalize(ranking.vectorize(ranking.tokenize(doc), idf)))
+                if score > nearest_score:
+                    nearest_label, nearest_score, shared = label, score, sorted(tokens & ref_tokens)[:8]
+        parts = []
+        if paper.get("topic"):
+            parts.append(f"领域：{paper['topic']}")
+        if pinned:
+            parts.append("命中钉死关键词：" + ", ".join(pinned))
+        if nearest_label:
+            parts.append(f"与{nearest_label}方向接近")
+        if shared:
+            parts.append("共同主题：" + ", ".join(shared[:6]))
+        return {
+            "why": "；".join(parts) or "与画像整体相似",
+            "topic": paper.get("topic"),
+            "nearest_reference": nearest_label,
+            "nearest_score": round(nearest_score, 3),
+            "matched_terms": pinned,
+            "shared_terms": shared,
+        }
+
     def cards(self, batch_id=None):
         rows = self.store.batch(batch_id) if batch_id is not None else self.store.latest_batch()
-        profile = self.profile()
-        terms = set(profile["pinned_terms"])
         summaries = self.store.summaries()
         feedback = self.latest_feedback()
         cards = []
         for row in rows:
-            title_words = set(ranking.tokenize(row["title"]))
-            matched = sorted(terms & title_words)
+            explanation = self.explain(row)
             cards.append({
                 "key": row["key"], "rank": row["rank"], "title": row["title"],
                 "abstract": row["abstract"], "published": row["published"], "source": row["source"],
-                "arxiv_id": row["arxiv_id"], "doi": row["doi"],
+                "topic": row["topic"], "arxiv_id": row["arxiv_id"], "doi": row["doi"],
                 "url": (f"https://arxiv.org/abs/{row['arxiv_id']}" if row["arxiv_id"]
                         else (row["doi"] or row["openalex_id"])),
-                "why": ("命中钉死关键词: " + ", ".join(matched)) if matched else "与种子/反馈画像相似",
+                "why": explanation["why"],
+                "nearest_reference": explanation["nearest_reference"],
+                "nearest_score": explanation["nearest_score"],
+                "matched_terms": explanation["matched_terms"],
+                "shared_terms": explanation["shared_terms"],
                 "mode": "sparse",
                 "saved": self.store.in_library(row["key"]),
                 "feedback": (feedback.get(row["key"]) or {}).get("action"),
@@ -229,6 +278,17 @@ class App:
         return {"undone": feedback_id}
 
     # ------------------------------------------------------------------- pdf
+    def pdf_path(self, paper_key):
+        row = self.conn_pdf(paper_key)
+        return Path(row) if row else None
+
+    def conn_pdf(self, paper_key):
+        row = self.store.conn.execute("SELECT path FROM pdfs WHERE paper_key=?", (paper_key,)).fetchone()
+        if not row:
+            return None
+        path = Path(row["path"])
+        return str(path) if path.exists() else None
+
     def download_pdf(self, paper_key, timeout=60):
         import urllib.request
         paper = self.store.paper(paper_key)

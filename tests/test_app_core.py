@@ -173,6 +173,25 @@ class ServiceTests(unittest.TestCase):
             self.app.record_feedback(card["key"], "irrelevant")
         self.assertEqual(len(self.app.cards()), 2)
 
+    def test_explain_is_specific_and_names_a_reference(self):
+        # A saved paper becomes a reference, so a similar candidate should name it.
+        self.app.store.upsert_papers([{"key": "ref1", "title": "World Model Planning with JEPA",
+                                       "abstract": "latent prediction and planning for robotics",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.store.save_to_library("ref1")
+        explanation = self.app.explain({"title": "Zero-shot planning with a world model",
+                                        "abstract": "latent prediction enables planning",
+                                        "topic": "Robotics"})
+        self.assertTrue(explanation["why"])
+        self.assertIn("已收藏", explanation["nearest_reference"] or "")
+        self.assertTrue(explanation["shared_terms"])
+        self.assertIn("领域：Robotics", explanation["why"])
+
+    def test_cards_have_distinct_reasons(self):
+        self.app.build_batch(limit=2)
+        cards = self.app.cards()
+        self.assertTrue(all(c["why"] for c in cards))
+
 
 if __name__ == "__main__":
     unittest.main()

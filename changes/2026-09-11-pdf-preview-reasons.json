@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-pdf-preview-reasons",
+  "class": "critical",
+  "summary": "Owner feedback round: the hover preview now scrolls the whole abstract and stays open while the pointer is inside it; the detail page (and library entries) embed an inline PDF preview via GET /api/pdf/view with POST /api/pdf/prepare to fetch open-access PDFs; recommendation reasons are now specific (nearest reference by name + shared topic terms + OpenAlex topic, stored as papers.topic with an additive migration); 以后再看/没空/看不懂 removed from the UI, leaving only 收藏 and 不感兴趣.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/db.py",
+    "app/server.py",
+    "app/service.py",
+    "app/sources.py",
+    "app/static/index.html",
+    "changes/2026-09-11-pdf-preview-reasons.json",
+    "docs/evidence/2026-09-11-pdf-preview-reasons-checks.txt",
+    "docs/evidence/2026-09-11-pdf-preview-reasons-self-review.md",
+    "tests/test_app_core.py",
+    "tests/test_app_server.py"
+  ],
+  "scope_note": "Covers the diff since commit 6352768. db/service/server + static UI + tests; one arXiv PDF fetched (open access).",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Feature/UI work only; no model call and no budget or provider change. PDFs are fetched from the public arXiv open-access endpoint.",
+    "before": "Hover preview truncated and could not scroll; detail showed only the abstract; every card had the same reason; five feedback buttons.",
+    "after": "Scrollable preview card; inline PDF preview in detail/library; per-card reasons naming the nearest seed/saved paper and shared terms; two actions only.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-pdf-preview-reasons-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-pdf-preview-reasons-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-pdf-preview-reasons-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "live reasons + PDF prepare/view",
+      "exit_code": 0,
+      "scope": "5/5 distinct reasons; prepare ok; view returns application/pdf starting %PDF-; detail has_pdf true"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; feature work, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-pdf-preview-reasons-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "PDF preview is limited to open-access arXiv papers.",
+    "papers.topic is only filled for newly fetched rows; older rows fall back to similarity-only reasons.",
+    "Hover-preview timing is heuristic and visually unverified by the agent.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

@@ -11,7 +11,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS papers (
   key TEXT PRIMARY KEY,              -- DOI or OpenAlex ID or normalized title
   openalex_id TEXT, doi TEXT, arxiv_id TEXT,
-  title TEXT NOT NULL, abstract TEXT, published TEXT, source TEXT,
+  title TEXT NOT NULL, abstract TEXT, published TEXT, source TEXT, topic TEXT,
   group_name TEXT,                   -- 'field' or 'distractor'
   created_at TEXT NOT NULL
 );
@@ -68,7 +68,14 @@ class Store:
 
     def init(self):
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self):
+        """Additive migrations so an existing local database keeps working."""
+        columns = {row[1] for row in self.conn.execute("PRAGMA table_info(papers)")}
+        if "topic" not in columns:
+            self.conn.execute("ALTER TABLE papers ADD COLUMN topic TEXT")
 
     def close(self):
         self.conn.close()
@@ -79,11 +86,11 @@ class Store:
         for paper in papers:
             cur = self.conn.execute(
                 """INSERT OR IGNORE INTO papers
-                   (key, openalex_id, doi, arxiv_id, title, abstract, published, source, group_name, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                   (key, openalex_id, doi, arxiv_id, title, abstract, published, source, topic, group_name, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (paper["key"], paper.get("openalex_id"), paper.get("doi"), paper.get("arxiv_id"),
                  paper["title"], paper.get("abstract"), paper.get("published"),
-                 paper.get("source"), paper.get("group_name"), now()))
+                 paper.get("source"), paper.get("topic"), paper.get("group_name"), now()))
             added += cur.rowcount
         self.conn.commit()
         return added

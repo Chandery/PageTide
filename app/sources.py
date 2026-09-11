@@ -57,11 +57,14 @@ def key_of(work):
 def slim(work, group="field"):
     ids = ids_of(work)
     abstract = abstract_text(work.get("abstract_inverted_index"))
+    topic = ((work.get("primary_topic") or {}).get("display_name")
+             or (work.get("primary_topic") or {}).get("field", {}).get("display_name"))
     return {
         "key": key_of(work), "openalex_id": ids["openalex_id"], "doi": ids["doi"],
         "arxiv_id": ids["arxiv_id"], "title": work.get("title"), "abstract": abstract,
         "published": work.get("publication_date"),
         "source": ((work.get("primary_location") or {}).get("source") or {}).get("display_name"),
+        "topic": topic,
         "group_name": group,
     }
 

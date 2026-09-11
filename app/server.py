@@ -81,6 +81,15 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _file(self, path, content_type="application/pdf", status=200):
+        data = Path(path).read_bytes()
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Disposition", "inline")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def _body(self):
         length = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(length) or b"{}")
@@ -114,6 +123,13 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/library":
             app = self._app()
             self._json({"items": app.library(), "stats": app.stats()})
+        elif route == "/api/pdf/view":
+            app = self._app()
+            path = app.pdf_path((query.get("key") or [""])[0])
+            if path:
+                self._file(path, "application/pdf")
+            else:
+                self._json({"error": "pdf not downloaded yet"}, 404)
         elif route == "/api/profile":
             app = self._app()
             self._json({"profile": app.profile(), "versions": app.store.profile_versions()})
@@ -162,6 +178,8 @@ class Handler(BaseHTTPRequestHandler):
             if not detail:
                 print(f"[404] paper key={body.get('key')!r} (POST)", file=sys.stderr)
             self._json(detail or {"error": "not found", "key": body.get("key")}, 200 if detail else 404)
+        elif route == "/api/pdf/prepare":
+            self._json(app.download_pdf(body["key"]))
         elif route == "/api/pdf":
             self._json(app.download_pdf(body["key"]))
         else:
