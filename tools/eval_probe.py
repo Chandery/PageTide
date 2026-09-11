@@ -395,16 +395,31 @@ def spotcheck_agreement(items, annotator_labels):
 
 def cmd_spotcheck_score(args):
     out = Path(args.out_dir)
-    items = parse_spotcheck_sheet(out / "spotcheck-sheet.md")
+    items = []
+    used = []
+    for name in [s.strip() for s in args.sheets.split(",") if s.strip()]:
+        path = out / name
+        if path.exists():
+            items += parse_spotcheck_sheet(path)
+            used.append(name)
     labels = json.loads((out / "labels.json").read_text())
     stats = spotcheck_agreement(items, labels)
-    print(f"compared={stats['n']}  exact={stats['exact']:.0%}  within1={stats['within1']:.0%}  binary(>=2)={stats['binary']:.0%}")
+    print(f"sheets={used} compared={stats['n']}  exact={stats['exact']:.0%}  "
+          f"within1={stats['within1']:.0%}  binary(>=2)={stats['binary']:.0%}")
     print(f"owner distribution     : {stats['owner_distribution']}")
     print(f"annotator distribution : {stats['annotator_distribution']}")
     print("confusion (owner row -> annotator col):")
     for owner in sorted(stats["confusion_owner_rows"]):
         print(f"  owner={owner}: {dict(sorted(stats['confusion_owner_rows'][owner].items()))}")
-    print("\nNOTE: this is a small sample; report it, do not over-fit the threshold.")
+    print("threshold sweep (annotator>=T as 'useful' vs owner>=2):")
+    rows = [(k, o, labels[k]["relevance"]) for k, o in items if k in labels]
+    for threshold in (2, 3):
+        agree = sum(1 for _, o, a in rows if (o >= 2) == (a >= threshold))
+        tp = sum(1 for _, o, a in rows if o >= 2 and a >= threshold)
+        fp = sum(1 for _, o, a in rows if o < 2 and a >= threshold)
+        fn = sum(1 for _, o, a in rows if o >= 2 and a < threshold)
+        print(f"  T>={threshold}: agreement={agree / max(len(rows), 1):.0%} tp={tp} fp={fp} fn={fn}")
+    print("\nNOTE: small sample; threshold chosen on this sample is post-hoc, freeze it only for future sets.")
     return 0
 
 
@@ -444,6 +459,7 @@ def main(argv=None):
 
     spot_score = sub.add_parser("spotcheck-score")
     spot_score.add_argument("--out-dir", default=out_default)
+    spot_score.add_argument("--sheets", default="spotcheck-sheet.md,spotcheck-sheet-2.md")
 
     args = parser.parse_args(argv)
     handlers = {"freeze": cmd_freeze, "rank": cmd_rank, "label": cmd_label,

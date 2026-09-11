@@ -152,8 +152,10 @@
       "blocks_release": true,
       "method": "Draw a random sample of the LLM-labelled items (size agreed in PLAN-02, kept small), have the owner label them without seeing the LLM verdict, and report agreement/confusion. If agreement is below the agreed threshold the proxy labels cannot be used for the ranking gates. Record annotator model/version, prompt version and a hash of the labelled set. An evaluation that is entirely LLM-judged may only be reported as exploratory.",
       "evidence": [
-        "docs/evidence/2026-09-11-label-validation-1.md"
-      ]
+        "docs/evidence/2026-09-11-label-validation-1.md",
+        "docs/evidence/2026-09-11-label-threshold-freeze.md"
+      ],
+      "note": "Partial: 20-item owner spot-check gives 95% binary agreement at the frozen useful=relevance>=2 threshold (1 false positive, 0 false negatives). Not marked passed because n=20 is small, the threshold was chosen post-hoc on the same labelled set, and the graded scale is unusable (annotator never emits 0). A fresh >=40-item validation on a new candidate pool is required before release."
     },
     {
       "id": "E-BUDGET",

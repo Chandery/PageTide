@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-label-threshold-freeze",
+  "class": "critical",
+  "summary": "Combine the two owner blind sheets (20 items) to validate the annotator and freeze the useful threshold. Binary agreement is 95% at useful=relevance>=2 (1 false positive, 0 false negatives) versus 80% at >=3, so >=2 is frozen in EVALUATION.md. Re-scores experiment 2: P@5 saturates at 1.00, but P@10 separates the recency baseline (0.60) from both profile systems (1.00). E-LLM-LABEL-VALIDITY stays not_run (n=20, post-hoc threshold); E-RANKING stays not_run.",
+  "tasks": [
+    "CORE-01",
+    "EVAL-01"
+  ],
+  "files": [
+    "changes/2026-09-11-label-threshold-freeze.json",
+    "docs/EVALUATION.md",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-09-11-label-threshold-freeze-checks.txt",
+    "docs/evidence/2026-09-11-label-threshold-freeze-self-review.md",
+    "docs/evidence/2026-09-11-label-threshold-freeze.md",
+    "harness/evaluations.json",
+    "tools/eval_probe.py"
+  ],
+  "scope_note": "Covers the diff since commit 1e978e1. Scorer + tests + docs/registry; cached labels, no network calls.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No runtime or model call; only local sheets and cached labels were compared. Runtime operations/ceilings unchanged.",
+    "before": "Two thresholds in play; experiment 2 read as either discriminating (>=3) or not (>=2).",
+    "after": "Useful threshold frozen at annotator>=2 (95% binary agreement); experiment 2 reads as P@5 saturated, P@10 profile>recency, keyword vs TF-IDF tied.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-label-threshold-freeze-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-label-threshold-freeze-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-label-threshold-freeze-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 tools/eval_probe.py spotcheck-score",
+      "exit_code": 0,
+      "scope": "20-item agreement and threshold sweep"
+    },
+    {
+      "command": "python3 tools/eval_probe.py score",
+      "exit_code": 0,
+      "scope": "Corrected experiment-2 metrics under the frozen threshold"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; scorer/docs plumbing only; labels are the owner's",
+      "evidence": "docs/evidence/2026-09-11-label-threshold-freeze-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Threshold chosen post-hoc on 20 items; pre-registers only for future candidate sets.",
+    "Annotator graded scale unusable; only binary labels are usable.",
+    "P@10 comparison rests on 10 labelled items per system; not statistical.",
+    "E-LLM-LABEL-VALIDITY and E-RANKING remain not_run."
+  ]
+}
