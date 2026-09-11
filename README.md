@@ -6,13 +6,14 @@
 
 ## 阅读顺序
 
-1. [产品目标](docs/PRODUCT.md)：推荐与画像的最短闭环，以及后置的阅读/捕获层。
-2. [设计头脑风暴](docs/BRAINSTORM.md)：需求拆解、算法选型、候选路线与形态取舍。
-3. [开源与数据源调研](docs/RESEARCH.md)：ASReview/X/lite/PaperFlow 等实际代码、许可与缺口。
-4. [路线与阶段](docs/ROADMAP.md)：S0–S6、实验协议与停止条件。
-5. [预算](docs/BUDGET.md)与[生成表](docs/BUDGET.generated.md)：核心 0 token；AI 层每日最低约 4,500 token 参考、上限约 10,800（未批准）。
-6. [Harness](docs/HARNESS.md) 与 [当前交接](docs/HANDOFF.md)：如何记录、审查、验证与换 agent。
-7. 任务与验收事实源：`harness/tasks.json`、`harness/requirements.json`、`harness/evaluations.json`。
+1. [产品目标](docs/PRODUCT.md)：推荐与画像的最短闭环，以及首版与后置范围。
+2. [测试领域与种子](docs/DOMAIN.md)：英文 AI / world models 与 10 篇正例种子（无反例）。
+3. [设计头脑风暴](docs/BRAINSTORM.md)：需求拆解、算法选型、候选路线与形态取舍。
+4. [开源与数据源调研](docs/RESEARCH.md)：ASReview/X/lite/PaperFlow 等实际代码、许可与缺口；论文图谱/聚类见 [KNOWLEDGE-GRAPH](docs/KNOWLEDGE-GRAPH.md)。
+5. [路线与阶段](docs/ROADMAP.md)：S0–S6、实验协议与停止条件。
+6. [预算](docs/BUDGET.md)与[生成表](docs/BUDGET.generated.md)：核心 0 token；AI 层每日最低约 4,500 token 参考、上限约 10,800（未批准）。
+7. [Harness](docs/HARNESS.md) 与 [当前交接](docs/HANDOFF.md)：如何记录、审查、验证与换 agent。
+8. 任务与验收事实源：`harness/tasks.json`、`harness/requirements.json`、`harness/evaluations.json`。
 
 ## 暂保留的安全边界
 
@@ -32,4 +33,4 @@ python3 -m unittest discover -s tests -v
 
 ## 下一步
 
-需要你给出：研究方向/领域与语言、5–10 篇有用论文（可选 3–5 篇反例）、是否首版包含阅读/笔记层、是否接受 AI 每日 token/金额上限。随后才在隔离目录跑上游复用与数据覆盖探针。
+领域/种子/首版范围已确认（英文 AI / world models，10 篇正例；首版含 PDF 下载与 AI 速览+追问；见 [DOMAIN](docs/DOMAIN.md)）。仍需确认 AI 每日/每月 token 与金额上限、数据外发范围、PDF 存放位置。随后在隔离目录跑上游复用（ASReview/X）与数据覆盖探针。

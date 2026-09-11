@@ -1,0 +1,83 @@
+{
+  "historical_record": true,
+  "superseded_by": "2026-09-11-plan02-decisions-and-graph",
+  "record_note": "Superseded once the follow-up unit (hybrid LLM ranking + paper-graph research) edited the same registry files. Kept as history; use the newer record for current review.",
+  "schema_version": 1,
+  "id": "2026-09-11-plan02-decisions",
+  "class": "critical",
+  "summary": "Fold the owner's PLAN-02 answers into the plan: English AI / world models domain with 10 positive seeds (no negatives), v1 = recommendation/profile core + PDF download/archive + AI daily triage with follow-up QA, macOS-only local, Zotero read-only. Adds R-PDF/E-PDF-ARCHIVE/PDF-01, defers capture to non-blocking, and makes the AI and budget gates blocking again. No runtime, model call or quality measurement.",
+  "tasks": [
+    "PLAN-02",
+    "PDF-01"
+  ],
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "changes/2026-09-11-plan02-decisions.json",
+    "docs/BRAINSTORM.md",
+    "docs/DOMAIN.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/ROADMAP.md",
+    "docs/evidence/2026-09-11-plan02-decisions-checks.txt",
+    "docs/evidence/2026-09-11-plan02-decisions-self-review.md",
+    "harness/budget.json",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/tasks.json"
+  ],
+  "scope_note": "Covers the diff since the fresh baseline commit 8eabaa0. Registry/scope/doc changes only; the earlier baseline record still describes the committed tree.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Planning/registry change only. budget.json edits set daily_triage and paper_qa enabled_by_default=true to match the owner's request; arithmetic, prices and thresholds are unchanged, approved_by_owner stays false, and release remains blocked including E-AI-OPTIONAL and E-BUDGET.",
+    "before": "AI triage/QA registered but default-off and non-blocking; capture (notes/highlights) blocking; no PDF task/requirement; PLAN-02 blocked on owner input.",
+    "after": "AI triage/QA default-on and blocking gates active; PDF download/archive added as v1 (PDF-01, E-PDF-ARCHIVE blocking); capture deferred non-blocking; PLAN-02 in_progress pending frozen metrics and explicit ceiling/e-gress confirmation.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-plan02-decisions-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-plan02-decisions-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-plan02-decisions-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 scripts/harness.py check --release",
+      "exit_code": 1,
+      "scope": "Expected block; E-PDF-ARCHIVE/E-AI-OPTIONAL/E-BUDGET plus all other gates are not_run and no approval exists"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; scope limited to registry/doc consistency, not product quality or billing",
+      "evidence": "docs/evidence/2026-09-11-plan02-decisions-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Seeds not yet resolved to canonical IDs; venues owner-provided and unverified.",
+    "AI daily/monthly token and USD ceilings not explicitly accepted by the owner; approved_by_owner false.",
+    "Data-source egress scope and PDF storage location (local folder vs Zotero) still open.",
+    "No candidate run, no model call, all evaluations not_run; release must stay blocked."
+  ]
+}

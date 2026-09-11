@@ -40,14 +40,17 @@ class BudgetTests(unittest.TestCase):
     def setUp(self):
         self.config = configured_fixture()
 
-    def test_current_plan_is_unapproved_model_proposal(self):
+    def test_current_plan_is_owner_approved_but_not_enforced(self):
         config = budget.load()
         budget.validate(config)
-        # A priced proposal is registered so the pre-build daily minimum is computable,
-        # but it is explicitly NOT approved, enforced or tokenizer-calibrated.
+        # Ceilings are owner-approved including the raised hybrid-rerank scope, but the runtime
+        # gateway and tokenizer parity do not exist yet, and llm_rerank stays default-off.
         self.assertIsNotNone(config['provider'])
         self.assertTrue(config['operations'])
-        self.assertIs(config['approved_by_owner'], False)
+        self.assertIs(config['approved_by_owner'], True)
+        self.assertEqual(config['pending_approval'], [])
+        self.assertIn('llm_rerank', config['operations'])
+        self.assertIs(config['operations']['llm_rerank']['enabled_by_default'], False)
         self.assertIs(config['policy']['runtime_enforcement_implemented'], False)
         self.assertIs(config['policy']['tokenizer_parity_verified'], False)
         zero = next(s for s in config['scenarios'] if s['id'] == 'core_zero_token')
@@ -65,6 +68,8 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(budget.violations(config, starter, 'cap'), [])
         heavy = next(s for s in config['scenarios'] if s['id'] == 'heavy_retry_stress')
         self.assertIn('daily_total_tokens', budget.violations(config, heavy, 'cap'))
+        hybrid = next(s for s in config['scenarios'] if s['id'] == 'hybrid_llm_rerank')
+        self.assertEqual(budget.violations(config, hybrid, 'cap'), [])
 
     def test_provider_absent_cannot_hide_calls_or_limits(self):
         honest = budget.load()

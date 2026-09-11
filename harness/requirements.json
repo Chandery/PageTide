@@ -8,12 +8,15 @@
     {"id":"R-LOCAL","text":"本地保存推荐/画像/反馈/笔记；离线可查看导出；新数据外发最小授权","gates":["E-PRIVACY","E-OFFLINE"]},
     {"id":"R-LOWCOMPUTE","text":"默认不下载本地神经模型；按真实语料与设备测资源，不继承旧目标即算通过","gates":["E-PERFORMANCE"]},
     {"id":"R-DURABILITY","text":"已确认的种子/画像/反馈/曝光/笔记可重启和隔离恢复，版本来源保留","gates":["E-RESTORE"]},
-    {"id":"R-BUDGET","text":"推荐画像首轮生成模型调用为0；每次AI调用经唯一网关；日/月token与金额显式准入，未批准数值不执行","gates":["E-NO-MODEL","E-BUDGET"]},
+    {"id":"R-BUDGET","text":"默认推荐画像路径离线可用且生成模型调用为0；显式启用的重排/速览/追问经唯一网关，日/月token与金额准入，未批准数值不执行","gates":["E-NO-MODEL","E-BUDGET"]},
     {"id":"R-HARNESS","text":"结果可复现、假设/证据/历史和当前状态可区分；换agent可仅凭AGENTS→HANDOFF→任务接手","gates":["E-HARNESS","E-HANDOFF"]},
     {"id":"R-RELEASE","text":"真实最小闭环试用、维护/许可/安全和用户批准后才分发","gates":["E-PILOT","E-SECURITY"]},
-    {"id":"R-CAPTURE","text":"本地论文整理与阅读捕获：收藏理由、用户笔记、高亮锚点可搜索，用户文本与AI文本分离","gates":["E-CAPTURE"]},
+    {"id":"R-CAPTURE","text":"（后置）本地论文整理与阅读捕获：收藏理由、用户笔记、高亮锚点可搜索，用户文本与AI文本分离","gates":["E-CAPTURE"]},
+    {"id":"R-PDF","text":"首版能把推荐/确认论文的PDF本地下载并归档、离线打开；只取允许来源，不绕过付费墙或使用他人凭证","gates":["E-PDF-ARCHIVE"]},
     {"id":"R-READING-INTEGRATION","text":"可选后置：优先标准导出/原文链接/已有文献软件；Zotero只读且按实际版本验证","gates":["E-READING-OPTIONAL"]},
     {"id":"R-AGENT","text":"AI速览/追问/划词有证据边界、有界上下文、不自动工具循环、不上传全部历史或笔记","gates":["E-AI-OPTIONAL","E-BUDGET"]},
+    {"id":"R-HYBRID","text":"允许显式启用的稀疏+大模型混合排序；可关闭、可对照、标注来源模式，模型不可用时回退确定性且不静默换模型","gates":["E-RANKING","E-NO-MODEL","E-BUDGET"]},
+    {"id":"R-GRAPH","text":"论文图谱与聚类：相似论文聚合、不同观点/子领域分开、分组标签可编辑；优先复用开源、本地优先","gates":["E-GRAPH"]},
     {"id":"R-WEEKLY","text":"周报只基于实际活动，统计本地零token，不制造未读债务","gates":["E-WEEKLY-OPTIONAL"]}
   ]
 }

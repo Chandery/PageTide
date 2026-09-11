@@ -77,6 +77,17 @@
 
 **对选型的影响**：`REUSE-01` 不再只测 X。建议优先评估 **ASReview 的模型/querier 层** 作为画像与排序内核（许可与算力最干净），X/lite 作为整链路与兜底候选；数据接入优先 `arxiv.py`/`pyalex`，检索可用 `rank_bm25`。仍然没有「开箱即用的每日五篇 + 可撤销画像」产品，这部分需要薄适配层，但**不需要重写稀疏算法或元数据客户端**。
 
+## 1c. 论文图谱与聚类（本轮新增，owner 请求）
+
+owner 新增需求：自动把论文分类、相似聚类、不同观点/子领域分开，并调研开源知识图谱方案。完整调研与建议栈见 [KNOWLEDGE-GRAPH](KNOWLEDGE-GRAPH.md)，对应任务 `GRAPH-01` / 验收 `E-GRAPH`。
+
+要点：
+
+- **建议最小栈（全部宽松许可、无权重、无服务器、CPU）**：scikit-learn `TfidfVectorizer`+`TruncatedSVD` → 内置 `sklearn.cluster.HDBSCAN` 或 KMeans/Agglomerative；`networkx`+`python-louvain` 做社区发现；`pyalex`（MIT）从 OpenAlex 取引用边；存储优先沿用 SQLite（必要时 DuckDB/Kuzu）；标签用本地 c-TF-IDF top term。
+- **零 token 部分**：抓取、向量、聚类、建边、标签、可视化。**可选便宜大模型**：仅给簇起名/写一句子领域区别，按簇缓存、经预算网关。
+- **回避**：GPL 的 igraph/leidenalg/Gephi/LocalCitationNetwork/Neo4j community；服务器型 Neo4j/Memgraph；构建困难的 graph-tool；闭源产品（Connected Papers/Litmaps/ResearchRabbit/Inciteful/SciSpace）。
+- **风险**：「不同观点分开」比「相似聚类」难，首版先做「相似聚合 + 子领域分开 + 标签可编辑」，观点维度单独实验。
+
 ## 2. 开源许可不是一个统一的“能复制”标签
 
 - X、lite、PaperFlow为MIT，复制/改造需保留版权和许可证，依赖另审：[X LICENSE](https://github.com/xihuai18/arxiv-sanity-x/blob/f6c6b0a961776a18cfc73859fab5cd8ad2986245/LICENSE)、[lite LICENSE](https://github.com/karpathy/arxiv-sanity-lite/blob/d7a303b410b0246fbd19087e37f1885f7ca8a9dc/LICENSE)、[PaperFlow LICENSE](https://github.com/OpenRaiser/PaperFlow/blob/4a835e737490785b3ce51025c85b630cd224318c/LICENSE)。

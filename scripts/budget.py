@@ -237,7 +237,8 @@ def render(config):
             period = f"{s['days']}天/{s['weekly_runs']}次周任务"
             lines.append(f"| {s['label']} / {label} / {period} | {t['input']:,} | {t['output']:,} | {t['tokens']:,} | {d['tokens']:,} | {t['usd']:.6f} | {result} |")
     p = config['policy']
-    lines += ['', '## 拟议准入阈值（待用户批准、待应用网关实现）', '',
+    approval = 'owner 已批准' if config['approved_by_owner'] else '待用户批准'
+    lines += ['', f'## 准入阈值（{approval}；待应用网关实现）', '',
               f"后台/日 {p['daily_background_tokens']:,}；交互/日 {p['daily_interactive_tokens']:,}；合计/日 {p['daily_total_tokens']:,}；合计/月 {p['monthly_total_tokens']:,} token。",
               f"金额额外阈值：${p['daily_usd']}/日，${p['monthly_usd']}/月；token和金额必须同时通过。",
               '后台和交互限额不相加成为总限额。已发出但用量未知的请求持续占用预留。',
