@@ -72,12 +72,13 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 - 费用：OpenAlex $0.001/search、1000 credits 与 $0.10/日；arXiv 本机 IP 本次持续 429。
 - 下一步：修正测量（加非世界模型干扰项、改分级相关度、标更多低排名样本），再做 `E-LLM-LABEL-VALIDITY` 抽检，然后才可能碰 `E-RANKING`。
 
-### 实验 1 结果（CORE-01 in_progress）
+### 实验 1–2 结果（CORE-01 in_progress）
 
-- 管线可用且可复跑：318 篇冻结候选（哈希 `0c06666429815cc8`）→ 3 个系统 → taomu 盲标 26 篇 → P@k。
-- 结果：`recency` P@5=0.80；`keyword+date` 与 `tfidf_seed_centroid` 均 P@5=1.00。**无区分度**。
-- 原因：候选池已被 `title.search:world model` 过滤；裁判 25/26 判为有用（96% 正例）；只标了 top-10 并集。
-- 因此**不能说推荐有效**，也不能说 tfidf 更好；`E-RANKING` 保持 `not_run`。
-- taomu 网关实测：**屏蔽无 UA / `Python-urllib` UA**（需常见 UA）；每次调用含 ~4,224 cached 隐藏前缀。本次 6 次调用约 32,400 token。
+- 管线可复跑：冻结候选（实验2: 1126 篇 = 318 field + 808 distractor，哈希 `5c27c2aa8bfbf91c`）→ 3 个系统 → taomu 盲标 → 分级 P@k。
+- **实验 1（无干扰项、二值标签）**：全部 P@5≈1.00，裁判 96% 判有用 → **无区分度**（负结果，已保留为教训）。
+- **实验 2（加干扰项 + 0–3 分级）**：标签分布 {1:18, 2:5, 3:22}；严格阈值下 `recency` P@5>=3 = 0.40，`keyword+date` 与 `tfidf_seed_centroid` 均 1.00 → **画像排序优于纯时间基线**，但两者并列，无法分出优劣。
+- n=45、P@5 仅 5 样本，不具统计意义；干扰项构造有循环性；**不能宣称推荐有效**，`E-RANKING` 保持 `not_run`。
+- **待 owner**：盲评抽检表（15 篇）在 `.local/experiments/spotcheck-sheet.md`，填完才能算 `E-LLM-LABEL-VALIDITY` 一致率。
+- taomu 网关实测：屏蔽无 UA / `Python-urllib` UA；每次调用含 ~4,224 cached 隐藏前缀。两次标注共 15 次调用约 82k token。
 
 **不开始新的 PDF 阅读器平台，不自动执行整条路线。**

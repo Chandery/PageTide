@@ -40,10 +40,17 @@ class EvalProbeTests(unittest.TestCase):
         self.assertEqual(max(center, key=center.get), "world")
 
     def test_precision_at_k_returns_none_for_unjudged_top_k(self):
-        labels = {"a": {"useful": True}, "b": {"useful": False}, "c": {"useful": True}}
-        self.assertEqual(eval_probe.precision_at_k(["a", "c", "b"], labels, 2), 1.0)
-        self.assertEqual(eval_probe.precision_at_k(["a", "b", "c"], labels, 3), 2 / 3)
-        self.assertIsNone(eval_probe.precision_at_k(["a", "zzz", "b"], labels, 3))
+        labels = {"a": {"relevance": 3}, "b": {"relevance": 1}, "c": {"relevance": 2}}
+        self.assertEqual(eval_probe.precision_at_k(["a", "c", "b"], labels, 2, 2), 1.0)
+        self.assertEqual(eval_probe.precision_at_k(["a", "c", "b"], labels, 3, 2), 2 / 3)
+        self.assertEqual(eval_probe.precision_at_k(["a", "c", "b"], labels, 3, 3), 1 / 3)
+        self.assertIsNone(eval_probe.precision_at_k(["a", "zzz", "b"], labels, 3, 2))
+
+    def test_mean_relevance_at_k(self):
+        labels = {"a": {"relevance": 3}, "b": {"relevance": 0}, "c": {"relevance": 2}}
+        self.assertEqual(eval_probe.mean_relevance_at_k(["a", "c", "b"], labels, 3), 5 / 3)
+        self.assertEqual(eval_probe.mean_relevance_at_k(["a"], labels, 1), 3.0)
+        self.assertIsNone(eval_probe.mean_relevance_at_k(["a", "zzz"], labels, 2))
 
     def test_cosine_handles_empty_vectors(self):
         self.assertEqual(eval_probe.cosine({}, {}), 0.0)

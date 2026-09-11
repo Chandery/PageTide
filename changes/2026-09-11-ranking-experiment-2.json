@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-ranking-experiment-2",
+  "class": "critical",
+  "summary": "Ranking experiment 2 hardens the measurement: mixed field+distractor pool (1126 papers), graded 0-3 relevance rubric, union plus random-sample labelling and graded P@k, plus a blind spot-check sheet. Result: the strict threshold now separates the trivial recency baseline (P@5>=3 0.40) from both profile systems (1.00), but those two tie at the ceiling, so no method ranking is claimed and E-RANKING stays not_run.",
+  "tasks": [
+    "CORE-01",
+    "EVAL-01"
+  ],
+  "files": [
+    "changes/2026-09-11-ranking-experiment-2.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-09-11-ranking-experiment-2-checks.txt",
+    "docs/evidence/2026-09-11-ranking-experiment-2-self-review.md",
+    "docs/evidence/2026-09-11-ranking-experiment-2.md",
+    "harness/tasks.json",
+    "tests/test_eval_probe.py",
+    "tools/eval_probe.py"
+  ],
+  "scope_note": "Covers the diff since commit 7afd07b. Tooling/tests/registries/docs; labels cached in .local.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No runtime-provider call. Evaluation annotator spend this unit: 9 calls, ~50k tokens (~4,224 cached hidden prefix each). Runtime ceilings and operations unchanged. Labels cache so re-runs spend nothing.",
+    "before": "Single-slice pool pre-filtered to the field, boolean labels, 96% positive, no discrimination.",
+    "after": "Mixed 1126-paper pool, graded labels with variance, strict-threshold P@5 separates recency from profile ranking; keyword vs TF-IDF still tied.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-ranking-experiment-2-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-ranking-experiment-2-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-ranking-experiment-2-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 tools/eval_probe.py score",
+      "exit_code": 0,
+      "scope": "Cached labels; graded P@k and relevance distribution"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; measurement tooling only, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-ranking-experiment-2-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "n=45 labels, only 5 items in top-5: not statistically meaningful.",
+    "Annotator remains an unvalidated proxy; blind spot-check sheet not yet filled by the owner.",
+    "Within-field annotator variance is low, so method ranking between keyword and TF-IDF is still undetermined.",
+    "REUSE-01 upstream probe outstanding."
+  ]
+}
