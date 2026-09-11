@@ -104,6 +104,9 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/profile":
             app = self._app()
             self._json({"profile": app.profile(), "versions": app.store.profile_versions()})
+        elif route == "/api/library":
+            app = self._app()
+            self._json({"items": app.library(), "stats": app.stats()})
         else:
             self._static(route)
 
@@ -132,6 +135,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(app.record_feedback(key, action, body.get("reason")))
         elif route == "/api/undo":
             self._json(app.undo_feedback(int(body["feedback_id"])))
+        elif route == "/api/unsave":
+            self._json(app.unsave(body["key"]))
         elif route == "/api/pin":
             data = app.store.current_profile() or {"project": "world-models", "weights": {"pos": 1.0, "neg": 0.5}}
             data["pinned_terms"] = [t.strip() for t in (body.get("terms") or "").split(",") if t.strip()]

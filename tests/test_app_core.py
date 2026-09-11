@@ -145,6 +145,34 @@ class ServiceTests(unittest.TestCase):
         self.app.save_profile(data, note="pin")
         self.assertEqual(self.app.profile()["pinned_terms"], ["planning"])
 
+    def test_useful_saves_to_library_and_card_stays(self):
+        self.app.build_batch(limit=2)
+        cards = self.app.cards()
+        self.assertEqual(len(cards), 2)
+        key = cards[0]["key"]
+        result = self.app.record_feedback(key, "useful")
+        self.assertTrue(result["saved"])
+        self.assertEqual(len(self.app.library()), 1)
+        # The card must remain visible and marked as saved, not vanish.
+        self.assertEqual(len(self.app.cards()), 2)
+        self.assertTrue(next(c for c in self.app.cards() if c["key"] == key)["saved"])
+        # Saving twice is idempotent.
+        self.app.record_feedback(key, "useful")
+        self.assertEqual(len(self.app.library()), 1)
+
+    def test_unsave_removes_from_library(self):
+        self.app.build_batch(limit=1)
+        key = self.app.cards()[0]["key"]
+        self.app.record_feedback(key, "useful")
+        self.app.unsave(key)
+        self.assertEqual(self.app.library(), [])
+
+    def test_feedback_does_not_remove_card_from_view(self):
+        self.app.build_batch(limit=2)
+        for card in self.app.cards():
+            self.app.record_feedback(card["key"], "irrelevant")
+        self.assertEqual(len(self.app.cards()), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

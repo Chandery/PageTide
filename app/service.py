@@ -96,12 +96,27 @@ class App:
         return {
             "papers": len(self.store.papers()),
             "seeds": len(self.seed_keys()),
+            "saved": len(self.store.library()),
             "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
             "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
             "neutral": sum(1 for v in feedback.values() if v["action"] in ("later", "busy", "confused")),
             "shown": len(self.store.seen_keys()),
             "summaries": len(self.store.summaries()),
         }
+
+    def library(self):
+        summaries = self.store.summaries()
+        items = []
+        for row in self.store.library():
+            items.append({
+                "key": row["key"], "title": row["title"], "abstract": row["abstract"] or "",
+                "published": row["published"], "source": row["source"],
+                "doi": row["doi"], "arxiv_id": row["arxiv_id"], "saved_at": row["saved_at"],
+                "url": (f"https://arxiv.org/abs/{row['arxiv_id']}" if row["arxiv_id"]
+                        else (row["doi"] or row["openalex_id"])),
+                "summary": summaries.get(row["key"]),
+            })
+        return items
 
     def paper_detail(self, key):
         paper = self.store.paper(key)
@@ -114,6 +129,7 @@ class App:
             "url": (f"https://arxiv.org/abs/{paper['arxiv_id']}" if paper["arxiv_id"]
                     else (paper["doi"] or paper["openalex_id"])),
             "feedback": self.latest_feedback().get(key),
+            "saved": self.store.in_library(key),
             "summary": self.store.summaries().get(key),
         }
 
@@ -169,6 +185,8 @@ class App:
         rows = self.store.batch(batch_id) if batch_id is not None else self.store.latest_batch()
         profile = self.profile()
         terms = set(profile["pinned_terms"])
+        summaries = self.store.summaries()
+        feedback = self.latest_feedback()
         cards = []
         for row in rows:
             title_words = set(ranking.tokenize(row["title"]))
@@ -181,6 +199,9 @@ class App:
                         else (row["doi"] or row["openalex_id"])),
                 "why": ("命中钉死关键词: " + ", ".join(matched)) if matched else "与种子/反馈画像相似",
                 "mode": "sparse",
+                "saved": self.store.in_library(row["key"]),
+                "feedback": (feedback.get(row["key"]) or {}).get("action"),
+                "summary": summaries.get(row["key"]),
             })
         return cards
 
@@ -189,10 +210,19 @@ class App:
         if action not in ACTIONS:
             raise ValueError(f"unknown action: {action}")
         feedback_id = self.store.add_feedback(paper_key, action, reason)
+        # 'useful' means "save to my library"; it does not remove the card from view.
+        if action in POSITIVE_ACTIONS:
+            self.store.save_to_library(paper_key, note=reason)
         self.save_profile(self.store.current_profile() or {"project": "world-models", "pinned_terms": [],
                                                            "weights": {"pos": 1.0, "neg": 0.5}},
                           note=f"feedback:{action}")
-        return {"feedback_id": feedback_id, "action": action, "interest_changed": action in (POSITIVE_ACTIONS | NEGATIVE_ACTIONS)}
+        return {"feedback_id": feedback_id, "action": action,
+                "interest_changed": action in (POSITIVE_ACTIONS | NEGATIVE_ACTIONS),
+                "saved": action in POSITIVE_ACTIONS}
+
+    def unsave(self, paper_key):
+        self.store.remove_from_library(paper_key)
+        return {"saved": False}
 
     def undo_feedback(self, feedback_id):
         self.store.undo_feedback(feedback_id)

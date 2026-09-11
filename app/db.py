@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS summaries (
   paper_key TEXT PRIMARY KEY, one_liner TEXT, why_relevant TEXT, caution TEXT,
   model TEXT, created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS library (
+  paper_key TEXT PRIMARY KEY, saved_at TEXT NOT NULL, note TEXT
+);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_feedback_paper ON feedback(paper_key, undone);
 CREATE INDEX IF NOT EXISTS idx_exposures_paper ON exposures(paper_key);
@@ -191,3 +194,24 @@ class Store:
 
     def summaries(self):
         return {r["paper_key"]: dict(r) for r in self.conn.execute("SELECT * FROM summaries")}
+
+    # --------------------------------------------------------------- library
+    def save_to_library(self, paper_key, note=None):
+        """Idempotent: saving the same paper twice is a no-op."""
+        self.conn.execute(
+            "INSERT OR IGNORE INTO library (paper_key, saved_at, note) VALUES (?,?,?)",
+            (paper_key, now(), note))
+        self.conn.commit()
+
+    def remove_from_library(self, paper_key):
+        self.conn.execute("DELETE FROM library WHERE paper_key=?", (paper_key,))
+        self.conn.commit()
+
+    def library(self):
+        rows = self.conn.execute(
+            """SELECT l.saved_at, l.note, p.* FROM library l JOIN papers p ON p.key=l.paper_key
+               ORDER BY l.saved_at DESC""").fetchall()
+        return [dict(r) for r in rows]
+
+    def in_library(self, paper_key):
+        return self.conn.execute("SELECT 1 FROM library WHERE paper_key=?", (paper_key,)).fetchone() is not None
