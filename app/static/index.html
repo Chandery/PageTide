@@ -134,10 +134,13 @@
 
   /* --------------------------------------------------------------- preview */
   #preview { position:fixed; z-index:70; width:min(460px,92vw); padding:18px; background:var(--base);
-             box-shadow:var(--sh-out); border-radius:var(--r-lg); pointer-events:auto;
+             box-shadow:var(--sh-out); border-radius:var(--r-lg);
              max-height:min(74vh,660px); display:flex; flex-direction:column;
              opacity:0; transform:translateY(8px) scale(.98); transition:opacity .16s, transform .16s; }
-  #preview.show { opacity:1; transform:none; }
+  /* Hidden means NOT interactive: an invisible box left where it last appeared
+     would sit over the neighbouring column and swallow its hover events. */
+  #preview { pointer-events:none; visibility:hidden; }
+  #preview.show { opacity:1; transform:none; pointer-events:auto; visibility:visible; }
   #preview h4 { margin:0 0 9px; font-size:14px; line-height:1.44; }
   #preview .pabs { font-size:12.5px; overflow:auto; color:var(--muted); flex:1; padding-right:8px; }
   #preview .phint { margin-top:11px; font-size:11.5px; color:var(--accent); }
@@ -691,7 +694,12 @@ function showPreview(card) {
   let top = Math.min(Math.max(12, r.top), Math.max(12, window.innerHeight - h - 16));
   p.style.left = `${left}px`; p.style.top = `${top}px`;
 }
-function hidePreview() { $('#preview').classList.remove('show'); hoverKey = null; }
+function hidePreview() {
+  $('#preview').classList.remove('show');
+  $('#preview').style.left = '0px';   // park it out of the way while hidden
+  $('#preview').style.top = '0px';
+  hoverKey = null;
+}
 
 // ------------------------------------------------------------ detail page
 async function openDetail(key) {
