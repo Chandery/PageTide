@@ -50,7 +50,7 @@ class ServerSmokeTests(unittest.TestCase):
 
     def test_paper_detail_endpoint(self):
         app = server.make_app(str(self.root))
-        # A realistic key contains '://' and '/', which is why the API takes ?key=.
+        # A realistic key contains '://' and '/', which is why the API takes ?key= or a POST body.
         url_key = "https://doi.org/10.48550/arxiv.2609.00001"
         app.store.upsert_papers([{"key": url_key, "title": "World Model Detail",
                                   "abstract": "full abstract text", "published": "2026-08-01",
@@ -64,6 +64,26 @@ class ServerSmokeTests(unittest.TestCase):
         self.assertEqual(json.loads(body)["key"], url_key)
         status, _ = self._get("/api/paper?key=missing")
         self.assertEqual(status, 404)
+
+    def test_paper_detail_via_post_body(self):
+        """This is the path the UI uses; a POST body avoids URL-encoding issues."""
+        app = server.make_app(str(self.root))
+        url_key = "https://doi.org/10.48550/arxiv.2610.00002"
+        app.store.upsert_papers([{"key": url_key, "title": "Posted Detail",
+                                  "abstract": "via body", "published": "2026-08-02",
+                                  "group_name": "field"}])
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/detail",
+            data=json.dumps({"key": url_key}).encode(), headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read())
+        self.assertEqual(payload["key"], url_key)
+        self.assertEqual(payload["abstract"], "via body")
+
+    def test_home_reports_server_version(self):
+        status, body = self._get("/api/home")
+        self.assertEqual(status, 200)
+        self.assertIn("server_version", json.loads(body))
 
     def test_feedback_round_trip_over_http(self):
         # Seed one paper directly so the UI has something to show.

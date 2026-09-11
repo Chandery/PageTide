@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-detail-fix-neumorphism",
+  "class": "critical",
+  "summary": "Harden the detail lookup and restyle the UI. Detail now uses POST /api/detail with the key in a JSON body (no URL encoding at all), with the ?key= and unquote()d path forms kept as fallbacks, [404] logging on the server, and a server_version shown in the page footer so a stale process is obvious. UI rewritten in Neumorphism (single surface, paired shadows, no borders) with 5 accent colours and a light/dark toggle.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/server.py",
+    "app/static/index.html",
+    "changes/2026-09-11-detail-fix-neumorphism.json",
+    "docs/evidence/2026-09-11-detail-fix-neumorphism-checks.txt",
+    "docs/evidence/2026-09-11-detail-fix-neumorphism-self-review.md",
+    "tests/test_app_server.py"
+  ],
+  "scope_note": "Covers the diff since commit 5986309. Server route/version + static UI + tests; no model call.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Bug hardening and presentation work only; no model call and no budget/config change.",
+    "before": "Detail depended on URL-encoded path/query; a stale server process made it 404 with no visible signal; UI used a bordered card style.",
+    "after": "Detail via POST body with fallbacks, 404 logging and a visible server version; Neumorphism styling with 5 accents and light/dark.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-detail-fix-neumorphism-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-detail-fix-neumorphism-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-detail-fix-neumorphism-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "fresh server + browser-shaped POST /api/detail",
+      "exit_code": 0,
+      "scope": "HTTP 200, correct title, 1339-char abstract, no [404] in stderr"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; bug hardening and UI, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-detail-fix-neumorphism-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Neumorphism visuals are unverified by the agent (no rendered-page access).",
+    "Recommendation quality remains unproven; gates stay not_run.",
+    "Export, notes, Zotero import and Tauri packaging still missing."
+  ]
+}

@@ -1,162 +1,173 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="mint">
+<html lang="zh-CN" data-mode="light" data-accent="violet">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PaperDigHelper</title>
 <style>
-  /* ------------------------------------------------------------ base tokens */
+  /* Neumorphism: one surface colour, depth from paired shadows (no borders). */
   :root {
-    --bg:#0b0d10; --bg2:#12151a; --surface:#171b21; --ink:#e9edf2; --muted:#98a2b3;
-    --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.16);
-    --glass:rgba(23,27,33,.62); --glass-strong:rgba(26,31,38,.86);
-    --radius:16px; --radius-sm:10px;
-    --shadow:0 18px 40px rgba(0,0,0,.45);
-    --accent:#10b981; --accent-ink:#04150f; --ai:#a78bfa; --good:#10b981; --bad:#f43f5e; --warn:#f59e0b;
-    --glow1:rgba(16,185,129,.20); --glow2:rgba(167,139,250,.16);
+    --base:#e7ebf1; --text:#3b4058; --muted:#7d849b;
+    --sd:rgba(163,177,198,.62); --sl:rgba(255,255,255,.96);
+    --accent:#6d5dfc; --accent-soft:rgba(109,93,252,.14);
+    --good:#2f9e6f; --bad:#d05a4a; --warn:#c98a1f; --ai:#7b61ff;
+    --r-lg:20px; --r-md:14px; --r-sm:10px;
+    --sh-out:7px 7px 16px var(--sd), -7px -7px 16px var(--sl);
+    --sh-out-sm:4px 4px 9px var(--sd), -4px -4px 9px var(--sl);
+    --sh-in:inset 5px 5px 11px var(--sd), inset -5px -5px 11px var(--sl);
+    --sh-in-sm:inset 3px 3px 7px var(--sd), inset -3px -3px 7px var(--sl);
   }
-  @media (prefers-color-scheme: light) {
-    :root { --bg:#f6f7f9; --bg2:#eceef2; --surface:#ffffff; --ink:#151a21; --muted:#5c6675;
-            --line:rgba(12,20,30,.10); --line-strong:rgba(12,20,30,.18);
-            --glass:rgba(255,255,255,.66); --glass-strong:rgba(255,255,255,.9);
-            --shadow:0 14px 34px rgba(20,30,45,.12);
-            --glow1:rgba(16,185,129,.14); --glow2:rgba(167,139,250,.12); }
+  html[data-mode="dark"] {
+    --base:#272b33; --text:#e3e7ee; --muted:#98a1b1;
+    --sd:rgba(0,0,0,.62); --sl:rgba(255,255,255,.055);
+    --accent-soft:rgba(109,93,252,.20);
+    --good:#4ecb8d; --bad:#f0836f; --warn:#e0b25c; --ai:#a892ff;
   }
-  html[data-theme="mint"] { --accent:#10b981; --accent-ink:#04150f; --ai:#a78bfa; --good:#10b981; --bad:#f43f5e;
-                            --glow1:rgba(16,185,129,.20); --glow2:rgba(167,139,250,.16); }
-  html[data-theme="rose"] { --accent:#f43f5e; --accent-ink:#20060c; --ai:#f59e0b; --good:#10b981; --bad:#e11d48;
-                            --glow1:rgba(244,63,94,.18); --glow2:rgba(245,158,11,.16); }
-  html[data-theme="sand"] { --accent:#d97706; --accent-ink:#1c1206; --ai:#d946ef; --good:#059669; --bad:#dc2626;
-                            --glow1:rgba(217,119,6,.20); --glow2:rgba(217,70,239,.14); }
-  html[data-theme="ink"]  { --accent:#8b5cf6; --accent-ink:#120722; --ai:#f472b6; --good:#34d399; --bad:#fb7185;
-                            --glow1:rgba(139,92,246,.20); --glow2:rgba(244,114,182,.14); }
+  html[data-accent="violet"] { --accent:#6d5dfc; --ai:#7b61ff; }
+  html[data-accent="mint"]   { --accent:#1f9d6b; --ai:#2fa07a; }
+  html[data-accent="coral"]  { --accent:#e2653f; --ai:#d0723f; }
+  html[data-accent="rose"]   { --accent:#c94f86; --ai:#b5629a; }
+  html[data-accent="amber"]  { --accent:#c78a1a; --ai:#b3861f; }
+  html[data-mode="dark"][data-accent="violet"] { --accent:#8b7dff; --ai:#a394ff; }
+  html[data-mode="dark"][data-accent="mint"]   { --accent:#3ecf9a; --ai:#54c69a; }
+  html[data-mode="dark"][data-accent="coral"]  { --accent:#ff8a63; --ai:#e8946b; }
+  html[data-mode="dark"][data-accent="rose"]   { --accent:#f07aae; --ai:#dd8fbb; }
+  html[data-mode="dark"][data-accent="amber"]  { --accent:#e8b04a; --ai:#d7a44e; }
 
   * { box-sizing:border-box; }
   html,body { margin:0; }
   body {
-    font:15px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Helvetica Neue","PingFang SC",Arial,sans-serif;
-    color:var(--ink); min-height:100vh;
-    background:
-      radial-gradient(1100px 560px at 10% -14%, var(--glow1), transparent 62%),
-      radial-gradient(950px 520px at 106% 2%, var(--glow2), transparent 58%),
-      linear-gradient(178deg, var(--bg), var(--bg2));
-    background-attachment:fixed;
+    font:15px/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Helvetica Neue","PingFang SC",Arial,sans-serif;
+    color:var(--text); background:var(--base); min-height:100vh;
+    transition:background .3s ease, color .3s ease;
   }
-  .glass { background:var(--glass); backdrop-filter:blur(22px) saturate(140%);
-           -webkit-backdrop-filter:blur(22px) saturate(140%);
-           border:1px solid var(--line); box-shadow:var(--shadow); border-radius:var(--radius); }
+  .out { background:var(--base); box-shadow:var(--sh-out); border-radius:var(--r-lg); }
+  .out-sm { background:var(--base); box-shadow:var(--sh-out-sm); border-radius:var(--r-sm); }
+  .in { background:var(--base); box-shadow:var(--sh-in); border-radius:var(--r-lg); }
+  .in-sm { background:var(--base); box-shadow:var(--sh-in-sm); border-radius:var(--r-sm); }
 
-  /* ---------------------------------------------------------------- header */
-  header.top { position:sticky; top:12px; z-index:40; margin:12px auto 0; max-width:1080px;
-               padding:10px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .brand { font-weight:650; display:flex; align-items:center; gap:8px; white-space:nowrap; letter-spacing:.2px; }
-  .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); }
-  .tabs { display:flex; gap:2px; padding:3px; border-radius:12px; background:color-mix(in srgb, var(--ink) 6%, transparent); }
-  .tab { padding:6px 14px; border-radius:9px; font-size:13.5px; color:var(--muted); cursor:pointer; user-select:none;
-         transition:background .18s, color .18s; }
-  .tab:hover { color:var(--ink); }
-  .tab.active { background:color-mix(in srgb, var(--ink) 11%, transparent); color:var(--ink); font-weight:600; }
+  /* ------------------------------------------------------------------ header */
+  header.top { position:sticky; top:14px; z-index:40; max-width:920px; margin:14px auto 0;
+               padding:12px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+               background:var(--base); box-shadow:var(--sh-out); border-radius:var(--r-lg); }
+  .brand { font-weight:650; letter-spacing:.01em; display:flex; align-items:center; gap:9px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--accent);
+         box-shadow:0 0 0 4px var(--accent-soft); }
+  .tabs { display:flex; gap:4px; padding:5px; border-radius:14px; background:var(--base); box-shadow:var(--sh-in-sm); }
+  .tab { padding:7px 16px; border-radius:10px; font-size:13.5px; color:var(--muted); cursor:pointer;
+         user-select:none; transition:color .2s, background .2s, box-shadow .2s; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--text); font-weight:600; background:var(--base); box-shadow:var(--sh-out-sm); }
   .right { margin-left:auto; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .chips { display:flex; gap:6px; flex-wrap:wrap; }
-  .chip { font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--line);
-          background:color-mix(in srgb, var(--ink) 5%, transparent); color:var(--muted); }
-  .chip b { color:var(--ink); font-weight:600; }
-  .themes { display:flex; gap:6px; }
-  .sw { width:16px; height:16px; border-radius:50%; cursor:pointer; border:2px solid transparent;
-        transition:transform .15s ease, border-color .15s ease; }
-  .sw:hover { transform:scale(1.15); }
-  .sw.active { border-color:var(--ink); }
-  .sw[data-t="mint"]{background:#10b981}.sw[data-t="rose"]{background:#f43f5e}
-  .sw[data-t="sand"]{background:#d97706}.sw[data-t="ink"]{background:#8b5cf6}
-
-  main { max-width:1080px; margin:16px auto 90px; padding:0 16px; }
-  h1 { font-size:22px; margin:0 0 4px; letter-spacing:-.01em; }
+  .stat { font-size:12px; color:var(--muted); display:flex; gap:10px; }
+  .stat b { color:var(--text); font-weight:650; }
+  .controls { display:flex; align-items:center; gap:8px; }
+  .sw { width:17px; height:17px; border-radius:50%; cursor:pointer; box-shadow:var(--sh-out-sm);
+        transition:transform .15s ease; }
+  .sw:hover { transform:scale(1.12); }
+  .sw.active { box-shadow:var(--sh-in-sm); }
+  .sw[data-a="violet"]{background:#6d5dfc}.sw[data-a="mint"]{background:#1f9d6b}
+  .sw[data-a="coral"]{background:#e2653f}.sw[data-a="rose"]{background:#c94f86}
+  .sw[data-a="amber"]{background:#c78a1a}
+  .modes { padding:4px; border-radius:12px; box-shadow:var(--sh-in-sm); display:flex; }
+  main { max-width:920px; margin:20px auto 90px; padding:0 16px; }
+  h1 { font-size:23px; margin:0 0 4px; letter-spacing:-.015em; }
   .sub { color:var(--muted); font-size:13px; }
 
-  /* --------------------------------------------------------------- buttons */
-  button, .btn { font:inherit; color:var(--ink); cursor:pointer; border-radius:999px; border:1px solid var(--line);
-    background:color-mix(in srgb, var(--ink) 5%, transparent); padding:7px 14px;
-    display:inline-flex; align-items:center; gap:6px; white-space:nowrap; text-decoration:none;
-    transition:transform .12s ease, background .18s ease, border-color .18s ease, opacity .18s; }
-  button:hover, .btn:hover { background:color-mix(in srgb, var(--ink) 11%, transparent); transform:translateY(-1px); }
-  button:active { transform:scale(.97); }
-  button:disabled { opacity:.5; cursor:default; transform:none; }
-  button.primary { background:var(--accent); border-color:transparent; color:var(--accent-ink); font-weight:650; }
-  button.primary:hover { filter:brightness(1.07); }
-  button.ghost { background:transparent; }
-  button.tiny { padding:5px 11px; font-size:12.5px; }
-  button.danger:hover { border-color:color-mix(in srgb, var(--bad) 55%, transparent); color:var(--bad); }
-  button.saved { border-color:color-mix(in srgb, var(--good) 55%, transparent); color:var(--good); }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  input[type=text] { font:inherit; color:var(--ink); background:color-mix(in srgb, var(--ink) 5%, transparent);
-    border:1px solid var(--line); border-radius:999px; padding:8px 14px; min-width:220px; flex:1; }
-  input[type=text]:focus { outline:2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset:1px; }
-
-  /* ------------------------------------------------------------------ hero */
-  .hero { padding:20px; margin-bottom:16px; animation:rise .45s ease both; }
-  .hero .row + .row { margin-top:12px; }
+  /* ----------------------------------------------------------------- buttons */
+  button, .btn { font:inherit; color:var(--text); cursor:pointer; border:none; background:var(--base);
+    padding:9px 17px; border-radius:999px; box-shadow:var(--sh-out-sm);
+    display:inline-flex; align-items:center; gap:7px; white-space:nowrap; text-decoration:none;
+    transition:box-shadow .16s ease, transform .16s ease, color .16s ease; }
+  button:hover, .btn:hover { transform:translateY(-1px); }
+  button:active, .btn:active { box-shadow:var(--sh-in-sm); transform:none; }
+  button:disabled { opacity:.55; cursor:default; transform:none; }
+  button.primary { color:var(--accent); font-weight:650; }
+  button.ghost { box-shadow:none; background:transparent; }
+  button.ghost:hover { box-shadow:var(--sh-out-sm); }
+  .tiny { padding:6px 13px; font-size:12.5px; }
+  .danger:hover { color:var(--bad); }
+  .saved { color:var(--good); font-weight:600; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  input[type=text] { font:inherit; color:var(--text); background:var(--base); border:none;
+    border-radius:999px; padding:11px 18px; min-width:220px; flex:1; box-shadow:var(--sh-in-sm); }
+  input[type=text]::placeholder { color:var(--muted); }
+  input[type=text]:focus { outline:none; box-shadow:var(--sh-in-sm), 0 0 0 2px var(--accent-soft); }
   .switch { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; }
-  .switch input { accent-color:var(--accent); }
+  .switch input { accent-color:var(--accent); width:16px; height:16px; }
 
-  /* ----------------------------------------------------------------- cards */
-  .grid { display:grid; grid-template-columns:1fr; gap:14px; }
-  @media (min-width:800px) { .grid { grid-template-columns:1fr 1fr; } }
-  .card { position:relative; padding:18px; cursor:pointer; animation:rise .42s ease both;
-          transition:transform .18s ease, box-shadow .22s ease, border-color .2s ease; }
-  .card:hover { transform:translateY(-3px); border-color:var(--line-strong); box-shadow:0 22px 50px rgba(0,0,0,.42); }
-  .card:hover .open-hint { opacity:1; transform:none; }
-  .card h3 { font-size:15.5px; margin:0 0 8px; line-height:1.42; letter-spacing:-.005em; }
-  .meta { font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
-  .badge { font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--line);
-           background:color-mix(in srgb, var(--ink) 5%, transparent); color:var(--muted); }
-  .badge.ai { color:var(--ai); border-color:color-mix(in srgb, var(--ai) 45%, transparent);
-              background:color-mix(in srgb, var(--ai) 12%, transparent); }
-  .badge.saved { color:var(--good); border-color:color-mix(in srgb, var(--good) 50%, transparent);
-                 background:color-mix(in srgb, var(--good) 12%, transparent); }
-  .abs { font-size:13.5px; color:color-mix(in srgb, var(--ink) 86%, transparent);
+  /* -------------------------------------------------------------------- hero */
+  .hero { padding:22px; margin-bottom:18px; background:var(--base); box-shadow:var(--sh-out);
+          border-radius:var(--r-lg); animation:rise .5s ease both; }
+  .hero .row + .row { margin-top:14px; }
+
+  /* ------------------------------------------------------------------- cards */
+  .grid { display:grid; grid-template-columns:1fr; gap:18px; }
+  @media (min-width:820px) { .grid { grid-template-columns:1fr 1fr; } }
+  .card { position:relative; padding:20px; cursor:pointer; background:var(--base);
+          box-shadow:var(--sh-out); border-radius:var(--r-lg); animation:rise .45s ease both;
+          transition:box-shadow .22s ease, transform .22s ease; }
+  .card:hover { transform:translateY(-2px);
+                box-shadow:10px 10px 22px var(--sd), -10px -10px 22px var(--sl); }
+  .card:active { box-shadow:var(--sh-in); transform:none; }
+  .card h3 { font-size:15.5px; margin:0 0 9px; line-height:1.44; letter-spacing:-.005em; }
+  .meta { font-size:12px; color:var(--muted); display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:11px; }
+  .badge { font-size:11px; padding:3px 10px; border-radius:999px; box-shadow:var(--sh-in-sm); color:var(--muted); }
+  .badge.ai { color:var(--ai); }
+  .badge.saved { color:var(--good); }
+  .abs { font-size:13.5px; color:var(--text); opacity:.86;
          display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
-  .ai-slot { margin-top:10px; }
-  .ai-line { font-size:13px; padding:9px 11px; border-radius:12px; border-left:3px solid var(--ai);
-             background:color-mix(in srgb, var(--ai) 9%, transparent); animation:fade .3s ease both; }
-  .ai-loading { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
-  .spin { width:13px; height:13px; border-radius:50%; border:2px solid color-mix(in srgb, var(--ai) 32%, transparent);
-          border-top-color:var(--ai); animation:spin .8s linear infinite; }
+  .ai-slot { margin-top:12px; }
+  .ai-line { font-size:13px; padding:11px 13px; border-radius:var(--r-md); box-shadow:var(--sh-in-sm);
+             animation:fade .3s ease both; }
+  .ai-line b { color:var(--ai); }
+  .ai-loading { display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted); }
+  .spin { width:14px; height:14px; border-radius:50%; border:2px solid var(--accent-soft);
+          border-top-color:var(--accent); animation:spin .8s linear infinite; }
   .ai-off { font-size:12.5px; color:var(--muted); }
-  .why { font-size:12.5px; color:var(--muted); margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
-  .actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
-  .open-hint { position:absolute; right:16px; bottom:14px; font-size:11.5px; color:var(--muted);
-               opacity:0; transform:translateX(-4px); transition:opacity .2s, transform .2s; }
+  .why { font-size:12.5px; color:var(--muted); margin-top:13px; }
+  .why span { box-shadow:var(--sh-in-sm); padding:5px 11px; border-radius:999px; display:inline-block; }
+  .actions { display:flex; gap:9px; flex-wrap:wrap; margin-top:15px; }
+  .hint { position:absolute; right:20px; bottom:16px; font-size:11.5px; color:var(--muted);
+          opacity:0; transition:opacity .2s; }
+  .card:hover .hint { opacity:1; }
 
-  /* ---------------------------------------------------------------- preview */
-  #preview { position:fixed; z-index:70; width:min(440px,92vw); padding:16px; pointer-events:none;
-             opacity:0; transform:translateY(8px); transition:opacity .16s ease, transform .16s ease; }
+  /* --------------------------------------------------------------- preview */
+  #preview { position:fixed; z-index:70; width:min(440px,92vw); padding:18px; background:var(--base);
+             box-shadow:var(--sh-out); border-radius:var(--r-lg); pointer-events:none;
+             opacity:0; transform:translateY(8px) scale(.98); transition:opacity .16s, transform .16s; }
   #preview.show { opacity:1; transform:none; }
-  #preview h4 { margin:0 0 8px; font-size:14px; line-height:1.42; }
-  #preview .pabs { font-size:12.5px; max-height:190px; overflow:hidden; color:color-mix(in srgb, var(--ink) 84%, transparent); }
-  #preview .hint { margin-top:10px; font-size:11.5px; color:var(--muted); }
+  #preview h4 { margin:0 0 9px; font-size:14px; line-height:1.44; }
+  #preview .pabs { font-size:12.5px; max-height:190px; overflow:hidden; color:var(--muted); }
+  #preview .phint { margin-top:11px; font-size:11.5px; color:var(--accent); }
 
-  /* ------------------------------------------------------------ detail page */
-  .page { position:fixed; inset:0; z-index:80; overflow:auto; padding:24px 16px 70px;
-          background:linear-gradient(178deg, var(--bg), var(--bg2)); animation:slideIn .26s ease both; }
-  .page-inner { max-width:840px; margin:0 auto; padding:26px; }
-  .page h2 { font-size:22px; line-height:1.38; margin:0 0 10px; letter-spacing:-.01em; }
-  .full { font-size:14.5px; line-height:1.8; white-space:pre-wrap; color:color-mix(in srgb, var(--ink) 92%, transparent); }
-  .section-title { font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:24px 0 8px; }
+  /* ----------------------------------------------------------- detail page */
+  .page { position:fixed; inset:0; z-index:80; overflow:auto; padding:28px 16px 70px; background:var(--base);
+          animation:slideIn .28s ease both; }
+  .page-inner { max-width:800px; margin:0 auto; padding:28px; background:var(--base);
+                box-shadow:var(--sh-out); border-radius:var(--r-lg); }
+  .page h2 { font-size:22px; line-height:1.4; margin:0 0 10px; letter-spacing:-.015em; }
+  .full { font-size:14.5px; line-height:1.85; white-space:pre-wrap; opacity:.9; }
+  .label { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:26px 0 10px; }
 
-  /* ---------------------------------------------------------------- library */
-  .lib-item { padding:16px; cursor:pointer; display:flex; gap:14px; align-items:flex-start; animation:rise .4s ease both;
-              transition:transform .16s ease, border-color .2s ease; }
-  .lib-item:hover { transform:translateX(3px); border-color:var(--line-strong); }
+  /* --------------------------------------------------------------- library */
+  .lib-item { padding:18px; cursor:pointer; display:flex; gap:16px; align-items:center; background:var(--base);
+              box-shadow:var(--sh-out); border-radius:var(--r-lg); animation:rise .4s ease both;
+              transition:box-shadow .2s, transform .2s; }
+  .lib-item:hover { transform:translateY(-2px);
+                    box-shadow:9px 9px 20px var(--sd), -9px -9px 20px var(--sl); }
   .lib-item h4 { margin:0 0 6px; font-size:14.5px; line-height:1.45; }
-  .lib-item .meta { margin:0; }
-  .lib-item .spacer { flex:1; }
 
-  #toasts { position:fixed; right:16px; bottom:16px; z-index:95; display:flex; flex-direction:column; gap:8px; }
-  .toast { padding:11px 15px; font-size:13px; animation:pop .24s ease both; max-width:380px; }
-  .toast.ok { border-left:3px solid var(--good); } .toast.warn { border-left:3px solid var(--warn); }
-  .toast.err { border-left:3px solid var(--bad); } .toast.ai { border-left:3px solid var(--ai); }
-  .empty { padding:34px; text-align:center; color:var(--muted); }
+  #toasts { position:fixed; right:18px; bottom:18px; z-index:95; display:flex; flex-direction:column; gap:10px; }
+  .toast { padding:13px 17px; font-size:13px; background:var(--base); box-shadow:var(--sh-out);
+           border-radius:var(--r-md); animation:pop .24s ease both; max-width:380px;
+           border-left:4px solid var(--accent); }
+  .toast.ok { border-left-color:var(--good); } .toast.warn { border-left-color:var(--warn); }
+  .toast.err { border-left-color:var(--bad); } .toast.ai { border-left-color:var(--ai); }
+  .empty { padding:40px; text-align:center; color:var(--muted); background:var(--base);
+           box-shadow:var(--sh-in); border-radius:var(--r-lg); }
   .hidden { display:none !important; }
+  footer { max-width:920px; margin:0 auto 40px; padding:0 16px; color:var(--muted); font-size:11.5px; text-align:center; }
 
   @keyframes rise { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:none;} }
   @keyframes pop { from{opacity:0;transform:scale(.97) translateY(6px);} to{opacity:1;transform:none;} }
@@ -167,7 +178,7 @@
 </style>
 </head>
 <body>
-<header class="top glass">
+<header class="top">
   <div class="brand"><span class="dot"></span>PaperDigHelper</div>
   <div class="tabs">
     <div class="tab active" data-view="today">今日</div>
@@ -175,17 +186,20 @@
     <div class="tab" data-view="profile">画像</div>
   </div>
   <div class="right">
-    <div class="chips" id="chips"></div>
-    <div class="themes" id="themes" title="换配色"></div>
+    <div class="stat" id="stats"></div>
+    <div class="controls">
+      <div class="sws" id="sws" title="强调色"></div>
+      <div class="modes"><button class="tiny ghost" id="modeBtn">◐</button></div>
+    </div>
   </div>
 </header>
 
 <main>
   <section id="view-today">
-    <section class="hero glass">
+    <section class="hero">
       <h1>今日推荐</h1>
       <div class="sub">本地优先 · 默认零 token · 生成后自动 AI 速览</div>
-      <div class="row" style="margin-top:14px">
+      <div class="row" style="margin-top:16px">
         <button class="primary" id="btnDaily">生成今日 5 篇</button>
         <button id="btnRefresh">抓取新论文</button>
         <label class="switch"><input type="checkbox" id="autoAi" checked> 生成后自动 AI 速览</label>
@@ -195,48 +209,49 @@
   </section>
 
   <section id="view-library" class="hidden">
-    <section class="hero glass">
+    <section class="hero">
       <h1>我的论文库</h1>
-      <div class="sub">点「☆ 收藏」的论文会保存到这里；可在卡片或详情里取消收藏</div>
+      <div class="sub">点「☆ 收藏」的论文会保存到这里；可随时取消收藏</div>
     </section>
     <div id="library" class="grid"></div>
   </section>
 
   <section id="view-profile" class="hidden">
-    <section class="hero glass">
+    <section class="hero">
       <h1>我的画像</h1>
       <div class="sub">可查看、可修改、可回滚；「没空 / 看不懂 / 以后再看」不改变兴趣</div>
-      <div class="row" style="margin-top:14px">
+      <div class="row" style="margin-top:16px">
         <input type="text" id="pin" placeholder="钉死关键词（逗号分隔），例如 world model, JEPA, planning">
         <button id="btnPin">保存关键词</button>
       </div>
     </section>
-    <section class="hero glass" id="profileBox"></section>
+    <section class="hero" id="profileBox"></section>
   </section>
 </main>
+<footer id="foot"></footer>
 
-<div id="preview" class="glass"></div>
+<div id="preview"></div>
 <div id="detail" class="page hidden"></div>
 <div id="toasts"></div>
 
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, triaging:false };
+const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, triaging:false, version:'?' };
 
-// ------------------------------------------------------------------- themes
-const THEMES = ['mint','rose','sand','ink'];
-function applyTheme(t) {
-  document.documentElement.dataset.theme = t;
-  localStorage.setItem('pdh-theme', t);
-  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('active', s.dataset.t === t));
-}
-$('#themes').innerHTML = THEMES.map(t => `<span class="sw" data-t="${t}" title="${t}"></span>`).join('');
-document.querySelectorAll('.sw').forEach(s => s.onclick = () => applyTheme(s.dataset.t));
-applyTheme(localStorage.getItem('pdh-theme') || 'mint');
+// ------------------------------------------------------------ appearance
+const ACCENTS = ['violet','mint','coral','rose','amber'];
+function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m); }
+function setAccent(a){ document.documentElement.dataset.accent = a; localStorage.setItem('pdh-accent', a);
+  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('active', s.dataset.a === a)); }
+$('#sws').innerHTML = ACCENTS.map(a => `<span class="sw" data-a="${a}" title="${a}"></span>`).join('');
+document.querySelectorAll('.sw').forEach(s => s.onclick = () => setAccent(s.dataset.a));
+setMode(localStorage.getItem('pdh-mode') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+setAccent(localStorage.getItem('pdh-accent') || 'violet');
+$('#modeBtn').onclick = () => setMode(document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark');
 
-// -------------------------------------------------------------------- utils
-function toast(msg, kind='ok', ms=3400) {
-  const el = document.createElement('div'); el.className = `toast glass ${kind}`; el.textContent = msg;
+// ------------------------------------------------------------------ utils
+function toast(msg, kind='ok', ms=3600) {
+  const el = document.createElement('div'); el.className = `toast ${kind}`; el.textContent = msg;
   $('#toasts').appendChild(el);
   setTimeout(() => { el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),250); }, ms);
 }
@@ -248,19 +263,15 @@ async function api(path, body) {
 }
 const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function renderChips() {
+function renderStats() {
   const s = state.stats || {};
-  $('#chips').innerHTML = [
-    `<span class="chip">文献 <b>${s.papers ?? 0}</b></span>`,
-    `<span class="chip">收藏 <b>${s.saved ?? 0}</b></span>`,
-    `<span class="chip">正例 <b>${s.positive ?? 0}</b></span>`,
-    `<span class="chip">负例 <b>${s.negative ?? 0}</b></span>`,
-  ].join('');
+  $('#stats').innerHTML = `<span>文献 <b>${s.papers ?? 0}</b></span><span>收藏 <b>${s.saved ?? 0}</b></span>
+    <span>正例 <b>${s.positive ?? 0}</b></span><span>负例 <b>${s.negative ?? 0}</b></span>`;
 }
 
-// --------------------------------------------------------------------- cards
+// ------------------------------------------------------------------ cards
 function aiSlot(c) {
-  if (c.summary) return `<div class="ai-line"><b>速览</b>：${esc(c.summary.one_liner || '')}
+  if (c.summary) return `<div class="ai-line"><b>速览</b> ${esc(c.summary.one_liner || '')}
     ${c.summary.why_relevant ? `<div class="sub">相关：${esc(c.summary.why_relevant)}</div>` : ''}</div>`;
   if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
@@ -268,7 +279,7 @@ function aiSlot(c) {
 function cardHTML(c, i) {
   const saved = c.saved || c.feedback === 'useful';
   return `
-  <article class="card glass" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
+  <article class="card" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <h3>${esc(c.title)}</h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
@@ -277,59 +288,59 @@ function cardHTML(c, i) {
     </div>
     <div class="abs">${esc(c.abstract || '（无摘要）')}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
-    <div class="why">推荐理由：${esc(c.why)}</div>
+    <div class="why"><span>推荐理由：${esc(c.why)}</span></div>
     <div class="actions">
       <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
-        ${saved ? '✓ 已收藏（点击取消）' : '☆ 收藏'}</button>
+        ${saved ? '✓ 已收藏（点此取消）' : '☆ 收藏'}</button>
       <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
       <button class="tiny" data-fb="later" data-key="${esc(c.key)}">以后再看</button>
       <button class="tiny" data-fb="busy" data-key="${esc(c.key)}">没空</button>
       <button class="tiny" data-fb="confused" data-key="${esc(c.key)}">看不懂</button>
     </div>
-    <div class="open-hint">点击查看详情 →</div>
+    <div class="hint">点击查看详情 →</div>
   </article>`;
 }
 function renderCards() {
   if (state.view !== 'today') return;
   $('#cards').innerHTML = state.cards.length ? state.cards.map(cardHTML).join('')
-    : `<div class="empty glass">还没有今日卡片。先「抓取新论文」，再点「生成今日 5 篇」。</div>`;
+    : `<div class="empty">还没有今日卡片。先「抓取新论文」，再点「生成今日 5 篇」。</div>`;
 }
 function renderLibrary() {
   $('#library').innerHTML = state.library.length ? state.library.map((p, i) => `
-    <article class="lib-item glass" data-key="${esc(p.key)}" style="animation-delay:${i*40}ms">
+    <article class="lib-item" data-key="${esc(p.key)}" style="animation-delay:${i*40}ms">
       <div style="flex:1">
         <h4>${esc(p.title)}</h4>
         <div class="meta"><span>${esc(p.published || '')}</span><span>${esc(p.source || '')}</span>
           <span>收藏于 ${esc((p.saved_at || '').slice(0,10))}</span></div>
       </div>
       <button class="tiny danger" data-unsave="${esc(p.key)}">取消收藏</button>
-    </article>`).join('')
-    : `<div class="empty glass">论文库还是空的。在今日卡片上点「☆ 收藏」。</div>`;
+    </article>`).join('') : `<div class="empty">论文库还是空的。在今日卡片上点「☆ 收藏」。</div>`;
 }
 function renderProfile() {
   const p = state.profile || {};
   $('#profileBox').innerHTML = `
     <div class="sub">项目：<b>${esc(p.project || '')}</b></div>
-    <div class="section-title">钉死关键词</div>
+    <div class="label">钉死关键词</div>
     <div>${(p.pinned_terms || []).length ? p.pinned_terms.map(t => `<span class="badge">${esc(t)}</span>`).join(' ') : '<span class="sub">（无）</span>'}</div>
-    <div class="section-title">种子与反馈</div>
+    <div class="label">种子与反馈</div>
     <div>正向种子 <b>${(p.positive_seeds || []).length}</b> · 反馈正例 <b>${(p.positive_feedback || []).length}</b>
       · 显式负例 <b>${(p.explicit_negatives || []).length}</b> · 中性 <b>${(p.neutral_feedback || []).length}</b></div>`;
 }
 
 async function load() {
   const data = await api('/api/home');
+  state.version = data.server_version || '?';
   state.stats = data.stats; state.profile = data.profile; state.summaries = data.summaries || {};
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
-  renderChips(); renderCards(); renderProfile();
+  renderStats(); renderCards(); renderProfile();
+  $('#foot').textContent = `本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`;
 }
 async function loadLibrary() {
   const data = await api('/api/library');
-  state.library = data.items || []; state.stats = data.stats;
-  renderChips(); renderLibrary();
+  state.library = data.items || []; state.stats = data.stats; renderStats(); renderLibrary();
 }
 
-// ---------------------------------------------------------------- generation
+// ------------------------------------------------------------- generation
 async function generate() {
   const b = $('#btnDaily'); b.disabled = true; b.textContent = '生成中…';
   try {
@@ -369,10 +380,9 @@ $('#btnRefresh').onclick = async () => {
 };
 $('#btnPin').onclick = async () => {
   const r = await api('/api/pin', { terms: $('#pin').value });
-  state.profile = r.profile; state.stats = r.stats; renderChips(); renderProfile(); toast('关键词已保存');
+  state.profile = r.profile; state.stats = r.stats; renderStats(); renderProfile(); toast('关键词已保存');
 };
 
-// ---------------------------------------------------------------------- tabs
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
   state.view = t.dataset.view;
@@ -382,7 +392,7 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   if (state.view === 'library') loadLibrary().catch(e => toast(e.message, 'err'));
 });
 
-// ------------------------------------------------------------------ feedback
+// --------------------------------------------------------------- feedback
 async function doFeedback(key, action) {
   if (action === 'unsave') {
     await api('/api/unsave', { key });
@@ -390,14 +400,13 @@ async function doFeedback(key, action) {
   } else {
     const r = await api('/api/feedback', { key, action });
     toast(r.saved ? '已收藏到论文库（卡片保留）' : (r.interest_changed ? `已记录：${action}` : `已记录：${action}（不影响兴趣）`),
-          r.saved ? 'ok' : (r.interest_changed ? 'ok' : 'warn'));
+          r.saved || r.interest_changed ? 'ok' : 'warn');
   }
   const card = state.cards.find(c => c.key === key);
   if (card) { if (action === 'unsave') { card.saved = false; card.feedback = null; } else if (action === 'useful') card.saved = true; }
   renderCards();
   if (state.view === 'library') await loadLibrary();
 }
-
 $('#cards').addEventListener('click', (e) => {
   const fb = e.target.closest('button[data-fb]');
   if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
@@ -428,58 +437,57 @@ function showPreview(card) {
   const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
   const p = $('#preview');
   p.innerHTML = `<h4>${esc(c.title)}</h4><div class="pabs">${esc(c.abstract || '（无摘要）')}</div>
-    <div class="hint">点击卡片打开详情页</div>`;
+    <div class="phint">点击卡片打开详情页</div>`;
   const r = card.getBoundingClientRect();
   p.classList.add('show');
   const w = p.offsetWidth, h = p.offsetHeight;
-  let left = Math.min(r.right + 14, window.innerWidth - w - 14);
-  if (left < 12) left = 12;
-  let top = Math.min(Math.max(12, r.top), window.innerHeight - h - 14);
+  let left = Math.min(r.right + 16, window.innerWidth - w - 16); if (left < 12) left = 12;
+  let top = Math.min(Math.max(12, r.top), window.innerHeight - h - 16);
   p.style.left = `${left}px`; p.style.top = `${top}px`;
 }
 function hidePreview() { $('#preview').classList.remove('show'); }
 
-// --------------------------------------------------------------- detail page
+// ------------------------------------------------------------ detail page
 async function openDetail(key) {
   hidePreview();
   try {
-    const d = await api(`/api/paper?key=${encodeURIComponent(key)}`);
+    // POST with the key in the body: no URL-encoding pitfalls for URL-shaped keys.
+    const d = await api('/api/detail', { key });
     const s = d.summary;
     $('#detail').innerHTML = `
       <div class="page-inner">
         <button class="ghost" id="backBtn">← 返回</button>
-        <div class="section-title" style="margin-top:18px">论文详情</div>
+        <div class="label" style="margin-top:20px">论文详情</div>
         <h2>${esc(d.title)}</h2>
         <div class="meta">
           <span>${esc(d.published || '')}</span><span>${esc(d.source || '')}</span>
           ${d.arxiv_id ? `<span class="badge">arXiv:${esc(d.arxiv_id)}</span>` : ''}
           ${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
         </div>
-        ${s ? `<div class="ai-line" style="margin-top:16px"><b>AI 速览</b>：${esc(s.one_liner || '')}
+        ${s ? `<div class="ai-line" style="margin-top:18px"><b>速览</b> ${esc(s.one_liner || '')}
           <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div>` : ''}
-        <div class="section-title">完整摘要</div>
+        <div class="label">完整摘要</div>
         <div class="full">${esc(d.abstract || '（无摘要）')}</div>
-        <div class="row" style="margin-top:22px">
+        <div class="row" style="margin-top:24px">
           <button id="dToggle" class="${d.saved ? 'saved' : 'primary'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
             ${d.saved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库'}</button>
-          <button data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
-          <button data-fb="later" data-key="${esc(d.key)}">以后再看</button>
-          <button data-fb="busy" data-key="${esc(d.key)}">没空</button>
-          <button data-fb="confused" data-key="${esc(d.key)}">看不懂</button>
-          <button id="dPdf">下载 PDF</button>
+          <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
+          <button class="tiny" data-fb="later" data-key="${esc(d.key)}">以后再看</button>
+          <button class="tiny" data-fb="busy" data-key="${esc(d.key)}">没空</button>
+          <button class="tiny" data-fb="confused" data-key="${esc(d.key)}">看不懂</button>
+          <button class="tiny" id="dPdf">下载 PDF</button>
           <a class="btn" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>
         </div>
       </div>`;
     $('#detail').classList.remove('hidden');
     $('#backBtn').onclick = () => $('#detail').classList.add('hidden');
     $('#dToggle').onclick = async (ev) => {
-      const btn = ev.currentTarget;
-      const wasSaved = btn.dataset.saved === 'true';
+      const btn = ev.currentTarget, wasSaved = btn.dataset.saved === 'true';
       await doFeedback(d.key, wasSaved ? 'unsave' : 'useful');
-      const nowSaved = !wasSaved;
-      btn.dataset.saved = String(nowSaved);
-      btn.className = nowSaved ? 'saved' : 'primary';
-      btn.textContent = nowSaved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库';
+      const now = !wasSaved;
+      btn.dataset.saved = String(now);
+      btn.className = now ? 'saved' : 'primary';
+      btn.textContent = now ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库';
     };
     $('#dPdf').onclick = async () => {
       toast('下载中…', 'warn');
@@ -487,10 +495,9 @@ async function openDetail(key) {
       toast(r.ok ? `已保存：${r.path}` : `未下载：${r.reason}`, r.ok ? 'ok' : 'warn', 5000);
     };
   } catch (e) {
-    toast(`打不开详情：${e.message}`, 'err');
+    toast(`打不开详情：${e.message}`, 'err', 6000);
   }
 }
-// Feedback buttons inside the detail page (delegated once).
 $('#detail').addEventListener('click', (e) => {
   const fb = e.target.closest('button[data-fb]');
   if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err'));

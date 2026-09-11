@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from .service import App
 
 STATIC = Path(__file__).resolve().parent / "static"
+VERSION = "0.3"
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 JOB_SEQ = [0]
@@ -90,17 +91,20 @@ class Handler(BaseHTTPRequestHandler):
         route, query = parsed.path, parse_qs(parsed.query)
         if route == "/api/home":
             app = self._app()
-            self._json({"stats": app.stats(), "profile": app.profile(),
+            self._json({"server_version": VERSION, "stats": app.stats(), "profile": app.profile(),
                         "cards": app.cards(), "summaries": app.store.summaries(),
                         "latest_jobs": list(JOBS.values())[-3:]})
         elif route == "/api/state":  # kept for compatibility
             app = self._app()
             self._json({"profile": app.profile(), "cards": app.cards()})
         elif route == "/api/paper":
-            # Paper keys contain '/' (e.g. https://doi.org/...), so prefer ?key=.
+            # Paper keys are URLs; prefer ?key= over a path segment.
             app = self._app()
-            detail = app.paper_detail((query.get("key") or [""])[0])
-            self._json(detail or {"error": "not found"}, 200 if detail else 404)
+            key = (query.get("key") or [""])[0]
+            detail = app.paper_detail(key)
+            if not detail:
+                print(f"[404] paper key={key!r}", file=sys.stderr)
+            self._json(detail or {"error": "not found", "key": key}, 200 if detail else 404)
         elif route.startswith("/api/paper/"):
             app = self._app()
             detail = app.paper_detail(unquote(route[len("/api/paper/"):]))
@@ -148,6 +152,16 @@ class Handler(BaseHTTPRequestHandler):
             data["pinned_terms"] = [t.strip() for t in (body.get("terms") or "").split(",") if t.strip()]
             app.save_profile(data, note="pin")
             self._json({"profile": app.profile(), "stats": app.stats()})
+        elif route == "/api/library":
+            app = self._app()
+            self._json({"items": app.library(), "stats": app.stats()})
+        elif route == "/api/detail":
+            # POST body avoids URL-encoding issues entirely; the UI uses this first.
+            app = self._app()
+            detail = app.paper_detail(body.get("key") or "")
+            if not detail:
+                print(f"[404] paper key={body.get('key')!r} (POST)", file=sys.stderr)
+            self._json(detail or {"error": "not found", "key": body.get("key")}, 200 if detail else 404)
         elif route == "/api/pdf":
             self._json(app.download_pdf(body["key"]))
         else:
