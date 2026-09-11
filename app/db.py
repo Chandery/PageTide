@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS summaries (
 CREATE TABLE IF NOT EXISTS library (
   paper_key TEXT PRIMARY KEY, saved_at TEXT NOT NULL, note TEXT
 );
+CREATE TABLE IF NOT EXISTS fulltext (
+  paper_key TEXT NOT NULL, page INTEGER NOT NULL, content TEXT NOT NULL, chars INTEGER NOT NULL,
+  created_at TEXT NOT NULL, PRIMARY KEY (paper_key, page)
+);
 CREATE TABLE IF NOT EXISTS qa_history (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   paper_key TEXT, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL
@@ -233,6 +237,22 @@ class Store:
         self.conn.execute("INSERT INTO qa_history (paper_key, role, content, created_at) VALUES (?,?,?,?)",
                           (paper_key, role, content, now()))
         self.conn.commit()
+
+    # ------------------------------------------------------------- full text
+    def save_fulltext(self, paper_key, pages):
+        stamp = now()
+        for page in pages:
+            self.conn.execute(
+                """INSERT INTO fulltext (paper_key, page, content, chars, created_at) VALUES (?,?,?,?,?)
+                   ON CONFLICT(paper_key, page) DO UPDATE SET content=excluded.content,
+                   chars=excluded.chars, created_at=excluded.created_at""",
+                (paper_key, int(page["page"]), page.get("text") or "", len(page.get("text") or ""), stamp))
+        self.conn.commit()
+
+    def fulltext_pages(self, paper_key):
+        rows = self.conn.execute(
+            "SELECT page, content FROM fulltext WHERE paper_key=? ORDER BY page", (paper_key,)).fetchall()
+        return [{"page": r["page"], "text": r["content"]} for r in rows]
 
     def qa_history(self, paper_key, limit=20):
         rows = self.conn.execute(

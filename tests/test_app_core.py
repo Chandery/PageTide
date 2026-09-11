@@ -218,6 +218,50 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(result["degraded"])
         self.assertEqual(self.app.qa_history("p1"), [])
 
+    def test_fulltext_cache_and_retrieval(self):
+        key = "ft1"
+        self.app.store.upsert_papers([{"key": key, "title": "World Model Paper", "abstract": "a",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.save_fulltext(key, [
+            {"page": 1, "text": "Introduction. " + "filler " * 40},
+            {"page": 2, "text": "Figure 2 shows the latent prediction pipeline with a JEPA encoder. " + "x " * 40},
+            {"page": 3, "text": "Experiments on robot manipulation tasks. " + "y " * 40},
+        ])
+        status = self.app.fulltext_status(key)
+        self.assertEqual(status["pages"], 3)
+        hits = self.app.passages(key, "what does figure 2 show about the jepa encoder?", k=1)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["page"], 2)
+
+    def test_passages_empty_without_fulltext(self):
+        self.assertEqual(self.app.passages("nope", "anything"), [])
+
+    def test_qa_reports_mode_pages_and_uses_vision_operation(self):
+        import json as _json
+        seen = {}
+        class FakeGateway:
+            def call(self, op, messages, dry_run=False):
+                seen["op"] = op
+                seen["messages"] = messages
+                return {"ok": True, "content": _json.dumps({"answer": "A", "followups": ["f1"]}),
+                        "usage": {"total_tokens": 1}, "usd": "0", "model": "fake"}
+        self.app.gateway = FakeGateway()
+        key = "v1"
+        self.app.store.upsert_papers([{"key": key, "title": "T", "abstract": "a",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.save_fulltext(key, [{"page": 4, "text": "Figure 4 shows the pipeline. " + "z " * 60}])
+        text_mode = self.app.qa(key, "explain the method")
+        self.assertEqual(text_mode["mode"], "text")
+        self.assertEqual(seen["op"], "paper_qa")
+        self.assertIn(4, text_mode["pages"])
+        vision = self.app.qa(key, "what is in figure 4?", image="data:image/jpeg;base64,AAAA", page_hint=4)
+        self.assertEqual(vision["mode"], "vision")
+        self.assertEqual(seen["op"], "paper_vision_qa")
+        parts = seen["messages"][-1]["content"]
+        self.assertIsInstance(parts, list)
+        self.assertEqual(parts[1]["type"], "image_url")
+        self.assertEqual(parts[1]["image_url"]["url"], "data:image/jpeg;base64,AAAA")
+
     def test_cards_have_distinct_reasons(self):
         self.app.build_batch(limit=2)
         cards = self.app.cards()

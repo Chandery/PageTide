@@ -172,6 +172,28 @@
         "framing_and_margin": 200
       },
       "scope": "optional one-off bilingual term setup; never recurring automatically"
+    },
+    "paper_vision_qa": {
+      "prompt": "prompts/paper-vision-qa.md",
+      "trigger": "interactive",
+      "enabled_by_default": true,
+      "reference": {
+        "input": 5200,
+        "output": 650
+      },
+      "cap": {
+        "input": 8000,
+        "output": 1100
+      },
+      "input_cap_components": {
+        "instructions": 400,
+        "question": 400,
+        "bounded_history": 700,
+        "page_image_jpeg": 1500,
+        "retrieved_text": 4700,
+        "framing_and_margin": 300
+      },
+      "scope": "one answer about a figure/table: one rendered PDF page image plus bounded text excerpts; no automatic tool turns"
     }
   },
   "scenarios": [
@@ -239,6 +261,20 @@
       },
       "weekly_calls": {
         "weekly_digest": 2
+      },
+      "one_off_calls": {}
+    },
+    {
+      "id": "vision_qa_starter",
+      "label": "每日 5 篇速览 + 每周回顾 + 每日 2 次看图问答",
+      "days": 30,
+      "weekly_runs": 5,
+      "daily_calls": {
+        "daily_triage": 1,
+        "paper_vision_qa": 2
+      },
+      "weekly_calls": {
+        "weekly_digest": 1
       },
       "one_off_calls": {}
     }

@@ -392,6 +392,14 @@
       "recheck_after_days": 180,
       "claim": "Apache-2.0 PDF renderer; vendored build (pdf.min.mjs + pdf.worker.min.mjs, pinned 4.6.82) plus the standard_fonts set (Foxit + Liberation, ~800 KB, with their own licence files) renders pages to canvas and builds a text layer so selections are readable by our own code, unlike the browser's built-in PDF plugin",
       "verification": "unpkg build files, standard_fonts manifest and repository LICENSE fetched; vendored under app/static/vendor/pdfjs; data path verified with a 50-page paper (pages/viewport/text items) in Node; no CDN at runtime"
+    },
+    {
+      "id": "DS-VISION",
+      "url": "https://api-docs.deepseek.com/guides/vision",
+      "verified_on": "2026-09-11",
+      "recheck_after_days": 30,
+      "claim": "deepseek-flash accepts OpenAI-compatible content parts: text plus image_url with either a base64 data URL or a public http(s) link (<=32 MiB, link <=8192 chars). The same model name serves vision, so no separate vision model is required.",
+      "verification": "official vision guide fetched (HTTP 200); request shape cross-checked with the OpenAI-format example on the page; no live image call made yet"
     }
   ]
 }

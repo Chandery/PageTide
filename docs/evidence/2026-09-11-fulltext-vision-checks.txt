@@ -1,0 +1,27 @@
+# Evidence: whole-paper context + vision for figure questions
+# Date: 2026-09-11 UTC
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 101 tests in 11.035s
+
+OK
+exit=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ live: cache a real 25-page paper then ask a figure question
+server_version: 0.4
+Warning: fetchStandardFontData: failed to fetch file "FoxitSerif.pfb" with "UnknownErrorException: Ensure that the `stan
+mode: text | pages: [7, 10, 12, 13, 14, 15, 16] | ctx_chars: 6241
+answer: 现有材料中**没有 Figure 2 的图注或对其内容的描述**，无法回答它展示的是什么。  检索到的相关段落只涉及以下图： - **Figure 4**：GigaWorld 的 Real2Real 外观迁移（texture、color、lighting、material） - **Figure 7**：GigaWorld 的第一人称人类视频迁移（egocentric human video tr
+exit=0
+
+$ git diff --check
+exit=0

@@ -318,6 +318,8 @@
       overflow:hidden; }
   .refcard .rx { cursor:pointer; color:var(--muted); flex:0 0 auto; }
   .refcard .rx:hover { color:var(--bad); }
+  .popts { display:flex; gap:10px; align-items:center; padding:9px 14px 0; font-size:11.5px; color:var(--muted); }
+  .msg .meta { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
   #petRef { padding:10px 14px 0; }
   .petpanel header b { letter-spacing:-.01em; }
   @keyframes msgIn { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
@@ -404,6 +406,8 @@
     <button class="tiny ghost" id="petClose">✕</button>
   </header>
   <div class="ptitle" id="petPaper">未选择论文<small>在卡片点「阅读 PDF」，或选中文字后追问</small></div>
+  <div class="popts"><span id="petFt" class="badge">全文未提取</span>
+    <label class="switch"><input type="checkbox" id="fullCtx"> 更多上下文</label></div>
   <div id="petRef"></div>
   <div class="plog" id="petLog"></div>
   <div class="prow">
@@ -803,6 +807,7 @@ async function openReader(key, title) {
     $('#readerInfo').textContent = `${R.doc.numPages} 页`;
     await layoutPages();
     buildThumbs();
+    extractFulltext(key);   // background: cache the text so questions can use the whole paper
   } catch (e) {
     box.innerHTML = `<iframe src="${url}" style="width:min(1200px,96vw);height:calc(100vh - 120px);border:0;background:#fff"></iframe>`;
     $('#readerInfo').textContent = '内置预览（无法划词）';
@@ -888,6 +893,62 @@ function renderPage(n) {
 function markCurrent(n) {
   R.current = n;
   document.querySelectorAll('#readerSide .thumb').forEach((t) => t.classList.toggle('active', Number(t.dataset.n) === n));
+}
+
+/* --------------------------------------------------- full text + vision */
+const FIG_RE = /(fig(?:ure)?\.?\s*\d+|table\s*\d+|eq(?:uation)?\.?\s*\d+|图\s*\d+|表\s*\d+|公式\s*\d+)/i;
+
+async function extractFulltext(key) {
+  try {
+    const status = await api('/api/fulltext?key=' + encodeURIComponent(key));
+    if (status.pages) { setFulltextBadge(status.pages, status.chars); R.fulltext = true; return; }
+  } catch (e) { /* fall through to extraction */ }
+  setTimeout(async () => {
+    try {
+      const pages = [];
+      for (let i = 0; i < R.pages.length; i++) {
+        const content = await R.pages[i].getTextContent();
+        let text = '';
+        for (const item of content.items) text += item.str + (item.hasEOL ? '\n' : '');
+        pages.push({ page: i + 1, text });
+      }
+      R.pageTexts = pages.map((p) => p.text);
+      const saved = await api('/api/fulltext', { key, pages });
+      setFulltextBadge(saved.pages, saved.chars);
+      R.fulltext = true;
+    } catch (e) { toast('全文提取失败：' + e.message, 'warn'); }
+  }, 400);
+}
+
+function setFulltextBadge(pages, chars) {
+  const el = $('#petFt');
+  if (el) el.textContent = `全文已缓存 · ${pages} 页 / ${Math.round(chars / 1000)}k 字符`;
+}
+
+function findFigurePage(question) {
+  const match = question.match(FIG_RE);
+  if (!match) return null;
+  const token = match[0].replace(/\s+/g, '').toLowerCase();
+  const texts = R.pageTexts || [];
+  for (let i = 0; i < texts.length; i++) {
+    if (texts[i].replace(/\s+/g, '').toLowerCase().includes(token)) return i + 1;
+  }
+  let best = null, bestHits = 0;
+  for (let i = 0; i < texts.length; i++) {
+    const hits = (texts[i].match(FIG_RE) || []).length;
+    if (hits > bestHits) { best = i + 1; bestHits = hits; }
+  }
+  return best;
+}
+
+async function pageImage(pageNumber) {
+  const page = R.pages[pageNumber - 1];
+  const vp = page.getViewport({ scale: 1.7 });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.floor(vp.width);
+  canvas.height = Math.floor(vp.height);
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  return canvas.toDataURL('image/jpeg', 0.82);
 }
 
 let thumbObserver = null;
@@ -1007,11 +1068,15 @@ function followupRow(list) {
 }
 let lastFol = null;
 addMsg('sys', '点下面的问题直接问，或自己输入；也可以在 PDF 里选中文字后点「追问」。').appendChild(followupRow());
-function addMsg(kind, text, followups) {
+function addMsg(kind, text, followups, meta) {
   const el = document.createElement('div');
   el.className = `msg ${kind}`;
-  if (kind === 'ai') el.innerHTML = window.PDH.md(text);
-  else el.textContent = text;
+  if (kind === 'ai') {
+    if (meta) { const m = document.createElement('div'); m.className = 'meta'; m.textContent = meta; el.appendChild(m); }
+    const body = document.createElement('div');
+    body.innerHTML = window.PDH.md(text);
+    el.appendChild(body);
+  } else el.textContent = text;
   $('#petLog').appendChild(el);
   if (kind === 'ai') {
     if (lastFol) { lastFol.remove(); lastFol = null; }   // keep only the newest suggestions
@@ -1028,11 +1093,25 @@ async function ask(question) {
   const userEl = addMsg('user', question);
   if (quoted) userEl.appendChild(refCard(quoted));
   const thinking = addMsg('sys', '思考中…');
+  let image = null, pageHint = null;
+  if (R.doc && FIG_RE.test(question)) {
+    pageHint = findFigurePage(question);
+    if (pageHint) {
+      thinking.textContent = `需要看图，正在渲染第 ${pageHint} 页…`;
+      try { image = await pageImage(pageHint); } catch (e) { pageHint = null; }
+    }
+  }
   try {
-    const r = await api('/api/qa', { key: pet.key, question, selection: quoted });
+    const r = await api('/api/qa', { key: pet.key, question, selection: quoted, image, page_hint: pageHint,
+                                    context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
     thinking.remove();
-    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : `AI 不可用：${r.reason || '未知'}`, r.followups);
-    if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+    const meta = r.ok
+      ? `${r.mode === 'vision' ? '视觉 · 第 ' + (r.page_hint || pageHint || '?') + ' 页' : '全文检索'}` +
+        `${r.pages && r.pages.length ? ' · 命中第 ' + r.pages.join(',') + ' 页' : ''}` +
+        `${r.context_chars ? ' · ' + Math.round(r.context_chars / 1000) + 'k 字符' : ''}`
+      : '';
+    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : `AI 不可用：${r.reason || '未知'}`, r.followups, meta);
+    if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}${r.mode === 'vision' ? ' · 视觉' : ''}`, 'ai');
   } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
   finally { pet.busy = false; setReference(null); }
 }

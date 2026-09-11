@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-fulltext-vision",
+  "class": "critical",
+  "summary": "Give the reading assistant the whole paper and a vision path. On reader open the browser extracts each page's text with pdf.js into a cached fulltext table; questions now retrieve the most relevant passages locally (8, or 14 with 更多上下文) with page labels instead of only the abstract. Figure/table questions trigger a local caption search, render the matching page to a JPEG and call the new paper_vision_qa operation through the same gateway (deepseek-flash serves vision, so it is a payload-mode switch, not a model switch). Modes are labelled on every answer.",
+  "tasks": [
+    "PILOT-01",
+    "AI-02"
+  ],
+  "files": [
+    "app/db.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/index.html",
+    "changes/2026-09-11-fulltext-vision.json",
+    "docs/BUDGET.generated.md",
+    "docs/evidence/2026-09-11-fulltext-vision-checks.txt",
+    "docs/evidence/2026-09-11-fulltext-vision-self-review.md",
+    "harness/budget.json",
+    "harness/sources.json",
+    "prompts/paper-vision-qa.md",
+    "tests/test_app_core.py"
+  ],
+  "scope_note": "Covers the diff since commit 13215c1. Adds a fulltext table, a new registered operation + prompt contract + source entry, and UI extraction/vision wiring; one real vision call and several text calls were made.",
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "New registered operation paper_vision_qa (cap 8,000 in / 1,100 out) and a vision_qa_starter scenario. Existing ceilings were not changed. One real vision call cost $0.00102 (2,839 tokens, 1x1 test image); text questions use the existing paper_qa ceiling.",
+    "before": "QA could only use title + abstract; one text operation.",
+    "after": "QA uses cached full text plus an optional one-page image; vision has its own operation, envelope and prompt contract.",
+    "period": "one vision call plus text calls on 2026-09-11",
+    "quantified": {
+      "period": "one vision call",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0.00102"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-fulltext-vision-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-fulltext-vision-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-fulltext-vision-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "live full-text cache + figure question",
+      "exit_code": 0,
+      "scope": "25 pages / 72,200 chars cached; 7 passages retrieved; answer correctly reported the paper has no Figure 2"
+    },
+    {
+      "command": "live vision operation",
+      "exit_code": 0,
+      "scope": "content-part request accepted; mode=vision; 2,839 tokens; $0.00102"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; feature work, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-fulltext-vision-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Vision quality on a real rendered figure is unverified (tested with a 1x1 image to prove the request shape and cost path).",
+    "Image token cost is an estimate (~1,500/page); a dense page may cost more.",
+    "Extraction runs in the background after the reader opens; a question asked too early falls back to the abstract.",
+    "Lexical retrieval can miss a passage whose wording differs from the question.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

@@ -277,11 +277,42 @@ class App:
         self.store.undo_feedback(feedback_id)
         return {"undone": feedback_id}
 
+    # ------------------------------------------------------------- full text
+    def save_fulltext(self, paper_key, pages):
+        self.store.save_fulltext(paper_key, pages)
+        return {"pages": len(pages), "chars": sum(len(p.get("text") or "") for p in pages)}
+
+    def fulltext_status(self, paper_key):
+        pages = self.store.fulltext_pages(paper_key)
+        return {"pages": len(pages), "chars": sum(len(p["text"]) for p in pages)}
+
+    def passages(self, paper_key, question, k=8, size=900):
+        """Local lexical retrieval over the extracted full text. Zero tokens."""
+        pages = self.store.fulltext_pages(paper_key)
+        chunks = []
+        for page in pages:
+            text = page["text"]
+            for start in range(0, len(text), size):
+                piece = text[start:start + size].strip()
+                if len(piece) > 120:
+                    chunks.append({"page": page["page"], "text": piece})
+        if not chunks:
+            return []
+        idf = ranking.build_idf([ranking.tokenize(c["text"]) for c in chunks] + [ranking.tokenize(question)])
+        qv = ranking.l2_normalize(ranking.vectorize(ranking.tokenize(question), idf))
+        scored = []
+        for chunk in chunks:
+            cv = ranking.l2_normalize(ranking.vectorize(ranking.tokenize(chunk["text"]), idf))
+            scored.append((ranking.cosine(qv, cv), chunk))
+        scored.sort(key=lambda kv: -kv[0])
+        return [c for _, c in scored[:k]]
+
     # ------------------------------------------------------------- assistant
     QA_SYSTEM = ("你是论文阅读助手。只依据给出的论文标题、摘要与用户选中的片段回答；材料不足就直说，"
                  "不要编造引用、页码或结论。回答用中文，简洁，术语给英文原词。")
 
-    def qa(self, paper_key, question, selection=None, dry_run=False):
+    def qa(self, paper_key, question, selection=None, image=None, page_hint=None, context="normal",
+           dry_run=False):
         paper = self.store.paper(paper_key) if paper_key else None
         parts = []
         if paper:
@@ -290,16 +321,34 @@ class App:
             parts.append("（未指定论文）")
         if selection:
             parts.append(f"用户选中的片段：{selection}")
+        k = 14 if context == "full" else 8
+        hits = self.passages(paper_key, question, k=k) if paper_key else []
+        pages = sorted({h["page"] for h in hits})
+        if hits:
+            joined = "\n\n".join(f"[第 {h['page']} 页]\n{h['text']}" for h in hits)
+            parts.append("从该论文全文检索到的相关段落（按页标注）：\n" + joined)
+        else:
+            parts.append("（未提取到全文；只有标题与摘要可用，涉及正文或图表细节时请直接说明看不到）")
+        if image:
+            parts.append(f"随本次提问附上第 {page_hint or '?'} 页的页面图片，图中可能包含用户问到的图表。")
         messages = [{"role": "system", "content": self.QA_SYSTEM}]
         for entry in self.store.qa_history(paper_key)[-6:]:
             messages.append({"role": entry["role"], "content": entry["content"]})
-        messages.append({"role": "user", "content":
-                         "\n\n".join(parts) + f"\n\n问题：{question}\n\n"
-                         '只输出 JSON：{"answer": "回答（可用 Markdown）", '
-                         '"followups": ["基于本次问答的追问1", "追问2", "追问3"]}'})
-        result = self.gateway.call("paper_qa", messages, dry_run=dry_run)
+        instructions = ("\n\n".join(parts) + f"\n\n问题：{question}\n\n"
+                        '只输出 JSON：{"answer": "回答（可用 Markdown）", '
+                        '"followups": ["基于本次问答的追问1", "追问2", "追问3"]}')
+        if image:
+            messages.append({"role": "user", "content": [
+                {"type": "text", "text": instructions},
+                {"type": "image_url", "image_url": {"url": image}}]})
+            operation = "paper_vision_qa"
+        else:
+            messages.append({"role": "user", "content": instructions})
+            operation = "paper_qa"
+        result = self.gateway.call(operation, messages, dry_run=dry_run)
         if dry_run or not result.get("ok"):
             return {"ok": False, "degraded": True, "reason": result.get("reason"),
+                    "mode": "vision" if image else "text", "pages": pages,
                     "reservation": result.get("reservation"), "dry_run": bool(dry_run)}
         raw = (result.get("content") or "").strip()
         answer, followups = raw, []
@@ -316,6 +365,8 @@ class App:
             self.store.add_qa(paper_key, "user", question)
             self.store.add_qa(paper_key, "assistant", answer)
         return {"ok": True, "answer": answer, "followups": followups,
+                "mode": "vision" if image else "text", "pages": pages,
+                "context_chars": sum(len(h["text"]) for h in hits),
                 "usage": result["usage"], "usd": result["usd"], "model": result["model"]}
 
     def translate(self, text, dry_run=False):

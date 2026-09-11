@@ -126,6 +126,9 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/qa":
             app = self._app()
             self._json({"history": app.qa_history((query.get("key") or [""])[0])})
+        elif route == "/api/fulltext":
+            app = self._app()
+            self._json(app.fulltext_status((query.get("key") or [""])[0]))
         elif route == "/api/pdf/view":
             app = self._app()
             path = app.pdf_path((query.get("key") or [""])[0])
@@ -174,8 +177,12 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/library":
             app = self._app()
             self._json({"items": app.library(), "stats": app.stats()})
+        elif route == "/api/fulltext":
+            self._json(app.save_fulltext(body.get("key") or "", body.get("pages") or []))
         elif route == "/api/qa":
             self._json(app.qa(body.get("key"), body.get("question") or "", body.get("selection"),
+                              image=body.get("image"), page_hint=body.get("page_hint"),
+                              context=body.get("context") or "normal",
                               dry_run=bool(body.get("dry_run"))))
         elif route == "/api/translate":
             self._json(app.translate(body.get("text") or "", dry_run=bool(body.get("dry_run"))))
