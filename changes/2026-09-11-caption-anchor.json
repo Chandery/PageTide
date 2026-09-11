@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-caption-anchor",
+  "class": "critical",
+  "summary": "Fix figure questions and reader jumping. Diagnosis: the Figure 3 caption WAS in the cached full text (page 6); lexical retrieval missed it because a Chinese question shares only the low-IDF word 'figure' with the English caption. Added a deterministic caption anchor (caption_passages) that pulls the passage defining the asked figure/table/equation and puts it first; hardened the client page locator (kind+number, caption-line preference, current-page fallback); and replaced the imprecise scrollIntoView restore with an exact page+offset restore that only re-fits when the width actually changed.",
+  "tasks": [
+    "PILOT-01",
+    "AI-02"
+  ],
+  "files": [
+    "app/service.py",
+    "app/static/index.html",
+    "changes/2026-09-11-caption-anchor.json",
+    "docs/evidence/2026-09-11-caption-anchor-checks.txt",
+    "docs/evidence/2026-09-11-caption-anchor-self-review.md",
+    "tests/test_app_core.py"
+  ],
+  "scope_note": "Covers the diff since commit 1fa21d4. Service retrieval + reader/assistant UI; live text-mode calls only (no vision call in this unit).",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Retrieval/prompt and UI logic only; no new operation, no budget or provider change. Text calls used the existing paper_qa ceiling.",
+    "before": "Figure questions missed the caption; reader jumped on panel toggle.",
+    "after": "Caption anchored first in the prompt; exact scroll restore; re-fit only on width change.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-caption-anchor-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-caption-anchor-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-caption-anchor-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "live Figure 3 / Figure 13 questions",
+      "exit_code": 0,
+      "scope": "Answers now quote the page-6 and page-14 captions"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; retrieval/UI fix, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-caption-anchor-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Scroll restore is exact arithmetic but not visually verified by the agent.",
+    "Figures absent from the text layer still cannot be anchored; the current-page image fallback remains.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

@@ -233,6 +233,21 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(len(hits), 1)
         self.assertEqual(hits[0]["page"], 2)
 
+    def test_caption_passages_anchor_on_the_figure_number(self):
+        key = "cap1"
+        self.app.store.upsert_papers([{"key": key, "title": "T", "abstract": "a",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.save_fulltext(key, [
+            {"page": 2, "text": "Introduction. " + "filler " * 40},
+            {"page": 6, "text": "Figure 3: GigaBrain-0 self-collected real-world robot data. " + "x " * 200},
+            {"page": 7, "text": "Figure 4: something else entirely. " + "y " * 200},
+        ])
+        hits = self.app.caption_passages(key, "这篇论文的 Figure 3 展示了什么？")
+        self.assertTrue(hits)
+        self.assertEqual(hits[0]["page"], 6)
+        self.assertIn("Figure 3", hits[0]["text"])
+        self.assertEqual(self.app.caption_passages(key, "没有图号的问题"), [])
+
     def test_passages_empty_without_fulltext(self):
         self.assertEqual(self.app.passages("nope", "anything"), [])
 

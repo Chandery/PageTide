@@ -286,6 +286,30 @@ class App:
         pages = self.store.fulltext_pages(paper_key)
         return {"pages": len(pages), "chars": sum(len(p["text"]) for p in pages)}
 
+    FIG_RE = __import__("re").compile(
+        r"(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*(\d+)", __import__("re").I)
+
+    def caption_passages(self, paper_key, question, k=3):
+        """Deterministic lookup of the passage that *defines* the figure/table asked about.
+
+        Lexical similarity alone misses these: a Chinese question only shares
+        'figure', whose IDF is low, so the caption chunk never ranks. A figure
+        number is an exact anchor, so use it directly.
+        """
+        match = self.FIG_RE.search(question or "")
+        if not match:
+            return []
+        number = match.group(2)
+        pattern = __import__("re").compile(
+            rf"(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*{number}\b", __import__("re").I)
+        hits = []
+        for page in self.store.fulltext_pages(paper_key):
+            text = page["text"]
+            for found in pattern.finditer(text):
+                start, end = max(0, found.start() - 250), min(len(text), found.end() + 750)
+                hits.append({"page": page["page"], "text": text[start:end].strip(), "caption": True})
+        return hits[:k]
+
     def passages(self, paper_key, question, k=8, size=900):
         """Local lexical retrieval over the extracted full text. Zero tokens."""
         pages = self.store.fulltext_pages(paper_key)
@@ -322,11 +346,25 @@ class App:
         if selection:
             parts.append(f"用户选中的片段：{selection}")
         k = 14 if context == "full" else 8
-        hits = self.passages(paper_key, question, k=k) if paper_key else []
+        captions = self.caption_passages(paper_key, question) if paper_key else []
+        hits = captions + (self.passages(paper_key, question, k=k) if paper_key else [])
+        seen_chunks = set()
+        unique = []
+        for hit in hits:
+            fingerprint = (hit["page"], hit["text"][:80])
+            if fingerprint in seen_chunks:
+                continue
+            seen_chunks.add(fingerprint)
+            unique.append(hit)
+        hits = unique[:k + len(captions)]
         pages = sorted({h["page"] for h in hits})
         if hits:
             joined = "\n\n".join(f"[第 {h['page']} 页]\n{h['text']}" for h in hits)
-            parts.append("从该论文全文检索到的相关段落（按页标注）：\n" + joined)
+            head = "直接命中用户所问图/表的图注或定义（按页标注）：\n" + "\n\n".join(
+                f"[第 {h['page']} 页]\n{h['text']}" for h in captions) if captions else ""
+            body = "从该论文全文检索到的相关段落（按页标注）：\n" + "\n\n".join(
+                f"[第 {h['page']} 页]\n{h['text']}" for h in hits if not h.get("caption"))
+            parts.append((head + "\n\n" if head else "") + body)
         else:
             parts.append("（未提取到全文；只有标题与摘要可用，涉及正文或图表细节时请直接说明看不到）")
         if image:

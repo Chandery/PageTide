@@ -823,13 +823,20 @@ function pageScale(page) {
 
 async function layoutPages() {
   const box = $('#readerPages');
-  const keepPage = R.current || 1;
+  // Remember exactly where we are (page + offset inside it) so re-layout never jumps.
+  const prevTop = box.scrollTop;
+  const anchor = currentAnchor(prevTop);
+  const keepPage = anchor.page;
+  R.current = keepPage;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   box.innerHTML = '';
   R.jobs = new Map();
   R.observer = new IntersectionObserver((entries) => {
     for (const en of entries) {
-      if (en.isIntersecting) { renderPage(Number(en.target.dataset.n)); markCurrent(Number(en.target.dataset.n)); }
+      if (en.isIntersecting) {
+        renderPage(Number(en.target.dataset.n));
+        if (R.jobs.size <= R.pages.length) markCurrent(Number(en.target.dataset.n));
+      }
     }
   }, { root: box, rootMargin: '800px 0px' });
   for (let i = 0; i < R.pages.length; i++) {
@@ -855,11 +862,22 @@ async function layoutPages() {
     R.observer.observe(wrap);
   }
   $('#zoomLabel').textContent = `${Math.round(pageScale(R.pages[0]) * 100)}%`;
-  // Keep the reader where the user was; re-layout must not jump back to page 1.
+  // Restore the exact position after the rebuild.
   requestAnimationFrame(() => {
-    document.querySelector(`.pgwrap[data-n="${keepPage}"]`)?.scrollIntoView({ block: 'start' });
+    const target = document.querySelector(`.pgwrap[data-n="${keepPage}"]`);
+    if (target) box.scrollTop = Math.max(0, target.offsetTop + anchor.within + anchor.top - prevTop);
     markCurrent(keepPage);
   });
+}
+
+function currentAnchor(scrollTop) {
+  const wraps = document.querySelectorAll('#readerPages .pgwrap');
+  let page = 1, top = 0;
+  for (const wrap of wraps) {
+    if (wrap.offsetTop <= scrollTop + 40) { page = Number(wrap.dataset.n); top = wrap.offsetTop; }
+    else break;
+  }
+  return { page, top, within: scrollTop - top };
 }
 
 function renderPage(n) {
@@ -925,20 +943,29 @@ function setFulltextBadge(pages, chars) {
   if (el) el.textContent = `全文已缓存 · ${pages} 页 / ${Math.round(chars / 1000)}k 字符`;
 }
 
+function figureNumber(question) {
+  const m = question.match(/(?:fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
+// Count mentions per page for the requested number, so "Fig. 3" and "Figure 3"
+// both resolve, and pick the page where it is described most.
 function findFigurePage(question) {
-  const match = question.match(FIG_RE);
-  if (!match) return null;
-  const token = match[0].replace(/\s+/g, '').toLowerCase();
   const texts = R.pageTexts || [];
-  for (let i = 0; i < texts.length; i++) {
-    if (texts[i].replace(/\s+/g, '').toLowerCase().includes(token)) return i + 1;
-  }
+  if (!texts.length) return null;
+  const n = figureNumber(question);
+  const pattern = n
+    ? new RegExp(`(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\\s*\\.?\\s*${n}\\b`, 'gi')
+    : /(fig(?:ure)?|table)\s*\.?\s*\d+/gi;
+  // Prefer the page that carries the caption (line starts with the label), then most mentions.
   let best = null, bestHits = 0;
   for (let i = 0; i < texts.length; i++) {
-    const hits = (texts[i].match(FIG_RE) || []).length;
+    const lines = texts[i].split('\n');
+    const captionLine = lines.some((line) => /^\s*(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*\d+/i.test(line));
+    const hits = (texts[i].match(pattern) || []).length + (captionLine ? 3 : 0);
     if (hits > bestHits) { best = i + 1; bestHits = hits; }
   }
-  return best;
+  return best;   // null when the figure is not mentioned anywhere in the extracted text
 }
 
 async function pageImage(pageNumber) {
@@ -1041,8 +1068,12 @@ function dockPanel(dock) {
 }
 function setPetOpen(open) {
   $('#petPanel').classList.toggle('open', open);
-  // The panel is a flex column inside the reader, so the PDF re-fits automatically.
-  if (!$('#reader').classList.contains('hidden') && R.doc) layoutPages();
+  // Docking changes the page width; re-fit only when the width really changed.
+  if ($('#reader').classList.contains('hidden') || !R.doc) return;
+  const before = $('#readerPages').clientWidth;
+  requestAnimationFrame(() => {
+    if (Math.abs($('#readerPages').clientWidth - before) > 2) layoutPages();
+  });
 }
 function openPet() { setPetOpen(true); }
 
@@ -1093,20 +1124,23 @@ async function ask(question) {
   const userEl = addMsg('user', question);
   if (quoted) userEl.appendChild(refCard(quoted));
   const thinking = addMsg('sys', '思考中…');
-  let image = null, pageHint = null;
+  let image = null, pageHint = null, located = false;
   if (R.doc && FIG_RE.test(question)) {
-    pageHint = findFigurePage(question);
-    if (pageHint) {
-      thinking.textContent = `需要看图，正在渲染第 ${pageHint} 页…`;
-      try { image = await pageImage(pageHint); } catch (e) { pageHint = null; }
-    }
+    const found = findFigurePage(question);
+    located = Boolean(found);
+    pageHint = found || (R.current || 1);   // caption not found -> send the page the user is looking at
+    thinking.textContent = located
+      ? `需要看图，正在渲染第 ${pageHint} 页…`
+      : `图注未找到，改为发送当前第 ${pageHint} 页…`;
+    try { image = await pageImage(pageHint); } catch (e) { pageHint = null; image = null; }
   }
   try {
     const r = await api('/api/qa', { key: pet.key, question, selection: quoted, image, page_hint: pageHint,
                                     context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
     thinking.remove();
     const meta = r.ok
-      ? `${r.mode === 'vision' ? '视觉 · 第 ' + (r.page_hint || pageHint || '?') + ' 页' : '全文检索'}` +
+      ? `${r.mode === 'vision' ? '视觉 · 第 ' + (r.page_hint || pageHint || '?') + ' 页'
+            + (located ? '' : '（图注未定位，发送的是当前页）') : '全文检索'}` +
         `${r.pages && r.pages.length ? ' · 命中第 ' + r.pages.join(',') + ' 页' : ''}` +
         `${r.context_chars ? ' · ' + Math.round(r.context_chars / 1000) + 'k 字符' : ''}`
       : '';
