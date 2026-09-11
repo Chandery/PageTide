@@ -277,6 +277,51 @@ class App:
         self.store.undo_feedback(feedback_id)
         return {"undone": feedback_id}
 
+    # ------------------------------------------------------------- assistant
+    QA_SYSTEM = ("你是论文阅读助手。只依据给出的论文标题、摘要与用户选中的片段回答；材料不足就直说，"
+                 "不要编造引用、页码或结论。回答用中文，简洁，术语给英文原词。")
+
+    def qa(self, paper_key, question, selection=None, dry_run=False):
+        paper = self.store.paper(paper_key) if paper_key else None
+        parts = []
+        if paper:
+            parts.append(f"论文：{paper['title']}\n摘要：{paper['abstract'] or '（无）'}")
+        else:
+            parts.append("（未指定论文）")
+        if selection:
+            parts.append(f"用户选中的片段：{selection}")
+        messages = [{"role": "system", "content": self.QA_SYSTEM}]
+        for entry in self.store.qa_history(paper_key)[-6:]:
+            messages.append({"role": entry["role"], "content": entry["content"]})
+        messages.append({"role": "user", "content": "\n\n".join(parts) + f"\n\n问题：{question}"})
+        result = self.gateway.call("paper_qa", messages, dry_run=dry_run)
+        if dry_run or not result.get("ok"):
+            return {"ok": False, "degraded": True, "reason": result.get("reason"),
+                    "reservation": result.get("reservation"), "dry_run": bool(dry_run)}
+        answer = (result.get("content") or "").strip()
+        if paper_key:
+            self.store.add_qa(paper_key, "user", question)
+            self.store.add_qa(paper_key, "assistant", answer)
+        return {"ok": True, "answer": answer, "usage": result["usage"], "usd": result["usd"], "model": result["model"]}
+
+    def translate(self, text, dry_run=False):
+        text = (text or "").strip()
+        if not text:
+            return {"ok": False, "degraded": True, "reason": "empty selection"}
+        if len(text) > 1200:
+            return {"ok": False, "degraded": True, "reason": "selection too long (max ~1200 chars)"}
+        messages = [{"role": "user", "content":
+                     "把下面这段论文文字翻译成中文，术语保留英文原词，只输出译文：\n\n" + text}]
+        result = self.gateway.call("selection_translate", messages, dry_run=dry_run)
+        if dry_run or not result.get("ok"):
+            return {"ok": False, "degraded": True, "reason": result.get("reason"),
+                    "reservation": result.get("reservation"), "dry_run": bool(dry_run)}
+        return {"ok": True, "translation": (result.get("content") or "").strip(),
+                "usage": result["usage"], "usd": result["usd"]}
+
+    def qa_history(self, paper_key):
+        return self.store.qa_history(paper_key)
+
     # ------------------------------------------------------------------- pdf
     def pdf_path(self, paper_key):
         row = self.conn_pdf(paper_key)

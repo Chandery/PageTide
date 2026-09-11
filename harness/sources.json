@@ -384,6 +384,14 @@
       "recheck_after_days": 30,
       "claim": "Third-party AI relay (self-described as an API gateway) exposing gpt-5.5/gpt-5.6-*/gpt-6-astra with no public price page or API; a minimal chat call reported 4403 prompt tokens for a few words, indicating a ~4.4k hidden injected prefix; model identity is self-reported and not verifiable",
       "verification": "live probe 2026-09-11: /v1/models 200, /v1/chat/completions 200, /pricing and /docs serve the same client-rendered shell, /api/* 404; raw response kept privately, no key in git"
+    },
+    {
+      "id": "PDFJS",
+      "url": "https://github.com/mozilla/pdf.js",
+      "verified_on": "2026-09-11",
+      "recheck_after_days": 180,
+      "claim": "Apache-2.0 PDF renderer; vendored build (pdf.min.mjs + pdf.worker.min.mjs, pinned 4.6.82) renders pages to canvas and provides a text layer so selections are readable by our own code, unlike the browser's built-in PDF plugin",
+      "verification": "unpkg build files and repository LICENSE fetched; vendored under app/static/vendor/pdfjs, no CDN at runtime"
     }
   ]
 }

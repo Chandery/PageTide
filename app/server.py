@@ -123,6 +123,9 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/library":
             app = self._app()
             self._json({"items": app.library(), "stats": app.stats()})
+        elif route == "/api/qa":
+            app = self._app()
+            self._json({"history": app.qa_history((query.get("key") or [""])[0])})
         elif route == "/api/pdf/view":
             app = self._app()
             path = app.pdf_path((query.get("key") or [""])[0])
@@ -171,6 +174,11 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/library":
             app = self._app()
             self._json({"items": app.library(), "stats": app.stats()})
+        elif route == "/api/qa":
+            self._json(app.qa(body.get("key"), body.get("question") or "", body.get("selection"),
+                              dry_run=bool(body.get("dry_run"))))
+        elif route == "/api/translate":
+            self._json(app.translate(body.get("text") or "", dry_run=bool(body.get("dry_run"))))
         elif route == "/api/detail":
             # POST body avoids URL-encoding issues entirely; the UI uses this first.
             app = self._app()

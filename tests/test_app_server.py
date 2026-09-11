@@ -101,6 +101,36 @@ class ServerSmokeTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(body.startswith(b"%PDF"))
 
+    def test_qa_and_translate_dry_run_reserve_without_calling(self):
+        app = server.make_app(str(self.root))
+        app.store.upsert_papers([{"key": "q1", "title": "QA Paper", "abstract": "abstract text",
+                                  "published": "2026-08-01", "group_name": "field"}])
+        for route, body in (("/api/qa", {"key": "q1", "question": "why?", "dry_run": True}),
+                            ("/api/translate", {"text": "latent prediction", "dry_run": True})):
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{self.port}{route}",
+                data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read())
+            self.assertFalse(payload["ok"], route)
+            self.assertTrue(payload["degraded"], route)
+            self.assertIn("reservation", payload, route)
+        # dry runs must not record history
+        self.assertEqual(app.store.qa_history("q1"), [])
+
+    def test_qa_history_endpoint(self):
+        app = server.make_app(str(self.root))
+        app.store.add_qa("q2", "user", "hello")
+        app.store.add_qa("q2", "assistant", "hi")
+        status, body = self._get("/api/qa?key=q2")
+        self.assertEqual(status, 200)
+        self.assertEqual([h["role"] for h in json.loads(body)["history"]], ["user", "assistant"])
+
+    def test_vendored_pdfjs_is_served(self):
+        status, body = self._get("/vendor/pdfjs/pdf.min.mjs")
+        self.assertEqual(status, 200)
+        self.assertTrue(len(body) > 1000)
+
     def test_feedback_round_trip_over_http(self):
         # Seed one paper directly so the UI has something to show.
         app = server.make_app(str(self.root))

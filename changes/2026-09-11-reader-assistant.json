@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-reader-assistant",
+  "class": "critical",
+  "summary": "Full-page PDF reader with selectable text, selection translate/ask, and a floating 'pet' assistant. pdf.js is vendored (Apache-2.0, pinned) because the browser's built-in PDF plugin exposes no selection to JS. New endpoints POST /api/qa, POST /api/translate and GET /api/qa?key=, a qa_history table, and reader/assistant UI replacing the small inline preview.",
+  "tasks": [
+    "PILOT-01",
+    "AI-02"
+  ],
+  "files": [
+    "app/db.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/index.html",
+    "app/static/vendor/pdfjs/LICENSE",
+    "app/static/vendor/pdfjs/pdf.min.mjs",
+    "app/static/vendor/pdfjs/pdf.worker.min.mjs",
+    "changes/2026-09-11-reader-assistant.json",
+    "docs/evidence/2026-09-11-reader-assistant-checks.txt",
+    "docs/evidence/2026-09-11-reader-assistant-self-review.md",
+    "harness/sources.json",
+    "tests/test_app_server.py"
+  ],
+  "scope_note": "Covers the diff since commit fd149a5, including the vendored pdf.js build (~1.7 MB). One real paper_qa and one real selection_translate call.",
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "Two new runtime model paths (paper_qa, selection_translate) were exercised. Both were already registered operations, so no ceiling or price changed; calls are ledgered in .local/app/usage.jsonl and degrade with a visible message when refused.",
+    "before": "paper_qa and selection_translate were registered but unused at runtime.",
+    "after": "Both are wired through the gateway; observed spend $0.000166 (397 tokens) and $0.000030 (53 tokens).",
+    "period": "one call each on 2026-09-11",
+    "quantified": {
+      "period": "two calls",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 382,
+        "output_tokens": 68,
+        "usd": "0.0001962"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-reader-assistant-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-reader-assistant-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-reader-assistant-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "live QA/translate/history/pdf.js",
+      "exit_code": 0,
+      "scope": "pdf.js served; real answers; history persisted; ledger recorded both operations"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; feature work, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-reader-assistant-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Selection depends on our text layer; the native fallback cannot select.",
+    "Only the abstract plus the selection is sent; answers are bounded by it.",
+    "Reader renders eagerly; large PDFs are not optimised.",
+    "Vendored pdf.js must be updated deliberately (pinned 4.6.82).",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

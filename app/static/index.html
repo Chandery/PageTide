@@ -165,6 +165,50 @@
                     box-shadow:9px 9px 20px var(--sd), -9px -9px 20px var(--sl); }
   .lib-item h4 { margin:0 0 6px; font-size:14.5px; line-height:1.45; }
 
+  /* ---------------------------------------------------------------- reader */
+  .reader { position:fixed; inset:0; z-index:90; background:var(--base); display:flex; flex-direction:column;
+            animation:fade .18s ease both; }
+  .reader .rbar { display:flex; align-items:center; gap:12px; padding:11px 16px; box-shadow:var(--sh-out-sm);
+                  position:relative; z-index:3; }
+  .reader .rbar h2 { font-size:13.5px; margin:0; flex:1; font-weight:600; overflow:hidden;
+                     text-overflow:ellipsis; white-space:nowrap; }
+  .reader .pages { flex:1; overflow:auto; padding:22px 0 60px; display:flex; flex-direction:column;
+                   align-items:center; gap:22px; }
+  .reader .pg { position:relative; background:#fff; box-shadow:0 12px 34px rgba(0,0,0,.4); }
+  .reader .pg canvas { display:block; }
+  .reader .txt { position:absolute; inset:0; overflow:hidden; line-height:1; }
+  .reader .txt span { position:absolute; white-space:pre; transform-origin:0 0; color:transparent; cursor:text; }
+  .reader .txt span::selection { background:color-mix(in srgb, var(--accent) 45%, transparent); }
+  .reader .rload { margin:auto; color:var(--muted); font-size:13px; display:flex; gap:10px; align-items:center; }
+
+  /* ------------------------------------------------------------ assistant */
+  .pet { position:fixed; right:22px; bottom:22px; z-index:88; width:58px; height:58px; border-radius:50%;
+         background:var(--base); box-shadow:var(--sh-out); display:flex; align-items:center; justify-content:center;
+         cursor:pointer; font-size:23px; user-select:none; transition:transform .18s ease, box-shadow .18s; }
+  .pet:hover { transform:translateY(-2px) scale(1.05); }
+  .pet:active { box-shadow:var(--sh-in); transform:none; }
+  .petpanel { position:fixed; right:22px; bottom:92px; z-index:89; width:min(410px,92vw);
+              max-height:min(72vh,640px); display:none; flex-direction:column; background:var(--base);
+              box-shadow:var(--sh-out); border-radius:var(--r-lg); overflow:hidden; }
+  .petpanel.open { display:flex; animation:pop .22s ease both; }
+  .petpanel header { padding:12px 14px; display:flex; align-items:center; gap:8px; box-shadow:var(--sh-in-sm); }
+  .petpanel header b { font-size:13px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pctx { font-size:11.5px; color:var(--muted); padding:9px 12px; margin:10px 14px 0;
+          box-shadow:var(--sh-in-sm); border-radius:var(--r-sm); max-height:76px; overflow:auto; }
+  .plog { flex:1; overflow:auto; padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+  .msg { font-size:13px; line-height:1.62; padding:9px 12px; border-radius:var(--r-md); max-width:90%;
+         white-space:pre-wrap; word-break:break-word; }
+  .msg.user { align-self:flex-end; box-shadow:var(--sh-in-sm); }
+  .msg.ai { align-self:flex-start; box-shadow:var(--sh-out-sm); }
+  .msg.sys { align-self:center; color:var(--muted); font-size:12px; }
+  .prow { display:flex; gap:8px; padding:12px 14px; }
+  .prow input { box-shadow:var(--sh-in-sm); }
+
+  /* ----------------------------------------------------------- selection */
+  #selbar { position:fixed; z-index:96; display:none; gap:6px; padding:6px; background:var(--base);
+            box-shadow:var(--sh-out); border-radius:999px; }
+  #selbar.show { display:flex; animation:pop .16s ease both; }
+
   #toasts { position:fixed; right:18px; bottom:18px; z-index:95; display:flex; flex-direction:column; gap:10px; }
   .toast { padding:13px 17px; font-size:13px; background:var(--base); box-shadow:var(--sh-out);
            border-radius:var(--r-md); animation:pop .24s ease both; max-width:380px;
@@ -237,6 +281,32 @@
 </main>
 <footer id="foot"></footer>
 
+<div id="reader" class="reader hidden">
+  <div class="rbar">
+    <button class="ghost" id="readerBack">← 返回</button>
+    <h2 id="readerTitle"></h2>
+    <span class="stat" id="readerInfo"></span>
+    <button class="tiny" id="readerAsk">对这篇提问</button>
+  </div>
+  <div class="pages" id="readerPages"></div>
+</div>
+
+<div class="petpanel" id="petPanel">
+  <header>
+    <b id="petTitle">阅读助手</b>
+    <button class="tiny ghost" id="petClear">清空</button>
+    <button class="tiny ghost" id="petClose">✕</button>
+  </header>
+  <div class="pctx" id="petCtx">未选择论文。在卡片点「阅读 PDF」，或选中文字后追问。</div>
+  <div class="plog" id="petLog"></div>
+  <div class="prow">
+    <input type="text" id="petInput" placeholder="追问，例如：这个方法的核心假设是什么？">
+    <button class="primary" id="petSend">发送</button>
+  </div>
+</div>
+<div class="pet" id="pet" title="阅读助手">🐾</div>
+<div id="selbar"><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button></div>
+
 <div id="preview"></div>
 <div id="detail" class="page hidden"></div>
 <div id="toasts"></div>
@@ -300,6 +370,7 @@ function cardHTML(c, i) {
       <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
         ${saved ? '✓ 已收藏（点此取消）' : '☆ 收藏'}</button>
       <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
+      <button class="tiny" data-read="${esc(c.key)}" data-title="${esc(c.title)}">阅读 PDF</button>
     </div>
     <div class="hint">点击查看详情 →</div>
   </article>`;
@@ -412,6 +483,8 @@ async function doFeedback(key, action) {
   if (state.view === 'library') await loadLibrary();
 }
 $('#cards').addEventListener('click', (e) => {
+  const rd = e.target.closest('button[data-read]');
+  if (rd) { e.stopPropagation(); window.PDH.openReader(rd.dataset.read, rd.dataset.title); return; }
   const fb = e.target.closest('button[data-fb]');
   if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
   const card = e.target.closest('.card[data-key]');
@@ -479,11 +552,8 @@ async function openDetail(key) {
           <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div>` : ''}
         <div class="label">完整摘要</div>
         <div class="full">${esc(d.abstract || '（无摘要）')}</div>
-        <div class="label">PDF 预览</div>
-        <div class="pdfbox" id="pdfBox">${d.has_pdf
-          ? `<iframe src="/api/pdf/view?key=${encodeURIComponent(d.key)}" title="PDF"></iframe>`
-          : `<div class="ph"><div>尚未下载 PDF</div><button id="pdfLoad">获取并预览 PDF</button><div class="sub">仅开放获取来源（arXiv）</div></div>`}</div>
-        <div class="row" style="margin-top:24px">
+        <div class="row" style="margin-top:20px">
+          <button class="primary" id="dRead">全屏阅读 PDF</button>
           <button id="dToggle" class="${d.saved ? 'saved' : 'primary'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
             ${d.saved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库'}</button>
           <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
@@ -492,6 +562,8 @@ async function openDetail(key) {
       </div>`;
     $('#detail').classList.remove('hidden');
     $('#backBtn').onclick = () => $('#detail').classList.add('hidden');
+    $('#dRead').onclick = () => window.PDH.openReader(d.key, d.title);
+    window.PDH.setPetContext(d.key, d.title);
     $('#dToggle').onclick = async (ev) => {
       const btn = ev.currentTarget, wasSaved = btn.dataset.saved === 'true';
       await doFeedback(d.key, wasSaved ? 'unsave' : 'useful');
@@ -500,20 +572,6 @@ async function openDetail(key) {
       btn.className = now ? 'saved' : 'primary';
       btn.textContent = now ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库';
     };
-    $('#dPdf') && ($('#dPdf').onclick = loadPdf);
-    const pdfLoad = $('#pdfLoad');
-    if (pdfLoad) pdfLoad.onclick = loadPdf;
-    async function loadPdf() {
-      const box = $('#pdfBox');
-      box.innerHTML = '<div class="ph"><span class="spin"></span>正在获取 PDF…</div>';
-      try {
-        const r = await api('/api/pdf/prepare', { key: d.key });
-        if (!r.ok) { box.innerHTML = `<div class="ph"><div>无法预览：${esc(r.reason || '未知')}</div></div>`; return; }
-        box.innerHTML = `<iframe src="/api/pdf/view?key=${encodeURIComponent(d.key)}" title="PDF"></iframe>`;
-      } catch (e) {
-        box.innerHTML = `<div class="ph"><div>无法预览：${esc(e.message)}</div></div>`;
-      }
-    }
   } catch (e) {
     toast(`打不开详情：${e.message}`, 'err', 6000);
   }
@@ -526,6 +584,146 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('#deta
 document.addEventListener('scroll', hidePreview, { passive: true });
 
 load().catch(e => toast(`加载失败：${e.message}`, 'err'));
+
+// Cross-script bridge for the ES-module reader/assistant below.
+window.PDH = { api, toast, esc, state, openDetail, setPetContext: (k, t) => window.PDHSetContext?.(k, t) };
+</script>
+<script type="module">
+const { api, toast } = window.PDH;
+const $ = (s) => document.querySelector(s);
+const pet = { key: null, title: null, selection: null, busy: false };
+window.PDHSetContext = (key, title) => {
+  pet.key = key; pet.title = title;
+  $('#petCtx').textContent = title ? `当前论文：${title}` : '未选择论文。';
+};
+
+/* ---------------------------------------------------------------- reader */
+let pdfjs = null;
+async function lib() {
+  if (pdfjs) return pdfjs;
+  pdfjs = await import('/vendor/pdfjs/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
+  return pdfjs;
+}
+async function openReader(key, title) {
+  window.PDHSetContext(key, title);
+  const box = $('#readerPages'), reader = $('#reader');
+  $('#readerTitle').textContent = title || '';
+  $('#readerInfo').textContent = '';
+  box.innerHTML = '<div class="rload"><span class="spin"></span>正在获取并渲染 PDF…</div>';
+  reader.classList.remove('hidden');
+  const url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
+  try { await api('/api/pdf/prepare', { key }); } catch (e) { /* handled by the render fallback */ }
+  try {
+    const L = await lib();
+    const doc = await L.getDocument(url).promise;
+    box.innerHTML = '';
+    for (let n = 1; n <= doc.numPages; n++) {
+      const page = await doc.getPage(n);
+      const vp = page.getViewport({ scale: 1.4 });
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 'pg';
+      pageDiv.style.width = `${vp.width}px`;
+      pageDiv.style.height = `${vp.height}px`;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      pageDiv.appendChild(canvas);
+      const textDiv = document.createElement('div');
+      textDiv.className = 'txt';
+      pageDiv.appendChild(textDiv);
+      box.appendChild(pageDiv);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      const content = await page.getTextContent();
+      for (const item of content.items) {
+        if (!item.str) continue;
+        const tx = L.Util.transform(vp.transform, item.transform);
+        const height = Math.hypot(tx[2], tx[3]);
+        const span = document.createElement('span');
+        span.textContent = item.str;
+        span.style.left = `${tx[4]}px`;
+        span.style.top = `${tx[5] - height}px`;
+        span.style.fontSize = `${height}px`;
+        textDiv.appendChild(span);
+      }
+    }
+    $('#readerInfo').textContent = `${doc.numPages} 页`;
+  } catch (e) {
+    box.innerHTML = `<iframe src="${url}" style="width:min(1200px,96vw);height:calc(100vh - 110px);border:0;background:#fff"></iframe>`;
+    $('#readerInfo').textContent = '内置预览（无法划词）';
+    toast(`pdf.js 加载失败，改用浏览器内置预览：${e.message}`, 'warn', 6000);
+  }
+}
+window.PDH.openReader = openReader;
+
+/* --------------------------------------------------------- selection bar */
+let selText = '';
+function hideSel() { $('#selbar').classList.remove('show'); }
+function showSel(rect, text) {
+  selText = text;
+  const bar = $('#selbar');
+  bar.classList.add('show');
+  bar.style.left = `${Math.min(Math.max(10, rect.left), Math.max(10, window.innerWidth - bar.offsetWidth - 10))}px`;
+  bar.style.top = `${Math.max(10, rect.top - bar.offsetHeight - 8)}px`;
+}
+document.addEventListener('mouseup', (e) => {
+  if (e.target.closest && e.target.closest('#selbar')) return;
+  const sel = window.getSelection();
+  const text = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
+  const zone = e.target.closest && (e.target.closest('#readerPages') || e.target.closest('#detail'));
+  if (!text || !zone) { hideSel(); return; }
+  showSel(sel.getRangeAt(0).getBoundingClientRect(), text);
+});
+document.addEventListener('scroll', hideSel, true);
+
+/* ------------------------------------------------------------ assistant */
+function openPet() { $('#petPanel').classList.add('open'); }
+function addMsg(kind, text) {
+  const el = document.createElement('div');
+  el.className = `msg ${kind}`;
+  el.textContent = text;
+  $('#petLog').appendChild(el);
+  $('#petLog').scrollTop = $('#petLog').scrollHeight;
+  return el;
+}
+async function ask(question) {
+  if (!question.trim() || pet.busy) return;
+  openPet(); pet.busy = true;
+  addMsg('user', question);
+  const thinking = addMsg('sys', '思考中…');
+  try {
+    const r = await api('/api/qa', { key: pet.key, question, selection: pet.selection });
+    thinking.remove();
+    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : `AI 不可用：${r.reason || '未知'}`);
+    if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
+  finally { pet.busy = false; pet.selection = null; }
+}
+async function translate(text) {
+  openPet();
+  addMsg('user', `翻译：${text.slice(0, 90)}${text.length > 90 ? '…' : ''}`);
+  const thinking = addMsg('sys', '翻译中…');
+  try {
+    const r = await api('/api/translate', { text });
+    thinking.remove();
+    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.translation : `翻译不可用：${r.reason || '未知'}`);
+  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
+}
+$('#pet').onclick = () => $('#petPanel').classList.toggle('open');
+$('#petClose').onclick = () => $('#petPanel').classList.remove('open');
+$('#petClear').onclick = () => { $('#petLog').innerHTML = ''; };
+$('#petSend').onclick = () => { const v = $('#petInput').value; $('#petInput').value = ''; ask(v); };
+$('#petInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const v = e.target.value; e.target.value = ''; ask(v); } });
+$('#readerBack').onclick = () => $('#reader').classList.add('hidden');
+$('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
+$('#selbar').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-sel]');
+  if (!btn) return;
+  const text = selText;
+  hideSel();
+  if (btn.dataset.sel === 'translate') translate(text);
+  else { pet.selection = text; openPet(); $('#petCtx').textContent = `当前论文：${pet.title || '（未选）'}\n选中：${text.slice(0, 140)}`; $('#petInput').focus(); }
+});
 </script>
 </body>
 </html>

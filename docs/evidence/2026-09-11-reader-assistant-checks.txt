@@ -1,0 +1,31 @@
+# Evidence: full-page PDF reader, selection translate/ask, floating assistant
+# Date: 2026-09-11 UTC
+# Scope: pdf.js vendored, service/server/UI + tests; real paper_qa and selection_translate calls
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 95 tests in 7.549s
+
+OK
+exit=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ live: pdf.js assets + real QA/translate + history + ledger
+pdf.min.mjs: 200 329881
+pdf.worker.min.mjs: 200 1362587
+qa: 200 ok True | 这篇论文一句话讲的是：提出机器人视频生成基准 **RBench** 和迄今最大的开源机器人视频数据集 **RoVid-X**（400 万条带
+translate: 200 ok True | 我们在冻结的视觉特征上构建一个world model，用于zero-shot planning。
+qa history: 4 ['user', 'assistant', 'user', 'assistant']
+{"date": "2026-09-11", "operation": "paper_qa", "model": "deepseek-flash", "input": 407, "output": 66, "cache_hit": 0, "total": 473, "usd": "0.0002013"}
+{"date": "2026-09-11", "operation": "selection_translate", "model": "deepseek-flash", "input": 37, "output": 16, "cache_hit": 0, "total": 53, "usd": "0.0000303"}
+exit=0
+
+$ git diff --check
+exit=0

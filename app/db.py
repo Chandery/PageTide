@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS summaries (
 CREATE TABLE IF NOT EXISTS library (
   paper_key TEXT PRIMARY KEY, saved_at TEXT NOT NULL, note TEXT
 );
+CREATE TABLE IF NOT EXISTS qa_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  paper_key TEXT, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_qa_paper ON qa_history(paper_key, id);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_feedback_paper ON feedback(paper_key, undone);
 CREATE INDEX IF NOT EXISTS idx_exposures_paper ON exposures(paper_key);
@@ -222,3 +227,15 @@ class Store:
 
     def in_library(self, paper_key):
         return self.conn.execute("SELECT 1 FROM library WHERE paper_key=?", (paper_key,)).fetchone() is not None
+
+    # ------------------------------------------------------------ qa history
+    def add_qa(self, paper_key, role, content):
+        self.conn.execute("INSERT INTO qa_history (paper_key, role, content, created_at) VALUES (?,?,?,?)",
+                          (paper_key, role, content, now()))
+        self.conn.commit()
+
+    def qa_history(self, paper_key, limit=20):
+        rows = self.conn.execute(
+            "SELECT role, content, created_at FROM qa_history WHERE paper_key IS ? ORDER BY id DESC LIMIT ?",
+            (paper_key, limit)).fetchall()
+        return [dict(r) for r in reversed(rows)]
