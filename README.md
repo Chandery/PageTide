@@ -10,7 +10,7 @@
 2. [测试领域与种子](docs/DOMAIN.md)：英文 AI / world models 与 10 篇正例种子（无反例）。
 3. [设计头脑风暴](docs/BRAINSTORM.md)：需求拆解、算法选型、候选路线与形态取舍。
 4. [开源与数据源调研](docs/RESEARCH.md)：ASReview/X/lite/PaperFlow 等实际代码、许可与缺口；论文图谱/聚类见 [KNOWLEDGE-GRAPH](docs/KNOWLEDGE-GRAPH.md)。
-5. [路线与阶段](docs/ROADMAP.md)：S0–S6、实验协议与停止条件。
+5. [路线与阶段](docs/ROADMAP.md)：S0–S6、实验协议与停止条件；标注/裁判协议见 [EVALUATION](docs/EVALUATION.md)。
 6. [预算](docs/BUDGET.md)与[生成表](docs/BUDGET.generated.md)：核心 0 token；AI 层每日最低约 4,500 token 参考、上限约 10,800（未批准）。
 7. [Harness](docs/HARNESS.md) 与 [当前交接](docs/HANDOFF.md)：如何记录、审查、验证与换 agent。
 8. 任务与验收事实源：`harness/tasks.json`、`harness/requirements.json`、`harness/evaluations.json`。

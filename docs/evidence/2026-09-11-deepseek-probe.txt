@@ -1,0 +1,28 @@
+# DeepSeek provider probe (first real model call)
+# Date: 2026-09-11 UTC
+# Purpose: verify key, thinking-disable parameter, JSON mode and the real usage schema
+#          against scripts/budget.py reconcile_usage. NOT a product measurement or a passed gate.
+
+Endpoint: https://api.deepseek.com/chat/completions
+Model returned: deepseek-flash
+Request: "thinking": {"type": "disabled"}, "response_format": {"type": "json_object"}, max_tokens 200
+Prompt: non-private synthetic judgement task (world-model profile vs one paper title)
+HTTP: 200, time_total 0.799s
+thinking honored: message has NO reasoning_content
+content: {"useful": true, "reason": "World model on visual features for zero-shot planning, core topic."}
+
+usage:
+  prompt_tokens: 98
+  completion_tokens: 24
+  total_tokens: 122
+  prompt_cache_hit_tokens: 0
+  prompt_cache_miss_tokens: 98
+  prompt_tokens_details.cached_tokens: 0
+
+Derived cost at peak cache-miss ($0.30/M in, $1.20/M out):
+  (98*0.30 + 24*1.20)/1e6 = 0.0000582 USD
+
+Notes:
+- Raw response kept privately in .local/ (gitignored); no API key is stored here.
+- This proves the provider contract fields exist, NOT tokenizer parity or a runtime spending cap.
+- The key was shared in chat; the owner should rotate it after the experiments.

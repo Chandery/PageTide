@@ -103,6 +103,41 @@ def validate(config):
                 integer(count, name)
                 if name not in config['operations']:
                     raise ValueError(f'unregistered operation: {name}')
+    evaluation = config.get('evaluation')
+    if evaluation is not None:
+        validate_evaluation(evaluation)
+
+
+def validate_evaluation(evaluation):
+    """Annotator profile: tokens only, never USD, and never part of the shipped app."""
+    provider = evaluation['provider']
+    if provider['price_verifiable'] is not False:
+        raise ValueError('evaluation provider prices must be marked unverifiable until a public source exists')
+    integer(provider['observed_hidden_input_tokens'], 'observed_hidden_input_tokens')
+    dt.date.fromisoformat(provider['verified_on'])
+    if integer(provider['recheck_after_days'], 'recheck_after_days') == 0:
+        raise ValueError('evaluation recheck interval must be positive')
+    operations = evaluation['operations']
+    if not isinstance(operations, dict) or not operations:
+        raise ValueError('evaluation section requires operations')
+    for name, op in operations.items():
+        for axis in ('input', 'output'):
+            ref = integer(op['reference'][axis], name)
+            cap = integer(op['cap'][axis], name)
+            if ref > cap or cap == 0:
+                raise ValueError(f'evaluation {name}: reference must be <= positive cap')
+        components = [integer(v, name) for v in op['input_cap_components'].values()]
+        if sum(components) != op['cap']['input']:
+            raise ValueError(f'evaluation {name}: input component envelope does not add up')
+    ids = set()
+    for scenario in evaluation['scenarios']:
+        if scenario['id'] in ids:
+            raise ValueError('duplicate evaluation scenario id')
+        ids.add(scenario['id'])
+        for name, count in scenario['calls'].items():
+            integer(count, name)
+            if name not in operations:
+                raise ValueError(f'unregistered evaluation operation: {name}')
 
 
 def cost(config, input_tokens, output_tokens, cache_hits=0):
@@ -249,6 +284,25 @@ def render(config):
               '这是计划口径，不是文本实测或最低质量成本；周报执行日必须预留完整操作。',
               '不含论文API收费、税/汇率、开发agent、OCR/图片、额外embedding或未登记调用。',
               '准入算术检查不验证并发事务、真实token计数、服务商账单或模型输出质量。', '']
+    evaluation = config.get('evaluation')
+    if evaluation:
+        prefix = evaluation['provider']['observed_hidden_input_tokens']
+        lines += ['', '## 离线评估标注（非运行时；价格不可核验，只报 token）', '',
+                  f"裁判 provider `{evaluation['provider']['name']}` / `{evaluation['provider']['model']}`；观测到每次请求约 {prefix:,} 个隐藏输入 token。",
+                  '该 provider 无公开价格表，因此本表**不计算 USD**；只用于构建评估标签，不进入 App。', '',
+                  '| 操作 | 参考输入 | 上限输入 | 上限输出 | 含隐藏前缀的每次输入上限 |', '|---|---:|---:|---:|---:|']
+        for name, op in evaluation['operations'].items():
+            lines.append(f"| {name} | {op['reference']['input']:,} | {op['cap']['input']:,} | {op['cap']['output']:,} | {op['cap']['input'] + prefix:,} |")
+        lines += ['', '| 场景 | 调用数 | 上限输入token | 上限输出token | 上限合计token |', '|---|---:|---:|---:|---:|']
+        for scenario in evaluation['scenarios']:
+            calls = inp = out = 0
+            for name, count in scenario['calls'].items():
+                op = evaluation['operations'][name]
+                calls += count
+                inp += count * (op['cap']['input'] + prefix)
+                out += count * op['cap']['output']
+            lines.append(f"| {scenario['label']} | {calls} | {inp:,} | {out:,} | {inp + out:,} |")
+        lines += ['', '评估标注是**实验开销**，不占用运行时日/月额度；要控成本就缩小留出集或每批篇数。', '']
     return '\n'.join(lines)
 
 

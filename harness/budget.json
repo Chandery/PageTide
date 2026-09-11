@@ -14,7 +14,11 @@
     "recheck_after_days": 30,
     "currency": "USD",
     "price_basis": "peak_cache_miss",
-    "usd_per_million": {"input_miss": "0.30", "input_hit": "0.006", "output": "1.20"}
+    "usd_per_million": {
+      "input_miss": "0.30",
+      "input_hit": "0.006",
+      "output": "1.20"
+    }
   },
   "policy": {
     "runtime_enforcement_implemented": false,
@@ -34,63 +38,251 @@
     "automatic_model_fallback": false
   },
   "zero_token_operations": [
-    "paper_metadata_search", "deduplication", "sparse_ranking", "mmr_diversity",
-    "explicit_feedback", "deterministic_profile_update", "exposure_control",
-    "local_candidate_cache", "archive_and_export", "sqlite_maintenance",
-    "local_weekly_statistics", "manual_notes_and_highlights", "pdf_text_extraction"
+    "paper_metadata_search",
+    "deduplication",
+    "sparse_ranking",
+    "mmr_diversity",
+    "explicit_feedback",
+    "deterministic_profile_update",
+    "exposure_control",
+    "local_candidate_cache",
+    "archive_and_export",
+    "sqlite_maintenance",
+    "local_weekly_statistics",
+    "manual_notes_and_highlights",
+    "pdf_text_extraction"
   ],
   "operations": {
     "daily_triage": {
-      "prompt": "prompts/daily-triage.md", "trigger": "background", "enabled_by_default": true,
-      "reference": {"input": 3000, "output": 900}, "cap": {"input": 4200, "output": 1300},
-      "input_cap_components": {"instructions_and_json_example": 700, "profile_terms": 250, "paper_ids_titles_and_flags": 450, "abstracts_5x520": 2600, "framing_and_margin": 200},
+      "prompt": "prompts/daily-triage.md",
+      "trigger": "background",
+      "enabled_by_default": true,
+      "reference": {
+        "input": 3000,
+        "output": 900
+      },
+      "cap": {
+        "input": 4200,
+        "output": 1300
+      },
+      "input_cap_components": {
+        "instructions_and_json_example": 700,
+        "profile_terms": 250,
+        "paper_ids_titles_and_flags": 450,
+        "abstracts_5x520": 2600,
+        "framing_and_margin": 200
+      },
       "scope": "one batch of at most five abstract-only cards; no tools, full PDFs, notes or history"
     },
     "llm_rerank": {
-      "prompt": "prompts/llm-rerank.md", "trigger": "background", "enabled_by_default": false,
-      "reference": {"input": 8000, "output": 600}, "cap": {"input": 12000, "output": 1000},
-      "input_cap_components": {"instructions_and_schema": 700, "profile_and_seed_titles": 500, "candidate_titles_abstracts_20x480": 9600, "framing_and_margin": 1200},
+      "prompt": "prompts/llm-rerank.md",
+      "trigger": "background",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 8000,
+        "output": 600
+      },
+      "cap": {
+        "input": 12000,
+        "output": 1000
+      },
+      "input_cap_components": {
+        "instructions_and_schema": 700,
+        "profile_and_seed_titles": 500,
+        "candidate_titles_abstracts_20x480": 9600,
+        "framing_and_margin": 1200
+      },
       "scope": "one batch of at most 20 abstract-only candidates rescored for the day; no full text, no tools, no private seed IDs; off by default and NOT covered by the approved ceilings"
     },
     "weekly_digest": {
-      "prompt": "prompts/weekly-digest.md", "trigger": "background", "enabled_by_default": false,
-      "reference": {"input": 2800, "output": 700}, "cap": {"input": 4200, "output": 1100},
-      "input_cap_components": {"instructions_and_json_example": 500, "local_activity_digest": 900, "permitted_source_excerpts": 2500, "framing_and_margin": 300},
+      "prompt": "prompts/weekly-digest.md",
+      "trigger": "background",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 2800,
+        "output": 700
+      },
+      "cap": {
+        "input": 4200,
+        "output": 1100
+      },
+      "input_cap_components": {
+        "instructions_and_json_example": 500,
+        "local_activity_digest": 900,
+        "permitted_source_excerpts": 2500,
+        "framing_and_margin": 300
+      },
       "scope": "once weekly; local statistics plus only explicitly permitted excerpts; no private-note upload"
     },
     "paper_qa": {
-      "prompt": "prompts/paper-qa.md", "trigger": "interactive", "enabled_by_default": true,
-      "reference": {"input": 2600, "output": 650}, "cap": {"input": 4200, "output": 1100},
-      "input_cap_components": {"instructions": 400, "question": 400, "bounded_history": 700, "retrieved_excerpts": 2400, "framing_and_margin": 300},
+      "prompt": "prompts/paper-qa.md",
+      "trigger": "interactive",
+      "enabled_by_default": true,
+      "reference": {
+        "input": 2600,
+        "output": 650
+      },
+      "cap": {
+        "input": 4200,
+        "output": 1100
+      },
+      "input_cap_components": {
+        "instructions": 400,
+        "question": 400,
+        "bounded_history": 700,
+        "retrieved_excerpts": 2400,
+        "framing_and_margin": 300
+      },
       "scope": "one answer from bounded local excerpts; no automatic tool turns or whole-PDF upload"
     },
     "selection_translate": {
-      "prompt": "prompts/selection-translate.md", "trigger": "interactive", "enabled_by_default": false,
-      "reference": {"input": 700, "output": 200}, "cap": {"input": 1200, "output": 500},
-      "input_cap_components": {"instructions": 250, "selection_and_context": 800, "framing_and_margin": 150},
+      "prompt": "prompts/selection-translate.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 700,
+        "output": 200
+      },
+      "cap": {
+        "input": 1200,
+        "output": 500
+      },
+      "input_cap_components": {
+        "instructions": 250,
+        "selection_and_context": 800,
+        "framing_and_margin": 150
+      },
       "scope": "short selection translation or explanation; never whole-page OCR"
     },
     "query_expand": {
-      "prompt": "prompts/query-expand.md", "trigger": "interactive", "enabled_by_default": false,
-      "reference": {"input": 600, "output": 200}, "cap": {"input": 1000, "output": 400},
-      "input_cap_components": {"instructions": 300, "user_terms": 500, "framing_and_margin": 200},
+      "prompt": "prompts/query-expand.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 600,
+        "output": 200
+      },
+      "cap": {
+        "input": 1000,
+        "output": 400
+      },
+      "input_cap_components": {
+        "instructions": 300,
+        "user_terms": 500,
+        "framing_and_margin": 200
+      },
       "scope": "optional one-off bilingual term setup; never recurring automatically"
     }
   },
   "scenarios": [
-    {"id": "core_zero_token", "label": "核心推荐与画像（无 AI，0 模型 token）", "days": 30,
-     "weekly_runs": 0, "daily_calls": {}, "weekly_calls": {}, "one_off_calls": {}},
-    {"id": "daily_triage_starter", "label": "每日五篇速览 + 每周回顾（AI 最小开启）", "days": 30,
-     "weekly_runs": 5, "daily_calls": {"daily_triage": 1}, "weekly_calls": {"weekly_digest": 1}, "one_off_calls": {}},
-    {"id": "triage_plus_qa", "label": "速览 + 每日 5 次追问 + 2 次划词", "days": 30,
-     "weekly_runs": 5, "daily_calls": {"daily_triage": 1, "paper_qa": 5, "selection_translate": 2},
-     "weekly_calls": {"weekly_digest": 1}, "one_off_calls": {}},
-    {"id": "hybrid_llm_rerank", "label": "混合重排（llm_rerank，已批准额度，默认关闭） + 速览 + 每日 5 次追问", "days": 30,
-     "weekly_runs": 5, "daily_calls": {"daily_triage": 1, "llm_rerank": 1, "paper_qa": 5},
-     "weekly_calls": {"weekly_digest": 1}, "one_off_calls": {}},
-    {"id": "heavy_retry_stress", "label": "重试压力：速览2+追问10+划词4+周报2（需求量，不代表获准执行）", "days": 1,
-     "weekly_runs": 1, "daily_calls": {"daily_triage": 2, "paper_qa": 10, "selection_translate": 4},
-     "weekly_calls": {"weekly_digest": 2}, "one_off_calls": {}}
+    {
+      "id": "core_zero_token",
+      "label": "核心推荐与画像（无 AI，0 模型 token）",
+      "days": 30,
+      "weekly_runs": 0,
+      "daily_calls": {},
+      "weekly_calls": {},
+      "one_off_calls": {}
+    },
+    {
+      "id": "daily_triage_starter",
+      "label": "每日五篇速览 + 每周回顾（AI 最小开启）",
+      "days": 30,
+      "weekly_runs": 5,
+      "daily_calls": {
+        "daily_triage": 1
+      },
+      "weekly_calls": {
+        "weekly_digest": 1
+      },
+      "one_off_calls": {}
+    },
+    {
+      "id": "triage_plus_qa",
+      "label": "速览 + 每日 5 次追问 + 2 次划词",
+      "days": 30,
+      "weekly_runs": 5,
+      "daily_calls": {
+        "daily_triage": 1,
+        "paper_qa": 5,
+        "selection_translate": 2
+      },
+      "weekly_calls": {
+        "weekly_digest": 1
+      },
+      "one_off_calls": {}
+    },
+    {
+      "id": "hybrid_llm_rerank",
+      "label": "混合重排（llm_rerank，已批准额度，默认关闭） + 速览 + 每日 5 次追问",
+      "days": 30,
+      "weekly_runs": 5,
+      "daily_calls": {
+        "daily_triage": 1,
+        "llm_rerank": 1,
+        "paper_qa": 5
+      },
+      "weekly_calls": {
+        "weekly_digest": 1
+      },
+      "one_off_calls": {}
+    },
+    {
+      "id": "heavy_retry_stress",
+      "label": "重试压力：速览2+追问10+划词4+周报2（需求量，不代表获准执行）",
+      "days": 1,
+      "weekly_runs": 1,
+      "daily_calls": {
+        "daily_triage": 2,
+        "paper_qa": 10,
+        "selection_translate": 4
+      },
+      "weekly_calls": {
+        "weekly_digest": 2
+      },
+      "one_off_calls": {}
+    }
   ],
-  "developer_usage": "unknown; agent-host consumption is not controlled by this file"
+  "developer_usage": "unknown; agent-host consumption is not controlled by this file",
+  "evaluation": {
+    "provider": {
+      "id": "TAOMU-RELAY",
+      "name": "taomu-relay (third-party, evaluation only)",
+      "model": "gpt-6-astra",
+      "verified_on": "2026-09-11",
+      "recheck_after_days": 30,
+      "price_verifiable": false,
+      "observed_hidden_input_tokens": 4403,
+      "notes": "Evaluation-only annotator so the judge differs from the ranking model. Never used by the shipped app. No public price list, so this section reports tokens only and never USD."
+    },
+    "operations": {
+      "judge_relevance": {
+        "prompt": "prompts/judge-relevance.md",
+        "reference": {
+          "input": 6000,
+          "output": 1000
+        },
+        "cap": {
+          "input": 9000,
+          "output": 1500
+        },
+        "input_cap_components": {
+          "instructions_and_schema": 700,
+          "profile_terms": 400,
+          "candidates_20x370": 7400,
+          "framing_and_margin": 500
+        },
+        "scope": "one batch of at most 20 abstract-only candidates labelled useful/not-useful; blind to ranking; evaluation only"
+      }
+    },
+    "scenarios": [
+      {
+        "id": "label_200_oneoff",
+        "label": "标注 200 篇留出集（20篇/次 × 10次）",
+        "calls": {
+          "judge_relevance": 10
+        }
+      }
+    ]
+  }
 }

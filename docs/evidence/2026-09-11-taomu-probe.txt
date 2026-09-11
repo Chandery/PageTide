@@ -1,0 +1,34 @@
+# Third-party relay probe: taomu.xyz (owner-supplied provider)
+
+Date: 2026-09-11 UTC. Purpose: check whether the owner-supplied provider is usable and what it reports.
+NOT a product measurement, NOT a passed gate, and NOT an approved provider profile.
+
+Endpoint: https://taomu.xyz  (page title: "桃牧 API - AI API 中转与多模型网关" = third-party relay)
+/v1/models (HTTP 200) self-reports: codex-auto-review, gpt-5.5, gpt-5.6-sol, gpt-5.6-terra, gpt-6-astra, all owned_by "openai".
+/v1/chat/completions with model "gpt-6-astra", one short non-private prompt:
+  HTTP 200, time_total 5.47s
+  response id prefix: resp_... (Responses-API style id on a chat/completions call)
+  finish_reason: stop
+  model field: gpt-6-astra
+  usage:
+    prompt_tokens: 4403
+    completion_tokens: 13
+    total_tokens: 4416
+    prompt_tokens_details.cached_tokens: 4224
+
+Key finding:
+- The request text was only a few words, yet 4403 input tokens were reported. The relay injects a large
+  hidden prefix (~4.4k tokens, mostly reported as cached) that we do not control and cannot audit.
+
+Implications (recorded, not yet acted on):
+- Budget integrity: harness/budget.json requires a verifiable price source. taomu.xyz exposes no public
+  pricing page or API (the /pricing and /docs routes return the same client-rendered shell; /api/* 404),
+  so per-call prices cannot be grounded or reproduced.
+- Envelope integrity: every registered operation would need its input cap raised by the hidden prefix,
+  e.g. a tiny call already consumes ~4.4k input tokens.
+- Privacy: prompts and the API key pass through an unverified third-party operator.
+- Model provenance: "owned_by openai" is self-reported by the relay and cannot be verified; silent
+  backend substitution cannot be ruled out.
+
+Private raw response kept in .local/ (gitignored). No API key is stored in this evidence file.
+Both owner-supplied keys were shared in chat and should be rotated.

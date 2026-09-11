@@ -17,6 +17,7 @@
     {"id":"R-AGENT","text":"AI速览/追问/划词有证据边界、有界上下文、不自动工具循环、不上传全部历史或笔记","gates":["E-AI-OPTIONAL","E-BUDGET"]},
     {"id":"R-HYBRID","text":"允许显式启用的稀疏+大模型混合排序；可关闭、可对照、标注来源模式，模型不可用时回退确定性且不静默换模型","gates":["E-RANKING","E-NO-MODEL","E-BUDGET"]},
     {"id":"R-GRAPH","text":"论文图谱与聚类：相似论文聚合、不同观点/子领域分开、分组标签可编辑；优先复用开源、本地优先","gates":["E-GRAPH"]},
+    {"id":"R-EVAL-LABEL","text":"评估标签可由大模型预标且对排序不可见；硬门槛需人工抽检标签质量，且同一模型不得同时做重排与最终裁判","gates":["E-LLM-LABEL-VALIDITY","E-RANKING"]},
     {"id":"R-WEEKLY","text":"周报只基于实际活动，统计本地零token，不制造未读债务","gates":["E-WEEKLY-OPTIONAL"]}
   ]
 }

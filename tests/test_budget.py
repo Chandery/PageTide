@@ -71,6 +71,34 @@ class BudgetTests(unittest.TestCase):
         hybrid = next(s for s in config['scenarios'] if s['id'] == 'hybrid_llm_rerank')
         self.assertEqual(budget.violations(config, hybrid, 'cap'), [])
 
+    def test_evaluation_annotator_is_separate_and_token_only(self):
+        config = budget.load()
+        budget.validate(config)
+        evaluation = config['evaluation']
+        # The judge is a different provider and is never a runtime operation.
+        self.assertIs(evaluation['provider']['price_verifiable'], False)
+        self.assertNotIn('judge_relevance', config['operations'])
+        self.assertTrue(evaluation['operations'])
+        rendered = budget.render(config)
+        self.assertIn('离线评估标注', rendered)
+        self.assertIn(f"{evaluation['provider']['observed_hidden_input_tokens']:,}", rendered)
+        # Claiming verifiable annotator prices must fail until a public source exists.
+        bad = copy.deepcopy(config)
+        bad['evaluation']['provider']['price_verifiable'] = True
+        with self.assertRaises(ValueError):
+            budget.validate(bad)
+        # Hidden prefix is charged to every evaluation call.
+        bad = copy.deepcopy(config)
+        bad['evaluation']['scenarios'][0]['calls'] = {'judge_relevance': 10}
+        prefix = evaluation['provider']['observed_hidden_input_tokens']
+        cap_in = evaluation['operations']['judge_relevance']['cap']['input']
+        self.assertIn(f"{10 * (cap_in + prefix):,}", budget.render(bad))
+        # Unregistered evaluation operations are rejected.
+        bad = copy.deepcopy(config)
+        bad['evaluation']['scenarios'][0]['calls'] = {'hidden': 1}
+        with self.assertRaises(ValueError):
+            budget.validate(bad)
+
     def test_provider_absent_cannot_hide_calls_or_limits(self):
         honest = budget.load()
         honest['provider'] = None

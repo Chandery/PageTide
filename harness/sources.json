@@ -28,10 +28,10 @@
     {
       "id": "DS-CHAT",
       "url": "https://api-docs.deepseek.com/api/create-chat-completion",
-      "verified_on": "2026-09-10",
+      "verified_on": "2026-09-11",
       "recheck_after_days": 30,
-      "claim": "thinking enabled by default; explicit max_tokens; usage cache/output fields and current final streaming chunk",
-      "verification": "direct HTTP checked because web cached schema was outdated; live model enum includes deepseek-flash; confirmed live in A-05 calibration (thinking disabled honored with no reasoning_content, stream final chunk carries usage incl. cached_tokens)"
+      "claim": "thinking enabled by default and can be disabled via {\"thinking\":{\"type\":\"disabled\"}}; explicit max_tokens; usage exposes prompt/completion/total, cache hit/miss and cached_tokens",
+      "verification": "official docs plus a 2026-09-11 live probe (non-private prompt, HTTP 200): thinking disabled honored with no reasoning_content, JSON mode worked, usage fields exactly match scripts/budget.py reconcile_usage; raw response kept privately in .local, no key in git"
     },
     {
       "id": "DS-TOKENIZER",
@@ -376,6 +376,14 @@
       "recheck_after_days": 180,
       "claim": "Apache-2.0 scientific paper embeddings; CPU-inferable but downloads model weights, so opt-in only",
       "verification": "raw LICENSE.md/model card fetched (Apache-2.0); not downloaded or run"
+    },
+    {
+      "id": "TAOMU-RELAY",
+      "url": "https://taomu.xyz",
+      "verified_on": "2026-09-11",
+      "recheck_after_days": 30,
+      "claim": "Third-party AI relay (self-described as an API gateway) exposing gpt-5.5/gpt-5.6-*/gpt-6-astra with no public price page or API; a minimal chat call reported 4403 prompt tokens for a few words, indicating a ~4.4k hidden injected prefix; model identity is self-reported and not verifiable",
+      "verification": "live probe 2026-09-11: /v1/models 200, /v1/chat/completions 200, /pricing and /docs serve the same client-rendered shell, /api/* 404; raw response kept privately, no key in git"
     }
   ]
 }

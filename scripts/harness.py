@@ -181,14 +181,18 @@ def check_sources(root, today):
 def check_prompts_and_skills(root):
     errors = []
     config = budget.load(root)
+    evaluation = config.get('evaluation') or {}
     declared = {op['prompt'] for op in config['operations'].values()}
+    declared |= {op['prompt'] for op in evaluation.get('operations', {}).values()}
     actual_files = [p for p in (root / 'prompts').rglob('*') if p.is_file()]
     actual = {p.relative_to(root).as_posix() for p in actual_files if p.suffix == '.md'}
     if any(p.suffix != '.md' for p in actual_files):
         errors.append('unsupported prompt file type; register Markdown contracts only')
     if declared != actual:
         errors.append(f'prompt registry mismatch: {sorted(declared ^ actual)}')
-    for op_id, op in config['operations'].items():
+    all_ops = dict(config['operations'])
+    all_ops.update(evaluation.get('operations', {}))
+    for op_id, op in all_ops.items():
         if local_file(root, op['prompt']) and f'operation: {op_id}' not in (root / op['prompt']).read_text():
             errors.append(f'{op_id}: prompt operation header mismatch')
     skills = list((root / '.agents/skills').glob('*/SKILL.md'))

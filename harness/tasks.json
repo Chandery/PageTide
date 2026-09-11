@@ -154,6 +154,27 @@
       "evidence": []
     },
     {
+      "id": "LABEL-01",
+      "stage": "benchmark",
+      "title": "大模型辅助评估标注与标签质量抽检",
+      "status": "planned",
+      "depends_on": [
+        "DATA-01"
+      ],
+      "requirements": [
+        "R-EVAL-LABEL",
+        "R-BUDGET",
+        "R-DISCOVERY"
+      ],
+      "acceptance": [
+        "用已批准额度调用 deepseek-flash 对留出集预标，标注请求对排序不可见",
+        "记录模型/提示版本与集合哈希；每次请求记录真实 usage 与费用",
+        "抽检标签质量（E-LLM-LABEL-VALIDITY），报告一致率；未达标前结果只算探索",
+        "同一模型不得同时做重排与最终裁判，若重叠必须显式报告"
+      ],
+      "evidence": []
+    },
+    {
       "id": "CORE-01",
       "stage": "feedback",
       "title": "候选→推荐→明确反馈→画像版本的最短闭环（排序与去重）",

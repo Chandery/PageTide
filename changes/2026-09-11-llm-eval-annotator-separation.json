@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-llm-eval-annotator-separation",
+  "class": "critical",
+  "summary": "Owner chose LLM-assisted relevance judging. Split the budget model into a runtime provider (DeepSeek, unchanged, verifiable prices) and an evaluation-only annotator (taomu relay / gpt-6-astra) so the judge differs from the ranking model (ADR 0004). judge_relevance moves to a token-only evaluation section that charges a measured ~4,403-token hidden prefix; runtime ceilings/scenarios are unaffected. Two live non-private probes recorded. No product measurement or gate passed.",
+  "tasks": [
+    "LABEL-01",
+    "PLAN-02"
+  ],
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "changes/2026-09-11-llm-eval-annotator-separation.json",
+    "docs/BUDGET.generated.md",
+    "docs/BUDGET.md",
+    "docs/EVALUATION.md",
+    "docs/HANDOFF.md",
+    "docs/KNOWLEDGE-GRAPH.md",
+    "docs/ROADMAP.md",
+    "docs/decisions/0004-evaluation-annotator-separation.md",
+    "docs/evidence/2026-09-11-deepseek-probe.txt",
+    "docs/evidence/2026-09-11-llm-eval-and-taomu-checks.txt",
+    "docs/evidence/2026-09-11-llm-eval-and-taomu-self-review.md",
+    "docs/evidence/2026-09-11-taomu-probe.txt",
+    "harness/budget.json",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/sources.json",
+    "harness/tasks.json",
+    "prompts/judge-relevance.md",
+    "scripts/budget.py",
+    "scripts/harness.py",
+    "tests/test_budget.py"
+  ],
+  "scope_note": "Covers the diff since commit d0cb778 (planning baseline v2). Registry/docs/budget-model changes plus two provider probes; no app runtime.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No app runtime exists and no gate changed. The runtime provider/prices/ceilings are unchanged; a separate evaluation section was added with price_verifiable=false and a measured hidden prefix, and budget.py now refuses to treat annotator prices as verifiable. Probes were one tiny call each, not billed runtime or a measurement.",
+    "before": "judge_relevance was a runtime operation under DeepSeek with a 9k input cap; no separate evaluation budget; one DeepSeek probe.",
+    "after": "runtime ops = daily_triage/llm_rerank/weekly_digest/paper_qa/selection_translate/query_expand on DeepSeek; evaluation section holds judge_relevance for taomu with 9k cap + 4,403 hidden prefix per call (149,030 token cap for a 200-item batch, USD unverified); LABEL-01/R-EVAL-LABEL/E-LLM-LABEL-VALIDITY added.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-llm-eval-and-taomu-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-llm-eval-and-taomu-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-llm-eval-and-taomu-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 scripts/harness.py check --release",
+      "exit_code": 1,
+      "scope": "Expected block: implementation approval missing, gateway/tokenizer not implemented, all blocking gates not_run"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; registry/doc/budget-model consistency only, not product quality or billing",
+      "evidence": "docs/evidence/2026-09-11-llm-eval-and-taomu-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "taomu pricing unverifiable and model identity self-reported; hidden ~4.4k-token prefix per call may vary and cannot be audited.",
+    "Evaluation labels are an unvalidated proxy until E-LLM-LABEL-VALIDITY passes; an all-LLM evaluation is exploratory only.",
+    "LABEL-01 blocked until DATA-01 freezes a candidate set; seeds still unresolved.",
+    "Both API keys were shared in chat and only stored in .local (gitignored); rotate them."
+  ]
+}

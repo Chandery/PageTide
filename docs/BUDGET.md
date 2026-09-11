@@ -39,7 +39,9 @@
 
 **重试压力场景**（速览2+追问10+划词4+周报2 同日）上限约 81,400 token/天，超过 45,000 日限额，会被拒绝。这只表示需求量，不代表获准执行。
 
-所有数字都是**未实测的计划 envelope**：参考量来自 arXiv 摘要长度的少量测量与 DeepSeek 官方 token 比例（英文约 0.3 token/字符），不是你的领域实测；未经离线 tokenizer 校准前不得称为账单或保证。
+**评估标注实验（一次性，非运行时额度，只记 token）**：裁判用 taomu 中转 / `gpt-6-astra`（[ADR 0004](decisions/0004-evaluation-annotator-separation.md)），与运行时 DeepSeek 分开，避免自己给自己打分。taomu 无公开价格、且每次请求注入约 **4,403 个隐藏输入 token**，因此标注 200 篇（20 篇/次 × 10 次）上限约 **149,030 token，不计算 USD**。详见生成表的「离线评估标注」段与 [EVALUATION](EVALUATION.md)。
+
+**所有数字都是**未实测的计划 envelope（除上述探针外）：参考量来自 arXiv 摘要长度的少量测量与 DeepSeek 官方 token 比例，未经离线 tokenizer 校准前不得称为账单或保证。
 
 ## 3. 授权顺序
 
