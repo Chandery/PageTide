@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-data01-candidate-pool",
+  "class": "critical",
+  "summary": "DATA-01 v2: canonical seed IDs (owner supplied two arXiv IDs) raise resolution to 10/10, and candidate discovery is fixed to OpenAlex arXiv-source + title.search + date bounds (3,226 reported; 200/200 arXiv, 0 missing abstracts; reference/related edges 200/200 absent). Probe now resolves explicit IDs authoritatively and flags title mismatches. DATA-01 stays in_progress; no quality claim.",
+  "tasks": [
+    "DATA-01"
+  ],
+  "files": [
+    "changes/2026-09-11-data01-candidate-pool.json",
+    "docs/DOMAIN.md",
+    "docs/HANDOFF.md",
+    "docs/RESEARCH.md",
+    "docs/evidence/2026-09-11-data01-openalex-report.md",
+    "docs/evidence/2026-09-11-data01-v2-checks.txt",
+    "docs/evidence/2026-09-11-data01-v2-self-review.md",
+    "harness/seeds.json",
+    "tools/data_probe.py"
+  ],
+  "scope_note": "Covers the diff since commit 0047c87. Probe/tooling/docs; read-only public metadata; verification run replays from cache.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No app runtime and no model call. Only OpenAlex public metadata was read; this session spent roughly $0.0235 of the account's daily metered allowance. No provider operation or ceiling changed.",
+    "before": "Seeds 8/10; candidate discovery used free-text search and returned an unusable pool with future dates.",
+    "after": "Seeds 10/10 via explicit IDs; discovery = arXiv source + title.search + date bounds, 200/200 relevant-source entries with full abstracts; graph citation edges shown absent for the recent slice.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-data01-v2-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-data01-v2-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-data01-v2-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 tools/data_probe.py --source openalex ... (cached replay)",
+      "exit_code": 0,
+      "scope": "10/10 seeds, 0 title mismatch, deterministic replay"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; tool/data-source facts only, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-data01-v2-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "DATA-01 incomplete: no known-relevant recall set and no frozen time split yet.",
+    "OpenAlex reference/related edges absent for recent arXiv; graph feature needs another citation source.",
+    "arXiv API unverified (HTTP 429 during probing).",
+    "Candidate pool is a single ~1-month slice."
+  ]
+}

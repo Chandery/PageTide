@@ -32,6 +32,8 @@
 
 **反例**：暂无。按规则记为未知，**不自动制造负标签**；之后可由你补充 3–5 篇「看起来相关但不想看」及原因。
 
+**规范 ID（DATA-01 已解析 10/10）**：完整机器可读版在 `harness/seeds.json`。其中 A Definition and Roadmap for World Models = arXiv `2607.06401`，Wonder: Video World Model Done Better = arXiv `2607.26037`（owner 提供）；DreamerV3 为 Nature DOI，LeWorldModel 只有 OpenAlex ID。
+
 ## 隐私与外发边界
 
 - 私人种子/兴趣 ID 本身揭示研究方向。owner 已明确**不允许**把种子/画像 ID 发送给任何外部推荐服务（如 Semantic Scholar 推荐 API）；只允许公开元数据查询（按关键词/分类）。

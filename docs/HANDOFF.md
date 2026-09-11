@@ -64,11 +64,11 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 
 ### DATA-01 首轮结果（in_progress）
 
-- 种子 8/10 解析到 DOI/OpenAlex ID；未解析的两篇都是 2026 新预印本（需人工确认标题或换源）。
-- **不能用自由文本关键词发现**：`search="world model"` 328 万条且被医学/仓储库污染；发现要走 arXiv 分类或种子扩展。
-- **引用边缺失**：8 篇种子只有 1 篇有 `referenced_works`；图谱引用边需另找 Semantic Scholar 或书目耦合。
-- **日期必须带 `to_publication_date`**，否则出现 2036 年未来记录。
-- 费用：OpenAlex $0.001/search、1000 credits/日、$0.10/日；arXiv 本机 IP 本次持续 429。
-- 下一步：确定发现源（arXiv 分类 + 种子扩展）并重建可回放候选集，然后才进 `LABEL-01`。
+- **10/10 种子解析成功**（owner 补了两个 arXiv ID）；显式 ID 作权威，标题不符会记录 mismatch。
+- **发现配方已确定**：arXiv source（`S4306400194`）+ `title.search` + 日期上界 → 3,226 条且 200/200 全是世界模型；裸关键词 328 万条且被污染。
+- **可用候选池**：200 条全来自 arXiv、摘要 0 缺失；但**引用与 related 边 200/200 全缺** → 图谱引用边必须换源。
+- **日期必须带 `to_publication_date`**，否则出现 2036 年记录。
+- 费用：OpenAlex $0.001/search、1000 credits 与 $0.10/日；arXiv 本机 IP 本次持续 429。
+- 下一步：冻结时间切分与已知相关集，再进 `LABEL-01`。
 
 **不开始新的 PDF 阅读器平台，不自动执行整条路线。**

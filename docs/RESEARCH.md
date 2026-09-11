@@ -113,13 +113,12 @@ OpenAlex当前[价格页](https://developers.openalex.org/api-reference/authenti
 
 只读探针 `tools/data_probe.py` + 原始快照，完整报告见 [DATA-01 报告](evidence/2026-09-11-data01-openalex-report.md)。要点：
 
-- **种子解析 8/10**（OpenAlex，标题匹配）；未解析的两篇是 2026 新预印本，不能当作不存在。
-- **摘要可用**，但 **arXiv 预印本的引用边几乎全缺**（8 篇种子只有 1 篇有 `referenced_works`）→ 图谱的引用边不能只靠 OpenAlex。
-- **裸关键词不能当领域过滤器**：`search="world model"` 报 328 万条，加计算机领域过滤仍 12.7 万条且被医学/信息学/仓储库污染。发现必须走 arXiv 分类或种子扩展。
+- **种子解析 10/10**（owner 补了两个 arXiv ID 后，用显式 ID 作权威解析）；发现配方为 **arXiv source `S4306400194` + `title.search` + 日期上界**，报告 3,226 条且 200/200 均为世界模型；裸 `search="world model"` 报 328 万条且被医学/信息学/仓储库污染。
+- **候选池可用**：200 条全来自 arXiv，摘要 0 缺失；但该近期切片的**引用边与 related 边 200/200 全缺** → 图谱的引用边不能只靠 OpenAlex。
 - **日期必须带上界**：不设上限时 200 条里 117 条未来日期（最远 2036）。
 - **限流/费用**：OpenAlex 每次 search $0.001 / 10 credits，日额度 1000 credits / $0.10（≈22h 重置），突发 429；arXiv 旧 API 本次对本机 IP 持续 429。
 
-所以主源分工变为：**arXiv 分类 = 发现；OpenAlex = ID/DOI/摘要富化与去重；引用边另找 Semantic Scholar 或书目耦合兜底**。`DATA-01` 仍 `in_progress`（未测已知相关回收率，未稳定候选池）。
+所以主源分工变为：**arXiv source（OpenAlex 内）+ 标题搜索 = 发现；OpenAlex = ID/DOI/摘要富化与去重；引用边另找 Semantic Scholar 或书目耦合兜底**。`DATA-01` 仍 `in_progress`（未测已知相关回收率，未冻结时间切分）。
 
 ## 4. 论文软件：已经有轮子，但属于后置选项
 
