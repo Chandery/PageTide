@@ -180,6 +180,17 @@
   .reader .txt span { position:absolute; white-space:pre; transform-origin:0 0; color:transparent; cursor:text; }
   .reader .txt span::selection { background:color-mix(in srgb, var(--accent) 45%, transparent); }
   .reader .rload { margin:auto; color:var(--muted); font-size:13px; display:flex; gap:10px; align-items:center; }
+  .reader .rbody { flex:1; display:flex; min-height:0; }
+  .reader .rside { width:158px; overflow:auto; padding:12px 10px; box-shadow:var(--sh-in-sm); display:none;
+                   flex-direction:column; gap:12px; align-items:center; }
+  .reader.side .rside { display:flex; }
+  .reader .rside .thumb { cursor:pointer; border-radius:6px; overflow:hidden; background:#fff;
+                          box-shadow:0 2px 8px rgba(0,0,0,.25); outline:2px solid transparent; }
+  .reader .rside .thumb.active { outline-color:var(--accent); }
+  .reader .rside .thumb canvas { display:block; }
+  .reader .zoombar { display:flex; align-items:center; gap:2px; font-size:12px; color:var(--muted); }
+  .reader .pgwrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .reader .pgno { font-size:11px; color:var(--muted); }
 
   /* ------------------------------------------------------------ assistant */
   .pet { position:fixed; right:22px; bottom:22px; z-index:88; width:58px; height:58px; border-radius:50%;
@@ -284,11 +295,21 @@
 <div id="reader" class="reader hidden">
   <div class="rbar">
     <button class="ghost" id="readerBack">← 返回</button>
+    <button class="tiny ghost" id="readerToggleSide" title="页面缩略图">☰</button>
     <h2 id="readerTitle"></h2>
     <span class="stat" id="readerInfo"></span>
+    <div class="zoombar">
+      <button class="tiny ghost" id="zoomOut">−</button><span id="zoomLabel">100%</span>
+      <button class="tiny ghost" id="zoomIn">+</button>
+      <button class="tiny ghost" id="zoomFit">适宽</button>
+    </div>
+    <button class="tiny" id="readerNative" title="用浏览器自带阅读器打开（原生清晰、带边栏）">浏览器打开</button>
     <button class="tiny" id="readerAsk">对这篇提问</button>
   </div>
-  <div class="pages" id="readerPages"></div>
+  <div class="rbody">
+    <aside class="rside" id="readerSide"></aside>
+    <div class="pages" id="readerPages"></div>
+  </div>
 </div>
 
 <div class="petpanel" id="petPanel">
@@ -605,55 +626,140 @@ async function lib() {
   pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
   return pdfjs;
 }
+const R = { doc:null, pages:[], scale:null, fit:true, side:false, observer:null, jobs:new Map(), url:null, current:1 };
+
 async function openReader(key, title) {
   window.PDHSetContext(key, title);
-  const box = $('#readerPages'), reader = $('#reader');
+  const box = $('#readerPages'), side = $('#readerSide'), reader = $('#reader');
   $('#readerTitle').textContent = title || '';
   $('#readerInfo').textContent = '';
   box.innerHTML = '<div class="rload"><span class="spin"></span>正在获取并渲染 PDF…</div>';
+  side.innerHTML = '';
   reader.classList.remove('hidden');
+  reader.classList.add('side');   // page thumbnails visible by default, like the native viewer
+  R.side = true;
+  if (R.observer) { R.observer.disconnect(); R.observer = null; }
+  R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
   const url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
-  try { await api('/api/pdf/prepare', { key }); } catch (e) { /* handled by the render fallback */ }
+  R.url = url; R.key = key;
+  try { await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
   try {
     const L = await lib();
-    const doc = await L.getDocument(url).promise;
-    box.innerHTML = '';
-    for (let n = 1; n <= doc.numPages; n++) {
-      const page = await doc.getPage(n);
-      const vp = page.getViewport({ scale: 1.4 });
-      const pageDiv = document.createElement('div');
-      pageDiv.className = 'pg';
-      pageDiv.style.width = `${vp.width}px`;
-      pageDiv.style.height = `${vp.height}px`;
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.floor(vp.width);
-      canvas.height = Math.floor(vp.height);
-      pageDiv.appendChild(canvas);
-      const textDiv = document.createElement('div');
-      textDiv.className = 'txt';
-      pageDiv.appendChild(textDiv);
-      box.appendChild(pageDiv);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      const content = await page.getTextContent();
-      for (const item of content.items) {
-        if (!item.str) continue;
-        const tx = L.Util.transform(vp.transform, item.transform);
-        const height = Math.hypot(tx[2], tx[3]);
-        const span = document.createElement('span');
-        span.textContent = item.str;
-        span.style.left = `${tx[4]}px`;
-        span.style.top = `${tx[5] - height}px`;
-        span.style.fontSize = `${height}px`;
-        textDiv.appendChild(span);
-      }
-    }
-    $('#readerInfo').textContent = `${doc.numPages} 页`;
+    R.doc = await L.getDocument({ url, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' }).promise;
+    R.pages = [];
+    for (let n = 1; n <= R.doc.numPages; n++) R.pages.push(await R.doc.getPage(n));
+    $('#readerInfo').textContent = `${R.doc.numPages} 页`;
+    await layoutPages();
+    buildThumbs();
   } catch (e) {
-    box.innerHTML = `<iframe src="${url}" style="width:min(1200px,96vw);height:calc(100vh - 110px);border:0;background:#fff"></iframe>`;
+    box.innerHTML = `<iframe src="${url}" style="width:min(1200px,96vw);height:calc(100vh - 120px);border:0;background:#fff"></iframe>`;
     $('#readerInfo').textContent = '内置预览（无法划词）';
     toast(`pdf.js 加载失败，改用浏览器内置预览：${e.message}`, 'warn', 6000);
   }
 }
+
+function pageScale(page) {
+  if (!R.fit) return R.scale || 1.2;
+  const avail = Math.max(320, $('#readerPages').clientWidth - 56);
+  return avail / page.getViewport({ scale: 1 }).width;
+}
+
+async function layoutPages() {
+  const box = $('#readerPages');
+  if (R.observer) { R.observer.disconnect(); R.observer = null; }
+  box.innerHTML = '';
+  R.jobs = new Map();
+  R.observer = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (en.isIntersecting) { renderPage(Number(en.target.dataset.n)); markCurrent(Number(en.target.dataset.n)); }
+    }
+  }, { root: box, rootMargin: '800px 0px' });
+  for (let i = 0; i < R.pages.length; i++) {
+    const page = R.pages[i];
+    const vp = page.getViewport({ scale: pageScale(page) });
+    const wrap = document.createElement('div');
+    wrap.className = 'pgwrap';
+    wrap.dataset.n = i + 1;
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'pg';
+    pageDiv.style.width = `${vp.width}px`;
+    pageDiv.style.height = `${vp.height}px`;
+    const canvas = document.createElement('canvas');
+    pageDiv.appendChild(canvas);
+    const textDiv = document.createElement('div');
+    textDiv.className = 'txt';
+    pageDiv.appendChild(textDiv);
+    const num = document.createElement('div');
+    num.className = 'pgno';
+    num.textContent = `${i + 1} / ${R.pages.length}`;
+    wrap.appendChild(pageDiv); wrap.appendChild(num);
+    box.appendChild(wrap);
+    R.observer.observe(wrap);
+  }
+  $('#zoomLabel').textContent = `${Math.round(pageScale(R.pages[0]) * 100)}%`;
+}
+
+function renderPage(n) {
+  if (R.jobs.has(n)) return R.jobs.get(n);
+  const job = (async () => {
+    const L = await lib();
+    const page = R.pages[n - 1];
+    const wrap = document.querySelector(`.pgwrap[data-n="${n}"]`);
+    if (!wrap) return;
+    const pageDiv = wrap.querySelector('.pg');
+    const canvas = pageDiv.querySelector('canvas');
+    const textDiv = pageDiv.querySelector('.txt');
+    const vp = page.getViewport({ scale: pageScale(page) });
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(vp.width * dpr);
+    canvas.height = Math.floor(vp.height * dpr);
+    canvas.style.width = `${vp.width}px`;
+    canvas.style.height = `${vp.height}px`;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp,
+                        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined }).promise;
+    textDiv.innerHTML = '';
+    textDiv.style.setProperty('--scale-factor', String(vp.scale));
+    textDiv.style.setProperty('--total-scale-factor', String(vp.scale));
+    const textLayer = new L.TextLayer({ textContentSource: await page.streamTextContent(), container: textDiv, viewport: vp });
+    await textLayer.render();
+  })().catch((e) => toast(`第 ${n} 页渲染失败：${e.message}`, 'err'));
+  R.jobs.set(n, job);
+  return job;
+}
+
+function markCurrent(n) {
+  R.current = n;
+  document.querySelectorAll('#readerSide .thumb').forEach((t) => t.classList.toggle('active', Number(t.dataset.n) === n));
+}
+
+async function buildThumbs() {
+  const side = $('#readerSide');
+  side.innerHTML = '';
+  for (let i = 0; i < R.pages.length; i++) {
+    const page = R.pages[i];
+    const vp = page.getViewport({ scale: 120 / page.getViewport({ scale: 1 }).width });
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.dataset.n = i + 1;
+    const canvas = document.createElement('canvas');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(vp.width * dpr);
+    canvas.height = Math.floor(vp.height * dpr);
+    canvas.style.width = `${vp.width}px`;
+    div.appendChild(canvas);
+    side.appendChild(div);
+    div.onclick = () => document.querySelector(`.pgwrap[data-n="${i + 1}"]`)?.scrollIntoView({ behavior:'smooth', block:'start' });
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp,
+                        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined }).promise;
+  }
+  markCurrent(1);
+}
+
+$('#readerToggleSide').onclick = () => { R.side = !R.side; $('#reader').classList.toggle('side', R.side); };
+$('#zoomIn').onclick = async () => { R.fit = false; R.scale = Math.min(3, (R.scale || pageScale(R.pages[0])) + 0.2); await layoutPages(); };
+$('#zoomOut').onclick = async () => { R.fit = false; R.scale = Math.max(0.4, (R.scale || pageScale(R.pages[0])) - 0.2); await layoutPages(); };
+$('#zoomFit').onclick = async () => { R.fit = true; await layoutPages(); };
+$('#readerNative').onclick = () => { if (R.url) window.open(R.url, '_blank'); };
 window.PDH.openReader = openReader;
 
 /* --------------------------------------------------------- selection bar */

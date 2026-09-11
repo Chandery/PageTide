@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-reader-rework",
+  "class": "critical",
+  "summary": "Rework the PDF reader after owner complaints: DPR-aware canvas rendering (crisp on Retina), a page-thumbnail sidebar open by default with current-page highlighting, zoom/fit controls, lazy per-page rendering near the viewport, the official pdf.js TextLayer instead of my hand-rolled one (which mis-positioned spans and broke selection), and the vendored standard_fonts set that was missing. Adds a 浏览器打开 button for the native viewer.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/static/index.html",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitDingbats.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitFixed.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitFixedBold.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitFixedBoldItalic.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitFixedItalic.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitSerif.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitSerifBold.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitSerifBoldItalic.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitSerifItalic.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/FoxitSymbol.pfb",
+    "app/static/vendor/pdfjs/standard_fonts/LICENSE_FOXIT",
+    "app/static/vendor/pdfjs/standard_fonts/LICENSE_LIBERATION",
+    "app/static/vendor/pdfjs/standard_fonts/LiberationSans-Bold.ttf",
+    "app/static/vendor/pdfjs/standard_fonts/LiberationSans-BoldItalic.ttf",
+    "app/static/vendor/pdfjs/standard_fonts/LiberationSans-Italic.ttf",
+    "app/static/vendor/pdfjs/standard_fonts/LiberationSans-Regular.ttf",
+    "changes/2026-09-11-reader-rework.json",
+    "docs/evidence/2026-09-11-reader-rework-checks.txt",
+    "docs/evidence/2026-09-11-reader-rework-self-review.md",
+    "harness/sources.json"
+  ],
+  "scope_note": "Covers the diff since commit 1cfb183, including the vendored standard_fonts (~800 KB, with their own licence files). No model call.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Reader UI and vendored assets only; no model call and no budget/config change.",
+    "before": "Blurry canvas (no DPR), no sidebar, no zoom, hand-rolled text layer that broke selection, missing standard fonts.",
+    "after": "DPR rendering, thumbnail sidebar, zoom/fit, lazy rendering, pdf.js TextLayer, standard fonts served.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-reader-rework-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-reader-rework-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-reader-rework-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --check on both inline scripts",
+      "exit_code": 0,
+      "scope": "Both scripts parse"
+    },
+    {
+      "command": "pdf.js data path on a real 50-page paper (Node)",
+      "exit_code": 0,
+      "scope": "PAGES 50; VIEWPORT 857x1109; TEXT_ITEMS 189 CHARS 3051; TextLayer function"
+    },
+    {
+      "command": "reader assets served",
+      "exit_code": 0,
+      "scope": "pdf.min.mjs, pdf.worker.min.mjs, FoxitSerif.pfb, LICENSE_FOXIT all 200"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; UI/assets work, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-reader-rework-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Crispness, sidebar looks and selection feel are unverified visually (no completed DOM-level browser check).",
+    "CJK cmaps are not vendored, so Chinese PDFs may miss glyphs.",
+    "Very large PDFs are still not optimised.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}
