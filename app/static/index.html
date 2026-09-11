@@ -524,6 +524,11 @@ function cardHTML(c, i) {
 }
 function renderCards() {
   if (state.view !== 'today') return;
+  // Rebuilding the cards invalidates any hover state; otherwise a stale hoverKey
+  // makes the next hover on the same card silently do nothing.
+  clearTimeout(hoverTimer);
+  hoverKey = null;
+  hidePreview();
   $('#cards').innerHTML = state.cards.length ? state.cards.map(cardHTML).join('')
     : `<div class="empty">还没有今日卡片。先「抓取新论文」，再点「生成今日 5 篇」。</div>`;
 }
@@ -934,8 +939,13 @@ const FIG_RE = /(fig(?:ure)?\.?\s*\d+|table\s*\d+|eq(?:uation)?\.?\s*\d+|图\s*\
 
 async function extractFulltext(key) {
   try {
-    const status = await api('/api/fulltext?key=' + encodeURIComponent(key));
-    if (status.pages) { setFulltextBadge(status.pages, status.chars); R.fulltext = true; return; }
+    const status = await api('/api/fulltext?key=' + encodeURIComponent(key) + '&text=1');
+    if (status.pages) {
+      setFulltextBadge(status.pages, status.chars);
+      R.fulltext = true;
+      R.pageTexts = (status.texts || []).map((p) => p.text);   // needed for the local fallback
+      return;
+    }
   } catch (e) { /* fall through to extraction */ }
   setTimeout(async () => {
     try {
@@ -1142,9 +1152,15 @@ async function ask(question) {
   const thinking = addMsg('sys', '思考中…');
   let image = null, pageHint = null, located = false;
   if (R.doc && FIG_RE.test(question)) {
-    const found = findFigurePage(question);
+    // The server owns figure location because it holds the cached full text.
+    let found = null;
+    try {
+      const res = await api('/api/figure-page?key=' + encodeURIComponent(R.key) + '&q=' + encodeURIComponent(question));
+      found = res.page || null;
+    } catch (e) { found = null; }
+    if (!found) found = findFigurePage(question);   // local fallback when the server has no text
     located = Boolean(found);
-    pageHint = found || (R.current || 1);   // caption not found -> send the page the user is looking at
+    pageHint = found || (R.current || 1);   // still unknown -> send the page the user is looking at
     thinking.textContent = located
       ? `需要看图，正在渲染第 ${pageHint} 页…`
       : `图注未找到，改为发送当前第 ${pageHint} 页…`;

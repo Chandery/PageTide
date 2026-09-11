@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-figure-page-fix",
+  "class": "critical",
+  "summary": "Fix two reported bugs. (1) Figure questions always sent the current page because the client's page-text cache was only populated on the extraction path (it returned early when the server already had the text), and the local scoring let body references out-score captions. Figure location is now decided by the server from the cached full text with caption-first matching; the client renders the given page. (2) The hover preview sometimes did nothing because renderCards() rebuilt the DOM while hoverKey stayed stale, so the early-return skipped the timer; re-rendering now clears hover state.",
+  "tasks": [
+    "PILOT-01",
+    "AI-02"
+  ],
+  "files": [
+    "app/server.py",
+    "app/service.py",
+    "app/static/index.html",
+    "changes/2026-09-11-figure-page-fix.json",
+    "docs/evidence/2026-09-11-figure-page-checks.txt",
+    "docs/evidence/2026-09-11-figure-page-fix-self-review.md",
+    "tests/test_app_core.py"
+  ],
+  "scope_note": "Covers the diff since commit 3a21eaf. Service/endpoint + client UI; verification used cached text only (no model calls).",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Retrieval and UI logic only; no model call, no operation or ceiling change.",
+    "before": "Wrong page sent for figure questions; hover preview intermittently dead.",
+    "after": "Caption-first server resolution (27 real caption pages, 0 mismatches) and hover state reset on re-render.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-figure-page-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-figure-page-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-figure-page-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "caption ground-truth comparison",
+      "exit_code": 0,
+      "scope": "27 caption pages over two real papers, 0 mismatches; unknown numbers return None"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; retrieval/UI fix, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-figure-page-fix-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Pages whose captions are absent from the text layer (scans) cannot be anchored.",
+    "The hover fix is logic-level and not visually confirmed.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

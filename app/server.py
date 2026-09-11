@@ -129,7 +129,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"history": app.qa_history((query.get("key") or [""])[0])})
         elif route == "/api/fulltext":
             app = self._app()
-            self._json(app.fulltext_status((query.get("key") or [""])[0]))
+            key = (query.get("key") or [""])[0]
+            status = app.fulltext_status(key)
+            if (query.get("text") or ["0"])[0] == "1":
+                status["texts"] = app.store.fulltext_pages(key)
+            self._json(status)
+        elif route == "/api/figure-page":
+            app = self._app()
+            self._json({"page": app.figure_page((query.get("key") or [""])[0], (query.get("q") or [""])[0])})
         elif route == "/api/pdf/view":
             app = self._app()
             path = app.pdf_path((query.get("key") or [""])[0])

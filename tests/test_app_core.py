@@ -259,6 +259,31 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("Figure 3", hits[0]["text"])
         self.assertEqual(self.app.caption_passages(key, "没有图号的问题"), [])
 
+    def test_figure_page_prefers_caption_over_body_references(self):
+        key = "fig1"
+        self.app.store.upsert_papers([{"key": key, "title": "T", "abstract": "a",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.save_fulltext(key, [
+            {"page": 3, "text": "As shown in Figure 8 and Figure 9, the results improve. Figure 8 also compares baselines. " * 3},
+            {"page": 11, "text": "Figure 8: Robot execution processes for real-world tasks. " + "x " * 60},
+            {"page": 12, "text": "Figure 9: Illustration of compositional generalization. " + "y " * 60},
+            {"page": 20, "text": "Some text mentioning Figure 8 once more."},
+        ])
+        self.assertEqual(self.app.figure_page(key, "这篇论文的 Figure 8 展示了什么？"), 11)
+        self.assertEqual(self.app.figure_page(key, "Figure 9 讲的是什么？"), 12)
+        self.assertIsNone(self.app.figure_page(key, "Figure 42 呢？"))
+        self.assertIsNone(self.app.figure_page(key, "没有图号的问题"))
+
+    def test_figure_page_handles_mid_line_captions_and_fallback(self):
+        key = "fig2"
+        self.app.store.upsert_papers([{"key": key, "title": "T", "abstract": "a",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.save_fulltext(key, [
+            {"page": 2, "text": "intro text " + "f " * 40},
+            {"page": 5, "text": "Some prose. Figure 7: describes the pipeline in detail. " + "z " * 40},
+        ])
+        self.assertEqual(self.app.figure_page(key, "Figure 7 是什么？"), 5)
+
     def test_passages_empty_without_fulltext(self):
         self.assertEqual(self.app.passages("nope", "anything"), [])
 

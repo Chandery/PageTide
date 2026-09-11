@@ -313,6 +313,39 @@ class App:
                 hits.append({"page": page["page"], "text": text[start:end].strip(), "caption": True})
         return hits[:k]
 
+    def figure_page(self, paper_key, question):
+        """Which page carries the figure/table asked about, decided from the cached full text.
+
+        A caption line (label + number at the start of a line) is much stronger
+        evidence than an in-text reference, and a page with several references is
+        stronger than one with a single passing mention.
+        """
+        match = self.FIG_RE.search(question or "")
+        if not match:
+            return None
+        number = match.group(2)
+        label = r"(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)"
+        any_ref = __import__("re").compile(rf"{label}\s*\.?\s*{number}\b", __import__("re").I)
+        caption = __import__("re").compile(rf"^\s*{label}\s*\.?\s*{number}\b", __import__("re").I | __import__("re").M)
+        pages = self.store.fulltext_pages(paper_key)
+        # A caption line is authoritative: the first page that defines the figure
+        # wins outright, because body pages reference many figures and would
+        # otherwise out-score the single page that actually shows it.
+        for page in pages:
+            if caption.search(page["text"]):
+                return page["page"]
+        # A caption can also sit mid-line ("... Figure 9: illustrations of ...").
+        inline = __import__("re").compile(rf"{label}\s*\.?\s*{number}\s*[:：]\s*\S", __import__("re").I)
+        for page in pages:
+            if inline.search(page["text"]):
+                return page["page"]
+        best, best_score = None, 0
+        for page in pages:
+            score = len(any_ref.findall(page["text"]))
+            if score > best_score:
+                best, best_score = page["page"], score
+        return best
+
     def passages(self, paper_key, question, k=8, size=900):
         """Local lexical retrieval over the extracted full text. Zero tokens."""
         pages = self.store.fulltext_pages(paper_key)
