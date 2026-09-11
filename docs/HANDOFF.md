@@ -81,6 +81,7 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 - **修正后的实验 2 读法**：`>=2` 口径下 P@5 全部 1.00（饱和）；**P@10 有区分**：`recency` 0.60 vs `keyword+date`/`tfidf` 1.00 → **画像排序优于纯时间基线**，但两法并列，方法间无差异。详见 [阈值冻结](evidence/2026-09-11-label-threshold-freeze.md)。
 - n=45、P@5 仅 5 样本，不具统计意义；干扰项构造有循环性；**不能宣称推荐有效**。
 - `E-LLM-LABEL-VALIDITY` 仍 `not_run`（n=20、阈值事后选定）；发布前需在新候选池上做 ≥40 篇抽检。`E-RANKING` 仍 `not_run`。
+- **实验 3（反馈价值）**：按时间切 22 篇反馈批 + 23 篇评估批；AUC：`recency` 0.52 < `frozen_seed` 0.94 < `+正反馈` 0.96 < `+负反馈` 0.99（负权重 0→1 单调）。**方向性支持“反馈改善画像”**，但 n=23、单次切分、代理标签循环性；`E-FEEDBACK-VALUE` 未通过。见 [实验 3](evidence/2026-09-11-feedback-value-1.md)。
 - taomu 网关实测：屏蔽无 UA / `Python-urllib` UA；每次调用含 ~4,224 cached 隐藏前缀。两次标注共 15 次调用约 82k token。
 
 **不开始新的 PDF 阅读器平台，不自动执行整条路线。**

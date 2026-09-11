@@ -89,6 +89,56 @@ abstract
         stats = eval_probe.spotcheck_agreement([('zzz', 2)], {})
         self.assertEqual(stats['n'], 0)
 
+    def test_rocchio_profile_adds_positives_and_subtracts_negatives(self):
+        seed = [{"world": 1.0, "model": 1.0}]
+        positive = [{"planning": 1.0, "latent": 1.0}]
+        negative = [{"cancer": 1.0}]
+        frozen = eval_probe.build_rocchio_profile(seed, [], [])
+        updated = eval_probe.build_rocchio_profile(seed, positive, negative, 1.0, 1.0)
+        self.assertIn("planning", updated)
+        self.assertGreater(updated.get("planning", 0), frozen.get("planning", 0))
+        # A term only present in the negative centroid must not survive.
+        self.assertNotIn("cancer", updated)
+
+    def test_rocchio_profile_is_l2_normalized(self):
+        profile = eval_probe.build_rocchio_profile([{"a": 2.0, "b": 1.0}], [{"c": 3.0}], [], 1.0, 0.0)
+        self.assertAlmostEqual(sum(v * v for v in profile.values()), 1.0, places=6)
+
+    def test_feedback_split_is_chronological_and_disjoint(self):
+        candidates = [
+            {"key": "a", "publication_date": "2026-07-01"},
+            {"key": "b", "publication_date": "2026-08-01"},
+            {"key": "c", "publication_date": "2026-09-01"},
+            {"key": "d", "publication_date": "2026-09-15"},
+        ]
+        labels = {c["key"]: {"relevance": 3} for c in candidates}
+        a, b, split = eval_probe.feedback_split(candidates, labels)
+        self.assertEqual([c["key"] for c in a], ["a", "b"])
+        self.assertEqual([c["key"] for c in b], ["c", "d"])
+        self.assertEqual(split, "2026-09-01")
+
+    def test_feedback_split_honours_explicit_date(self):
+        candidates = [{"key": "a", "publication_date": "2026-07-01"},
+                      {"key": "b", "publication_date": "2026-08-01"}]
+        labels = {c["key"]: {"relevance": 2} for c in candidates}
+        a, b, split = eval_probe.feedback_split(candidates, labels, "2026-08-01")
+        self.assertEqual([c["key"] for c in a], ["a"])
+        self.assertEqual([c["key"] for c in b], ["b"])
+        self.assertEqual(split, "2026-08-01")
+
+    def test_ranking_auc_rewards_useful_items_on_top(self):
+        labels = {"u1": {"relevance": 3}, "u2": {"relevance": 2}, "n1": {"relevance": 1}, "n2": {"relevance": 0}}
+        perfect = eval_probe.ranking_auc(["u1", "u2", "n1", "n2"], labels, 2)
+        worst = eval_probe.ranking_auc(["n1", "n2", "u1", "u2"], labels, 2)
+        self.assertEqual(perfect, 1.0)
+        self.assertEqual(worst, 0.0)
+        self.assertIsNone(eval_probe.ranking_auc(["u1", "u2"], labels, 2))
+
+    def test_mean_rank_of_useful(self):
+        labels = {"u1": {"relevance": 3}, "u2": {"relevance": 2}, "n1": {"relevance": 1}}
+        self.assertEqual(eval_probe.mean_rank_of_useful(["n1", "u1", "u2"], labels, 2), 2.5)
+        self.assertIsNone(eval_probe.mean_rank_of_useful(["n1"], labels, 2))
+
 
 if __name__ == "__main__":
     unittest.main()

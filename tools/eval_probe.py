@@ -423,6 +423,92 @@ def cmd_spotcheck_score(args):
     return 0
 
 
+def build_rocchio_profile(seed_vectors, pos_vectors, neg_vectors, pos_weight=1.0, neg_weight=0.5):
+    """Seed centroid + weighted positive centroid - weighted negative centroid (Rocchio-style)."""
+    combined = {}
+    for name, weight in (("seed", 1.0), ("pos", pos_weight), ("neg", -neg_weight)):
+        vectors = {"seed": seed_vectors, "pos": pos_vectors, "neg": neg_vectors}[name]
+        if not vectors:
+            continue
+        center = centroid(vectors)
+        for token, value in center.items():
+            combined[token] = combined.get(token, 0.0) + weight * value
+    positive = {token: value for token, value in combined.items() if value > 0}
+    return l2_normalize(positive)
+
+
+def feedback_split(candidates, labels, split_date=None):
+    """Chronological split of labelled candidates into (feedback batch A, evaluation batch B)."""
+    labelled = [c for c in candidates if c["key"] in labels]
+    labelled.sort(key=lambda c: c["publication_date"] or "")
+    if split_date is None:
+        split_date = labelled[len(labelled) // 2]["publication_date"]
+    batch_a = [c for c in labelled if (c["publication_date"] or "") < split_date]
+    batch_b = [c for c in labelled if (c["publication_date"] or "") >= split_date]
+    return batch_a, batch_b, split_date
+
+
+def ranking_auc(order, labels, threshold=2):
+    """P(a useful item is ranked above a not-useful item); 0.5 credit for ties."""
+    useful = [i for i, key in enumerate(order) if labels.get(key, {}).get("relevance", 0) >= threshold]
+    bad = [i for i, key in enumerate(order) if key in labels and labels[key].get("relevance", 0) < threshold]
+    if not useful or not bad:
+        return None
+    pairs = len(useful) * len(bad)
+    wins = sum(1.0 if u < b else 0.5 if u == b else 0.0 for u in useful for b in bad)
+    return wins / pairs
+
+
+def mean_rank_of_useful(order, labels, threshold=2):
+    ranks = [i + 1 for i, key in enumerate(order)
+             if labels.get(key, {}).get("relevance", 0) >= threshold]
+    return sum(ranks) / len(ranks) if ranks else None
+
+
+def cmd_feedback(args):
+    out = Path(args.out_dir)
+    candidates = json.loads((out / "candidates.json").read_text())["all"]
+    labels = json.loads((out / "labels.json").read_text())
+    seeds = json.loads(Path(args.seeds).read_text())["seeds"]
+    batch_a, batch_b, split_date = feedback_split(candidates, labels, args.split_date)
+    print(f"split_date={split_date}  feedback_batch_A={len(batch_a)}  evaluation_batch_B={len(batch_b)}")
+
+    # IDF is fit only on information available before batch B (seeds + batch A).
+    available = [s["title"] for s in seeds] + [paper_text_from_slim(c) for c in batch_a]
+    idf = build_idf([tokenize(doc) for doc in available])
+    seed_vectors = [l2_normalize(vectorize(tokenize(doc), idf)) for doc in [s["title"] for s in seeds]]
+    a_vectors = [l2_normalize(vectorize(tokenize(paper_text_from_slim(c)), idf)) for c in batch_a]
+    b_vectors = [l2_normalize(vectorize(tokenize(paper_text_from_slim(c)), idf)) for c in batch_b]
+
+    pos_a = [a_vectors[i] for i, c in enumerate(batch_a) if labels[c["key"]]["relevance"] >= 2]
+    neg_a = [a_vectors[i] for i, c in enumerate(batch_a) if labels[c["key"]]["relevance"] <= 1]
+    print(f"batch_A feedback: positive={len(pos_a)} negative={len(neg_a)}")
+
+    profiles = {
+        "frozen_seed": build_rocchio_profile(seed_vectors, [], []),
+        "updated_pos_only": build_rocchio_profile(seed_vectors, pos_a, [], 1.0, 0.0),
+        "updated_pos_neg": build_rocchio_profile(seed_vectors, pos_a, neg_a, args.pos_weight, args.neg_weight),
+    }
+    order_by_date = sorted(range(len(batch_b)), key=lambda i: batch_b[i]["publication_date"] or "", reverse=True)
+    systems = {"recency_baseline": order_by_date}
+    for name, vector in profiles.items():
+        systems[name] = sorted(range(len(batch_b)), key=lambda i: -cosine(vector, b_vectors[i]))
+
+    print(f"{'system':22} {'P@5':>6} {'P@10':>6} {'AUC':>6} {'meanRankUseful':>15} {'meanRel@10':>11}")
+    for name, order in systems.items():
+        keys = [batch_b[i]["key"] for i in order]
+        p5 = precision_at_k(keys, labels, 5, 2)
+        p10 = precision_at_k(keys, labels, 10, 2)
+        auc = ranking_auc(keys, labels, 2)
+        mrank = mean_rank_of_useful(keys, labels, 2)
+        mr10 = mean_relevance_at_k(keys, labels, 10)
+        fmt = lambda v: f"{v:.2f}" if v is not None else "n/a"  # noqa: E731
+        print(f"{name:22} {fmt(p5):>6} {fmt(p10):>6} {fmt(auc):>6} {fmt(mrank):>15} {fmt(mr10):>11}")
+    print("\nNOTE: chronological split of a small labelled set; single split, not a rolling sequence.")
+    print("AUC and mean rank use all labels; P@5/P@10 saturate when the pool is easy at the top.")
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -461,9 +547,17 @@ def main(argv=None):
     spot_score.add_argument("--out-dir", default=out_default)
     spot_score.add_argument("--sheets", default="spotcheck-sheet.md,spotcheck-sheet-2.md")
 
+    feedback = sub.add_parser("feedback")
+    feedback.add_argument("--out-dir", default=out_default)
+    feedback.add_argument("--seeds", default="harness/seeds.json")
+    feedback.add_argument("--split-date", default=None)
+    feedback.add_argument("--pos-weight", type=float, default=1.0)
+    feedback.add_argument("--neg-weight", type=float, default=0.5)
+
     args = parser.parse_args(argv)
     handlers = {"freeze": cmd_freeze, "rank": cmd_rank, "label": cmd_label,
-                "score": cmd_score, "spotcheck": cmd_spotcheck, "spotcheck-score": cmd_spotcheck_score}
+                "score": cmd_score, "spotcheck": cmd_spotcheck, "spotcheck-score": cmd_spotcheck_score,
+                "feedback": cmd_feedback}
     try:
         return handlers[args.command](args)
     except (RuntimeError, urllib.error.URLError, KeyError, ValueError) as exc:

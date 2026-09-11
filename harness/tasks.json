@@ -211,7 +211,7 @@
       "id": "PROFILE-01",
       "stage": "feedback",
       "title": "可解释、可编辑、可撤销、可冻结的画像与事件语义",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "CORE-01"
       ],
@@ -227,7 +227,10 @@
         "没选/没空/看不懂不改变兴趣；人工长期项不被短期状态覆盖",
         "自动更新可冻结，恢复默认安全"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-09-11-feedback-value-1.md",
+        "tools/eval_probe.py"
+      ]
     },
     {
       "id": "RERANK-01",
@@ -256,7 +259,7 @@
       "id": "EVAL-01",
       "stage": "feedback",
       "title": "独立比较推荐质量与反馈收益，不达标回退而非扩展配套",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "PROFILE-01"
       ],
@@ -271,7 +274,10 @@
         "分别评覆盖、排序与画像更新，比较冻结画像，不夸大小样本显著性",
         "no-op/撤销不变量全通过；真实收益不足时停用学习并调整"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-09-11-feedback-value-1.md",
+        "tools/eval_probe.py"
+      ]
     },
     {
       "id": "PDF-01",
