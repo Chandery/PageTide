@@ -60,10 +60,10 @@
     {
       "id": "OPENALEX",
       "url": "https://developers.openalex.org/api-reference/authentication",
-      "verified_on": "2026-09-10",
+      "verified_on": "2026-09-11",
       "recheck_after_days": 30,
-      "claim": "freemium; keyword search0.001/filter0.0001 USD per call; separate account allowance",
-      "verification": "official docs and help/pricing corroboration; no authenticated account test; semantic search discrepancy excluded"
+      "claim": "OpenAlex works API: metered. Observed 2026-09-11: each search costs $0.001 / 10 credits, daily allowance 1000 credits and $0.10 (reset ~22h); bursts of ~0.3s trigger HTTP 429 and need >=2s pacing plus Retry-After. Keyword search is NOT a field filter (3.28M hits for 'world model'); references are largely absent for arXiv preprints (only 1/8 resolved seeds had any).",
+      "verification": "Live read-only probe tools/data_probe.py: 8/10 seeds resolved to DOI/OpenAlex IDs, abstracts present, citations sparse, future-dated records found without a date ceiling; raw snapshots kept in .local/, report in docs/evidence/2026-09-11-data01-openalex-report.md"
     },
     {
       "id": "S2",

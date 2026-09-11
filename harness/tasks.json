@@ -136,7 +136,7 @@
       "id": "DATA-01",
       "stage": "benchmark",
       "title": "验证领域数据覆盖、规范ID和时间语义，冻结可回放候选集",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "PLAN-02"
       ],
@@ -151,7 +151,10 @@
         "候选与训练标签按时间隔离，版本去重防泄漏，截断可见",
         "无授权不外发私有画像/种子集到外部推荐服务"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-09-11-data01-openalex-report.md",
+        "tools/data_probe.py"
+      ]
     },
     {
       "id": "LABEL-01",

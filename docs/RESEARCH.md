@@ -109,6 +109,18 @@ OpenAlex当前[价格页](https://developers.openalex.org/api-reference/authenti
 
 数据适配计划必须区分首次发表、版本更新、抓取发现日期；标题相似不能直接合并不同论文。要先测领域种子回收和摘要完整性，再选一个主源，不能默认所有研究都在arXiv。
 
+### 3b. DATA-01 实测（2026-09-11）
+
+只读探针 `tools/data_probe.py` + 原始快照，完整报告见 [DATA-01 报告](evidence/2026-09-11-data01-openalex-report.md)。要点：
+
+- **种子解析 8/10**（OpenAlex，标题匹配）；未解析的两篇是 2026 新预印本，不能当作不存在。
+- **摘要可用**，但 **arXiv 预印本的引用边几乎全缺**（8 篇种子只有 1 篇有 `referenced_works`）→ 图谱的引用边不能只靠 OpenAlex。
+- **裸关键词不能当领域过滤器**：`search="world model"` 报 328 万条，加计算机领域过滤仍 12.7 万条且被医学/信息学/仓储库污染。发现必须走 arXiv 分类或种子扩展。
+- **日期必须带上界**：不设上限时 200 条里 117 条未来日期（最远 2036）。
+- **限流/费用**：OpenAlex 每次 search $0.001 / 10 credits，日额度 1000 credits / $0.10（≈22h 重置），突发 429；arXiv 旧 API 本次对本机 IP 持续 429。
+
+所以主源分工变为：**arXiv 分类 = 发现；OpenAlex = ID/DOI/摘要富化与去重；引用边另找 Semantic Scholar 或书目耦合兜底**。`DATA-01` 仍 `in_progress`（未测已知相关回收率，未稳定候选池）。
+
 ## 4. 论文软件：已经有轮子，但属于后置选项
 
 - **Zotero**：官方[本地API](https://www.zotero.org/support/dev/web_api/v3/local_api)可在启用本机通信后读取本地库。当前文档说明Zotero10+支持经本地授权的写入，而旧客户端行为不同；不能沿用旧“只读”文章断言所有版本。首个适配只读指定collection、只取元数据；分页明确设limit，默认可能返回全库。未检查你已安装的版本。

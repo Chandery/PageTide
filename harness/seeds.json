@@ -1,0 +1,17 @@
+{
+  "project": "world-models",
+  "language": "en",
+  "note": "Owner-declared positive seeds (public paper titles). Used only for read-only metadata resolution; never sent to an external recommender service. Human-readable version in docs/DOMAIN.md.",
+  "seeds": [
+    {"title": "A Definition and Roadmap for World Models", "venue_hint": "arXiv 2026", "rating": 5},
+    {"title": "V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning", "venue_hint": "2025", "rating": 5},
+    {"title": "DINO-WM: World Models on Pre-trained Visual Features enable Zero-shot Planning", "venue_hint": "ICML 2025", "rating": 5},
+    {"title": "LeWorldModel: Stable End-to-End Joint-Embedding Predictive Architecture from Pixels", "venue_hint": "arXiv 2026", "rating": 5},
+    {"title": "Mastering diverse control tasks through world models", "venue_hint": "Nature 2025 (DreamerV3)", "rating": 4},
+    {"title": "Genie: Generative Interactive Environments", "venue_hint": "ICML 2024", "rating": 4},
+    {"title": "Cosmos World Foundation Model Platform for Physical AI", "venue_hint": "2025", "rating": 4},
+    {"title": "IRASim: A Fine-Grained World Model for Robot Manipulation", "venue_hint": "ICCV 2025", "rating": 4},
+    {"title": "Wonder: Video World Model Done Better", "venue_hint": "arXiv 2026", "rating": 4},
+    {"title": "SolarWM: Open Data and Scalable Training for Long-Horizon Video World Models", "venue_hint": "arXiv 2026-09", "rating": 4}
+  ]
+}

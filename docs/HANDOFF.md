@@ -16,6 +16,7 @@
 - [EVALUATION](EVALUATION.md)：大模型辅助标注 + 人工抽检的评估协议；[ADR 0004](decisions/0004-evaluation-annotator-separation.md) 规定运行时（DeepSeek）与评估裁判（taomu/gpt-6-astra）分离。
 - [BRAINSTORM](BRAINSTORM.md)：需求拆解、算法选型、A/B/C 路线、「没空/暂停/督促」语义、第一版形态候选。
 - [RESEARCH](RESEARCH.md)：新增 ASReview（Apache-2.0、纯 sklearn、显式相关/不相关、主动学习 querier）为首选画像内核；补齐 txtai/paperetl、Paper-Agent-Zotero、arXivDigest、rank_bm25、抓取库；列出「没人解决好的缺口」。
+- [DATA-01 报告](evidence/2026-09-11-data01-openalex-report.md)：种子解析 8/10；裸关键词不是领域过滤器（328万条且被无关领域污染）；arXiv 预印本引用边基本缺失；OpenAlex/arXiv 限流与费用实测；未来日期需过滤。
 - [ROADMAP](ROADMAP.md)：按风险排的 S0–S6，覆盖推荐/画像/阅读/AI 四类能力，含实验协议与停止条件。
 - [BUDGET](BUDGET.md) + `harness/budget.json` + 生成表：**核心零 token**（搜索/去重/排序/画像/归档/DB 维护）；运行时 AI 层已批准额度（后台 26k/交互 35k/合计 55k 每日、150 万每月、$0.15/日、$1.50/月），含 `llm_rerank`（默认关闭）；评估裁判单独走 `evaluation` 段（taomu，只计 token）。除两次探针外均未实测。
 - `prompts/`：7 个操作合同（速览、重排、标注、追问、周报、划词、关键词扩展），每个都声明有界上下文与不可信源文本规则。
@@ -59,4 +60,15 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 
 已解决：AI 上限（已接受，含 `llm_rerank`）、数据外发（不允许私人ID外发，只发公开元数据）、PDF 存放（本机文件夹）。
 - 新增 `LABEL-01` 大模型辅助评估标注；运行时用 DeepSeek 官方，评估裁判用 taomu/gpt-6-astra（[ADR 0004](decisions/0004-evaluation-annotator-separation.md)）。两个 key 都**仅存于 `.local/`（未入 Git）**，建议实验后轮换；已跑通两次非私密探针（deepseek 122 token；taomu 发现每次注入 ~4.4k 隐藏 token）。
-- 随后跑 `REUSE-01`（ASReview/X 受限探针）与 `DATA-01`（领域覆盖），再按 [EVALUATION](EVALUATION.md) 跑 `LABEL-01`。**不开始新的 PDF 阅读器平台，不自动执行整条路线。**
+- 随后跑 `REUSE-01`（ASReview/X 受限探针）与 `DATA-01`（领域覆盖），再按 [EVALUATION](EVALUATION.md) 跑 `LABEL-01`。
+
+### DATA-01 首轮结果（in_progress）
+
+- 种子 8/10 解析到 DOI/OpenAlex ID；未解析的两篇都是 2026 新预印本（需人工确认标题或换源）。
+- **不能用自由文本关键词发现**：`search="world model"` 328 万条且被医学/仓储库污染；发现要走 arXiv 分类或种子扩展。
+- **引用边缺失**：8 篇种子只有 1 篇有 `referenced_works`；图谱引用边需另找 Semantic Scholar 或书目耦合。
+- **日期必须带 `to_publication_date`**，否则出现 2036 年未来记录。
+- 费用：OpenAlex $0.001/search、1000 credits/日、$0.10/日；arXiv 本机 IP 本次持续 429。
+- 下一步：确定发现源（arXiv 分类 + 种子扩展）并重建可回放候选集，然后才进 `LABEL-01`。
+
+**不开始新的 PDF 阅读器平台，不自动执行整条路线。**
