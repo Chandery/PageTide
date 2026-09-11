@@ -117,16 +117,26 @@ def openalex_key(work):
     return ids["doi"] or ids["openalex_id"] or data_probe.normalize_title(work.get("title"))
 
 
+def month_bounds(ym):
+    """'2026-02' -> ('2026-02-01', '2026-02-28')."""
+    import calendar
+    year, month = (int(part) for part in ym.split("-"))
+    last = calendar.monthrange(year, month)[1]
+    return f"{year:04d}-{month:02d}-01", f"{year:04d}-{month:02d}-{last:02d}"
+
+
 def fetch_candidates(specs, snapshot_dir, refresh=False):
-    """specs: list of (group, search, pages). Dedupe by key and normalized title."""
+    """specs: list of dicts {group, search, from, to, pages, per_page}. Dedupe by key and normalized title."""
     seen_keys, seen_titles, works = set(), set(), []
-    for group, search, pages in specs:
-        for page in range(1, pages + 1):
+    for spec in specs:
+        for page in range(1, spec.get("pages", 1) + 1):
+            tag = f"pool-{spec['group']}-{re.sub(r'[^a-z0-9]+', '-', spec['search'].lower())}-{spec['from']}-p{page}"
             payload, _ = data_probe.query_openalex(
                 {"filter": (f"primary_location.source.id:{data_probe.ARXIV_SOURCE_ID},"
-                            f"title.search:{search},from_publication_date:2024-01-01,to_publication_date:2026-09-11"),
-                 "sort": "publication_date:desc", "per-page": 200, "page": page},
-                snapshot_dir, f"pool-{re.sub(r'[^a-z0-9]+', '-', search.lower())}-p{page}", refresh=refresh)
+                            f"title.search:{spec['search']},from_publication_date:{spec['from']},"
+                            f"to_publication_date:{spec['to']}"),
+                 "sort": "publication_date:desc", "per-page": spec.get("per_page", 200), "page": page},
+                snapshot_dir, tag, refresh=refresh)
             for work in payload.get("results", []):
                 key = openalex_key(work)
                 title = data_probe.normalize_title(work.get("title"))
@@ -135,7 +145,7 @@ def fetch_candidates(specs, snapshot_dir, refresh=False):
                 seen_keys.add(key)
                 if title:
                     seen_titles.add(title)
-                works.append((group, work))
+                works.append((spec["group"], work))
     return works
 
 
@@ -162,20 +172,36 @@ def cmd_freeze(args):
     out = Path(args.out_dir)
     snapshots = out / "snapshots"
     seeds = json.loads(Path(args.seeds).read_text())["seeds"]
-    specs = [("field", FIELD_QUERY, args.field_pages)]
-    if args.distractors:
-        specs += [("distractor", q, args.distractor_pages) for q in DISTRACTOR_QUERIES]
+    if args.months:
+        months = [m.strip() for m in args.months.split(",") if m.strip()]
+        specs = []
+        for i, month in enumerate(months):
+            start, end = month_bounds(month)
+            specs.append({"group": "field", "search": FIELD_QUERY, "from": start, "to": end,
+                          "pages": 1, "per_page": args.per_month})
+            if args.distractors and i % 2 == 0:
+                query = DISTRACTOR_QUERIES[(i // 2) % len(DISTRACTOR_QUERIES)]
+                specs.append({"group": "distractor", "search": query, "from": start, "to": end,
+                              "pages": 1, "per_page": max(args.per_month // 2, 20)})
+    else:
+        specs = [{"group": "field", "search": FIELD_QUERY, "from": "2024-01-01", "to": "2026-09-11",
+                  "pages": args.field_pages, "per_page": 200}]
+        if args.distractors:
+            specs += [{"group": "distractor", "search": q, "from": "2024-01-01", "to": "2026-09-11",
+                       "pages": args.distractor_pages, "per_page": 200} for q in DISTRACTOR_QUERIES]
     works = fetch_candidates(specs, snapshots, refresh=args.refresh)
     seed_arxiv = {str((s.get("ids") or {}).get("arxiv_id")) for s in seeds if (s.get("ids") or {}).get("arxiv_id")}
     candidates = [slim(g, w) for g, w in works if str(data_probe.openalex_ids(w).get("arxiv_id")) not in seed_arxiv]
     payload = {"all": candidates}
     (out / "candidates.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     field = sum(1 for c in candidates if c["group"] == "field")
-    print(f"deduped={len(candidates)} field={field} distractor={len(candidates) - field} "
-          f"seeds_excluded={len(seed_arxiv)}")
-    date_lo = min(c["publication_date"] for c in candidates)
-    date_hi = max(c["publication_date"] for c in candidates)
-    print(f"dates {date_lo} .. {date_hi}  abstract_missing={sum(1 for c in candidates if not c['abstract'])}")
+    print(f"deduped={len(candidates)} field={field} distractor={len(candidates) - field} seeds_excluded={len(seed_arxiv)}")
+    months_hist = {}
+    for c in candidates:
+        months_hist[c["publication_date"][:7]] = months_hist.get(c["publication_date"][:7], 0) + 1
+    print(f"dates {min(c['publication_date'] for c in candidates)} .. {max(c['publication_date'] for c in candidates)}")
+    print(f"months={dict(sorted(months_hist.items()))}")
+    print(f"abstract_missing={sum(1 for c in candidates if not c['abstract'])}")
     print(f"dataset_hash={dataset_hash(payload)}")
     return 0
 
@@ -275,7 +301,7 @@ def annotate_batch(papers, profile_terms, seed_titles, base, key, model):
     return json.loads(match.group(0)), payload.get("usage", {})
 
 
-def select_union(candidates, rankings, top_per_system, random_sample, seed=0):
+def select_union(candidates, rankings, top_per_system, sample_field, sample_distractor, seed=0):
     by_key = {c["key"]: c for c in candidates}
     union, seen = [], set()
     for order in rankings["systems"].values():
@@ -283,9 +309,10 @@ def select_union(candidates, rankings, top_per_system, random_sample, seed=0):
             if key not in seen:
                 seen.add(key)
                 union.append(by_key[key])
-    if random_sample:
-        pool = sorted(by_key)
-        for key in random.Random(seed).sample(pool, min(random_sample, len(pool))):
+    rng = random.Random(seed)
+    for group, count in (("field", sample_field), ("distractor", sample_distractor)):
+        pool = sorted(c["key"] for c in candidates if c["group"] == group)
+        for key in rng.sample(pool, min(count, len(pool))):
             if key not in seen:
                 seen.add(key)
                 union.append(by_key[key])
@@ -297,7 +324,7 @@ def cmd_label(args):
     candidates = json.loads((out / "candidates.json").read_text())["all"]
     rankings = json.loads((out / "rankings.json").read_text())
     seeds = json.loads(Path(args.seeds).read_text())["seeds"]
-    union = select_union(candidates, rankings, args.top_per_system, args.random_sample, args.seed)
+    union = select_union(candidates, rankings, args.top_per_system, args.sample_field, args.sample_distractor, args.seed)
     labels_path = out / "labels.json"
     labels = json.loads(labels_path.read_text()) if labels_path.exists() else {}
     pending = [p for p in union if p["key"] not in labels]
@@ -509,6 +536,83 @@ def cmd_feedback(args):
     return 0
 
 
+def equal_batches(items, k):
+    """Split a time-ordered list into k contiguous batches (sizes differ by at most 1)."""
+    n = len(items)
+    if k <= 0 or n == 0:
+        return []
+    base, rem = divmod(n, k)
+    out, start = [], 0
+    for i in range(k):
+        size = base + (1 if i < rem else 0)
+        out.append(items[start:start + size])
+        start += size
+    return out
+
+
+def cmd_rolling(args):
+    out = Path(args.out_dir)
+    candidates = json.loads((out / "candidates.json").read_text())["all"]
+    labels = json.loads((out / "labels.json").read_text())
+    seeds = json.loads(Path(args.seeds).read_text())["seeds"]
+    labelled = sorted((c for c in candidates if c["key"] in labels),
+                      key=lambda c: (c["publication_date"] or "", c["key"]))
+    batches = equal_batches(labelled, args.batches)
+    seed_docs = [s["title"] for s in seeds]
+
+    pos_keys, neg_keys = [], []
+    rows = []
+    for i, batch in enumerate(batches):
+        if i == 0:
+            # First batch is the feedback seed; nothing is evaluated yet.
+            pass
+        history = [c for earlier in batches[:i] for c in earlier]
+        idf = build_idf([tokenize(doc) for doc in seed_docs + [paper_text_from_slim(c) for c in history]])
+        vec = lambda c: l2_normalize(vectorize(tokenize(paper_text_from_slim(c)), idf))  # noqa: E731
+        seed_vectors = [l2_normalize(vectorize(tokenize(doc), idf)) for doc in seed_docs]
+        by_key = {c["key"]: c for c in candidates}
+        rolling = build_rocchio_profile(seed_vectors, [vec(by_key[k]) for k in pos_keys],
+                                        [vec(by_key[k]) for k in neg_keys], args.pos_weight, args.neg_weight)
+        frozen = build_rocchio_profile(seed_vectors, [], [])
+        batch_vectors = [vec(c) for c in batch]
+        keys = [c["key"] for c in batch]
+        order_rolling = sorted(range(len(batch)), key=lambda j: -cosine(rolling, batch_vectors[j]))
+        order_frozen = sorted(range(len(batch)), key=lambda j: -cosine(frozen, batch_vectors[j]))
+        order_recency = sorted(range(len(batch)), key=lambda j: batch[j]["publication_date"] or "", reverse=True)
+        rows.append({
+            "batch": i + 1, "size": len(batch),
+            "dates": f"{batch[0]['publication_date']}..{batch[-1]['publication_date']}",
+            "history": len(history), "pos": len(pos_keys), "neg": len(neg_keys),
+            "auc_rolling": ranking_auc([keys[j] for j in order_rolling], labels, 2),
+            "auc_frozen": ranking_auc([keys[j] for j in order_frozen], labels, 2),
+            "auc_recency": ranking_auc([keys[j] for j in order_recency], labels, 2),
+            "mrank_rolling": mean_rank_of_useful([keys[j] for j in order_rolling], labels, 2),
+        })
+        for c in batch:
+            (pos_keys if labels[c["key"]]["relevance"] >= 2 else neg_keys).append(c["key"])
+
+    fmt = lambda v: f"{v:.2f}" if v is not None else "n/a"  # noqa: E731
+    print(f"{'batch':>5} {'n':>3} {'dates':>25} {'hist':>5} {'+':>3} {'-':>3} "
+          f"{'AUC.roll':>9} {'AUC.froz':>9} {'AUC.rec':>8} {'mrank.roll':>10}")
+    for r in rows:
+        print(f"{r['batch']:>5} {r['size']:>3} {r['dates']:>25} {r['history']:>5} {r['pos']:>3} {r['neg']:>3} "
+              f"{fmt(r['auc_rolling']):>9} {fmt(r['auc_frozen']):>9} {fmt(r['auc_recency']):>8} "
+              f"{fmt(r['mrank_rolling']):>10}")
+    scored = [r for r in rows[1:] if r["auc_rolling"] is not None and r["auc_frozen"] is not None]
+    if scored:
+        mean = lambda key: sum(r[key] for r in scored) / len(scored)  # noqa: E731
+        print(f"\nevaluated_batches={len(scored)} (batch 1 excluded: feedback only, no prior history)")
+        print(f"mean AUC rolling={mean('auc_rolling'):.3f}  frozen={mean('auc_frozen'):.3f}  "
+              f"recency={sum((r['auc_recency'] or 0) for r in scored) / len(scored):.3f}")
+        wins = sum(1 for r in scored if r["auc_rolling"] > r["auc_frozen"])
+        ties = sum(1 for r in scored if r["auc_rolling"] == r["auc_frozen"])
+        losses = sum(1 for r in scored if r["auc_rolling"] < r["auc_frozen"])
+        print(f"rolling vs frozen: wins={wins} ties={ties} losses={losses} of {len(scored)}")
+        print(f"mean AUC delta (rolling-frozen)={mean('auc_rolling') - mean('auc_frozen'):+.3f}")
+    print("\nNOTE: proxy labels; rolling feedback is simulated from the same annotator.")
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -519,6 +623,9 @@ def main(argv=None):
     freeze.add_argument("--seeds", default="harness/seeds.json")
     freeze.add_argument("--field-pages", type=int, default=2)
     freeze.add_argument("--distractor-pages", type=int, default=1)
+    freeze.add_argument("--months", default=None,
+                        help="comma-separated YYYY-MM windows for a time-spread pool (overrides --field-pages)")
+    freeze.add_argument("--per-month", type=int, default=80)
     freeze.add_argument("--no-distractors", dest="distractors", action="store_false")
     freeze.add_argument("--refresh", action="store_true")
 
@@ -530,8 +637,9 @@ def main(argv=None):
     label.add_argument("--out-dir", default=out_default)
     label.add_argument("--seeds", default="harness/seeds.json")
     label.add_argument("--top-per-system", type=int, default=10)
-    label.add_argument("--random-sample", type=int, default=20)
-    label.add_argument("--batch", type=int, default=5)
+    label.add_argument("--sample-field", type=int, default=0)
+    label.add_argument("--sample-distractor", type=int, default=0)
+    label.add_argument("--batch", type=int, default=10)
     label.add_argument("--seed", type=int, default=0)
     label.add_argument("--model", default="gpt-6-astra")
 
@@ -554,10 +662,17 @@ def main(argv=None):
     feedback.add_argument("--pos-weight", type=float, default=1.0)
     feedback.add_argument("--neg-weight", type=float, default=0.5)
 
+    rolling = sub.add_parser("rolling")
+    rolling.add_argument("--out-dir", default=out_default)
+    rolling.add_argument("--seeds", default="harness/seeds.json")
+    rolling.add_argument("--batches", type=int, default=10)
+    rolling.add_argument("--pos-weight", type=float, default=1.0)
+    rolling.add_argument("--neg-weight", type=float, default=0.5)
+
     args = parser.parse_args(argv)
     handlers = {"freeze": cmd_freeze, "rank": cmd_rank, "label": cmd_label,
                 "score": cmd_score, "spotcheck": cmd_spotcheck, "spotcheck-score": cmd_spotcheck_score,
-                "feedback": cmd_feedback}
+                "feedback": cmd_feedback, "rolling": cmd_rolling}
     try:
         return handlers[args.command](args)
     except (RuntimeError, urllib.error.URLError, KeyError, ValueError) as exc:

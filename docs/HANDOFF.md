@@ -81,7 +81,9 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 - **修正后的实验 2 读法**：`>=2` 口径下 P@5 全部 1.00（饱和）；**P@10 有区分**：`recency` 0.60 vs `keyword+date`/`tfidf` 1.00 → **画像排序优于纯时间基线**，但两法并列，方法间无差异。详见 [阈值冻结](evidence/2026-09-11-label-threshold-freeze.md)。
 - n=45、P@5 仅 5 样本，不具统计意义；干扰项构造有循环性；**不能宣称推荐有效**。
 - `E-LLM-LABEL-VALIDITY` 仍 `not_run`（n=20、阈值事后选定）；发布前需在新候选池上做 ≥40 篇抽检。`E-RANKING` 仍 `not_run`。
-- **实验 3（反馈价值）**：按时间切 22 篇反馈批 + 23 篇评估批；AUC：`recency` 0.52 < `frozen_seed` 0.94 < `+正反馈` 0.96 < `+负反馈` 0.99（负权重 0→1 单调）。**方向性支持“反馈改善画像”**，但 n=23、单次切分、代理标签循环性；`E-FEEDBACK-VALUE` 未通过。见 [实验 3](evidence/2026-09-11-feedback-value-1.md)。
+- **实验 3（反馈价值，单次切分）**：AUC：`recency` 0.52 < `frozen_seed` 0.94 < `+正反馈` 0.96 < `+负反馈` 0.99。
+- **实验 4（滚动 10 批，跨 12 个月）**：重建 754 篇候选、累计 268 条标签；9 个评估批 mean AUC rolling **0.910** vs frozen **0.891**（delta **+0.018**，wins 4 / ties 3 / losses 2）。→ **实验 3 高估了反馈收益**；正确说法是“小幅、不稳定”。见 [滚动反馈 1](evidence/2026-09-11-rolling-feedback-1.md)。
+- **重要方法学缺陷**：标注提示词里包含了种子标题 → 种子相似论文被构造性地判为有用，frozen/rolling 的 AUC 都偏高。**修好提示词（不再给种子标题）前，排序与反馈评估都不可信。** `E-RANKING`、`E-FEEDBACK-VALUE` 保持 `not_run`。
 - taomu 网关实测：屏蔽无 UA / `Python-urllib` UA；每次调用含 ~4,224 cached 隐藏前缀。两次标注共 15 次调用约 82k token。
 
 **不开始新的 PDF 阅读器平台，不自动执行整条路线。**

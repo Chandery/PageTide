@@ -1,0 +1,42 @@
+# Evidence: rolling feedback experiment (10 batches, 12-month pool)
+# Date: 2026-09-11 UTC
+# Scope: tooling + tests + docs/registry; cached labels, no model calls in this unit
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 65 tests in 1.998s
+
+OK
+exit=0
+
+$ python3 tools/eval_probe.py rolling --batches 10
+batch   n                     dates  hist   +   -  AUC.roll  AUC.froz  AUC.rec mrank.roll
+    1  25    2025-10-01..2025-10-30     0   0   0      0.92      0.92     0.53       8.43
+    2  24    2025-10-31..2025-11-30    25  14  11      0.95      0.86     0.56       8.94
+    3  24    2025-11-30..2025-12-31    49  30  19      0.99      0.98     0.17       6.18
+    4  24    2026-01-19..2026-02-26    73  41  32      1.00      1.00     0.59       9.00
+    5  24    2026-02-27..2026-04-21    97  58  39      0.95      0.97     0.85       7.54
+    6  24    2026-04-22..2026-05-28   121  71  50      1.00      1.00     0.34       8.00
+    7  24    2026-05-28..2026-07-27   145  86  59      1.00      0.96     0.46       8.00
+    8  24    2026-07-28..2026-08-24   169 101  68      0.92      0.87     0.37      11.24
+    9  24    2026-08-24..2026-08-31   193 122  71      0.99      1.00     0.70       8.07
+   10  24    2026-08-31..2026-09-08   217 137  80      0.39      0.39     0.57      12.61
+
+evaluated_batches=9 (batch 1 excluded: feedback only, no prior history)
+mean AUC rolling=0.910  frozen=0.891  recency=0.512
+rolling vs frozen: wins=4 ties=3 losses=2 of 9
+mean AUC delta (rolling-frozen)=+0.018
+
+NOTE: proxy labels; rolling feedback is simulated from the same annotator.
+exit=0
+
+$ git diff --check
+exit=0

@@ -139,6 +139,14 @@ abstract
         self.assertEqual(eval_probe.mean_rank_of_useful(["n1", "u1", "u2"], labels, 2), 2.5)
         self.assertIsNone(eval_probe.mean_rank_of_useful(["n1"], labels, 2))
 
+    def test_equal_batches_splits_contiguously(self):
+        items = list(range(10))
+        batches = eval_probe.equal_batches(items, 3)
+        self.assertEqual([len(b) for b in batches], [4, 3, 3])
+        self.assertEqual([x for b in batches for x in b], items)
+        self.assertEqual(eval_probe.equal_batches([], 5), [])
+        self.assertEqual(eval_probe.equal_batches([1, 2], 0), [])
+
 
 if __name__ == "__main__":
     unittest.main()

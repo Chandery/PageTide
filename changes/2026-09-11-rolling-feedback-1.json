@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-rolling-feedback-1",
+  "class": "critical",
+  "summary": "Scale up to a 12-month, 754-paper pool and a 10-batch rolling feedback sequence (268 labels total). Rolling profile mean AUC 0.910 vs frozen 0.891 (delta +0.018; wins 4 / ties 3 / losses 2), recency 0.512 - far weaker than the single-split +0.05, so the earlier feedback gain was an overestimate. Also records a critical methodology defect: the labelling prompt includes the seed titles, inflating seed-based AUC by construction. E-RANKING and E-FEEDBACK-VALUE stay not_run.",
+  "tasks": [
+    "EVAL-01",
+    "PROFILE-01"
+  ],
+  "files": [
+    "changes/2026-09-11-rolling-feedback-1.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-09-11-rolling-feedback-1-checks.txt",
+    "docs/evidence/2026-09-11-rolling-feedback-1-self-review.md",
+    "docs/evidence/2026-09-11-rolling-feedback-1.md",
+    "harness/tasks.json",
+    "tests/test_eval_probe.py",
+    "tools/eval_probe.py"
+  ],
+  "scope_note": "Covers the diff since commit 8729d9c. Tooling/tests/docs + new labels; evaluation annotator used for labelling only.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No runtime-provider call. Evaluation annotator spend this unit: about 24 calls at ~6.3k tokens each (~150k tokens) to label 233 new items; labels are cached so re-runs spend nothing. Runtime operations/ceilings unchanged.",
+    "before": "754-paper 12-month pool did not exist; feedback test was a single 22/23 split.",
+    "after": "Time-spread pool + stratified labels + rolling command; feedback gain measured as marginal and inconsistent; prompt-bias defect documented.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-rolling-feedback-1-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-rolling-feedback-1-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-rolling-feedback-1-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 tools/eval_probe.py rolling --batches 10",
+      "exit_code": 0,
+      "scope": "Rolling sequence; mean AUC delta +0.018"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; evaluation tooling only, not product quality",
+      "evidence": "docs/evidence/2026-09-11-rolling-feedback-1-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Labelling prompt reveals seed titles -> seed-based AUC inflated by construction; labels must be regenerated after the prompt fix.",
+    "Proxy labels shared between feedback and evaluation.",
+    "Feedback gain marginal (+0.018) and inconsistent (2 losses); not evidence of 'learns over time'.",
+    "E-RANKING and E-FEEDBACK-VALUE remain not_run."
+  ]
+}

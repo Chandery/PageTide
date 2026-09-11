@@ -276,7 +276,8 @@
       ],
       "evidence": [
         "docs/evidence/2026-09-11-feedback-value-1.md",
-        "tools/eval_probe.py"
+        "tools/eval_probe.py",
+        "docs/evidence/2026-09-11-rolling-feedback-1.md"
       ]
     },
     {
