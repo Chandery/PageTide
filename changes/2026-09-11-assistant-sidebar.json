@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-assistant-sidebar",
+  "class": "critical",
+  "summary": "Fix the assistant covering the PDF and the sidebar layout. The floating orb is hidden while the reader is open and the toolbar button opens the panel; when the panel is open the page area reflows (margin) instead of being covered. Questions can be sent with no selection, and six suggested-question chips make asking one click. Sidebar thumbnails no longer shrink (fixed 120px, flex:0 0 auto), the sidebar scrolls, and thumbnails render lazily via IntersectionObserver.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/static/index.html",
+    "changes/2026-09-11-assistant-sidebar.json",
+    "docs/evidence/2026-09-11-assistant-sidebar-checks.txt",
+    "docs/evidence/2026-09-11-assistant-sidebar-self-review.md"
+  ],
+  "scope_note": "Covers the diff since commit 35d7d95. Static UI only; no model call.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Layout/UI work only; no model call and no budget/config change.",
+    "before": "Orb and panel covered the reader; no suggested questions; sidebar thumbs compressed and were rendered eagerly.",
+    "after": "Orb hidden in the reader, panel reflows the page, suggestion chips, scrollable 120px thumbnails with lazy rendering.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-assistant-sidebar-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-assistant-sidebar-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-assistant-sidebar-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --check on both inline scripts",
+      "exit_code": 0,
+      "scope": "Both scripts parse after the edits"
+    },
+    {
+      "command": "served page markers",
+      "exit_code": 0,
+      "scope": "renderThumb/petSugg/reader-open/petside present; GET / 200"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; UI work, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-assistant-sidebar-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "The reflow width (424px) and chip wrapping are judged from CSS, not visually verified.",
+    "Suggested questions are static and not tailored per paper.",
+    "Large PDFs keep all canvases in memory.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

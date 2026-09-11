@@ -191,6 +191,14 @@
   .reader .zoombar { display:flex; align-items:center; gap:2px; font-size:12px; color:var(--muted); }
   .reader .pgwrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
   .reader .pgno { font-size:11px; color:var(--muted); }
+  .reader .rbody { min-height:0; }
+  .reader .rside { overflow-y:auto; overflow-x:hidden; flex:0 0 auto; scrollbar-width:thin; }
+  .reader .rside .thumb { flex:0 0 auto; }
+  .reader .rside .thumb canvas { width:120px; height:auto; display:block; }
+  .reader.petside .rbody { margin-right:424px; }
+  body.reader-open .pet { display:none; }
+  .sugg { display:flex; gap:6px; flex-wrap:wrap; padding:10px 14px 0; }
+  .sugg button { font-size:12px; padding:5px 11px; }
 
   /* ------------------------------------------------------------ assistant */
   .pet { position:fixed; right:22px; bottom:22px; z-index:88; width:58px; height:58px; border-radius:50%;
@@ -319,6 +327,7 @@
     <button class="tiny ghost" id="petClose">✕</button>
   </header>
   <div class="pctx" id="petCtx">未选择论文。在卡片点「阅读 PDF」，或选中文字后追问。</div>
+  <div class="sugg" id="petSugg"></div>
   <div class="plog" id="petLog"></div>
   <div class="prow">
     <input type="text" id="petInput" placeholder="追问，例如：这个方法的核心假设是什么？">
@@ -637,6 +646,7 @@ async function openReader(key, title) {
   side.innerHTML = '';
   reader.classList.remove('hidden');
   reader.classList.add('side');   // page thumbnails visible by default, like the native viewer
+  document.body.classList.add('reader-open');
   R.side = true;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
@@ -732,27 +742,43 @@ function markCurrent(n) {
   document.querySelectorAll('#readerSide .thumb').forEach((t) => t.classList.toggle('active', Number(t.dataset.n) === n));
 }
 
-async function buildThumbs() {
+let thumbObserver = null;
+function buildThumbs() {
   const side = $('#readerSide');
   side.innerHTML = '';
+  if (thumbObserver) { thumbObserver.disconnect(); thumbObserver = null; }
+  thumbObserver = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (en.isIntersecting) { renderThumb(Number(en.target.dataset.n)); thumbObserver.unobserve(en.target); }
+    }
+  }, { root: side, rootMargin: '300px 0px' });
   for (let i = 0; i < R.pages.length; i++) {
-    const page = R.pages[i];
-    const vp = page.getViewport({ scale: 120 / page.getViewport({ scale: 1 }).width });
     const div = document.createElement('div');
     div.className = 'thumb';
     div.dataset.n = i + 1;
     const canvas = document.createElement('canvas');
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(vp.width * dpr);
-    canvas.height = Math.floor(vp.height * dpr);
-    canvas.style.width = `${vp.width}px`;
+    canvas.width = 120; canvas.height = 160;
     div.appendChild(canvas);
-    side.appendChild(div);
     div.onclick = () => document.querySelector(`.pgwrap[data-n="${i + 1}"]`)?.scrollIntoView({ behavior:'smooth', block:'start' });
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp,
-                        transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined }).promise;
+    side.appendChild(div);
+    thumbObserver.observe(div);
   }
   markCurrent(1);
+}
+
+async function renderThumb(n) {
+  const div = document.querySelector(`#readerSide .thumb[data-n="${n}"]`);
+  if (!div) return;
+  const page = R.pages[n - 1];
+  const vp = page.getViewport({ scale: 120 / page.getViewport({ scale: 1 }).width });
+  const canvas = div.querySelector('canvas');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(vp.width * dpr);
+  canvas.height = Math.floor(vp.height * dpr);
+  canvas.style.width = `${vp.width}px`;
+  canvas.style.height = `${vp.height}px`;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp,
+                      transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined }).promise;
 }
 
 $('#readerToggleSide').onclick = () => { R.side = !R.side; $('#reader').classList.toggle('side', R.side); };
@@ -783,7 +809,33 @@ document.addEventListener('mouseup', (e) => {
 document.addEventListener('scroll', hideSel, true);
 
 /* ------------------------------------------------------------ assistant */
-function openPet() { $('#petPanel').classList.add('open'); }
+function setPetOpen(open) {
+  $('#petPanel').classList.toggle('open', open);
+  const reading = !$('#reader').classList.contains('hidden');
+  $('#reader').classList.toggle('petside', open && reading);
+}
+function openPet() { setPetOpen(true); }
+
+const SUGGESTIONS = [
+  '这篇论文想解决什么问题？',
+  '核心方法是什么？三句话说明。',
+  '和已有工作相比新在哪里？',
+  '有哪些假设或局限？',
+  '如果要复现，关键步骤是什么？',
+  '有哪些想法可以直接用到我的研究里？',
+];
+function renderSuggestions() {
+  const box = $('#petSugg');
+  box.innerHTML = '';
+  for (const q of SUGGESTIONS) {
+    const b = document.createElement('button');
+    b.className = 'tiny';
+    b.textContent = q;
+    b.onclick = () => ask(q);
+    box.appendChild(b);
+  }
+}
+renderSuggestions();
 function addMsg(kind, text) {
   const el = document.createElement('div');
   el.className = `msg ${kind}`;
@@ -815,12 +867,12 @@ async function translate(text) {
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.translation : `翻译不可用：${r.reason || '未知'}`);
   } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
 }
-$('#pet').onclick = () => $('#petPanel').classList.toggle('open');
-$('#petClose').onclick = () => $('#petPanel').classList.remove('open');
+$('#pet').onclick = () => setPetOpen(!$('#petPanel').classList.contains('open'));
+$('#petClose').onclick = () => setPetOpen(false);
 $('#petClear').onclick = () => { $('#petLog').innerHTML = ''; };
 $('#petSend').onclick = () => { const v = $('#petInput').value; $('#petInput').value = ''; ask(v); };
 $('#petInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const v = e.target.value; e.target.value = ''; ask(v); } });
-$('#readerBack').onclick = () => $('#reader').classList.add('hidden');
+$('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); };
 $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sel]');
