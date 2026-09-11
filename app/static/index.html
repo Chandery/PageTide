@@ -909,8 +909,6 @@ async function layoutPages() {
     const wrap = document.createElement('div');
     wrap.className = 'pgwrap';
     wrap.dataset.n = i + 1;
-    wrap.dataset.baseW = String(Math.round(vp.width));
-    wrap.dataset.baseH = String(Math.round(vp.height));
     const pageDiv = document.createElement('div');
     pageDiv.className = 'pg';
     pageDiv.style.width = `${vp.width}px`;
@@ -925,6 +923,16 @@ async function layoutPages() {
     num.textContent = `${i + 1} / ${R.pages.length}`;
     wrap.appendChild(pageDiv); wrap.appendChild(num);
     box.appendChild(wrap);
+    // Measure the wrapper itself: it also contains the inner gap and the page
+    // number, so using the page viewport height made the wrapper shorter than its
+    // content, which let the next page ride up over the gap.
+    // Page size plus the fixed chrome (inner gap + page-number line). The crisp
+    // layout keeps the chrome unscaled, so the visual phase must too, otherwise
+    // the two geometries drift apart and releasing the gesture shifts the view.
+    wrap.dataset.baseW = String(Math.round(vp.width));
+    wrap.dataset.baseH = String(Math.round(vp.height));
+    wrap.dataset.chromeW = String(Math.max(0, wrap.offsetWidth - Math.round(vp.width)));
+    wrap.dataset.chromeH = String(Math.max(0, wrap.offsetHeight - Math.round(vp.height)));
     R.observer.observe(wrap);
   }
   const usedScale = pageScale(R.pages[0]);
@@ -1296,12 +1304,18 @@ function currentScale() {
 
 function applyVisualScale(k, base) {
   // Transform what is already rendered: instant feedback with no canvas work.
+  // The gap and the page-number line scale too, so the visual layout matches the
+  // crisp layout exactly and releasing the gesture cannot shift anything.
   document.querySelectorAll('#readerPages .pgwrap').forEach((wrap) => {
     const baseW = Number(wrap.dataset.baseW);
     const baseH = Number(wrap.dataset.baseH);
+    const chromeW = Number(wrap.dataset.chromeW) || 0;
+    const chromeH = Number(wrap.dataset.chromeH) || 0;
     if (!baseW || !baseH) return;
-    wrap.style.width = `${baseW * k}px`;
-    wrap.style.height = `${baseH * k}px`;
+    // Exactly what the crisp layout will produce at this scale: the page grows,
+    // the chrome keeps its size.
+    wrap.style.width = `${baseW * k + chromeW}px`;
+    wrap.style.height = `${baseH * k + chromeH}px`;
     const page = wrap.querySelector('.pg');
     if (page) page.style.transform = `scale(${k})`;
   });

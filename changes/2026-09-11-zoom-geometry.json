@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-zoom-geometry",
+  "class": "critical",
+  "summary": "Make the visual and crisp zoom phases geometrically identical. The visual phase had sized wrappers from the page viewport only, ignoring the inner gap and page-number line, so wrappers were shorter than their content: the next page rode up over the gap and the anchored page's offsetTop differed from the crisp layout, shifting the view on release. Wrappers now record page size plus fixed chrome and both phases compute page*k + chrome.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/static/index.html",
+    "changes/2026-09-11-zoom-geometry.json",
+    "docs/evidence/2026-09-11-zoom-geometry-checks.txt",
+    "docs/evidence/2026-09-11-zoom-geometry-self-review.md"
+  ],
+  "scope_note": "Covers the diff since commit 2d07cc0. Reader UI only; no model call.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "UI zoom geometry only; no model call, no operation or ceiling change.",
+    "before": "Next page overlapped the gap while zooming; the cursor anchor shifted when the gesture ended.",
+    "after": "Both phases produce page*k + chrome, so offsets match and the anchor is stable throughout and on release.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-zoom-geometry-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-zoom-geometry-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-zoom-geometry-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --check",
+      "exit_code": 0,
+      "scope": "Both inline scripts parse"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; UI zoom fix, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-zoom-geometry-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Not verified with a real trackpad pinch.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}
