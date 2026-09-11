@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-docked-assistant",
+  "class": "critical",
+  "summary": "Restructure the assistant so it cannot cover the PDF, and add markdown rendering. The panel is docked as a real flex column inside the reader instead of a fixed overlay, the pages re-fit on dock/undock and on resize, the floating orb is always visible again (the rule that hid it was the cause of 'no orb'), and abstract/AI text renders markdown via a small escape-first renderer. server_version bumped to 0.4 and shown in the footer.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/server.py",
+    "app/static/index.html",
+    "changes/2026-09-11-docked-assistant.json",
+    "docs/evidence/2026-09-11-docked-assistant-checks.txt",
+    "docs/evidence/2026-09-11-docked-assistant-self-review.md"
+  ],
+  "scope_note": "Covers the diff since commit c599320. Static UI + server version; no model call.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Layout/markdown work only; no model call and no budget/config change.",
+    "before": "Assistant overlaid the reader via fixed positioning and a margin hack; orb could stay hidden; plain-text abstracts/answers.",
+    "after": "Assistant docked in the reader flex row with automatic re-fit; orb always visible; markdown rendering.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-docked-assistant-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-docked-assistant-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-docked-assistant-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --check on both inline scripts",
+      "exit_code": 0,
+      "scope": "Both scripts parse"
+    },
+    {
+      "command": "served markers + version",
+      "exit_code": 0,
+      "scope": "dockPanel/md/resize/docked present; server_version 0.4"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; UI work, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-docked-assistant-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Dock width and markdown spacing are not visually verified.",
+    "Markdown renderer is minimal (no tables/nested lists).",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

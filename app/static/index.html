@@ -154,7 +154,17 @@
   .page-inner { max-width:800px; margin:0 auto; padding:28px; background:var(--base);
                 box-shadow:var(--sh-out); border-radius:var(--r-lg); }
   .page h2 { font-size:22px; line-height:1.4; margin:0 0 10px; letter-spacing:-.015em; }
-  .full { font-size:14.5px; line-height:1.85; white-space:pre-wrap; opacity:.9; }
+  .full { font-size:14.5px; line-height:1.85; opacity:.92; }
+  .full p, .msg p { margin:0 0 10px; }
+  .full h4, .msg h4 { margin:14px 0 6px; font-size:14px; }
+  .full ul, .msg ul { margin:6px 0 10px 20px; padding:0; }
+  .full li, .msg li { margin:3px 0; }
+  .full code, .msg code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+                          box-shadow:var(--sh-in-sm); padding:1px 6px; border-radius:6px; }
+  .full pre, .msg pre { box-shadow:var(--sh-in-sm); padding:12px 14px; border-radius:var(--r-sm);
+                        overflow:auto; margin:8px 0; }
+  .full pre code, .msg pre code { box-shadow:none; padding:0; background:none; }
+  .full a, .msg a { color:var(--accent); }
   .label { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:26px 0 10px; }
 
   /* --------------------------------------------------------------- library */
@@ -195,8 +205,11 @@
   .reader .rside { overflow-y:auto; overflow-x:hidden; flex:0 0 auto; scrollbar-width:thin; }
   .reader .rside .thumb { flex:0 0 auto; }
   .reader .rside .thumb canvas { width:120px; height:auto; display:block; }
-  .reader.petside .rbody { margin-right:424px; }
-  body.reader-open .pet { display:none; }
+  .petpanel.docked { position:static; width:380px; flex:0 0 auto; margin:14px 14px 14px 0;
+                    max-height:none; height:calc(100% - 28px); }
+  .petpanel.docked header { box-shadow:var(--sh-out-sm); }
+  body.reader-open .pet { bottom:14px; right:14px; opacity:.62; }
+  body.reader-open .pet:hover { opacity:1; }
   .sugg { display:flex; gap:6px; flex-wrap:wrap; padding:10px 14px 0; }
   .sugg button { font-size:12px; padding:5px 11px; }
 
@@ -367,6 +380,35 @@ async function api(path, body) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
+}
+function mdInline(t) {
+  return t
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+}
+function md(text) {
+  const lines = esc(text || '').split('\n');
+  let html = '', inCode = false, list = [];
+  const flush = () => { if (list.length) { html += '<ul>' + list.map((x) => `<li>${x}</li>`).join('') + '</ul>'; list = []; } };
+  for (const raw of lines) {
+    if (raw.trim().startsWith('```')) {
+      if (inCode) { html += '</code></pre>'; inCode = false; } else { flush(); html += '<pre><code>'; inCode = true; }
+      continue;
+    }
+    if (inCode) { html += raw + '\n'; continue; }
+    const li = raw.match(/^\s*[-*]\s+(.*)$/);
+    if (li) { list.push(mdInline(li[1])); continue; }
+    flush();
+    const h = raw.match(/^#{1,4}\s+(.*)$/);
+    if (h) { html += `<h4>${mdInline(h[1])}</h4>`; continue; }
+    if (!raw.trim()) continue;
+    html += `<p>${mdInline(raw)}</p>`;
+  }
+  flush();
+  if (inCode) html += '</code></pre>';
+  return html;
 }
 const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -578,10 +620,10 @@ async function openDetail(key) {
           ${d.arxiv_id ? `<span class="badge">arXiv:${esc(d.arxiv_id)}</span>` : ''}
           ${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
         </div>
-        ${s ? `<div class="ai-line" style="margin-top:18px"><b>速览</b> ${esc(s.one_liner || '')}
+        ${s ? `<div class="ai-line" style="margin-top:18px"><b>速览</b> ${md(s.one_liner || '')}
           <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div>` : ''}
         <div class="label">完整摘要</div>
-        <div class="full">${esc(d.abstract || '（无摘要）')}</div>
+        <div class="full">${md(d.abstract || '（无摘要）')}</div>
         <div class="row" style="margin-top:20px">
           <button class="primary" id="dRead">全屏阅读 PDF</button>
           <button id="dToggle" class="${d.saved ? 'saved' : 'primary'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
@@ -616,7 +658,7 @@ document.addEventListener('scroll', hidePreview, { passive: true });
 load().catch(e => toast(`加载失败：${e.message}`, 'err'));
 
 // Cross-script bridge for the ES-module reader/assistant below.
-window.PDH = { api, toast, esc, state, openDetail, setPetContext: (k, t) => window.PDHSetContext?.(k, t) };
+window.PDH = { api, toast, esc, md, state, openDetail, setPetContext: (k, t) => window.PDHSetContext?.(k, t) };
 </script>
 <script type="module">
 const { api, toast } = window.PDH;
@@ -647,6 +689,7 @@ async function openReader(key, title) {
   reader.classList.remove('hidden');
   reader.classList.add('side');   // page thumbnails visible by default, like the native viewer
   document.body.classList.add('reader-open');
+  dockPanel(true);
   R.side = true;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
@@ -786,6 +829,14 @@ $('#zoomIn').onclick = async () => { R.fit = false; R.scale = Math.min(3, (R.sca
 $('#zoomOut').onclick = async () => { R.fit = false; R.scale = Math.max(0.4, (R.scale || pageScale(R.pages[0])) - 0.2); await layoutPages(); };
 $('#zoomFit').onclick = async () => { R.fit = true; await layoutPages(); };
 $('#readerNative').onclick = () => { if (R.url) window.open(R.url, '_blank'); };
+// Re-fit the pages whenever the available width changes (panel docking, window resize).
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (!$('#reader').classList.contains('hidden') && R.doc && R.fit) layoutPages();
+  }, 180);
+});
 window.PDH.openReader = openReader;
 
 /* --------------------------------------------------------- selection bar */
@@ -809,10 +860,15 @@ document.addEventListener('mouseup', (e) => {
 document.addEventListener('scroll', hideSel, true);
 
 /* ------------------------------------------------------------ assistant */
+function dockPanel(dock) {
+  const panel = $('#petPanel');
+  if (dock) { $('#reader').querySelector('.rbody').appendChild(panel); panel.classList.add('docked'); }
+  else { document.body.appendChild(panel); panel.classList.remove('docked'); }
+}
 function setPetOpen(open) {
   $('#petPanel').classList.toggle('open', open);
-  const reading = !$('#reader').classList.contains('hidden');
-  $('#reader').classList.toggle('petside', open && reading);
+  // The panel is a flex column inside the reader, so the PDF re-fits automatically.
+  if (!$('#reader').classList.contains('hidden') && R.doc) layoutPages();
 }
 function openPet() { setPetOpen(true); }
 
@@ -836,10 +892,12 @@ function renderSuggestions() {
   }
 }
 renderSuggestions();
+addMsg('sys', '点下面的问题直接问，或自己输入；也可以在 PDF 里选中文字后点「追问」。');
 function addMsg(kind, text) {
   const el = document.createElement('div');
   el.className = `msg ${kind}`;
-  el.textContent = text;
+  if (kind === 'ai') el.innerHTML = window.PDH.md(text);
+  else el.textContent = text;
   $('#petLog').appendChild(el);
   $('#petLog').scrollTop = $('#petLog').scrollHeight;
   return el;
@@ -872,7 +930,7 @@ $('#petClose').onclick = () => setPetOpen(false);
 $('#petClear').onclick = () => { $('#petLog').innerHTML = ''; };
 $('#petSend').onclick = () => { const v = $('#petInput').value; $('#petInput').value = ''; ask(v); };
 $('#petInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const v = e.target.value; e.target.value = ''; ask(v); } });
-$('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); };
+$('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false); };
 $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sel]');

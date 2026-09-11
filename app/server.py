@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from .service import App
 
 STATIC = Path(__file__).resolve().parent / "static"
-VERSION = "0.3"
+VERSION = "0.4"
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 JOB_SEQ = [0]

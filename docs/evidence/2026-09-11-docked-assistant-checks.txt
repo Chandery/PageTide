@@ -1,0 +1,36 @@
+# Evidence: docked assistant, orb visibility, markdown rendering
+# Date: 2026-09-11 UTC
+# Scope: static UI + server version; no model call
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 95 tests in 7.712s
+
+OK
+exit=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ node --check on both inline scripts
+scripts: 2
+  /tmp/ed_0.mjs OK
+  /tmp/ed_1.mjs OK
+exit=0
+
+$ served markers + version
+GET / http=200
+  petpanel.docked -> 2
+  function dockPanel( -> 1
+  function md( -> 1
+  addEventListener('resize' -> 1
+  server_version 0.4
+exit=0
+
+$ git diff --check
+exit=0
