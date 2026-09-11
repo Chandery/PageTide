@@ -272,6 +272,55 @@
   @keyframes fade { from{opacity:0;} to{opacity:1;} }
   @keyframes spin { to { transform:rotate(360deg); } }
   @keyframes slideIn { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:none;} }
+  /* ================= design refresh: layered surfaces, separation, motion ================= */
+  :root { --surface-1:#f8fafc; --surface-2:#eef2f7; --surface-3:#e3e9f2;
+          --sh-1:0 1px 2px rgba(16,24,40,.06); --sh-2:0 8px 22px rgba(16,24,40,.10);
+          --sh-3:0 18px 44px rgba(16,24,40,.16); }
+  html[data-mode="dark"] { --surface-1:#232834; --surface-2:#2a3140; --surface-3:#333b4d;
+          --sh-1:0 1px 2px rgba(0,0,0,.45); --sh-2:0 8px 24px rgba(0,0,0,.5); --sh-3:0 20px 52px rgba(0,0,0,.6); }
+  .glass, .hero, .card, .lib-item, .page-inner, .petpanel, .sheet, .toast { background:var(--surface-1);
+      border:1px solid var(--line); box-shadow:var(--sh-2); }
+  header.top { background:color-mix(in srgb, var(--surface-1) 90%, transparent);
+               backdrop-filter:blur(20px) saturate(150%); box-shadow:var(--sh-2); }
+  .tabs { background:var(--surface-2); box-shadow:none; border:1px solid var(--line); }
+  .tab.active { background:var(--surface-1); box-shadow:var(--sh-1); }
+  button, .btn { background:var(--surface-2); border:1px solid var(--line); box-shadow:var(--sh-1); }
+  button.primary { background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000));
+      border-color:transparent; color:var(--accent-ink);
+      box-shadow:0 6px 16px color-mix(in srgb, var(--accent) 32%, transparent); }
+  button.primary:hover { box-shadow:0 10px 26px color-mix(in srgb, var(--accent) 44%, transparent); transform:translateY(-1px); }
+  .chip, .badge { background:var(--surface-2); border:1px solid var(--line); }
+  .card { overflow:hidden; }
+  .card::before { content:''; position:absolute; left:0; top:14px; bottom:14px; width:3px; border-radius:0 3px 3px 0;
+      background:linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)); }
+  .card:hover { box-shadow:var(--sh-3); border-color:color-mix(in srgb, var(--accent) 34%, var(--line)); }
+  .hero { position:relative; overflow:hidden; }
+  .hero::after { content:''; position:absolute; right:-60px; top:-80px; width:220px; height:220px; border-radius:50%;
+      background:radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); pointer-events:none; }
+  .hero h1 { letter-spacing:-.02em; }
+  .section-title, .label { display:flex; align-items:center; gap:8px; }
+  .section-title::before, .label::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--accent); }
+  .ai-line { background:var(--surface-2); border:1px solid var(--line); border-left:3px solid var(--ai); }
+  .msg { border:1px solid var(--line); box-shadow:var(--sh-1); animation:msgIn .22s cubic-bezier(.2,.8,.3,1) both; }
+  .msg.user { background:var(--surface-2); }
+  .msg.ai { background:var(--surface-1); }
+  .msg.sys { border:none; box-shadow:none; background:transparent; }
+  .fol { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; animation:msgIn .24s ease both; }
+  .fol button { font-size:12px; padding:6px 12px; background:var(--surface-1); }
+  .fol button:hover { border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .refcard { display:flex; gap:10px; align-items:flex-start; padding:9px 11px; margin-top:8px; max-width:100%;
+      border:1px solid var(--line); border-radius:12px; background:var(--surface-2); box-shadow:var(--sh-1); }
+  .refcard .ricon { width:22px; height:27px; flex:0 0 auto; border:1px solid var(--line); border-radius:5px;
+      background:var(--surface-1); display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--accent); }
+  .refcard .rmeta { min-width:0; flex:1; }
+  .refcard .rlabel { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .refcard .rsnip { font-size:12px; opacity:.88; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+      overflow:hidden; }
+  .refcard .rx { cursor:pointer; color:var(--muted); flex:0 0 auto; }
+  .refcard .rx:hover { color:var(--bad); }
+  #petRef { padding:10px 14px 0; }
+  .petpanel header b { letter-spacing:-.01em; }
+  @keyframes msgIn { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
 </style>
 </head>
@@ -355,8 +404,7 @@
     <button class="tiny ghost" id="petClose">✕</button>
   </header>
   <div class="ptitle" id="petPaper">未选择论文<small>在卡片点「阅读 PDF」，或选中文字后追问</small></div>
-  <div class="pref" id="petRef"></div>
-  <div class="sugg" id="petSugg"></div>
+  <div id="petRef"></div>
   <div class="plog" id="petLog"></div>
   <div class="prow">
     <input type="text" id="petInput" placeholder="追问，例如：这个方法的核心假设是什么？">
@@ -687,20 +735,37 @@ window.PDHSetContext = (key, title) => {
     ? esc(title) + '<small>正在阅读 · 可选中文字追问</small>'
     : '未选择论文<small>在卡片点「阅读 PDF」，或选中文字后追问</small>';
 };
+function refCard(text, removable) {
+  const card = document.createElement('div');
+  card.className = 'refcard';
+  const icon = document.createElement('div');
+  icon.className = 'ricon';
+  icon.textContent = 'PDF';
+  const meta = document.createElement('div');
+  meta.className = 'rmeta';
+  const label = document.createElement('div');
+  label.className = 'rlabel';
+  label.textContent = '引用 · 论文片段';
+  const snip = document.createElement('div');
+  snip.className = 'rsnip';
+  snip.textContent = text.replace(/\s+/g, ' ').trim();
+  meta.append(label, snip);
+  card.append(icon, meta);
+  if (removable) {
+    const kill = document.createElement('div');
+    kill.className = 'rx';
+    kill.textContent = '✕';
+    kill.title = '移除引用';
+    kill.onclick = () => setReference(null);
+    card.appendChild(kill);
+  }
+  return card;
+}
 function setReference(text) {
   pet.selection = text || null;
   const box = $('#petRef');
   box.innerHTML = '';
-  if (!text) return;
-  const chip = document.createElement('div');
-  chip.className = 'refchip';
-  const label = document.createElement('span');
-  label.textContent = `引用：${text.replace(/\s+/g, ' ').slice(0, 120)}`;
-  const kill = document.createElement('b');
-  kill.textContent = '✕';
-  kill.onclick = () => setReference(null);
-  chip.append(label, kill);
-  box.appendChild(chip);
+  if (text) box.appendChild(refCard(text, true));
 }
 
 /* ---------------------------------------------------------------- reader */
@@ -900,6 +965,12 @@ document.addEventListener('mouseup', (e) => {
   showSel(selRect, text);
 });
 document.addEventListener('scroll', hideSel, true);
+document.addEventListener('mousedown', (e) => {
+  const pop = $('#transPop');
+  if (!pop.classList.contains('show')) return;
+  if (pop.contains(e.target) || (e.target.closest && e.target.closest('#selbar'))) return;
+  pop.classList.remove('show');   // clicking anywhere else dismisses the translation
+});
 
 /* ------------------------------------------------------------ assistant */
 function dockPanel(dock) {
@@ -922,41 +993,46 @@ const SUGGESTIONS = [
   '如果要复现，关键步骤是什么？',
   '有哪些想法可以直接用到我的研究里？',
 ];
-function renderSuggestions(list) {
-  const box = $('#petSugg');
-  box.innerHTML = '';
+function followupRow(list) {
+  const row = document.createElement('div');
+  row.className = 'fol';
   for (const q of (list && list.length ? list : SUGGESTIONS)) {
     const b = document.createElement('button');
     b.className = 'tiny';
     b.textContent = q;
     b.onclick = () => ask(q);
-    box.appendChild(b);
+    row.appendChild(b);
   }
+  return row;
 }
-renderSuggestions();
-addMsg('sys', '点下面的问题直接问，或自己输入；也可以在 PDF 里选中文字后点「追问」。');
-function addMsg(kind, text) {
+let lastFol = null;
+addMsg('sys', '点下面的问题直接问，或自己输入；也可以在 PDF 里选中文字后点「追问」。').appendChild(followupRow());
+function addMsg(kind, text, followups) {
   const el = document.createElement('div');
   el.className = `msg ${kind}`;
   if (kind === 'ai') el.innerHTML = window.PDH.md(text);
   else el.textContent = text;
   $('#petLog').appendChild(el);
+  if (kind === 'ai') {
+    if (lastFol) { lastFol.remove(); lastFol = null; }   // keep only the newest suggestions
+    lastFol = followupRow(followups);
+    $('#petLog').appendChild(lastFol);
+  }
   $('#petLog').scrollTop = $('#petLog').scrollHeight;
   return el;
 }
 async function ask(question) {
   if (!question.trim() || pet.busy) return;
   openPet(); pet.busy = true;
-  addMsg('user', question);
+  const quoted = pet.selection;
+  const userEl = addMsg('user', question);
+  if (quoted) userEl.appendChild(refCard(quoted));
   const thinking = addMsg('sys', '思考中…');
   try {
-    const r = await api('/api/qa', { key: pet.key, question, selection: pet.selection });
+    const r = await api('/api/qa', { key: pet.key, question, selection: quoted });
     thinking.remove();
-    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : `AI 不可用：${r.reason || '未知'}`);
-    if (r.ok) {
-      toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
-      renderSuggestions(r.followups);   // follow-ups are regenerated from the exchange
-    }
+    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : `AI 不可用：${r.reason || '未知'}`, r.followups);
+    if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
   } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
   finally { pet.busy = false; setReference(null); }
 }
