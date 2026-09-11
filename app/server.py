@@ -13,7 +13,7 @@ import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from .service import App
 
@@ -86,7 +86,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # -------------------------------------------------------------------- GET
     def do_GET(self):
-        route = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        route, query = parsed.path, parse_qs(parsed.query)
         if route == "/api/home":
             app = self._app()
             self._json({"stats": app.stats(), "profile": app.profile(),
@@ -95,18 +96,23 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/state":  # kept for compatibility
             app = self._app()
             self._json({"profile": app.profile(), "cards": app.cards()})
+        elif route == "/api/paper":
+            # Paper keys contain '/' (e.g. https://doi.org/...), so prefer ?key=.
+            app = self._app()
+            detail = app.paper_detail((query.get("key") or [""])[0])
+            self._json(detail or {"error": "not found"}, 200 if detail else 404)
         elif route.startswith("/api/paper/"):
             app = self._app()
-            detail = app.paper_detail(route[len("/api/paper/"):])
+            detail = app.paper_detail(unquote(route[len("/api/paper/"):]))
             self._json(detail or {"error": "not found"}, 200 if detail else 404)
         elif route.startswith("/api/jobs/"):
             self._json(_job_get(route[len("/api/jobs/"):]))
-        elif route == "/api/profile":
-            app = self._app()
-            self._json({"profile": app.profile(), "versions": app.store.profile_versions()})
         elif route == "/api/library":
             app = self._app()
             self._json({"items": app.library(), "stats": app.stats()})
+        elif route == "/api/profile":
+            app = self._app()
+            self._json({"profile": app.profile(), "versions": app.store.profile_versions()})
         else:
             self._static(route)
 

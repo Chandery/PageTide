@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-ui-round4",
+  "class": "critical",
+  "summary": "Fix the dead detail page at its root: paper keys are URLs, the server read the still-encoded path segment so every lookup 404'd. /api/paper now takes ?key= (decoded by parse_qs) with an unquote()d path fallback, plus a regression test using a URL-shaped key. Adds 取消收藏 on cards, library rows and the detail toggle, and replaces the single palette with four selectable theme presets (mint/rose/sand/ink, none blue).",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/server.py",
+    "app/static/index.html",
+    "changes/2026-09-11-ui-round4.json",
+    "docs/evidence/2026-09-11-ui-round4-checks.txt",
+    "docs/evidence/2026-09-11-ui-round4-self-review.md",
+    "tests/test_app_server.py"
+  ],
+  "scope_note": "Covers the diff since commit f4620e4. Server route + static UI + test; no model call.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Bug fix and presentation work only; no model call and no budget/config change.",
+    "before": "Detail and library clicks silently 404'd; no way to un-save; one palette the owner disliked.",
+    "after": "Detail opens via ?key= with a regression test; un-save available in three places; four theme presets with a header switcher.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-ui-round4-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-ui-round4-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-ui-round4-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "live detail via ?key= with a URL key",
+      "exit_code": 0,
+      "scope": "HTTP 200 with a 1339-character abstract"
+    },
+    {
+      "command": "live collect then unsave",
+      "exit_code": 0,
+      "scope": "library grows then shrinks"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; bug fix and UI, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-ui-round4-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Theme choice is subjective and unverified visually (no screenshot test).",
+    "Recommendation quality remains unproven; gates stay not_run.",
+    "Export, notes, Zotero import and Tauri packaging still missing."
+  ]
+}

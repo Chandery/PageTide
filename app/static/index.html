@@ -1,150 +1,168 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="mint">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PaperDigHelper</title>
 <style>
+  /* ------------------------------------------------------------ base tokens */
   :root {
-    --bg:#131110; --bg2:#1b1815; --ink:#f1ece5; --muted:#a99e91;
-    --line:rgba(255,255,255,.10);
-    --glass:rgba(38,33,28,.55); --glass-strong:rgba(44,38,32,.80);
-    --accent:#e0a15c;        /* warm amber */
-    --ai:#d98fb0;            /* dusty rose */
-    --good:#94bf8f;          /* sage */
-    --bad:#d9715f;           /* terracotta */
-    --warn:#e0c060;
-    --radius:18px;
-    --shadow:0 12px 34px rgba(0,0,0,.42);
+    --bg:#0b0d10; --bg2:#12151a; --surface:#171b21; --ink:#e9edf2; --muted:#98a2b3;
+    --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.16);
+    --glass:rgba(23,27,33,.62); --glass-strong:rgba(26,31,38,.86);
+    --radius:16px; --radius-sm:10px;
+    --shadow:0 18px 40px rgba(0,0,0,.45);
+    --accent:#10b981; --accent-ink:#04150f; --ai:#a78bfa; --good:#10b981; --bad:#f43f5e; --warn:#f59e0b;
+    --glow1:rgba(16,185,129,.20); --glow2:rgba(167,139,250,.16);
   }
   @media (prefers-color-scheme: light) {
-    :root { --bg:#f4efe7; --bg2:#ece5da; --ink:#221c16; --muted:#6d6155;
-            --line:rgba(60,45,30,.14); --glass:rgba(255,252,247,.60); --glass-strong:rgba(255,253,250,.86);
-            --shadow:0 12px 30px rgba(90,70,50,.15); }
+    :root { --bg:#f6f7f9; --bg2:#eceef2; --surface:#ffffff; --ink:#151a21; --muted:#5c6675;
+            --line:rgba(12,20,30,.10); --line-strong:rgba(12,20,30,.18);
+            --glass:rgba(255,255,255,.66); --glass-strong:rgba(255,255,255,.9);
+            --shadow:0 14px 34px rgba(20,30,45,.12);
+            --glow1:rgba(16,185,129,.14); --glow2:rgba(167,139,250,.12); }
   }
+  html[data-theme="mint"] { --accent:#10b981; --accent-ink:#04150f; --ai:#a78bfa; --good:#10b981; --bad:#f43f5e;
+                            --glow1:rgba(16,185,129,.20); --glow2:rgba(167,139,250,.16); }
+  html[data-theme="rose"] { --accent:#f43f5e; --accent-ink:#20060c; --ai:#f59e0b; --good:#10b981; --bad:#e11d48;
+                            --glow1:rgba(244,63,94,.18); --glow2:rgba(245,158,11,.16); }
+  html[data-theme="sand"] { --accent:#d97706; --accent-ink:#1c1206; --ai:#d946ef; --good:#059669; --bad:#dc2626;
+                            --glow1:rgba(217,119,6,.20); --glow2:rgba(217,70,239,.14); }
+  html[data-theme="ink"]  { --accent:#8b5cf6; --accent-ink:#120722; --ai:#f472b6; --good:#34d399; --bad:#fb7185;
+                            --glow1:rgba(139,92,246,.20); --glow2:rgba(244,114,182,.14); }
+
   * { box-sizing:border-box; }
   html,body { margin:0; }
   body {
-    font:15px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC",Arial,sans-serif;
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Helvetica Neue","PingFang SC",Arial,sans-serif;
     color:var(--ink); min-height:100vh;
     background:
-      radial-gradient(1100px 560px at 12% -12%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%),
-      radial-gradient(900px 520px at 104% 4%, color-mix(in srgb, var(--ai) 20%, transparent), transparent 58%),
-      linear-gradient(175deg, var(--bg), var(--bg2));
+      radial-gradient(1100px 560px at 10% -14%, var(--glow1), transparent 62%),
+      radial-gradient(950px 520px at 106% 2%, var(--glow2), transparent 58%),
+      linear-gradient(178deg, var(--bg), var(--bg2));
     background-attachment:fixed;
   }
-  .glass {
-    background:var(--glass); backdrop-filter:blur(24px) saturate(145%);
-    -webkit-backdrop-filter:blur(24px) saturate(145%);
-    border:1px solid var(--line); box-shadow:var(--shadow); border-radius:var(--radius);
-  }
-  /* ------------------------------------------------------------------ header */
-  header.top { position:sticky; top:12px; z-index:30; margin:12px auto 0; max-width:1060px;
-               padding:11px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .brand { font-weight:650; display:flex; align-items:center; gap:8px; white-space:nowrap; }
-  .dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); }
-  .tabs { display:flex; gap:4px; padding:3px; border-radius:12px; background:color-mix(in srgb, var(--ink) 7%, transparent); }
-  .tab { padding:6px 14px; border-radius:9px; font-size:13.5px; color:var(--muted); cursor:pointer;
-         transition:background .2s, color .2s; user-select:none; }
+  .glass { background:var(--glass); backdrop-filter:blur(22px) saturate(140%);
+           -webkit-backdrop-filter:blur(22px) saturate(140%);
+           border:1px solid var(--line); box-shadow:var(--shadow); border-radius:var(--radius); }
+
+  /* ---------------------------------------------------------------- header */
+  header.top { position:sticky; top:12px; z-index:40; margin:12px auto 0; max-width:1080px;
+               padding:10px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .brand { font-weight:650; display:flex; align-items:center; gap:8px; white-space:nowrap; letter-spacing:.2px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); }
+  .tabs { display:flex; gap:2px; padding:3px; border-radius:12px; background:color-mix(in srgb, var(--ink) 6%, transparent); }
+  .tab { padding:6px 14px; border-radius:9px; font-size:13.5px; color:var(--muted); cursor:pointer; user-select:none;
+         transition:background .18s, color .18s; }
   .tab:hover { color:var(--ink); }
-  .tab.active { background:color-mix(in srgb, var(--ink) 12%, transparent); color:var(--ink); font-weight:600; }
-  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; }
-  .chip { font-size:12px; padding:3px 9px; border-radius:999px; border:1px solid var(--line);
-          background:color-mix(in srgb, var(--ink) 6%, transparent); color:var(--muted); }
+  .tab.active { background:color-mix(in srgb, var(--ink) 11%, transparent); color:var(--ink); font-weight:600; }
+  .right { margin-left:auto; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--line);
+          background:color-mix(in srgb, var(--ink) 5%, transparent); color:var(--muted); }
   .chip b { color:var(--ink); font-weight:600; }
-  main { max-width:1060px; margin:16px auto 90px; padding:0 16px; }
-  h1 { font-size:21px; margin:0 0 4px; }
+  .themes { display:flex; gap:6px; }
+  .sw { width:16px; height:16px; border-radius:50%; cursor:pointer; border:2px solid transparent;
+        transition:transform .15s ease, border-color .15s ease; }
+  .sw:hover { transform:scale(1.15); }
+  .sw.active { border-color:var(--ink); }
+  .sw[data-t="mint"]{background:#10b981}.sw[data-t="rose"]{background:#f43f5e}
+  .sw[data-t="sand"]{background:#d97706}.sw[data-t="ink"]{background:#8b5cf6}
+
+  main { max-width:1080px; margin:16px auto 90px; padding:0 16px; }
+  h1 { font-size:22px; margin:0 0 4px; letter-spacing:-.01em; }
   .sub { color:var(--muted); font-size:13px; }
 
-  /* ----------------------------------------------------------------- buttons */
-  button, .btn {
-    font:inherit; color:var(--ink); cursor:pointer; border-radius:999px;
-    border:1px solid var(--line); background:color-mix(in srgb, var(--ink) 6%, transparent);
-    padding:7px 14px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
-    transition:transform .12s ease, background .18s ease, border-color .18s ease, opacity .18s;
-  }
-  button:hover { background:color-mix(in srgb, var(--ink) 12%, transparent); transform:translateY(-1px); }
+  /* --------------------------------------------------------------- buttons */
+  button, .btn { font:inherit; color:var(--ink); cursor:pointer; border-radius:999px; border:1px solid var(--line);
+    background:color-mix(in srgb, var(--ink) 5%, transparent); padding:7px 14px;
+    display:inline-flex; align-items:center; gap:6px; white-space:nowrap; text-decoration:none;
+    transition:transform .12s ease, background .18s ease, border-color .18s ease, opacity .18s; }
+  button:hover, .btn:hover { background:color-mix(in srgb, var(--ink) 11%, transparent); transform:translateY(-1px); }
   button:active { transform:scale(.97); }
-  button:disabled { opacity:.55; cursor:default; transform:none; }
-  button.primary { background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent) 70%,#000));
-                   border-color:transparent; color:#1a130a; font-weight:650; }
+  button:disabled { opacity:.5; cursor:default; transform:none; }
+  button.primary { background:var(--accent); border-color:transparent; color:var(--accent-ink); font-weight:650; }
+  button.primary:hover { filter:brightness(1.07); }
   button.ghost { background:transparent; }
   button.tiny { padding:5px 11px; font-size:12.5px; }
-  button.saved { border-color:color-mix(in srgb,var(--good) 55%,transparent); color:var(--good); }
+  button.danger:hover { border-color:color-mix(in srgb, var(--bad) 55%, transparent); color:var(--bad); }
+  button.saved { border-color:color-mix(in srgb, var(--good) 55%, transparent); color:var(--good); }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  input[type=text] { font:inherit; color:var(--ink); background:color-mix(in srgb,var(--ink) 6%,transparent);
+  input[type=text] { font:inherit; color:var(--ink); background:color-mix(in srgb, var(--ink) 5%, transparent);
     border:1px solid var(--line); border-radius:999px; padding:8px 14px; min-width:220px; flex:1; }
-  input[type=text]:focus { outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent); outline-offset:1px; }
+  input[type=text]:focus { outline:2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset:1px; }
 
-  /* -------------------------------------------------------------------- hero */
-  .hero { padding:18px; margin-bottom:16px; animation:rise .5s ease both; }
+  /* ------------------------------------------------------------------ hero */
+  .hero { padding:20px; margin-bottom:16px; animation:rise .45s ease both; }
   .hero .row + .row { margin-top:12px; }
   .switch { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; }
   .switch input { accent-color:var(--accent); }
 
-  /* ------------------------------------------------------------------- cards */
+  /* ----------------------------------------------------------------- cards */
   .grid { display:grid; grid-template-columns:1fr; gap:14px; }
-  @media (min-width:780px) { .grid { grid-template-columns:1fr 1fr; } }
-  .card { position:relative; padding:16px 16px 14px; cursor:pointer; overflow:hidden;
-          animation:rise .45s ease both; transition:transform .18s ease, box-shadow .25s ease, border-color .2s ease; }
-  .card:hover { transform:translateY(-3px); border-color:color-mix(in srgb,var(--accent) 45%,transparent);
-                box-shadow:0 18px 44px rgba(0,0,0,.4); }
-  .card h3 { font-size:15.5px; margin:0 0 6px; line-height:1.42; }
-  .meta { font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; margin-bottom:9px; align-items:center; }
-  .badge { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line);
-           background:color-mix(in srgb,var(--ink) 6%,transparent); color:var(--muted); }
-  .badge.ai { color:var(--ai); border-color:color-mix(in srgb,var(--ai) 45%,transparent);
-              background:color-mix(in srgb,var(--ai) 12%,transparent); }
-  .badge.saved { color:var(--good); border-color:color-mix(in srgb,var(--good) 50%,transparent);
-                 background:color-mix(in srgb,var(--good) 12%,transparent); }
-  .abs { font-size:13.5px; color:color-mix(in srgb,var(--ink) 88%,transparent);
+  @media (min-width:800px) { .grid { grid-template-columns:1fr 1fr; } }
+  .card { position:relative; padding:18px; cursor:pointer; animation:rise .42s ease both;
+          transition:transform .18s ease, box-shadow .22s ease, border-color .2s ease; }
+  .card:hover { transform:translateY(-3px); border-color:var(--line-strong); box-shadow:0 22px 50px rgba(0,0,0,.42); }
+  .card:hover .open-hint { opacity:1; transform:none; }
+  .card h3 { font-size:15.5px; margin:0 0 8px; line-height:1.42; letter-spacing:-.005em; }
+  .meta { font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .badge { font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--line);
+           background:color-mix(in srgb, var(--ink) 5%, transparent); color:var(--muted); }
+  .badge.ai { color:var(--ai); border-color:color-mix(in srgb, var(--ai) 45%, transparent);
+              background:color-mix(in srgb, var(--ai) 12%, transparent); }
+  .badge.saved { color:var(--good); border-color:color-mix(in srgb, var(--good) 50%, transparent);
+                 background:color-mix(in srgb, var(--good) 12%, transparent); }
+  .abs { font-size:13.5px; color:color-mix(in srgb, var(--ink) 86%, transparent);
          display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
-  .why { font-size:12.5px; color:var(--muted); margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
-  .ai-slot { margin-top:9px; }
+  .ai-slot { margin-top:10px; }
   .ai-line { font-size:13px; padding:9px 11px; border-radius:12px; border-left:3px solid var(--ai);
-             background:color-mix(in srgb,var(--ai) 10%,transparent); animation:fade .35s ease both; }
+             background:color-mix(in srgb, var(--ai) 9%, transparent); animation:fade .3s ease both; }
   .ai-loading { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
-  .ai-loading .spin { width:13px; height:13px; border-radius:50%; border:2px solid color-mix(in srgb,var(--ai) 35%,transparent);
-                      border-top-color:var(--ai); animation:spin .8s linear infinite; }
+  .spin { width:13px; height:13px; border-radius:50%; border:2px solid color-mix(in srgb, var(--ai) 32%, transparent);
+          border-top-color:var(--ai); animation:spin .8s linear infinite; }
   .ai-off { font-size:12.5px; color:var(--muted); }
+  .why { font-size:12.5px; color:var(--muted); margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
   .actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .open-hint { position:absolute; right:16px; bottom:14px; font-size:11.5px; color:var(--muted);
+               opacity:0; transform:translateX(-4px); transition:opacity .2s, transform .2s; }
 
   /* ---------------------------------------------------------------- preview */
-  #preview { position:fixed; z-index:70; width:min(430px,92vw); padding:14px 16px; pointer-events:none;
-             opacity:0; transform:translateY(6px); transition:opacity .16s ease, transform .16s ease; }
+  #preview { position:fixed; z-index:70; width:min(440px,92vw); padding:16px; pointer-events:none;
+             opacity:0; transform:translateY(8px); transition:opacity .16s ease, transform .16s ease; }
   #preview.show { opacity:1; transform:none; }
-  #preview h4 { margin:0 0 6px; font-size:14px; line-height:1.4; }
-  #preview .pabs { font-size:12.5px; max-height:180px; overflow:hidden; color:color-mix(in srgb,var(--ink) 86%,transparent); }
-  #preview .hint { margin-top:8px; font-size:11.5px; color:var(--muted); }
+  #preview h4 { margin:0 0 8px; font-size:14px; line-height:1.42; }
+  #preview .pabs { font-size:12.5px; max-height:190px; overflow:hidden; color:color-mix(in srgb, var(--ink) 84%, transparent); }
+  #preview .hint { margin-top:10px; font-size:11.5px; color:var(--muted); }
 
-  /* ------------------------------------------------------------- detail page */
-  .page { position:fixed; inset:0; z-index:80; overflow:auto; padding:26px 16px 60px;
-          background:linear-gradient(175deg,var(--bg),var(--bg2)); animation:slideIn .28s ease both; }
-  .page-inner { max-width:820px; margin:0 auto; padding:24px; }
-  .page h2 { font-size:21px; line-height:1.4; margin:0 0 10px; }
-  .full { max-height:none; font-size:14.5px; line-height:1.78; white-space:pre-wrap; }
-  .section-title { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:22px 0 8px; }
-  .back { margin-bottom:14px; }
+  /* ------------------------------------------------------------ detail page */
+  .page { position:fixed; inset:0; z-index:80; overflow:auto; padding:24px 16px 70px;
+          background:linear-gradient(178deg, var(--bg), var(--bg2)); animation:slideIn .26s ease both; }
+  .page-inner { max-width:840px; margin:0 auto; padding:26px; }
+  .page h2 { font-size:22px; line-height:1.38; margin:0 0 10px; letter-spacing:-.01em; }
+  .full { font-size:14.5px; line-height:1.8; white-space:pre-wrap; color:color-mix(in srgb, var(--ink) 92%, transparent); }
+  .section-title { font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:24px 0 8px; }
 
-  /* ----------------------------------------------------------------- library */
-  .lib-item { padding:14px 16px; display:flex; gap:14px; align-items:flex-start; cursor:pointer;
-              animation:rise .4s ease both; transition:transform .16s ease, border-color .2s ease; }
-  .lib-item:hover { transform:translateX(3px); border-color:color-mix(in srgb,var(--accent) 40%,transparent); }
-  .lib-item h4 { margin:0 0 5px; font-size:14.5px; }
+  /* ---------------------------------------------------------------- library */
+  .lib-item { padding:16px; cursor:pointer; display:flex; gap:14px; align-items:flex-start; animation:rise .4s ease both;
+              transition:transform .16s ease, border-color .2s ease; }
+  .lib-item:hover { transform:translateX(3px); border-color:var(--line-strong); }
+  .lib-item h4 { margin:0 0 6px; font-size:14.5px; line-height:1.45; }
   .lib-item .meta { margin:0; }
+  .lib-item .spacer { flex:1; }
 
   #toasts { position:fixed; right:16px; bottom:16px; z-index:95; display:flex; flex-direction:column; gap:8px; }
-  .toast { padding:10px 14px; font-size:13px; animation:pop .25s ease both; max-width:360px; }
+  .toast { padding:11px 15px; font-size:13px; animation:pop .24s ease both; max-width:380px; }
   .toast.ok { border-left:3px solid var(--good); } .toast.warn { border-left:3px solid var(--warn); }
   .toast.err { border-left:3px solid var(--bad); } .toast.ai { border-left:3px solid var(--ai); }
-  .empty { padding:30px; text-align:center; color:var(--muted); }
+  .empty { padding:34px; text-align:center; color:var(--muted); }
   .hidden { display:none !important; }
 
   @keyframes rise { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:none;} }
-  @keyframes pop { from{opacity:0;transform:scale(.96) translateY(6px);} to{opacity:1;transform:none;} }
+  @keyframes pop { from{opacity:0;transform:scale(.97) translateY(6px);} to{opacity:1;transform:none;} }
   @keyframes fade { from{opacity:0;} to{opacity:1;} }
   @keyframes spin { to { transform:rotate(360deg); } }
-  @keyframes slideIn { from{opacity:0;transform:translateY(14px);} to{opacity:1;transform:none;} }
+  @keyframes slideIn { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:none;} }
   @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
 </style>
 </head>
@@ -156,15 +174,17 @@
     <div class="tab" data-view="library">论文库</div>
     <div class="tab" data-view="profile">画像</div>
   </div>
-  <div class="chips" id="chips"></div>
+  <div class="right">
+    <div class="chips" id="chips"></div>
+    <div class="themes" id="themes" title="换配色"></div>
+  </div>
 </header>
 
 <main>
-  <!-- 今日 -->
   <section id="view-today">
     <section class="hero glass">
       <h1>今日推荐</h1>
-      <div class="sub">本地优先 · 默认零 token · AI 速览自动执行</div>
+      <div class="sub">本地优先 · 默认零 token · 生成后自动 AI 速览</div>
       <div class="row" style="margin-top:14px">
         <button class="primary" id="btnDaily">生成今日 5 篇</button>
         <button id="btnRefresh">抓取新论文</button>
@@ -174,20 +194,18 @@
     <section id="cards" class="grid"></section>
   </section>
 
-  <!-- 论文库 -->
   <section id="view-library" class="hidden">
     <section class="hero glass">
       <h1>我的论文库</h1>
-      <div class="sub">点「收藏」的论文会保存到这里（本地 SQLite，可导出）</div>
+      <div class="sub">点「☆ 收藏」的论文会保存到这里；可在卡片或详情里取消收藏</div>
     </section>
     <div id="library" class="grid"></div>
   </section>
 
-  <!-- 画像 -->
   <section id="view-profile" class="hidden">
     <section class="hero glass">
       <h1>我的画像</h1>
-      <div class="sub">可查看、可修改、可回滚；「没空/看不懂/以后再看」不改变兴趣</div>
+      <div class="sub">可查看、可修改、可回滚；「没空 / 看不懂 / 以后再看」不改变兴趣</div>
       <div class="row" style="margin-top:14px">
         <input type="text" id="pin" placeholder="钉死关键词（逗号分隔），例如 world model, JEPA, planning">
         <button id="btnPin">保存关键词</button>
@@ -205,242 +223,282 @@
 const $ = (s) => document.querySelector(s);
 const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, triaging:false };
 
+// ------------------------------------------------------------------- themes
+const THEMES = ['mint','rose','sand','ink'];
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem('pdh-theme', t);
+  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('active', s.dataset.t === t));
+}
+$('#themes').innerHTML = THEMES.map(t => `<span class="sw" data-t="${t}" title="${t}"></span>`).join('');
+document.querySelectorAll('.sw').forEach(s => s.onclick = () => applyTheme(s.dataset.t));
+applyTheme(localStorage.getItem('pdh-theme') || 'mint');
+
+// -------------------------------------------------------------------- utils
 function toast(msg, kind='ok', ms=3400) {
-  const el=document.createElement('div'); el.className=`toast glass ${kind}`; el.textContent=msg;
+  const el = document.createElement('div'); el.className = `toast glass ${kind}`; el.textContent = msg;
   $('#toasts').appendChild(el);
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),250); }, ms);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),250); }, ms);
 }
 async function api(path, body) {
   const res = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
-  if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error || `HTTP ${res.status}`);
-  return res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
 }
-const esc=(s)=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function renderChips(){
-  const s=state.stats||{};
-  $('#chips').innerHTML=[
-    `<span class="chip">文献 <b>${s.papers??0}</b></span>`,
-    `<span class="chip">收藏 <b>${s.saved??0}</b></span>`,
-    `<span class="chip">正例 <b>${s.positive??0}</b></span>`,
-    `<span class="chip">负例 <b>${s.negative??0}</b></span>`,
-    `<span class="chip">中性 <b>${s.neutral??0}</b></span>`,
+function renderChips() {
+  const s = state.stats || {};
+  $('#chips').innerHTML = [
+    `<span class="chip">文献 <b>${s.papers ?? 0}</b></span>`,
+    `<span class="chip">收藏 <b>${s.saved ?? 0}</b></span>`,
+    `<span class="chip">正例 <b>${s.positive ?? 0}</b></span>`,
+    `<span class="chip">负例 <b>${s.negative ?? 0}</b></span>`,
   ].join('');
 }
 
-function aiSlot(c){
-  if (c.summary) return `<div class="ai-line"><b>速览</b>：${esc(c.summary.one_liner||'')}
-    ${c.summary.why_relevant?`<div class="sub">相关：${esc(c.summary.why_relevant)}${c.summary.caution?` · 注意：${esc(c.summary.caution)}`:''}</div>`:''}</div>`;
+// --------------------------------------------------------------------- cards
+function aiSlot(c) {
+  if (c.summary) return `<div class="ai-line"><b>速览</b>：${esc(c.summary.one_liner || '')}
+    ${c.summary.why_relevant ? `<div class="sub">相关：${esc(c.summary.why_relevant)}</div>` : ''}</div>`;
   if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
 }
-
-function cardHTML(c,i){
-  const saved=c.saved||c.feedback==='useful';
+function cardHTML(c, i) {
+  const saved = c.saved || c.feedback === 'useful';
   return `
-  <article class="card glass" data-key="${esc(c.key)}" style="animation-delay:${i*55}ms">
+  <article class="card glass" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <h3>${esc(c.title)}</h3>
     <div class="meta">
-      <span>${esc(c.published||'')}</span><span>${esc(c.source||'')}</span>
-      ${saved?'<span class="badge saved">已收藏</span>':''}
-      ${c.summary?'<span class="badge ai">AI 已速览</span>':''}
+      <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
+      ${saved ? '<span class="badge saved">已收藏</span>' : ''}
+      ${c.summary ? '<span class="badge ai">AI 已速览</span>' : ''}
     </div>
-    <div class="abs">${esc(c.abstract||'（无摘要）')}</div>
+    <div class="abs">${esc(c.abstract || '（无摘要）')}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="why">推荐理由：${esc(c.why)}</div>
     <div class="actions">
-      <button class="tiny ${saved?'saved':''}" data-fb="useful" data-key="${esc(c.key)}" ${saved?'disabled':''}>
-        ${saved?'✓ 已收藏':'☆ 收藏'}</button>
+      <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
+        ${saved ? '✓ 已收藏（点击取消）' : '☆ 收藏'}</button>
       <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
       <button class="tiny" data-fb="later" data-key="${esc(c.key)}">以后再看</button>
       <button class="tiny" data-fb="busy" data-key="${esc(c.key)}">没空</button>
       <button class="tiny" data-fb="confused" data-key="${esc(c.key)}">看不懂</button>
     </div>
+    <div class="open-hint">点击查看详情 →</div>
   </article>`;
 }
-
-function renderCards(){
-  if (state.view!=='today') return;
-  const root=$('#cards');
-  root.innerHTML = state.cards.length ? state.cards.map(cardHTML).join('')
+function renderCards() {
+  if (state.view !== 'today') return;
+  $('#cards').innerHTML = state.cards.length ? state.cards.map(cardHTML).join('')
     : `<div class="empty glass">还没有今日卡片。先「抓取新论文」，再点「生成今日 5 篇」。</div>`;
 }
-
-function renderLibrary(){
-  const root=$('#library');
-  root.innerHTML = state.library.length ? state.library.map((p,i)=>`
-    <article class="lib-item glass" data-key="${esc(p.key)}" style="animation-delay:${i*45}ms">
-      <div>
+function renderLibrary() {
+  $('#library').innerHTML = state.library.length ? state.library.map((p, i) => `
+    <article class="lib-item glass" data-key="${esc(p.key)}" style="animation-delay:${i*40}ms">
+      <div style="flex:1">
         <h4>${esc(p.title)}</h4>
-        <div class="meta"><span>${esc(p.published||'')}</span><span>${esc(p.source||'')}</span>
-          <span>收藏于 ${esc((p.saved_at||'').slice(0,10))}</span></div>
+        <div class="meta"><span>${esc(p.published || '')}</span><span>${esc(p.source || '')}</span>
+          <span>收藏于 ${esc((p.saved_at || '').slice(0,10))}</span></div>
       </div>
-    </article>`).join('') : `<div class="empty glass">论文库还是空的。在今日卡片上点「☆ 收藏」。</div>`;
+      <button class="tiny danger" data-unsave="${esc(p.key)}">取消收藏</button>
+    </article>`).join('')
+    : `<div class="empty glass">论文库还是空的。在今日卡片上点「☆ 收藏」。</div>`;
 }
-
-function renderProfile(){
-  const p=state.profile||{};
-  $('#profileBox').innerHTML=`
-    <div class="sub">项目：<b>${esc(p.project||'')}</b></div>
+function renderProfile() {
+  const p = state.profile || {};
+  $('#profileBox').innerHTML = `
+    <div class="sub">项目：<b>${esc(p.project || '')}</b></div>
     <div class="section-title">钉死关键词</div>
-    <div>${(p.pinned_terms||[]).length?p.pinned_terms.map(t=>`<span class="badge">${esc(t)}</span>`).join(' '):'<span class="sub">（无）</span>'}</div>
+    <div>${(p.pinned_terms || []).length ? p.pinned_terms.map(t => `<span class="badge">${esc(t)}</span>`).join(' ') : '<span class="sub">（无）</span>'}</div>
     <div class="section-title">种子与反馈</div>
-    <div>正向种子 <b>${(p.positive_seeds||[]).length}</b> · 反馈正例 <b>${(p.positive_feedback||[]).length}</b>
-      · 显式负例 <b>${(p.explicit_negatives||[]).length}</b> · 中性 <b>${(p.neutral_feedback||[]).length}</b></div>`;
+    <div>正向种子 <b>${(p.positive_seeds || []).length}</b> · 反馈正例 <b>${(p.positive_feedback || []).length}</b>
+      · 显式负例 <b>${(p.explicit_negatives || []).length}</b> · 中性 <b>${(p.neutral_feedback || []).length}</b></div>`;
 }
 
-async function load(){
-  const data=await api('/api/home');
-  state.stats=data.stats; state.profile=data.profile; state.cards=data.cards;
-  state.summaries=data.summaries||{};
-  state.cards=state.cards.map(c=>({...c, summary: c.summary || state.summaries[c.key]}));
+async function load() {
+  const data = await api('/api/home');
+  state.stats = data.stats; state.profile = data.profile; state.summaries = data.summaries || {};
+  state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
   renderChips(); renderCards(); renderProfile();
 }
-
-async function loadLibrary(){
-  const data=await api('/api/library');
-  state.library=data.items||[]; state.stats=data.stats; renderChips(); renderLibrary();
+async function loadLibrary() {
+  const data = await api('/api/library');
+  state.library = data.items || []; state.stats = data.stats;
+  renderChips(); renderLibrary();
 }
 
-// --------------------------------------------------------------- generation
-async function generate(){
-  const b=$('#btnDaily'); b.disabled=true; b.textContent='生成中…';
-  try{
-    const r=await api('/api/daily',{limit:5});
-    if(!r.cards||!r.cards.length){ toast(r.reason||'没有新候选，先抓取','warn'); return; }
-    state.cards=r.cards.map(c=>({...c, summary:null}));
-    renderCards();                       // cards appear immediately
-    toast(`已生成 ${r.cards.length} 篇`,'ok');
-    if($('#autoAi').checked) await autoTriage();
-  }catch(e){ toast(`生成失败：${e.message}`,'err'); }
-  finally{ b.disabled=false; b.textContent='生成今日 5 篇'; }
+// ---------------------------------------------------------------- generation
+async function generate() {
+  const b = $('#btnDaily'); b.disabled = true; b.textContent = '生成中…';
+  try {
+    const r = await api('/api/daily', { limit: 5 });
+    if (!r.cards || !r.cards.length) { toast(r.reason || '没有新候选，先抓取', 'warn'); return; }
+    state.cards = r.cards.map(c => ({ ...c, summary: null }));
+    renderCards();
+    toast(`已生成 ${r.cards.length} 篇`, 'ok');
+    if ($('#autoAi').checked) await autoTriage();
+  } catch (e) { toast(`生成失败：${e.message}`, 'err'); }
+  finally { b.disabled = false; b.textContent = '生成今日 5 篇'; }
 }
-
-async function autoTriage(){
-  if(state.triaging) return;
-  state.triaging=true; renderCards();
-  try{
-    const r=await api('/api/triage',{dry_run:false});
-    if(!r.ok){ toast(`AI 速览不可用（${r.reason||'未知'}），保持本地模式`,'warn',5000); return; }
-    toast(`AI 已速览 ${r.items.length} 条 · ${r.usage.total_tokens} token · $${r.usd}`,'ai');
+async function autoTriage() {
+  if (state.triaging) return;
+  state.triaging = true; renderCards();
+  try {
+    const r = await api('/api/triage', { dry_run: false });
+    if (!r.ok) toast(`AI 速览不可用（${r.reason || '未知'}），保持本地模式`, 'warn', 5000);
+    else toast(`AI 已速览 ${r.items.length} 条 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
     await load();
-  }catch(e){ toast(`AI 速览失败：${e.message}`,'err'); }
-  finally{ state.triaging=false; renderCards(); }
+  } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
+  finally { state.triaging = false; renderCards(); }
 }
-
 $('#btnDaily').onclick = generate;
-$('#btnRefresh').onclick = async ()=>{
-  const b=$('#btnRefresh'); b.disabled=true; b.textContent='抓取中…';
-  try{
-    const job=await api('/api/refresh',{pages:1});
-    toast('后台抓取中（OpenAlex 公开元数据）…','warn');
+$('#btnRefresh').onclick = async () => {
+  const b = $('#btnRefresh'); b.disabled = true; b.textContent = '抓取中…';
+  try {
+    const job = await api('/api/refresh', { pages: 1 });
+    toast('后台抓取中（OpenAlex 公开元数据）…', 'warn');
     let r;
-    for(let i=0;i<90;i++){ r=await api(`/api/jobs/${job.id}`); if(r.state!=='running') break; await new Promise(x=>setTimeout(x,1000)); }
-    if(r.state==='failed') toast(`抓取失败：${r.error}`,'err');
-    else { const q=r.result||{}; toast(`新增 ${q.added||0} 条${q.errors?.length?`（${q.errors.length} 个查询被限流跳过）`:''}`, q.errors?.length?'warn':'ok'); }
+    for (let i = 0; i < 90; i++) { r = await api(`/api/jobs/${job.id}`); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
+    if (r.state === 'failed') toast(`抓取失败：${r.error}`, 'err');
+    else { const q = r.result || {}; toast(`新增 ${q.added || 0} 条${q.errors?.length ? `（${q.errors.length} 个查询被限流跳过）` : ''}`, q.errors?.length ? 'warn' : 'ok'); }
     await load();
-  }catch(e){ toast(`抓取失败：${e.message}`,'err'); }
-  finally{ b.disabled=false; b.textContent='抓取新论文'; }
+  } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
+  finally { b.disabled = false; b.textContent = '抓取新论文'; }
 };
-$('#btnPin').onclick = async ()=>{ const r=await api('/api/pin',{terms:$('#pin').value}); state.profile=r.profile; state.stats=r.stats; renderChips(); renderProfile(); toast('关键词已保存'); };
+$('#btnPin').onclick = async () => {
+  const r = await api('/api/pin', { terms: $('#pin').value });
+  state.profile = r.profile; state.stats = r.stats; renderChips(); renderProfile(); toast('关键词已保存');
+};
 
-// -------------------------------------------------------------------- tabs
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
-  state.view=t.dataset.view;
-  $('#view-today').classList.toggle('hidden', state.view!=='today');
-  $('#view-library').classList.toggle('hidden', state.view!=='library');
-  $('#view-profile').classList.toggle('hidden', state.view!=='profile');
-  if(state.view==='library') loadLibrary().catch(e=>toast(e.message,'err'));
+// ---------------------------------------------------------------------- tabs
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+  state.view = t.dataset.view;
+  $('#view-today').classList.toggle('hidden', state.view !== 'today');
+  $('#view-library').classList.toggle('hidden', state.view !== 'library');
+  $('#view-profile').classList.toggle('hidden', state.view !== 'profile');
+  if (state.view === 'library') loadLibrary().catch(e => toast(e.message, 'err'));
 });
 
-// ------------------------------------------------------------- interactions
-async function feedback(key, action){
-  const r=await api('/api/feedback',{key,action});
-  const card=state.cards.find(c=>c.key===key);
-  if(card){ card.feedback=action; if(r.saved) card.saved=true; }
+// ------------------------------------------------------------------ feedback
+async function doFeedback(key, action) {
+  if (action === 'unsave') {
+    await api('/api/unsave', { key });
+    toast('已取消收藏', 'warn');
+  } else {
+    const r = await api('/api/feedback', { key, action });
+    toast(r.saved ? '已收藏到论文库（卡片保留）' : (r.interest_changed ? `已记录：${action}` : `已记录：${action}（不影响兴趣）`),
+          r.saved ? 'ok' : (r.interest_changed ? 'ok' : 'warn'));
+  }
+  const card = state.cards.find(c => c.key === key);
+  if (card) { if (action === 'unsave') { card.saved = false; card.feedback = null; } else if (action === 'useful') card.saved = true; }
   renderCards();
-  toast(r.saved?'已收藏到论文库':(r.interest_changed?`已记录：${action}`:`已记录：${action}（不影响兴趣）`),
-        r.saved?'ok':(r.interest_changed?'ok':'warn'));
+  if (state.view === 'library') await loadLibrary();
 }
 
-$('#cards').addEventListener('click',(e)=>{
-  const fb=e.target.closest('button[data-fb]');
-  if(fb){ e.stopPropagation(); feedback(fb.dataset.key, fb.dataset.fb).catch(x=>toast(x.message,'err')); return; }
-  const card=e.target.closest('.card[data-key]');
-  if(card) openDetail(card.dataset.key);
+$('#cards').addEventListener('click', (e) => {
+  const fb = e.target.closest('button[data-fb]');
+  if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
+  const card = e.target.closest('.card[data-key]');
+  if (card) openDetail(card.dataset.key);
 });
-$('#library').addEventListener('click',(e)=>{
-  const item=e.target.closest('.lib-item[data-key]'); if(item) openDetail(item.dataset.key);
+$('#library').addEventListener('click', (e) => {
+  const un = e.target.closest('button[data-unsave]');
+  if (un) { e.stopPropagation(); doFeedback(un.dataset.unsave, 'unsave').catch(x => toast(x.message, 'err')); return; }
+  const item = e.target.closest('.lib-item[data-key]');
+  if (item) openDetail(item.dataset.key);
 });
 
-// hover preview (0.5s), disappears on leave, click opens the detail page
-let hoverTimer=null, hoverKey=null;
-$('#cards').addEventListener('mouseover',(e)=>{
-  const card=e.target.closest('.card[data-key]'); if(!card) return;
-  if(card.dataset.key===hoverKey) return;
-  hoverKey=card.dataset.key; clearTimeout(hoverTimer);
-  hoverTimer=setTimeout(()=>showPreview(card),500);
+// hover preview
+let hoverTimer = null, hoverKey = null;
+$('#cards').addEventListener('mouseover', (e) => {
+  const card = e.target.closest('.card[data-key]'); if (!card) return;
+  if (card.dataset.key === hoverKey) return;
+  hoverKey = card.dataset.key; clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => showPreview(card), 500);
 });
-$('#cards').addEventListener('mouseout',(e)=>{
-  const card=e.target.closest('.card[data-key]'); if(!card) return;
-  if(e.relatedTarget && card.contains(e.relatedTarget)) return;
-  clearTimeout(hoverTimer); hidePreview(); hoverKey=null;
+$('#cards').addEventListener('mouseout', (e) => {
+  const card = e.target.closest('.card[data-key]'); if (!card) return;
+  if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+  clearTimeout(hoverTimer); hidePreview(); hoverKey = null;
 });
-function showPreview(card){
-  const c=state.cards.find(x=>x.key===card.dataset.key); if(!c) return;
-  const p=$('#preview');
-  p.innerHTML=`<h4>${esc(c.title)}</h4><div class="pabs">${esc(c.abstract||'（无摘要）')}</div>
-    <div class="hint">点击卡片查看完整详情</div>`;
-  const r=card.getBoundingClientRect();
+function showPreview(card) {
+  const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
+  const p = $('#preview');
+  p.innerHTML = `<h4>${esc(c.title)}</h4><div class="pabs">${esc(c.abstract || '（无摘要）')}</div>
+    <div class="hint">点击卡片打开详情页</div>`;
+  const r = card.getBoundingClientRect();
   p.classList.add('show');
-  const w=p.offsetWidth, h=p.offsetHeight;
-  let left=Math.min(r.right+14, window.innerWidth-w-14);
-  if(left < 12) left = 12;
-  let top=Math.min(Math.max(12, r.top), window.innerHeight-h-14);
-  p.style.left=`${left}px`; p.style.top=`${top}px`;
+  const w = p.offsetWidth, h = p.offsetHeight;
+  let left = Math.min(r.right + 14, window.innerWidth - w - 14);
+  if (left < 12) left = 12;
+  let top = Math.min(Math.max(12, r.top), window.innerHeight - h - 14);
+  p.style.left = `${left}px`; p.style.top = `${top}px`;
 }
-function hidePreview(){ $('#preview').classList.remove('show'); }
+function hidePreview() { $('#preview').classList.remove('show'); }
 
-// -------------------------------------------------------------- detail page
-async function openDetail(key){
+// --------------------------------------------------------------- detail page
+async function openDetail(key) {
   hidePreview();
-  const d=await api(`/api/paper/${encodeURIComponent(key)}`);
-  const s=d.summary;
-  const page=$('#detail');
-  page.innerHTML=`
-    <div class="page-inner">
-      <button class="back ghost" id="backBtn">← 返回</button>
-      <h2>${esc(d.title)}</h2>
-      <div class="meta">
-        <span>${esc(d.published||'')}</span><span>${esc(d.source||'')}</span>
-        ${d.arxiv_id?`<span class="badge">arXiv:${esc(d.arxiv_id)}</span>`:''}
-        ${d.saved?'<span class="badge saved">已收藏</span>':''}
-      </div>
-      ${s?`<div class="ai-line" style="margin-top:14px"><b>AI 速览</b>：${esc(s.one_liner||'')}
-        <div class="sub">相关：${esc(s.why_relevant||'')}${s.caution?` · 注意：${esc(s.caution)}`:''}</div></div>`:''}
-      <div class="section-title">完整摘要</div>
-      <div class="full">${esc(d.abstract||'（无摘要）')}</div>
-      <div class="row" style="margin-top:20px">
-        <button class="${d.saved?'saved':''}" id="dSave" ${d.saved?'disabled':''}>${d.saved?'✓ 已收藏':'☆ 收藏'}</button>
-        <button data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
-        <button data-fb="later" data-key="${esc(d.key)}">以后再看</button>
-        <button data-fb="busy" data-key="${esc(d.key)}">没空</button>
-        <button data-fb="confused" data-key="${esc(d.key)}">看不懂</button>
-        <button id="dPdf">下载 PDF</button>
-        <a class="btn" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>
-      </div>
-    </div>`;
-  page.classList.remove('hidden');
-  $('#backBtn').onclick=()=>page.classList.add('hidden');
-  $('#dSave').onclick=async()=>{ await feedback(d.key,'useful'); $('#dSave').disabled=true; $('#dSave').textContent='✓ 已收藏'; $('#dSave').classList.add('saved'); };
-  $('#dPdf').onclick=async()=>{ toast('下载中…','warn'); const r=await api('/api/pdf',{key:d.key}); toast(r.ok?`已保存：${r.path}`:`未下载：${r.reason}`, r.ok?'ok':'warn',5000); };
-  page.addEventListener('click',async(e)=>{ const fb=e.target.closest('button[data-fb]'); if(fb) await feedback(fb.dataset.key, fb.dataset.fb); },{once:true});
+  try {
+    const d = await api(`/api/paper?key=${encodeURIComponent(key)}`);
+    const s = d.summary;
+    $('#detail').innerHTML = `
+      <div class="page-inner">
+        <button class="ghost" id="backBtn">← 返回</button>
+        <div class="section-title" style="margin-top:18px">论文详情</div>
+        <h2>${esc(d.title)}</h2>
+        <div class="meta">
+          <span>${esc(d.published || '')}</span><span>${esc(d.source || '')}</span>
+          ${d.arxiv_id ? `<span class="badge">arXiv:${esc(d.arxiv_id)}</span>` : ''}
+          ${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
+        </div>
+        ${s ? `<div class="ai-line" style="margin-top:16px"><b>AI 速览</b>：${esc(s.one_liner || '')}
+          <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div>` : ''}
+        <div class="section-title">完整摘要</div>
+        <div class="full">${esc(d.abstract || '（无摘要）')}</div>
+        <div class="row" style="margin-top:22px">
+          <button id="dToggle" class="${d.saved ? 'saved' : 'primary'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
+            ${d.saved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库'}</button>
+          <button data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
+          <button data-fb="later" data-key="${esc(d.key)}">以后再看</button>
+          <button data-fb="busy" data-key="${esc(d.key)}">没空</button>
+          <button data-fb="confused" data-key="${esc(d.key)}">看不懂</button>
+          <button id="dPdf">下载 PDF</button>
+          <a class="btn" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>
+        </div>
+      </div>`;
+    $('#detail').classList.remove('hidden');
+    $('#backBtn').onclick = () => $('#detail').classList.add('hidden');
+    $('#dToggle').onclick = async (ev) => {
+      const btn = ev.currentTarget;
+      const wasSaved = btn.dataset.saved === 'true';
+      await doFeedback(d.key, wasSaved ? 'unsave' : 'useful');
+      const nowSaved = !wasSaved;
+      btn.dataset.saved = String(nowSaved);
+      btn.className = nowSaved ? 'saved' : 'primary';
+      btn.textContent = nowSaved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库';
+    };
+    $('#dPdf').onclick = async () => {
+      toast('下载中…', 'warn');
+      const r = await api('/api/pdf', { key: d.key });
+      toast(r.ok ? `已保存：${r.path}` : `未下载：${r.reason}`, r.ok ? 'ok' : 'warn', 5000);
+    };
+  } catch (e) {
+    toast(`打不开详情：${e.message}`, 'err');
+  }
 }
-document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ $('#detail').classList.add('hidden'); hidePreview(); }});
-document.addEventListener('scroll',hidePreview,{passive:true});
+// Feedback buttons inside the detail page (delegated once).
+$('#detail').addEventListener('click', (e) => {
+  const fb = e.target.closest('button[data-fb]');
+  if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err'));
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('#detail').classList.add('hidden'); hidePreview(); } });
+document.addEventListener('scroll', hidePreview, { passive: true });
 
-load().catch(e=>toast(`加载失败：${e.message}`,'err'));
+load().catch(e => toast(`加载失败：${e.message}`, 'err'));
 </script>
 </body>
 </html>

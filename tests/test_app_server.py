@@ -50,14 +50,19 @@ class ServerSmokeTests(unittest.TestCase):
 
     def test_paper_detail_endpoint(self):
         app = server.make_app(str(self.root))
-        app.store.upsert_papers([{"key": "p9", "title": "World Model Detail",
+        # A realistic key contains '://' and '/', which is why the API takes ?key=.
+        url_key = "https://doi.org/10.48550/arxiv.2609.00001"
+        app.store.upsert_papers([{"key": url_key, "title": "World Model Detail",
                                   "abstract": "full abstract text", "published": "2026-08-01",
                                   "group_name": "field"}])
-        status, body = self._get("/api/paper/p9")
+        from urllib.parse import quote
+        status, body = self._get(f"/api/paper?key={quote(url_key, safe='')}")
         self.assertEqual(status, 200)
-        payload = json.loads(body)
-        self.assertEqual(payload["abstract"], "full abstract text")
-        status, _ = self._get("/api/paper/missing")
+        self.assertEqual(json.loads(body)["abstract"], "full abstract text")
+        status, body = self._get(f"/api/paper/{quote(url_key, safe='')}")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["key"], url_key)
+        status, _ = self._get("/api/paper?key=missing")
         self.assertEqual(status, 404)
 
     def test_feedback_round_trip_over_http(self):
