@@ -1,26 +1,64 @@
 #!/usr/bin/env python3
 """Local loopback HTTP API + static UI. Binds 127.0.0.1 only.
 
-Tauri (or a browser) loads this UI; all state stays in the local SQLite file.
+Threaded so a slow fetch or model call cannot freeze the whole page. Each
+request uses its own short-lived App (and therefore its own SQLite connection),
+which keeps storage thread-safe without sharing a connection across threads.
+Long operations (refresh) run as background jobs the page can poll.
 """
 import json
 import mimetypes
 import sys
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
+import traceback
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 from .service import App
 
 STATIC = Path(__file__).resolve().parent / "static"
+JOBS = {}
+JOBS_LOCK = threading.Lock()
+JOB_SEQ = [0]
+
+
+def make_app(root="."):
+    return App(root=root)
+
+
+def _job_start(name, fn):
+    with JOBS_LOCK:
+        JOB_SEQ[0] += 1
+        job_id = f"job-{JOB_SEQ[0]}"
+        JOBS[job_id] = {"id": job_id, "name": name, "state": "running", "result": None, "error": None}
+    def runner():
+        try:
+            result = fn()
+            with JOBS_LOCK:
+                JOBS[job_id].update(state="done", result=result)
+        except Exception as exc:  # keep the job failure visible, never silent
+            with JOBS_LOCK:
+                JOBS[job_id].update(state="failed", error=f"{type(exc).__name__}: {exc}",
+                                    traceback=traceback.format_exc()[-800:])
+    threading.Thread(target=runner, daemon=True).start()
+    return dict(JOBS[job_id])
+
+
+def _job_get(job_id):
+    with JOBS_LOCK:
+        return dict(JOBS.get(job_id) or {"error": "unknown job"})
 
 
 class Handler(BaseHTTPRequestHandler):
-    app = None
-    server_version = "PaperDigHelper/0.1"
+    server_version = "PaperDigHelper/0.2"
+    protocol_version = "HTTP/1.1"
 
-    def log_message(self, fmt, *args):  # keep the console quiet
+    def log_message(self, fmt, *args):
         pass
+
+    def _app(self):
+        return make_app(getattr(self.server, "root", "."))
 
     def _json(self, payload, status=200):
         body = json.dumps(payload, ensure_ascii=False).encode()
@@ -46,56 +84,74 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(length) or b"{}")
 
+    # -------------------------------------------------------------------- GET
     def do_GET(self):
         route = urlparse(self.path).path
-        if route == "/api/state":
-            self._json({"profile": self.app.profile(), "cards": self.app.cards(),
-                        "has_batch": bool(self.app.store.latest_batch())})
+        if route == "/api/home":
+            app = self._app()
+            self._json({"stats": app.stats(), "profile": app.profile(),
+                        "cards": app.cards(), "summaries": app.store.summaries(),
+                        "latest_jobs": list(JOBS.values())[-3:]})
+        elif route == "/api/state":  # kept for compatibility
+            app = self._app()
+            self._json({"profile": app.profile(), "cards": app.cards()})
+        elif route.startswith("/api/paper/"):
+            app = self._app()
+            detail = app.paper_detail(route[len("/api/paper/"):])
+            self._json(detail or {"error": "not found"}, 200 if detail else 404)
+        elif route.startswith("/api/jobs/"):
+            self._json(_job_get(route[len("/api/jobs/"):]))
         elif route == "/api/profile":
-            self._json({"profile": self.app.profile(), "versions": self.app.store.profile_versions()})
+            app = self._app()
+            self._json({"profile": app.profile(), "versions": app.store.profile_versions()})
         else:
             self._static(route)
 
+    # ------------------------------------------------------------------- POST
     def do_POST(self):
         route = urlparse(self.path).path
         try:
             body = self._body()
         except (ValueError, json.JSONDecodeError):
             return self._json({"error": "invalid JSON"}, 400)
+        app = self._app()
         if route == "/api/refresh":
-            self._json(self.app.refresh_candidates(pages=int(body.get("pages", 1))))
+            include_distractors = bool(body.get("distractors"))
+            pages = int(body.get("pages", 1))
+            job = _job_start("refresh", lambda: make_app(getattr(self.server, "root", ".")).refresh_candidates(
+                pages=pages, include_distractors=include_distractors))
+            self._json(job)
         elif route == "/api/daily":
-            self._json(self.app.build_batch(limit=int(body.get("limit", 5))))
+            self._json(app.build_batch(limit=int(body.get("limit", 5))))
         elif route == "/api/triage":
-            self._json(self.app.triage(self.app.cards(), dry_run=bool(body.get("dry_run"))))
+            self._json(app.triage(app.cards(), dry_run=bool(body.get("dry_run"))))
         elif route == "/api/feedback":
             key, action = body.get("key"), body.get("action")
             if not key or not action:
                 return self._json({"error": "key and action required"}, 400)
-            self._json(self.app.record_feedback(key, action, body.get("reason")))
+            self._json(app.record_feedback(key, action, body.get("reason")))
         elif route == "/api/undo":
-            self._json(self.app.undo_feedback(int(body["feedback_id"])))
+            self._json(app.undo_feedback(int(body["feedback_id"])))
         elif route == "/api/pin":
-            data = self.app.store.current_profile() or {"project": "world-models", "weights": {"pos": 1.0, "neg": 0.5}}
+            data = app.store.current_profile() or {"project": "world-models", "weights": {"pos": 1.0, "neg": 0.5}}
             data["pinned_terms"] = [t.strip() for t in (body.get("terms") or "").split(",") if t.strip()]
-            self.app.save_profile(data, note="pin")
-            self._json({"profile": self.app.profile()})
+            app.save_profile(data, note="pin")
+            self._json({"profile": app.profile(), "stats": app.stats()})
         elif route == "/api/pdf":
-            self._json(self.app.download_pdf(body["key"]))
+            self._json(app.download_pdf(body["key"]))
         else:
             self._json({"error": "unknown route"}, 404)
 
 
 def build_server(host="127.0.0.1", port=8765, root="."):
-    """Single-threaded local server: one user, and it keeps the SQLite connection on one thread."""
-    Handler.app = App(root=root)
-    return HTTPServer((host, port), Handler)
+    httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd.root = root
+    return httpd
 
 
 def serve(host="127.0.0.1", port=8765, root="."):
     httpd = build_server(host, port, root)
-    actual_port = httpd.server_address[1]
-    print(f"PaperDigHelper UI: http://{host}:{actual_port}  (Ctrl-C to stop)")
+    print(f"PaperDigHelper UI: http://{host}:{httpd.server_address[1]}  (Ctrl-C to stop)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

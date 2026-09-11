@@ -3,6 +3,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -27,8 +28,11 @@ class ServerSmokeTests(unittest.TestCase):
         self.addCleanup(self.httpd.shutdown)
 
     def _get(self, path):
-        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=5) as response:
-            return response.status, response.read()
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}", timeout=5) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as exc:
+            return exc.code, exc.read()
 
     def test_index_and_state_are_served(self):
         status, body = self._get("/")
@@ -39,13 +43,30 @@ class ServerSmokeTests(unittest.TestCase):
         payload = json.loads(body)
         self.assertIn("profile", payload)
         self.assertIsInstance(payload["cards"], list)
+        status, body = self._get("/api/home")
+        payload = json.loads(body)
+        self.assertIn("stats", payload)
+        self.assertIn("summaries", payload)
+
+    def test_paper_detail_endpoint(self):
+        app = server.make_app(str(self.root))
+        app.store.upsert_papers([{"key": "p9", "title": "World Model Detail",
+                                  "abstract": "full abstract text", "published": "2026-08-01",
+                                  "group_name": "field"}])
+        status, body = self._get("/api/paper/p9")
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["abstract"], "full abstract text")
+        status, _ = self._get("/api/paper/missing")
+        self.assertEqual(status, 404)
 
     def test_feedback_round_trip_over_http(self):
-        # Seed one paper directly so /api/state has something to show.
-        server.Handler.app.store.upsert_papers([
+        # Seed one paper directly so the UI has something to show.
+        app = server.make_app(str(self.root))
+        app.store.upsert_papers([
             {"key": "p1", "title": "World Model Paper", "abstract": "latent planning",
              "published": "2026-08-01", "group_name": "field"}])
-        server.Handler.app.build_batch(limit=1)
+        app.build_batch(limit=1)
         request = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/feedback",
             data=json.dumps({"key": "p1", "action": "useful"}).encode(),

@@ -91,8 +91,35 @@ class App:
         return ranking.rocchio(seed_vectors, pos, neg, weights.get("pos", 1.0), weights.get("neg", 0.5))
 
     # ------------------------------------------------------------------ daily
+    def stats(self):
+        feedback = self.latest_feedback()
+        return {
+            "papers": len(self.store.papers()),
+            "seeds": len(self.seed_keys()),
+            "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
+            "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
+            "neutral": sum(1 for v in feedback.values() if v["action"] in ("later", "busy", "confused")),
+            "shown": len(self.store.seen_keys()),
+            "summaries": len(self.store.summaries()),
+        }
+
+    def paper_detail(self, key):
+        paper = self.store.paper(key)
+        if not paper:
+            return None
+        return {
+            "key": paper["key"], "title": paper["title"], "abstract": paper["abstract"] or "",
+            "published": paper["published"], "source": paper["source"],
+            "doi": paper["doi"], "arxiv_id": paper["arxiv_id"],
+            "url": (f"https://arxiv.org/abs/{paper['arxiv_id']}" if paper["arxiv_id"]
+                    else (paper["doi"] or paper["openalex_id"])),
+            "feedback": self.latest_feedback().get(key),
+            "summary": self.store.summaries().get(key),
+        }
+
     def refresh_candidates(self, search="world model", from_date="2024-01-01", pages=1, per_page=100,
-                           include_distractors=True, distractor_per_query=20):
+                           include_distractors=False, distractor_per_query=20):
+        """Fast by default: one field query; distractors are opt-in (five more calls)."""
         errors = []
         try:
             field = self.source.discover(search=search, from_date=from_date, pages=pages, per_page=per_page)
@@ -219,4 +246,9 @@ class App:
         import re
         match = re.search(r"\[.*\]", result["content"], re.S)
         items = json.loads(match.group(0)) if match else []
+        for item in items:
+            key = item.get("paper_id")
+            if key:
+                self.store.save_summary(key, item.get("one_liner"), item.get("why_relevant"),
+                                        item.get("caution"), result.get("model"))
         return {"ok": True, "items": items, "usage": result["usage"], "usd": result["usd"], "mode": "sparse+llm"}

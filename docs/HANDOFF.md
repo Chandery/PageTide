@@ -77,7 +77,15 @@ owner 已批准实现（`harness/tasks.json` `approved_for_implementation=true`�
 - `server.py` + `static/index.html`：本地 loopback 网页（单线程，只绑 127.0.0.1）。
 - `cli.py`：headless 全流程。
 
-已验证：82 个单测通过；`harness.py check` 通过；真实 AI 速览一次成功（1469 token, $0.00106，ledger 已记）；网页 `GET /` 200、`/api/state` 返回 5 张卡。
+已验证：83 个单测通过；`harness.py check` 通过；真实 AI 速览一次成功（1469 token, $0.00106，ledger 已记）；网页 `GET /` 200、`/api/home` 返回卡片与统计。
+
+UI 第二轮（按 owner 反馈）：
+
+- **主页**：磨砂玻璃顶栏 + 统计（文献/种子/正例/负例/中性/已展示）+ 三个主操作。
+- **卡片可点开**→ 详情面板显示**完整摘要**（之前 UI 截断成 420 字，误以为摘要不全）。
+- **磨砂玻璃 + 动画**：backdrop-filter、卡片入场/悬浮发光、模态弹入、Toast、进度条；支持 reduced-motion。
+- **并发修复**：服务器改 ThreadingHTTPServer + 每请求独立 App；“抓取”改为**后台任务 + 轮询进度**，不再是单线程阻塞（实测抓取进行中 `/api/home` 仍 **3.6ms** 返回）。
+- **文案修正**：预演不再显示为“降级为离线”；预演会明确显示预留 token/金额。
 
 尚未做：Tauri 壳、打包与签名、AI 追问、Zotero 导入、笔记/高亮（后置），以及修标注提示词的种子标题偏差。
 

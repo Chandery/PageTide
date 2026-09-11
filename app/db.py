@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS profile_versions (
 CREATE TABLE IF NOT EXISTS pdfs (
   paper_key TEXT PRIMARY KEY, path TEXT NOT NULL, source_url TEXT, fetched_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS summaries (
+  paper_key TEXT PRIMARY KEY, one_liner TEXT, why_relevant TEXT, caution TEXT,
+  model TEXT, created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_feedback_paper ON feedback(paper_key, undone);
 CREATE INDEX IF NOT EXISTS idx_exposures_paper ON exposures(paper_key);
@@ -173,3 +177,17 @@ class Store:
     def get_setting(self, key, default=None):
         row = self.conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
         return json.loads(row["value"]) if row else default
+
+    # ------------------------------------------------------------- summaries
+    def save_summary(self, paper_key, one_liner, why_relevant, caution, model):
+        self.conn.execute(
+            """INSERT INTO summaries (paper_key, one_liner, why_relevant, caution, model, created_at)
+               VALUES (?,?,?,?,?,?)
+               ON CONFLICT(paper_key) DO UPDATE SET one_liner=excluded.one_liner,
+               why_relevant=excluded.why_relevant, caution=excluded.caution, model=excluded.model,
+               created_at=excluded.created_at""",
+            (paper_key, one_liner, why_relevant, caution, model, now()))
+        self.conn.commit()
+
+    def summaries(self):
+        return {r["paper_key"]: dict(r) for r in self.conn.execute("SELECT * FROM summaries")}

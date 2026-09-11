@@ -5,146 +5,385 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PaperDigHelper</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font: 15px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 24px; max-width: 900px; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .sub { opacity: .65; font-size: 13px; margin-bottom: 18px; }
-  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
-  button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #8884; background: #8881; cursor: pointer; }
-  button:hover { background: #8882; }
-  button[data-action="useful"] { border-color: #2e7d3255; }
-  button[data-action="irrelevant"] { border-color: #c6282855; }
-  .card { border: 1px solid #8883; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
-  .card h2 { font-size: 16px; margin: 0 0 6px; }
-  .meta { font-size: 12px; opacity: .65; margin-bottom: 8px; }
-  .abs { font-size: 14px; opacity: .9; }
-  .why { font-size: 13px; margin-top: 8px; padding: 6px 8px; background: #8881; border-radius: 6px; }
-  .ai { font-size: 13px; margin-top: 8px; border-left: 3px solid #4a90d9; padding-left: 8px; }
-  .actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
-  .profile { font-size: 13px; white-space: pre-wrap; background: #8881; padding: 10px 12px; border-radius: 8px; margin-top: 18px; }
-  .pill { font-size: 12px; padding: 1px 7px; border-radius: 999px; background: #8882; margin-left: 6px; }
-  input { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid #8884; background: transparent; min-width: 260px; }
+  :root {
+    --bg: #0e1116;
+    --bg2: #151a22;
+    --ink: #e8edf4;
+    --muted: #9aa6b6;
+    --line: rgba(255,255,255,.10);
+    --glass: rgba(24,30,40,.55);
+    --glass-strong: rgba(28,35,47,.78);
+    --accent: #6ea8fe;
+    --good: #4ade80;
+    --bad: #f87171;
+    --warn: #fbbf24;
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#eef1f6; --bg2:#e3e8f0; --ink:#131820; --muted:#5a6675;
+            --line: rgba(0,0,0,.10); --glass: rgba(255,255,255,.55); --glass-strong: rgba(255,255,255,.8);
+            --shadow: 0 10px 30px rgba(20,30,50,.12); }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "PingFang SC", Arial, sans-serif;
+    color: var(--ink); min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, color-mix(in srgb, var(--good) 16%, transparent), transparent 55%),
+      linear-gradient(180deg, var(--bg), var(--bg2));
+    background-attachment: fixed;
+  }
+  /* ---------------------------------------------------------------- glass */
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    border-radius: var(--radius);
+  }
+  header.top {
+    position: sticky; top: 12px; z-index: 30; margin: 12px auto 0; max-width: 1040px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .brand { font-weight: 650; letter-spacing: .2px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent);
+          border: 1px solid var(--line); color: var(--muted); }
+  .chip b { color: var(--ink); font-weight: 600; }
+  main { max-width: 1040px; margin: 16px auto 80px; padding: 0 16px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  .sub { color: var(--muted); font-size: 13px; }
+
+  /* --------------------------------------------------------------- buttons */
+  button, .linkbtn {
+    font: inherit; color: var(--ink); cursor: pointer;
+    border-radius: 11px; border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--ink) 7%, transparent);
+    padding: 8px 14px;
+    transition: transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  button:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); transform: translateY(-1px); }
+  button:active { transform: translateY(0) scale(.98); }
+  button[disabled] { opacity: .5; cursor: progress; transform: none; }
+  button.primary { background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #000));
+                   border-color: transparent; color: #08111f; font-weight: 600; }
+  button.good { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+  button.bad { border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type=text] {
+    font: inherit; color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent);
+    border: 1px solid var(--line); border-radius: 11px; padding: 9px 12px; min-width: 260px; flex: 1;
+  }
+  input[type=text]:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
+
+  /* ------------------------------------------------------------------ hero */
+  .hero { padding: 18px; margin-bottom: 16px; animation: rise .5s ease both; }
+  .hero .row + .row { margin-top: 12px; }
+  .jobprog { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; margin-top: 10px; }
+  .jobprog span { display: block; height: 100%; width: 30%; border-radius: 999px;
+                  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+                  animation: slide 1.2s linear infinite; }
+
+  /* ----------------------------------------------------------------- cards */
+  .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 760px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .card { padding: 16px 16px 14px; cursor: pointer; position: relative; overflow: hidden;
+          animation: rise .5s ease both; transition: transform .18s ease, box-shadow .25s ease, border-color .2s ease; }
+  .card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+                box-shadow: 0 16px 40px rgba(0,0,0,.35); }
+  .card::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+                 background: radial-gradient(400px 120px at var(--mx, 50%) 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%);
+                 opacity: 0; transition: opacity .25s ease; }
+  .card:hover::after { opacity: 1; }
+  .card h3 { font-size: 15.5px; margin: 0 0 6px; line-height: 1.4; }
+  .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line);
+           background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--muted); }
+  .badge.ai { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+  .abs { color: color-mix(in srgb, var(--ink) 88%, transparent); font-size: 13.5px;
+         display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .why { font-size: 12.5px; color: var(--muted); margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .ai-line { font-size: 13px; color: var(--ink); margin-top: 8px; padding: 8px 10px; border-radius: 10px;
+             border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .card .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .card .actions button { padding: 5px 10px; font-size: 12.5px; }
+  .empty { padding: 28px; text-align: center; color: var(--muted); }
+
+  /* ----------------------------------------------------------------- modal */
+  .overlay { position: fixed; inset: 0; z-index: 60; display: none; align-items: flex-start; justify-content: center;
+             background: rgba(5,8,14,.55); backdrop-filter: blur(6px); padding: 40px 16px; overflow: auto; }
+  .overlay.open { display: flex; animation: fade .2s ease both; }
+  .sheet { max-width: 780px; width: 100%; padding: 22px; animation: pop .28s cubic-bezier(.2,.9,.3,1.1) both; }
+  .sheet h2 { font-size: 19px; line-height: 1.4; margin-bottom: 8px; }
+  .sheet .full { max-height: 46vh; overflow: auto; padding-right: 6px; font-size: 14px; line-height: 1.75;
+                 color: color-mix(in srgb, var(--ink) 92%, transparent); }
+  .sheet .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .close { position: absolute; }
+
+  /* ---------------------------------------------------------------- toasts */
+  #toasts { position: fixed; right: 16px; bottom: 16px; z-index: 90; display: flex; flex-direction: column; gap: 8px; }
+  .toast { padding: 10px 14px; font-size: 13px; animation: pop .25s ease both; max-width: 360px; }
+  .toast.ok { border-left: 3px solid var(--good); }
+  .toast.warn { border-left: 3px solid var(--warn); }
+  .toast.err { border-left: 3px solid var(--bad); }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes pop { from { opacity: 0; transform: scale(.96) translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slide { from { transform: translateX(-120%); } to { transform: translateX(420%); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
-<h1>PaperDigHelper</h1>
-<div class="sub">本地推荐 + 可解释画像 · 默认零 token；AI 速览按已批准额度</div>
+<header class="top glass">
+  <div class="brand"><span class="dot"></span>PaperDigHelper</div>
+  <div class="chips" id="chips"></div>
+</header>
 
-<div class="bar">
-  <button id="refresh">抓取新论文</button>
-  <button id="daily">生成今日 5 篇</button>
-  <button id="triage">AI 速览（dry-run）</button>
-  <button id="drytoggle">切换真实调用</button>
-  <span id="status" class="sub"></span>
+<main>
+  <section class="hero glass">
+    <h1>今日推荐</h1>
+    <div class="sub">本地优先 · 默认零 token · AI 速览按已批准额度</div>
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="btnDaily">生成今日 5 篇</button>
+      <button id="btnRefresh">抓取新论文</button>
+      <button id="btnTriage">AI 速览</button>
+      <button id="btnMode" title="切换 AI 速览是预演还是真实调用">当前：预演（不花钱）</button>
+    </div>
+    <div class="jobprog" id="prog" hidden><span></span></div>
+    <div class="row" style="margin-top:14px">
+      <input type="text" id="pin" placeholder="钉死关键词（逗号分隔），例如 world model, JEPA, planning">
+      <button id="btnPin">保存关键词</button>
+    </div>
+  </section>
+
+  <section id="cards" class="grid"></section>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="sheet glass" id="sheet"></div>
 </div>
-
-<div id="cards"></div>
-
-<div class="profile" id="profile"></div>
-<div class="bar" style="margin-top:12px">
-  <input id="pin" placeholder="钉死关键词，逗号分隔，例如 world model,JEPA">
-  <button id="pinbtn">保存关键词</button>
-</div>
+<div id="toasts"></div>
 
 <script>
-const status = (msg) => { document.getElementById('status').textContent = msg; };
-let dryRun = true;
-let cards = [];
+const $ = (s) => document.querySelector(s);
+let state = { cards: [], summaries: {}, profile: null, stats: null, dryRun: true };
 
+function toast(msg, kind = 'ok', ms = 3200) {
+  const el = document.createElement('div');
+  el.className = `toast glass ${kind}`;
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(6px)'; setTimeout(() => el.remove(), 250); }, ms);
+}
 async function api(path, body) {
-  const opts = body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {};
-  const res = await fetch(path, opts);
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
   return res.json();
 }
+const esc = (s) => (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const host = (u) => { try { return new URL(u).host.replace('www.', ''); } catch { return ''; } };
 
-function renderProfile(p) {
-  document.getElementById('profile').textContent =
-    `项目: ${p.project}\n` +
-    `钉死关键词: ${(p.pinned_terms || []).join(', ') || '(无)'}\n` +
-    `正向种子: ${(p.positive_seeds || []).length} 篇\n` +
-    `反馈正例: ${(p.positive_feedback || []).length} · 显式负例: ${(p.explicit_negatives || []).length}\n` +
-    `中性(以后再看/没空/看不懂): ${(p.neutral_feedback || []).length}`;
+function renderChips() {
+  const s = state.stats || {};
+  $('#chips').innerHTML = [
+    `<span class="chip">文献 <b>${s.papers ?? 0}</b></span>`,
+    `<span class="chip">种子 <b>${s.seeds ?? 0}</b></span>`,
+    `<span class="chip">正例 <b>${s.positive ?? 0}</b></span>`,
+    `<span class="chip">负例 <b>${s.negative ?? 0}</b></span>`,
+    `<span class="chip">中性 <b>${s.neutral ?? 0}</b></span>`,
+    `<span class="chip">已展示 <b>${s.shown ?? 0}</b></span>`,
+  ].join('');
+  if (state.profile) $('#pin').placeholder = state.profile.pinned_terms?.length
+    ? `当前钉死：${state.profile.pinned_terms.join(', ')}` : '钉死关键词（逗号分隔），例如 world model, JEPA, planning';
 }
 
-function renderCards(list) {
-  cards = list;
-  const root = document.getElementById('cards');
-  root.innerHTML = '';
-  if (!list.length) { root.innerHTML = '<p class="sub">还没有卡片，先点「抓取新论文」再点「生成今日 5 篇」。</p>'; return; }
-  for (const c of list) {
-    const el = document.createElement('div');
-    el.className = 'card';
-    el.innerHTML = `
-      <h2>${c.rank}. ${c.title}<span class="pill">${c.mode}</span></h2>
-      <div class="meta">${c.published || ''} · ${c.source || ''}</div>
-      <div class="abs">${(c.abstract || '').slice(0, 420)}</div>
-      <div class="why">推荐理由：${c.why}</div>
-      <div class="ai" data-key="${c.key}"></div>
-      <div class="actions">
-        <button data-key="${c.key}" data-action="useful">有用</button>
-        <button data-key="${c.key}" data-action="irrelevant">不相关</button>
-        <button data-key="${c.key}" data-action="later">以后再看</button>
-        <button data-key="${c.key}" data-action="busy">没空</button>
-        <button data-key="${c.key}" data-action="confused">看不懂</button>
-        <a href="${c.url}" target="_blank" rel="noreferrer"><button>原文</button></a>
-        <button data-key="${c.key}" data-pdf="1">下载 PDF</button>
-      </div>`;
-    root.appendChild(el);
+function cardHTML(c, i) {
+  const ai = state.summaries[c.key];
+  return `
+  <article class="card glass" data-key="${esc(c.key)}" style="animation-delay:${i * 55}ms">
+    <h3>${esc(c.title)}</h3>
+    <div class="meta">
+      <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
+      <span class="badge">${esc(c.mode || 'sparse')}</span>
+      ${ai ? '<span class="badge ai">AI 已速览</span>' : ''}
+    </div>
+    <div class="abs">${esc(c.abstract || '（无摘要）')}</div>
+    <div class="why">推荐理由：${esc(c.why)}</div>
+    ${ai ? `<div class="ai-line"><b>速览</b>：${esc(ai.one_liner || '')}${ai.why_relevant ? ` · <span class="sub">${esc(ai.why_relevant)}</span>` : ''}</div>` : ''}
+    <div class="actions">
+      <button class="good" data-fb="useful" data-key="${esc(c.key)}">有用</button>
+      <button class="bad" data-fb="irrelevant" data-key="${esc(c.key)}">不相关</button>
+      <button data-fb="later" data-key="${esc(c.key)}">以后再看</button>
+      <button data-fb="busy" data-key="${esc(c.key)}">没空</button>
+      <button data-fb="confused" data-key="${esc(c.key)}">看不懂</button>
+      <button data-open="${esc(c.key)}">详情</button>
+    </div>
+  </article>`;
+}
+
+function renderCards() {
+  const root = $('#cards');
+  if (!state.cards.length) {
+    root.innerHTML = `<div class="empty glass">还没有今日卡片。先「抓取新论文」，再点「生成今日 5 篇」。</div>`;
+    return;
   }
+  root.innerHTML = state.cards.map(cardHTML).join('');
 }
 
-document.getElementById('cards').addEventListener('click', async (e) => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  if (btn.dataset.action) {
-    const r = await api('/api/feedback', {key: btn.dataset.key, action: btn.dataset.action});
-    status(`已记录：${btn.dataset.action}（兴趣变化：${r.interest_changed}）`);
-    const st = await api('/api/state');
-    renderProfile(st.profile);
-  } else if (btn.dataset.pdf) {
-    status('下载中…');
-    const r = await api('/api/pdf', {key: btn.dataset.key});
-    status(r.ok ? `已保存：${r.path}` : `未下载：${r.reason}`);
+async function load() {
+  const data = await api('/api/home');
+  state = { ...state, ...data };
+  renderChips(); renderCards();
+}
+
+// ------------------------------------------------------------------ actions
+$('#btnDaily').onclick = async () => {
+  const b = $('#btnDaily'); b.disabled = true; b.textContent = '生成中…';
+  try {
+    const r = await api('/api/daily', { limit: 5 });
+    if (!r.cards || !r.cards.length) { toast(r.reason || '没有新候选，先抓取', 'warn'); }
+    else { toast(`已生成 ${r.cards.length} 篇（批次 ${r.batch_id}）`); }
+    await load();
+  } catch (e) { toast(`生成失败：${e.message}`, 'err'); }
+  finally { b.disabled = false; b.textContent = '生成今日 5 篇'; }
+};
+
+$('#btnRefresh').onclick = async () => {
+  const b = $('#btnRefresh'); b.disabled = true; b.textContent = '抓取中…';
+  $('#prog').hidden = false;
+  try {
+    const job = await api('/api/refresh', { pages: 1 });
+    toast('已在后台抓取（OpenAlex 公开元数据）…', 'warn');
+    const result = await poll(job.id);
+    if (result.state === 'failed') toast(`抓取失败：${result.error}`, 'err');
+    else {
+      const r = result.result || {};
+      toast(`抓取 ${r.fetched || 0} 条，新增 ${r.added || 0} 条${r.errors?.length ? `（${r.errors.length} 个查询被限流跳过）` : ''}`,
+            r.errors?.length ? 'warn' : 'ok');
+    }
+    await load();
+  } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
+  finally { b.disabled = false; b.textContent = '抓取新论文'; $('#prog').hidden = true; }
+};
+
+async function poll(id, tries = 120) {
+  for (let i = 0; i < tries; i++) {
+    const job = await api(`/api/jobs/${id}`);
+    if (job.state !== 'running') return job;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return { state: 'failed', error: 'timeout' };
+}
+
+$('#btnTriage').onclick = async () => {
+  const b = $('#btnTriage'); b.disabled = true; b.textContent = state.dryRun ? '预演中…' : '调用中…';
+  try {
+    const r = await api('/api/triage', { dry_run: state.dryRun });
+    if (state.dryRun) {
+      toast(`预演：会预留 ${r.reservation?.input} in / ${r.reservation?.output} out ≈ $${r.reservation?.usd}，未发请求`, 'warn', 5000);
+    } else if (!r.ok) {
+      toast(`AI 不可用，保持本地模式：${r.reason || '未知原因'}`, 'err', 5000);
+    } else {
+      toast(`速览完成 ${r.items.length} 条 · ${r.usage.total_tokens} token · $${r.usd}`, 'ok');
+      await load();
+    }
+  } catch (e) { toast(`速览失败：${e.message}`, 'err'); }
+  finally { b.disabled = false; b.textContent = 'AI 速览'; }
+};
+
+$('#btnMode').onclick = () => {
+  state.dryRun = !state.dryRun;
+  $('#btnMode').textContent = state.dryRun ? '当前：预演（不花钱）' : '当前：真实调用（消耗额度）';
+  toast(state.dryRun ? '已切到预演：不发请求' : '已切到真实调用：会走预算网关', state.dryRun ? 'warn' : 'ok');
+};
+
+$('#btnPin').onclick = async () => {
+  const r = await api('/api/pin', { terms: $('#pin').value });
+  state.profile = r.profile; state.stats = r.stats;
+  renderChips();
+  toast('关键词已保存，会参与排序');
+};
+
+$('#cards').addEventListener('click', async (e) => {
+  const fb = e.target.closest('button[data-fb]');
+  const open = e.target.closest('button[data-open]');
+  if (fb) {
+    e.stopPropagation();
+    try {
+      const r = await api('/api/feedback', { key: fb.dataset.key, action: fb.dataset.fb });
+      toast(r.interest_changed ? `已记录：${fb.dataset.fb}（兴趣已更新）` : `已记录：${fb.dataset.fb}（不影响兴趣）`,
+            r.interest_changed ? 'ok' : 'warn');
+      await load();
+    } catch (err) { toast(`记录失败：${err.message}`, 'err'); }
+  } else if (open) {
+    e.stopPropagation();
+    openDetail(open.dataset.open);
+  } else {
+    const card = e.target.closest('.card[data-key]');
+    if (card) openDetail(card.dataset.key);
   }
 });
 
-document.getElementById('refresh').onclick = async () => {
-  status('抓取中…（OpenAlex 公开元数据）');
-  const r = await api('/api/refresh', {pages: 1});
-  status(`抓取 ${r.fetched} 条，新入库 ${r.added} 条`);
-};
-document.getElementById('daily').onclick = async () => {
-  status('生成中…');
-  const r = await api('/api/daily', {limit: 5});
-  renderCards(r.cards || []);
-  status(r.cards && r.cards.length ? `批次 ${r.batch_id}` : (r.reason || '没有新候选'));
-};
-document.getElementById('triage').onclick = async () => {
-  status(dryRun ? '预演（不花钱）…' : '调用 DeepSeek…');
-  const r = await api('/api/triage', {dry_run: dryRun});
-  if (!r.ok) { status(`降级为本地模式：${r.reason || '不可用'}`); return; }
-  for (const item of r.items || []) {
-    const el = document.querySelector(`.ai[data-key="${item.paper_id}"]`);
-    if (el) el.textContent = `AI：${item.one_liner || ''} ｜ 相关：${item.why_relevant || ''} ｜ 注意：${item.caution || ''}`;
+// ------------------------------------------------------------------- detail
+async function openDetail(key) {
+  const d = await api(`/api/paper/${encodeURIComponent(key)}`);
+  const s = d.summary;
+  $('#sheet').innerHTML = `
+    <h2>${esc(d.title)}</h2>
+    <div class="meta">
+      <span>${esc(d.published || '')}</span><span>${esc(d.source || '')}</span>
+      ${d.arxiv_id ? `<a href="${esc(d.url)}" target="_blank" rel="noreferrer"><span class="badge">arXiv:${esc(d.arxiv_id)}</span></a>` : ''}
+      ${d.feedback ? `<span class="badge">已反馈：${esc(d.feedback.action)}</span>` : ''}
+    </div>
+    ${s ? `<div class="ai-line"><b>AI 速览</b>：${esc(s.one_liner || '')}<div class="sub">相关：${esc(s.why_relevant || '')} · 注意：${esc(s.caution || '')}</div></div>` : ''}
+    <h3 style="margin:14px 0 6px;font-size:14px">完整摘要</h3>
+    <div class="full">${esc(d.abstract || '（无摘要）')}</div>
+    <div class="actions">
+      <button class="good" data-fb="useful" data-key="${esc(d.key)}">有用</button>
+      <button class="bad" data-fb="irrelevant" data-key="${esc(d.key)}">不相关</button>
+      <button data-fb="later" data-key="${esc(d.key)}">以后再看</button>
+      <button data-fb="busy" data-key="${esc(d.key)}">没空</button>
+      <button data-fb="confused" data-key="${esc(d.key)}">看不懂</button>
+      <button data-pdf="${esc(d.key)}">下载 PDF</button>
+      <a class="linkbtn" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>
+      <button id="closeSheet" style="margin-left:auto">关闭</button>
+    </div>`;
+  $('#overlay').classList.add('open');
+  $('#closeSheet').onclick = closeDetail;
+}
+function closeDetail() { $('#overlay').classList.remove('open'); }
+$('#overlay').addEventListener('click', (e) => { if (e.target.id === 'overlay') closeDetail(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
+$('#overlay').addEventListener('click', async (e) => {
+  const fb = e.target.closest('button[data-fb]');
+  const pdf = e.target.closest('button[data-pdf]');
+  if (fb) {
+    await api('/api/feedback', { key: fb.dataset.key, action: fb.dataset.fb });
+    toast(`已记录：${fb.dataset.fb}`);
+    closeDetail(); await load();
+  } else if (pdf) {
+    toast('下载中…', 'warn');
+    const r = await api('/api/pdf', { key: pdf.dataset.key });
+    toast(r.ok ? `已保存：${r.path}` : `未下载：${r.reason}`, r.ok ? 'ok' : 'warn', 5000);
   }
-  status(`速览完成 ${r.items ? r.items.length : 0} 条，USD ${r.usd}`);
-};
-document.getElementById('drytoggle').onclick = () => {
-  dryRun = !dryRun;
-  document.getElementById('drytoggle').textContent = dryRun ? '切换真实调用' : '切换预演（不花钱）';
-  status(dryRun ? '当前：预演，不发请求' : '当前：真实调用（会消耗额度）');
-};
-document.getElementById('pinbtn').onclick = async () => {
-  const r = await api('/api/pin', {terms: document.getElementById('pin').value});
-  renderProfile(r.profile);
-  status('关键词已保存（会作为画像的一部分参与排序）');
-};
+});
 
-(async () => {
-  const st = await api('/api/state');
-  renderProfile(st.profile);
-  renderCards(st.cards || []);
-})();
+// pointer glow on cards
+document.addEventListener('pointermove', (e) => {
+  const card = e.target.closest?.('.card');
+  if (!card) return;
+  const r = card.getBoundingClientRect();
+  card.style.setProperty('--mx', `${((e.clientX - r.left) / r.width) * 100}%`);
+});
+
+load().catch((e) => toast(`加载失败：${e.message}`, 'err'));
 </script>
 </body>
 </html>
