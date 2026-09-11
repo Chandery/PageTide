@@ -1,0 +1,40 @@
+# Evidence: contrast-fixed tokens, motion pass, undefined-variable guard
+# Date: 2026-09-11 UTC
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 110 tests in 8.207s
+
+OK
+exit=0
+
+$ python3 -m unittest tests.test_ui_contrast -v
+test_known_bad_pair_would_be_caught (tests.test_ui_contrast.ContrastTests.test_known_bad_pair_would_be_caught)
+Guard the guard: the colours that caused the original report still fail. ... ok
+test_light_accent_variants_are_readable (tests.test_ui_contrast.ContrastTests.test_light_accent_variants_are_readable) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.006s
+
+OK
+exit=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ divider + accent tokens defined
+11:    --line:rgba(16,26,42,.13); --line-strong:rgba(16,26,42,.24);
+15:    --accent-ink:#ffffff; --accent-text:#5e4eed;   /* ink = text ON the accent fill */
+24:    --line:rgba(255,255,255,.11); --line-strong:rgba(255,255,255,.22);
+28:    --accent-ink:#0d1016; --accent-text:#a597ff; --ai-text:#a597ff;
+31:  html[data-accent="violet"] { --accent:#6d5dfc; --accent-ink:#ffffff; --accent-text:#5e4eed; --ai:#7b61ff; --ai-text:#5e4eed; }
+32:  html[data-accent="mint"]   { --accent:#1f9d6b; --accent-ink:#151009; --accent-text:#007846; --ai:#2fa07a; --ai-text:#007846; }
+exit=0
+
+$ git diff --check
+exit=0
