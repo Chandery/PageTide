@@ -181,7 +181,7 @@
       "id": "CORE-01",
       "stage": "feedback",
       "title": "候选→推荐→明确反馈→画像版本的最短闭环（排序与去重）",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "REUSE-01",
         "DATA-01"
@@ -200,7 +200,10 @@
         "原文链接/推荐理由/过滤和不足五篇原因可见",
         "相同候选重复曝光受控，已反馈论文不再重复推荐"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-09-11-ranking-experiment-1.md",
+        "tools/eval_probe.py"
+      ]
     },
     {
       "id": "PROFILE-01",

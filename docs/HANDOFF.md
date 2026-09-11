@@ -16,7 +16,8 @@
 - [EVALUATION](EVALUATION.md)：大模型辅助标注 + 人工抽检的评估协议；[ADR 0004](decisions/0004-evaluation-annotator-separation.md) 规定运行时（DeepSeek）与评估裁判（taomu/gpt-6-astra）分离。
 - [BRAINSTORM](BRAINSTORM.md)：需求拆解、算法选型、A/B/C 路线、「没空/暂停/督促」语义、第一版形态候选。
 - [RESEARCH](RESEARCH.md)：新增 ASReview（Apache-2.0、纯 sklearn、显式相关/不相关、主动学习 querier）为首选画像内核；补齐 txtai/paperetl、Paper-Agent-Zotero、arXivDigest、rank_bm25、抓取库；列出「没人解决好的缺口」。
-- [DATA-01 报告](evidence/2026-09-11-data01-openalex-report.md)：种子解析 8/10；裸关键词不是领域过滤器（328万条且被无关领域污染）；arXiv 预印本引用边基本缺失；OpenAlex/arXiv 限流与费用实测；未来日期需过滤。
+- [DATA-01 报告](evidence/2026-09-11-data01-openalex-report.md)：种子解析 10/10；裸关键词不是领域过滤器；发现配方 = arXiv源 + title.search + 日期上界；引用边缺失；OpenAlex/arXiv 限流与费用实测。
+- [实验 1（排序对照）](evidence/2026-09-11-ranking-experiment-1.md)：评测管线端到端跑通（冻结 318 篇 → 3 系统 → taomu 盲标 26 篇 → P@k），但裁判 96% 判有用、候选池已过滤，**无区分度**；负结果，`E-RANKING` 保持 not_run。
 - [ROADMAP](ROADMAP.md)：按风险排的 S0–S6，覆盖推荐/画像/阅读/AI 四类能力，含实验协议与停止条件。
 - [BUDGET](BUDGET.md) + `harness/budget.json` + 生成表：**核心零 token**（搜索/去重/排序/画像/归档/DB 维护）；运行时 AI 层已批准额度（后台 26k/交互 35k/合计 55k 每日、150 万每月、$0.15/日、$1.50/月），含 `llm_rerank`（默认关闭）；评估裁判单独走 `evaluation` 段（taomu，只计 token）。除两次探针外均未实测。
 - `prompts/`：7 个操作合同（速览、重排、标注、追问、周报、划词、关键词扩展），每个都声明有界上下文与不可信源文本规则。
@@ -69,6 +70,14 @@ python3 scripts/harness.py review changes/2026-09-11-recommendation-plan-and-bud
 - **可用候选池**：200 条全来自 arXiv、摘要 0 缺失；但**引用与 related 边 200/200 全缺** → 图谱引用边必须换源。
 - **日期必须带 `to_publication_date`**，否则出现 2036 年记录。
 - 费用：OpenAlex $0.001/search、1000 credits 与 $0.10/日；arXiv 本机 IP 本次持续 429。
-- 下一步：冻结时间切分与已知相关集，再进 `LABEL-01`。
+- 下一步：修正测量（加非世界模型干扰项、改分级相关度、标更多低排名样本），再做 `E-LLM-LABEL-VALIDITY` 抽检，然后才可能碰 `E-RANKING`。
+
+### 实验 1 结果（CORE-01 in_progress）
+
+- 管线可用且可复跑：318 篇冻结候选（哈希 `0c06666429815cc8`）→ 3 个系统 → taomu 盲标 26 篇 → P@k。
+- 结果：`recency` P@5=0.80；`keyword+date` 与 `tfidf_seed_centroid` 均 P@5=1.00。**无区分度**。
+- 原因：候选池已被 `title.search:world model` 过滤；裁判 25/26 判为有用（96% 正例）；只标了 top-10 并集。
+- 因此**不能说推荐有效**，也不能说 tfidf 更好；`E-RANKING` 保持 `not_run`。
+- taomu 网关实测：**屏蔽无 UA / `Python-urllib` UA**（需常见 UA）；每次调用含 ~4,224 cached 隐藏前缀。本次 6 次调用约 32,400 token。
 
 **不开始新的 PDF 阅读器平台，不自动执行整条路线。**
