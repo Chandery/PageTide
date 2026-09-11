@@ -1,0 +1,31 @@
+# Evidence: unified coordinate system for reader positioning
+# Date: 2026-09-11 UTC
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 110 tests in 7.874s
+
+OK
+exit=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ no raw offsetTop reads remain
+0
+0 (absent)
+exit=0
+
+$ node --check
+scripts: 2
+  /tmp/cs_0.mjs OK
+  /tmp/cs_1.mjs OK
+exit=0
+
+$ git diff --check
+exit=0

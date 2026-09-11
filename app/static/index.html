@@ -947,26 +947,39 @@ async function layoutPages() {
       R.pendingZoom = null;
       // Same measured anchoring as the visual phase: the content point under the
       // cursor ends up exactly where it was, so releasing the gesture is seamless.
-      const held = document.querySelector(`.pgwrap[data-n="${pending.page}"]`);
-      if (held) box.scrollTop = Math.max(0, held.offsetTop + pending.within * pending.k - pending.localY);
+      const held = box.querySelector(`.pgwrap[data-n="${pending.page}"]`);
+      if (held) box.scrollTop = Math.max(0, contentTopOf(held, box) + pending.within * pending.k - pending.localY);
     } else {
-      const target = document.querySelector(`.pgwrap[data-n="${keepPage}"]`);
+      const target = box.querySelector(`.pgwrap[data-n="${keepPage}"]`);
       if (target) {
         const fraction = anchor.height ? Math.min(1, Math.max(0, anchor.within / anchor.height)) : 0;
-        box.scrollTop = Math.max(0, target.offsetTop + fraction * target.offsetHeight);
+        box.scrollTop = Math.max(0, contentTopOf(target, box) + fraction * target.offsetHeight);
       }
     }
     markCurrent(keepPage);
   });
 }
 
+/* A wrapper's offsetTop is measured against its nearest positioned ancestor
+   (.reader), which includes the toolbar and the container padding, while
+   box.scrollTop is the scroll offset inside #readerPages. Mixing the two
+   introduced a constant error - the view shifted a fixed amount the moment a
+   pinch started and stayed shifted. Always measure inside the scroll content. */
+function contentTopOf(wrap, box = $('#readerPages')) {
+  const boxRect = box.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  return wrapRect.top - boxRect.top + box.scrollTop;
+}
+
 function currentAnchor(scrollTop) {
-  const wraps = document.querySelectorAll('#readerPages .pgwrap');
+  const box = $('#readerPages');
+  const wraps = box.querySelectorAll('.pgwrap');
   let page = 1, top = 0, height = 1;
   for (const wrap of wraps) {
-    if (wrap.offsetTop <= scrollTop + 40) {
+    const wrapTop = contentTopOf(wrap, box);
+    if (wrapTop <= scrollTop + 40) {
       page = Number(wrap.dataset.n);
-      top = wrap.offsetTop;
+      top = wrapTop;
       height = Math.max(1, wrap.offsetHeight);
     } else break;
   }
@@ -1324,8 +1337,9 @@ function applyVisualScale(k, base) {
   // instead of predicting it: a formula misses that earlier pages also grew,
   // which is exactly what pushed the view down-right during a zoom.
   requestAnimationFrame(() => {
-    const wrap = document.querySelector(`#readerPages .pgwrap[data-n="${base.page}"]`);
-    if (wrap) $('#readerPages').scrollTop = Math.max(0, wrap.offsetTop + base.within * k - base.localY);
+    const box = $('#readerPages');
+    const wrap = box.querySelector(`.pgwrap[data-n="${base.page}"]`);
+    if (wrap) box.scrollTop = Math.max(0, contentTopOf(wrap, box) + base.within * k - base.localY);
   });
 }
 
