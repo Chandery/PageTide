@@ -56,6 +56,39 @@ class EvalProbeTests(unittest.TestCase):
         self.assertEqual(eval_probe.cosine({}, {}), 0.0)
         self.assertEqual(eval_probe.l2_normalize({}), {})
 
+    def test_parse_spotcheck_sheet_reads_levels_and_keys(self):
+        import tempfile
+        sheet = """# t
+
+## 1. relevance = _3_
+- Title A
+- 2026-08-01 · https://doi.org/10.1/a
+
+abstract
+
+## 2. relevance = _0_
+- Title B
+- 2026-08-02 · https://doi.org/10.1/b
+"""
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'sheet.md'
+            path.write_text(sheet)
+            items = eval_probe.parse_spotcheck_sheet(path)
+        self.assertEqual(items, [('https://doi.org/10.1/a', 3), ('https://doi.org/10.1/b', 0)])
+
+    def test_spotcheck_agreement_counts_exact_within1_and_binary(self):
+        items = [('a', 0), ('b', 1), ('c', 2), ('d', 3)]
+        labels = {'a': {'relevance': 1}, 'b': {'relevance': 3}, 'c': {'relevance': 3}, 'd': {'relevance': 3}}
+        stats = eval_probe.spotcheck_agreement(items, labels)
+        self.assertEqual(stats['n'], 4)
+        self.assertEqual(stats['exact'], 0.25)          # only d matches exactly
+        self.assertEqual(stats['within1'], 0.75)        # a and c are within 1, b (1 vs 3) is not
+        self.assertEqual(stats['binary'], 0.75)         # b disagrees on useful>=2
+
+    def test_spotcheck_agreement_ignores_unmatched_keys(self):
+        stats = eval_probe.spotcheck_agreement([('zzz', 2)], {})
+        self.assertEqual(stats['n'], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

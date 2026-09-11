@@ -362,6 +362,52 @@ def cmd_spotcheck(args):
     return 0
 
 
+def parse_spotcheck_sheet(path):
+    """Return [(candidate_key, owner_level)] parsed from a filled blind sheet."""
+    items = []
+    for block in re.split(r"\n## ", Path(path).read_text())[1:]:
+        level = re.search(r"relevance\s*=\s*_?(\d)_?", block)
+        key = None
+        for line in block.splitlines():
+            if line.startswith("- ") and " · " in line:
+                key = line.split(" · ")[-1].strip()
+        if level and key:
+            items.append((key, int(level.group(1))))
+    return items
+
+
+def spotcheck_agreement(items, annotator_labels):
+    rows = [(key, owner, annotator_labels[key]["relevance"])
+            for key, owner in items if key in annotator_labels]
+    n = max(len(rows), 1)
+    exact = sum(1 for _, o, a in rows if o == a)
+    within1 = sum(1 for _, o, a in rows if abs(o - a) <= 1)
+    binary = sum(1 for _, o, a in rows if (o >= 2) == (a >= 2))
+    confusion = {}
+    for _, o, a in rows:
+        confusion.setdefault(o, {}).setdefault(a, 0)
+        confusion[o][a] += 1
+    return {"n": len(rows), "exact": exact / n, "within1": within1 / n, "binary": binary / n,
+            "owner_distribution": {lvl: sum(1 for _, o, _ in rows if o == lvl) for lvl in range(4)},
+            "annotator_distribution": {lvl: sum(1 for _, _, a in rows if a == lvl) for lvl in range(4)},
+            "confusion_owner_rows": confusion}
+
+
+def cmd_spotcheck_score(args):
+    out = Path(args.out_dir)
+    items = parse_spotcheck_sheet(out / "spotcheck-sheet.md")
+    labels = json.loads((out / "labels.json").read_text())
+    stats = spotcheck_agreement(items, labels)
+    print(f"compared={stats['n']}  exact={stats['exact']:.0%}  within1={stats['within1']:.0%}  binary(>=2)={stats['binary']:.0%}")
+    print(f"owner distribution     : {stats['owner_distribution']}")
+    print(f"annotator distribution : {stats['annotator_distribution']}")
+    print("confusion (owner row -> annotator col):")
+    for owner in sorted(stats["confusion_owner_rows"]):
+        print(f"  owner={owner}: {dict(sorted(stats['confusion_owner_rows'][owner].items()))}")
+    print("\nNOTE: this is a small sample; report it, do not over-fit the threshold.")
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -396,9 +442,12 @@ def main(argv=None):
     spot.add_argument("--count", type=int, default=15)
     spot.add_argument("--seed", type=int, default=0)
 
+    spot_score = sub.add_parser("spotcheck-score")
+    spot_score.add_argument("--out-dir", default=out_default)
+
     args = parser.parse_args(argv)
     handlers = {"freeze": cmd_freeze, "rank": cmd_rank, "label": cmd_label,
-                "score": cmd_score, "spotcheck": cmd_spotcheck}
+                "score": cmd_score, "spotcheck": cmd_spotcheck, "spotcheck-score": cmd_spotcheck_score}
     try:
         return handlers[args.command](args)
     except (RuntimeError, urllib.error.URLError, KeyError, ValueError) as exc:

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-label-validation-1",
+  "class": "critical",
+  "summary": "Validate the evaluation annotator against the owner's blind judgement (15 items) and correct experiment 2. Binary useful>=2 agreement is 15/15, but exact agreement is only 40% because the annotator never emits 0 and shifts 0->1 / 2->3. Under the validated binary rule all three systems in experiment 2 score P@5=1.00, so the earlier discrimination claim is withdrawn and E-RANKING stays not_run.",
+  "tasks": [
+    "CORE-01",
+    "EVAL-01"
+  ],
+  "files": [
+    "changes/2026-09-11-label-validation-1.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-09-11-label-validation-1-checks.txt",
+    "docs/evidence/2026-09-11-label-validation-1-self-review.md",
+    "docs/evidence/2026-09-11-label-validation-1.md",
+    "harness/evaluations.json",
+    "harness/tasks.json",
+    "tests/test_eval_probe.py",
+    "tools/eval_probe.py"
+  ],
+  "scope_note": "Covers the diff since commit c763d8c. Agreement tooling + tests + registries/docs; no new network calls.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No runtime or model call; only parsing a locally filled sheet and comparing cached labels. Runtime operations/ceilings unchanged.",
+    "before": "Annotator labels unvalidated; experiment 2 appeared to discriminate recency from profile ranking at the >=3 threshold.",
+    "after": "Binary agreement validated 15/15; graded scale shown miscalibrated; discrimination claim withdrawn; second blind sheet prepared to resolve annotator level 2.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-label-validation-1-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-label-validation-1-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-label-validation-1-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 tools/eval_probe.py spotcheck-score",
+      "exit_code": 0,
+      "scope": "15-item agreement: exact 40%, within1 100%, binary 100%"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; agreement plumbing only; the judgement itself is the owner's",
+      "evidence": "docs/evidence/2026-09-11-label-validation-1-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Annotator graded scale is miscalibrated (never 0; shifts upward) -> graded metrics unusable.",
+    "n=15 and the useful threshold was not pre-registered.",
+    "Annotator level 2 meaning unresolved; second blind sheet pending.",
+    "Recommendation quality still undemonstrated; E-RANKING not_run."
+  ]
+}

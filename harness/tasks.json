@@ -203,7 +203,8 @@
       "evidence": [
         "docs/evidence/2026-09-11-ranking-experiment-1.md",
         "docs/evidence/2026-09-11-ranking-experiment-2.md",
-        "tools/eval_probe.py"
+        "tools/eval_probe.py",
+        "docs/evidence/2026-09-11-label-validation-1.md"
       ]
     },
     {
