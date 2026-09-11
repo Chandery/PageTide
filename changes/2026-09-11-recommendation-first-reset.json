@@ -1,0 +1,141 @@
+{
+  "historical_record": true,
+  "superseded_by": "2026-09-11-recommendation-plan-and-budget",
+  "record_note": "Snapshot of the prior planning review before user-directed deletion. Historical files and failed app checks remain here as evidence, not the current worktree file list or current check commands. Use the cleanup record for current review.",
+  "schema_version": 1,
+  "id": "2026-09-11-recommendation-first-reset",
+  "class": "critical",
+  "summary": "User-directed full research/roadmap reset: recommendation and explicit profile feedback first, upstream reuse probes before choosing app stack; archive legacy ABCD and freeze canceled incomplete reader work. Declared-stage validation replaces hardcoded ABCD without weakening evidence/approval gates.",
+  "tasks": [
+    "PLAN-01"
+  ],
+  "files": [
+    "AGENTS.md",
+    "README.md",
+    "changes/2026-09-10-stage-a-close.json",
+    "changes/2026-09-11-recommendation-first-reset.json",
+    "docs/ARCHITECTURE.md",
+    "docs/BUDGET.md",
+    "docs/FEASIBILITY.md",
+    "docs/HANDOFF.md",
+    "docs/HARNESS.md",
+    "docs/PRODUCT.md",
+    "docs/RESEARCH.md",
+    "docs/ROADMAP.md",
+    "docs/archive/2026-09-11-legacy-AGENTS.txt",
+    "docs/archive/2026-09-11-legacy-ARCHITECTURE.txt",
+    "docs/archive/2026-09-11-legacy-BUDGET.txt",
+    "docs/archive/2026-09-11-legacy-FEASIBILITY.txt",
+    "docs/archive/2026-09-11-legacy-HANDOFF.txt",
+    "docs/archive/2026-09-11-legacy-HARNESS.txt",
+    "docs/archive/2026-09-11-legacy-PRODUCT.txt",
+    "docs/archive/2026-09-11-legacy-README.txt",
+    "docs/archive/2026-09-11-legacy-RESEARCH.txt",
+    "docs/archive/2026-09-11-legacy-ROADMAP.txt",
+    "docs/archive/README.md",
+    "docs/decisions/0001-low-compute-budget-first.md",
+    "docs/decisions/0002-recommendation-first-reset.md",
+    "docs/evidence/replan-2026-09-11-checks.txt",
+    "docs/evidence/replan-2026-09-11-review.md",
+    "docs/evidence/replan-2026-09-11-self-review.md",
+    "harness/archive/2026-09-10-evaluations.json",
+    "harness/archive/2026-09-10-requirements.json",
+    "harness/archive/2026-09-10-tasks.json",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/sources.json",
+    "harness/tasks.json",
+    "package-lock.json",
+    "package.json",
+    "scripts/harness.py",
+    "src/main/ipc/handle.ts",
+    "src/main/qa/history.ts",
+    "src/main/storage/migrations.ts",
+    "src/renderer/App.tsx",
+    "src/renderer/NotesPanel.tsx",
+    "src/renderer/PdfReader.tsx",
+    "src/renderer/QaPanel.tsx",
+    "src/renderer/app.css",
+    "src/renderer/index.html",
+    "src/shared/types.ts",
+    "test-results/.last-run.json",
+    "test-results/tools-ui-reader-PDF-text-l-f777d-eturns-serializable-answers/error-context.md",
+    "tests-app/backend-regressions.test.ts",
+    "tests-app/fixtures/reader.pdf.gz.b64",
+    "tests/test_harness.py",
+    "tools/ui/launch.cjs",
+    "tools/ui/reader.spec.ts"
+  ],
+  "scope_note": "files covers the entire current worktree including preserved owner dirty HANDOFF/stage-a-close record and canceled previous reader/backend edits. This unit reviews research/planning/checker changes only; frozen app source is not accepted or released. Failed legacy app checks remain explicitly recorded.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "This reset changes planning and harness only, not application model behavior. Old budget numbers/approval stay unchanged as historical arithmetic reference. Proposed new recommendation/profile experiment needs no generation or neural embedding calls; ordinary data API costs and private seed exposure need separate review and approval. No paid call, model download, app GUI, upstream runtime, push or release during replanning.",
+    "before": "Legacy baseline 2026-09-10-proposed-v1 unapproved; incomplete reader/gateway work already in worktree before latest scope reset.",
+    "after": "Legacy baseline unchanged and explicitly not authorization/config for new core. New implementation approval false; model/API budget not selected, runtime resource/quality unmeasured.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/replan-2026-09-11-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/replan-2026-09-11-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/replan-2026-09-11-checks.txt"
+    },
+    {
+      "category": "app-tests",
+      "command": "npm run test:app",
+      "exit_code": 1,
+      "evidence": "docs/evidence/replan-2026-09-11-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "scope": "Frozen legacy source only; no usability acceptance"
+    },
+    {
+      "command": "python3 scripts/harness.py check --release",
+      "exit_code": 1,
+      "scope": "Expected release block; no implementation/budget approval or new product evaluations"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Indent, planning/checker scope only; excludes frozen incomplete app",
+      "evidence": "docs/evidence/replan-2026-09-11-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Independent source/plan reviewer plus separate post-fix reviewer; planning/checker consistency only, not legacy app or product quality",
+      "evidence": "docs/evidence/replan-2026-09-11-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Whole-worktree review is blocked by 15 failures among 54 legacy app tests; user canceled that repair, so it is frozen rather than hidden or falsely accepted.",
+    "No upstream runtime/installation/recommendation quality measured. X Mac arm64 dependency adaptation and disabled AI/backup/telemetry must be verified before adoption.",
+    "User domain, seeds, negative examples, experiment/quality/resource thresholds and next implementation slice still require confirmation.",
+    "All new product evaluations remain not_run; optional gates must be activated before optional features; existing conservative model release checks are not weakened in this reset.",
+    "Historical A-05 count/cost summaries are inconsistent and not re-audited; not reused as budget authorization or new provider evidence."
+  ]
+}

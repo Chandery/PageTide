@@ -1,0 +1,27 @@
+{
+  "schema_version":1,
+  "approved_for_implementation":true,
+  "tasks":[
+    {"id":"S0-01","stage":"0","title":"Brainstorm、范围、架构与阶段任务","status":"done","depends_on":[],"requirements":["R-LOCAL","R-LOWCOMPUTE","R-HARNESS"],"acceptance":["比较方案并记录首版边界","A/B/C/D均有任务与gate"],"evidence":["docs/PRODUCT.md","docs/ARCHITECTURE.md","docs/ROADMAP.md"]},
+    {"id":"S0-02","stage":"0","title":"外部调研、token测算与可行性审查","status":"done","depends_on":["S0-01"],"requirements":["R-BUDGET","R-LOWCOMPUTE"],"acceptance":["零token维护与AI费用分开","价格/协议有出处，预算可复算","未测量与待授权事项明确"],"evidence":["docs/RESEARCH.md","docs/BUDGET.generated.md","docs/FEASIBILITY.md"]},
+    {"id":"S0-03","stage":"0","title":"便携agent harness、skills和离线检查","status":"done","depends_on":["S0-02"],"requirements":["R-HARNESS","R-BUDGET"],"acceptance":["文档/预算/任务检查与负例测试通过","独立审查并留下可接手记录"],"evidence":["docs/evidence/bootstrap-checks.txt","docs/evidence/independent-review.md"]},
+    {"id":"A-01","stage":"A","title":"受支持Node LTS、Electron骨架与8GB性能探针","status":"done","depends_on":["S0-03"],"requirements":["R-LOWCOMPUTE","R-RELEASE"],"acceptance":["记录依赖版本/许可与macOS最低版本","空窗口+代表PDF基线测量，不合格先调整"],"evidence":["docs/evidence/a-01-dependencies.txt","docs/evidence/a-01-baseline.txt"]},
+    {"id":"A-02","stage":"A","title":"SQLite、附件版本、原子写入与恢复","status":"done","depends_on":["A-01"],"requirements":["R-LOCAL","R-DURABILITY","R-READING"],"acceptance":["原文件不改写","强退后已确认保存内容存在","迁移/事务有失败回归"],"evidence":["docs/evidence/a-02-storage.txt"]},
+    {"id":"A-03","stage":"A","title":"PDF阅读、选区、高亮、笔记与原文定位","status":"done","depends_on":["A-02"],"requirements":["R-READING"],"acceptance":["缩放/旋转/重开批注定位正确","不支持的PDF明确降级","用户笔记与AI内容来源分离"],"evidence":["docs/evidence/a-03-reading.txt","docs/evidence/a-03-early-viewer.txt"]},
+    {"id":"A-04","stage":"A","title":"统一模型预算网关与离线token计数原型","status":"done","depends_on":["A-02"],"requirements":["R-BUDGET","R-AGENT"],"acceptance":["固定encoder/tokenizer版本并验证打包成本","事务预留、重试、未知usage、上限拒绝全部离线通过","无需Key可运行fake-provider合同测试"],"evidence":["docs/evidence/a-04-gateway.txt"]},
+    {"id":"A-05","stage":"A","title":"获授权后小额API校准与用量合同测试","status":"done","depends_on":["A-04"],"requirements":["R-BUDGET","R-AGENT"],"acceptance":["用户批准金额/样本/外发范围","实际usage与本地计数差异记录","thinking/max_tokens/流结尾/JSON失败验证"],"evidence":["docs/evidence/a-05-calibration.txt"]},
+    {"id":"A-06","stage":"A","title":"有引用的单轮问答、选区翻译与历史恢复","status":"done","depends_on":["A-03","A-04"],"requirements":["R-AGENT","R-READING"],"acceptance":["只传有限证据和历史","引用跳回匹配版本页码","假provider可测试；真实模式需A-05"],"evidence":["docs/evidence/a-06-qa.txt"]},
+    {"id":"B-01","stage":"B","title":"确认领域并接入一个主要论文数据源","status":"blocked","depends_on":["S0-03"],"requirements":["R-DISCOVERY"],"acceptance":["公开样本/许可记录","增量同步、日期语义、限流与独立费用","不绕过全文访问权限"],"blocked_reason":"用户尚未给出领域与关键词","evidence":[]},
+    {"id":"B-02","stage":"B","title":"规范ID去重、候选缓存与本地词法排序","status":"planned","depends_on":["B-01","A-02"],"requirements":["R-DISCOVERY","R-LOWCOMPUTE"],"acceptance":["新论文/版本/新发现不混淆","候选与计算规模有界","无本地模型，纯排序0token"],"evidence":[]},
+    {"id":"B-03","stage":"B","title":"五张速览卡、缓存与缺失证据降级","status":"planned","depends_on":["B-02","A-04"],"requirements":["R-DISCOVERY","R-BUDGET","R-AGENT"],"acceptance":["一次批量最多5张","过长摘要覆盖提示","缓存命中0调用，解析失败不无限重试"],"evidence":[]},
+    {"id":"B-04","stage":"B","title":"推荐历史、收藏与明确反馈事件","status":"planned","depends_on":["B-03"],"requirements":["R-DISCOVERY","R-PROFILE"],"acceptance":["曝光/收藏/阅读分开","展示位置、理由、算法版本可追溯","没有选择不等于五篇负反馈"],"evidence":[]},
+    {"id":"C-01","stage":"C","title":"稀疏画像更新、兴趣簇、衰减与撤销","status":"planned","depends_on":["B-04"],"requirements":["R-PROFILE","R-LOWCOMPUTE"],"acceptance":["长期偏好保留","忙/难懂不降权","画像事件重放与撤销一致"],"evidence":[]},
+    {"id":"C-02","stage":"C","title":"MMR多样性与领域离线推荐评估","status":"planned","depends_on":["C-01"],"requirements":["R-DISCOVERY","R-PROFILE"],"acceptance":["对比词法日期基线","报告precision@5及探索影响","不达标先改词表/数据源而非默认上大模型"],"evidence":[]},
+    {"id":"C-03","stage":"C","title":"本地周报、可选AI整理与权限","status":"planned","depends_on":["B-04","A-04"],"requirements":["R-WEEKLY","R-BUDGET","R-AGENT"],"acceptance":["零活动周不编造收获","用户笔记默认不外发","周报当日预算独立预留"],"evidence":[]},
+    {"id":"C-04","stage":"C","title":"暂停、轻量模式、限频提醒与唤醒任务","status":"planned","depends_on":["B-04"],"requirements":["R-WEEKLY","R-PROFILE"],"acceptance":["最多设定次数提醒","不欠读/不补算所有错过日期","系统时区和暂停状态有测试"],"evidence":[]},
+    {"id":"D-01","stage":"D","title":"备份恢复、迁移故障注入与开放格式导出","status":"planned","depends_on":["A-02","A-03","C-01"],"requirements":["R-DURABILITY","R-LOCAL"],"acceptance":["WAL一致快照+附件校验","旧库升级/失败回滚","隔离目录实际恢复成功"],"evidence":[]},
+    {"id":"D-02","stage":"D","title":"预算网关集成故障与跨日跨月测试","status":"planned","depends_on":["A-05","B-03","C-03"],"requirements":["R-BUDGET"],"acceptance":["并发/超时/取消/重启待核账不丢","真实usage不可截小","无直接调用旁路，额度不足无出站"],"evidence":[]},
+    {"id":"D-03","stage":"D","title":"低配性能、隐私安全与离线端到端","status":"planned","depends_on":["A-06","C-02","C-03","C-04","D-01","D-02"],"requirements":["R-LOWCOMPUTE","R-LOCAL","R-AGENT","R-RELEASE"],"acceptance":["8GB真实硬件gate","恶意来源/IPC/链接不能越权","离线仍可读写和导出"],"evidence":[]},
+    {"id":"D-04","stage":"D","title":"macOS安装包、独立review与发布批准","status":"planned","depends_on":["D-03"],"requirements":["R-RELEASE","R-HARNESS"],"acceptance":["实际安装包验证","所有blocking eval通过","预算/依赖/许可复核且用户批准发布"],"evidence":[]}
+  ]
+}

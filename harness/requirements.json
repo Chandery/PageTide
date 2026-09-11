@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "requirements": [
+    {"id":"R-REUSE","text":"先评估直接采用/改造开源推荐与画像系统，仅自建已验证的缺口","gates":["E-REUSE"]},
+    {"id":"R-DISCOVERY","text":"领域覆盖和兴趣排序分别验证；少量有用论文、去重、日期与理由可追溯","gates":["E-DATA","E-RANKING"]},
+    {"id":"R-PROFILE","text":"核心画像透明可编辑冻结撤销；显式反馈学习有效，不把未选/忙/难懂当不喜欢","gates":["E-PROFILE","E-FEEDBACK-VALUE"]},
+    {"id":"R-NODEBT","text":"没空/暂停/连续未读不制造阅读债务；只调整提醒与探索，不推断负反馈","gates":["E-NO-DEBT"]},
+    {"id":"R-LOCAL","text":"本地保存推荐/画像/反馈/笔记；离线可查看导出；新数据外发最小授权","gates":["E-PRIVACY","E-OFFLINE"]},
+    {"id":"R-LOWCOMPUTE","text":"默认不下载本地神经模型；按真实语料与设备测资源，不继承旧目标即算通过","gates":["E-PERFORMANCE"]},
+    {"id":"R-DURABILITY","text":"已确认的种子/画像/反馈/曝光/笔记可重启和隔离恢复，版本来源保留","gates":["E-RESTORE"]},
+    {"id":"R-BUDGET","text":"推荐画像首轮生成模型调用为0；每次AI调用经唯一网关；日/月token与金额显式准入，未批准数值不执行","gates":["E-NO-MODEL","E-BUDGET"]},
+    {"id":"R-HARNESS","text":"结果可复现、假设/证据/历史和当前状态可区分；换agent可仅凭AGENTS→HANDOFF→任务接手","gates":["E-HARNESS","E-HANDOFF"]},
+    {"id":"R-RELEASE","text":"真实最小闭环试用、维护/许可/安全和用户批准后才分发","gates":["E-PILOT","E-SECURITY"]},
+    {"id":"R-CAPTURE","text":"本地论文整理与阅读捕获：收藏理由、用户笔记、高亮锚点可搜索，用户文本与AI文本分离","gates":["E-CAPTURE"]},
+    {"id":"R-READING-INTEGRATION","text":"可选后置：优先标准导出/原文链接/已有文献软件；Zotero只读且按实际版本验证","gates":["E-READING-OPTIONAL"]},
+    {"id":"R-AGENT","text":"AI速览/追问/划词有证据边界、有界上下文、不自动工具循环、不上传全部历史或笔记","gates":["E-AI-OPTIONAL","E-BUDGET"]},
+    {"id":"R-WEEKLY","text":"周报只基于实际活动，统计本地零token，不制造未读债务","gates":["E-WEEKLY-OPTIONAL"]}
+  ]
+}

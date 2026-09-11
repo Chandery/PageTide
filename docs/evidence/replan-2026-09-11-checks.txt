@@ -1,0 +1,198 @@
+LATEST SUMMARY (after independent-review fixes): budget/repository exit0; Python 45 tests passed exit0; legacy typecheck exit0; legacy app tests39/54 passed,15 failed exit1; whole-worktree change review exit1 ('a recorded check failed'); release remains blocked. Earlier 44-test log below is chronological pre-fix evidence, not the final test count. Final 45-test output is under AFTER INDEPENDENT-REVIEW FIXES.
+
+2026-09-11 recommendation-first replanning checks. No GUI, user library, paid provider, or upstream runtime used. Legacy app is frozen cancelled work, not accepted by this plan.
+Regression before checker change: 22 harness tests, 2 failures (new stages rejected / invalid registry accepted); raw output .local/replan-2026-09-11/harness-before.txt.
+
+CATEGORY: budget
+COMMAND: python3 scripts/budget.py --check
+EXIT_CODE: 0
+PASS budget arithmetic and generated document parity (no live API)
+
+
+CATEGORY: repository
+COMMAND: python3 scripts/harness.py check
+EXIT_CODE: 0
+PASS repository checks only; app gates/real billing are not implied
+
+
+CATEGORY: tests
+COMMAND: python3 -m unittest discover -s tests -v
+EXIT_CODE: 0
+test_approval_and_enforcement_require_json_booleans (test_budget.BudgetTests) ... ok
+test_baseline_valid (test_budget.BudgetTests) ... ok
+test_cache_cost_not_zero (test_budget.BudgetTests) ... ok
+test_calendar_outside_supported_month_rejected (test_budget.BudgetTests) ... ok
+test_changed_tokens_and_calendar_render_dynamically (test_budget.BudgetTests) ... ok
+test_component_envelope_drift_rejected (test_budget.BudgetTests) ... ok
+test_core_calendar_not_prorated (test_budget.BudgetTests) ... ok
+test_core_cap (test_budget.BudgetTests) ... ok
+test_invalid_money_and_counts (test_budget.BudgetTests) ... ok
+test_local_maintenance_is_zero (test_budget.BudgetTests) ... ok
+test_missing_usage_is_not_zero (test_budget.BudgetTests) ... ok
+test_pending_reservations_count_in_arithmetic (test_budget.BudgetTests) ... ok
+test_price_change_changes_report (test_budget.BudgetTests) ... ok
+test_reading_max_is_not_guaranteed_monthly_quota (test_budget.BudgetTests) ... ok
+test_reading_reference (test_budget.BudgetTests) ... ok
+test_reasoning_not_double_counted (test_budget.BudgetTests) ... ok
+test_reference_over_cap_rejected (test_budget.BudgetTests) ... ok
+test_registered_calls_only (test_budget.BudgetTests) ... ok
+test_retries_count_and_exceed_caps (test_budget.BudgetTests) ... ok
+test_weekly_day_is_not_daily_average (test_budget.BudgetTests) ... ok
+test_zero_reasoning_and_no_fallback_policy (test_budget.BudgetTests) ... ok
+test_generated_file_matches_budget (test_gateway_ops.GatewayOpsGenerationTest) ... ok
+test_changed_impact_requires_quantities (test_harness.HarnessTests) ... ok
+test_classification_consequence_not_size (test_harness.HarnessTests) ... ok
+test_declared_stages_are_not_tied_to_legacy_abcd (test_harness.HarnessTests) ... ok
+test_done_without_evidence_rejected (test_harness.HarnessTests) ... ok
+test_evidence_cannot_escape_repository (test_harness.HarnessTests) ... ok
+test_future_provider_verification_rejected (test_harness.HarnessTests) ... ok
+test_generated_budget_drift_detected (test_harness.HarnessTests) ... ok
+test_invalid_source_interval_rejected (test_harness.HarnessTests) ... ok
+test_local_broken_link_detected (test_harness.HarnessTests) ... ok
+test_nested_unregistered_prompt_detected (test_harness.HarnessTests) ... ok
+test_passed_eval_requires_evidence (test_harness.HarnessTests) ... ok
+test_record_approval_requires_true_boolean (test_harness.HarnessTests) ... ok
+test_record_cannot_downgrade_or_omit_changed_files (test_harness.HarnessTests) ... ok
+test_record_categories_and_impact_required (test_harness.HarnessTests) ... ok
+test_release_truthfully_blocked_before_implementation (test_harness.HarnessTests) ... ok
+test_stage_registry_must_be_nonempty_unique_names (test_harness.HarnessTests) ... ok
+test_stale_sources_detected_without_network (test_harness.HarnessTests) ... ok
+test_string_false_cannot_pass_release_approval (test_harness.HarnessTests) ... ok
+test_task_cycle_detected (test_harness.HarnessTests) ... ok
+test_undeclared_stage_is_rejected (test_harness.HarnessTests) ... ok
+test_unknown_requirement_detected (test_harness.HarnessTests) ... ok
+test_unregistered_prompt_detected (test_harness.HarnessTests) ... ok
+
+----------------------------------------------------------------------
+Ran 44 tests in 2.172s
+
+OK
+wrote src/main/model-gateway/operations.generated.ts with 6 operations
+
+
+CATEGORY: legacy-typecheck
+COMMAND: npm run typecheck
+EXIT_CODE: 0
+
+> paperdig-helper@0.0.1 typecheck
+> tsc --noEmit
+
+
+
+CATEGORY: app-tests
+COMMAND: npm run test:app
+EXIT_CODE: 1
+not ok 11 - Chinese-only queries retrieve relevant evidence rather than the first page
+not ok 12 - no evidence makes no gateway call and reports the limitation
+not ok 13 - scalar JSON is invalid for both output validators without throwing
+not ok 14 - citations cannot verify a chunk not sent in this request
+not ok 15 - assistant answer and citations commit or roll back together
+not ok 16 - duplicate import returns the same object, even with different metadata
+not ok 17 - corrupt existing content-addressed copy is rejected and never overwritten
+not ok 18 - orphan corrupt content-addressed copy cannot be adopted into the database
+not ok 19 - unknown usage on invalid output stays pending across a known retry
+not ok 20 - validator exceptions still record all usage with bounded attempts
+not ok 21 - unexpected adapter exceptions become unknown usage instead of escaping
+not ok 22 - invalid usage integers remain unknown, and invalid admission counts never send
+not ok 23 - fake selection explanation preserves the requested action and offline label
+not ok 45 - migrations apply cleanly and are idempotent
+not ok 46 - failed migration rolls back completely and keeps prior version
+# tests 54
+# pass 39
+# fail 15
+# cancelled 0
+# skipped 0
+# todo 0
+
+CATEGORY: release-block
+COMMAND: python3 scripts/harness.py check --release
+EXIT_CODE: 1
+FAIL release: owner budget approval missing
+FAIL release: implementation approval missing
+FAIL release: E-REUSE is not_run
+FAIL release: E-DATA is not_run
+FAIL release: E-RANKING is not_run
+FAIL release: E-PROFILE is not_run
+FAIL release: E-FEEDBACK-VALUE is not_run
+FAIL release: E-PRIVACY is not_run
+FAIL release: E-NO-MODEL is not_run
+FAIL release: E-OFFLINE is not_run
+FAIL release: E-RESTORE is not_run
+FAIL release: E-PERFORMANCE is not_run
+FAIL release: E-PILOT is not_run
+FAIL release: E-SECURITY is not_run
+FAIL release: E-HARNESS is not_run
+FAIL release: E-HANDOFF is not_run
+FAIL release: application budget enforcement is not implemented
+
+
+AFTER INDEPENDENT-REVIEW FIXES: gain-vs-screening, temporal protocol, CDN probe scope, multi-node cycle regression.
+
+COMMAND: python3 scripts/budget.py --check
+EXIT_CODE: 0
+PASS budget arithmetic and generated document parity (no live API)
+
+
+COMMAND: python3 scripts/harness.py check
+EXIT_CODE: 0
+PASS repository checks only; app gates/real billing are not implied
+
+
+COMMAND: python3 -m unittest discover -s tests -v
+EXIT_CODE: 0
+test_approval_and_enforcement_require_json_booleans (test_budget.BudgetTests) ... ok
+test_baseline_valid (test_budget.BudgetTests) ... ok
+test_cache_cost_not_zero (test_budget.BudgetTests) ... ok
+test_calendar_outside_supported_month_rejected (test_budget.BudgetTests) ... ok
+test_changed_tokens_and_calendar_render_dynamically (test_budget.BudgetTests) ... ok
+test_component_envelope_drift_rejected (test_budget.BudgetTests) ... ok
+test_core_calendar_not_prorated (test_budget.BudgetTests) ... ok
+test_core_cap (test_budget.BudgetTests) ... ok
+test_invalid_money_and_counts (test_budget.BudgetTests) ... ok
+test_local_maintenance_is_zero (test_budget.BudgetTests) ... ok
+test_missing_usage_is_not_zero (test_budget.BudgetTests) ... ok
+test_pending_reservations_count_in_arithmetic (test_budget.BudgetTests) ... ok
+test_price_change_changes_report (test_budget.BudgetTests) ... ok
+test_reading_max_is_not_guaranteed_monthly_quota (test_budget.BudgetTests) ... ok
+test_reading_reference (test_budget.BudgetTests) ... ok
+test_reasoning_not_double_counted (test_budget.BudgetTests) ... ok
+test_reference_over_cap_rejected (test_budget.BudgetTests) ... ok
+test_registered_calls_only (test_budget.BudgetTests) ... ok
+test_retries_count_and_exceed_caps (test_budget.BudgetTests) ... ok
+test_weekly_day_is_not_daily_average (test_budget.BudgetTests) ... ok
+test_zero_reasoning_and_no_fallback_policy (test_budget.BudgetTests) ... ok
+test_generated_file_matches_budget (test_gateway_ops.GatewayOpsGenerationTest) ... ok
+test_changed_impact_requires_quantities (test_harness.HarnessTests) ... ok
+test_classification_consequence_not_size (test_harness.HarnessTests) ... ok
+test_declared_stages_are_not_tied_to_legacy_abcd (test_harness.HarnessTests) ... ok
+test_done_without_evidence_rejected (test_harness.HarnessTests) ... ok
+test_evidence_cannot_escape_repository (test_harness.HarnessTests) ... ok
+test_future_provider_verification_rejected (test_harness.HarnessTests) ... ok
+test_generated_budget_drift_detected (test_harness.HarnessTests) ... ok
+test_invalid_source_interval_rejected (test_harness.HarnessTests) ... ok
+test_local_broken_link_detected (test_harness.HarnessTests) ... ok
+test_multi_node_task_cycle_detected (test_harness.HarnessTests) ... ok
+test_nested_unregistered_prompt_detected (test_harness.HarnessTests) ... ok
+test_passed_eval_requires_evidence (test_harness.HarnessTests) ... ok
+test_record_approval_requires_true_boolean (test_harness.HarnessTests) ... ok
+test_record_cannot_downgrade_or_omit_changed_files (test_harness.HarnessTests) ... ok
+test_record_categories_and_impact_required (test_harness.HarnessTests) ... ok
+test_release_truthfully_blocked_before_implementation (test_harness.HarnessTests) ... ok
+test_stage_registry_must_be_nonempty_unique_names (test_harness.HarnessTests) ... ok
+test_stale_sources_detected_without_network (test_harness.HarnessTests) ... ok
+test_string_false_cannot_pass_release_approval (test_harness.HarnessTests) ... ok
+test_task_cycle_detected (test_harness.HarnessTests) ... ok
+test_undeclared_stage_is_rejected (test_harness.HarnessTests) ... ok
+test_unknown_requirement_detected (test_harness.HarnessTests) ... ok
+test_unregistered_prompt_detected (test_harness.HarnessTests) ... ok
+
+----------------------------------------------------------------------
+Ran 45 tests in 2.207s
+
+OK
+wrote src/main/model-gateway/operations.generated.ts with 6 operations
+
+
+COMMAND: git diff --check
+EXIT_CODE: 0
+

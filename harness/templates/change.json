@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "YYYY-MM-DD-short-name",
+  "class": "standard",
+  "summary": "Replace with one coherent work unit",
+  "tasks": ["REPLACE_WITH_TASK_ID"],
+  "files": [],
+  "budget_impact": {
+    "runtime": "zero_or_changed_or_not_applicable",
+    "rationale": "Explain every new call, or why runtime behavior does not change",
+    "before": "baseline id and scenario input/output/USD, or initial proposal",
+    "after": "baseline id and scenario input/output/USD, or unchanged",
+    "developer_usage": "unknown unless measured by agent host"
+  },
+  "checks": [
+    {"category": "repository", "command": "python3 scripts/harness.py check", "exit_code": null, "evidence": "docs/evidence/REPLACE.txt"},
+    {"category": "tests", "command": "python3 -m unittest discover -s tests -v", "exit_code": null, "evidence": "docs/evidence/REPLACE.txt"}
+  ],
+  "reviews": [],
+  "owner_approved": false,
+  "open_risks": []
+}

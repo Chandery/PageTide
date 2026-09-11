@@ -1,0 +1,6 @@
+#!/bin/sh
+# Optional local hook. Not enabled automatically.
+set -eu
+python3 scripts/budget.py --check
+python3 scripts/harness.py check
+python3 -m unittest discover -s tests -v
