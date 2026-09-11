@@ -428,10 +428,10 @@
     <button class="tiny ghost" id="readerToggleSide" title="页面缩略图">☰</button>
     <h2 id="readerTitle"></h2>
     <span class="stat" id="readerInfo"></span>
-    <div class="zoombar">
-      <button class="tiny ghost" id="zoomOut">−</button><span id="zoomLabel">100%</span>
-      <button class="tiny ghost" id="zoomIn">+</button>
-      <button class="tiny ghost" id="zoomFit">适宽</button>
+    <div class="zoombar" title="触摸板双指捏合，或按住 ⌘/⌥ 滚动来缩放">
+      <button class="tiny ghost" id="zoomOut" title="缩小">−</button><span id="zoomLabel">100%</span>
+      <button class="tiny ghost" id="zoomIn" title="放大">+</button>
+      <button class="tiny ghost" id="zoomFit" title="适应宽度">适宽</button>
     </div>
     <button class="tiny" id="readerNative" title="用浏览器自带阅读器打开（原生清晰、带边栏）">浏览器打开</button>
     <button class="tiny" id="readerAsk">对这篇提问</button>
@@ -859,6 +859,7 @@ async function openReader(key, title) {
   R.side = true;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
+  R.pendingZoom = null; R.renderedScale = null;
   const url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
   R.url = url; R.key = key;
   try { await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
@@ -924,11 +925,19 @@ async function layoutPages() {
     box.appendChild(wrap);
     R.observer.observe(wrap);
   }
-  $('#zoomLabel').textContent = `${Math.round(pageScale(R.pages[0]) * 100)}%`;
+  const usedScale = pageScale(R.pages[0]);
+  R.renderedScale = usedScale;
+  $('#zoomLabel').textContent = `${Math.round(usedScale * 100)}%`;
   // Restore the exact position after the rebuild.
   requestAnimationFrame(() => {
     const target = document.querySelector(`.pgwrap[data-n="${keepPage}"]`);
     if (target) box.scrollTop = Math.max(0, target.offsetTop + anchor.within + anchor.top - prevTop);
+    // Keep the point under the cursor fixed while zooming.
+    const pending = R.pendingZoom;
+    if (pending) {
+      R.pendingZoom = null;
+      box.scrollTop = Math.max(0, (box.scrollTop + pending.localY) * pending.factor - pending.localY);
+    }
     markCurrent(keepPage);
   });
 }
@@ -1086,8 +1095,8 @@ async function renderThumb(n) {
 }
 
 $('#readerToggleSide').onclick = () => { R.side = !R.side; $('#reader').classList.toggle('side', R.side); };
-$('#zoomIn').onclick = async () => { R.fit = false; R.scale = Math.min(3, (R.scale || pageScale(R.pages[0])) + 0.2); await layoutPages(); };
-$('#zoomOut').onclick = async () => { R.fit = false; R.scale = Math.max(0.4, (R.scale || pageScale(R.pages[0])) - 0.2); await layoutPages(); };
+$('#zoomIn').onclick = () => setScale(currentScale() + 0.2);
+$('#zoomOut').onclick = () => setScale(currentScale() - 0.2);
 $('#zoomFit').onclick = async () => { R.fit = true; await layoutPages(); };
 $('#readerNative').onclick = () => { if (R.url) window.open(R.url, '_blank'); };
 // Re-fit the pages whenever the available width changes (panel docking, window resize).
@@ -1254,6 +1263,59 @@ $('#petClose').onclick = () => setPetOpen(false);
 $('#petClear').onclick = () => { $('#petLog').innerHTML = ''; };
 $('#petSend').onclick = () => { const v = $('#petInput').value; $('#petInput').value = ''; ask(v); };
 $('#petInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const v = e.target.value; e.target.value = ''; ask(v); } });
+/* ---------------------------------------------- zoom: pinch + modifier scroll
+   macOS delivers zoom in two shapes: Chrome/Edge/Brave send wheel events with
+   ctrlKey (trackpad pinch) and the user may also use Cmd or Option + scroll;
+   Safari sends gesturestart/gesturechange/gestureend. Both are handled here and
+   the browser's own page zoom is suppressed while the pointer is over the pages. */
+let zoomTimer = null, gestureBase = null;
+
+function currentScale() {
+  return R.fit ? pageScale(R.pages[0]) : (R.scale || 1.2);
+}
+
+function setScale(newScale, clientY) {
+  if (!R.doc || !R.pages.length) return;
+  const box = $('#readerPages');
+  const rect = box.getBoundingClientRect();
+  const localY = typeof clientY === 'number' ? clientY - rect.top : box.clientHeight / 2;
+  // Anchor against the scale the DOM was last rendered at, so a burst of pinch
+  // events accumulates correctly instead of overwriting each other's delta.
+  const renderedScale = R.renderedScale || currentScale();
+  const clamped = Math.min(3, Math.max(0.4, newScale));
+  if (Math.abs(clamped - currentScale()) < 0.001) return;
+  R.fit = false;
+  R.scale = clamped;
+  R.pendingZoom = { localY, factor: clamped / renderedScale };
+  if (zoomTimer) clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => { zoomTimer = null; layoutPages(); }, 140);
+}
+
+function zoomBy(factor, clientY) { setScale(currentScale() * factor, clientY); }
+
+const pagesBox = $('#readerPages');
+pagesBox.addEventListener('wheel', (event) => {
+  if (!R.doc) return;
+  const zoomModifier = event.ctrlKey || event.metaKey || event.altKey;
+  if (!zoomModifier) return;                       // plain two-finger scroll keeps scrolling
+  event.preventDefault();                          // never zoom the whole page
+  setScale(currentScale() * Math.exp(-event.deltaY * 0.0032), event.clientY);
+}, { passive: false });
+
+pagesBox.addEventListener('gesturestart', (event) => {   // Safari trackpad pinch
+  if (!R.doc) return;
+  event.preventDefault();
+  gestureBase = currentScale();
+}, { passive: false });
+pagesBox.addEventListener('gesturechange', (event) => {
+  if (!R.doc || gestureBase === null) return;
+  event.preventDefault();
+  setScale(gestureBase * event.scale, event.clientY);
+}, { passive: false });
+pagesBox.addEventListener('gestureend', () => { gestureBase = null; }, { passive: false });
+// Safari also fires ctrl-wheel for pinch; avoid double-applying during a gesture.
+pagesBox.addEventListener('wheel', (event) => { if (gestureBase !== null) event.preventDefault(); }, { passive: false });
+
 $('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false); };
 $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
