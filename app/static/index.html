@@ -256,6 +256,11 @@
             box-shadow:var(--sh-out); border-radius:999px; }
   #selbar.show { display:flex; animation:pop .16s ease both; }
 
+  .devbanner { max-width:1080px; margin:10px auto 0; padding:9px 14px; border-radius:12px; font-size:12.5px;
+               border:1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
+               background:color-mix(in srgb, var(--warn) 14%, transparent); }
+  .devbanner b { color:var(--warn); }
+
   #toasts { position:fixed; right:18px; bottom:18px; z-index:95; display:flex; flex-direction:column; gap:10px; }
   .toast { padding:13px 17px; font-size:13px; background:var(--base); box-shadow:var(--sh-out);
            border-radius:var(--r-md); animation:pop .24s ease both; max-width:380px;
@@ -343,6 +348,7 @@
   </div>
 </header>
 
+<div id="devbanner" class="devbanner" style="display:none"></div>
 <main>
   <section id="view-today">
     <section class="hero">
@@ -546,10 +552,20 @@ function renderProfile() {
 async function load() {
   const data = await api('/api/home');
   state.version = data.server_version || '?';
+  state.usage = data.usage || null;
+  state.devMode = Boolean(data.dev_mode);
+  const banner = document.getElementById('devbanner');
+  banner.style.display = state.devMode ? 'block' : 'none';
+  if (state.devMode) {
+    banner.innerHTML = '<b>测试模式</b> · 独立账本与宽松额度，不消耗也不改动正式预算。' +
+      (state.usage ? ` 今日测试用量 ${state.usage.tokens.toLocaleString()} / ${state.usage.ceiling.toLocaleString()} token。` : '');
+  }
   state.stats = data.stats; state.profile = data.profile; state.summaries = data.summaries || {};
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
   renderStats(); renderCards(); renderProfile();
-  $('#foot').textContent = `本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`;
+  const u = state.usage;
+  $('#foot').textContent = `本地运行 · 数据在 .local/app · 服务端版本 ${state.version}` +
+    (u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
 }
 async function loadLibrary() {
   const data = await api('/api/library');

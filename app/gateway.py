@@ -13,12 +13,26 @@ from pathlib import Path
 
 BUDGET = Path("harness/budget.json")
 USAGE = Path(".local/app/usage.jsonl")
+# --- test mode -----------------------------------------------------------------
+# Testing must not be blocked by (or consume) the owner-approved runtime ceilings.
+# PDH_DEV=1 or the presence of .local/app/DEV_MODE switches to a SEPARATE ledger and
+# a separate, deliberately loose ceiling. The shipped runtime limits are untouched,
+# and dev spend can never be mistaken for runtime usage.
+DEV_MARKER = Path(".local/app/DEV_MODE")
+DEV_LEDGER = Path(".local/app/usage-dev.jsonl")
+DEV_POLICY = {"daily_total_tokens": 5_000_000, "monthly_total_tokens": 50_000_000,
+              "daily_usd": "10.00", "monthly_usd": "50.00"}
 ENV_FILE = Path(".local/deepseek.env")
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 
 
 def load_budget(root="."):
     return json.loads((Path(root) / BUDGET).read_text())
+
+
+def dev_mode_enabled(root="."):
+    import os
+    return os.environ.get("PDH_DEV") == "1" or (Path(root) / DEV_MARKER).exists()
 
 
 def _load_key():
@@ -45,10 +59,18 @@ class BudgetExceeded(RuntimeError):
 
 
 class Gateway:
-    def __init__(self, root=".", ledger=USAGE):
+    def __init__(self, root=".", ledger=USAGE, dev=None):
         self.root = Path(root)
         self.config = load_budget(root)
-        self.ledger = Path(root) / ledger
+        self.dev = dev_mode_enabled(root) if dev is None else bool(dev)
+        self.ledger = Path(root) / (DEV_LEDGER if self.dev else ledger)
+
+    def limits(self):
+        """Runtime ceilings by default; the separate dev ceilings only in test mode."""
+        policy = dict(self.config["policy"])
+        if self.dev:
+            policy.update(DEV_POLICY)
+        return policy
 
     # ------------------------------------------------------------ accounting
     def _entries(self, day, month):
@@ -80,16 +102,22 @@ class Gateway:
         cap_in, cap_out = op["cap"]["input"], op["cap"]["output"]
         reserve_usd = _cost(provider, cap_in, cap_out)
         tokens, usd = self._usage(day, month)
-        policy = self.config["policy"]
+        policy = self.limits()
         if tokens + cap_in + cap_out > policy["daily_total_tokens"]:
-            raise BudgetExceeded("daily token ceiling")
+            raise BudgetExceeded(f"daily token ceiling ({tokens:,}/{policy['daily_total_tokens']:,} used)")
         if tokens + cap_in + cap_out > policy["monthly_total_tokens"]:
-            raise BudgetExceeded("monthly token ceiling")
+            raise BudgetExceeded(f"monthly token ceiling ({tokens:,}/{policy['monthly_total_tokens']:,} used)")
         if usd + reserve_usd > Decimal(str(policy["daily_usd"])):
-            raise BudgetExceeded("daily USD ceiling")
+            raise BudgetExceeded(f"daily USD ceiling (${usd:.4f}/${policy['daily_usd']} used)")
         if usd + reserve_usd > Decimal(str(policy["monthly_usd"])):
-            raise BudgetExceeded("monthly USD ceiling")
+            raise BudgetExceeded(f"monthly USD ceiling (${usd:.4f}/${policy['monthly_usd']} used)")
         return cap_in, cap_out, reserve_usd
+
+    def usage_today(self):
+        import datetime
+        today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+        tokens, usd = self._usage(today, today[:7])
+        return {"tokens": tokens, "usd": str(usd), "ceiling": self.limits()["daily_total_tokens"], "dev": self.dev}
 
     def _record(self, date, operation, usage, usd, model):
         self.ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -139,4 +167,4 @@ class Gateway:
                     usage.get("prompt_cache_hit_tokens", 0))
         self._record(today, operation, usage, usd, model)
         content = ((payload.get("choices") or [{}])[0].get("message") or {}).get("content", "")
-        return {"ok": True, "content": content, "usage": usage, "usd": str(usd), "model": model}
+        return {"ok": True, "content": content, "usage": usage, "usd": str(usd), "model": model, "dev": self.dev}

@@ -92,6 +92,17 @@ class GatewayTests(unittest.TestCase):
             self.assertEqual(result["operation"], "daily_triage")
             self.assertIn("reservation", result)
 
+    def test_dev_mode_uses_separate_ledger_and_loose_limits(self):
+        from app.gateway import DEV_LEDGER, DEV_POLICY, Gateway
+        runtime = Gateway(root=".", ledger=Path(self.tmp.name) / "runtime.jsonl", dev=False)
+        dev = Gateway(root=".", ledger=Path(self.tmp.name) / "runtime.jsonl", dev=True)
+        self.assertEqual(runtime.ledger.name, "runtime.jsonl")
+        self.assertEqual(dev.ledger, Path(".") / DEV_LEDGER)
+        self.assertEqual(runtime.limits()["daily_total_tokens"], runtime.config["policy"]["daily_total_tokens"])
+        self.assertEqual(dev.limits()["daily_total_tokens"], DEV_POLICY["daily_total_tokens"])
+        self.assertGreater(dev.limits()["daily_total_tokens"], runtime.limits()["daily_total_tokens"])
+        self.assertNotEqual(dev.ledger, runtime.ledger)
+
     def test_unregistered_operation_is_rejected(self):
         gateway = Gateway(root=".", ledger=Path(self.tmp.name) / "usage.jsonl")
         result = gateway.call("not_registered", [], dry_run=True)

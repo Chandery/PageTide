@@ -91,6 +91,9 @@ class App:
         return ranking.rocchio(seed_vectors, pos, neg, weights.get("pos", 1.0), weights.get("neg", 0.5))
 
     # ------------------------------------------------------------------ daily
+    def usage(self):
+        return self.gateway.usage_today()
+
     def stats(self):
         feedback = self.latest_feedback()
         return {

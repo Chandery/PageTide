@@ -31,6 +31,7 @@ def _print_cards(cards, triage=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", default=None)
+    parser.add_argument("--dev", action="store_true", help="test mode: separate ledger and loose ceilings")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init")
@@ -69,6 +70,9 @@ def main(argv=None):
     triage.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args(argv)
+    if getattr(args, "dev", False):
+        import os
+        os.environ["PDH_DEV"] = "1"
     app = App(data_dir=args.data_dir)
 
     if args.command == "init":

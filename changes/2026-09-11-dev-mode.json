@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-dev-mode",
+  "class": "critical",
+  "summary": "Add a local, explicit test mode so development is not blocked by the owner-approved runtime ceilings. PDH_DEV=1 or .local/app/DEV_MODE switches the gateway to a separate ledger (.local/app/usage-dev.jsonl) with separate loose ceilings; runtime ceilings and the runtime ledger are untouched. Adds a UI test-mode banner, CLI --dev, documented on/off steps and ceiling messages that name actual usage.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/cli.py",
+    "app/gateway.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/index.html",
+    "changes/2026-09-11-dev-mode.json",
+    "docs/BUDGET.md",
+    "docs/evidence/2026-09-11-dev-mode-checks.txt",
+    "docs/evidence/2026-09-11-dev-mode-self-review.md",
+    "tests/test_app_core.py"
+  ],
+  "scope_note": "Covers the diff since commit d4739a3. Gateway/CLI/UI/docs; verification used the dev ledger, so the runtime ledger is unchanged.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "The approved runtime ceilings and prices are unchanged and the runtime ledger did not grow. Dev spend is recorded separately and is explicitly test-only.",
+    "before": "Testing consumed the approved daily budget and hit the 55,000-token ceiling.",
+    "after": "Testing uses a separate ledger with its own ceilings; runtime budget untouched.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-dev-mode-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-dev-mode-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-dev-mode-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --check",
+      "exit_code": 0,
+      "scope": "Both inline scripts parse"
+    },
+    {
+      "command": "live dev mode + ledger separation",
+      "exit_code": 0,
+      "scope": "dev_mode true; a call refused by the runtime ceiling succeeded; runtime ledger unchanged at 38 entries, dev ledger +1"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; budget tooling only, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-dev-mode-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "The dev marker currently exists on this machine; it must be removed before any release or budget verification.",
+    "Dev ceilings are loose, so a runaway loop during testing is bounded only by them.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

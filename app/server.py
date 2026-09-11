@@ -102,6 +102,7 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app()
             self._json({"server_version": VERSION, "stats": app.stats(), "profile": app.profile(),
                         "cards": app.cards(), "summaries": app.store.summaries(),
+                        "usage": app.usage(), "dev_mode": app.gateway.dev,
                         "latest_jobs": list(JOBS.values())[-3:]})
         elif route == "/api/state":  # kept for compatibility
             app = self._app()

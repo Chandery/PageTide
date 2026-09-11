@@ -1,0 +1,30 @@
+# Evidence: separate test mode (dev ledger + loose ceilings)
+# Date: 2026-09-11 UTC
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 103 tests in 7.799s
+
+OK
+exit=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/budget.py --check   # approved table unchanged
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ runtime ledger vs dev ledger
+runtime entries:       38
+dev entries:        1
+
+$ node --check
+scripts: 2
+  /tmp/de_0.mjs OK
+  /tmp/de_1.mjs OK
+exit=0
+
+$ git diff --check
+exit=0
