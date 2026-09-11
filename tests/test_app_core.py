@@ -187,6 +187,37 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(explanation["shared_terms"])
         self.assertIn("领域：Robotics", explanation["why"])
 
+    def test_qa_parses_answer_and_followups(self):
+        import json as _json
+        class FakeGateway:
+            def call(self, op, messages, dry_run=False):
+                return {"ok": True, "content": _json.dumps(
+                    {"answer": "**答**案", "followups": ["q1", "q2", "q3", "q4"]}),
+                    "usage": {"total_tokens": 10}, "usd": "0.0001", "model": "fake"}
+        self.app.gateway = FakeGateway()
+        result = self.app.qa("p1", "这篇讲什么？")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["answer"], "**答**案")
+        self.assertEqual(result["followups"], ["q1", "q2", "q3"])  # capped at three
+        self.assertEqual([h["role"] for h in self.app.qa_history("p1")], ["user", "assistant"])
+
+    def test_qa_falls_back_to_raw_text_without_json(self):
+        class FakeGateway:
+            def call(self, op, messages, dry_run=False):
+                return {"ok": True, "content": "纯文本回答", "usage": {"total_tokens": 5},
+                        "usd": "0.00005", "model": "fake"}
+        self.app.gateway = FakeGateway()
+        result = self.app.qa("p1", "问")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["answer"], "纯文本回答")
+        self.assertEqual(result["followups"], [])
+
+    def test_qa_dry_run_records_no_history(self):
+        result = self.app.qa("p1", "问", dry_run=True)
+        self.assertFalse(result["ok"])
+        self.assertTrue(result["degraded"])
+        self.assertEqual(self.app.qa_history("p1"), [])
+
     def test_cards_have_distinct_reasons(self):
         self.app.build_batch(limit=2)
         cards = self.app.cards()

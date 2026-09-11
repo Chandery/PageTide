@@ -293,16 +293,30 @@ class App:
         messages = [{"role": "system", "content": self.QA_SYSTEM}]
         for entry in self.store.qa_history(paper_key)[-6:]:
             messages.append({"role": entry["role"], "content": entry["content"]})
-        messages.append({"role": "user", "content": "\n\n".join(parts) + f"\n\n问题：{question}"})
+        messages.append({"role": "user", "content":
+                         "\n\n".join(parts) + f"\n\n问题：{question}\n\n"
+                         '只输出 JSON：{"answer": "回答（可用 Markdown）", '
+                         '"followups": ["基于本次问答的追问1", "追问2", "追问3"]}'})
         result = self.gateway.call("paper_qa", messages, dry_run=dry_run)
         if dry_run or not result.get("ok"):
             return {"ok": False, "degraded": True, "reason": result.get("reason"),
                     "reservation": result.get("reservation"), "dry_run": bool(dry_run)}
-        answer = (result.get("content") or "").strip()
+        raw = (result.get("content") or "").strip()
+        answer, followups = raw, []
+        import re as _re
+        match = _re.search(r"\{.*\}", raw, _re.S)
+        if match:
+            try:
+                payload = json.loads(match.group(0))
+                answer = (payload.get("answer") or raw).strip()
+                followups = [str(q).strip() for q in (payload.get("followups") or []) if str(q).strip()][:3]
+            except ValueError:
+                pass  # keep the raw answer when the model does not return valid JSON
         if paper_key:
             self.store.add_qa(paper_key, "user", question)
             self.store.add_qa(paper_key, "assistant", answer)
-        return {"ok": True, "answer": answer, "usage": result["usage"], "usd": result["usd"], "model": result["model"]}
+        return {"ok": True, "answer": answer, "followups": followups,
+                "usage": result["usage"], "usd": result["usd"], "model": result["model"]}
 
     def translate(self, text, dry_run=False):
         text = (text or "").strip()

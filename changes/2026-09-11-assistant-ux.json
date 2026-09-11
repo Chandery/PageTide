@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-assistant-ux",
+  "class": "critical",
+  "summary": "Assistant UX round from owner feedback: docking the panel no longer jumps the PDF back to page 1 (layoutPages preserves and restores the current page); suggested questions are now regenerated from the model's per-answer followups; the paper title is shown prominently; the selection becomes a removable 'citation' chip above the input instead of stuffed context text; translation moved out of the assistant into its own popover; and selection accuracy is fixed by adopting pdf.js's own textLayer class and CSS contract, with ✕/Escape to cancel a selection.",
+  "tasks": [
+    "PILOT-01",
+    "AI-02"
+  ],
+  "files": [
+    "app/service.py",
+    "app/static/index.html",
+    "changes/2026-09-11-assistant-ux.json",
+    "docs/evidence/2026-09-11-assistant-ux-checks.txt",
+    "docs/evidence/2026-09-11-assistant-ux-self-review.md",
+    "tests/test_app_core.py"
+  ],
+  "scope_note": "Covers the diff since commit e691baa. UI + QA response contract; two real paper_qa calls to verify followups.",
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "The paper_qa prompt now requests JSON with followups; the operation and its ceiling are unchanged. Two verification calls were made and ledgered in .local/app/usage.jsonl.",
+    "before": "QA returned an answer only and the chips were static.",
+    "after": "QA returns answer + up to three context-aware followups; no budget or provider change.",
+    "period": "two calls on 2026-09-11",
+    "quantified": {
+      "period": "two calls",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0.0000"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-assistant-ux-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-assistant-ux-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-assistant-ux-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --check on both inline scripts",
+      "exit_code": 0,
+      "scope": "Both scripts parse"
+    },
+    {
+      "command": "live QA followups",
+      "exit_code": 0,
+      "scope": "Two calls returned three context-specific followups each"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; UI/UX work, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-assistant-ux-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Selection accuracy follows the standard pdf.js contract but is still not visually verified by the agent.",
+    "Followups depend on the model honouring the JSON contract; otherwise the previous chips remain.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

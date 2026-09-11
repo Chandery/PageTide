@@ -186,9 +186,13 @@
                    align-items:center; gap:22px; }
   .reader .pg { position:relative; background:#fff; box-shadow:0 12px 34px rgba(0,0,0,.4); }
   .reader .pg canvas { display:block; }
-  .reader .txt { position:absolute; inset:0; overflow:hidden; line-height:1; }
-  .reader .txt span { position:absolute; white-space:pre; transform-origin:0 0; color:transparent; cursor:text; }
-  .reader .txt span::selection { background:color-mix(in srgb, var(--accent) 45%, transparent); }
+  /* pdf.js TextLayer contract (copied from pdf_viewer.css) — do not change. */
+  .reader .textLayer { position:absolute; text-align:initial; inset:0; overflow:clip; opacity:1; line-height:1;
+                       text-size-adjust:none; forced-color-adjust:none; transform-origin:0 0; caret-color:CanvasText; z-index:0; }
+  .reader .textLayer :is(span, br) { color:transparent; position:absolute; white-space:pre; cursor:text; transform-origin:0% 0%; }
+  .reader .textLayer ::selection { background:color-mix(in srgb, var(--accent) 45%, transparent); }
+  .reader .textLayer br::selection { background:transparent; }
+  .reader .textLayer .endOfContent { display:block; position:absolute; inset:100% 0 0; z-index:0; cursor:default; user-select:none; }
   .reader .rload { margin:auto; color:var(--muted); font-size:13px; display:flex; gap:10px; align-items:center; }
   .reader .rbody { flex:1; display:flex; min-height:0; }
   .reader .rside { width:158px; overflow:auto; padding:12px 10px; box-shadow:var(--sh-in-sm); display:none;
@@ -225,8 +229,19 @@
   .petpanel.open { display:flex; animation:pop .22s ease both; }
   .petpanel header { padding:12px 14px; display:flex; align-items:center; gap:8px; box-shadow:var(--sh-in-sm); }
   .petpanel header b { font-size:13px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .pctx { font-size:11.5px; color:var(--muted); padding:9px 12px; margin:10px 14px 0;
-          box-shadow:var(--sh-in-sm); border-radius:var(--r-sm); max-height:76px; overflow:auto; }
+  .ptitle { font-size:14.5px; font-weight:650; line-height:1.45; padding:12px 14px 0; }
+  .ptitle small { display:block; font-weight:400; font-size:11.5px; color:var(--muted); margin-top:3px; }
+  .pref { padding:8px 14px 0; display:flex; gap:6px; flex-wrap:wrap; }
+  .refchip { font-size:11.5px; padding:4px 9px; border-radius:9px; box-shadow:var(--sh-in-sm);
+             display:inline-flex; gap:7px; align-items:center; max-width:100%; }
+  .refchip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:250px; }
+  .refchip b { cursor:pointer; color:var(--muted); }
+  .refchip b:hover { color:var(--bad); }
+  #transPop { position:fixed; z-index:97; display:none; width:min(400px,92vw); padding:14px 16px;
+              background:var(--base); box-shadow:var(--sh-out); border-radius:var(--r-md); }
+  #transPop.show { display:block; animation:pop .16s ease both; }
+  #transPop .tlabel { font-size:11.5px; color:var(--muted); margin-bottom:6px; }
+  #transPop .tbody { font-size:13.5px; line-height:1.7; max-height:34vh; overflow:auto; }
   .plog { flex:1; overflow:auto; padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
   .msg { font-size:13px; line-height:1.62; padding:9px 12px; border-radius:var(--r-md); max-width:90%;
          white-space:pre-wrap; word-break:break-word; }
@@ -339,7 +354,8 @@
     <button class="tiny ghost" id="petClear">清空</button>
     <button class="tiny ghost" id="petClose">✕</button>
   </header>
-  <div class="pctx" id="petCtx">未选择论文。在卡片点「阅读 PDF」，或选中文字后追问。</div>
+  <div class="ptitle" id="petPaper">未选择论文<small>在卡片点「阅读 PDF」，或选中文字后追问</small></div>
+  <div class="pref" id="petRef"></div>
   <div class="sugg" id="petSugg"></div>
   <div class="plog" id="petLog"></div>
   <div class="prow">
@@ -348,7 +364,8 @@
   </div>
 </div>
 <div class="pet" id="pet" title="阅读助手">🐾</div>
-<div id="selbar"><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button></div>
+<div id="selbar"><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button><button class="tiny ghost" data-sel="clear" title="取消选择">✕</button></div>
+<div id="transPop"></div>
 
 <div id="preview"></div>
 <div id="detail" class="page hidden"></div>
@@ -666,8 +683,25 @@ const $ = (s) => document.querySelector(s);
 const pet = { key: null, title: null, selection: null, busy: false };
 window.PDHSetContext = (key, title) => {
   pet.key = key; pet.title = title;
-  $('#petCtx').textContent = title ? `当前论文：${title}` : '未选择论文。';
+  $('#petPaper').innerHTML = title
+    ? esc(title) + '<small>正在阅读 · 可选中文字追问</small>'
+    : '未选择论文<small>在卡片点「阅读 PDF」，或选中文字后追问</small>';
 };
+function setReference(text) {
+  pet.selection = text || null;
+  const box = $('#petRef');
+  box.innerHTML = '';
+  if (!text) return;
+  const chip = document.createElement('div');
+  chip.className = 'refchip';
+  const label = document.createElement('span');
+  label.textContent = `引用：${text.replace(/\s+/g, ' ').slice(0, 120)}`;
+  const kill = document.createElement('b');
+  kill.textContent = '✕';
+  kill.onclick = () => setReference(null);
+  chip.append(label, kill);
+  box.appendChild(chip);
+}
 
 /* ---------------------------------------------------------------- reader */
 let pdfjs = null;
@@ -719,6 +753,7 @@ function pageScale(page) {
 
 async function layoutPages() {
   const box = $('#readerPages');
+  const keepPage = R.current || 1;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   box.innerHTML = '';
   R.jobs = new Map();
@@ -740,7 +775,7 @@ async function layoutPages() {
     const canvas = document.createElement('canvas');
     pageDiv.appendChild(canvas);
     const textDiv = document.createElement('div');
-    textDiv.className = 'txt';
+    textDiv.className = 'textLayer';
     pageDiv.appendChild(textDiv);
     const num = document.createElement('div');
     num.className = 'pgno';
@@ -750,6 +785,11 @@ async function layoutPages() {
     R.observer.observe(wrap);
   }
   $('#zoomLabel').textContent = `${Math.round(pageScale(R.pages[0]) * 100)}%`;
+  // Keep the reader where the user was; re-layout must not jump back to page 1.
+  requestAnimationFrame(() => {
+    document.querySelector(`.pgwrap[data-n="${keepPage}"]`)?.scrollIntoView({ block: 'start' });
+    markCurrent(keepPage);
+  });
 }
 
 function renderPage(n) {
@@ -761,7 +801,7 @@ function renderPage(n) {
     if (!wrap) return;
     const pageDiv = wrap.querySelector('.pg');
     const canvas = pageDiv.querySelector('canvas');
-    const textDiv = pageDiv.querySelector('.txt');
+    const textDiv = pageDiv.querySelector('.textLayer');
     const vp = page.getViewport({ scale: pageScale(page) });
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(vp.width * dpr);
@@ -840,10 +880,11 @@ window.addEventListener('resize', () => {
 window.PDH.openReader = openReader;
 
 /* --------------------------------------------------------- selection bar */
-let selText = '';
+let selText = '', selRect = null;
 function hideSel() { $('#selbar').classList.remove('show'); }
 function showSel(rect, text) {
   selText = text;
+  selRect = rect;
   const bar = $('#selbar');
   bar.classList.add('show');
   bar.style.left = `${Math.min(Math.max(10, rect.left), Math.max(10, window.innerWidth - bar.offsetWidth - 10))}px`;
@@ -855,7 +896,8 @@ document.addEventListener('mouseup', (e) => {
   const text = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
   const zone = e.target.closest && (e.target.closest('#readerPages') || e.target.closest('#detail'));
   if (!text || !zone) { hideSel(); return; }
-  showSel(sel.getRangeAt(0).getBoundingClientRect(), text);
+  selRect = sel.getRangeAt(0).getBoundingClientRect();
+  showSel(selRect, text);
 });
 document.addEventListener('scroll', hideSel, true);
 
@@ -880,10 +922,10 @@ const SUGGESTIONS = [
   '如果要复现，关键步骤是什么？',
   '有哪些想法可以直接用到我的研究里？',
 ];
-function renderSuggestions() {
+function renderSuggestions(list) {
   const box = $('#petSugg');
   box.innerHTML = '';
-  for (const q of SUGGESTIONS) {
+  for (const q of (list && list.length ? list : SUGGESTIONS)) {
     const b = document.createElement('button');
     b.className = 'tiny';
     b.textContent = q;
@@ -911,19 +953,38 @@ async function ask(question) {
     const r = await api('/api/qa', { key: pet.key, question, selection: pet.selection });
     thinking.remove();
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : `AI 不可用：${r.reason || '未知'}`);
-    if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+    if (r.ok) {
+      toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+      renderSuggestions(r.followups);   // follow-ups are regenerated from the exchange
+    }
   } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
-  finally { pet.busy = false; pet.selection = null; }
+  finally { pet.busy = false; setReference(null); }
 }
-async function translate(text) {
-  openPet();
-  addMsg('user', `翻译：${text.slice(0, 90)}${text.length > 90 ? '…' : ''}`);
-  const thinking = addMsg('sys', '翻译中…');
+async function translate(text, rect) {
+  const pop = $('#transPop');
+  pop.innerHTML = '<div class="tlabel">翻译中…</div>';
+  placeTransPop(rect);
+  pop.classList.add('show');
   try {
     const r = await api('/api/translate', { text });
-    thinking.remove();
-    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.translation : `翻译不可用：${r.reason || '未知'}`);
-  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
+    pop.innerHTML = `<div class="tlabel">划词翻译</div><div class="tbody">${
+      r.ok ? window.PDH.md(r.translation) : '翻译不可用：' + (r.reason || '未知')}</div>
+      <div class="row" style="margin-top:10px">
+        <button class="tiny" id="transCopy">复制</button>
+        <button class="tiny ghost" id="transClose">关闭</button></div>`;
+    $('#transCopy').onclick = () => { navigator.clipboard?.writeText(pop.innerText).then(() => toast('已复制')); };
+    $('#transClose').onclick = () => pop.classList.remove('show');
+  } catch (e) {
+    pop.innerHTML = `<div class="tlabel">翻译失败</div><div class="tbody">${esc(e.message)}</div>`;
+  }
+}
+function placeTransPop(rect) {
+  const pop = $('#transPop');
+  pop.style.left = '0px'; pop.style.top = '0px';
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  const r = rect || { left: 40, top: 80, bottom: 100 };
+  pop.style.left = `${Math.min(Math.max(10, r.left), Math.max(10, innerWidth - w - 10))}px`;
+  pop.style.top = `${Math.min(Math.max(10, r.bottom + 10), Math.max(10, innerHeight - h - 10))}px`;
 }
 $('#pet').onclick = () => setPetOpen(!$('#petPanel').classList.contains('open'));
 $('#petClose').onclick = () => setPetOpen(false);
@@ -935,10 +996,14 @@ $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sel]');
   if (!btn) return;
-  const text = selText;
+  const text = selText, rect = selRect;
   hideSel();
-  if (btn.dataset.sel === 'translate') translate(text);
-  else { pet.selection = text; openPet(); $('#petCtx').textContent = `当前论文：${pet.title || '（未选）'}\n选中：${text.slice(0, 140)}`; $('#petInput').focus(); }
+  if (btn.dataset.sel === 'clear') { window.getSelection()?.removeAllRanges(); return; }
+  if (btn.dataset.sel === 'translate') translate(text, rect);
+  else { setReference(text); openPet(); $('#petInput').focus(); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { hideSel(); $('#transPop').classList.remove('show'); window.getSelection()?.removeAllRanges(); }
 });
 </script>
 </body>
