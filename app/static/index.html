@@ -192,7 +192,7 @@
                      text-overflow:ellipsis; white-space:nowrap; }
   .reader .pages { flex:1; overflow:auto; padding:22px 0 60px; display:flex; flex-direction:column;
                    align-items:center; gap:22px; }
-  .reader .pg { position:relative; background:#fff; box-shadow:0 12px 34px rgba(0,0,0,.4); }
+  .reader .pg { position:relative; background:#fff; box-shadow:0 12px 34px rgba(0,0,0,.4); transform-origin:0 0; }
   .reader .pg canvas { display:block; }
   /* pdf.js TextLayer contract (copied from pdf_viewer.css) — do not change. */
   .reader .textLayer { position:absolute; text-align:initial; inset:0; overflow:clip; opacity:1; line-height:1;
@@ -859,7 +859,7 @@ async function openReader(key, title) {
   R.side = true;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
-  R.pendingZoom = null; R.renderedScale = null;
+  R.pendingZoom = null; R.renderedScale = null; R.zoomBase = null;
   const url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
   R.url = url; R.key = key;
   try { await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
@@ -909,6 +909,8 @@ async function layoutPages() {
     const wrap = document.createElement('div');
     wrap.className = 'pgwrap';
     wrap.dataset.n = i + 1;
+    wrap.dataset.baseW = String(Math.round(vp.width));
+    wrap.dataset.baseH = String(Math.round(vp.height));
     const pageDiv = document.createElement('div');
     pageDiv.className = 'pg';
     pageDiv.style.width = `${vp.width}px`;
@@ -928,15 +930,21 @@ async function layoutPages() {
   const usedScale = pageScale(R.pages[0]);
   R.renderedScale = usedScale;
   $('#zoomLabel').textContent = `${Math.round(usedScale * 100)}%`;
-  // Restore the exact position after the rebuild.
+  // Restore the reading position after the rebuild. The old formula reduced to
+  // "jump to the top of the page" (within cancels out), which is why zooming and
+  // 适宽 both felt like a jump; keep the fraction of the page instead.
   requestAnimationFrame(() => {
-    const target = document.querySelector(`.pgwrap[data-n="${keepPage}"]`);
-    if (target) box.scrollTop = Math.max(0, target.offsetTop + anchor.within + anchor.top - prevTop);
-    // Keep the point under the cursor fixed while zooming.
     const pending = R.pendingZoom;
     if (pending) {
       R.pendingZoom = null;
-      box.scrollTop = Math.max(0, (box.scrollTop + pending.localY) * pending.factor - pending.localY);
+      // Keep the content point that was under the cursor exactly where it was.
+      box.scrollTop = Math.max(0, (pending.baseScrollTop + pending.localY) * pending.k - pending.localY);
+    } else {
+      const target = document.querySelector(`.pgwrap[data-n="${keepPage}"]`);
+      if (target) {
+        const fraction = anchor.height ? Math.min(1, Math.max(0, anchor.within / anchor.height)) : 0;
+        box.scrollTop = Math.max(0, target.offsetTop + fraction * target.offsetHeight);
+      }
     }
     markCurrent(keepPage);
   });
@@ -944,12 +952,15 @@ async function layoutPages() {
 
 function currentAnchor(scrollTop) {
   const wraps = document.querySelectorAll('#readerPages .pgwrap');
-  let page = 1, top = 0;
+  let page = 1, top = 0, height = 1;
   for (const wrap of wraps) {
-    if (wrap.offsetTop <= scrollTop + 40) { page = Number(wrap.dataset.n); top = wrap.offsetTop; }
-    else break;
+    if (wrap.offsetTop <= scrollTop + 40) {
+      page = Number(wrap.dataset.n);
+      top = wrap.offsetTop;
+      height = Math.max(1, wrap.offsetHeight);
+    } else break;
   }
-  return { page, top, within: scrollTop - top };
+  return { page, top, height, within: scrollTop - top };
 }
 
 function renderPage(n) {
@@ -1097,7 +1108,14 @@ async function renderThumb(n) {
 $('#readerToggleSide').onclick = () => { R.side = !R.side; $('#reader').classList.toggle('side', R.side); };
 $('#zoomIn').onclick = () => setScale(currentScale() + 0.2);
 $('#zoomOut').onclick = () => setScale(currentScale() - 0.2);
-$('#zoomFit').onclick = async () => { R.fit = true; await layoutPages(); };
+$('#zoomFit').onclick = async () => {
+  // Drop any pending pinch correction so a zoom that is still settling cannot
+  // yank the view after the fit.
+  if (zoomTimer) { clearTimeout(zoomTimer); zoomTimer = null; }
+  R.pendingZoom = null; R.zoomBase = null;
+  R.fit = true;
+  await layoutPages();
+};
 $('#readerNative').onclick = () => { if (R.url) window.open(R.url, '_blank'); };
 // Re-fit the pages whenever the available width changes (panel docking, window resize).
 let resizeTimer = null;
@@ -1274,21 +1292,42 @@ function currentScale() {
   return R.fit ? pageScale(R.pages[0]) : (R.scale || 1.2);
 }
 
+function applyVisualScale(k) {
+  // Transform what is already rendered: instant feedback with no canvas work.
+  document.querySelectorAll('#readerPages .pgwrap').forEach((wrap) => {
+    const baseW = Number(wrap.dataset.baseW);
+    const baseH = Number(wrap.dataset.baseH);
+    if (!baseW || !baseH) return;
+    wrap.style.width = `${baseW * k}px`;
+    wrap.style.height = `${baseH * k}px`;
+    const page = wrap.querySelector('.pg');
+    if (page) page.style.transform = `scale(${k})`;
+  });
+}
+
 function setScale(newScale, clientY) {
   if (!R.doc || !R.pages.length) return;
   const box = $('#readerPages');
   const rect = box.getBoundingClientRect();
   const localY = typeof clientY === 'number' ? clientY - rect.top : box.clientHeight / 2;
-  // Anchor against the scale the DOM was last rendered at, so a burst of pinch
-  // events accumulates correctly instead of overwriting each other's delta.
+  // Anchor against the scale the DOM was last RENDERED at, and remember where the
+  // sequence started, so a burst of pinch events accumulates instead of fighting.
   const renderedScale = R.renderedScale || currentScale();
   const clamped = Math.min(3, Math.max(0.4, newScale));
   if (Math.abs(clamped - currentScale()) < 0.001) return;
+  if (!R.zoomBase) R.zoomBase = { scrollTop: box.scrollTop, localY };
   R.fit = false;
   R.scale = clamped;
-  R.pendingZoom = { localY, factor: clamped / renderedScale };
+  const k = clamped / renderedScale;
+  applyVisualScale(k);
+  box.scrollTop = Math.max(0, (R.zoomBase.scrollTop + R.zoomBase.localY) * k - R.zoomBase.localY);
   if (zoomTimer) clearTimeout(zoomTimer);
-  zoomTimer = setTimeout(() => { zoomTimer = null; layoutPages(); }, 140);
+  zoomTimer = setTimeout(() => {
+    zoomTimer = null;
+    R.pendingZoom = { baseScrollTop: R.zoomBase.scrollTop, localY: R.zoomBase.localY, k };
+    R.zoomBase = null;
+    layoutPages();          // crisp re-render of what is on screen
+  }, 180);
 }
 
 function zoomBy(factor, clientY) { setScale(currentScale() * factor, clientY); }
