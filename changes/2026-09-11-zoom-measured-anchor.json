@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-11-zoom-measured-anchor",
+  "class": "critical",
+  "summary": "Stop zoom from drifting and snapping back. The visual phase predicted the scroll with a formula, but scaling also grows the pages ABOVE the anchored one, so the anchored page's real offsetTop moved further than predicted and the crisp re-render disagreed. Both phases now measure: the gesture records {page, within, localY} and sets scrollTop from the anchored page's actual offsetTop after the resize, using the identical formula for the visual and crisp phases.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/static/index.html",
+    "changes/2026-09-11-zoom-measured-anchor.json",
+    "docs/evidence/2026-09-11-zoom-measured-anchor-checks.txt",
+    "docs/evidence/2026-09-11-zoom-measured-anchor-self-review.md"
+  ],
+  "scope_note": "Covers the diff since commit 0110dd0. Reader UI only; no model call.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "UI zoom anchoring only; no model call, no operation or ceiling change.",
+    "before": "Zoom drifted down-right / up-left during the gesture and snapped back on release.",
+    "after": "Anchoring is measured from the DOM in both phases, so the point under the cursor is stable throughout and on release.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-zoom-measured-anchor-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-zoom-measured-anchor-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-11-zoom-measured-anchor-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "predictive formulas removed",
+      "exit_code": 0,
+      "scope": "grep finds 0 occurrences of both old expressions"
+    },
+    {
+      "command": "node --check",
+      "exit_code": 0,
+      "scope": "Both inline scripts parse"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; UI zoom fix, not recommendation quality",
+      "evidence": "docs/evidence/2026-09-11-zoom-measured-anchor-self-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Not verified with a real trackpad pinch.",
+    "Per-frame scroll adjustment forces a layout during the gesture.",
+    "Recommendation quality remains unproven; gates stay not_run."
+  ]
+}

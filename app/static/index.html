@@ -937,8 +937,10 @@ async function layoutPages() {
     const pending = R.pendingZoom;
     if (pending) {
       R.pendingZoom = null;
-      // Keep the content point that was under the cursor exactly where it was.
-      box.scrollTop = Math.max(0, (pending.baseScrollTop + pending.localY) * pending.k - pending.localY);
+      // Same measured anchoring as the visual phase: the content point under the
+      // cursor ends up exactly where it was, so releasing the gesture is seamless.
+      const held = document.querySelector(`.pgwrap[data-n="${pending.page}"]`);
+      if (held) box.scrollTop = Math.max(0, held.offsetTop + pending.within * pending.k - pending.localY);
     } else {
       const target = document.querySelector(`.pgwrap[data-n="${keepPage}"]`);
       if (target) {
@@ -1292,7 +1294,7 @@ function currentScale() {
   return R.fit ? pageScale(R.pages[0]) : (R.scale || 1.2);
 }
 
-function applyVisualScale(k) {
+function applyVisualScale(k, base) {
   // Transform what is already rendered: instant feedback with no canvas work.
   document.querySelectorAll('#readerPages .pgwrap').forEach((wrap) => {
     const baseW = Number(wrap.dataset.baseW);
@@ -1302,6 +1304,14 @@ function applyVisualScale(k) {
     wrap.style.height = `${baseH * k}px`;
     const page = wrap.querySelector('.pg');
     if (page) page.style.transform = `scale(${k})`;
+  });
+  if (!base) return;
+  // Scale the wrappers above the anchored page too, so measure the real offset
+  // instead of predicting it: a formula misses that earlier pages also grew,
+  // which is exactly what pushed the view down-right during a zoom.
+  requestAnimationFrame(() => {
+    const wrap = document.querySelector(`#readerPages .pgwrap[data-n="${base.page}"]`);
+    if (wrap) $('#readerPages').scrollTop = Math.max(0, wrap.offsetTop + base.within * k - base.localY);
   });
 }
 
@@ -1315,18 +1325,22 @@ function setScale(newScale, clientY) {
   const renderedScale = R.renderedScale || currentScale();
   const clamped = Math.min(3, Math.max(0.4, newScale));
   if (Math.abs(clamped - currentScale()) < 0.001) return;
-  if (!R.zoomBase) R.zoomBase = { scrollTop: box.scrollTop, localY };
+  if (!R.zoomBase) {
+    const anchor = currentAnchor(box.scrollTop);
+    R.zoomBase = { page: anchor.page, within: anchor.within, localY };
+  }
   R.fit = false;
   R.scale = clamped;
   const k = clamped / renderedScale;
-  applyVisualScale(k);
-  box.scrollTop = Math.max(0, (R.zoomBase.scrollTop + R.zoomBase.localY) * k - R.zoomBase.localY);
+  applyVisualScale(k, R.zoomBase);
   if (zoomTimer) clearTimeout(zoomTimer);
   zoomTimer = setTimeout(() => {
     zoomTimer = null;
-    R.pendingZoom = { baseScrollTop: R.zoomBase.scrollTop, localY: R.zoomBase.localY, k };
+    // Carry the same measured anchor into the crisp re-render so releasing the
+    // gesture cannot move the page.
+    R.pendingZoom = { page: R.zoomBase.page, within: R.zoomBase.within, localY: R.zoomBase.localY, k };
     R.zoomBase = null;
-    layoutPages();          // crisp re-render of what is on screen
+    layoutPages();
   }, 180);
 }
 
