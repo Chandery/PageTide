@@ -75,6 +75,36 @@
   .sw[data-a="coral"]{background:#e2653f}.sw[data-a="rose"]{background:#c94f86}
   .sw[data-a="amber"]{background:#c78a1a}
   .modes { padding:4px; border-radius:12px; box-shadow:var(--sh-in-sm); display:flex; }
+
+  /* --------------------------------------------------------- project selector */
+  .project-selector { position:relative; }
+  .project-btn { padding:7px 14px; border-radius:999px; font-size:13px; cursor:pointer;
+                 background:var(--base); box-shadow:var(--sh-out-sm); display:flex; align-items:center; gap:7px;
+                 transition:box-shadow .16s ease, transform .16s ease; user-select:none; }
+  .project-btn:hover { transform:translateY(-1px); }
+  .project-btn .icon { font-size:14px; }
+  .project-btn .icon.chevron-down { font-size:11px; opacity:.6; }
+  .project-dropdown { position:absolute; top:calc(100% + 8px); left:0; min-width:260px;
+                      background:var(--base); box-shadow:var(--sh-out); border-radius:var(--r-lg);
+                      padding:8px; display:none; z-index:50; animation:rise .2s ease both; }
+  .project-dropdown.show { display:block; }
+  .project-list { max-height:320px; overflow-y:auto; }
+  .project-item { width:100%; padding:10px 12px; border-radius:var(--r-sm); cursor:pointer; display:flex;
+                  align-items:center; gap:9px; transition:background .15s ease; font-size:13.5px;
+                  text-align:left; border:none; background:transparent; }
+  .project-item:hover { background:rgba(109,93,252,.08); }
+  .project-item.active { background:var(--accent-soft); font-weight:600; }
+  .project-item .icon { font-size:14px; color:var(--accent-text); flex-shrink:0; }
+  .project-item span { flex:1; }
+  .project-item .icon.check { font-size:13px; }
+  .project-sep { height:1px; background:var(--line); margin:8px 0; }
+  .project-create { width:100%; padding:10px 12px; border-radius:var(--r-sm); font-size:13.5px;
+                    color:var(--accent-text); font-weight:600; background:transparent; border:none;
+                    cursor:pointer; display:flex; align-items:center; gap:8px; transition:background .15s ease;
+                    text-align:left; box-shadow:none; }
+  .project-create:hover { background:rgba(109,93,252,.08); transform:none; }
+  .project-create .icon { font-size:14px; }
+
   main { max-width:920px; margin:20px auto 90px; padding:0 16px; }
   h1 { font-size:23px; margin:0 0 4px; letter-spacing:0; }
   .sub { color:var(--muted); font-size:13px; }
@@ -586,6 +616,20 @@
 <body>
 <header class="top">
   <div class="brand"><span class="brand-mark"><i class="icon book" aria-hidden="true"></i></span>PaperDigHelper</div>
+  <div class="project-selector">
+    <div class="project-btn" id="projectBtn">
+      <i class="icon folder" aria-hidden="true"></i>
+      <span id="currentProjectName">加载中...</span>
+      <i class="icon chevron-down" aria-hidden="true"></i>
+    </div>
+    <div class="project-dropdown" id="projectDropdown">
+      <div class="project-list" id="projectList"></div>
+      <div class="project-sep"></div>
+      <button class="project-create" id="createProjectBtn">
+        <i class="icon plus" aria-hidden="true"></i> 创建新项目
+      </button>
+    </div>
+  </div>
   <nav class="tabs" aria-label="主导航">
     <button class="tab active" data-view="today" aria-current="page"><i class="icon sparkles" aria-hidden="true"></i>今日</button>
     <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>
@@ -686,7 +730,72 @@
 
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, triaging:false, version:'?' };
+const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, triaging:false, version:'?',
+                currentProject:null, projects:[] };
+
+// ------------------------------------------------------------ projects
+async function loadProjects() {
+  try {
+    const data = await api('/api/projects');
+    state.projects = data.projects || [];
+    if (state.projects.length > 0 && !state.currentProject) {
+      state.currentProject = state.projects[0].id;
+      localStorage.setItem('pdh-current-project', state.currentProject);
+    }
+    renderProjectSelector();
+  } catch (e) {
+    console.error('Failed to load projects:', e);
+    toast('加载项目失败', 'error');
+  }
+}
+
+function renderProjectSelector() {
+  const current = state.projects.find(p => p.id === state.currentProject) || state.projects[0];
+  $('#currentProjectName').textContent = current ? current.name : '未选择项目';
+
+  $('#projectList').innerHTML = state.projects.map(p => {
+    const active = p.id === state.currentProject ? 'active' : '';
+    return `<div class="project-item ${active}" data-id="${p.id}">
+      <i class="icon folder" aria-hidden="true"></i>
+      <span>${esc(p.name)}</span>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.project-item').forEach(el => {
+    el.onclick = () => switchProject(el.dataset.id);
+  });
+}
+
+async function switchProject(projectId) {
+  if (projectId === state.currentProject) {
+    $('#projectDropdown').classList.remove('show');
+    return;
+  }
+
+  state.currentProject = projectId;
+  localStorage.setItem('pdh-current-project', projectId);
+  $('#projectDropdown').classList.remove('show');
+  renderProjectSelector();
+
+  // Reload current view with new project
+  await loadHome();
+  toast('已切换项目', 'ok');
+}
+
+$('#projectBtn').onclick = (e) => {
+  e.stopPropagation();
+  $('#projectDropdown').classList.toggle('show');
+};
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.project-selector')) {
+    $('#projectDropdown').classList.remove('show');
+  }
+});
+
+$('#createProjectBtn').onclick = () => {
+  window.location.href = '/project_creation.html';
+};
 
 // ------------------------------------------------------------ appearance
 const ACCENTS = ['violet','mint','coral','rose','amber'];
@@ -747,7 +856,8 @@ function renderStats() {
   const s = state.stats || {};
   $('#stats').innerHTML = `<span>文献 <b>${s.papers ?? 0}</b></span><span>收藏 <b>${s.saved ?? 0}</b></span>
     <span>正例 <b>${s.positive ?? 0}</b></span><span>负例 <b>${s.negative ?? 0}</b></span>`;
-  $('#projectName').textContent = state.profile?.project || '研究工作区';
+  const proj = state.projects?.find(p => p.id === state.currentProject);
+  $('#projectName').textContent = proj?.name || '研究工作区';
 }
 
 // ------------------------------------------------------------------ cards
@@ -814,8 +924,78 @@ function renderProfile() {
       <span>显式负例<b>${(p.explicit_negatives || []).length}</b></span><span>中性反馈<b>${(p.neutral_feedback || []).length}</b></span></div>`;
 }
 
+// ------------------------------------------------------------------ projects
+async function loadProjects() {
+  const data = await api('/api/projects');
+  state.projects = data.projects || [];
+
+  // If no current project set, use first one
+  if (!state.currentProject && state.projects.length > 0) {
+    state.currentProject = state.projects[0].id;
+    localStorage.setItem('pdh-current-project', state.currentProject);
+  }
+
+  renderProjectSelector();
+}
+
+function renderProjectSelector() {
+  const current = state.projects.find(p => p.id === state.currentProject);
+  $('#currentProjectName').textContent = current?.name || '选择项目';
+
+  const list = $('#projectList');
+  if (!list) return;
+
+  list.innerHTML = state.projects.map(p => {
+    const active = p.id === state.currentProject ? ' active' : '';
+    return `<button class="project-item${active}" data-project="${esc(p.id)}">
+      <i class="icon folder-open" aria-hidden="true"></i>
+      <span>${esc(p.name)}</span>
+      ${active ? '<i class="icon check" aria-hidden="true"></i>' : ''}
+    </button>`;
+  }).join('');
+}
+
+async function switchProject(projectId) {
+  state.currentProject = projectId;
+  localStorage.setItem('pdh-current-project', projectId);
+  renderProjectSelector();
+  await load();
+  if (state.view === 'library') await loadLibrary();
+}
+
+// Project dropdown toggle
+$('#projectBtn').onclick = () => {
+  $('#projectDropdown').classList.toggle('show');
+};
+
+// Click outside to close
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.project-selector')) {
+    $('#projectDropdown').classList.remove('show');
+  }
+});
+
+// Switch project when clicked
+$('#projectList').addEventListener('click', (e) => {
+  const btn = e.target.closest('.project-item');
+  if (!btn) return;
+  const projectId = btn.dataset.project;
+  if (projectId !== state.currentProject) {
+    switchProject(projectId);
+  }
+  $('#projectDropdown').classList.remove('show');
+});
+
+// Create project button (placeholder for now)
+$('#createProjectBtn').onclick = () => {
+  toast('创建项目功能即将推出', 'warn');
+  $('#projectDropdown').classList.remove('show');
+};
+
+// ------------------------------------------------------------------ load
 async function load() {
-  const data = await api('/api/home');
+  const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
+  const data = await api(`/api/home${params}`);
   state.version = data.server_version || '?';
   state.usage = data.usage || null;
   state.devMode = Boolean(data.dev_mode);
@@ -840,7 +1020,8 @@ async function load() {
     (u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
 }
 async function loadLibrary() {
-  const data = await api('/api/library');
+  const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
+  const data = await api(`/api/library${params}`);
   state.library = data.items || []; state.stats = data.stats; renderStats(); renderLibrary();
 }
 
@@ -854,7 +1035,9 @@ function aiFailure(reason) {
 async function generate() {
   const b = $('#btnDaily'); b.disabled = true; b.textContent = '生成中…';
   try {
-    const r = await api('/api/daily', { limit: 5 });
+    const body = { limit: 5 };
+    if (state.currentProject) body.project_id = state.currentProject;
+    const r = await api('/api/daily', body);
     if (!r.cards || !r.cards.length) { toast(r.reason || '没有新候选，先抓取', 'warn'); return; }
     state.cards = r.cards.map(c => ({ ...c, summary: null }));
     renderCards();
@@ -867,7 +1050,9 @@ async function autoTriage() {
   if (state.triaging) return;
   state.triaging = true; renderCards();
   try {
-    const r = await api('/api/triage', { dry_run: false });
+    const body = { dry_run: false };
+    if (state.currentProject) body.project_id = state.currentProject;
+    const r = await api('/api/triage', body);
     if (!r.ok) toast(aiFailure(r.reason), 'warn', 6000);
     else toast(`AI 已速览 ${r.items.length} 条 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
     await load();
@@ -878,7 +1063,9 @@ $('#btnDaily').onclick = generate;
 $('#btnRefresh').onclick = async () => {
   const b = $('#btnRefresh'); b.disabled = true; b.textContent = '抓取中…';
   try {
-    const job = await api('/api/refresh', { pages: 1 });
+    const body = { pages: 1 };
+    if (state.currentProject) body.project_id = state.currentProject;
+    const job = await api('/api/refresh', body);
     toast('后台抓取中（OpenAlex 公开元数据）…', 'warn');
     let r;
     for (let i = 0; i < 90; i++) { r = await api(`/api/jobs/${job.id}`); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
@@ -889,7 +1076,9 @@ $('#btnRefresh').onclick = async () => {
   finally { b.disabled = false; b.textContent = '抓取新论文'; }
 };
 $('#btnPin').onclick = async () => {
-  const r = await api('/api/pin', { terms: $('#pin').value });
+  const body = { terms: $('#pin').value };
+  if (state.currentProject) body.project_id = state.currentProject;
+  const r = await api('/api/pin', body);
   state.profile = r.profile; state.stats = r.stats; renderStats(); renderProfile(); toast('关键词已保存');
 };
 
@@ -917,7 +1106,9 @@ async function doFeedback(key, action) {
     await api('/api/unsave', { key });
     toast('已取消收藏', 'warn');
   } else {
-    const r = await api('/api/feedback', { key, action });
+    const body = { key, action };
+    if (state.currentProject) body.project_id = state.currentProject;
+    const r = await api('/api/feedback', body);
     toast(r.saved ? '已收藏到论文库（卡片保留）' : (r.interest_changed ? `已记录：${action}` : `已记录：${action}（不影响兴趣）`),
           r.saved || r.interest_changed ? 'ok' : 'warn');
   }
@@ -1086,7 +1277,17 @@ $('#settingsBtn').onclick = openSettings;
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('#detail').classList.add('hidden'); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
 document.addEventListener('scroll', hidePreview, { passive: true });
 
-load().catch(e => toast(`加载失败：${e.message}`, 'err'));
+// Load projects first, then load home
+(async () => {
+  try {
+    const saved = localStorage.getItem('pdh-current-project');
+    if (saved) state.currentProject = saved;
+    await loadProjects();
+    await load();
+  } catch (e) {
+    toast(`加载失败：${e.message}`, 'err');
+  }
+})();
 
 // Cross-script bridge for the ES-module reader/assistant below.
 window.PDH = { api, toast, esc, md, state, openDetail, setPetContext: (k, t) => window.PDHSetContext?.(k, t) };

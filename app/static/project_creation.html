@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>创建项目 · PaperDigHelper</title>
+  <style>
+    :root {
+      --surface-0: #05070C;
+      --surface-1: #0A0D12;
+      --surface-2: #0F131C;
+      --surface-3: #161D2B;
+      --surface-4: #1E2636;
+      --text: #E8EDF4;
+      --muted: #8B95A8;
+      --accent: #6D5DFC;
+      --accent-text: #8C7FFF;
+      --accent-soft: rgba(109,93,252,.12);
+      --line: rgba(255,255,255,.06);
+      --good: #1F9D6B;
+      --bad: #E2653F;
+      --base: var(--surface-1);
+      --r-sm: 12px;
+      --r-lg: 20px;
+      --sh-out: 2px 2px 8px rgba(0,0,0,.5), -1px -1px 3px rgba(255,255,255,.015);
+      --sh-out-sm: 1px 1px 4px rgba(0,0,0,.4), -1px -1px 2px rgba(255,255,255,.01);
+      --sh-in-sm: inset 1px 1px 3px rgba(0,0,0,.5), inset -1px -1px 2px rgba(255,255,255,.01);
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", sans-serif;
+           background:var(--surface-0); color:var(--text); line-height:1.6; }
+
+    .container { max-width:640px; margin:60px auto; padding:0 20px; }
+    h1 { font-size:28px; font-weight:700; margin-bottom:8px; letter-spacing:-.01em; }
+    .subtitle { color:var(--muted); font-size:14px; margin-bottom:40px; }
+
+    .modes { display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:32px; }
+    .mode-card { padding:20px 24px; border-radius:var(--r-lg); background:var(--base);
+                 box-shadow:var(--sh-out); cursor:pointer; transition:all .2s ease;
+                 border:2px solid transparent; }
+    .mode-card:hover { transform:translateY(-2px); border-color:var(--accent-soft); }
+    .mode-card.selected { border-color:var(--accent); background:var(--surface-2); }
+    .mode-card h3 { font-size:16px; margin-bottom:6px; display:flex; align-items:center; gap:10px; }
+    .mode-card .badge { font-size:11px; padding:3px 8px; border-radius:999px;
+                        background:var(--accent-soft); color:var(--accent-text); font-weight:600; }
+    .mode-card p { font-size:13.5px; color:var(--muted); line-height:1.5; }
+
+    .form { display:none; }
+    .form.active { display:block; }
+    .form-group { margin-bottom:24px; }
+    .form-group label { display:block; font-size:13.5px; font-weight:600; margin-bottom:8px; }
+    .form-group input, .form-group textarea { width:100%; font:inherit; color:var(--text);
+      background:var(--base); border:none; border-radius:var(--r-sm); padding:12px 16px;
+      box-shadow:var(--sh-in-sm); }
+    .form-group input::placeholder, .form-group textarea::placeholder { color:var(--muted); }
+    .form-group input:focus, .form-group textarea:focus { outline:none;
+      box-shadow:var(--sh-in-sm), 0 0 0 2px var(--accent-soft); }
+    .form-group textarea { resize:vertical; min-height:100px; line-height:1.6; }
+    .hint { font-size:12.5px; color:var(--muted); margin-top:6px; }
+
+    .actions { display:flex; gap:12px; margin-top:32px; }
+    button { font:inherit; color:var(--text); cursor:pointer; border:none; background:var(--base);
+      padding:11px 20px; border-radius:999px; box-shadow:var(--sh-out-sm); font-size:14px;
+      display:inline-flex; align-items:center; gap:8px; transition:all .16s ease; }
+    button:hover { transform:translateY(-1px); }
+    button:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+    button.primary { background:var(--accent); color:white; font-weight:650; }
+    button.ghost { box-shadow:none; background:transparent; }
+    button.ghost:hover { box-shadow:var(--sh-out-sm); }
+
+    .back-link { display:inline-block; color:var(--muted); text-decoration:none; font-size:14px;
+                 margin-bottom:24px; transition:color .2s; }
+    .back-link:hover { color:var(--text); }
+
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.3);
+               border-top-color:white; border-radius:50%; animation:spin .6s linear infinite; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-link">← 返回主页</a>
+    <h1>创建新项目</h1>
+    <p class="subtitle">选择一种创建方式开始你的研究项目</p>
+
+    <div class="modes">
+      <div class="mode-card" data-mode="quick">
+        <h3>快速创建 <span class="badge">推荐</span></h3>
+        <p>输入研究兴趣，AI 帮你初筛论文，你选择种子即可开始。适合大多数场景。</p>
+      </div>
+      <div class="mode-card" data-mode="manual">
+        <h3>手动创建</h3>
+        <p>自己输入关键词和种子论文，完全掌控项目起点。适合已有明确文献列表的场景。</p>
+      </div>
+      <div class="mode-card" data-mode="ai_guided">
+        <h3>AI 引导创建</h3>
+        <p>与 AI 对话，从零梳理领域脉络、设计学习路径、逐步构建项目。适合探索新领域。</p>
+      </div>
+    </div>
+
+    <div class="form" id="quickForm">
+      <div class="form-group">
+        <label>项目名称</label>
+        <input type="text" id="quickName" placeholder="例如：强化学习研究">
+      </div>
+      <div class="form-group">
+        <label>研究兴趣</label>
+        <textarea id="quickInterest" placeholder="输入关键词（如 reinforcement learning, world models）或用自然语言描述你的研究方向"></textarea>
+        <p class="hint">AI 将根据你的输入初筛 5-10 篇相关论文</p>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="reset()">取消</button>
+        <button class="primary" onclick="createQuick()">
+          <span id="quickBtnText">下一步：AI 初筛论文</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="form" id="manualForm">
+      <div class="form-group">
+        <label>项目名称</label>
+        <input type="text" id="manualName" placeholder="例如：计算机视觉研究">
+      </div>
+      <div class="form-group">
+        <label>关键词</label>
+        <input type="text" id="manualKeywords" placeholder="逗号分隔，例如：computer vision, object detection, deep learning">
+      </div>
+      <div class="form-group">
+        <label>种子论文（可选）</label>
+        <textarea id="manualSeeds" placeholder="输入 DOI 或 arXiv ID，每行一个&#10;例如：&#10;10.1038/nature14539&#10;2103.14030"></textarea>
+        <p class="hint">也可以先创建项目，稍后在主界面添加种子论文</p>
+      </div>
+      <div class="actions">
+        <button class="ghost" onclick="reset()">取消</button>
+        <button class="primary" onclick="createManual()">
+          <span id="manualBtnText">创建项目</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="form" id="aiGuidedForm">
+      <p style="color:var(--muted); font-size:14px; margin-bottom:24px;">
+        AI 引导创建功能即将推出，敬请期待！
+      </p>
+      <div class="actions">
+        <button class="ghost" onclick="reset()">返回</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    let selectedMode = null;
+
+    // Mode selection
+    document.querySelectorAll('.mode-card').forEach(card => {
+      card.onclick = () => {
+        document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedMode = card.dataset.mode;
+
+        document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+        $(`#${selectedMode}Form`).classList.add('active');
+      };
+    });
+
+    function reset() {
+      document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+      selectedMode = null;
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', ...opts.headers }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function createQuick() {
+      const name = $('#quickName').value.trim();
+      const interest = $('#quickInterest').value.trim();
+      if (!name || !interest) {
+        alert('请填写项目名称和研究兴趣');
+        return;
+      }
+
+      const btn = $('#quickBtnText');
+      const originalText = btn.textContent;
+      btn.innerHTML = '<span class="spinner"></span> 创建中...';
+
+      try {
+        // Parse keywords from interest (simple comma split or whole text)
+        const keywords = interest.includes(',')
+          ? interest.split(',').map(k => k.trim()).filter(Boolean)
+          : [interest];
+
+        const result = await api('/api/projects', {
+          method: 'POST',
+          body: JSON.stringify({ name, creation_mode: 'quick', keywords })
+        });
+
+        // Redirect to home with new project
+        window.location.href = `/?project_id=${result.project_id}`;
+      } catch (e) {
+        alert(`创建失败：${e.message}`);
+        btn.textContent = originalText;
+      }
+    }
+
+    async function createManual() {
+      const name = $('#manualName').value.trim();
+      const keywordsText = $('#manualKeywords').value.trim();
+      if (!name || !keywordsText) {
+        alert('请填写项目名称和关键词');
+        return;
+      }
+
+      const keywords = keywordsText.split(',').map(k => k.trim()).filter(Boolean);
+      const seeds = $('#manualSeeds').value.trim();
+
+      const btn = $('#manualBtnText');
+      const originalText = btn.textContent;
+      btn.innerHTML = '<span class="spinner"></span> 创建中...';
+
+      try {
+        const result = await api('/api/projects', {
+          method: 'POST',
+          body: JSON.stringify({ name, creation_mode: 'manual', keywords })
+        });
+
+        // TODO: If seeds provided, add them to the project
+        // For now, just redirect
+        window.location.href = `/?project_id=${result.project_id}`;
+      } catch (e) {
+        alert(`创建失败：${e.message}`);
+        btn.textContent = originalText;
+      }
+    }
+  </script>
+</body>
+</html>
