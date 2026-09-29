@@ -1,0 +1,74 @@
+{
+  "app": {
+    "title": "PaperDigHelper",
+    "subtitle": "智能文献推荐助手"
+  },
+  "nav": {
+    "home": "首页",
+    "library": "文献库",
+    "profile": "画像",
+    "organization": "知识图谱",
+    "settings": "设置",
+    "weekly_report": "周报"
+  },
+  "home": {
+    "welcome": "欢迎使用",
+    "today_recommendations": "今日推荐",
+    "no_recommendations": "暂无推荐",
+    "refresh": "刷新推荐",
+    "triage": "AI 分类",
+    "generate_batch": "生成推荐"
+  },
+  "feedback": {
+    "save": "收藏",
+    "saved": "已收藏",
+    "irrelevant": "不感兴趣",
+    "too_hard": "太难",
+    "undo": "撤销"
+  },
+  "library": {
+    "title": "文献库",
+    "saved_papers": "已收藏文献",
+    "filter": "筛选",
+    "sort": "排序",
+    "export": "导出"
+  },
+  "profile": {
+    "title": "兴趣画像",
+    "keywords": "关键词",
+    "stats": "统计",
+    "timeline": "时间线",
+    "total_papers": "文献总数",
+    "saved_count": "收藏数",
+    "positive_feedback": "正反馈",
+    "negative_feedback": "负反馈"
+  },
+  "settings": {
+    "title": "设置",
+    "general": "通用",
+    "api": "API 配置",
+    "recommendation": "推荐设置",
+    "sources": "数据源",
+    "storage": "存储与导出",
+    "save": "保存设置",
+    "cancel": "取消"
+  },
+  "weekly_report": {
+    "title": "本周活动报告",
+    "this_week_saved": "本周收藏",
+    "this_week_negative": "标记不相关",
+    "this_week_too_hard": "标记太难",
+    "total_saved": "累计收藏",
+    "keyword_trends": "关键词变化趋势",
+    "ai_analysis": "AI 分析",
+    "generate_analysis": "生成 AI 分析"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "confirm": "确认",
+    "close": "关闭",
+    "back": "返回"
+  }
+}

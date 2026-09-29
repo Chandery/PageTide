@@ -1,0 +1,74 @@
+{
+  "app": {
+    "title": "PaperDigHelper",
+    "subtitle": "Smart Academic Paper Recommender"
+  },
+  "nav": {
+    "home": "Home",
+    "library": "Library",
+    "profile": "Profile",
+    "organization": "Knowledge Graph",
+    "settings": "Settings",
+    "weekly_report": "Weekly Report"
+  },
+  "home": {
+    "welcome": "Welcome",
+    "today_recommendations": "Today's Recommendations",
+    "no_recommendations": "No recommendations",
+    "refresh": "Refresh",
+    "triage": "AI Triage",
+    "generate_batch": "Generate Batch"
+  },
+  "feedback": {
+    "save": "Save",
+    "saved": "Saved",
+    "irrelevant": "Irrelevant",
+    "too_hard": "Too Hard",
+    "undo": "Undo"
+  },
+  "library": {
+    "title": "Library",
+    "saved_papers": "Saved Papers",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export"
+  },
+  "profile": {
+    "title": "Interest Profile",
+    "keywords": "Keywords",
+    "stats": "Statistics",
+    "timeline": "Timeline",
+    "total_papers": "Total Papers",
+    "saved_count": "Saved",
+    "positive_feedback": "Positive",
+    "negative_feedback": "Negative"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "api": "API Configuration",
+    "recommendation": "Recommendation",
+    "sources": "Data Sources",
+    "storage": "Storage & Export",
+    "save": "Save Settings",
+    "cancel": "Cancel"
+  },
+  "weekly_report": {
+    "title": "Weekly Activity Report",
+    "this_week_saved": "Saved This Week",
+    "this_week_negative": "Marked Irrelevant",
+    "this_week_too_hard": "Marked Too Hard",
+    "total_saved": "Total Saved",
+    "keyword_trends": "Keyword Trends",
+    "ai_analysis": "AI Analysis",
+    "generate_analysis": "Generate AI Analysis"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back"
+  }
+}

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设置 - PaperDigHelper</title>
+  <style>
+    :root {
+      --base: #f0f0f3;
+      --text: #2c3e50;
+      --text-sub: #7f8c8d;
+      --primary: #3498db;
+      --sh-out: 6px 6px 12px rgba(163,177,198,0.6), -6px -6px 12px rgba(255,255,255,0.8);
+      --sh-out-sm: 3px 3px 6px rgba(163,177,198,0.4), -3px -3px 6px rgba(255,255,255,0.8);
+      --sh-in: inset 4px 4px 8px rgba(163,177,198,0.5), inset -4px -4px 8px rgba(255,255,255,0.8);
+      --r-lg: 16px;
+      --r-md: 12px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--base);
+      color: var(--text);
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+    .section {
+      background: var(--base);
+      box-shadow: var(--sh-out);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: var(--primary);
+    }
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .field input, .field select {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      border: none;
+      border-radius: var(--r-md);
+      background: var(--base);
+      box-shadow: var(--sh-in);
+      color: var(--text);
+      outline: none;
+    }
+    .field input:focus, .field select:focus {
+      box-shadow: var(--sh-in), 0 0 0 2px var(--primary);
+    }
+    .field small {
+      display: block;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+    button {
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      background: var(--base);
+      box-shadow: var(--sh-out-sm);
+      color: var(--text);
+      transition: all 0.2s;
+    }
+    button:hover {
+      box-shadow: var(--sh-out);
+    }
+    button:active {
+      box-shadow: var(--sh-in);
+    }
+    button.primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(52,152,219,0.3);
+    }
+    button.danger {
+      background: #e74c3c;
+      color: white;
+      box-shadow: 0 4px 12px rgba(231,76,60,0.3);
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-link">← 返回主页</a>
+    <h1>设置</h1>
+
+    <div class="section">
+      <h2>通用</h2>
+      <div class="field">
+        <label for="language">语言 / Language</label>
+        <select id="language">
+          <option value="zh-CN">中文</option>
+          <option value="en-US">English</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="theme">主题</label>
+        <select id="theme">
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+          <option value="auto">跟随系统</option>
+        </select>
+        <small>深色主题即将推出</small>
+      </div>
+      <div class="field">
+        <label for="accentColor">强调色</label>
+        <input type="color" id="accentColor" value="#3498db">
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>API 配置</h2>
+      <div class="field">
+        <label for="apiProvider">提供商</label>
+        <select id="apiProvider">
+          <option value="deepseek">DeepSeek</option>
+        </select>
+        <small>当前仅支持 DeepSeek</small>
+      </div>
+      <div class="field">
+        <label for="apiKey">API 密钥</label>
+        <input type="password" id="apiKey" placeholder="sk-...">
+        <small>用于 AI 分析和问答功能</small>
+      </div>
+      <div class="field">
+        <label for="dailyLimit">每日 Token 限制</label>
+        <input type="number" id="dailyLimit" value="100000" min="0">
+        <small>防止意外消耗过多 token</small>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>推荐设置</h2>
+      <div class="field">
+        <label for="recommendCount">每日推荐数量</label>
+        <input type="number" id="recommendCount" value="5" min="1" max="20">
+      </div>
+      <div class="field">
+        <label for="decayWindow">兴趣衰减窗口（天）</label>
+        <input type="number" id="decayWindow" value="30" min="7" max="365">
+        <small>超过此天数的反馈权重会逐渐降低</small>
+      </div>
+      <div class="field">
+        <label for="newPaperBoost">新论文权重提升</label>
+        <input type="number" id="newPaperBoost" value="0.2" min="0" max="1" step="0.1">
+        <small>提升最近发表论文的排名权重</small>
+      </div>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="aiRerank">
+          启用 AI 重排序
+        </label>
+        <small>使用 AI 对推荐结果进行二次排序（消耗 token）</small>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>数据源</h2>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="sourceArxiv" checked>
+          arXiv
+        </label>
+      </div>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="sourceOpenAlex" checked>
+          OpenAlex
+        </label>
+      </div>
+      <div class="field">
+        <label for="updateFrequency">更新频率</label>
+        <select id="updateFrequency">
+          <option value="daily">每天</option>
+          <option value="weekly">每周</option>
+          <option value="manual">手动</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="timePreference">时间偏好</label>
+        <select id="timePreference">
+          <option value="recent">最近 1 周</option>
+          <option value="month">最近 1 月</option>
+          <option value="all">所有时间</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>存储与导出</h2>
+      <div class="field">
+        <label for="dataDir">数据目录</label>
+        <input type="text" id="dataDir" value="~/Documents/PaperDigHelper" readonly>
+        <small>数据存储位置（只读）</small>
+      </div>
+      <div class="field">
+        <button id="exportBtn">导出所有数据</button>
+        <small>导出为 JSON 格式</small>
+      </div>
+      <div class="field">
+        <button id="clearCacheBtn" class="danger">清除缓存</button>
+        <small>清除下载的 PDF 和全文数据</small>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="cancelBtn">取消</button>
+      <button id="saveBtn" class="primary">保存设置</button>
+    </div>
+  </div>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    let settings = {};
+
+    async function loadSettings() {
+      const res = await fetch('/api/user_settings');
+      const data = await res.json();
+      settings = data.settings || {};
+
+      // 填充表单
+      $('#language').value = settings.language || 'zh-CN';
+      $('#theme').value = settings.theme || 'light';
+      $('#accentColor').value = settings.accentColor || '#3498db';
+      $('#apiProvider').value = settings.apiProvider || 'deepseek';
+      $('#apiKey').value = settings.apiKey || '';
+      $('#dailyLimit').value = settings.dailyLimit || 100000;
+      $('#recommendCount').value = settings.recommendCount || 5;
+      $('#decayWindow').value = settings.decayWindow || 30;
+      $('#newPaperBoost').value = settings.newPaperBoost || 0.2;
+      $('#aiRerank').checked = settings.aiRerank || false;
+      $('#sourceArxiv').checked = settings.sourceArxiv !== false;
+      $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
+      $('#updateFrequency').value = settings.updateFrequency || 'daily';
+      $('#timePreference').value = settings.timePreference || 'recent';
+    }
+
+    async function saveSettings() {
+      const newSettings = {
+        language: $('#language').value,
+        theme: $('#theme').value,
+        accentColor: $('#accentColor').value,
+        apiProvider: $('#apiProvider').value,
+        apiKey: $('#apiKey').value,
+        dailyLimit: parseInt($('#dailyLimit').value),
+        recommendCount: parseInt($('#recommendCount').value),
+        decayWindow: parseInt($('#decayWindow').value),
+        newPaperBoost: parseFloat($('#newPaperBoost').value),
+        aiRerank: $('#aiRerank').checked,
+        sourceArxiv: $('#sourceArxiv').checked,
+        sourceOpenAlex: $('#sourceOpenAlex').checked,
+        updateFrequency: $('#updateFrequency').value,
+        timePreference: $('#timePreference').value,
+      };
+
+      await fetch('/api/user_settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({settings: newSettings})
+      });
+
+      alert('设置已保存！');
+      window.location.href = '/';
+    }
+
+    $('#saveBtn').onclick = saveSettings;
+    $('#cancelBtn').onclick = () => window.location.href = '/';
+
+    $('#exportBtn').onclick = async () => {
+      const projectId = localStorage.getItem('pdh-current-project');
+      const res = await fetch(`/api/export?project_id=${projectId || ''}`);
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `paperdighelper-export-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    $('#clearCacheBtn').onclick = async () => {
+      if (!confirm('确定要清除所有缓存吗？这将删除已下载的 PDF 和全文数据。')) return;
+      await fetch('/api/cache', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({_method: 'DELETE'})
+      });
+      alert('缓存已清除！');
+    };
+
+    loadSettings();
+  </script>
+</body>
+</html>

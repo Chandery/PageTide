@@ -14,6 +14,7 @@ import sys
 import threading
 import traceback
 import subprocess
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from pathlib import Path
@@ -245,6 +246,33 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app()
             project_id = query.get("project_id", [None])[0]
             self._json({"profile": app.profile(project_id), "versions": app.store.profile_versions()})
+        elif route == "/api/weekly_report":
+            from .weekly_report import generate_weekly_report
+            app = self._app()
+            project_id = query.get("project_id", [None])[0]
+            if not project_id:
+                return self._json({"error": "project_id required"}, 400)
+            report = generate_weekly_report(project_id, app)
+            self._json(report)
+        elif route == "/api/export":
+            app = self._app()
+            project_id = query.get("project_id", [None])[0]
+            # Export all project data
+            data = {
+                "exported_at": datetime.now().isoformat(),
+                "profile": app.profile(project_id),
+                "library": app.library(project_id),
+                "stats": app.stats(project_id),
+            }
+            self._json(data)
+        elif route == "/api/user_settings":
+            # GET settings from file
+            settings_file = Path.home() / "Documents" / "PaperDigHelper" / "settings.json"
+            if settings_file.exists():
+                settings = json.loads(settings_file.read_text())
+            else:
+                settings = {}
+            self._json({"settings": settings})
         else:
             self._static(route)
 
@@ -347,6 +375,34 @@ class Handler(BaseHTTPRequestHandler):
             self._json(app.download_pdf(body["key"]))
         elif route == "/api/pdf":
             self._json(app.download_pdf(body["key"]))
+        elif route == "/api/weekly_report/analysis":
+            # Optional AI analysis for weekly report
+            from .weekly_report import generate_weekly_report
+            project_id = body.get("project_id")
+            if not project_id:
+                return self._json({"error": "project_id required"}, 400)
+            # Return placeholder - actual AI analysis would consume tokens
+            self._json({
+                "analysis": "AI 分析功能需要启用 API 并消耗 token。请在设置中配置 API 密钥后使用。",
+                "note": "这是一个占位符。完整实现将调用 gateway.call() 生成个性化分析。"
+            })
+        elif route == "/api/user_settings":
+            # POST: save settings
+            settings_file = Path.home() / "Documents" / "PaperDigHelper" / "settings.json"
+            settings_file.parent.mkdir(parents=True, exist_ok=True)
+            settings_file.write_text(json.dumps(body.get("settings", {}), indent=2))
+            self._json({"status": "saved"})
+        elif route == "/api/cache":
+            # DELETE cache (via POST with _method: DELETE)
+            if body.get("_method") == "DELETE":
+                cache_dir = Path.home() / "Documents" / "PaperDigHelper" / "cache"
+                if cache_dir.exists():
+                    import shutil
+                    shutil.rmtree(cache_dir)
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                self._json({"status": "cleared"})
+            else:
+                self._json({"error": "method not allowed"}, 405)
         else:
             self._json({"error": "unknown route"}, 404)
 

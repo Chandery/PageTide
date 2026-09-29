@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>周报 - PaperDigHelper</title>
+  <style>
+    :root {
+      --base: #f0f0f3;
+      --text: #2c3e50;
+      --text-sub: #7f8c8d;
+      --primary: #3498db;
+      --green: #27ae60;
+      --red: #e74c3c;
+      --yellow: #f39c12;
+      --sh-out: 6px 6px 12px rgba(163,177,198,0.6), -6px -6px 12px rgba(255,255,255,0.8);
+      --sh-out-sm: 3px 3px 6px rgba(163,177,198,0.4), -3px -3px 6px rgba(255,255,255,0.8);
+      --r-lg: 16px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--base);
+      color: var(--text);
+      padding: 40px 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 28px; margin-bottom: 32px; text-align: center; }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--base);
+      box-shadow: var(--sh-out);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      margin: 12px 0;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: var(--text-sub);
+    }
+    .section {
+      background: var(--base);
+      box-shadow: var(--sh-out);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .section h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: var(--primary);
+    }
+    .keyword-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .keyword-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--base);
+      box-shadow: var(--sh-out-sm);
+      border-radius: 12px;
+    }
+    .keyword-badge {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+    }
+    .keyword-badge.rising { background: var(--green); }
+    .keyword-badge.stable { background: var(--yellow); }
+    .keyword-badge.falling { background: var(--red); }
+    .keyword-name {
+      flex: 1;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      background: var(--base);
+      box-shadow: var(--sh-out-sm);
+      color: var(--text);
+      transition: all 0.2s;
+    }
+    button:hover { box-shadow: var(--sh-out); }
+    button.primary {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(52,152,219,0.3);
+    }
+    .ai-analysis {
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--base);
+      box-shadow: inset 4px 4px 8px rgba(163,177,198,0.5), inset -4px -4px 8px rgba(255,255,255,0.8);
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-sub);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-link">← 返回主页</a>
+    <h1>本周活动报告</h1>
+
+    <div id="loading" class="loading">加载中...</div>
+
+    <div id="content" style="display:none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">本周收藏</div>
+          <div class="stat-value" id="statSaved">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">标记不相关</div>
+          <div class="stat-value" id="statNegative">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">标记太难</div>
+          <div class="stat-value" id="statTooHard">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">累计收藏</div>
+          <div class="stat-value" id="statTotalSaved">0</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>关键词变化趋势</h2>
+        <div class="keyword-list" id="keywordList"></div>
+      </div>
+
+      <div class="section">
+        <h2>AI 分析</h2>
+        <button id="aiAnalysisBtn" class="primary">生成 AI 分析（消耗 token）</button>
+        <div id="aiAnalysis" class="ai-analysis"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+    const esc = str => String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+    let reportData = null;
+
+    async function loadWeeklyReport() {
+      const projectId = localStorage.getItem('pdh-current-project');
+      if (!projectId) {
+        $('#loading').textContent = '请先选择一个项目';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/weekly_report?project_id=${projectId}`);
+        reportData = await res.json();
+
+        // 填充统计数据
+        $('#statSaved').textContent = reportData.stats.saved;
+        $('#statNegative').textContent = reportData.stats.negative;
+        $('#statTooHard').textContent = reportData.stats.too_hard;
+        $('#statTotalSaved').textContent = reportData.stats.total_saved;
+
+        // 填充关键词变化
+        const keywordList = $('#keywordList');
+        const changes = reportData.keyword_changes;
+
+        let html = '';
+        if (changes.rising.length > 0) {
+          changes.rising.forEach(kw => {
+            html += `
+              <div class="keyword-item">
+                <span class="keyword-badge rising">上升</span>
+                <span class="keyword-name">${esc(kw)}</span>
+              </div>
+            `;
+          });
+        }
+        if (changes.stable.length > 0) {
+          changes.stable.forEach(kw => {
+            html += `
+              <div class="keyword-item">
+                <span class="keyword-badge stable">稳定</span>
+                <span class="keyword-name">${esc(kw)}</span>
+              </div>
+            `;
+          });
+        }
+        if (changes.falling.length > 0) {
+          changes.falling.forEach(kw => {
+            html += `
+              <div class="keyword-item">
+                <span class="keyword-badge falling">下降</span>
+                <span class="keyword-name">${esc(kw)}</span>
+              </div>
+            `;
+          });
+        }
+
+        if (html === '') {
+          html = '<div style="text-align:center;padding:20px;color:var(--text-sub);">本周暂无关键词变化</div>';
+        }
+
+        keywordList.innerHTML = html;
+
+        $('#loading').style.display = 'none';
+        $('#content').style.display = 'block';
+      } catch (err) {
+        $('#loading').textContent = '加载失败：' + err.message;
+      }
+    }
+
+    $('#aiAnalysisBtn').onclick = async () => {
+      const projectId = localStorage.getItem('pdh-current-project');
+      if (!projectId) return;
+
+      $('#aiAnalysisBtn').disabled = true;
+      $('#aiAnalysisBtn').textContent = '生成中...';
+      $('#aiAnalysis').style.display = 'block';
+      $('#aiAnalysis').textContent = '正在生成 AI 分析...';
+
+      try {
+        const res = await fetch('/api/weekly_report/analysis', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({project_id: projectId})
+        });
+        const data = await res.json();
+        $('#aiAnalysis').textContent = data.analysis + '\n\n' + (data.note || '');
+      } catch (err) {
+        $('#aiAnalysis').textContent = '生成失败：' + err.message;
+      } finally {
+        $('#aiAnalysisBtn').disabled = false;
+        $('#aiAnalysisBtn').textContent = '重新生成 AI 分析';
+      }
+    };
+
+    loadWeeklyReport();
+  </script>
+</body>
+</html>
