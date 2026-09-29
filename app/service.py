@@ -311,7 +311,7 @@ class App:
         scored.sort(key=lambda kv: -kv[1])
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
-        batch_id = self.store.create_batch(run_date, chosen)
+        batch_id = self.store.create_batch(run_date, chosen, project_id=project_id)
         return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id)}
 
     def _reference_docs(self, project_id=None):
@@ -374,7 +374,10 @@ class App:
         }
 
     def cards(self, batch_id=None, project_id=None):
-        rows = self.store.batch(batch_id) if batch_id is not None else self.store.latest_batch()
+        if not project_id:
+            project_id = self.get_default_project_id()
+
+        rows = self.store.batch(batch_id) if batch_id is not None else self.store.latest_batch(project_id)
         summaries = self.store.summaries()
         feedback = self.latest_feedback(project_id) if project_id else self.latest_feedback()
         cards = []

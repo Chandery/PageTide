@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-29-multi-project-phase1",
+  "class": "feature",
+  "summary": "Phase 1: Multi-project data layer - database schema, migration, and project CRUD",
+  "tasks": ["PROFILE-01"],
+  "files": [
+    "app/db.py",
+    "app/migrations.py",
+    "app/project.py",
+    "app/service.py",
+    "changes/2026-09-29-multi-project-phase1.json",
+    "docs/evidence/2026-09-29-multi-project-phase1-checks.txt"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Data layer changes only; no new model calls. Multi-project structure enables future per-project recommendations without changing token budget.",
+    "before": "Single project with global profile, papers, and feedback",
+    "after": "Multiple projects with isolated profiles, papers, and feedback per project. Migration creates default project for existing data.",
+    "developer_usage": "unknown"
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-29-multi-project-phase1-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-29-multi-project-phase1-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-29-multi-project-phase1-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; multi-project isolation and migration review",
+      "evidence": "docs/evidence/2026-09-29-multi-project-phase1-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Migration is idempotent but automatic on first app start after upgrade",
+    "No UI for project selection yet - existing users will use default project until Phase 2",
+    "update_project and delete_project deferred to Phase 2",
+    "Weekly reports and profile snapshots schema created but not yet used"
+  ]
+}

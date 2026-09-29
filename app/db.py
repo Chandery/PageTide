@@ -93,16 +93,29 @@ class Store:
         self.conn.close()
 
     # ---------------------------------------------------------------- papers
-    def upsert_papers(self, papers):
+    def upsert_papers(self, papers, project_id=None):
+        """Insert papers, assigning to default project if project_id not specified."""
+        # Get default project once if needed
+        default_project_id = None
+        if not project_id and papers:
+            # Check if any paper lacks project_id
+            needs_default = any(not p.get("project_id") for p in papers)
+            if needs_default:
+                default_row = self.conn.execute(
+                    "SELECT id FROM projects ORDER BY creation_timestamp LIMIT 1"
+                ).fetchone()
+                default_project_id = default_row["id"] if default_row else None
+
         added = 0
         for paper in papers:
+            paper_project_id = paper.get("project_id") or project_id or default_project_id
             cur = self.conn.execute(
                 """INSERT OR IGNORE INTO papers
-                   (key, openalex_id, doi, arxiv_id, title, abstract, published, source, topic, group_name, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                   (key, openalex_id, doi, arxiv_id, title, abstract, published, source, topic, group_name, project_id, created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (paper["key"], paper.get("openalex_id"), paper.get("doi"), paper.get("arxiv_id"),
                  paper["title"], paper.get("abstract"), paper.get("published"),
-                 paper.get("source"), paper.get("topic"), paper.get("group_name"), now()))
+                 paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now()))
             added += cur.rowcount
         self.conn.commit()
         return added
@@ -118,9 +131,9 @@ class Store:
         return [dict(r) for r in self.conn.execute(sql)]
 
     # ---------------------------------------------------------------- batches
-    def create_batch(self, run_date, keys, source="openalex"):
-        cur = self.conn.execute("INSERT INTO batches (run_date, created_at, source) VALUES (?,?,?)",
-                                (run_date, now(), source))
+    def create_batch(self, run_date, keys, source="openalex", project_id=None):
+        cur = self.conn.execute("INSERT INTO batches (run_date, created_at, source, project_id) VALUES (?,?,?,?)",
+                                (run_date, now(), source, project_id))
         batch_id = cur.lastrowid
         stamp = now()
         for rank, key in enumerate(keys, 1):
@@ -135,11 +148,21 @@ class Store:
                WHERE e.batch_id=? ORDER BY e.rank""", (batch_id,)).fetchall()
         return [dict(r) for r in rows]
 
-    def latest_batch(self):
-        row = self.conn.execute("SELECT id FROM batches ORDER BY id DESC LIMIT 1").fetchone()
+    def latest_batch(self, project_id=None):
+        if project_id:
+            row = self.conn.execute(
+                "SELECT id FROM batches WHERE project_id=? ORDER BY id DESC LIMIT 1",
+                (project_id,)).fetchone()
+        else:
+            row = self.conn.execute("SELECT id FROM batches ORDER BY id DESC LIMIT 1").fetchone()
         return self.batch(row["id"]) if row else []
 
-    def seen_keys(self):
+    def seen_keys(self, project_id=None):
+        if project_id:
+            return {r["paper_key"] for r in self.conn.execute(
+                """SELECT DISTINCT e.paper_key FROM exposures e
+                   JOIN batches b ON b.id = e.batch_id
+                   WHERE b.project_id=?""", (project_id,))}
         return {r["paper_key"] for r in self.conn.execute("SELECT DISTINCT paper_key FROM exposures")}
 
     # --------------------------------------------------------------- feedback
