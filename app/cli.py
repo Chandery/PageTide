@@ -55,7 +55,7 @@ def main(argv=None):
 
     fb = sub.add_parser("fb")
     fb.add_argument("position", type=int, help="1-based position in the latest batch")
-    fb.add_argument("action", choices=["useful", "irrelevant", "later", "busy", "confused"])
+    fb.add_argument("action", choices=["useful", "irrelevant", "too_hard"])
 
     undo = sub.add_parser("undo")
     undo.add_argument("feedback_id", type=int)

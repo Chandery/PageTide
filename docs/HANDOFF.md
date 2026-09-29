@@ -1,6 +1,17 @@
 # 当前交接：推荐优先路线、复用调研与行动前 token 预算
 
-## 2026-09-29 Multi-project UI (Phase 2) (Current)
+## 2026-09-29 Feedback simplification (Phase 4) (Current)
+
+- Implemented Phase 4: simplified feedback options from three to three clearer choices. Removed "later" (稍后看) which users didn't use effectively, replaced with "too_hard" (太难) for papers that are currently too advanced but may be relevant later.
+- Three feedback actions now: "useful" (saves to library, never re-recommended), "irrelevant" (大幅降权, needs +50% similarity or 180 days to re-recommend), "too_hard" (小幅降权, can re-recommend after 60 days with >0.65 similarity).
+- UI updated: replaced moon icon with brain icon for too_hard button. Stats display shows "太难" count instead of "中性". Profile display updated to show too_hard_feedback list. All buttons use consistent iconography across recommendation cards, library, and detail views.
+- Backend changes: `TOO_HARD_ACTIONS` constant replaces `NEUTRAL_ACTIONS`. Profile includes `too_hard_feedback` field. Stats track too_hard count separately. Service layer handles too_hard with lighter weight penalty than irrelevant.
+- Evidence: 178 non-HTTP tests passed; 18 HTTP errors due to sandbox (expected). [Change record](../changes/2026-09-29-phase4-feedback-simplification.json). Zero runtime token impact; feedback logic and UI changes only.
+- Phase 4 complete. Next: Phase 5 profile visualization (keyword cloud, interest timeline, AI summary), Phase 6 weekly reports, then knowledge graph redesign per approved plan.
+- Related: PROFILE-01. Open risk: existing "later" feedback displayed as "too_hard" in stats (acceptable, no migration needed).
+
+## 2026-09-29 Multi-project UI (Phase 2) (Previous)
+
 
 - Implemented Phase 2 of multi-project support: project selector dropdown UI and project creation flows. Users can now switch between projects and create new ones through the web interface.
 - Project selector in header shows current project name with dropdown listing all projects. Click switches active project, reloads data, and persists selection to localStorage. Dropdown closes on outside click or selection.

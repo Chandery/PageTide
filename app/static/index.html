@@ -855,7 +855,7 @@ const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>
 function renderStats() {
   const s = state.stats || {};
   $('#stats').innerHTML = `<span>文献 <b>${s.papers ?? 0}</b></span><span>收藏 <b>${s.saved ?? 0}</b></span>
-    <span>正例 <b>${s.positive ?? 0}</b></span><span>负例 <b>${s.negative ?? 0}</b></span>`;
+    <span>正例 <b>${s.positive ?? 0}</b></span><span>负例 <b>${s.negative ?? 0}</b></span><span>太难 <b>${s.too_hard ?? 0}</b></span>`;
   const proj = state.projects?.find(p => p.id === state.currentProject);
   $('#projectName').textContent = proj?.name || '研究工作区';
 }
@@ -885,6 +885,7 @@ function cardHTML(c, i) {
       <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
         <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
       <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
+      <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
       <button class="tiny read-action" data-read="${esc(c.key)}" data-title="${esc(c.title)}"><i class="icon book" aria-hidden="true"></i>阅读 PDF</button>
     </div>
   </article>`;
@@ -921,7 +922,7 @@ function renderProfile() {
     <div>${(p.pinned_terms || []).length ? p.pinned_terms.map(t => `<span class="badge">${esc(t)}</span>`).join(' ') : '<span class="sub">（无）</span>'}</div>
     <div class="label">种子与反馈</div>
     <div class="profile-facts"><span>正向种子<b>${(p.positive_seeds || []).length}</b></span><span>反馈正例<b>${(p.positive_feedback || []).length}</b></span>
-      <span>显式负例<b>${(p.explicit_negatives || []).length}</b></span><span>中性反馈<b>${(p.neutral_feedback || []).length}</b></span></div>`;
+      <span>显式负例<b>${(p.explicit_negatives || []).length}</b></span><span>太难反馈<b>${(p.too_hard_feedback || []).length}</b></span></div>`;
 }
 
 // ------------------------------------------------------------------ projects
@@ -1197,6 +1198,7 @@ async function openDetail(key) {
           <button id="dToggle" class="${d.saved ? 'saved' : 'primary'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
             ${d.saved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库'}</button>
           <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
+          <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
           <a class="btn" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>
         </div>
       </div>`;

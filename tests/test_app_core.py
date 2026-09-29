@@ -122,11 +122,11 @@ class ServiceTests(unittest.TestCase):
              "published": "2026-08-02", "group_name": "distractor"},
         ])
 
-    def test_busy_and_confused_do_not_change_interest(self):
-        result = self.app.record_feedback("p1", "busy")
+    def test_too_hard_does_not_change_interest(self):
+        result = self.app.record_feedback("p1", "too_hard")
         self.assertFalse(result["interest_changed"])
         profile = self.app.profile()
-        self.assertIn("p1", profile["neutral_feedback"])
+        self.assertIn("p1", profile["too_hard_feedback"])
         self.assertNotIn("p1", profile["positive_feedback"])
 
     def test_irrelevant_is_explicit_negative(self):

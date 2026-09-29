@@ -12,9 +12,10 @@ from .gateway import Gateway
 from .project import ProjectManager
 from .sources import OpenAlex, resolve_seed
 
-ACTIONS = ("useful", "irrelevant", "later", "busy", "confused")
+ACTIONS = ("useful", "irrelevant", "too_hard")
 POSITIVE_ACTIONS = {"useful"}
-NEGATIVE_ACTIONS = {"irrelevant"}   # 'busy'/'confused'/'later' never change interest
+NEGATIVE_ACTIONS = {"irrelevant"}
+TOO_HARD_ACTIONS = {"too_hard"}  # Reduces weight but may be re-recommended later
 
 
 class App:
@@ -96,15 +97,16 @@ class App:
         feedback = self.latest_feedback(project_id)
         positives = [k for k, v in feedback.items() if v["action"] in POSITIVE_ACTIONS]
         negatives = [k for k, v in feedback.items() if v["action"] in NEGATIVE_ACTIONS]
+        too_hard = [k for k, v in feedback.items() if v["action"] in TOO_HARD_ACTIONS]
         return {
             "project_id": project_id,
             "project": base["project"],
             "pinned_terms": base.get("pinned_terms", []),
-            "weights": base.get("weights", {"pos": 1.0, "neg": 0.5}),
+            "weights": base.get("weights", {"pos": 1.0, "neg": 0.3, "hard": 0.7}),
             "positive_seeds": self.seed_keys(project_id),
             "positive_feedback": sorted(positives),
             "explicit_negatives": sorted(negatives),
-            "neutral_feedback": sorted(k for k, v in feedback.items() if v["action"] in ("later", "busy", "confused")),
+            "too_hard_feedback": sorted(too_hard),
         }
 
     def save_profile(self, data, note=None):
@@ -128,7 +130,11 @@ class App:
         neg = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
             f"{papers_by_key[k].get('title') or ''} {papers_by_key[k].get('abstract') or ''}"), idf))
             for k in profile["explicit_negatives"] if k in papers_by_key]
-        return ranking.rocchio(seed_vectors, pos, neg, weights.get("pos", 1.0), weights.get("neg", 0.5))
+        hard = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
+            f"{papers_by_key[k].get('title') or ''} {papers_by_key[k].get('abstract') or ''}"), idf))
+            for k in profile.get("too_hard_feedback", []) if k in papers_by_key]
+        return ranking.rocchio(seed_vectors, pos, neg + hard, weights.get("pos", 1.0),
+                              weights.get("neg", 0.3) if neg else weights.get("hard", 0.7))
 
     # ------------------------------------------------------------------ daily
     def usage(self):
@@ -169,7 +175,7 @@ class App:
                 "saved": library_count,
                 "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
                 "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
-                "neutral": sum(1 for v in feedback.values() if v["action"] in ("later", "busy", "confused")),
+                "too_hard": sum(1 for v in feedback.values() if v["action"] in TOO_HARD_ACTIONS),
                 "shown": shown_count,
                 "summaries": len(self.store.summaries()),
             }
@@ -182,7 +188,7 @@ class App:
                 "saved": len(self.store.library()),
                 "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
                 "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
-                "neutral": sum(1 for v in feedback.values() if v["action"] in ("later", "busy", "confused")),
+                "too_hard": sum(1 for v in feedback.values() if v["action"] in TOO_HARD_ACTIONS),
                 "shown": len(self.store.seen_keys()),
                 "summaries": len(self.store.summaries()),
             }
