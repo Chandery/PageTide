@@ -1,14 +1,23 @@
 # 当前交接：推荐优先路线、复用调研与行动前 token 预算
 
-## 2026-09-29 Multi-project data layer (Phase 1) (Current)
+## 2026-09-29 Multi-project UI (Phase 2) (Current)
+
+- Implemented Phase 2 of multi-project support: project selector dropdown UI and project creation flows. Users can now switch between projects and create new ones through the web interface.
+- Project selector in header shows current project name with dropdown listing all projects. Click switches active project, reloads data, and persists selection to localStorage. Dropdown closes on outside click or selection.
+- Dedicated project creation page (`/project_creation.html`) with three modes: Quick (AI screening, placeholder for Phase 3), Manual (keywords + optional seeds, fully functional), AI-guided (conversational, marked as coming soon).
+- Manual creation accepts project name, comma-separated keywords, and optional DOI/arXiv seed list. Quick mode accepts natural language research interests but AI screening unimplemented. Both modes redirect to home with new project selected.
+- Evidence: [change record](../changes/2026-09-29-multi-project-phase2.json). Core tests pass; HTTP tests blocked by sandbox (expected). Visual verification in Browser pane. Zero runtime token impact; UI-only changes.
+- Phase 2 UI complete and committed (be85506). Server endpoints already support project_id from Phase 1. AI screening for quick mode and full AI-guided flow deferred to Phase 3. Requires non-sandboxed environment for server testing.
+- Related: PROFILE-01. Next: Phase 3 AI guidance, Phase 4 recommendation adjustments, Phase 5 profile visualization, Phase 6 weekly reports per approved plan.
+
+## 2026-09-29 Multi-project data layer (Phase 1) (Previous)
 
 - Implemented Phase 1 of multi-project support: database schema migration system, project tables, and project-scoped data isolation. This enables managing multiple research projects with independent profiles, papers, and feedback.
 - Migration system tracks schema versions in `schema_version` table. Migration 1 creates `projects`, `profile_snapshots`, `weekly_reports` tables, adds `project_id` foreign keys to `papers` and `feedback`, creates a default project, and migrates existing data.
 - `ProjectManager` provides project CRUD: `create_project`, `get_project`, `list_projects`, `update_project`, `delete_project`, plus snapshot/report operations. Service layer updated to accept optional `project_id` parameters with default project fallback for backward compatibility.
 - All 178 non-HTTP tests pass. 18 HTTP tests fail with "Operation not permitted" on socket binding (expected sandbox behavior, not a Phase 1 defect). Migration is idempotent and verified through manual testing.
 - Evidence: [checks](evidence/2026-09-29-multi-project-phase1-checks.txt), [change record](../changes/2026-09-29-multi-project-phase1.json). Zero runtime token impact; no new model calls. Harness/budget/review checks passed.
-- Phase 1 complete and committed (aa2479d). No UI for project selection yet—existing users operate on default project until Phase 2. Weekly reports and profile snapshots schema created but not yet used.
-- Related: PROFILE-01. Next phases: multi-project UI, AI guidance creation, recommendation adjustments, profile visualization, weekly reports, and UI modernization per approved plan.
+- Phase 1 complete and committed (aa2479d). Provides data layer foundation for Phase 2+ UI and features.
 
 ## 2026-09-20 Desktop runtime API key wiring (Previous)
 
