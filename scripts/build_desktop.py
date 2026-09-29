@@ -17,7 +17,6 @@ def main():
         [
             str(ROOT / ".local" / "desktop-build-env" / "bin" / "python"),
             "-m", "PyInstaller",
-            "--clean",
             "--noconfirm",
             "--onedir",
             "--name",
