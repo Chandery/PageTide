@@ -1,6 +1,16 @@
 # 当前交接：推荐优先路线、复用调研与行动前 token 预算
 
-## 2026-09-20 Desktop runtime API key wiring (Current)
+## 2026-09-29 Multi-project data layer (Phase 1) (Current)
+
+- Implemented Phase 1 of multi-project support: database schema migration system, project tables, and project-scoped data isolation. This enables managing multiple research projects with independent profiles, papers, and feedback.
+- Migration system tracks schema versions in `schema_version` table. Migration 1 creates `projects`, `profile_snapshots`, `weekly_reports` tables, adds `project_id` foreign keys to `papers` and `feedback`, creates a default project, and migrates existing data.
+- `ProjectManager` provides project CRUD: `create_project`, `get_project`, `list_projects`, `update_project`, `delete_project`, plus snapshot/report operations. Service layer updated to accept optional `project_id` parameters with default project fallback for backward compatibility.
+- All 178 non-HTTP tests pass. 18 HTTP tests fail with "Operation not permitted" on socket binding (expected sandbox behavior, not a Phase 1 defect). Migration is idempotent and verified through manual testing.
+- Evidence: [checks](evidence/2026-09-29-multi-project-phase1-checks.txt), [change record](../changes/2026-09-29-multi-project-phase1.json). Zero runtime token impact; no new model calls. Harness/budget/review checks passed.
+- Phase 1 complete and committed (aa2479d). No UI for project selection yet—existing users operate on default project until Phase 2. Weekly reports and profile snapshots schema created but not yet used.
+- Related: PROFILE-01. Next phases: multi-project UI, AI guidance creation, recommendation adjustments, profile visualization, weekly reports, and UI modernization per approved plan.
+
+## 2026-09-20 Desktop runtime API key wiring (Previous)
 
 - Owner reported the Tauri app had many places not calling the API. Root cause confirmed: the desktop shell stripped `DEEPSEEK_API_KEY` and the gateway only resolved `.local/deepseek.env` from the process CWD (`~/Library/Application Support/PaperDigHelper`), while the key lived in the checkout. `/api/translate` and `/api/qa` returned `no API key`; the desktop DB held 0 summaries and 0 QA rows versus 50/56 in the browser DB. The usage ledger also resolved inside the frozen `.app` bundle.
 - Fix: `Gateway` now takes `data_dir`, resolves the key from env/explicit file/data-dir/checkout, and keeps the ledger + `DEV_MODE` in the user data dir. New `GET/POST /api/settings` stores or clears the key at `<data dir>/deepseek.env` with 0600, never returns it, and rejects cross-origin writes. A header settings dialog lets the owner paste/clear the key; `/api/home` reports `provider.configured` without the secret. No key goes to webview storage or Git.
