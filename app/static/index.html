@@ -105,6 +105,23 @@
   .project-create:hover { background:rgba(109,93,252,.08); transform:none; }
   .project-create .icon { font-size:14px; }
 
+  /* --------------------------------------------------------- profile visualization */
+  .profile-stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:16px; margin:24px 0; }
+  .stat-card { background:var(--surface-1); border:1px solid var(--line); border-radius:var(--r-lg); padding:20px; text-align:center; }
+  .stat-icon { font-size:32px; margin-bottom:8px; }
+  .stat-value { font-size:28px; font-weight:700; color:var(--accent-text); margin-bottom:4px; }
+  .stat-label { font-size:12px; color:var(--muted); }
+  .profile-section { margin:32px 0; padding:24px; background:var(--surface-1); border:1px solid var(--line); border-radius:var(--r-lg); }
+  .profile-section h2 { font-size:18px; margin:0 0 16px; }
+  .keyword-cloud { min-height:200px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }
+  .keyword-tag { display:inline-block; padding:6px 12px; border-radius:999px; background:var(--accent-soft); color:var(--accent-text); font-weight:500; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease; }
+  .keyword-tag:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(109,93,252,.2); }
+  .ai-summary-panel { position:fixed; top:80px; right:24px; width:400px; max-height:calc(100vh - 120px); background:var(--base); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-out); z-index:100; overflow:hidden; }
+  .panel-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .panel-header h3 { margin:0; font-size:16px; }
+  .panel-content { padding:20px; max-height:calc(100vh - 200px); overflow-y:auto; }
+  .panel-content .loading { text-align:center; color:var(--muted); padding:40px 0; }
+
   main { max-width:920px; margin:20px auto 90px; padding:0 16px; }
   h1 { font-size:23px; margin:0 0 4px; letter-spacing:0; }
   .sub { color:var(--muted); font-size:13px; }
@@ -671,13 +688,58 @@
   <section id="view-profile" class="hidden">
     <section class="hero">
       <h1>我的画像</h1>
-      <div class="sub">研究兴趣</div>
+      <div class="sub">研究兴趣与学习轨迹</div>
       <div class="row" style="margin-top:16px">
         <input type="text" id="pin" aria-label="固定关键词" placeholder="world model, JEPA, planning">
         <button id="btnPin">保存关键词</button>
+        <button id="btnProfileSummary">AI 生成总结</button>
       </div>
     </section>
+
+    <section class="profile-stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📚</div>
+        <div class="stat-value" id="statPapers">0</div>
+        <div class="stat-label">文献总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-value" id="statSaved">0</div>
+        <div class="stat-label">已收藏</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">👍</div>
+        <div class="stat-value" id="statPositive">0</div>
+        <div class="stat-label">正例反馈</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">👎</div>
+        <div class="stat-value" id="statNegative">0</div>
+        <div class="stat-label">负例反馈</div>
+      </div>
+    </section>
+
+    <section class="profile-section">
+      <h2>关键词分布</h2>
+      <div id="keywordCloud" class="keyword-cloud"></div>
+    </section>
+
+    <section class="profile-section">
+      <h2>兴趣时间线</h2>
+      <canvas id="interestTimeline" width="800" height="300"></canvas>
+    </section>
+
     <section class="hero" id="profileBox"></section>
+
+    <div id="aiSummaryPanel" class="ai-summary-panel hidden">
+      <div class="panel-header">
+        <h3>AI 画像总结</h3>
+        <button class="tiny ghost" id="closeSummary">×</button>
+      </div>
+      <div id="aiSummaryContent" class="panel-content">
+        <div class="loading">生成中...</div>
+      </div>
+    </div>
   </section>
 </main>
 <section id="organizationRoot" class="hidden"></section>
@@ -916,6 +978,21 @@ function renderLibrary() {
 }
 function renderProfile() {
   const p = state.profile || {};
+  const s = state.stats || {};
+
+  // Update stat cards
+  $('#statPapers').textContent = s.papers ?? 0;
+  $('#statSaved').textContent = s.saved ?? 0;
+  $('#statPositive').textContent = s.positive ?? 0;
+  $('#statNegative').textContent = s.negative ?? 0;
+
+  // Render keyword cloud
+  renderKeywordCloud(p.pinned_terms || []);
+
+  // Render interest timeline (placeholder for now)
+  renderInterestTimeline();
+
+  // Original profile box
   $('#profileBox').innerHTML = `
     <div class="sub">项目：<b>${esc(p.project || '')}</b></div>
     <div class="label">固定关键词</div>
@@ -924,6 +1001,76 @@ function renderProfile() {
     <div class="profile-facts"><span>正向种子<b>${(p.positive_seeds || []).length}</b></span><span>反馈正例<b>${(p.positive_feedback || []).length}</b></span>
       <span>显式负例<b>${(p.explicit_negatives || []).length}</b></span><span>太难反馈<b>${(p.too_hard_feedback || []).length}</b></span></div>`;
 }
+
+function renderKeywordCloud(keywords) {
+  const cloud = $('#keywordCloud');
+  if (!keywords.length) {
+    cloud.innerHTML = '<div class="sub" style="text-align:center; padding:40px 0;">暂无固定关键词</div>';
+    return;
+  }
+
+  cloud.innerHTML = keywords.map(kw => {
+    const size = 14 + Math.random() * 8; // Random size between 14-22px
+    return `<span class="keyword-tag" style="font-size:${size}px">${esc(kw)}</span>`;
+  }).join('');
+}
+
+function renderInterestTimeline() {
+  const canvas = $('#interestTimeline');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+
+  // Clear canvas
+  ctx.clearRect(0, 0, w, h);
+
+  // Simple placeholder visualization
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-text').trim();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  // Draw a sample timeline curve
+  const points = 20;
+  for (let i = 0; i <= points; i++) {
+    const x = (w / points) * i;
+    const y = h/2 + Math.sin(i * 0.5) * (h/4) + Math.random() * 20 - 10;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Add axis labels
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
+  ctx.font = '11px system-ui';
+  ctx.fillText('时间轴（示例数据）', 10, h - 10);
+}
+
+$('#btnProfileSummary').onclick = async () => {
+  const panel = $('#aiSummaryPanel');
+  const content = $('#aiSummaryContent');
+
+  panel.classList.remove('hidden');
+  content.innerHTML = '<div class="loading">AI 正在生成画像总结...</div>';
+
+  try {
+    // TODO: Call API endpoint for AI summary
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+    content.innerHTML = `
+      <div style="line-height:1.7">
+        <p><strong>研究方向：</strong>世界模型、自监督学习、规划算法</p>
+        <p><strong>关注重点：</strong>基于 JEPA 架构的视觉表示学习，以及在强化学习中的应用</p>
+        <p><strong>阅读偏好：</strong>理论性较强的论文，偏好 NeurIPS/ICML 会议</p>
+        <p><strong>建议：</strong>可以关注最新的扩散模型与世界模型结合的工作</p>
+      </div>`;
+  } catch (e) {
+    content.innerHTML = `<div style="color:var(--warn)">生成失败：${esc(e.message)}</div>`;
+  }
+};
+
+$('#closeSummary').onclick = () => {
+  $('#aiSummaryPanel').classList.add('hidden');
+};
 
 // ------------------------------------------------------------------ projects
 async function loadProjects() {
