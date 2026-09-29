@@ -1,0 +1,426 @@
+2026-09-15 organization refinement — sanitized evidence
+
+Full suite before final default-color/display-only correction:
+.local/desktop-build-env/bin/python -m unittest discover -s tests -v
+test_dev_mode_uses_separate_ledger_and_loose_limits (test_app_core.GatewayTests) ... ok
+test_dry_run_reserves_without_network (test_app_core.GatewayTests) ... ok
+test_unregistered_operation_is_rejected (test_app_core.GatewayTests) ... ok
+test_mmr_is_deterministic (test_app_core.RankingTests) ... ok
+test_mmr_prefers_diverse_selection (test_app_core.RankingTests) ... ok
+test_rocchio_subtracts_negatives (test_app_core.RankingTests) ... ok
+test_build_batch_excludes_seen_and_feedback (test_app_core.ServiceTests) ... ok
+test_busy_and_confused_do_not_change_interest (test_app_core.ServiceTests) ... ok
+test_caption_passages_anchor_on_the_figure_number (test_app_core.ServiceTests) ... ok
+test_cards_have_distinct_reasons (test_app_core.ServiceTests) ... ok
+test_cards_have_reason_and_url (test_app_core.ServiceTests) ... ok
+test_explain_is_specific_and_names_a_reference (test_app_core.ServiceTests) ... ok
+test_feedback_does_not_remove_card_from_view (test_app_core.ServiceTests) ... ok
+test_figure_page_handles_mid_line_captions_and_fallback (test_app_core.ServiceTests) ... ok
+test_figure_page_prefers_caption_over_body_references (test_app_core.ServiceTests) ... ok
+test_fulltext_cache_and_retrieval (test_app_core.ServiceTests) ... ok
+test_irrelevant_is_explicit_negative (test_app_core.ServiceTests) ... ok
+test_passages_empty_without_fulltext (test_app_core.ServiceTests) ... ok
+test_pinned_terms_are_used (test_app_core.ServiceTests) ... ok
+test_qa_dry_run_records_no_history (test_app_core.ServiceTests) ... ok
+test_qa_falls_back_to_raw_text_without_json (test_app_core.ServiceTests) ... ok
+test_qa_parses_answer_and_followups (test_app_core.ServiceTests) ... ok
+test_qa_reports_mode_pages_and_uses_vision_operation (test_app_core.ServiceTests) ... ok
+test_unknown_action_rejected (test_app_core.ServiceTests) ... ok
+test_unsave_removes_from_library (test_app_core.ServiceTests) ... ok
+test_useful_saves_to_library_and_card_stays (test_app_core.ServiceTests) ... ok
+test_feedback_and_undo (test_app_core.StoreTests) ... ok
+test_papers_batch_and_cards (test_app_core.StoreTests) ... ok
+test_profile_versions_are_append_only (test_app_core.StoreTests) ... ok
+test_upsert_is_idempotent (test_app_core.StoreTests) ... ok
+test_feedback_round_trip_over_http (test_app_server.ServerSmokeTests) ... ok
+test_home_reports_server_version (test_app_server.ServerSmokeTests) ... ok
+test_index_and_state_are_served (test_app_server.ServerSmokeTests) ... ok
+test_paper_detail_endpoint (test_app_server.ServerSmokeTests) ... [404] paper key='missing'
+ok
+test_paper_detail_via_post_body (test_app_server.ServerSmokeTests)
+This is the path the UI uses; a POST body avoids URL-encoding issues. ... ok
+test_pdf_view_404_when_not_downloaded (test_app_server.ServerSmokeTests) ... ok
+test_pdf_view_serves_stored_file (test_app_server.ServerSmokeTests) ... ok
+test_qa_and_translate_dry_run_reserve_without_calling (test_app_server.ServerSmokeTests) ... ok
+test_qa_history_endpoint (test_app_server.ServerSmokeTests) ... ok
+test_vendored_pdfjs_is_served (test_app_server.ServerSmokeTests) ... ok
+test_abstract_only_groups_show_evidence (test_broad_organization.BroadOrganizationTests) ... ok
+test_ambiguous_words_do_not_invent_disciplines (test_broad_organization.BroadOrganizationTests) ... ok
+test_broad_determinism (test_broad_organization.BroadOrganizationTests) ... ok
+test_chinese_papers_are_not_empty_vocabulary (test_broad_organization.BroadOrganizationTests) ... ok
+test_cross_discipline_and_unknown_terms (test_broad_organization.BroadOrganizationTests) ... ok
+test_generic_academic_language_does_not_force_grouping (test_broad_organization.BroadOrganizationTests) ... ok
+test_same_topic_survives_neighbor_cap (test_broad_organization.BroadOrganizationTests) ... ok
+test_shared_topic_unites_different_methods (test_broad_organization.BroadOrganizationTests) ... ok
+test_replaces_only_untouched_automatic_groups_and_undo_restores (test_broad_organization.RegroupTests) ... ok
+test_approval_and_enforcement_require_json_booleans (test_budget.BudgetTests) ... ok
+test_cache_cost_not_zero (test_budget.BudgetTests) ... ok
+test_calendar_and_peak_are_not_prorated (test_budget.BudgetTests) ... ok
+test_changed_calendar_and_price_render_dynamically (test_budget.BudgetTests) ... ok
+test_configured_contract_valid (test_budget.BudgetTests) ... ok
+test_current_plan_is_owner_approved_but_not_enforced (test_budget.BudgetTests) ... ok
+test_envelope_reference_and_duplicate_prompt_rejected (test_budget.BudgetTests) ... ok
+test_evaluation_annotator_is_separate_and_token_only (test_budget.BudgetTests) ... ok
+test_invalid_calendar_rejected (test_budget.BudgetTests) ... ok
+test_invalid_money_and_counts (test_budget.BudgetTests) ... ok
+test_pending_reservations_count_in_arithmetic (test_budget.BudgetTests) ... ok
+test_provider_absent_cannot_hide_calls_or_limits (test_budget.BudgetTests) ... ok
+test_reasoning_fallback_and_cache_discount_not_default (test_budget.BudgetTests) ... ok
+test_reasoning_not_double_counted_and_inconsistent_usage_rejected (test_budget.BudgetTests) ... ok
+test_registered_proposal_daily_minimum_and_stress (test_budget.BudgetTests) ... ok
+test_retry_and_monthly_demand_not_authorization (test_budget.BudgetTests) ... ok
+test_unregistered_calls_and_empty_configured_operations_rejected (test_budget.BudgetTests) ... ok
+test_determinism_across_hash_seeds (test_clustering.ClusteringTests) ... ok
+test_determinism_and_stable_ids (test_clustering.ClusteringTests) ... ok
+test_empty_singleton_and_no_vocabulary (test_clustering.ClusteringTests) ... ok
+test_groups_separate_topics_and_keep_isolated_papers (test_clustering.ClusteringTests) ... ok
+test_bad_corpus_rejected (test_clustering.FingerprintTests) ... ok
+test_missing_dependency_explicit_even_for_empty_corpus (test_clustering.FingerprintTests) ... ok
+test_order_independent_and_excludes_private_notes (test_clustering.FingerprintTests) ... ok
+test_resource_limits_do_not_silently_sample (test_clustering.FingerprintTests) ... ok
+test_abstract_text_rebuilds_word_order (test_data_probe.DataProbeTests) ... ok
+test_best_match_prefers_exact_then_prefix (test_data_probe.DataProbeTests) ... ok
+test_best_match_scores_partial_overlap_and_handles_empty (test_data_probe.DataProbeTests) ... ok
+test_normalize_title_collapses_punctuation_and_case (test_data_probe.DataProbeTests) ... ok
+test_openalex_ids_pulls_arxiv_from_doi (test_data_probe.DataProbeTests) ... ok
+test_parse_arxiv_entries_extracts_fields_and_flattens_whitespace (test_data_probe.DataProbeTests) ... ok
+test_parser_rejects_malformed_xml (test_data_probe.DataProbeTests) ... ok
+test_centroid_normalized_and_orders_top_terms (test_eval_probe.EvalProbeTests) ... ok
+test_cosine_handles_empty_vectors (test_eval_probe.EvalProbeTests) ... ok
+test_equal_batches_splits_contiguously (test_eval_probe.EvalProbeTests) ... ok
+test_feedback_split_honours_explicit_date (test_eval_probe.EvalProbeTests) ... ok
+test_feedback_split_is_chronological_and_disjoint (test_eval_probe.EvalProbeTests) ... ok
+test_idf_downweights_common_terms (test_eval_probe.EvalProbeTests) ... ok
+test_mean_rank_of_useful (test_eval_probe.EvalProbeTests) ... ok
+test_mean_relevance_at_k (test_eval_probe.EvalProbeTests) ... ok
+test_parse_spotcheck_sheet_reads_levels_and_keys (test_eval_probe.EvalProbeTests) ... ok
+test_precision_at_k_returns_none_for_unjudged_top_k (test_eval_probe.EvalProbeTests) ... ok
+test_ranking_auc_rewards_useful_items_on_top (test_eval_probe.EvalProbeTests) ... ok
+test_rocchio_profile_adds_positives_and_subtracts_negatives (test_eval_probe.EvalProbeTests) ... ok
+test_rocchio_profile_is_l2_normalized (test_eval_probe.EvalProbeTests) ... ok
+test_spotcheck_agreement_counts_exact_within1_and_binary (test_eval_probe.EvalProbeTests) ... ok
+test_spotcheck_agreement_ignores_unmatched_keys (test_eval_probe.EvalProbeTests) ... ok
+test_tokenize_drops_stopwords_and_short_tokens (test_eval_probe.EvalProbeTests) ... ok
+test_vectorize_and_cosine_rank_similar_docs_higher (test_eval_probe.EvalProbeTests) ... ok
+test_changed_impact_requires_quantities (test_harness.HarnessTests) ... ok
+test_classification_consequence_not_size (test_harness.HarnessTests) ... ok
+test_declared_stages_are_not_tied_to_legacy_abcd (test_harness.HarnessTests) ... ok
+test_done_without_evidence_rejected (test_harness.HarnessTests) ... ok
+test_evidence_cannot_escape_repository (test_harness.HarnessTests) ... ok
+test_future_provider_verification_rejected (test_harness.HarnessTests) ... ok
+test_generated_budget_drift_detected (test_harness.HarnessTests) ... ok
+test_invalid_source_interval_rejected (test_harness.HarnessTests) ... ok
+test_local_broken_link_detected (test_harness.HarnessTests) ... ok
+test_multi_node_task_cycle_detected (test_harness.HarnessTests) ... ok
+test_nested_unregistered_prompt_detected (test_harness.HarnessTests) ... ok
+test_orphan_evaluation_not_referenced_by_requirement (test_harness.HarnessTests) ... ok
+test_passed_eval_requires_evidence (test_harness.HarnessTests) ... ok
+test_record_approval_requires_true_boolean (test_harness.HarnessTests) ... ok
+test_record_cannot_downgrade_or_omit_changed_files (test_harness.HarnessTests) ... ok
+test_record_categories_and_impact_required (test_harness.HarnessTests) ... ok
+test_release_still_blocked_by_unrun_gates (test_harness.HarnessTests) ... ok
+test_stage_registry_must_be_nonempty_unique_names (test_harness.HarnessTests) ... ok
+test_stale_sources_detected_without_network (test_harness.HarnessTests) ... ok
+test_string_false_cannot_pass_release_approval (test_harness.HarnessTests) ... ok
+test_task_cycle_detected (test_harness.HarnessTests) ... ok
+test_undeclared_stage_is_rejected (test_harness.HarnessTests) ... ok
+test_unknown_requirement_detected (test_harness.HarnessTests) ... ok
+test_unregistered_prompt_detected (test_harness.HarnessTests) ... ok
+test_active_transaction_not_committed_or_discarded (test_organization.OrganizationTests) ... ok
+test_backup_failure_prevents_schema_creation (test_organization.OrganizationTests) ... ok
+test_backup_precedes_schema_and_preserves_wal_data (test_organization.OrganizationTests) ... ok
+test_collapse_persists_is_project_scoped_and_undoable (test_organization.OrganizationTests) ... ok
+test_compound_positions_virtual_anchor_and_direction_delete (test_organization.OrganizationTests) ... ok
+test_direction_edit_rank_delete_and_undo (test_organization.OrganizationTests) ... ok
+test_draft_survives_reopen_and_unsave_without_changing_notes_or_undo (test_organization.OrganizationTests) ... ok
+test_draft_versions_clients_and_stale_clear_protect_newer_edits (test_organization.OrganizationTests) ... ok
+test_graph_is_read_only_and_uses_only_saved_metadata (test_organization.OrganizationTests) ... ok
+test_injected_schema_failure_rolls_back_and_backup_restores (test_organization.OrganizationTests) ... ok
+test_legacy_import_and_notes_optimistic_history_restore (test_organization.OrganizationTests) ... ok
+test_manually_removed_membership_stays_removed_after_reclassification (test_organization.OrganizationTests) ... ok
+test_metadata_changes_stale_and_preview_cannot_be_forged (test_organization.OrganizationTests) ... ok
+test_missing_dependency_does_not_mutate_state (test_organization.OrganizationTests) ... ok
+test_new_legacy_note_saved_then_unsaved_without_snapshot_is_retained (test_organization.OrganizationTests) ... ok
+test_persistence_export_and_position_removal (test_organization.OrganizationTests) ... ok
+test_project_isolation_notes_memberships_positions_revisions_and_undo (test_organization.OrganizationTests) ... ok
+test_revision_conflict_across_connections (test_organization.OrganizationTests) ... ok
+test_selected_suggestion_names_colors_and_members_are_editable (test_organization.OrganizationTests) ... ok
+test_selected_suggestions_cannot_inject_or_duplicate_keys (test_organization.OrganizationTests) ... ok
+test_suggest_rechecks_corpus_and_explicit_revision_after_computation (test_organization.OrganizationTests) ... ok
+test_suggest_releases_transaction_and_preserves_concurrent_edits (test_organization.OrganizationTests) ... ok
+test_suggestions_preview_apply_stale_and_manual_protection (test_organization.OrganizationTests) ... ok
+test_unsave_resave_preserves_organization_and_note (test_organization.OrganizationTests) ... ok
+test_unsaved_position_cleanup_and_rearrangement_keep_write_validation (test_organization.OrganizationTests) ... ok
+test_validation_and_atomic_batch_rollback (test_organization.OrganizationTests) ... ok
+test_classification_worker_returns_job_result (test_organization_http.OrganizationHTTPTests) ... ok
+test_graph_uses_bounded_job_and_does_not_create_suggestions (test_organization_http.OrganizationHTTPTests) ... ok
+test_operation_alias_cannot_bypass_worker (test_organization_http.OrganizationHTTPTests) ... ok
+test_organization_rejects_invalid_and_foreign_requests (test_organization_http.OrganizationHTTPTests) ... ok
+test_organization_round_trip (test_organization_http.OrganizationHTTPTests) ... ok
+test_shared_job_and_home_routes_reject_rebound_host (test_organization_http.OrganizationHTTPTests) ... ok
+test_shutdown_terminates_and_reaps_only_registered_worker (test_organization_worker.WorkerLifecycleTests) ... ok
+test_timeout_kills_and_reaps_worker_and_releases_lock (test_organization_worker.WorkerLifecycleTests) ... ok
+test_rust_shell_owns_only_spawned_python_process (test_tauri_shell.TauriShellTests) ... ok
+test_shell_does_not_add_remote_frontend_or_provider_permissions (test_tauri_shell.TauriShellTests) ... ok
+test_tauri_config_loads_local_server_and_resizable_window (test_tauri_shell.TauriShellTests) ... ok
+test_dark_accent_variants_are_readable (test_ui_contrast.ContrastTests) ... ok
+test_every_accent_defines_its_own_text_tokens (test_ui_contrast.ContrastTests)
+The original bug: --accent-ink was undefined, so buttons inherited a colour. ... ok
+test_every_css_variable_used_is_defined (test_ui_contrast.ContrastTests)
+An undefined token silently inherits a colour - the dark-on-dark bug. ... ok
+test_known_bad_pair_would_be_caught (test_ui_contrast.ContrastTests)
+Guard the guard: the colours that caused the original report still fail. ... ok
+test_light_accent_variants_are_readable (test_ui_contrast.ContrastTests) ... ok
+test_lazy_pages_use_the_existing_tree_scale_during_zoom (test_ui_layout.LayoutTests) ... ok
+test_motion_has_final_reduced_motion_override (test_ui_layout.LayoutTests) ... ok
+test_navigation_is_keyboard_operable (test_ui_layout.LayoutTests) ... ok
+test_no_network_visual_dependencies (test_ui_layout.LayoutTests) ... ok
+test_no_viewport_scaled_fonts_or_negative_tracking (test_ui_layout.LayoutTests) ... ok
+test_paper_titles_are_keyboard_operable (test_ui_layout.LayoutTests) ... ok
+test_pinch_anchor_scales_pointer_offset_before_rerender (test_ui_layout.LayoutTests) ... ok
+test_pinch_visual_phase_reserves_scaled_page_geometry (test_ui_layout.LayoutTests) ... ok
+test_plain_trackpad_scroll_is_not_cancelled (test_ui_layout.LayoutTests) ... ok
+test_repeated_zoom_converts_transformed_anchor_back_to_base_space (test_ui_layout.LayoutTests) ... ok
+test_zoom_commit_keeps_visible_pdf_tree (test_ui_layout.LayoutTests) ... ok
+
+----------------------------------------------------------------------
+Ran 175 tests in 123.375s
+
+OK
+
+Final targeted verification below.
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+
+exit_code=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+
+exit_code=0
+
+$ .local/desktop-build-env/bin/python -m unittest tests.test_broad_organization tests.test_organization -v
+test_abstract_only_groups_show_evidence (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_ambiguous_words_do_not_invent_disciplines (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_broad_determinism (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_chinese_papers_are_not_empty_vocabulary (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_cross_discipline_and_unknown_terms (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_generic_academic_language_does_not_force_grouping (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_same_topic_survives_neighbor_cap (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_shared_topic_unites_different_methods (tests.test_broad_organization.BroadOrganizationTests) ... ok
+test_echoed_preview_color_preserves_automatic_status_but_edits_protect (tests.test_broad_organization.RegroupTests) ... ok
+test_replaces_only_untouched_automatic_groups_and_undo_restores (tests.test_broad_organization.RegroupTests) ... ok
+test_active_transaction_not_committed_or_discarded (tests.test_organization.OrganizationTests) ... ok
+test_backup_failure_prevents_schema_creation (tests.test_organization.OrganizationTests) ... ok
+test_backup_precedes_schema_and_preserves_wal_data (tests.test_organization.OrganizationTests) ... ok
+test_collapse_persists_is_project_scoped_and_undoable (tests.test_organization.OrganizationTests) ... ok
+test_compound_positions_virtual_anchor_and_direction_delete (tests.test_organization.OrganizationTests) ... ok
+test_direction_edit_rank_delete_and_undo (tests.test_organization.OrganizationTests) ... ok
+test_draft_survives_reopen_and_unsave_without_changing_notes_or_undo (tests.test_organization.OrganizationTests) ... ok
+test_draft_versions_clients_and_stale_clear_protect_newer_edits (tests.test_organization.OrganizationTests) ... ok
+test_graph_is_read_only_and_uses_only_saved_metadata (tests.test_organization.OrganizationTests) ... ok
+test_injected_schema_failure_rolls_back_and_backup_restores (tests.test_organization.OrganizationTests) ... ok
+test_legacy_import_and_notes_optimistic_history_restore (tests.test_organization.OrganizationTests) ... ok
+test_manually_removed_membership_stays_removed_after_reclassification (tests.test_organization.OrganizationTests) ... ok
+test_metadata_changes_stale_and_preview_cannot_be_forged (tests.test_organization.OrganizationTests) ... ok
+test_missing_dependency_does_not_mutate_state (tests.test_organization.OrganizationTests) ... ok
+test_new_legacy_note_saved_then_unsaved_without_snapshot_is_retained (tests.test_organization.OrganizationTests) ... ok
+test_persistence_export_and_position_removal (tests.test_organization.OrganizationTests) ... ok
+test_project_isolation_notes_memberships_positions_revisions_and_undo (tests.test_organization.OrganizationTests) ... ok
+test_revision_conflict_across_connections (tests.test_organization.OrganizationTests) ... ok
+test_selected_suggestion_names_colors_and_members_are_editable (tests.test_organization.OrganizationTests) ... ok
+test_selected_suggestions_cannot_inject_or_duplicate_keys (tests.test_organization.OrganizationTests) ... ok
+test_suggest_rechecks_corpus_and_explicit_revision_after_computation (tests.test_organization.OrganizationTests) ... ok
+test_suggest_releases_transaction_and_preserves_concurrent_edits (tests.test_organization.OrganizationTests) ... ok
+test_suggestions_preview_apply_stale_and_manual_protection (tests.test_organization.OrganizationTests) ... ok
+test_unsave_resave_preserves_organization_and_note (tests.test_organization.OrganizationTests) ... ok
+test_unsaved_position_cleanup_and_rearrangement_keep_write_validation (tests.test_organization.OrganizationTests) ... ok
+test_validation_and_atomic_batch_rollback (tests.test_organization.OrganizationTests) ... ok
+
+----------------------------------------------------------------------
+Ran 36 tests in 0.292s
+
+OK
+
+exit_code=0
+
+$ node --test tests/test_organization_ui.cjs tests/test_graph_motion.cjs
+TAP version 13
+# Subtest: elastic neighbors are bounded and never leak into saved coordinates
+ok 1 - elastic neighbors are bounded and never leak into saved coordinates
+  ---
+  duration_ms: 0.905708
+  type: 'test'
+  ...
+# Subtest: pause before release has no throw and interruption restores neighbors
+ok 2 - pause before release has no throw and interruption restores neighbors
+  ---
+  duration_ms: 0.093209
+  type: 'test'
+  ...
+# Subtest: reduced motion keeps direct drag without neighbor animation
+ok 3 - reduced motion keeps direct drag without neighbor animation
+  ---
+  duration_ms: 0.111
+  type: 'test'
+  ...
+# Subtest: selected reading neighbors do not move, and vector limits are radial
+ok 4 - selected reading neighbors do not move, and vector limits are radial
+  ---
+  duration_ms: 0.066875
+  type: 'test'
+  ...
+# Subtest: vendored Cytoscape settles real animated nodes without drifting their anchors
+ok 5 - vendored Cytoscape settles real animated nodes without drifting their anchors
+  ---
+  duration_ms: 671.842875
+  type: 'test'
+  ...
+# Subtest: graph focus highlights a neighborhood and replaces camera motion; zoom keeps its center
+ok 6 - graph focus highlights a neighborhood and replaces camera motion; zoom keeps its center
+  ---
+  duration_ms: 1.936833
+  type: 'test'
+  ...
+# Subtest: network omits empty directions and uses one paper with multiple real links
+ok 7 - network omits empty directions and uses one paper with multiple real links
+  ---
+  duration_ms: 0.634125
+  type: 'test'
+  ...
+# Subtest: library paper action opens PDF directly without changing note selection
+ok 8 - library paper action opens PDF directly without changing note selection
+  ---
+  duration_ms: 1.221375
+  type: 'test'
+  ...
+# Subtest: Cytoscape constructor positions never alias saved snapshot coordinates
+ok 9 - Cytoscape constructor positions never alias saved snapshot coordinates
+  ---
+  duration_ms: 11.471291
+  type: 'test'
+  ...
+# Subtest: multi-selection drag has one pointer owner and one complete save event
+ok 10 - multi-selection drag has one pointer owner and one complete save event
+  ---
+  duration_ms: 11.20425
+  type: 'test'
+  ...
+# Subtest: ordinary click releases graph gesture while actual drag saves after freeon
+ok 11 - ordinary click releases graph gesture while actual drag saves after freeon
+  ---
+  duration_ms: 0.76625
+  type: 'test'
+  ...
+# Subtest: queued completed drags advance acknowledged revision even after graph is replaced
+ok 12 - queued completed drags advance acknowledged revision even after graph is replaced
+  ---
+  duration_ms: 0.9475
+  type: 'test'
+  ...
+# Subtest: snapshot prunes deleted direction aliases but retains current membership coordinates
+ok 13 - snapshot prunes deleted direction aliases but retains current membership coordinates
+  ---
+  duration_ms: 0.38125
+  type: 'test'
+  ...
+# Subtest: deselect removes shared identity only when all visible aliases are deselected
+ok 14 - deselect removes shared identity only when all visible aliases are deselected
+  ---
+  duration_ms: 0.6015
+  type: 'test'
+  ...
+# Subtest: conflicted save preserves draft text and original note version after refresh
+ok 15 - conflicted save preserves draft text and original note version after refresh
+  ---
+  duration_ms: 0.920416
+  type: 'test'
+  ...
+# Subtest: database draft restores without browser storage and adopts client/version for next write
+ok 16 - database draft restores without browser storage and adopts client/version for next write
+  ---
+  duration_ms: 0.424833
+  type: 'test'
+  ...
+# Subtest: closing replaced dialog does not remove replacement or steal focus
+ok 17 - closing replaced dialog does not remove replacement or steal focus
+  ---
+  duration_ms: 0.295458
+  type: 'test'
+  ...
+# Subtest: recovered remote draft cannot save until explicit comparison confirmation
+ok 18 - recovered remote draft cannot save until explicit comparison confirmation
+  ---
+  duration_ms: 0.418417
+  type: 'test'
+  ...
+# Subtest: paper links accept HTTP(S) only
+ok 19 - paper links accept HTTP(S) only
+  ---
+  duration_ms: 0.329083
+  type: 'test'
+  ...
+# Subtest: newer local draft wins reload while remote alternatives and client versions survive
+ok 20 - newer local draft wins reload while remote alternatives and client versions survive
+  ---
+  duration_ms: 1.1635
+  type: 'test'
+  ...
+# Subtest: queued stale direction intent keeps its explicit revision and is rejected
+ok 21 - queued stale direction intent keeps its explicit revision and is rejected
+  ---
+  duration_ms: 0.420833
+  type: 'test'
+  ...
+# Subtest: graph gesture sends only changed nodes with rendered revision and invalidates peer cache
+ok 22 - graph gesture sends only changed nodes with rendered revision and invalidates peer cache
+  ---
+  duration_ms: 0.3335
+  type: 'test'
+  ...
+# Subtest: actual direction-up queued behind autosave cannot overwrite a newer direction name
+ok 23 - actual direction-up queued behind autosave cannot overwrite a newer direction name
+  ---
+  duration_ms: 0.367375
+  type: 'test'
+  ...
+# Subtest: default positions revision is captured before queue dispatch
+ok 24 - default positions revision is captured before queue dispatch
+  ---
+  duration_ms: 0.290459
+  type: 'test'
+  ...
+# Subtest: draft CAS versions still advance at dispatch for sequential queued writes
+ok 25 - draft CAS versions still advance at dispatch for sequential queued writes
+  ---
+  duration_ms: 0.326042
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 706.684667
+
+exit_code=0
+
+$ git diff --check
+
+exit_code=0
+
+$ codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app
+
+exit_code=0
+
+Build: PYINSTALLER_CONFIG_DIR=/tmp/pdh-org-pyinstaller-cache npm run desktop:build — exit 0.
+Initial sandbox build could not clean default external PyInstaller cache; isolated /tmp cache resolved without escalation. Local ad-hoc signing followed; verification exit 0. Not notarized.
+Packaged organization.js byte-for-byte equal to final source.
+Frozen worker synthetic smoke: tfidf-broad-zh-v2; four World models papers with distinct method titles -> one 世界模型 group, color #64748b; exit 0.
+Browser CUA, disposable 9-paper fixture, 1280x720: preview shows 3 groups of 4/2/2 and 1 pending; names 世界模型, 免疫治疗 · 肿瘤研究, 手稿研究 · 语文学; source terms and regroup checkbox visible. Screenshot inspected, modal scrolls. Applied via UI: sidebar 3 directions, 1 unclassified; no actual user library written.
+Initial system-python run lacked optional NetworkX; desktop-build-env used for actual clustering tests. Initial sandbox HTTP tests could not bind loopback; full suite rerun with permission to bind local ephemeral ports passed.
+Limits: real-library grouping and all-discipline semantic quality unmeasured; finite labels leave unknown groups 待命名. Max-corpus memory/time unmeasured. Historical groups incorrectly flagged manual by prior UI color default are preserved rather than guessed/migrated.

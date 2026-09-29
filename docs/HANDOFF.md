@@ -1,5 +1,108 @@
 # 当前交接：推荐优先路线、复用调研与行动前 token 预算
 
+## 2026-09-20 Desktop runtime API key wiring (Current)
+
+- Owner reported the Tauri app had many places not calling the API. Root cause confirmed: the desktop shell stripped `DEEPSEEK_API_KEY` and the gateway only resolved `.local/deepseek.env` from the process CWD (`~/Library/Application Support/PaperDigHelper`), while the key lived in the checkout. `/api/translate` and `/api/qa` returned `no API key`; the desktop DB held 0 summaries and 0 QA rows versus 50/56 in the browser DB. The usage ledger also resolved inside the frozen `.app` bundle.
+- Fix: `Gateway` now takes `data_dir`, resolves the key from env/explicit file/data-dir/checkout, and keeps the ledger + `DEV_MODE` in the user data dir. New `GET/POST /api/settings` stores or clears the key at `<data dir>/deepseek.env` with 0600, never returns it, and rejects cross-origin writes. A header settings dialog lets the owner paste/clear the key; `/api/home` reports `provider.configured` without the secret. No key goes to webview storage or Git.
+- Nine new tests (`tests/test_provider_settings.py`) cover data-dir/legacy resolution, private save/clear, offline provider-call + local ledger, missing-key degradation, HTTP round trip/no-leak, and cross-origin/length rejection; one UI layout test pins the settings wiring. Full suite 196 passed. No live provider call and no token spend was made in this work unit.
+- Evidence: [checks](evidence/2026-09-20-provider-key-checks.txt), [ADR 0004 stays the runtime/eval split](decisions/0004-evaluation-annotator-separation.md). Budget unchanged (`approved_by_owner=true`, `runtime_enforcement_implemented` and `tokenizer_parity_verified` still false). The packaged frontend/backend bundle was regenerated and ad-hoc signed (`codesign --verify --deep --strict` passes); relaunch the app to load it. The running instance keeps the pre-fix code until then.
+
+## 2026-09-16 Selected suggestion application fix (Current)
+
+- Version0.11 fixes silently skipping all already-classified/protected papers. Explicit UI acceptance now adds selected category memberships, preserves existing memberships/notes/labels/parents, shows actual effects or already-present notice, and remains undoable. Legacy automatic protections remain unchanged.
+- Browser synthetic fixture with two manually classified/protected papers: real apply added two links and one category, repeat showed no-op, undo restored original category. Native fixture QA uses isolated Tauri shell/source backend; see checks for final result. No real library changed.
+- Full Python185 passed; Node23 organization tests passed; independent review passed including added empty-group regression (5 focused tests). Local bundle rebuilt and ad-hoc signature verified; packaged JS equals source. Evidence: [checks](evidence/2026-09-16-suggestion-apply-checks.txt), [review](evidence/2026-09-16-suggestion-apply-review.txt).
+- Zero new model tokens/network/dependencies. READ-01/GRAPH-01 remain in_progress for broader acceptance. Local trial only, no notarization/full release certification; prior dirty work preserved.
+
+## 2026-09-16 Category directory and editable memberships (Current)
+
+- Owner requested working existing-category edits/deletion, nested directories and multiple paper memberships, then a compact folder-like sidebar. Version0.10 implements folder icons, one row per category, indent guides/disclosure/counts, per-row more menu and current path.
+- Additive parent_id in project JSON: old records remain roots; self/descendant cycles rejected. Move preserves subtree/memberships. Delete promotes direct children, removes only direct links, preserves papers/PDFs/notes/other memberships; undo restores. Parent views deduplicate descendant papers. Single-paper checked-box editing exposes existing links; batch keep/add/remove retained.
+- Native/browser synthetic QA confirmed editing already-classified papers and deleting existing categories. Native used isolated QA shell with exact packaged frontend and same source backend; separate frozen worker snapshot smoke passed. No real user database changed.
+- Full Python181 passed; final Node28 passed. Budget/harness/diff/record checks and ad-hoc bundle signature passed, final packaged assets equal source. Evidence: [checks](evidence/2026-09-16-category-tree-checks.txt), [independent review](evidence/2026-09-16-category-tree-review.txt), [ADR0007](decisions/0007-category-tree.md). Independent finding on collapsed-leaf recovery fixed/tested.
+- READ-01/GRAPH-01 remain in_progress for broader acceptance; no new model tokens/network calls. Old unrelated dirty work preserved; package is local trial, not notarized or full release certified. Large/deep-tree resource limits not measured. Next: owner trial of v0.10 from built bundle, verify usability on actual categories.
+
+## 2026-09-15 Organization suggestion refinement (Current)
+
+- Owner feedback: directions too fragmented and English-only. Implemented broader local communities, majority exact-topic coalescing, Chinese lexical features, Chinese display labels with explicit unnamed fallback, visible source terms and singleton abstention. Graph relation algorithm retains its old default.
+- Explicit preview checkbox can regroup selected untouched automatic memberships; manual directions/protected edits remain intact, old emptied automatic directions are cleaned, undo restores prior state. No schema, provider, network or token changes.
+- Evidence: [checks](evidence/2026-09-15-organization-refinement-checks.txt), [independent review](evidence/2026-09-15-organization-refinement-review.txt). Full Python175 tests passed in desktop-build-env; base system Python lacks optional NetworkX. Four independent-review findings fixed.
+- GRAPH-01/E-ORGANIZATION remain in progress/not_run for broader quality gates. Finite Chinese glossary is not arbitrary translation; unknown topics remain editable, cross-language semantic equivalence and all-discipline real-corpus quality unmeasured.
+- Version0.9 local trial build/visual verification results recorded in checks; prior unrelated dirty files preserved and included only for harness coverage. No release approval or broad release certification. Next: owner real-paper trial and domain-specific quality feedback.
+
+## 2026-09-15 Local Elastic Graph Motion (Current)
+
+- Implements owner's linked motion summary for a work-focused graph: no idle drift, bounded
+  one-hop drag response, short release easing back to the user's NEW drop point, synchronized straight
+  edges/labels, layered fade-in, local expand/collapse and one-shot relationship emphasis.
+- Reuses Cytoscape animate, not a new physics engine or model. At most32 responding neighbors,
+  18px neighbor offset, 10px release overrun, approximately520ms settling; these are configured caps,
+  not measured FPS or physical simulation claims. Reduced motion and direct user input take priority.
+- Canonical coordinates stay separate from animations. Constructor input cloned to prevent shared
+  snapshot mutation; group drags save once. Relation completion preserves camera and waits for drag.
+- Evidence: [motion checks](evidence/2026-09-15-graph-motion-checks.txt),
+  [motion review](evidence/2026-09-15-graph-motion-review.txt).
+- Python166 tests passed; focused Node25 tests cover motion, actual Cytoscape settling/aliasing,
+  multi-select and click/free event order. Browser fixture checks: nonblank graph, focus, drag/drop,
+  collapse10->7nodes and expand7->10nodes; no console errors. Native frame timing unmeasured.
+- Version0.8 local trial package; earlier dirty PDF/Tauri work preserved. Broader release gates and
+  owner release approval remain incomplete. Next: owner trial with real papers, tune amplitudes only
+  from feedback; no paid calls, persistent auto-floating or invented directional propagation.
+- Final targeted independent review passed; local macOS bundle rebuilt and ad-hoc signature
+  verified, packaged frontend byte-for-byte equal to source. Not notarized or native-FPS measured.
+
+## 2026-09-14 Network Graph and Motion (Previous Slice)
+
+- Round-node branched network replaces compound cards. Empty directions hidden in graph only;
+  each saved paper has one node, multiple real direction links and bounded lexical similarity links.
+- Category/paper focus animates camera for 550ms with neighborhood highlighting; toolbar zoom
+  preserves center. Rapid focus replaces queued motion; grabbing cancels it. Reduced motion supported.
+- Library title opens PDF directly; notes/classification remain a separate control. PDF internals untouched.
+- Graph operation is read-only in the existing bounded local worker. Drag coordinates persist across
+  view changes, existing positions survive relation refresh, and full rearrange remains explicit.
+- Final evidence: [network checks](evidence/2026-09-14-network-graph-checks.txt),
+  [targeted independent review](evidence/2026-09-14-network-graph-review.txt).
+  166 Python and 17 Node tests passed, plus budget/harness/diff checks. Browser fixture checked at
+  1265x712: category highlight, paper focus/detail, nonblank graph, direct library-to-PDF route.
+- App rebuilt, ad-hoc signature verified, bundled frontend matches source; actual frozen graph worker
+  returned two similarity edges from six synthetic papers. Footer version 0.7. No paid calls made.
+- READ-01/GRAPH-01 remain in progress; no native FPS, large-corpus quality, 8GB resource guarantee,
+  notarization or broad release certification. Older dirty PDF/Tauri work remains preserved.
+- Next: owner trial of this package on real papers; finish broader graph/read acceptance separately.
+
+## 2026-09-14 Editable Library and Graph (Previous Slice)
+
+- Owner requested implementation of library directions/notes and a local drag-and-drop knowledge graph.
+  This supersedes older statements below that all implementation is unapproved; it is not release approval.
+- READ-01/GRAPH-01 remain in progress for their broader acceptance scope. New organization modules and
+  local Cytoscape/NetworkX dependencies implement the current slice; PDF reader changes are excluded.
+- Additive organization schema preserves legacy notes, backs up before migration, versions notes and
+  drafts, persists memberships/positions/collapse, and supports undo/export. Suggestions are local,
+  bounded, preview-first, and cannot overwrite manual organization. No incremental model calls.
+- Evidence: [checks](evidence/2026-09-14-organization-checks.txt),
+  [independent review](evidence/2026-09-14-organization-review.txt),
+  [ADR 0006](decisions/0006-library-organization.md).
+- Current worktree also contains earlier uncommitted UI/PDF/Tauri work. Preserve it; new feature review
+  does not certify those older changes or broader recommendation/budget/release gates.
+- Final: 164 Python tests, 13 Node behavior tests, budget/harness/diff checks passed. Independent
+  source review findings closed. Cross-port browser restart restored an acknowledged DB draft with
+  explicit comparison before saving. Not a guarantee for keystrokes before the persistence debounce.
+- macOS bundle rebuilt at `src-tauri/target/release/bundle/macos/PaperDigHelper.app`; approximately
+  49M, ad-hoc signature verified. All bundled frontend assets match source, and its frozen worker
+  classified the six-paper fixture successfully. Footer server version is 0.6. No native app
+  crash/restart interaction, notarization, 8 GB performance or human category-quality claim is made.
+- Next: owner trial with real saved papers, then address real-corpus grouping quality and remaining
+  READ-01/GRAPH-01 gates; do not silently expand into viewpoint inference or paid classification.
+
+## 2026-09-12 UI refresh
+
+- User-requested visual refresh recorded in [change record](../changes/2026-09-12-ui-refresh.json).
+- `app/static/index.html` now uses a compact editorial layout inspired by the supplied Dribbble reference: bright canvas, restrained borders, deep accent, icon navigation, responsive card sizing and subtle enter/hover motion.
+- Added local Lucide SVG icons under `app/static/icons/`; no CDN or runtime provider dependency was added.
+- Manual QA covered normal zoom, dark mode, library/profile/detail views and enlarged browser text. The earlier oversized screenshot was browser zoom, not an app measurement.
+- Fresh checks: budget exit 0, harness exit 0, full unittest suite exit 0 (115 tests), `git diff --check` exit 0. Evidence: [UI refresh checks](evidence/2026-09-12-ui-refresh-checks.txt).
+- This is presentation-only; recommendation quality, AI budget enforcement and release gates remain unchanged and are not implied by these checks.
+
 2026-09-11。旧 ABCD 已退出执行；本轮完成**复用调研、S0–S6 阶段计划、行动前 token 预算提案、harness 说明**，并继续清理旧应用。**新实现未批准、未开始；推荐质量、画像收益与 AI 成本均未实测。**
 
 ## 当前状态
@@ -96,6 +199,31 @@ UI 第三轮（按 owner 反馈第二轮）：
 - 修复详情无响应（旧代码在 `document` 上重复绑定、且缩略卡拦截了点击）。
 
 尚未做：Tauri 壳、打包与签名、AI 追问、Zotero 导入、笔记/高亮（后置），以及修标注提示词的种子标题偏差。
+
+### 2026-09-12 应用壳与 macOS 打包
+
+- 已安装 Rust、Tauri CLI、PyInstaller，并完成 Tauri v2 macOS `.app` 构建。
+- 产物位于 `src-tauri/target/release/bundle/macos/PaperDigHelper.app`
+  （本机 arm64，约 31 MB；构建目录按约定不纳入 Git）。
+- Python 后端已随包携带；应用使用随机 loopback 端口和每次启动的本地会话
+  token，数据写入 `~/Library/Application Support/PaperDigHelper`。
+- 已实际打开应用，窗口和首页可用；关闭后随包 Python 子进程也退出。
+- `cargo check`、`cargo tauri build --bundles app`、全量 118 测试、
+  `codesign --verify --deep --strict`、`spctl --assess` 均通过。
+- 发布仍未批准：推荐质量、持久性/恢复等项目 gate 仍未完成。`PILOT-01`
+  保持 `in_progress`，`REL-01` 不标记完成。
+
+### 2026-09-12 PDF 触摸板缩放修复
+
+- 修复 PDF 预览触摸板缩放松手时的跳动：缩放锚点现在同时缩放页面内偏移和
+  指针偏移，视觉阶段与重新渲染阶段使用同一套公式。
+- 缩放手势期间只变换整组页面，手势结束或 wheel 空闲后才提交高清重绘；
+  普通双指滚动不再被缩放监听器拦截。
+- 缩小时舞台至少保持可视区宽度，视觉阶段和高清重绘阶段都保持水平居中。
+- 已重新生成后端、构建并签名 `.app`，并重启桌面实例。
+- 最新检查：全量 121 项测试通过，`harness.py check`、`git diff --check`、
+  `cargo tauri build --bundles app`、签名校验均通过。证据见
+  [PDF pinch anchor checks](evidence/2026-09-12-pdf-pinch-anchor-checks.txt)。
 
 - **10/10 种子解析成功**（owner 补了两个 arXiv ID）；显式 ID 作权威，标题不符会记录 mismatch。
 - **发现配方已确定**：arXiv source（`S4306400194`）+ `title.search` + 日期上界 → 3,226 条且 200/200 全是世界模型；裸关键词 328 万条且被污染。

@@ -78,6 +78,9 @@ class Store:
     def init(self):
         self.conn.executescript(SCHEMA)
         self._migrate()
+        # Apply structured migrations
+        from app.migrations import apply_migrations
+        apply_migrations(self.conn)
         self.conn.commit()
 
     def _migrate(self):

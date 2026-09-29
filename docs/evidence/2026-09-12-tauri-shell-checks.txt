@@ -1,0 +1,30 @@
+PaperDigHelper Tauri shell evidence
+Date: 2026-09-12
+
+Implemented:
+- Added Rust/Tauri and PyInstaller toolchains locally.
+- Added a signed macOS `.app` build at
+  `src-tauri/target/release/bundle/macos/PaperDigHelper.app` (31 MB).
+- The app bundles an arm64 Python backend, starts it on an ephemeral loopback
+  port, uses a per-launch local session token, and stores app data under
+  `~/Library/Application Support/PaperDigHelper`.
+- External paper links are opened by macOS; the webview stays on the local
+  server origin.
+
+Checks:
+- python3 scripts/budget.py --check: exit 0
+- python3 scripts/harness.py check: exit 0
+- python3 -m unittest discover -s tests -v: exit 0 (118 tests)
+- git diff --check: exit 0
+- cargo check --manifest-path src-tauri/Cargo.toml: exit 0
+- cargo tauri build --bundles app: exit 0
+- bundled server smoke launch: exit 0
+- macOS app launch: exit 0
+- codesign --verify --deep --strict: exit 0
+- spctl --assess --type execute: exit 0
+
+Status:
+- Source, compilation, launch, package, signing, and bundled-runtime smoke checks
+  are complete.
+- Release gates remain blocked by the project-level recommendation and durability
+  evaluations; this is a build artifact, not a release approval.

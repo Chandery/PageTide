@@ -1,0 +1,17 @@
+{
+  "name": "paperdighelper-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "desktop:prepare": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+    "desktop:dev": "npm run desktop:prepare && tauri dev",
+    "desktop:build": "npm run desktop:prepare && tauri build --bundles app"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "lucide-static": "1.46.0"
+  },
+  "dependencies": {
+    "cytoscape": "3.33.1"
+  }
+}

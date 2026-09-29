@@ -1,0 +1,588 @@
+"""Project-scoped library organization on an initialized Store.conn.
+
+action accepts {action: ..., revision?: int, ...} ('op' is an alias).
+Mutations return snapshot();
+history returns {key, history, revision}; export returns a JSON-serializable
+archive including unsaved items and note history. Validation raises ValueError,
+optimistic conflicts raise Conflict, unavailable clustering raises
+ClusteringUnavailable. No HTTP, filesystem export, or model integration here.
+
+The saved corpus is the existing global library. Organization data and notes
+are project-local; only 'default' imports legacy library.note. Graph position
+IDs are 'paper:<key>', 'direction:<id>', 'paper:<URL-encoded-key>:<direction-id>'
+and 'direction:<id>:anchor'. Empty direction IDs identify the unclassified
+group. collapse accepts {id, collapsed: bool}; snapshot.collapsed lists IDs.
+apply-suggestions accepts {fingerprint, suggestions?: [{id,name,color,keys}]};
+selected keys must be a subset of each stored preview group. Existing manual
+data is never overwritten. Undo is project-local LIFO; note
+undo appends a fresh version, never rewinds history. Caller must not have an
+active transaction or concurrently share its connection outside Store._lock.
+
+Drafts are application-owned, not browser-origin storage. draft-save requires
+{key, client, text, version}; draft-clear requires {key, client, version}.
+New client tokens start at version 0. Both return {draft, revision} without
+changing organization revision/undo. drafts accepts an optional key filter.
+snapshot.drafts excludes cleared tombstones; distinct clients never overwrite
+one another. A caller restores a draft by adopting its client and version.
+"""
+import json
+import math
+import os
+import re
+import sqlite3
+import tempfile
+import threading
+import uuid
+from contextlib import contextmanager
+from pathlib import Path
+from urllib.parse import unquote
+
+from .clustering import cluster, corpus_fingerprint
+from .db import now
+
+
+class Conflict(ValueError):
+    """The revision, note version, or suggestion corpus is stale."""
+
+
+SCHEMA = (
+    """CREATE TABLE org_projects (
+        project TEXT PRIMARY KEY, revision INTEGER NOT NULL, data TEXT NOT NULL)""",
+    """CREATE TABLE org_notes (
+        project TEXT NOT NULL, paper_key TEXT NOT NULL, version INTEGER NOT NULL,
+        text TEXT NOT NULL, created_at TEXT NOT NULL,
+        PRIMARY KEY(project, paper_key, version))""",
+    """CREATE TABLE org_events (
+        id INTEGER PRIMARY KEY, project TEXT NOT NULL, before_data TEXT NOT NULL,
+        note_key TEXT, note_before TEXT, undone INTEGER NOT NULL DEFAULT 0)""",
+    "CREATE INDEX org_events_project ON org_events(project, undone, id)",
+    # Capture legacy notes even when a caller uses Store directly after migration.
+    """CREATE TRIGGER org_library_insert AFTER INSERT ON library BEGIN
+        INSERT OR IGNORE INTO org_notes VALUES
+        ('default', NEW.paper_key, 0, COALESCE(NEW.note, ''), strftime('%Y-%m-%dT%H:%M:%SZ','now'));
+        END""",
+    """CREATE TRIGGER org_library_delete BEFORE DELETE ON library BEGIN
+        INSERT OR IGNORE INTO org_notes VALUES
+        ('default', OLD.paper_key, 0, COALESCE(OLD.note, ''), strftime('%Y-%m-%dT%H:%M:%SZ','now'));
+        END""",
+)
+
+DRAFT_SCHEMA = """CREATE TABLE IF NOT EXISTS org_drafts (
+    project TEXT NOT NULL, paper_key TEXT NOT NULL, client TEXT NOT NULL,
+    version INTEGER NOT NULL, text TEXT, updated_at TEXT NOT NULL,
+    PRIMARY KEY(project, paper_key, client))"""
+
+
+def _dump(value):
+    return json.dumps(value, ensure_ascii=True, sort_keys=True, allow_nan=False)
+
+
+def _text(value, label, limit=200):
+    if not isinstance(value, str) or not value.strip() or len(value) > limit:
+        raise ValueError("%s must be a nonempty string of at most %d characters" % (label, limit))
+    return value
+
+
+def _version(value, label):
+    if type(value) is not int or value < 0:
+        raise ValueError(label + " must be a nonnegative integer")
+    return value
+
+
+class Organization:
+    def __init__(self, store, project="default"):
+        self.store, self.conn = store, store.conn
+        self.project = _text(project, "project")
+        self.lock = getattr(store, "_lock", threading.RLock())
+        self.backup_path = None
+        with self._transaction():
+            exists = self.conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_projects'"
+            ).fetchone()
+            if not exists:
+                self._backup()
+                for statement in SCHEMA:
+                    self.conn.execute(statement)
+                self.conn.execute("""INSERT INTO org_notes
+                    SELECT 'default', paper_key, 0, COALESCE(note,''), saved_at FROM library""")
+            self.conn.execute(DRAFT_SCHEMA)
+            self.conn.execute("INSERT OR IGNORE INTO org_projects VALUES (?,0,?)",
+                              (project, _dump({"directions": [], "memberships": {},
+                                               "positions": {}, "protected": []})))
+
+    @contextmanager
+    def _transaction(self, write=True):
+        with self.lock:
+            if self.conn.in_transaction:
+                raise RuntimeError("Organization requires a connection without an active transaction")
+            self.conn.execute("BEGIN IMMEDIATE" if write else "BEGIN")
+            try:
+                yield
+                self.conn.commit()
+            except BaseException:
+                self.conn.rollback()
+                raise
+
+    def _backup(self):
+        path = next(row[2] for row in self.conn.execute("PRAGMA database_list") if row[1] == "main")
+        if not path:
+            return  # An in-memory database has no persistent original to back up.
+        fd, target = tempfile.mkstemp(prefix="." + Path(path).name + ".pre-organization-",
+                                      suffix=".sqlite", dir=str(Path(path).parent))
+        os.close(fd)  # mkstemp creates mode 0600 before any private data is written.
+        try:
+            # A separate reader avoids backing up our own active write transaction.
+            source = sqlite3.connect(Path(path).as_uri() + "?mode=ro", uri=True)
+            destination = sqlite3.connect(target)
+            try:
+                source.backup(destination)
+                destination.execute("PRAGMA journal_mode=DELETE")
+            finally:
+                destination.close()
+                source.close()
+            # Switching the copied WAL database to DELETE can leave an orphan
+            # shared-memory file on macOS. The private backup is now closed.
+            Path(target + "-shm").unlink(missing_ok=True)
+        except BaseException:
+            os.unlink(target)
+            raise
+        self.backup_path = target
+
+    def _load(self):
+        row = self.conn.execute("SELECT revision,data FROM org_projects WHERE project=?",
+                                (self.project,)).fetchone()
+        return row[0], json.loads(row[1])
+
+    def _note(self, key):
+        row = self.conn.execute("""SELECT text,version FROM org_notes
+            WHERE project=? AND paper_key=? ORDER BY version DESC LIMIT 1""",
+                                (self.project, key)).fetchone()
+        return (row[0], row[1]) if row else ("", 0)
+
+    def _write_note(self, key, text):
+        old, version = self._note(key)
+        self.conn.execute("INSERT OR IGNORE INTO org_notes VALUES (?,?,0,?,?)",
+                          (self.project, key, old, now()))
+        self.conn.execute("INSERT INTO org_notes VALUES (?,?,?,?,?)",
+                          (self.project, key, version + 1, text, now()))
+
+    def _history(self, key):
+        return [dict(row) for row in self.conn.execute("""SELECT version,text,created_at
+            FROM org_notes WHERE project=? AND paper_key=? ORDER BY version""", (self.project, key))]
+
+    def _paper_key(self, key, saved=False):
+        _text(key, "key", 2000)
+        if not self.conn.execute("SELECT 1 FROM papers WHERE key=?", (key,)).fetchone():
+            raise ValueError("Unknown paper: " + key)
+        if saved and not self.conn.execute("SELECT 1 FROM library WHERE paper_key=?", (key,)).fetchone():
+            raise ValueError("Paper is not saved: " + key)
+        return key
+
+    def _snapshot(self, archived=False):
+        revision, data = self._load()
+        papers = [dict(row) for row in self.conn.execute("""SELECT p.*,l.saved_at
+            FROM papers p JOIN library l ON p.key=l.paper_key ORDER BY p.key""")]
+        if archived:
+            retained = set(data["memberships"])
+            retained.update(row[0] for row in self.conn.execute(
+                "SELECT DISTINCT paper_key FROM org_notes WHERE project=?", (self.project,)))
+            retained.update(row[0] for row in self.conn.execute(
+                "SELECT DISTINCT paper_key FROM org_drafts WHERE project=?", (self.project,)))
+            retained.update(self._node_parts(node)[0] for node in data["positions"]
+                            if node.startswith("paper:"))
+            present = {paper["key"] for paper in papers}
+            for key in sorted(retained - present):
+                row = self.conn.execute("SELECT * FROM papers WHERE key=?", (key,)).fetchone()
+                if row:
+                    papers.append(dict(row, saved_at=None))
+        for paper in papers:
+            key = paper["key"]
+            paper["directions"] = data["memberships"].get(key, [])
+            paper["note"], paper["note_version"] = self._note(key)
+            if archived:
+                paper["history"] = self._history(key)
+        result = {"directions": [{**{k: d[k] for k in ("id", "name", "color", "rank")},
+                                   "parent_id": d.get("parent_id")}
+                                  for d in data["directions"]],
+                  "items": papers, "positions": data["positions"], "revision": revision}
+        result["collapsed"] = data.get("collapsed", [])
+        result["drafts"] = self._drafts()
+        if data.get("suggestions"):
+            result["suggestions"] = data["suggestions"]
+            result["suggestions"]["stale"] = (
+                corpus_fingerprint(self._corpus()) != data["suggestions"]["fingerprint"])
+        if archived:
+            result.update({"format": "paperdig-organization-v1", "project": self.project,
+                           "organization": data})
+        return result
+
+    def _corpus(self):
+        return [dict(row) for row in self.conn.execute("""SELECT p.* FROM papers p
+            JOIN library l ON p.key=l.paper_key ORDER BY p.key""")]
+
+    def snapshot(self):
+        with self._transaction(write=False):
+            return self._snapshot()
+
+    def action(self, body):
+        if not isinstance(body, dict):
+            raise ValueError("Action must be an object")
+        op = body.get("op", body.get("action"))
+        if op == "graph":
+            with self._transaction(write=False):
+                papers = self._corpus()
+            result = cluster(papers)
+            with self._transaction(write=False):
+                if corpus_fingerprint(self._corpus()) != result["fingerprint"]:
+                    raise Conflict("Graph corpus changed; refresh the graph")
+            return {"relations": result}
+        if op == "apply-suggestions":
+            op = "suggest-apply"
+        if op not in {"direction-save", "direction-delete", "membership", "note", "history",
+                      "positions", "collapse", "undo", "export", "suggest", "suggest-apply",
+                      "drafts", "draft-save", "draft-clear"}:
+            raise ValueError("Unknown organization operation")
+        if op == "suggest":
+            return self._suggest(body)
+        with self._transaction(write=op not in {"history", "export", "drafts"}):
+            revision, data = self._load()
+            if "revision" in body and _version(body["revision"], "revision") != revision:
+                raise Conflict("Organization revision conflict")
+            if op == "history":
+                key = self._paper_key(body.get("key"))
+                return {"key": key, "history": self._history(key), "revision": revision}
+            if op == "export":
+                return self._snapshot(archived=True)
+            if op == "drafts":
+                key = self._paper_key(body["key"]) if "key" in body else None
+                return {"drafts": self._drafts(key), "revision": revision}
+            if op in {"draft-save", "draft-clear"}:
+                return {"draft": self._save_draft(body, clear=op == "draft-clear"), "revision": revision}
+            before = _dump(data)
+            note_key = note_before = None
+            apply_result = None
+            if op == "undo":
+                event = self.conn.execute("""SELECT * FROM org_events WHERE project=? AND undone=0
+                    ORDER BY id DESC LIMIT 1""", (self.project,)).fetchone()
+                if not event:
+                    raise ValueError("Nothing to undo")
+                data = json.loads(event["before_data"])
+                if event["note_key"] is not None:
+                    self._write_note(event["note_key"], event["note_before"])
+                self.conn.execute("UPDATE org_events SET undone=1 WHERE id=?", (event["id"],))
+                data.pop("suggestions", None)
+            elif op == "note":
+                note_key = self._paper_key(body.get("key"))
+                version = _version(body.get("version"), "version")
+                note_before, current = self._note(note_key)
+                if current != version:
+                    raise Conflict("Note version conflict")
+                text = body.get("text")
+                if not isinstance(text, str) or len(text) > 1000000:
+                    raise ValueError("Note text must be a string of at most 1000000 characters")
+                self._write_note(note_key, text)
+            elif op == "direction-save":
+                name = _text(body.get("name"), "name").strip()
+                color = body.get("color")
+                if not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+                    raise ValueError("color must be #RRGGBB")
+                direction_id = body.get("id")
+                if direction_id is None:
+                    direction_id = uuid.uuid4().hex
+                    direction = {"id": direction_id, "rank": len(data["directions"])}
+                    data["directions"].append(direction)
+                else:
+                    direction = self._direction(data, direction_id)
+                parent = body.get("parent_id", direction.get("parent_id"))
+                if parent is not None:
+                    _text(parent, "parent_id")
+                    cursor, seen = parent, {direction["id"]}
+                    while cursor is not None:
+                        if cursor in seen:
+                            raise ValueError("类别不能放入自身或其子类别")
+                        seen.add(cursor)
+                        cursor = self._direction(data, cursor).get("parent_id")
+                direction.update(name=name, color=color.lower(), manual=True, parent_id=parent)
+                if "rank" in body:
+                    rank = _version(body["rank"], "rank")
+                    if rank >= len(data["directions"]):
+                        raise ValueError("rank must be within the direction list")
+                    data["directions"].remove(direction)
+                    data["directions"].insert(rank, direction)
+                    for index, other in enumerate(data["directions"]):
+                        other["rank"] = index
+            elif op == "direction-delete":
+                direction = self._direction(data, body.get("id"))
+                data["directions"].remove(direction)
+                for child in data["directions"]:
+                    if child.get("parent_id") == direction["id"]:
+                        child["parent_id"] = direction.get("parent_id")
+                for rank, other in enumerate(data["directions"]):
+                    other["rank"] = rank
+                for key, memberships in data["memberships"].items():
+                    if direction["id"] in memberships:
+                        memberships.remove(direction["id"])
+                        data["protected"] = sorted(set(data["protected"]) | {key})
+                data["positions"].pop("direction:" + direction["id"], None)
+                data["collapsed"] = [identifier for identifier in data.get("collapsed", [])
+                                     if identifier != direction["id"]]
+                for node in list(data["positions"]):
+                    if self._node_parts(node)[1] == direction["id"]:
+                        data["positions"].pop(node)
+            elif op == "membership":
+                keys = self._list(body.get("keys"), "keys")
+                add = self._list(body.get("add", []), "add")
+                remove = self._list(body.get("remove", []), "remove")
+                if set(add) & set(remove):
+                    raise ValueError("add and remove overlap")
+                for key in keys:
+                    self._paper_key(key, saved=True)
+                for direction_id in add + remove:
+                    self._direction(data, direction_id)
+                for key in keys:
+                    data["memberships"][key] = sorted(
+                        (set(data["memberships"].get(key, [])) | set(add)) - set(remove))
+                data["protected"] = sorted(set(data["protected"]) | set(keys))
+            elif op == "collapse":
+                identifier = body.get("id")
+                if identifier != "":
+                    self._direction(data, identifier)
+                if type(body.get("collapsed")) is not bool:
+                    raise ValueError("collapsed must be a boolean")
+                collapsed = set(data.get("collapsed", []))
+                if body["collapsed"]:
+                    collapsed.add(identifier)
+                else:
+                    collapsed.discard(identifier)
+                data["collapsed"] = sorted(collapsed)
+            elif op == "positions":
+                positions = body.get("positions")
+                if not isinstance(positions, dict) or len(positions) > 10000:
+                    raise ValueError("positions must be a mapping of at most 10000 nodes")
+                for node, point in positions.items():
+                    if not isinstance(node, str):
+                        raise ValueError("Invalid node ID")
+                    if point is None and node in data["positions"]:
+                        del data["positions"][node]
+                        continue
+                    key, direction_id = self._node_parts(node)
+                    if key is not None:
+                        self._paper_key(key, saved=True)
+                    if direction_id is not None:
+                        self._direction(data, direction_id)
+                    if point is None:
+                        data["positions"].pop(node, None)
+                        continue
+                    if not isinstance(point, dict) or set(point) != {"x", "y"}:
+                        raise ValueError("Position must contain x and y")
+                    if any(type(v) not in (int, float) or not math.isfinite(v) or abs(v) > 1e7
+                           for v in point.values()):
+                        raise ValueError("Coordinates must be finite numbers within +/-10000000")
+                    data["positions"][node] = dict(point)
+            elif op == "suggest-apply":
+                preview = data.get("suggestions")
+                if not preview or body.get("fingerprint") != preview["fingerprint"]:
+                    raise Conflict("A matching stored suggestion preview is required")
+                if corpus_fingerprint(self._corpus()) != preview["fingerprint"]:
+                    raise Conflict("Suggestion corpus is stale; recompute preview")
+                groups = self._selected_groups(body, preview)
+                mode = body.get("apply_mode")
+                if mode not in (None, "add"):
+                    raise ValueError("Unknown suggestion application mode")
+                if mode == "add":
+                    if "suggestions" not in body or not groups:
+                        raise ValueError("请选择要应用的类别和论文")
+                    apply_result = self._add_selected_suggestions(data, groups)
+                    if not apply_result["added_memberships"]:
+                        result = self._snapshot()
+                        result["apply_result"] = apply_result
+                        return result
+                else:
+                    regroup = body.get("regroup_auto", False)
+                    if type(regroup) is not bool:
+                        raise ValueError("regroup_auto must be a boolean")
+                    automatic = {d["id"] for d in data["directions"] if not d.get("manual")}
+                    replaced = set()
+                    for group in groups:
+                        eligible = [key for key in group["keys"] if key not in data["protected"]
+                                    and (not data["memberships"].get(key) or
+                                         (regroup and set(data["memberships"][key]) <= automatic))]
+                        if not eligible:
+                            continue
+                        existing = next((d for d in data["directions"] if d["id"] == group["id"]), None)
+                        if existing and existing.get("manual"):
+                            continue
+                        if not existing:
+                            data["directions"].append({"id": group["id"], "name": group["name"],
+                                "color": group.get("color", "#64748b"),
+                                "rank": len(data["directions"]), "manual": group.get("edited", False)})
+                        elif regroup:
+                            existing.update(name=group["name"], color=group.get("color", "#64748b"),
+                                            manual=group.get("edited", False))
+                        for key in eligible:
+                            replaced.update(data["memberships"].get(key, []))
+                            data["memberships"][key] = [group["id"]]
+                    occupied = {identifier for memberships in data["memberships"].values() for identifier in memberships}
+                    parents = {d.get("parent_id") for d in data["directions"]}
+                    removed = replaced - occupied - parents
+                    if removed:
+                        data["directions"] = [d for d in data["directions"] if d["id"] not in removed]
+                        for rank, direction in enumerate(data["directions"]):
+                            direction["rank"] = rank
+                        data["collapsed"] = [identifier for identifier in data.get("collapsed", []) if identifier not in removed]
+                        for node in list(data["positions"]):
+                            if self._node_parts(node)[1] in removed:
+                                data["positions"].pop(node)
+                data.pop("suggestions", None)
+            if op not in {"undo", "suggest"}:
+                self.conn.execute("""INSERT INTO org_events
+                    (project,before_data,note_key,note_before) VALUES (?,?,?,?)""",
+                                  (self.project, before, note_key, note_before))
+            self.conn.execute("UPDATE org_projects SET revision=?,data=? WHERE project=?",
+                              (revision + 1, _dump(data), self.project))
+            result = self._snapshot()
+            if apply_result is not None:
+                result["apply_result"] = apply_result
+            return result
+
+    @staticmethod
+    def _add_selected_suggestions(data, groups):
+        """Explicit user-selected additions: never erase existing memberships or labels."""
+        added, already, created, changed = 0, 0, 0, set()
+        for group in groups:
+            if not group["keys"]:
+                raise ValueError("所选类别至少需要一篇论文")
+            target = next((d for d in data["directions"]
+                           if (d["id"] == group["id"] or d.get("source_suggestion") == group["id"])
+                           and d["name"] == group["name"]
+                           and d["color"].lower() == group.get("color", "#64748b").lower()), None)
+            if target is None:
+                identifier = group["id"]
+                if any(d["id"] == identifier for d in data["directions"]):
+                    identifier = uuid.uuid4().hex
+                target = {"id": identifier, "name": group["name"],
+                          "color": group.get("color", "#64748b"), "parent_id": None,
+                          "rank": len(data["directions"]), "manual": True,
+                          "source_suggestion": group["id"]}
+                data["directions"].append(target)
+                created += 1
+            for key in group["keys"]:
+                current = data["memberships"].setdefault(key, [])
+                if target["id"] in current:
+                    already += 1
+                else:
+                    current.append(target["id"])
+                    added += 1
+                    changed.add(key)
+        data["protected"] = sorted(set(data["protected"]) | changed)
+        return {"added_memberships": added, "already_present": already,
+                "created_categories": created, "changed_papers": len(changed)}
+
+    def _drafts(self, key=None):
+        sql = """SELECT paper_key AS key,client,text,version,updated_at FROM org_drafts
+            WHERE project=? AND text IS NOT NULL"""
+        args = [self.project]
+        if key is not None:
+            sql += " AND paper_key=?"
+            args.append(key)
+        return [dict(row) for row in self.conn.execute(sql + " ORDER BY paper_key,client", args)]
+
+    def _save_draft(self, body, clear=False):
+        key = self._paper_key(body.get("key"))
+        client = _text(body.get("client"), "client")
+        version = _version(body.get("version"), "version")
+        row = self.conn.execute("""SELECT version FROM org_drafts
+            WHERE project=? AND paper_key=? AND client=?""", (self.project, key, client)).fetchone()
+        if version != (row[0] if row else 0):
+            raise Conflict("Draft version conflict")
+        text = None if clear else body.get("text")
+        if not clear and (not isinstance(text, str) or len(text) > 1000000):
+            raise ValueError("Draft text must be a string of at most 1000000 characters")
+        stamp = now()
+        self.conn.execute("""INSERT INTO org_drafts VALUES (?,?,?,?,?,?)
+            ON CONFLICT(project,paper_key,client) DO UPDATE SET
+            version=excluded.version,text=excluded.text,updated_at=excluded.updated_at""",
+                          (self.project, key, client, version + 1, text, stamp))
+        return {"key": key, "client": client, "text": text, "version": version + 1, "updated_at": stamp}
+
+    def _node_parts(self, node):
+        if node == "direction::anchor":
+            return None, None  # The virtual unclassified group has no direction row.
+        if node.startswith("direction:"):
+            identifier = node[10:]
+            if identifier.endswith(":anchor"):
+                identifier = identifier[:-7]
+            return None, identifier
+        if node.startswith("paper:"):
+            identifier = node[6:]
+            if self.conn.execute("SELECT 1 FROM papers WHERE key=?", (identifier,)).fetchone():
+                return identifier, None
+            encoded_key, separator, encoded_direction = identifier.rpartition(":")
+            if separator:
+                return unquote(encoded_key), unquote(encoded_direction) or None
+            return unquote(identifier), None
+        raise ValueError("Node IDs must use paper: or direction: prefix")
+
+    @staticmethod
+    def _selected_groups(body, preview):
+        if "suggestions" not in body:
+            return preview["groups"]
+        selected = body["suggestions"]
+        if not isinstance(selected, list) or len(selected) > len(preview["groups"]):
+            raise ValueError("suggestions must be a subset of stored preview groups")
+        originals = {group["id"]: group for group in preview["groups"]}
+        seen, groups = set(), []
+        for selection in selected:
+            if not isinstance(selection, dict):
+                raise ValueError("Suggested group must be an object")
+            group_id = _text(selection.get("id"), "suggested group id")
+            if group_id not in originals or group_id in seen:
+                raise ValueError("Unknown or duplicate suggested group")
+            seen.add(group_id)
+            original = originals[group_id]
+            keys = Organization._list(selection.get("keys"), "keys")
+            if not set(keys) <= set(original["keys"]) or len(keys) != len(set(keys)):
+                raise ValueError("Suggested keys must be a unique subset of the stored group")
+            name = _text(selection.get("name", original["name"]), "name").strip()
+            color = selection.get("color", "#64748b")
+            if not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+                raise ValueError("color must be #RRGGBB")
+            groups.append({"id": group_id, "keys": keys, "name": name, "color": color.lower(),
+                           "edited": name != original["name"] or color.lower() != "#64748b"})
+        return groups
+
+    def _suggest(self, body):
+        with self._transaction(write=False):
+            revision, _ = self._load()
+            if "revision" in body and _version(body["revision"], "revision") != revision:
+                raise Conflict("Organization revision conflict")
+            papers = self._corpus()
+        preview = cluster(papers, broad=True)
+        # The expensive computation owns neither a database transaction nor the
+        # Store lock. Re-read state so concurrent manual edits are never lost.
+        with self._transaction():
+            revision, data = self._load()
+            if "revision" in body and body["revision"] != revision:
+                raise Conflict("Organization revision conflict")
+            if corpus_fingerprint(self._corpus()) != preview["fingerprint"]:
+                raise Conflict("Suggestion corpus changed during computation; retry preview")
+            data["suggestions"] = preview
+            self.conn.execute("UPDATE org_projects SET revision=?,data=? WHERE project=?",
+                              (revision + 1, _dump(data), self.project))
+            return self._snapshot()
+
+    @staticmethod
+    def _list(value, name):
+        if not isinstance(value, list) or len(value) > 10000:
+            raise ValueError(name + " must be an array of at most 10000 strings")
+        for item in value:
+            _text(item, name, 2000)
+        return value
+
+    @staticmethod
+    def _direction(data, direction_id):
+        _text(direction_id, "direction id")
+        for direction in data["directions"]:
+            if direction["id"] == direction_id:
+                return direction
+        raise ValueError("Unknown project direction: " + direction_id)

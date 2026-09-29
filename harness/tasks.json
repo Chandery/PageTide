@@ -308,8 +308,8 @@
     {
       "id": "READ-01",
       "stage": "reading",
-      "title": "（后置）论文整理与阅读捕获：收藏理由、笔记、高亮",
-      "status": "blocked",
+      "title": "论文整理与阅读捕获：分类、笔记；高亮后续验收",
+      "status": "in_progress",
       "depends_on": [
         "PDF-01"
       ],
@@ -322,10 +322,15 @@
       "acceptance": [
         "每篇可记录为什么收藏、启发与想法；用户笔记与AI文本明确区分并分别版本化",
         "高亮/选区锚点与原文位置稳定，重开与恢复后仍可定位",
-        "本地可搜索（FTS5）且不要求全文上传或模型"
+        "本地可搜索（FTS5）且不要求全文上传或模型",
+        "类别可嵌套、新建子类、改名、移动父级与删除；已分类论文可编辑多个直接归属。父级汇总子类论文并去重；删除保留论文笔记及子类，子类上移一级；防环、旧数据兼容、重开和撤销须验收。"
       ],
-      "blocked_reason": "用户确认首版只要下载 PDF；笔记/高亮/收藏理由在核心试用后再单独确认范围与验收",
-      "evidence": []
+      "blocked_reason": "2026-09-14 用户要求实施分类和备注计划；高亮与全文搜索验收不在本切片内",
+      "evidence": [
+        "docs/decisions/0006-library-organization.md",
+        "docs/evidence/2026-09-14-network-graph-checks.txt",
+        "docs/decisions/0007-category-tree.md"
+      ]
     },
     {
       "id": "READ-02",
@@ -354,7 +359,7 @@
       "id": "GRAPH-01",
       "stage": "graph",
       "title": "论文图谱与聚类：相似聚合、子领域/观点分开、标签可编辑",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "CORE-01",
         "PDF-01"
@@ -369,9 +374,13 @@
         "优先复用开源方案（调研见 docs/KNOWLEDGE-GRAPH.md），本地优先、免服务器",
         "对冻结语料聚类并加引用边；相似论文同组，不同子领域/观点分开",
         "分组标签可编辑、可持久化，重开与恢复后一致",
-        "若需embedding/本地权重，单独记录下载量与8GB资源；默认零token聚类"
+        "若需embedding/本地权重，单独记录下载量与8GB资源；默认零token聚类",
+        "图谱动效：一跳局部牵引，松手稳定在新落点；临时动效不写位置，真实连线与标签同步，支持打断和减少动态效果",
+        "整理建议默认宽主题、中文名称与原文依据；中英文及跨学科合成样例，同主题不同方法与邻居截断不得碎分；单篇待整理；显式应用所选建议为已分类/手动保护论文追加归属、保留原分类并可撤销，显示实际新增数或重复应用提示。任意学科中文命名与真实分类质量须另验收。"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/decisions/0006-library-organization.md"
+      ]
     },
     {
       "id": "AI-01",
@@ -396,6 +405,7 @@
       ],
       "evidence": [
         "docs/decisions/0005-implementation-start-tauri-python.md",
+        "docs/evidence/2026-09-20-provider-key-checks.txt",
         "app/service.py",
         "app/gateway.py"
       ]

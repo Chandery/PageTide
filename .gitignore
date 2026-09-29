@@ -16,3 +16,5 @@ data/
 *.db-*
 *.pdf
 *.log
+src-tauri/target/
+src-tauri/resources/

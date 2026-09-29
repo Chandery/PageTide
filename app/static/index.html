@@ -76,7 +76,7 @@
   .sw[data-a="amber"]{background:#c78a1a}
   .modes { padding:4px; border-radius:12px; box-shadow:var(--sh-in-sm); display:flex; }
   main { max-width:920px; margin:20px auto 90px; padding:0 16px; }
-  h1 { font-size:23px; margin:0 0 4px; letter-spacing:-.015em; }
+  h1 { font-size:23px; margin:0 0 4px; letter-spacing:0; }
   .sub { color:var(--muted); font-size:13px; }
 
   /* ----------------------------------------------------------------- buttons */
@@ -94,10 +94,10 @@
   .danger:hover { color:var(--bad); }
   .saved { color:var(--good); font-weight:600; }
   .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-  input[type=text] { font:inherit; color:var(--text); background:var(--base); border:none;
+  input[type=text], input[type=password] { font:inherit; color:var(--text); background:var(--base); border:none;
     border-radius:999px; padding:11px 18px; min-width:220px; flex:1; box-shadow:var(--sh-in-sm); }
-  input[type=text]::placeholder { color:var(--muted); }
-  input[type=text]:focus { outline:none; box-shadow:var(--sh-in-sm), 0 0 0 2px var(--accent-soft); }
+  input[type=text]::placeholder, input[type=password]::placeholder { color:var(--muted); }
+  input[type=text]:focus, input[type=password]:focus { outline:none; box-shadow:var(--sh-in-sm), 0 0 0 2px var(--accent-soft); }
   .switch { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; }
   .switch input { accent-color:var(--accent); width:16px; height:16px; }
 
@@ -115,7 +115,7 @@
   .card:hover { transform:translateY(-2px);
                 box-shadow:10px 10px 22px var(--sd), -10px -10px 22px var(--sl); }
   .card:active { box-shadow:var(--sh-in); transform:none; }
-  .card h3 { font-size:15.5px; margin:0 0 9px; line-height:1.44; letter-spacing:-.005em; }
+  .card h3 { font-size:15.5px; margin:0 0 9px; line-height:1.44; letter-spacing:0; }
   .meta { font-size:12px; color:var(--muted); display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:11px; }
   .badge { font-size:11px; padding:3px 10px; border-radius:999px; box-shadow:var(--sh-in-sm); color:var(--muted); }
   .badge.ai { color:var(--ai-text); }
@@ -161,7 +161,7 @@
           animation:slideIn .28s ease both; }
   .page-inner { max-width:800px; margin:0 auto; padding:28px; background:var(--base);
                 box-shadow:var(--sh-out); border-radius:var(--r-lg); }
-  .page h2 { font-size:22px; line-height:1.4; margin:0 0 10px; letter-spacing:-.015em; }
+  .page h2 { font-size:22px; line-height:1.4; margin:0 0 10px; letter-spacing:0; }
   .full { font-size:14.5px; line-height:1.85; opacity:.92; }
   .full p, .msg p { margin:0 0 10px; }
   .full h4, .msg h4 { margin:14px 0 6px; font-size:14px; }
@@ -190,8 +190,10 @@
                   position:relative; z-index:3; }
   .reader .rbar h2 { font-size:13.5px; margin:0; flex:1; font-weight:600; overflow:hidden;
                      text-overflow:ellipsis; white-space:nowrap; }
-  .reader .pages { flex:1; overflow:auto; padding:22px 0 60px; display:flex; flex-direction:column;
-                   align-items:center; gap:22px; }
+  .reader .pages { flex:1; overflow:auto; padding:22px 0 60px; overflow-anchor:none; }
+  .reader .page-stage { position:relative; width:max-content; height:max-content; flex:0 0 auto; }
+  .reader .page-surface { display:flex; flex-direction:column; align-items:center; gap:22px;
+                          width:max-content; min-width:0; transform-origin:0 0; will-change:transform; }
   .reader .pg { position:relative; background:#fff; box-shadow:0 12px 34px rgba(0,0,0,.4); transform-origin:0 0; }
   .reader .pg canvas { display:block; }
   /* pdf.js TextLayer contract (copied from pdf_viewer.css) — do not change. */
@@ -211,8 +213,9 @@
   .reader .rside .thumb.active { outline-color:var(--accent); }
   .reader .rside .thumb canvas { display:block; }
   .reader .zoombar { display:flex; align-items:center; gap:2px; font-size:12px; color:var(--muted); }
-  .reader .pgwrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .reader .pgwrap { display:flex; flex:0 0 auto; flex-direction:column; align-items:center; gap:8px; }
   .reader .pgno { font-size:11px; color:var(--muted); }
+  .reader .pg { flex:0 0 auto; }
   .reader .rbody { min-height:0; }
   .reader .rside { overflow-y:auto; overflow-x:hidden; flex:0 0 auto; scrollbar-width:thin; }
   .reader .rside .thumb { flex:0 0 auto; }
@@ -310,7 +313,7 @@
   .hero { position:relative; overflow:hidden; }
   .hero::after { content:''; position:absolute; right:-60px; top:-80px; width:220px; height:220px; border-radius:50%;
       background:radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); pointer-events:none; }
-  .hero h1 { letter-spacing:-.02em; }
+  .hero h1 { letter-spacing:0; }
   .section-title, .label { display:flex; align-items:center; gap:8px; }
   .section-title::before, .label::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--accent); }
   .ai-line { background:var(--surface-2); border:1px solid var(--line); border-left:3px solid var(--ai); }
@@ -334,7 +337,7 @@
   .popts { display:flex; gap:10px; align-items:center; padding:9px 14px 0; font-size:11.5px; color:var(--muted); }
   .msg .meta { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
   #petRef { padding:10px 14px 0; }
-  .petpanel header b { letter-spacing:-.01em; }
+  .petpanel header b { letter-spacing:0; }
   @keyframes msgIn { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
   /* ================= motion pass ================= */
   :root { --ease-spring:cubic-bezier(.2,.9,.3,1.08); --ease-out:cubic-bezier(.2,.8,.3,1); }
@@ -366,21 +369,234 @@
   @keyframes slideInRight { from{opacity:0; transform:translateX(18px);} to{opacity:1; transform:none;} }
   @keyframes previewIn { from{opacity:0; transform:translateY(10px) scale(.97);} to{opacity:1; transform:none;} }
   @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
+
+  /* ------------------------------------------------------------------ compact pass
+     This app is used as a daily reading tool, so the reference's spacious
+     composition needs a denser default scale than a marketing landing page. */
+  body { font-size:14px; line-height:1.55; }
+  header.top { padding-top:12px; padding-bottom:12px; }
+  .brand { font-size:15px; gap:9px; }
+  .brand-mark { width:30px; height:30px; }
+  .tab { padding:7px 11px; font-size:12.5px; }
+  .right { gap:9px; }
+  .stat { font-size:11px; gap:6px; }
+  .controls { gap:7px; }
+  #modeBtn { width:30px; height:30px; padding:7px; }
+  main { padding-top:20px; padding-bottom:20px; }
+  .hero { padding-top:16px; padding-bottom:20px; margin-bottom:18px; }
+  .hero h1 { font-size:26px; line-height:1.2; }
+  .hero .sub { margin-top:8px; font-size:12.5px; }
+  .hero .row { margin-top:18px !important; }
+  button,.btn { padding:8px 14px; font-size:13px; }
+  .grid { gap:12px; }
+  .card { padding:18px; }
+  .card h3 { font-size:15px; line-height:1.38; margin-bottom:7px; }
+  .meta { font-size:11px; margin-bottom:8px; }
+  .abs { font-size:12.5px; line-height:1.62; -webkit-line-clamp:3; }
+  .ai-line { font-size:12.5px; line-height:1.58; padding-left:10px; }
+  .whyline { font-size:11.5px; padding-top:10px; margin-top:10px; }
+  .card .actions { padding-top:12px; }
+  .card .actions button { font-size:11.5px; padding:7px 11px; }
+  .badge { font-size:10px; padding:2px 8px; }
+  .edition { font-size:11px; margin-bottom:9px; }
+  .view-heading .count { font-size:11.5px; }
+  .devbanner { font-size:11.5px; margin-top:12px; }
+  footer { font-size:10.5px; }
+  @media (max-width:700px) {
+    header.top { padding:10px 14px; }
+    .brand { font-size:13px; }
+    .brand-mark { width:26px; height:26px; }
+    main { padding:18px 14px 58px; }
+    .hero { padding:14px 0 18px; }
+    .hero h1 { font-size:24px; }
+    .hero .sub { font-size:12px; }
+    .card { padding:16px; }
+    .card h3 { font-size:14.5px; }
+  }
+
+  /* ------------------------------------------------------------------ editorial refresh
+     The reference uses a bright canvas, generous whitespace and one confident
+     ink colour. Keep the data-dense paper workflow, but remove the stacked
+     neumorphic surfaces that made every element look equally important. */
+  :root {
+    --base:#fafafa; --text:#24212d; --muted:#696573;
+    --line:#e9e5ef; --line-strong:#d9d2e4;
+    --surface-1:#ffffff; --surface-2:#f5f5f7; --surface-3:#efedf3;
+    --accent:#392276; --accent-ink:#ffffff; --accent-text:#392276;
+    --accent-soft:rgba(57,34,118,.10); --good:#16704c; --bad:#ad3f50;
+    --warn:#8b5d0d; --ai:#6f35d6; --ai-text:#5b27b3;
+    --sh-1:0 1px 2px rgba(33,20,65,.04);
+    --sh-2:0 12px 34px rgba(33,20,65,.07);
+    --sh-3:0 22px 58px rgba(33,20,65,.13);
+    --r-lg:8px; --r-md:8px; --r-sm:6px;
+    --sh-out:var(--sh-2); --sh-out-sm:var(--sh-1); --sh-in:none; --sh-in-sm:none;
+  }
+  html[data-mode="dark"] {
+    --base:#15121e; --text:#f7f4fb; --muted:#aaa3b7;
+    --line:#332d40; --line-strong:#4b415b;
+    --surface-1:#211c2c; --surface-2:#2a2437; --surface-3:#342d43;
+    --accent:#a98aff; --accent-ink:#1b142d; --accent-text:#c1abff;
+    --accent-soft:rgba(169,138,255,.16); --good:#62d5a2; --bad:#ff9aa7;
+    --warn:#f0c36a; --ai:#c29cff; --ai-text:#c29cff;
+    --sh-1:0 1px 2px rgba(0,0,0,.24); --sh-2:0 14px 38px rgba(0,0,0,.24);
+    --sh-3:0 24px 60px rgba(0,0,0,.38);
+  }
+  html[data-accent="violet"] { --accent:#392276; --accent-ink:#fff; --accent-text:#392276; --ai-text:#5b27b3; }
+  html[data-accent="mint"] { --accent:#17674d; --accent-ink:#fff; --accent-text:#17674d; --ai-text:#17674d; }
+  html[data-accent="coral"] { --accent:#9a3d32; --accent-ink:#fff; --accent-text:#9a3d32; --ai-text:#9a3d32; }
+  html[data-accent="rose"] { --accent:#9c315f; --accent-ink:#fff; --accent-text:#9c315f; --ai-text:#9c315f; }
+  html[data-accent="amber"] { --accent:#845400; --accent-ink:#fff; --accent-text:#845400; --ai-text:#845400; }
+  html[data-mode="dark"][data-accent="violet"] { --accent:#a98aff; --accent-ink:#1b142d; --accent-text:#c1abff; --ai-text:#c29cff; }
+  html[data-mode="dark"][data-accent="mint"] { --accent:#62d5a2; --accent-ink:#10251d; --accent-text:#62d5a2; --ai-text:#62d5a2; }
+  html[data-mode="dark"][data-accent="coral"] { --accent:#ff9a83; --accent-ink:#321713; --accent-text:#ffad9b; --ai-text:#ffad9b; }
+  html[data-mode="dark"][data-accent="rose"] { --accent:#ff91b9; --accent-ink:#321522; --accent-text:#ffacd0; --ai-text:#ffacd0; }
+  html[data-mode="dark"][data-accent="amber"] { --accent:#f4c76a; --accent-ink:#2b1e06; --accent-text:#f4c76a; --ai-text:#f4c76a; }
+  body { background:var(--base); font-size:15px; }
+  header.top { top:0; max-width:none; margin:0; padding:18px max(24px,calc((100vw - 1160px)/2));
+    border-radius:0; border:0; border-bottom:1px solid var(--line); box-shadow:0 4px 18px rgba(33,20,65,.04); }
+  .brand { font-size:17px; letter-spacing:0; gap:11px; white-space:nowrap; }
+  .dot { width:11px; height:11px; box-shadow:0 0 0 5px var(--accent-soft); }
+  .tabs { background:transparent; border:0; padding:0; gap:4px; }
+  .tab { padding:8px 14px; border-radius:999px; }
+  .tab.active { background:var(--accent); color:var(--accent-ink); box-shadow:0 6px 15px color-mix(in srgb,var(--accent) 22%,transparent); }
+  main { max-width:1160px; margin:0 auto 32px; padding:24px 28px; }
+  .hero { padding:20px 0 26px; margin-bottom:24px; background:transparent; border:0; border-bottom:1px solid var(--line); box-shadow:none; border-radius:0; }
+  .hero::after { display:none; }
+  .hero h1 { font-size:30px; line-height:1.25; letter-spacing:0; max-width:720px; }
+  .hero .sub { margin-top:12px; font-size:14px; }
+  .hero .row { margin-top:24px !important; }
+  button,.btn { background:var(--surface-1); border:1px solid var(--line); box-shadow:none; padding:10px 17px; }
+  button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:0 9px 20px color-mix(in srgb,var(--accent) 22%,transparent); }
+  button.primary:hover { box-shadow:0 13px 28px color-mix(in srgb,var(--accent) 32%,transparent); }
+  button:hover,.btn:hover { border-color:var(--accent); }
+  .grid { gap:16px; }
+  .card { padding:22px; border:1px solid var(--line); border-radius:8px; background:var(--surface-1); box-shadow:none;
+    display:flex; flex-direction:column; min-width:0; }
+  .card::before { display:none; }
+  .card:hover { transform:translateY(-3px); box-shadow:var(--sh-2); border-color:var(--line-strong); }
+  .card h3 { font-size:17px; line-height:1.38; }
+  .abs { color:var(--muted); line-height:1.7; opacity:1; -webkit-line-clamp:3; }
+  .badge,.chip { background:var(--surface-2); border:1px solid var(--line); box-shadow:none; }
+  .whyline { border-top:1px solid var(--line); padding-top:13px; }
+  .whyline span { background:none; border:0; padding:0; border-radius:0; box-shadow:none; }
+  .ai-line { background:none; padding:2px 0 2px 13px; border:0; border-left:2px solid var(--ai); border-radius:0; box-shadow:none; }
+  .devbanner { max-width:1160px; margin:18px auto 0; }
+  .empty { background:var(--surface-2); border:1px dashed var(--line-strong); box-shadow:none; }
+  .page { background:var(--base); }
+  .page-inner { max-width:860px; padding:38px; background:transparent; border:0; border-radius:0; box-shadow:none; }
+  .pet { background:var(--accent); color:var(--accent-ink); box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 30%,transparent); }
+  .petpanel { border:1px solid var(--line); box-shadow:var(--sh-3); }
+  @media (max-width:700px) {
+    header.top { padding:14px 16px; gap:10px; }
+    .right { width:100%; margin-left:0; justify-content:space-between; }
+    main { padding:26px 16px 70px; }
+    .hero { padding:24px 0; }
+    .hero h1 { font-size:28px; }
+    .page-inner { padding:24px 18px; }
+  }
+  .icon { display:inline-block; width:18px; height:18px; flex:0 0 18px; background:currentColor;
+    mask:center / contain no-repeat; -webkit-mask:center / contain no-repeat; }
+  .icon.book { mask-image:url("/icons/book-open.svg"); -webkit-mask-image:url("/icons/book-open.svg"); }
+  .icon.sparkles { mask-image:url("/icons/sparkles.svg"); -webkit-mask-image:url("/icons/sparkles.svg"); }
+  .icon.library { mask-image:url("/icons/library.svg"); -webkit-mask-image:url("/icons/library.svg"); }
+  .icon.profile { mask-image:url("/icons/sliders-horizontal.svg"); -webkit-mask-image:url("/icons/sliders-horizontal.svg"); }
+  .icon.bookmark { mask-image:url("/icons/bookmark.svg"); -webkit-mask-image:url("/icons/bookmark.svg"); }
+  .icon.mode { mask-image:url("/icons/sun-moon.svg"); -webkit-mask-image:url("/icons/sun-moon.svg"); }
+  .icon.settings { mask-image:url("/icons/settings.svg"); -webkit-mask-image:url("/icons/settings.svg"); }
+  .brand-mark { width:34px; height:34px; display:grid; place-items:center; border-radius:8px;
+    background:var(--accent); color:var(--accent-ink); }
+  .sws { display:flex; gap:6px; }
+  button.sw { min-width:0; width:14px; height:14px; padding:0; border:0; box-shadow:none; }
+  button.sw.active { outline:1px solid var(--muted); outline-offset:3px; }
+  button.sw:hover { transform:scale(1.12); }
+  .modes { box-shadow:none; padding:0; }
+  #modeBtn { width:34px; height:34px; padding:8px; border-radius:50%; }
+  button:focus-visible,.btn:focus-visible { outline:2px solid var(--accent-text); outline-offset:4px; }
+  .edition { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:12px; margin-bottom:14px; }
+  .edition .live-dot { width:6px; height:6px; background:var(--good); border-radius:50%; }
+  .view-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+  .view-heading .count { font-size:13px; color:var(--muted); white-space:nowrap; }
+  .paper-topline { display:flex; align-items:center; justify-content:space-between; margin-bottom:15px; gap:12px; }
+  .paper-number { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:8px; }
+  .paper-number .icon { color:var(--accent-text); }
+  .paper-title,.library-title { padding:0; display:block; white-space:normal; text-align:left; font:inherit; color:inherit;
+    background:none; border:0; border-radius:0; box-shadow:none; overflow-wrap:anywhere; }
+  .paper-title:hover,.library-title:hover { transform:none; color:var(--accent-text); }
+  .card .actions { padding-top:18px; margin-top:auto; gap:8px; }
+  .card .actions button { font-size:12px; }
+  .card .actions .read-action { margin-left:auto; color:var(--accent-text); }
+  .lib-item { border-radius:8px; box-shadow:none; align-items:flex-start; min-width:0; }
+  .lib-item:hover { transform:translateY(-2px); box-shadow:var(--sh-2); }
+  .library-copy { flex:1; min-width:0; }
+  #library { grid-template-columns:1fr; }
+  .switch input { appearance:none; width:30px; height:18px; border-radius:12px; margin:0; position:relative;
+    background:var(--line-strong); border:1px solid var(--muted); cursor:pointer; transition:background .18s ease; }
+  .switch input::after { content:""; position:absolute; width:12px; height:12px; top:2px; left:2px;
+    border-radius:50%; background:var(--surface-1); transition:transform .18s ease; }
+  .switch input:checked { background:var(--accent); border-color:var(--accent); }
+  .switch input:checked::after { transform:translateX(12px); background:var(--accent-ink); }
+  .switch input:focus-visible { outline:2px solid var(--accent-text); outline-offset:3px; }
+  .pet { width:48px; height:48px; padding:0; }
+  .pet .icon { width:21px; height:21px; }
+  .petpanel header { box-shadow:none; border-bottom:1px solid var(--line); }
+  .petpanel .prow input { min-width:0; }
+  input[type=text] { background:var(--surface-1); box-shadow:none; border:1px solid var(--line-strong); border-radius:8px; }
+  input[type=text]:focus { box-shadow:0 0 0 2px var(--accent-soft); }
+  #preview { background:var(--surface-1); border:1px solid var(--line); box-shadow:var(--sh-3); }
+  .reader .rbar { background:var(--surface-1); border-bottom:1px solid var(--line); box-shadow:none; flex-wrap:wrap; }
+  .reader .pages { min-width:0; }
+  .reader .rside { border-right:1px solid var(--line); box-shadow:none; }
+  .reader .pg { box-shadow:var(--sh-2); }
+  .label,.brand,.refcard .rlabel,.msg .meta { letter-spacing:0; }
+  .refcard { border-radius:8px; }
+  #profileBox { margin-bottom:0; }
+  .profile-facts { display:flex; flex-wrap:wrap; gap:28px; padding-top:8px; }
+  .profile-facts span { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .profile-facts b { font-size:24px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+  main > section:not(.hidden) { animation:viewEnter .32s var(--ease-out) both; }
+  @keyframes viewEnter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @media (max-width:900px) {
+    header.top { gap:14px; } .stat { gap:7px; }
+    .petpanel.docked { width:310px; }
+  }
+  @media (max-width:700px) {
+    .tabs { margin-left:auto; } .tab { padding:8px 10px; font-size:12px; }
+    .tab .icon { display:none; }
+    .brand { font-size:14px; gap:8px; }
+    .brand-mark { width:28px; height:28px; }
+    .card { padding:20px; } .card h3 { font-size:16px; }
+    .view-heading { align-items:flex-start; }
+    .devbanner { margin:12px 16px 0; border-radius:8px; }
+    .lib-item { flex-wrap:wrap; gap:12px; }
+    .library-copy { flex-basis:calc(100% - 40px); }
+    .petpanel.docked { position:absolute; right:12px; bottom:0; width:min(380px,calc(100% - 24px));
+      height:min(60%,480px); margin:12px; z-index:5; }
+    .reader .rside { width:100px; }
+    .reader .rside .thumb canvas { width:72px; }
+    .reader .rbar { gap:5px; padding:8px; }
+    .reader .rbar h2 { min-width:120px; }
+    #pin { width:100%; min-width:0; flex-basis:100%; }
+    #toasts { left:16px; right:16px; bottom:76px; }
+    .toast { max-width:100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
 </style>
+<link rel="stylesheet" href="/organization.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="dot"></span>PaperDigHelper</div>
-  <div class="tabs">
-    <div class="tab active" data-view="today">今日</div>
-    <div class="tab" data-view="library">论文库</div>
-    <div class="tab" data-view="profile">画像</div>
-  </div>
+  <div class="brand"><span class="brand-mark"><i class="icon book" aria-hidden="true"></i></span>PaperDigHelper</div>
+  <nav class="tabs" aria-label="主导航">
+    <button class="tab active" data-view="today" aria-current="page"><i class="icon sparkles" aria-hidden="true"></i>今日</button>
+    <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>
+    <button class="tab" data-view="knowledge"><i class="icon book" aria-hidden="true"></i>知识库</button>
+    <button class="tab" data-view="profile"><i class="icon profile" aria-hidden="true"></i>画像</button>
+  </nav>
   <div class="right">
     <div class="stat" id="stats"></div>
     <div class="controls">
       <div class="sws" id="sws" title="强调色"></div>
-      <div class="modes"><button class="tiny ghost" id="modeBtn">◐</button></div>
+      <div class="modes"><button class="tiny ghost" id="settingsBtn" title="AI 与接口设置" aria-label="AI 与接口设置"><i class="icon settings" aria-hidden="true"></i></button><button class="tiny ghost" id="modeBtn" title="切换明暗主题" aria-label="切换明暗主题"><i class="icon mode" aria-hidden="true"></i></button></div>
     </div>
   </div>
 </header>
@@ -389,12 +605,12 @@
 <main>
   <section id="view-today">
     <section class="hero">
-      <h1>今日推荐</h1>
-      <div class="sub">本地优先 · 默认零 token · 生成后自动 AI 速览</div>
+      <div class="edition"><span class="live-dot"></span><span id="projectName">研究工作区</span></div>
+      <div class="view-heading"><h1>今日推荐</h1><span class="count" id="todayCount"></span></div>
       <div class="row" style="margin-top:16px">
         <button class="primary" id="btnDaily">生成今日 5 篇</button>
         <button id="btnRefresh">抓取新论文</button>
-        <label class="switch"><input type="checkbox" id="autoAi" checked> 生成后自动 AI 速览</label>
+        <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label><span class="sub" id="autoAiHint"></span>
       </div>
     </section>
     <section id="cards" class="grid"></section>
@@ -402,8 +618,8 @@
 
   <section id="view-library" class="hidden">
     <section class="hero">
-      <h1>我的论文库</h1>
-      <div class="sub">点「☆ 收藏」的论文会保存到这里；可随时取消收藏</div>
+      <div class="edition"><i class="icon library" aria-hidden="true"></i>已收藏</div>
+      <div class="view-heading"><h1>我的论文库</h1><span class="count" id="libraryCount"></span></div>
     </section>
     <div id="library" class="grid"></div>
   </section>
@@ -411,15 +627,16 @@
   <section id="view-profile" class="hidden">
     <section class="hero">
       <h1>我的画像</h1>
-      <div class="sub">可查看、可修改、可回滚；「没空 / 看不懂 / 以后再看」不改变兴趣</div>
+      <div class="sub">研究兴趣</div>
       <div class="row" style="margin-top:16px">
-        <input type="text" id="pin" placeholder="钉死关键词（逗号分隔），例如 world model, JEPA, planning">
+        <input type="text" id="pin" aria-label="固定关键词" placeholder="world model, JEPA, planning">
         <button id="btnPin">保存关键词</button>
       </div>
     </section>
     <section class="hero" id="profileBox"></section>
   </section>
 </main>
+<section id="organizationRoot" class="hidden"></section>
 <footer id="foot"></footer>
 
 <div id="reader" class="reader hidden">
@@ -458,12 +675,13 @@
     <button class="primary" id="petSend">发送</button>
   </div>
 </div>
-<div class="pet" id="pet" title="阅读助手">🐾</div>
+<button class="pet" id="pet" title="阅读助手" aria-label="阅读助手"><i class="icon sparkles" aria-hidden="true"></i></button>
 <div id="selbar"><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button><button class="tiny ghost" data-sel="clear" title="取消选择">✕</button></div>
 <div id="transPop"></div>
 
 <div id="preview"></div>
 <div id="detail" class="page hidden"></div>
+<div id="settingsPage" class="page hidden" role="dialog" aria-modal="true" aria-label="设置"></div>
 <div id="toasts"></div>
 
 <script>
@@ -475,7 +693,8 @@ const ACCENTS = ['violet','mint','coral','rose','amber'];
 function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m); }
 function setAccent(a){ document.documentElement.dataset.accent = a; localStorage.setItem('pdh-accent', a);
   document.querySelectorAll('.sw').forEach(s => s.classList.toggle('active', s.dataset.a === a)); }
-$('#sws').innerHTML = ACCENTS.map(a => `<span class="sw" data-a="${a}" title="${a}"></span>`).join('');
+const ACCENT_NAMES = {violet:'紫色', mint:'绿色', coral:'珊瑚色', rose:'玫瑰色', amber:'琥珀色'};
+$('#sws').innerHTML = ACCENTS.map(a => `<button class="sw" data-a="${a}" title="${ACCENT_NAMES[a]}" aria-label="${ACCENT_NAMES[a]}"></button>`).join('');
 document.querySelectorAll('.sw').forEach(s => s.onclick = () => setAccent(s.dataset.a));
 setMode(localStorage.getItem('pdh-mode') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
 setAccent(localStorage.getItem('pdh-accent') || 'violet');
@@ -528,11 +747,12 @@ function renderStats() {
   const s = state.stats || {};
   $('#stats').innerHTML = `<span>文献 <b>${s.papers ?? 0}</b></span><span>收藏 <b>${s.saved ?? 0}</b></span>
     <span>正例 <b>${s.positive ?? 0}</b></span><span>负例 <b>${s.negative ?? 0}</b></span>`;
+  $('#projectName').textContent = state.profile?.project || '研究工作区';
 }
 
 // ------------------------------------------------------------------ cards
 function aiSlot(c) {
-  if (c.summary) return `<div class="ai-line"><b>速览</b> ${esc(c.summary.one_liner || '')}
+  if (c.summary) return `<div class="ai-line"><b>AI 速览</b> ${esc(c.summary.one_liner || '')}
     ${c.summary.why_relevant ? `<div class="sub">相关：${esc(c.summary.why_relevant)}</div>` : ''}</div>`;
   if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
@@ -541,54 +761,57 @@ function cardHTML(c, i) {
   const saved = c.saved || c.feedback === 'useful';
   return `
   <article class="card" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
-    <h3>${esc(c.title)}</h3>
+    <div class="paper-topline"><span class="paper-number"><i class="icon book" aria-hidden="true"></i>${String(i + 1).padStart(2,'0')}</span>
+      ${c.summary ? '<span class="badge ai">AI 已速览</span>' : '<span class="badge">待速览</span>'}</div>
+    <h3><button class="paper-title">${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
       ${saved ? '<span class="badge saved">已收藏</span>' : ''}
-      ${c.summary ? '<span class="badge ai">AI 已速览</span>' : ''}
     </div>
     <div class="abs">${esc(c.abstract || '（无摘要）')}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
     <div class="actions">
       <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
-        ${saved ? '✓ 已收藏（点此取消）' : '☆ 收藏'}</button>
+        <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
       <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
-      <button class="tiny" data-read="${esc(c.key)}" data-title="${esc(c.title)}">阅读 PDF</button>
+      <button class="tiny read-action" data-read="${esc(c.key)}" data-title="${esc(c.title)}"><i class="icon book" aria-hidden="true"></i>阅读 PDF</button>
     </div>
-    <div class="hint">点击查看详情 →</div>
   </article>`;
 }
 function renderCards() {
   if (state.view !== 'today') return;
+  $('#todayCount').textContent = `${state.cards.length} 篇推荐`;
   // Rebuilding the cards invalidates any hover state; otherwise a stale hoverKey
   // makes the next hover on the same card silently do nothing.
   clearTimeout(hoverTimer);
   hoverKey = null;
   hidePreview();
   $('#cards').innerHTML = state.cards.length ? state.cards.map(cardHTML).join('')
-    : `<div class="empty">还没有今日卡片。先「抓取新论文」，再点「生成今日 5 篇」。</div>`;
+    : `<div class="empty">暂无推荐论文</div>`;
 }
 function renderLibrary() {
+  $('#libraryCount').textContent = `${state.library.length} 篇论文`;
   $('#library').innerHTML = state.library.length ? state.library.map((p, i) => `
     <article class="lib-item" data-key="${esc(p.key)}" style="animation-delay:${i*40}ms">
-      <div style="flex:1">
-        <h4>${esc(p.title)}</h4>
+      <i class="icon book" aria-hidden="true"></i>
+      <div class="library-copy">
+        <h4><button class="library-title">${esc(p.title)}</button></h4>
         <div class="meta"><span>${esc(p.published || '')}</span><span>${esc(p.source || '')}</span>
           <span>收藏于 ${esc((p.saved_at || '').slice(0,10))}</span></div>
       </div>
       <button class="tiny danger" data-unsave="${esc(p.key)}">取消收藏</button>
-    </article>`).join('') : `<div class="empty">论文库还是空的。在今日卡片上点「☆ 收藏」。</div>`;
+    </article>`).join('') : `<div class="empty">暂无收藏论文</div>`;
 }
 function renderProfile() {
   const p = state.profile || {};
   $('#profileBox').innerHTML = `
     <div class="sub">项目：<b>${esc(p.project || '')}</b></div>
-    <div class="label">钉死关键词</div>
+    <div class="label">固定关键词</div>
     <div>${(p.pinned_terms || []).length ? p.pinned_terms.map(t => `<span class="badge">${esc(t)}</span>`).join(' ') : '<span class="sub">（无）</span>'}</div>
     <div class="label">种子与反馈</div>
-    <div>正向种子 <b>${(p.positive_seeds || []).length}</b> · 反馈正例 <b>${(p.positive_feedback || []).length}</b>
-      · 显式负例 <b>${(p.explicit_negatives || []).length}</b> · 中性 <b>${(p.neutral_feedback || []).length}</b></div>`;
+    <div class="profile-facts"><span>正向种子<b>${(p.positive_seeds || []).length}</b></span><span>反馈正例<b>${(p.positive_feedback || []).length}</b></span>
+      <span>显式负例<b>${(p.explicit_negatives || []).length}</b></span><span>中性反馈<b>${(p.neutral_feedback || []).length}</b></span></div>`;
 }
 
 async function load() {
@@ -596,6 +819,13 @@ async function load() {
   state.version = data.server_version || '?';
   state.usage = data.usage || null;
   state.devMode = Boolean(data.dev_mode);
+  state.provider = data.provider || null;
+  const aiReady = Boolean(state.provider && state.provider.configured);
+  const autoAi = $('#autoAi');
+  if (autoAi) {
+    autoAi.title = aiReady ? 'AI 速览已就绪' : '尚未配置模型 API；点击右上角设置填入密钥';
+    $('#autoAiHint').textContent = aiReady ? '' : '（未配置 API）';
+  }
   const banner = document.getElementById('devbanner');
   banner.style.display = state.devMode ? 'block' : 'none';
   if (state.devMode) {
@@ -615,6 +845,12 @@ async function loadLibrary() {
 }
 
 // ------------------------------------------------------------- generation
+function aiFailure(reason) {
+  const detail = reason || '未知';
+  if (/no API key|no provider/i.test(detail))
+    return `AI 未配置（${detail}）。点击右上角设置填入 API 密钥即可；在此之前保持本地模式。`;
+  return `AI 不可用（${detail}），保持本地模式。`;
+}
 async function generate() {
   const b = $('#btnDaily'); b.disabled = true; b.textContent = '生成中…';
   try {
@@ -632,7 +868,7 @@ async function autoTriage() {
   state.triaging = true; renderCards();
   try {
     const r = await api('/api/triage', { dry_run: false });
-    if (!r.ok) toast(`AI 速览不可用（${r.reason || '未知'}），保持本地模式`, 'warn', 5000);
+    if (!r.ok) toast(aiFailure(r.reason), 'warn', 6000);
     else toast(`AI 已速览 ${r.items.length} 条 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
     await load();
   } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
@@ -658,12 +894,21 @@ $('#btnPin').onclick = async () => {
 };
 
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
-  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+  document.querySelectorAll('.tab').forEach(x => {
+    x.classList.toggle('active', x === t);
+    if (x === t) x.setAttribute('aria-current', 'page');
+    else x.removeAttribute('aria-current');
+  });
+  clearTimeout(hoverTimer);
+  hidePreview();
   state.view = t.dataset.view;
+  const organized = state.view === 'library' || state.view === 'knowledge';
+  document.querySelector('main').classList.toggle('hidden', organized);
+  $('#organizationRoot').classList.toggle('hidden', !organized);
   $('#view-today').classList.toggle('hidden', state.view !== 'today');
   $('#view-library').classList.toggle('hidden', state.view !== 'library');
   $('#view-profile').classList.toggle('hidden', state.view !== 'profile');
-  if (state.view === 'library') loadLibrary().catch(e => toast(e.message, 'err'));
+  if (organized) window.PDHOrganization.open(state.view).catch(e => toast(e.message, 'err'));
 });
 
 // --------------------------------------------------------------- feedback
@@ -752,7 +997,7 @@ async function openDetail(key) {
           ${d.arxiv_id ? `<span class="badge">arXiv:${esc(d.arxiv_id)}</span>` : ''}
           ${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
         </div>
-        ${s ? `<div class="ai-line" style="margin-top:18px"><b>速览</b> ${md(s.one_liner || '')}
+        ${s ? `<div class="ai-line" style="margin-top:18px"><b>AI 速览</b> ${md(s.one_liner || '')}
           <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div>` : ''}
         <div class="label">完整摘要</div>
         <div class="full">${md(d.abstract || '（无摘要）')}</div>
@@ -784,7 +1029,61 @@ $('#detail').addEventListener('click', (e) => {
   const fb = e.target.closest('button[data-fb]');
   if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err'));
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('#detail').classList.add('hidden'); hidePreview(); } });
+
+// --------------------------------------------------------------- settings
+// The runtime provider key is provisioned here and stored only in the app data
+// directory. Every AI feature goes through the one budgeted gateway; without a
+// key those features degrade to the local path and never call out.
+async function openSettings() {
+  try {
+    const data = await api('/api/settings');
+    const p = data.provider || {};
+    const status = p.configured
+      ? `<span class="badge ai">已配置</span><span class="sub">${p.source === 'environment' ? '来源：启动环境变量' : `来源：${esc(p.source || '')}`}</span>`
+      : '<span class="badge">未配置</span><span class="sub">AI 功能当前退化为本地模式，不会发起任何请求</span>';
+    $('#settingsPage').innerHTML = `
+      <div class="page-inner">
+        <button class="ghost" id="settingsBack">← 返回</button>
+        <div class="label" style="margin-top:20px">AI 接口</div>
+        <h2>模型 API 设置</h2>
+        <div class="sub">速览、追问、划词翻译与图表问答统一经过预算网关调用 ${esc(p.model || 'DeepSeek')}；账号额度与日/月上限由服务端账本控制，超限即拒绝。</div>
+        <div class="row" style="margin-top:14px">${status}</div>
+        <div class="label">API Key</div>
+        <div class="row">
+          <input type="password" id="apiKeyInput" aria-label="API Key" placeholder="sk-…（只保存在本机）" autocomplete="off">
+          <button class="primary" id="apiKeySave">保存</button>
+          <button class="tiny" id="apiKeyClear">清除</button>
+        </div>
+        <div class="sub" style="margin-top:10px">密钥只写入本机数据目录并限制为本人可读，不会进入代码仓库，也不会在界面上回显。${p.key_file ? `位置：${esc(p.key_file)}` : ''}</div>
+        <div class="sub" id="apiKeyStatus" role="status"></div>
+      </div>`;
+    $('#settingsPage').classList.remove('hidden');
+    $('#settingsBack').onclick = () => $('#settingsPage').classList.add('hidden');
+    $('#apiKeySave').onclick = async () => {
+      const value = $('#apiKeyInput').value.trim();
+      if (!value) { $('#apiKeyStatus').textContent = '请输入 API Key'; return; }
+      try {
+        const r = await api('/api/settings', { api_key: value });
+        state.provider = r.provider;
+        $('#apiKeyInput').value = '';
+        $('#apiKeyStatus').textContent = '已保存，AI 功能已就绪。';
+        toast('API Key 已保存，AI 功能可用', 'ai');
+        await load();
+      } catch (e) { $('#apiKeyStatus').textContent = `保存失败：${e.message}`; }
+    };
+    $('#apiKeyClear').onclick = async () => {
+      try {
+        const r = await api('/api/settings', { clear: true });
+        state.provider = r.provider;
+        $('#apiKeyStatus').textContent = '已清除，AI 功能将退化为本地模式。';
+        toast('已清除 API Key', 'warn');
+        await load();
+      } catch (e) { $('#apiKeyStatus').textContent = `清除失败：${e.message}`; }
+    };
+  } catch (e) { toast(`打不开设置：${e.message}`, 'err'); }
+}
+$('#settingsBtn').onclick = openSettings;
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('#detail').classList.add('hidden'); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
 document.addEventListener('scroll', hidePreview, { passive: true });
 
 load().catch(e => toast(`加载失败：${e.message}`, 'err'));
@@ -887,25 +1186,42 @@ function pageScale(page) {
 
 async function layoutPages() {
   const box = $('#readerPages');
+  const pendingBeforeLayout = R.pendingZoom;
   // Remember exactly where we are (page + offset inside it) so re-layout never jumps.
   const prevTop = box.scrollTop;
-  const anchor = currentAnchor(prevTop);
+  const anchor = pendingBeforeLayout || currentAnchor(prevTop);
   const keepPage = anchor.page;
   R.current = keepPage;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
-  box.innerHTML = '';
-  R.jobs = new Map();
+  const oldStage = box.querySelector('.page-stage');
+  const stage = document.createElement('div');
+  stage.className = 'page-stage';
+  stage.style.visibility = 'hidden';
+  const surface = document.createElement('div');
+  surface.className = 'page-surface';
+  stage.appendChild(surface);
+  box.appendChild(stage);
+  const usedScale = pageScale(R.pages[0]);
+  // During a pinch the whole surface is transformed, so the crisp layout must
+  // use the exact gap captured from the final gesture frame.
+  surface.style.gap = `${pendingBeforeLayout?.gap ?? 22}px`;
+  const nextJobs = new Map();
+  R.jobs = nextJobs;
   R.observer = new IntersectionObserver((entries) => {
     for (const en of entries) {
       if (en.isIntersecting) {
-        renderPage(Number(en.target.dataset.n));
-        if (R.jobs.size <= R.pages.length) markCurrent(Number(en.target.dataset.n));
+        renderPage(Number(en.target.dataset.n), stage, nextJobs);
+        if (nextJobs.size <= R.pages.length) markCurrent(Number(en.target.dataset.n));
       }
     }
   }, { root: box, rootMargin: '800px 0px' });
   for (let i = 0; i < R.pages.length; i++) {
     const page = R.pages[i];
-    const vp = page.getViewport({ scale: pageScale(page) });
+    // Zoom gestures keep the existing page tree and only transform the
+    // surface. Lazy pages must therefore render at the tree's base scale;
+    // rendering them at R.scale would make a narrow canvas sit inside the old
+    // page box and leave large blank margins.
+    const vp = page.getViewport({ scale: R.renderedScale || pageScale(page) });
     const wrap = document.createElement('div');
     wrap.className = 'pgwrap';
     wrap.dataset.n = i + 1;
@@ -918,26 +1234,37 @@ async function layoutPages() {
     const textDiv = document.createElement('div');
     textDiv.className = 'textLayer';
     pageDiv.appendChild(textDiv);
-    const num = document.createElement('div');
-    num.className = 'pgno';
-    num.textContent = `${i + 1} / ${R.pages.length}`;
-    wrap.appendChild(pageDiv); wrap.appendChild(num);
-    box.appendChild(wrap);
-    // Measure the wrapper itself: it also contains the inner gap and the page
-    // number, so using the page viewport height made the wrapper shorter than its
-    // content, which let the next page ride up over the gap.
-    // Page size plus the fixed chrome (inner gap + page-number line). The crisp
-    // layout keeps the chrome unscaled, so the visual phase must too, otherwise
-    // the two geometries drift apart and releasing the gesture shifts the view.
+    wrap.appendChild(pageDiv);
+    surface.appendChild(wrap);
+    // Keep page spacing on the shared surface. It scales as one unit during a
+    // pinch and is rebuilt with the same ratio after the gesture ends.
     wrap.dataset.baseW = String(Math.round(vp.width));
     wrap.dataset.baseH = String(Math.round(vp.height));
     wrap.dataset.chromeW = String(Math.max(0, wrap.offsetWidth - Math.round(vp.width)));
     wrap.dataset.chromeH = String(Math.max(0, wrap.offsetHeight - Math.round(vp.height)));
     R.observer.observe(wrap);
   }
-  const usedScale = pageScale(R.pages[0]);
+  const maxPageWidth = Math.max(...Array.from(surface.querySelectorAll('.pgwrap'))
+    .map((wrap) => wrap.offsetWidth), 320);
+  const heldSurfaceWidth = pendingBeforeLayout
+    ? pendingBeforeLayout.baseWidth * pendingBeforeLayout.k
+    : box.clientWidth;
+  // A zoom-out must still have a viewport-sized centering surface. If the
+  // surface itself shrinks below the scrollport, flex centering disappears and
+  // the page snaps to the left edge on release.
+  surface.style.width = `${Math.max(box.clientWidth, heldSurfaceWidth, maxPageWidth)}px`;
+  stage.style.width = `${surface.offsetWidth}px`;
+  stage.style.height = `${surface.offsetHeight}px`;
   R.renderedScale = usedScale;
   $('#zoomLabel').textContent = `${Math.round(usedScale * 100)}%`;
+  // Keep the old surface visible while the new canvas is being prepared. Swap
+  // only after the anchor page is ready, so a release never exposes a blank
+  // frame between two render trees.
+  await renderPage(keepPage, stage, nextJobs);
+  await afterPaints(2);
+  stage.style.visibility = 'visible';
+  await afterPaints(1);
+  if (oldStage && oldStage.parentNode === box) oldStage.remove();
   // Restore the reading position after the rebuild. The old formula reduced to
   // "jump to the top of the page" (within cancels out), which is why zooming and
   // 适宽 both felt like a jump; keep the fraction of the page instead.
@@ -948,7 +1275,12 @@ async function layoutPages() {
       // Same measured anchoring as the visual phase: the content point under the
       // cursor ends up exactly where it was, so releasing the gesture is seamless.
       const held = box.querySelector(`.pgwrap[data-n="${pending.page}"]`);
-      if (held) box.scrollTop = Math.max(0, contentTopOf(held, box) + pending.within * pending.k - pending.localY);
+      if (held) {
+        box.scrollTop = Math.max(0, contentTopOf(held, box)
+          + pending.withinY * pending.k - pending.localY);
+        box.scrollLeft = Math.max(0, contentLeftOf(held, box)
+          + pending.withinX * pending.k - pending.localX);
+      }
     } else {
       const target = box.querySelector(`.pgwrap[data-n="${keepPage}"]`);
       if (target) {
@@ -971,6 +1303,19 @@ function contentTopOf(wrap, box = $('#readerPages')) {
   return wrapRect.top - boxRect.top + box.scrollTop;
 }
 
+function contentLeftOf(wrap, box = $('#readerPages')) {
+  const boxRect = box.getBoundingClientRect();
+  const wrapRect = wrap.getBoundingClientRect();
+  return wrapRect.left - boxRect.left + box.scrollLeft;
+}
+
+function afterPaints(count = 2) {
+  return new Promise((resolve) => {
+    const tick = () => count-- <= 0 ? resolve() : requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
+  });
+}
+
 function currentAnchor(scrollTop) {
   const box = $('#readerPages');
   const wraps = box.querySelectorAll('.pgwrap');
@@ -986,12 +1331,12 @@ function currentAnchor(scrollTop) {
   return { page, top, height, within: scrollTop - top };
 }
 
-function renderPage(n) {
-  if (R.jobs.has(n)) return R.jobs.get(n);
+function renderPage(n, root = document, jobs = R.jobs) {
+  if (jobs.has(n)) return jobs.get(n);
   const job = (async () => {
     const L = await lib();
     const page = R.pages[n - 1];
-    const wrap = document.querySelector(`.pgwrap[data-n="${n}"]`);
+    const wrap = root.querySelector(`.pgwrap[data-n="${n}"]`);
     if (!wrap) return;
     const pageDiv = wrap.querySelector('.pg');
     const canvas = pageDiv.querySelector('canvas');
@@ -1010,7 +1355,7 @@ function renderPage(n) {
     const textLayer = new L.TextLayer({ textContentSource: await page.streamTextContent(), container: textDiv, viewport: vp });
     await textLayer.render();
   })().catch((e) => toast(`第 ${n} 页渲染失败：${e.message}`, 'err'));
-  R.jobs.set(n, job);
+  jobs.set(n, job);
   return job;
 }
 
@@ -1137,6 +1482,7 @@ $('#zoomFit').onclick = async () => {
   if (zoomTimer) { clearTimeout(zoomTimer); zoomTimer = null; }
   R.pendingZoom = null; R.zoomBase = null;
   R.fit = true;
+  $('#readerPages').classList.remove('zoomed');
   await layoutPages();
 };
 $('#readerNative').onclick = () => { if (R.url) window.open(R.url, '_blank'); };
@@ -1268,7 +1614,7 @@ async function ask(question) {
         `${r.pages && r.pages.length ? ' · 命中第 ' + r.pages.join(',') + ' 页' : ''}` +
         `${r.context_chars ? ' · ' + Math.round(r.context_chars / 1000) + 'k 字符' : ''}`
       : '';
-    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : `AI 不可用：${r.reason || '未知'}`, r.followups, meta);
+    addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
     if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}${r.mode === 'vision' ? ' · 视觉' : ''}`, 'ai');
   } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
   finally { pet.busy = false; setReference(null); }
@@ -1281,7 +1627,7 @@ async function translate(text, rect) {
   try {
     const r = await api('/api/translate', { text });
     pop.innerHTML = `<div class="tlabel">划词翻译</div><div class="tbody">${
-      r.ok ? window.PDH.md(r.translation) : '翻译不可用：' + (r.reason || '未知')}</div>
+      r.ok ? window.PDH.md(r.translation) : esc(aiFailure(r.reason))}</div>
       <div class="row" style="margin-top:10px">
         <button class="tiny" id="transCopy">复制</button>
         <button class="tiny ghost" id="transClose">关闭</button></div>`;
@@ -1316,63 +1662,90 @@ function currentScale() {
 }
 
 function applyVisualScale(k, base) {
-  // Transform what is already rendered: instant feedback with no canvas work.
-  // The gap and the page-number line scale too, so the visual layout matches the
-  // crisp layout exactly and releasing the gesture cannot shift anything.
-  document.querySelectorAll('#readerPages .pgwrap').forEach((wrap) => {
-    const baseW = Number(wrap.dataset.baseW);
-    const baseH = Number(wrap.dataset.baseH);
-    const chromeW = Number(wrap.dataset.chromeW) || 0;
-    const chromeH = Number(wrap.dataset.chromeH) || 0;
-    if (!baseW || !baseH) return;
-    // Exactly what the crisp layout will produce at this scale: the page grows,
-    // the chrome keeps its size.
-    wrap.style.width = `${baseW * k + chromeW}px`;
-    wrap.style.height = `${baseH * k + chromeH}px`;
-    const page = wrap.querySelector('.pg');
-    if (page) page.style.transform = `scale(${k})`;
-  });
-  if (!base) return;
-  // Scale the wrappers above the anchored page too, so measure the real offset
-  // instead of predicting it: a formula misses that earlier pages also grew,
-  // which is exactly what pushed the view down-right during a zoom.
-  requestAnimationFrame(() => {
-    const box = $('#readerPages');
-    const wrap = box.querySelector(`.pgwrap[data-n="${base.page}"]`);
-    if (wrap) box.scrollTop = Math.max(0, contentTopOf(wrap, box) + base.within * k - base.localY);
-  });
+  const box = $('#readerPages');
+  const stage = box.querySelector('.page-stage');
+  const surface = box.querySelector('.page-surface');
+  if (!stage || !surface || !base) return;
+  const visualWidth = base.baseWidth * k;
+  const centerOffset = Math.max(0, (box.clientWidth - visualWidth) / 2);
+  surface.style.transform = `translateX(${centerOffset}px) scale(${k})`;
+  stage.style.width = `${Math.max(box.clientWidth, visualWidth)}px`;
+  stage.style.height = `${base.baseHeight * k}px`;
+  // Do this in the same event as the transform. A queued frame can outlive a
+  // crisp re-layout and then measure a detached surface, which causes a release
+  // jump or an old horizontal offset to be applied after the new DOM exists.
+  const surfaceLeft = contentLeftOf(surface, box);
+  const surfaceTop = contentTopOf(surface, box);
+  box.scrollTop = Math.max(0, surfaceTop
+    + (base.pageTop + base.withinY) * k - base.localY);
+  box.scrollLeft = Math.max(0, surfaceLeft
+    + (base.pageLeft + base.withinX) * k - base.localX);
 }
 
-function setScale(newScale, clientY) {
+function commitZoom() {
+  if (!R.zoomBase || !R.doc) return;
+  if (zoomTimer) { clearTimeout(zoomTimer); zoomTimer = null; }
+  // Never rebuild the visible PDF tree at gesture end. Recreating canvases is
+  // what causes image-heavy pages to flash white; keep the composed texture and
+  // retain the final transform, like Preview.
+  R.pendingZoom = null;
+  R.zoomBase = null;
+  $('#zoomLabel').textContent = `${Math.round(R.scale * 100)}%`;
+}
+
+function setScale(newScale, clientY, clientX) {
   if (!R.doc || !R.pages.length) return;
   const box = $('#readerPages');
   const rect = box.getBoundingClientRect();
   const localY = typeof clientY === 'number' ? clientY - rect.top : box.clientHeight / 2;
+  const localX = typeof clientX === 'number' ? clientX - rect.left : box.clientWidth / 2;
   // Anchor against the scale the DOM was last RENDERED at, and remember where the
   // sequence started, so a burst of pinch events accumulates instead of fighting.
   const renderedScale = R.renderedScale || currentScale();
+  const activeK = R.fit ? 1 : (R.scale / renderedScale);
   const clamped = Math.min(3, Math.max(0.4, newScale));
   if (Math.abs(clamped - currentScale()) < 0.001) return;
   if (!R.zoomBase) {
     const anchor = currentAnchor(box.scrollTop);
-    R.zoomBase = { page: anchor.page, within: anchor.within, localY };
+    const anchorWrap = box.querySelector(`.pgwrap[data-n="${anchor.page}"]`);
+    const surface = box.querySelector('.page-surface');
+    const surfaceTop = surface ? contentTopOf(surface, box) : 0;
+    const surfaceLeft = surface ? contentLeftOf(surface, box) : 0;
+    R.zoomBase = {
+      page: anchor.page,
+      // Convert the current transformed coordinates back into the surface's
+      // base coordinate system before applying the next zoom.
+      pageTop: anchorWrap ? (contentTopOf(anchorWrap, box) - surfaceTop) / activeK : 0,
+      pageLeft: anchorWrap ? (contentLeftOf(anchorWrap, box) - surfaceLeft) / activeK : 0,
+      withinY: anchorWrap ? (box.scrollTop + localY - contentTopOf(anchorWrap, box)) / activeK : 0,
+      withinX: anchorWrap ? (box.scrollLeft + localX - contentLeftOf(anchorWrap, box)) / activeK : 0,
+      localY, localX,
+      baseWidth: surface ? surface.offsetWidth : box.clientWidth,
+      baseHeight: surface ? surface.offsetHeight : box.clientHeight,
+      gap: surface ? parseFloat(getComputedStyle(surface).gap) || 22 : 22,
+    };
   }
   R.fit = false;
   R.scale = clamped;
   const k = clamped / renderedScale;
+  R.zoomBase.finalK = k;
+  R.zoomBase.finalGap = R.zoomBase.gap * k;
   applyVisualScale(k, R.zoomBase);
-  if (zoomTimer) clearTimeout(zoomTimer);
-  zoomTimer = setTimeout(() => {
-    zoomTimer = null;
-    // Carry the same measured anchor into the crisp re-render so releasing the
-    // gesture cannot move the page.
-    R.pendingZoom = { page: R.zoomBase.page, within: R.zoomBase.within, localY: R.zoomBase.localY, k };
-    R.zoomBase = null;
-    layoutPages();
-  }, 180);
+  // Safari has an explicit gestureend. For ctrl-wheel pinch there is no end
+  // event, so use an idle timer, but never let that timer run during a Safari
+  // gesture where events may arrive with a long gap.
+  if (gestureBase === null) {
+    if (zoomTimer) clearTimeout(zoomTimer);
+    zoomTimer = setTimeout(commitZoom, 260);
+  }
 }
 
-function zoomBy(factor, clientY) { setScale(currentScale() * factor, clientY); }
+function zoomBy(factor, clientY) {
+  const rect = $('#readerPages').getBoundingClientRect();
+  setScale(currentScale() * factor,
+    typeof clientY === 'number' ? clientY : rect.top + rect.height / 2,
+    rect.left + rect.width / 2);
+}
 
 const pagesBox = $('#readerPages');
 pagesBox.addEventListener('wheel', (event) => {
@@ -1380,7 +1753,8 @@ pagesBox.addEventListener('wheel', (event) => {
   const zoomModifier = event.ctrlKey || event.metaKey || event.altKey;
   if (!zoomModifier) return;                       // plain two-finger scroll keeps scrolling
   event.preventDefault();                          // never zoom the whole page
-  setScale(currentScale() * Math.exp(-event.deltaY * 0.0032), event.clientY);
+  if (gestureBase !== null) return;                // Safari gesturechange owns this pinch
+  setScale(currentScale() * Math.exp(-event.deltaY * 0.0042), event.clientY, event.clientX);
 }, { passive: false });
 
 pagesBox.addEventListener('gesturestart', (event) => {   // Safari trackpad pinch
@@ -1391,11 +1765,13 @@ pagesBox.addEventListener('gesturestart', (event) => {   // Safari trackpad pinc
 pagesBox.addEventListener('gesturechange', (event) => {
   if (!R.doc || gestureBase === null) return;
   event.preventDefault();
-  setScale(gestureBase * event.scale, event.clientY);
+  setScale(gestureBase * event.scale, event.clientY, event.clientX);
 }, { passive: false });
-pagesBox.addEventListener('gestureend', () => { gestureBase = null; }, { passive: false });
-// Safari also fires ctrl-wheel for pinch; avoid double-applying during a gesture.
-pagesBox.addEventListener('wheel', (event) => { if (gestureBase !== null) event.preventDefault(); }, { passive: false });
+pagesBox.addEventListener('gestureend', (event) => {
+  event.preventDefault();
+  gestureBase = null;
+  commitZoom();
+}, { passive: false });
 
 $('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false); };
 $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
@@ -1412,5 +1788,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { hideSel(); $('#transPop').classList.remove('show'); window.getSelection()?.removeAllRanges(); }
 });
 </script>
+<script src="/vendor/cytoscape/cytoscape.min.js"></script>
+<script src="/graph-motion.js"></script>
+<script src="/organization.js"></script>
 </body>
 </html>

@@ -1,0 +1,18 @@
+2026-09-14 Targeted independent review: Arendt
+Scope: new read-only graph worker operation, network UI and newest focus/zoom motion.
+Not a review of earlier dirty PDF reader/Tauri implementation or broad release certification.
+
+Initial findings: repeated drags used stale revisions; layout moved hand-placed nodes;
+in-flight relation corpus changed without reload. Fixed with serial acknowledged position writes,
+preset existing-node layout, and corpus reloading.
+Followup findings: rearrange revision stale on first drag; graph replacement skipped completed
+queued drags; A/B/A corpus cache could return null; reduced motion left180ms transitions.
+Fixed: refreshed graph binding after rearrange ACK, persistent positionWriter queue and awaited
+flushes, cache requires actual relations, both node and edge durations use0ms when reduced.
+
+Final independent response: targeted review passed; all remaining findings closed. Independent
+stub checks verified rearrange/drag revision, queued writes after graph replacement, A/B/A cache,
+reduced-motion transitions and elliptical halo.17 JS tests passed on reviewer's rerun.
+Camera queue replacement, centered zoom, grab interruption, edge-only highlighted width verified.
+Self review: passed for this bounded slice; no new paid calls, schema or provider changes.
+Browser and full Python evidence recorded separately; not covered by independent sign-off.

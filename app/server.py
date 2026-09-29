@@ -6,26 +6,80 @@ request uses its own short-lived App (and therefore its own SQLite connection),
 which keeps storage thread-safe without sharing a connection across threads.
 Long operations (refresh) run as background jobs the page can poll.
 """
+import hmac
 import json
 import mimetypes
+import os
 import sys
 import threading
 import traceback
+import subprocess
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .service import App
 
 STATIC = Path(__file__).resolve().parent / "static"
-VERSION = "0.5"
+VERSION = "0.12"
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 JOB_SEQ = [0]
+ORGANIZATION_JOB_LOCK = threading.Lock()
+ORGANIZATION_PROCESSES_LOCK = threading.Lock()
+ORGANIZATION_PROCESSES = set()
+ORGANIZATION_STOPPING = threading.Event()
+
+
+def stop_organization_workers():
+    ORGANIZATION_STOPPING.set()
+    with ORGANIZATION_PROCESSES_LOCK:
+        workers = list(ORGANIZATION_PROCESSES)
+        for worker in workers:
+            if worker.poll() is None:
+                worker.terminate()
+    for worker in workers:
+        try:
+            worker.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            worker.kill()
+            worker.wait()
+
+
+def organization_job(db_path, project, operation="suggest"):
+    """One bounded offline worker; no provider or user text on the command line."""
+    from . import organization_worker  # also included by the desktop packager
+    if not ORGANIZATION_JOB_LOCK.acquire(blocking=False):
+        raise ValueError("已有分类任务正在运行")
+    try:
+        command = ([sys.executable, "--organization-worker"] if getattr(sys, "frozen", False)
+                   else [sys.executable, "-m", "app.organization_worker"])
+        with ORGANIZATION_PROCESSES_LOCK:
+            if ORGANIZATION_STOPPING.is_set():
+                raise ValueError("应用正在退出")
+            process = subprocess.Popen(command + [str(db_path), project, str(os.getpid()), operation],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                       cwd=str(Path(__file__).resolve().parents[1]))
+            ORGANIZATION_PROCESSES.add(process)
+        try:
+            stdout, stderr = process.communicate(timeout=120)
+            if process.returncode:
+                raise ValueError("本地分类失败：" + stderr[-500:])
+            return json.loads(stdout)
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.communicate()
+            with ORGANIZATION_PROCESSES_LOCK:
+                ORGANIZATION_PROCESSES.discard(process)
+    finally:
+        ORGANIZATION_JOB_LOCK.release()
 
 
 def make_app(root="."):
-    return App(root=root)
+    import os
+    return App(root=root, data_dir=os.environ.get("PAPERDIGHELPER_DATA"))
 
 
 def _job_start(name, fn):
@@ -52,7 +106,7 @@ def _job_get(job_id):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "PaperDigHelper/0.2"
+    server_version = "PaperDigHelper/0.6"
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
@@ -90,23 +144,65 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _desktop_access(self):
+        token = getattr(self.server, "desktop_token", None)
+        if token is None:
+            allowed = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
+            if self.headers.get("Host") not in allowed:
+                self._json({"error": "invalid host"}, 403)
+                return False
+            return True
+        authority = f"127.0.0.1:{self.server.server_port}"
+        if self.headers.get("Host") != authority:
+            self._json({"error": "invalid host"}, 403)
+            return False
+        if self.command == "GET" and hmac.compare_digest(self.path, f"/_desktop/{token}"):
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.send_header("Set-Cookie", f"pdh_session={token}; HttpOnly; SameSite=Strict; Path=/")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return False
+        cookie = SimpleCookie()
+        cookie.load(self.headers.get("Cookie", ""))
+        supplied = cookie["pdh_session"].value if "pdh_session" in cookie else ""
+        if not hmac.compare_digest(supplied, token):
+            self._json({"error": "desktop session required"}, 403)
+            return False
+        return True
+
     def _body(self):
         length = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(length) or b"{}")
 
     # -------------------------------------------------------------------- GET
     def do_GET(self):
+        if not self._desktop_access():
+            return
         parsed = urlparse(self.path)
         route, query = parsed.path, parse_qs(parsed.query)
+        if route == "/api/projects":
+            return self._list_projects()
+        if route == "/api/organization":
+            return self._organization()
         if route == "/api/home":
             app = self._app()
-            self._json({"server_version": VERSION, "stats": app.stats(), "profile": app.profile(),
-                        "cards": app.cards(), "summaries": app.store.summaries(),
+            # Extract project_id from query if provided
+            project_id = query.get("project_id", [None])[0]
+            self._json({"server_version": VERSION, "stats": app.stats(project_id),
+                        "profile": app.profile(project_id),
+                        "cards": app.cards(project_id=project_id), "summaries": app.store.summaries(),
                         "usage": app.usage(), "dev_mode": app.gateway.dev,
+                        "provider": app.provider_status(),
                         "latest_jobs": list(JOBS.values())[-3:]})
+        elif route == "/api/settings":
+            app = self._app()
+            self._json({"provider": app.provider_status(), "dev_mode": app.gateway.dev})
         elif route == "/api/state":  # kept for compatibility
             app = self._app()
-            self._json({"profile": app.profile(), "cards": app.cards()})
+            project_id = query.get("project_id", [None])[0]
+            self._json({"profile": app.profile(project_id), "cards": app.cards(project_id=project_id)})
         elif route == "/api/paper":
             # Paper keys are URLs; prefer ?key= over a path segment.
             app = self._app()
@@ -123,7 +219,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(_job_get(route[len("/api/jobs/"):]))
         elif route == "/api/library":
             app = self._app()
-            self._json({"items": app.library(), "stats": app.stats()})
+            project_id = query.get("project_id", [None])[0]
+            self._json({"items": app.library(project_id), "stats": app.stats(project_id)})
         elif route == "/api/qa":
             app = self._app()
             self._json({"history": app.qa_history((query.get("key") or [""])[0])})
@@ -146,45 +243,90 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "pdf not downloaded yet"}, 404)
         elif route == "/api/profile":
             app = self._app()
-            self._json({"profile": app.profile(), "versions": app.store.profile_versions()})
+            project_id = query.get("project_id", [None])[0]
+            self._json({"profile": app.profile(project_id), "versions": app.store.profile_versions()})
         else:
             self._static(route)
 
     # ------------------------------------------------------------------- POST
     def do_POST(self):
+        if not self._desktop_access():
+            return
         route = urlparse(self.path).path
+        if route in ("/api/organization", "/api/settings"):
+            # Same-origin only: these routes mutate the local library or store a credential.
+            origin = self.headers.get("Origin")
+            expected = "http://" + self.headers.get("Host", "")
+            if origin and origin != expected:
+                return self._json({"error": "cross-origin request denied"}, 403)
+            limit = 2_000_000 if route == "/api/organization" else 8_000
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return self._json({"error": "invalid content length"}, 400)
+            if length < 0 or length > limit:
+                self.close_connection = True
+                return self._json({"error": "request too large"}, 413)
         try:
             body = self._body()
         except (ValueError, json.JSONDecodeError):
             return self._json({"error": "invalid JSON"}, 400)
+        if route == "/api/organization":
+            if not isinstance(body, dict):
+                return self._json({"error": "request must be an object"}, 400)
+            return self._organization(body)
+        if route == "/api/settings":
+            if not isinstance(body, dict):
+                return self._json({"error": "request must be an object"}, 400)
+            app = self._app()
+            try:
+                status = app.clear_api_key() if body.get("clear") else app.save_api_key(body.get("api_key") or "")
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
+            return self._json({"provider": status, "dev_mode": app.gateway.dev})
         app = self._app()
-        if route == "/api/refresh":
+        if route == "/api/projects":
+            # POST: create new project
+            name = body.get("name")
+            creation_mode = body.get("creation_mode", "manual")
+            keywords = body.get("keywords", [])
+            if not name:
+                return self._json({"error": "name required"}, 400)
+            project_id = app.projects.create_project(name, creation_mode, keywords)
+            self._json({"project_id": project_id, "name": name})
+        elif route == "/api/refresh":
             include_distractors = bool(body.get("distractors"))
             pages = int(body.get("pages", 1))
+            project_id = body.get("project_id")
             job = _job_start("refresh", lambda: make_app(getattr(self.server, "root", ".")).refresh_candidates(
-                pages=pages, include_distractors=include_distractors))
+                pages=pages, include_distractors=include_distractors, project_id=project_id))
             self._json(job)
         elif route == "/api/daily":
-            self._json(app.build_batch(limit=int(body.get("limit", 5))))
+            project_id = body.get("project_id")
+            self._json(app.build_batch(limit=int(body.get("limit", 5)), project_id=project_id))
         elif route == "/api/triage":
-            self._json(app.triage(app.cards(), dry_run=bool(body.get("dry_run"))))
+            project_id = body.get("project_id")
+            self._json(app.triage(app.cards(project_id=project_id), dry_run=bool(body.get("dry_run")), project_id=project_id))
         elif route == "/api/feedback":
             key, action = body.get("key"), body.get("action")
             if not key or not action:
                 return self._json({"error": "key and action required"}, 400)
-            self._json(app.record_feedback(key, action, body.get("reason")))
+            project_id = body.get("project_id")
+            self._json(app.record_feedback(key, action, body.get("reason"), project_id))
         elif route == "/api/undo":
             self._json(app.undo_feedback(int(body["feedback_id"])))
         elif route == "/api/unsave":
             self._json(app.unsave(body["key"]))
         elif route == "/api/pin":
+            project_id = body.get("project_id")
             data = app.store.current_profile() or {"project": "world-models", "weights": {"pos": 1.0, "neg": 0.5}}
             data["pinned_terms"] = [t.strip() for t in (body.get("terms") or "").split(",") if t.strip()]
             app.save_profile(data, note="pin")
-            self._json({"profile": app.profile(), "stats": app.stats()})
+            self._json({"profile": app.profile(project_id), "stats": app.stats(project_id)})
         elif route == "/api/library":
             app = self._app()
-            self._json({"items": app.library(), "stats": app.stats()})
+            project_id = body.get("project_id")
+            self._json({"items": app.library(project_id), "stats": app.stats(project_id)})
         elif route == "/api/fulltext":
             self._json(app.save_fulltext(body.get("key") or "", body.get("pages") or []))
         elif route == "/api/qa":
@@ -208,10 +350,42 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._json({"error": "unknown route"}, 404)
 
+    def _list_projects(self):
+        """GET /api/projects - list all projects"""
+        app = self._app()
+        projects = app.projects.list_projects()
+        self._json({"projects": projects})
 
-def build_server(host="127.0.0.1", port=8765, root="."):
+    def _organization(self, body=None):
+        from .organization import Organization
+        allowed_hosts = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
+        if self.headers.get("Host") not in allowed_hosts:
+            return self._json({"error": "invalid host"}, 403)
+        app = self._app()
+        try:
+            # The current app is a single-project library. Keep its identity
+            # stable when editable profile text changes.
+            organization = Organization(app.store, project="default")
+            if body is not None and not isinstance(body, dict):
+                raise ValueError("请求必须是对象")
+            if body and "op" in body and "action" in body and body["op"] != body["action"]:
+                raise ValueError("conflicting operation fields")
+            operation = body.get("op", body.get("action")) if body else None
+            if operation in {"suggest", "graph"}:
+                path = app.store.path.resolve()
+                job = _job_start("organization", lambda: organization_job(path, "default", operation))
+                return self._json({"job": job})
+            self._json(organization.snapshot() if body is None else organization.action(body))
+        except (ValueError, KeyError, TypeError) as exc:
+            self._json({"error": str(exc)}, 400)
+        finally:
+            app.store.close()
+
+
+def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.root = root
+    httpd.desktop_token = desktop_token
     return httpd
 
 
@@ -228,4 +402,8 @@ def serve(host="127.0.0.1", port=8765, root="."):
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    serve(port=int(args[0]) if args else 8765)
+    import os
+    serve(
+        port=int(args[0]) if args else int(os.environ.get("PAPERDIGHELPER_PORT", "8765")),
+        root=os.environ.get("PAPERDIGHELPER_ROOT", "."),
+    )

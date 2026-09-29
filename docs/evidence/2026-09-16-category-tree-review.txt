@@ -1,0 +1,91 @@
+Independent bounded review: category tree
+Date: 2026-09-16 (Asia/Shanghai)
+Reviewer: independent review_category_tree agent; did not implement this feature.
+
+Scope and method
+- Inspected actual organization.py, organization.js and organization.css changes
+  against .local/category-tree-before/{organization.py,organization.js,organization.css}.
+- Inspected tests/test_category_tree.py and category-tree additions in
+  tests/test_organization_ui.cjs, plus existing mutation/undo/dialog/graph callers.
+- Ran git status --short and python3 scripts/harness.py impact. The worktree
+  contains substantial earlier uncommitted/untracked work; this review is bounded
+  to the category-tree feature, not all reported files or the complete product.
+- Rechecked final backend diff and CSS: disabled reorder buttons are hidden;
+  the category list uses one column, including narrow viewports. No additional
+  defect found in those final CSS changes. They were reviewed as source only.
+
+Conclusion
+No concrete release-blocking code defect found within the reviewed scope.
+This is not product release certification or a claim of exhaustive coverage.
+
+Behavior examined
+- Additive parent_id data; legacy missing parent_id becomes a root category.
+- Unknown/invalid parents and self/descendant cycles rejected atomically.
+- Renaming/reparenting preserves descendants and paper memberships.
+- Deletion removes only the category's direct memberships; immediate children
+  move to its parent; paper/PDF/note records and other memberships are retained.
+- Undo restores hierarchy and memberships through the existing event mechanism.
+- Explicit existing-paper membership editing supports multiple checkboxes.
+- Parent filters count each paper once across descendants; graph retains one
+  paper node with multiple membership edges and includes hierarchy edges.
+- Regroup cleanup excludes category IDs that are still parents.
+- Dialog replacement and optimistic revision behavior inspected in callers.
+- No model calls or new external data flow introduced in this bounded diff.
+
+Commands actually executed by this reviewer
+1. .local/desktop-build-env/bin/python -m unittest discover -s tests -p 'test_category_tree.py' -v
+   Exit 0; 5 tests passed.
+2. node tests/test_organization_ui.cjs
+   Exit 0; 22 tests passed.
+3. .local/desktop-build-env/bin/python -m unittest discover -s tests -p 'test_organization*.py' -v
+   Exit 1; 28 organization/worker tests passed; 6 HTTP tests errored during setup
+   because the sandbox prohibited local socket binding (PermissionError).
+4. .local/desktop-build-env/bin/python -m unittest discover -s tests -p 'test_organization_http.py' -v
+   Rerun with authorized local socket access; exit 0; all 6 tests passed.
+
+Interaction evidence reported by implementing agent, not independently observed
+- Browser: three category levels; editing existing paper checkboxes/removing a
+  membership; renaming and reparenting; replacing edit dialog with delete dialog;
+  child promotion and undo all passed.
+- Separate native QA shell: exact packaged frontend, disposable database and
+  same source backend saved existing memberships and deleted an intermediate
+  category while preserving another membership and notes.
+These reports complement source/test review but are not this reviewer's own
+browser observations and do not certify a production app installation.
+
+Limits
+The deterministic UI suite tests tree/graph helpers and existing UI behavior;
+it does not itself prove actual browser checkbox submission or native dialogs.
+Performance with very deep or large category trees was not measured.
+No runtime token usage or whole-product release measurements are claimed.
+
+Follow-up: compact directory menu review
+The parent requested a second review after sidebar controls moved into per-row
+details/summary menus with folder icons, indentation, counts and breadcrumbs.
+Inspected sidebarHTML, delegated click/Escape handlers, and final menu CSS.
+Reran node tests/test_organization_ui.cjs: exit 0, 22 tests passed.
+
+Finding CT-1 (open at this review point): sidebarHTML renders a collapse button
+only for categories with children, while networkElements still hides papers
+whose direct category is collapsed. A previously collapsed leaf, or a folded
+parent losing its last child, has no sidebar expansion control. Its graph papers
+can remain hidden with no direct recovery action. Reported promptly to parent;
+must preserve graph leaf collapse/expand, including persisted collapsed leaves.
+The existing 22 tests do not detect this missing sidebar control.
+
+Parent separately reports actual menu-to-edit and menu-to-delete/promotion/undo
+browser checks passed. These remain reported QA, not independently observed.
+The earlier no-blocker conclusion applies to the pre-menu revision; CT-1 must
+be resolved and rechecked for the compact-directory revision.
+
+CT-1 resolution and final recheck
+Implementing agent changed the arrow condition to d.hasChildren OR graph mode.
+Thus graph mode provides leaf expansion even for previously saved collapsed
+leaves, while library mode keeps folder-only disclosure controls. Inspected the
+condition and its existing collapse handler; no backend change was required.
+Reviewed the new regression covering persisted collapsed leaf controls and
+escaped category text. Reran node tests/test_organization_ui.cjs: exit 0,
+23 tests passed, including the new regression. CT-1 is closed.
+Final bounded conclusion: no unresolved blocking finding in the compact
+directory/menu revision. Browser/native QA attribution and release limits above
+still apply.

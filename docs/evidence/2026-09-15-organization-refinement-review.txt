@@ -1,0 +1,64 @@
+Independent bounded review — 2026-09-15
+Reviewer: independent review_grouping agent; implementation authored by parent agent.
+
+Scope: app/clustering.py and app/organization.py against the saved
+.local/organization-refinement-before baseline; new app/organization_terms.py,
+tests/test_broad_organization.py, and app/static/organization.js suggestion UI.
+Reviewed source and executed deterministic tests; did not inspect real user library
+quality or render the native desktop UI. Worktree contains unrelated prior changes;
+this is not an independent review of the entire worktree or a release approval.
+
+Findings discovered and resolved:
+1. P1: top-eight neighbor pruning disconnected two ten-paper method cliques sharing
+   World models metadata, leaving two fragmented directions. Fixed by deterministic
+   post-community merging for a strict majority informative exact metadata topic.
+   Rechecked original twenty-paper reproduction: one twenty-paper group.
+2. P2: abstract-only grouping could expose an empty evidence list because naming
+   inspected title/topic only. Fixed by shared abstract evidence fallback.
+   Rechecked tectonics abstract with disjoint titles: nonempty original terms.
+3. P2: solar and literature singleton labels misnamed solar-flare astronomy as
+   solar energy and engineering literature reviews as literary research. Ambiguous
+   mappings removed; added cases pass using an editable unnamed-topic placeholder.
+4. P2: Chinese overlapping ngrams could become malformed direction names such as
+   代文学诗相关研究. Arbitrary ngrams no longer become display names; regression passes.
+
+Final checks executed successfully (exit 0):
+- .local/desktop-build-env/bin/python -m unittest tests.test_broad_organization tests.test_organization -q
+  35 tests passed, including regroup/undo and preservation of manually renamed groups.
+- node --test tests/test_organization_ui.cjs
+  20 tests passed. These are existing UI logic tests, not visual QA of the new dialog.
+- Original abstract-only and twenty-paper reproductions rerun; reversed-input
+  equality checked for both and passed.
+- python3 scripts/harness.py impact
+  Reported critical minimum for the entire pre-existing mixed worktree; this command
+  does not establish correctness or classify this isolated refinement by itself.
+
+Backend/UI review: regrouping eligibility excludes protected papers and memberships
+in manually edited directions. Existing manual directions cannot be overwritten.
+Only emptied replaced automatic directions are removed; their collapsed/position
+state is removed, and undo captures the preceding state. UI exposes the regroup
+choice and original evidence, preserves escaping, and sends the boolean explicitly.
+No remaining concrete blocker found in this bounded source review.
+
+Limits: local lexical grouping and the small Chinese label glossary do not establish
+all-discipline recommendation quality, semantic equivalence across languages, or
+automatic translation. Unknown topics intentionally remain editable placeholders.
+Exact metadata-topic agreement is a heuristic; heterogeneous or misleading metadata
+can still merge papers poorly. Runtime/memory at the 2000-paper/50000-character caps
+was not benchmarked; Chinese ngram expansion adds work. No model calls, network calls,
+new persistence schema, or paid evaluations were introduced in reviewed refinement.
+
+Final small-delta follow-up:
+Parent identified the pre-existing suggestion UI color fallback (#168579) differed
+from the backend automatic-color default (#64748b), falsely marking untouched UI
+selections as manual. Rechecked explicit broad-preview color #64748b and matching
+suggestion UI fallback. Regroup checkbox now reuses an existing flex-row class;
+source reviewed, visual layout not independently rendered.
+Reviewer added an integration regression echoing the actual preview id/name/color/
+keys through apply-suggestions, then adding another paper and regrouping. Unedited
+defaults remain automatic and can move to the new group; changing only the color
+marks the original direction manual and preserves its existing memberships.
+Ran .local/desktop-build-env/bin/python -m unittest tests.test_broad_organization tests.test_organization -q
+again: 36 tests passed, exit 0. No new bounded blocker found.
+Historical directions already marked manual by the old UI cannot be distinguished
+safely from real user edits and remain protected; no retrospective migration claimed.

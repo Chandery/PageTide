@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-12-tauri-shell",
+  "class": "critical",
+  "summary": "Add the minimal macOS Tauri shell that reuses the local Python loopback app and manages only its own server process.",
+  "tasks": ["PILOT-01", "REL-01"],
+  "files": [
+    "src-tauri/Cargo.toml",
+    "src-tauri/Cargo.lock",
+    "src-tauri/build.rs",
+    "src-tauri/gen/schemas/acl-manifests.json",
+    "src-tauri/gen/schemas/capabilities.json",
+    "src-tauri/gen/schemas/desktop-schema.json",
+    "src-tauri/gen/schemas/macOS-schema.json",
+    "src-tauri/icons/icon.png",
+    "src-tauri/src/main.rs",
+    "src-tauri/tauri.conf.json",
+    ".gitignore",
+    "app/desktop.py",
+    "app/server.py",
+    "package.json",
+    "package-lock.json",
+    "requirements-desktop.txt",
+    "scripts/build_desktop.py",
+    "scripts/server_entry.py",
+    "tests/test_tauri_shell.py",
+    "app/static/index.html",
+    "app/static/icons/LICENSE",
+    "app/static/icons/book-open.svg",
+    "app/static/icons/bookmark.svg",
+    "app/static/icons/library.svg",
+    "app/static/icons/sliders-horizontal.svg",
+    "app/static/icons/sparkles.svg",
+    "app/static/icons/sun-moon.svg",
+    "tests/test_ui_layout.py",
+    "changes/2026-09-12-ui-refresh.json",
+    "docs/evidence/2026-09-12-ui-refresh-checks.txt",
+    "docs/HANDOFF.md",
+    "changes/2026-09-12-tauri-shell.json",
+    "docs/evidence/2026-09-12-tauri-shell-checks.txt"
+  ],
+  "scope_note": "The shell is delivery scaffolding only. It keeps the Python API and local storage as the source of truth, and does not add a hosted backend, telemetry, provider SDK, or model operation.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "The desktop shell starts the same local Python server used by browser mode. No model calls, external requests, or new persisted data are introduced.",
+    "before": "Local browser mode at 127.0.0.1:8765.",
+    "after": "Browser mode remains available; Tauri dev/packaged shell loads the same loopback UI and starts Python only when no server is already listening.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-12-tauri-shell-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-12-tauri-shell-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-12-tauri-shell-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "scope": "Whitespace and patch integrity"
+    },
+    {
+      "command": "cargo check --manifest-path src-tauri/Cargo.toml",
+      "exit_code": 0,
+      "scope": "Rust compilation"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "macOS application bundle"
+    },
+    {
+      "command": "codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "scope": "Ad-hoc bundle signature integrity"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; static shell and lifecycle review",
+      "evidence": "docs/evidence/2026-09-12-tauri-shell-checks.txt"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "The bundle is ad-hoc signed for local inspection, not notarized for distribution.",
+    "An independent critical-path review is still required before release.",
+    "The UI refresh record remains in the worktree as a prior coherent change and is included here so the current dirty tree is fully traceable."
+  ]
+}

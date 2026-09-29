@@ -3,6 +3,18 @@
   "proposal_note": "New recommendation-first scope. All methods/thresholds are proposed, not approved measurements. Optional gates must be activated before their feature is enabled or released; legacy gates remain archived and were not passed.",
   "evaluations": [
     {
+      "id": "E-ORGANIZATION",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "Library/graph slice: additive migration preserves legacy notes and backup restore; version conflicts retain drafts; multi-direction membership, proxy positions and note histories survive reload/restart; drag moves only source relationship; undo/export preserve data; classification is deterministic and offline, editable preview rejects stale corpus and preserves manual work. Verify browser failure states and packaged macOS worker separately. Synthetic clustering tests do not establish human category quality or 8GB performance. Refinement: test broad grouping across methods and disciplines, Chinese text features, visible original evidence, unnamed fallback and singleton abstention; opt-in regrouping must preserve manually edited directions/protected memberships and undo. Human multilingual/all-discipline quality remains unmeasured. Category hierarchy: old roots load, parent links persist, cycles and foreign parents fail atomically, move preserves subtree and multi-memberships, delete promotes children and preserves papers/notes/other links, undo restores tree. Verify existing-category and existing-paper edits and delete dialog in native WebKit, parent union filtering without duplicates, graph ancestor collapse with shared papers.",
+      "evidence": [
+        "docs/evidence/2026-09-14-organization-checks.txt",
+        "docs/evidence/2026-09-14-organization-review.txt",
+        "docs/evidence/2026-09-14-network-graph-checks.txt",
+        "docs/evidence/2026-09-14-network-graph-review.txt"
+      ]
+    },
+    {
       "id": "E-REUSE",
       "status": "not_run",
       "blocks_release": true,

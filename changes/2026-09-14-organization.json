@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-14-organization",
+  "class": "critical",
+  "summary": "Editable local saved-paper library with versioned notes/drafts, multiple directions, Cytoscape canvas and bounded preview-first lexical classification.",
+  "tasks": [
+    "READ-01",
+    "GRAPH-01"
+  ],
+  "files": [
+    ".gitignore",
+    "app/clustering.py",
+    "app/desktop.py",
+    "app/organization.py",
+    "app/organization_worker.py",
+    "app/server.py",
+    "app/static/icons/LICENSE",
+    "app/static/icons/book-open.svg",
+    "app/static/icons/bookmark.svg",
+    "app/static/icons/library.svg",
+    "app/static/icons/org/LICENSE",
+    "app/static/icons/org/arrow-down.svg",
+    "app/static/icons/org/arrow-up.svg",
+    "app/static/icons/org/book-open.svg",
+    "app/static/icons/org/check.svg",
+    "app/static/icons/org/chevron-down.svg",
+    "app/static/icons/org/chevron-right.svg",
+    "app/static/icons/org/download.svg",
+    "app/static/icons/org/grid-2x2.svg",
+    "app/static/icons/org/history.svg",
+    "app/static/icons/org/maximize.svg",
+    "app/static/icons/org/minus.svg",
+    "app/static/icons/org/pencil.svg",
+    "app/static/icons/org/plus.svg",
+    "app/static/icons/org/refresh-cw.svg",
+    "app/static/icons/org/undo-2.svg",
+    "app/static/icons/org/x.svg",
+    "app/static/icons/sliders-horizontal.svg",
+    "app/static/icons/sparkles.svg",
+    "app/static/icons/sun-moon.svg",
+    "app/static/index.html",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "app/static/vendor/cytoscape/LICENSE",
+    "app/static/vendor/cytoscape/cytoscape.min.js",
+    "app/static/vendor/networkx/LICENSE.txt",
+    "changes/2026-09-12-pdf-pinch-anchor.json",
+    "changes/2026-09-12-tauri-shell.json",
+    "changes/2026-09-12-ui-refresh.json",
+    "changes/2026-09-14-organization.json",
+    "docs/HANDOFF.md",
+    "docs/KNOWLEDGE-GRAPH.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0006-library-organization.md",
+    "docs/evidence/2026-09-12-pdf-pinch-anchor-checks.txt",
+    "docs/evidence/2026-09-12-tauri-shell-checks.txt",
+    "docs/evidence/2026-09-12-ui-refresh-checks.txt",
+    "docs/evidence/2026-09-14-organization-checks.txt",
+    "docs/evidence/2026-09-14-organization-review.txt",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/tasks.json",
+    "package-lock.json",
+    "package.json",
+    "requirements-desktop.txt",
+    "scripts/build_desktop.py",
+    "scripts/server_entry.py",
+    "src-tauri/Cargo.lock",
+    "src-tauri/Cargo.toml",
+    "src-tauri/build.rs",
+    "src-tauri/gen/schemas/acl-manifests.json",
+    "src-tauri/gen/schemas/capabilities.json",
+    "src-tauri/gen/schemas/desktop-schema.json",
+    "src-tauri/gen/schemas/macOS-schema.json",
+    "src-tauri/icons/icon.png",
+    "src-tauri/src/main.rs",
+    "src-tauri/tauri.conf.json",
+    "tests/test_clustering.py",
+    "tests/test_organization.py",
+    "tests/test_organization_http.py",
+    "tests/test_organization_ui.cjs",
+    "tests/test_organization_worker.py",
+    "tests/test_tauri_shell.py",
+    "tests/test_ui_layout.py"
+  ],
+  "scope_note": "Current dirty tree includes earlier UI/PDF/Tauri work, preserved and listed for harness traceability. Independent review covers new organization feature and its integration only, not prior PDF changes. This record is not a release certification.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "New organization, note, graph and classification operations are local SQLite/TF-IDF/NetworkX with no model or network calls. Local vendor assets only.",
+    "before": "No editable organization UI; unchanged existing model gateway budgets.",
+    "after": "Incremental input/output model tokens 0 and USD0 by architecture; full-app cost/resource measurement not implied.",
+    "developer_usage": "unknown; host aggregate token accounting unavailable"
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-14-organization-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-14-organization-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-14-organization-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; bounded organization slice",
+      "evidence": "docs/evidence/2026-09-14-organization-review.txt"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Chandrasekhar; all organization source findings resolved after targeted rechecks",
+      "evidence": "docs/evidence/2026-09-14-organization-review.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Broader release gates remain unpassed; E-ORGANIZATION not marked passed from partial synthetic/UI evidence.",
+    "8GB performance and real-corpus classification usefulness unmeasured.",
+    "JSON/Markdown export provided; restore validation uses database backup, not a new export-import UI.",
+    "Earlier unrelated dirty PDF/UI/Tauri changes are not independently certified by this feature review.",
+    "Bundle is ad-hoc signed, not notarized. Native crash-time UI recovery is unverified; acknowledged DB drafts recovered across ports in browser tests, pre-debounce keystrokes are not guaranteed."
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/test_organization_ui.cjs",
+      "exit_code": 0,
+      "scope": "13 behavioral UI tests"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "macOS arm64 package"
+    },
+    {
+      "command": "codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "scope": "Ad-hoc signature integrity"
+    },
+    {
+      "command": "diff -qr app/static src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/_internal/app/static",
+      "exit_code": 0,
+      "scope": "Bundled source equality"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
-# 预算边界与每日最低开销（提案，未批准）
+# 预算边界与每日最低开销（额度已批准，运行时拦截仍未实测）
 
-2026-09-11。本页解释可复算预算表，**不授权任何真实调用**。机器可读事实源是 `harness/budget.json`，表格由 `python3 scripts/budget.py --write` 生成，见[生成状态](BUDGET.generated.md)。价格与 token 参考详见 `harness/sources.json`。
+2026-09-11。本页解释可复算预算表。`harness/budget.json` 中 `approved_by_owner=true`，owner 已接受日/月 token 与金额上限；`runtime_enforcement_implemented` 与 `tokenizer_parity_verified` 仍为 false，发布门槛继续阻断。
 
 ## 1. 每日最低模型开销：核心是 0 token
 
@@ -55,11 +55,13 @@
 
 开发/试用期间不要被正式日额度卡住，同时又不能污染正式账目：
 
-- 开启：环境变量 `PDH_DEV=1`，或在本机创建 `.local/app/DEV_MODE`（都不进 Git）。
-- 行为：模型调用改用**独立账本** `.local/app/usage-dev.jsonl`，套用**独立的宽松额度**（日 500 万 token / $10，月 5000 万 / $50）。
+- 开启：环境变量 `PDH_DEV=1`，或在本机数据目录创建 `DEV_MODE`（都不进 Git）。
+- 行为：模型调用改用**独立账本** `usage-dev.jsonl`，套用**独立的宽松额度**（日 500 万 token / $10，月 5000 万 / $50）。
 - **不改动**已批准的运行时上限，也不消耗正式账本；页面顶部显示「测试模式」横幅，页脚显示今日用量。
 - CLI：`python3 -m app.cli --dev daily --triage`。
-- 关闭：删除 `.local/app/DEV_MODE` 或取消 `PDH_DEV`。正式发布前必须关闭并重新核对额度。
+- 关闭：删除 `DEV_MODE` 或取消 `PDH_DEV`。正式发布前必须关闭并重新核对额度。
+
+账本、`DEV_MODE` 与 API 密钥都位于**用户数据目录**：源码检出是 `.local/app/`，打包的 macOS 应用是 `~/Library/Application Support/PaperDigHelper/`。它们不会写进只读的应用包，重装应用也不应丢失用量或密钥。
 
 ## 4. 可执行检查
 
@@ -67,4 +69,4 @@
 python3 scripts/budget.py --check
 ```
 
-检查操作登记、envelope 自洽、场景算术与生成文档一致性；**不发起任何模型请求**，也不是运行时拦截器。`approved_by_owner` 仍为 false，`runtime_enforcement_implemented` 与 `tokenizer_parity_verified` 仍为 false，因此发布检查继续阻断。
+检查操作登记、envelope 自洽、场景算术与生成文档一致性；**不发起任何模型请求**，也不是运行时拦截器。`runtime_enforcement_implemented` 与 `tokenizer_parity_verified` 仍为 false，因此发布检查继续阻断。

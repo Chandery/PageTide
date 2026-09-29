@@ -1,0 +1,35 @@
+2026-09-14 Network graph / motion scope
+
+Environment: Python 3.9.6 via .local/desktop-build-env/bin on PATH, local NetworkX3.2.1.
+python3 -m unittest discover -s tests -v: exit0, 166 tests, 121.125s.
+node --test tests/test_organization_ui.cjs: exit0, 17 behavioral tests, rerun after motion/queue fixes.
+python3 scripts/budget.py --check: exit0, arithmetic/parity only; no live API.
+python3 scripts/harness.py check: exit0, traceability only.
+git diff --check: exit0.
+
+Browser: isolated six-paper fixture, no real library mutations or external model calls.
+Network displayed10nodes/8edges (6memberships,2similarities); empty unclassified omitted.
+Category click highlighted branch, camera framing checked at1265x712.
+Paper node click displayed matching title, note pane, focus halo and its neighbor links.
+Library title opened matching synthetic one-page local PDF directly.
+Graph reduced minimum height to fit desktop window; final screenshots nonblank, no overlapping panes.
+Animation final states observed; exact frame-time/native GPU performance not measured.
+Behavior tests cover camera queue replacement, reduced motion, center-preserving zoom,
+completed drag writes after graph replacement, and direct PDF route.
+
+scripts/build_desktop.py via local build env: exit0.
+cargo tauri build --bundles app: exit0.
+codesign --force --deep --sign - .../PaperDigHelper.app: exit0.
+codesign --verify --deep --strict .../PaperDigHelper.app: exit0.
+diff -qr app/static .../PaperDigHelper.app/Contents/Resources/backend/_internal/app/static: exit0.
+Actual bundled frozen worker --organization-worker <fixture> default <parent> graph:
+exit0, tfidf-louvain-v1, NetworkX3.2.1, two similarity edges from six synthetic papers.
+Server footer0.7; app bundle at src-tauri/target/release/bundle/macos/PaperDigHelper.app.
+Ad-hoc signed, not notarized. Native interaction and broad release gates not claimed.
+Budget delta: zero model tokens by architecture; developer token usage unavailable.
+
+python3 scripts/harness.py review changes/2026-09-14-network-graph.json: exit0.
+python3 scripts/harness.py check --release: exit1, broad evaluations still not_run,
+budget enforcement/counting calibration gates unfinished (existing project state).
+python3 scripts/harness.py review changes/2026-09-14-network-graph.json --release:
+exit1, owner release approval missing. This is a local trial build, not certified release.

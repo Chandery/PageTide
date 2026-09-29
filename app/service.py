@@ -9,6 +9,7 @@ from pathlib import Path
 from . import ranking
 from .db import Store, now
 from .gateway import Gateway
+from .project import ProjectManager
 from .sources import OpenAlex, resolve_seed
 
 ACTIONS = ("useful", "irrelevant", "later", "busy", "confused")
@@ -24,44 +25,83 @@ class App:
         self.store = Store(self.data / "paperdighelper.sqlite")
         self.store.init()
         self.source = OpenAlex(self.data / "cache")
-        self.gateway = Gateway(root=self.root)
+        self.gateway = Gateway(root=self.root, data_dir=self.data)
+        self.projects = ProjectManager(self.store)
 
     # ---------------------------------------------------------------- profile
-    def seeds(self):
+    def get_default_project_id(self):
+        """Get the default project ID, creating it if necessary."""
+        projects = self.projects.list_projects()
+        if projects:
+            return projects[0]["id"]
+        # Create default project
+        return self.projects.create_project("默认项目", "manual", [])
+
+    def seeds(self, project_id=None):
+        """Get seeds from harness/seeds.json. Global for now, will be project-scoped later."""
         return json.loads((self.root / "harness" / "seeds.json").read_text())["seeds"]
 
-    def seed_keys(self):
+    def seed_keys(self, project_id=None):
+        """Get seed keys for a project. Currently stored in settings, will be project-scoped."""
+        if project_id:
+            # For now, use global setting with project prefix
+            return self.store.get_setting(f"seed_keys_{project_id}", [])
         return self.store.get_setting("seed_keys", [])
 
-    def ensure_seed_papers(self):
+    def ensure_seed_papers(self, project_id=None):
+        """Ensure seed papers are in the database for a project."""
+        if not project_id:
+            project_id = self.get_default_project_id()
+
         keys = []
-        for seed in self.seeds():
+        for seed in self.seeds(project_id):
             paper = resolve_seed(self.source, seed)
             if paper:
                 paper = dict(paper)
                 paper["published"] = paper.get("published") or None
+                paper["project_id"] = project_id
                 self.store.upsert_papers([paper])
                 keys.append(paper["key"])
-        self.store.set_setting("seed_keys", keys)
+
+        # Store seed keys for this project
+        self.store.set_setting(f"seed_keys_{project_id}", keys)
+
+        # Initialize profile if needed
         if self.store.current_profile() is None:
             self.save_profile({"project": "world-models", "pinned_terms": [],
                                "weights": {"pos": 1.0, "neg": 0.5}}, note="initial")
         return keys
 
-    def latest_feedback(self):
-        return self.store.feedback_by_paper()
+    def latest_feedback(self, project_id=None):
+        """Get feedback for a project. If no project_id, get all feedback."""
+        if not project_id:
+            return self.store.feedback_by_paper()
 
-    def profile(self):
+        # Filter by project_id
+        result = {}
+        for row in self.store.conn.execute(
+            "SELECT * FROM feedback WHERE undone=0 AND project_id=? ORDER BY id",
+            (project_id,)
+        ):
+            result[row["paper_key"]] = {"action": row["action"], "reason": row["reason"], "id": row["id"]}
+        return result
+
+    def profile(self, project_id=None):
+        """Get profile for a project. Legacy support: if no project_id, use default."""
+        if not project_id:
+            project_id = self.get_default_project_id()
+
         base = self.store.current_profile() or {"project": "world-models", "pinned_terms": [],
                                                 "weights": {"pos": 1.0, "neg": 0.5}}
-        feedback = self.latest_feedback()
+        feedback = self.latest_feedback(project_id)
         positives = [k for k, v in feedback.items() if v["action"] in POSITIVE_ACTIONS]
         negatives = [k for k, v in feedback.items() if v["action"] in NEGATIVE_ACTIONS]
         return {
+            "project_id": project_id,
             "project": base["project"],
             "pinned_terms": base.get("pinned_terms", []),
             "weights": base.get("weights", {"pos": 1.0, "neg": 0.5}),
-            "positive_seeds": self.seed_keys(),
+            "positive_seeds": self.seed_keys(project_id),
             "positive_feedback": sorted(positives),
             "explicit_negatives": sorted(negatives),
             "neutral_feedback": sorted(k for k, v in feedback.items() if v["action"] in ("later", "busy", "confused")),
@@ -70,14 +110,14 @@ class App:
     def save_profile(self, data, note=None):
         return self.store.save_profile(data, note=note)
 
-    def profile_vector(self, papers_by_key, idf):
-        profile = self.profile()
+    def profile_vector(self, papers_by_key, idf, project_id=None):
+        profile = self.profile(project_id)
         weights = profile["weights"]
         seeds = [papers_by_key[k] for k in profile["positive_seeds"] if k in papers_by_key]
         # seed papers may not be in the candidate pool; fall back to the stored seed set
         seed_texts = [f"{p.get('title') or ''} {p.get('abstract') or ''}" for p in seeds]
         if not seed_texts:
-            seed_texts = [s["title"] for s in self.seeds()]
+            seed_texts = [s["title"] for s in self.seeds(project_id)]
         seed_vectors = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(t), idf)) for t in seed_texts]
         term_text = " ".join(profile["pinned_terms"])
         if term_text.strip():
@@ -94,23 +134,76 @@ class App:
     def usage(self):
         return self.gateway.usage_today()
 
-    def stats(self):
-        feedback = self.latest_feedback()
-        return {
-            "papers": len(self.store.papers()),
-            "seeds": len(self.seed_keys()),
-            "saved": len(self.store.library()),
-            "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
-            "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
-            "neutral": sum(1 for v in feedback.values() if v["action"] in ("later", "busy", "confused")),
-            "shown": len(self.store.seen_keys()),
-            "summaries": len(self.store.summaries()),
-        }
+    # -------------------------------------------------------------- provider
+    def provider_status(self):
+        """Whether a runtime provider key is configured, without exposing it."""
+        return self.gateway.provider_status()
 
-    def library(self):
+    def save_api_key(self, key):
+        return self.gateway.save_key(key)
+
+    def clear_api_key(self):
+        return self.gateway.clear_key()
+
+    def stats(self, project_id=None):
+        """Get statistics for a project or globally."""
+        if project_id:
+            # Project-specific stats
+            feedback = self.latest_feedback(project_id)
+            paper_count = self.store.conn.execute(
+                "SELECT COUNT(*) as cnt FROM papers WHERE project_id=?", (project_id,)
+            ).fetchone()["cnt"]
+            library_count = self.store.conn.execute("""
+                SELECT COUNT(*) as cnt FROM library
+                WHERE paper_key IN (SELECT key FROM papers WHERE project_id=?)
+            """, (project_id,)).fetchone()["cnt"]
+            shown_count = self.store.conn.execute("""
+                SELECT COUNT(DISTINCT paper_key) as cnt FROM exposures e
+                JOIN papers p ON e.paper_key = p.key
+                WHERE p.project_id=?
+            """, (project_id,)).fetchone()["cnt"]
+
+            return {
+                "papers": paper_count,
+                "seeds": len(self.seed_keys(project_id)),
+                "saved": library_count,
+                "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
+                "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
+                "neutral": sum(1 for v in feedback.values() if v["action"] in ("later", "busy", "confused")),
+                "shown": shown_count,
+                "summaries": len(self.store.summaries()),
+            }
+        else:
+            # Global stats (legacy)
+            feedback = self.latest_feedback()
+            return {
+                "papers": len(self.store.papers()),
+                "seeds": len(self.seed_keys()),
+                "saved": len(self.store.library()),
+                "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
+                "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
+                "neutral": sum(1 for v in feedback.values() if v["action"] in ("later", "busy", "confused")),
+                "shown": len(self.store.seen_keys()),
+                "summaries": len(self.store.summaries()),
+            }
+
+    def library(self, project_id=None):
+        """Get library items, optionally filtered by project."""
         summaries = self.store.summaries()
         items = []
-        for row in self.store.library():
+
+        if project_id:
+            # Filter by project
+            rows = self.store.conn.execute("""
+                SELECT l.saved_at, l.note, p.* FROM library l
+                JOIN papers p ON p.key = l.paper_key
+                WHERE p.project_id = ?
+                ORDER BY l.saved_at DESC
+            """, (project_id,)).fetchall()
+        else:
+            rows = self.store.library()
+
+        for row in rows:
             items.append({
                 "key": row["key"], "title": row["title"], "abstract": row["abstract"] or "",
                 "published": row["published"], "source": row["source"],
@@ -140,8 +233,11 @@ class App:
         }
 
     def refresh_candidates(self, search="world model", from_date="2024-01-01", pages=1, per_page=100,
-                           include_distractors=False, distractor_per_query=20):
+                           include_distractors=False, distractor_per_query=20, project_id=None):
         """Fast by default: one field query; distractors are opt-in (five more calls)."""
+        if not project_id:
+            project_id = self.get_default_project_id()
+
         errors = []
         try:
             field = self.source.discover(search=search, from_date=from_date, pages=pages, per_page=per_page)
@@ -152,58 +248,103 @@ class App:
             extra, distractor_errors = self.source.distractors(from_date=from_date, per_query=distractor_per_query)
             papers += extra
             errors += distractor_errors
+
+        # Add project_id to all papers
+        for paper in papers:
+            paper["project_id"] = project_id
+
         added = self.store.upsert_papers(papers)
         return {"fetched": len(papers), "added": added, "field": len(field), "errors": errors}
 
-    def import_candidates(self, path):
+    def import_candidates(self, path, project_id=None):
         """Load a frozen candidate JSON (e.g. from the DATA-01 experiments) for offline/dev use."""
+        if not project_id:
+            project_id = self.get_default_project_id()
+
         payload = json.loads(Path(path).read_text())
         papers = payload.get("all", payload if isinstance(payload, list) else [])
         normalized = [{"key": p["key"], "openalex_id": p.get("openalex_id"), "doi": p.get("doi"),
                        "arxiv_id": p.get("arxiv_id"), "title": p["title"], "abstract": p.get("abstract"),
                        "published": p.get("publication_date") or p.get("published"),
-                       "source": p.get("source"), "group_name": p.get("group", "field")}
+                       "source": p.get("source"), "group_name": p.get("group", "field"),
+                       "project_id": project_id}
                       for p in papers]
         added = self.store.upsert_papers(normalized)
         return {"imported": len(normalized), "added": added}
 
-    def build_batch(self, limit=5, run_date=None, exclude_seen=True):
+    def build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None):
+        """Build a recommendation batch for a specific project."""
+        if not project_id:
+            project_id = self.get_default_project_id()
+
         run_date = run_date or now()[:10]
-        papers = self.store.papers()
-        seen = self.store.seen_keys() if exclude_seen else set()
-        feedback = self.latest_feedback()
+
+        # Get papers for this project only
+        rows = self.store.conn.execute(
+            "SELECT * FROM papers WHERE project_id=? ORDER BY published DESC",
+            (project_id,)
+        ).fetchall()
+        papers = [dict(r) for r in rows]
+
+        # Get seen papers for this project
+        if exclude_seen:
+            seen = {r["paper_key"] for r in self.store.conn.execute("""
+                SELECT DISTINCT e.paper_key FROM exposures e
+                JOIN papers p ON e.paper_key = p.key
+                WHERE p.project_id = ?
+            """, (project_id,))}
+        else:
+            seen = set()
+
+        feedback = self.latest_feedback(project_id)
         pool = [p for p in papers if p["key"] not in seen and p["key"] not in feedback]
+
         if not pool:
             return {"batch_id": None, "cards": [], "reason": "no unseen candidates"}
+
         corpus = [f"{p['title']} {p['abstract'] or ''}" for p in pool]
         idf = ranking.build_idf([ranking.tokenize(doc) for doc in corpus])
         vectors = {p["key"]: ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
             f"{p['title']} {p['abstract'] or ''}"), idf)) for p in pool}
-        profile_vector = self.profile_vector({p["key"]: p for p in pool}, idf)
+        profile_vector = self.profile_vector({p["key"]: p for p in pool}, idf, project_id)
         scored = [(p["key"], ranking.cosine(profile_vector, vectors[p["key"]])) for p in pool]
         scored.sort(key=lambda kv: -kv[1])
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
         batch_id = self.store.create_batch(run_date, chosen)
-        return {"batch_id": batch_id, "cards": self.cards(batch_id)}
+        return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id)}
 
-    def _reference_docs(self):
+    def _reference_docs(self, project_id=None):
         """Seeds and saved papers, used to explain *which* direction a card resembles."""
+        if not project_id:
+            project_id = self.get_default_project_id()
+
         references = []
-        for key in self.seed_keys():
+        for key in self.seed_keys(project_id):
             paper = self.store.paper(key)
             if paper:
                 references.append((f"种子《{paper['title']}》", f"{paper['title']} {paper['abstract'] or ''}"))
-        for paper in self.store.library():
-            references.append((f"已收藏《{paper['title']}》", f"{paper['title']} {paper['abstract'] or ''}"))
+
+        # Get library items for this project
+        rows = self.store.conn.execute("""
+            SELECT p.* FROM library l
+            JOIN papers p ON p.key = l.paper_key
+            WHERE p.project_id = ?
+        """, (project_id,)).fetchall()
+
+        for row in rows:
+            references.append((f"已收藏《{row['title']}》", f"{row['title']} {row['abstract'] or ''}"))
         return references
 
-    def explain(self, paper):
+    def explain(self, paper, project_id=None):
         """Human-readable reason: pinned terms hit, nearest reference, shared topics."""
+        if not project_id:
+            project_id = self.get_default_project_id()
+
         text = f"{paper.get('title') or ''} {paper.get('abstract') or ''}"
         tokens = set(ranking.tokenize(text))
-        pinned = [t for t in self.profile()["pinned_terms"] if t.lower() in tokens]
-        references = self._reference_docs()
+        pinned = [t for t in self.profile(project_id)["pinned_terms"] if t.lower() in tokens]
+        references = self._reference_docs(project_id)
         nearest_label, nearest_score, shared = None, 0.0, []
         if references:
             docs = [doc for _, doc in references]
@@ -232,13 +373,13 @@ class App:
             "shared_terms": shared,
         }
 
-    def cards(self, batch_id=None):
+    def cards(self, batch_id=None, project_id=None):
         rows = self.store.batch(batch_id) if batch_id is not None else self.store.latest_batch()
         summaries = self.store.summaries()
-        feedback = self.latest_feedback()
+        feedback = self.latest_feedback(project_id) if project_id else self.latest_feedback()
         cards = []
         for row in rows:
-            explanation = self.explain(row)
+            explanation = self.explain(row, project_id)
             cards.append({
                 "key": row["key"], "rank": row["rank"], "title": row["title"],
                 "abstract": row["abstract"], "published": row["published"], "source": row["source"],
@@ -258,10 +399,25 @@ class App:
         return cards
 
     # --------------------------------------------------------------- feedback
-    def record_feedback(self, paper_key, action, reason=None):
+    def record_feedback(self, paper_key, action, reason=None, project_id=None):
         if action not in ACTIONS:
             raise ValueError(f"unknown action: {action}")
-        feedback_id = self.store.add_feedback(paper_key, action, reason)
+
+        if not project_id:
+            # Infer project_id from paper
+            paper = self.store.paper(paper_key)
+            if paper:
+                project_id = paper.get("project_id")
+            if not project_id:
+                project_id = self.get_default_project_id()
+
+        # Add feedback with project_id
+        cursor = self.store.conn.execute(
+            "INSERT INTO feedback (paper_key, action, reason, created_at, project_id) VALUES (?,?,?,?,?)",
+            (paper_key, action, reason, now(), project_id))
+        feedback_id = cursor.lastrowid
+        self.store.conn.commit()
+
         # 'useful' means "save to my library"; it does not remove the card from view.
         if action in POSITIVE_ACTIONS:
             self.store.save_to_library(paper_key, note=reason)
@@ -497,11 +653,12 @@ class App:
         return {"ok": True, "path": str(path), "bytes": len(data)}
 
     # ---------------------------------------------------------------- triage
-    def triage(self, cards, dry_run=False):
+    def triage(self, cards, dry_run=False, project_id=None):
         """Optional AI summaries for the cards. Degrades to local-only on any failure."""
         if not cards:
             return {"ok": True, "items": [], "mode": "sparse"}
-        profile = self.profile()
+
+        profile = self.profile(project_id)
         lines = []
         for card in cards:
             lines.append(f"- id={card['key']} | {card['title']} | {(card['abstract'] or '')[:600]}")

@@ -1,0 +1,21 @@
+PDF pinch anchor fix evidence
+Date: 2026-09-13
+
+- Pinch visual feedback now transforms one complete page surface instead of
+  rebuilding individual pages during the gesture.
+- Crisp re-render is committed only at gesture end or wheel idle, using the
+  same page-local anchor.
+- Plain two-finger wheel events are not cancelled.
+- Zoomed-out visual and crisp layouts preserve at least the viewport width and
+  center the page surface instead of shifting it left.
+- `python3 -m unittest tests.test_ui_layout -v`: exit 0
+- `python3 -m unittest discover -s tests -v`: exit 0 (121 tests)
+- `python3 scripts/harness.py check`: exit 0
+- `git diff --check`: exit 0
+- `python3 scripts/build_desktop.py`: exit 0
+- `cargo tauri build --bundles app`: exit 0
+- `codesign --verify --deep --strict PaperDigHelper.app`: exit 0
+- Packaged app restarted and visually inspected on macOS.
+
+The exact physical trackpad pinch remains a user-level check; no automated
+test can synthesize the user's hardware gesture with the same event stream.
