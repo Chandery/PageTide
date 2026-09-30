@@ -463,3 +463,23 @@ test('graph sidebar nests papers under their category for direct paper focus', (
   const markup=ui.sidebarHTML();
   assert.doesNotMatch(markup,/图谱论文/); assert.match(markup,/Alpha Paper/); assert.match(markup,/Beta Paper/); assert.match(markup,/data-action="graph-paper-focus"/);
 });
+
+test('detail pane names the paper category prominently, links it, and marks uncategorized papers', () => {
+  const ui=fixture();
+  ui.S.snapshot=snapshot({items:[{key:'a',title:'Alpha',directions:['d1']},{key:'b',title:'Beta',directions:[]}]});
+  const filed=ui.detailCategoriesHTML(ui.S.snapshot.items[0]);
+  assert.match(filed,/class="org-detail-categories" aria-label="所属类别"/);
+  assert.match(filed,/class="org-detail-badge" data-action="filter" data-id="d1"[^>]*><i style="background:hsl\(/);
+  assert.match(filed,/data-action="paper-membership" data-key="a">编辑类别/);
+  assert.match(ui.detailCategoriesHTML(ui.S.snapshot.items[1]),/is-empty" data-action="filter" data-id=""[^>]*>未分类/);
+});
+
+test('categories left at the default slate still get distinct graph hues matching their chips', () => {
+  const ui=fixture();
+  ui.S.snapshot=snapshot({directions:[{id:'x',name:'X',color:'#64748b',rank:0},{id:'y',name:'Y',color:'#64748b',rank:1},{id:'z',name:'Z',color:'#168579',rank:2}],items:[{key:'p',title:'P',directions:['y']}]});
+  const hue=c=>c.match(/^hsl\((\d+),/)[1];
+  assert.notEqual(hue(ui.categoryColor('x')),hue(ui.categoryColor('y')));
+  assert.equal(hue(ui.categoryColor('z')),'174');
+  const node=ui.networkElements(ui.S.snapshot,null).find(e=>e.data.key==='p');
+  assert.equal(hue(node.data.color),hue(ui.categoryColor('y')));
+});

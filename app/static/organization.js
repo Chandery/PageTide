@@ -2,7 +2,8 @@
   'use strict';
   const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#64748b';
+  const DEFAULT_COLOR = '#64748b';
+  const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
   // Graph colours follow the page palette (index.html tokens) so light/dark stay in sync.
   const theme = (name, fallback) => {
     try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
@@ -193,7 +194,7 @@
     return `<div class="org-section-head org-directory-title"><h3>目录</h3>${button('direction-new','新建类别','')}</div><button class="org-filter ${S.filter === '*' ? 'is-active' : ''}" data-action="filter" data-id="*"><img class="org-folder-icon" src="/icons/org/book-open.svg" alt=""><span>全部论文</span><small>${S.snapshot.items.length}</small></button><div class="org-directory-group org-uncategorized-group"><button class="org-filter ${S.filter === '' ? 'is-active' : ''}" data-action="filter" data-id=""><img class="org-folder-icon" src="/icons/org/folder.svg" alt=""><span>未分类</span><small>${S.snapshot.items.filter(p => !memberships(p).length).length}</small></button>${graphPapersUnder('', false)}</div><div class="org-directions" role="list" aria-label="类别目录">${rows.filter(d => !d.hidden).map(d => {
       const siblings = directions().filter(other => (other.parent_id || null) === (d.parent_id || null)), i = siblings.findIndex(other => other.id === d.id);
       const folded = S.collapsed.has(String(d.id)), selected = S.filter === String(d.id);
-      return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',(folded ? '展开 ' : '折叠 ')+d.name,'',`data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><span>${h(d.name)}</span><small>${count(d.id)}</small></button><details class="org-category-menu"><summary aria-label="更多操作 ${h(d.path)}" title="更多操作"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title">${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
+      return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',(folded ? '展开 ' : '折叠 ')+d.name,'',`data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><i class="org-category-dot" style="background:${categoryColor(d.id)}" aria-hidden="true"></i><span>${h(d.name)}</span><small>${count(d.id)}</small></button><details class="org-category-menu"><summary aria-label="更多操作 ${h(d.path)}" title="更多操作"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title">${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
     }).join('') || '<p class="org-directory-empty">还没有类别<br>点击上方 + 建立目录</p>'}</div>`;
   }
   function renderSidebar() { $('.org-sidebar').innerHTML = sidebarHTML(); }
@@ -204,19 +205,24 @@
   }
   function renderList() {
     renderBulk();
-    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${color(d.color)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${button('detail', '备注与分类', '', `data-key="${h(p.key)}"`)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
+    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${button('detail', '备注与分类', '', `data-key="${h(p.key)}"`)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
+  }
+  // Which categories the open paper belongs to; each chip locates that category, and an
+  // uncategorized paper says so instead of showing nothing.
+  function detailCategoriesHTML(p) {
+    const paperDirections = directions().filter(d => memberships(p).includes(String(d.id)));
+    return `<section class="org-detail-categories" aria-label="所属类别"><div class="org-detail-categories-head"><span>所属类别</span><button type="button" class="org-link-button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div><div class="org-detail-badges">${paperDirections.length ? paperDirections.map(d => `<button type="button" class="org-detail-badge" data-action="filter" data-id="${h(d.id)}" title="查看类别：${h(categoryPath(d.id))}"><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</button>`).join('') : '<button type="button" class="org-detail-badge is-empty" data-action="filter" data-id="" title="查看未分类论文">未分类</button>'}</div></section>`;
   }
   function renderDetail() {
     const panel = $('.org-detail'), p = item(S.key);
     panel.classList.toggle('has-paper', !!p);
     if (!p) { panel.innerHTML = '<p class="org-empty">选择一篇论文</p>'; return; }
     const draft = draftFor(p);
-    const paperDirections = directions().filter(d => memberships(p).includes(String(d.id)));
     const sourceMeta = [p.published, p.source, p.arxiv_id ? `arXiv:${p.arxiv_id}` : '', p.doi ? 'DOI' : ''].filter(Boolean);
     const editor = $('[data-note-editor]');
     const focused = editor && document.activeElement === editor;
     const selection = focused ? [editor.selectionStart, editor.selectionEnd] : null;
-    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${sourceMeta.map(h).map(v => `<span>${v}</span>`).join('')}</div>${paperDirections.length ? `<div class="org-detail-badges">${paperDirections.map(d => `<span class="org-detail-badge"><i style="background:${color(d.color)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</div>` : ''}<button data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button><details class="org-abstract" open><summary>摘要</summary><p>${h(p.abstract || '暂无摘要')}</p></details><section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
+    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${sourceMeta.map(h).map(v => `<span>${v}</span>`).join('')}</div>${detailCategoriesHTML(p)}<details class="org-abstract" open><summary>摘要</summary><p>${h(p.abstract || '暂无摘要')}</p></details><section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
     const reading = document.createElement('div'); reading.className = 'org-reading-tools';
     const read = document.createElement('button'); read.type = 'button'; read.innerHTML = '<img class="org-icon" src="/icons/org/book-open.svg" width="16" height="16" alt="">阅读 PDF';
     read.disabled = typeof window.PDH.openReader !== 'function';
@@ -224,7 +230,7 @@
     read.onclick = () => window.PDH.openReader(p.key, p.title); reading.append(read);
     const url = paperURL(p);
     if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开论文'; reading.append(link); }
-    panel.querySelector('[data-action=paper-membership]').after(reading);
+    panel.querySelector('.org-detail-categories').after(reading);
     if (selection) { $('[data-note-editor]').focus(); $('[data-note-editor]').setSelectionRange(...selection); }
     noteStatus(p.key);
   }
@@ -263,15 +269,22 @@
   }
   function _nodeColor(paper, category, yearRange = {}) {
     const fallbackHue = _categoryHues[Math.max(0, Number(category?.index) || 0) % _categoryHues.length];
-    const base = _hexHsl(category?.color) || { hue: fallbackHue, saturation: 26, lightness: 48 };
+    // The stored default slate means "no colour chosen"; otherwise every such category shares one hue.
+    const chosen = String(category?.color || '').toLowerCase() === DEFAULT_COLOR ? null : _hexHsl(category?.color);
+    const base = chosen || { hue: fallbackHue, saturation: 34, lightness: 48 };
     const published = parseInt(String(paper.published || '').slice(0, 4), 10);
     const year = Number.isFinite(published) ? published : (yearRange.max || new Date().getFullYear());
     const minYear = yearRange.min ?? year, maxYear = yearRange.max ?? year;
     const yearProgress = maxYear > minYear ? Math.max(0, Math.min(1, (year - minYear) / (maxYear - minYear))) : 0.5;
     // Newer papers are darker; clamp to keep labels and node edges legible.
     const lightness = Math.round(68 - yearProgress * 30);
-    const saturation = Math.max(14, Math.min(32, base.saturation || 26));
+    const saturation = Math.max(20, Math.min(38, base.saturation || 34));
     return `hsl(${base.hue},${saturation}%,${lightness}%)`;
+  }
+  // Mid-age tone of a category's graph hue, shared by the directory, list tags and detail pane.
+  function categoryColor(id) {
+    const rows = treeRows(), index = rows.findIndex(r => String(r.id) === String(id));
+    return index < 0 ? _nodeColor({}, { index: 0 }) : _nodeColor({}, { ...rows[index], index });
   }
   function graphLabel(paper) {
     const title = String(paper.title || paper.key || '').replace(/\s+/g, ' ').trim();
@@ -374,7 +387,7 @@
     if (!rows.length) { legend.hidden = true; return; }
     legend.hidden = false;
     legend.innerHTML = rows.slice(0, 10).map((d, i) =>
-      `<div class="org-graph-legend-item"><span class="org-graph-legend-dot" style="background:${_nodeColor({}, { ...d, index: i })}"></span><span>${h(d.name)}</span></div>`
+      `<div class="org-graph-legend-item"><span class="org-graph-legend-dot" style="background:${categoryColor(d.id)}"></span><span>${h(d.name)}</span></div>`
     ).join('');
   }
   async function loadRelations() {
@@ -460,7 +473,7 @@
     S.cy.nodes().forEach(n => { if (S.selected.has(n.data('key'))) n.select(); });
     let before;
     S.cy.on('tap', 'node', e => {
-      if (e.target.data('key')) { S.key = e.target.data('key'); renderSidebar(); renderDetail(); renderList(); }
+      if (e.target.data('key')) { S.key = e.target.data('key'); renderSidebar(); renderDetail(); renderList(); S.root.querySelector('.org-directory-paper.is-active')?.scrollIntoView?.({ block: 'nearest' }); }
       else { S.filter = e.target.data('direction'); renderSidebar(); }
       filterGraph(); focusGraph(e.target.id());
     });
@@ -665,7 +678,7 @@
     const revision = S.snapshot.revision, single = keys.length === 1;
     const rows = treeRows();
     const before = new Set(single ? memberships(item(keys[0])) : []);
-    const body = `<p>${single ? '勾选需要归属的类别；取消勾选即可移除已有归属。' : '批量操作只修改你明确选择的类别，其他归属保持不变。'}同一篇论文可同时属于多个子类别。</p>` + (rows.map(d => single ? `<label class="org-membership-row"><input type="checkbox" data-membership="${h(d.id)}" ${before.has(String(d.id)) ? 'checked' : ''}><i style="background:${color(d.color)}"></i><span>${h(d.path)}</span></label>` : `<label class="org-membership-row"><i style="background:${color(d.color)}"></i><span>${h(d.path)}</span><select data-membership="${h(d.id)}" aria-label="${h(d.path)}"><option value="">保持 (${keys.filter(k => memberships(item(k)).includes(String(d.id))).length}/${keys.length})</option><option value="add">添加</option><option value="remove">移除</option></select></label>`).join('') || '<p>还没有类别，请先新建类别。</p><button type="button" data-action="direction-new">新建类别</button>');
+    const body = `<p>${single ? '勾选需要归属的类别；取消勾选即可移除已有归属。' : '批量操作只修改你明确选择的类别，其他归属保持不变。'}同一篇论文可同时属于多个子类别。</p>` + (rows.map(d => single ? `<label class="org-membership-row"><input type="checkbox" data-membership="${h(d.id)}" ${before.has(String(d.id)) ? 'checked' : ''}><i style="background:${categoryColor(d.id)}"></i><span>${h(d.path)}</span></label>` : `<label class="org-membership-row"><i style="background:${categoryColor(d.id)}"></i><span>${h(d.path)}</span><select data-membership="${h(d.id)}" aria-label="${h(d.path)}"><option value="">保持 (${keys.filter(k => memberships(item(k)).includes(String(d.id))).length}/${keys.length})</option><option value="add">添加</option><option value="remove">移除</option></select></label>`).join('') || '<p>还没有类别，请先新建类别。</p><button type="button" data-action="direction-new">新建类别</button>');
     dialog(`编辑类别 · ${keys.length} 篇`, body, '保存归属', async el => {
       const add = [], remove = [];
       el.querySelectorAll('[data-membership]').forEach(field => {
@@ -837,5 +850,5 @@
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
 })();

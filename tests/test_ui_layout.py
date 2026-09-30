@@ -37,6 +37,15 @@ class LayoutTests(unittest.TestCase):
         self.assertIn('<details class="org-abstract" open>', org_js)
         self.assertIn('.org-detail.has-paper', org_css)
 
+    def test_knowledge_detail_header_rules_do_not_leak_into_notes(self):
+        # The notes section head is also a :first-child; unscoped rules shrank 笔记 to 12px and
+        # blew its edit/preview buttons up to 21px.
+        org_css = ORG_CSS.read_text()
+        self.assertNotIn('.org-detail.has-paper .org-section-head:first-child', org_css)
+        self.assertIn('.org-detail.has-paper > .org-section-head:first-child', org_css)
+        # List cards stack title, date and category tags instead of inheriting a flex row.
+        self.assertIn('.pdh-organization .org-paper-open { display:block;', org_css)
+
     def test_motion_has_final_reduced_motion_override(self):
         self.assertIn("@keyframes viewEnter", self.css)
         self.assertRegex(
