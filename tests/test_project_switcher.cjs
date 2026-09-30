@@ -102,3 +102,28 @@ test('a pause between pinch movements starts a new gesture', () => {
   r = sw.reduce(r.state, { type: 'pinch', delta: -30, time: 1000 });
   assert.equal(r.state.open, false);
 });
+
+test('a pinch over the PDF reader or graph zooms the page instead of opening the overview', () => {
+  const sw = load();
+  const selector = '.org-graph, #reader, .pdfbox';
+  const at = inside => ({ closest: s => (s === selector && inside ? {} : null) });
+  let readerOpen = true;
+  const opts = { pinchIgnore: selector, pinchBlocked: () => readerOpen };
+  assert.equal(sw.pinchIgnored(at(true), opts, false), true);
+  // Reader open: even a pinch over its toolbar or the docked assistant stays with the reader.
+  assert.equal(sw.pinchIgnored(at(false), opts, false), true);
+  readerOpen = false;
+  assert.equal(sw.pinchIgnored(at(false), opts, false), false);
+  assert.equal(sw.pinchIgnored(at(true), opts, false), true);
+  // Once the overview is open, pinches always drive it.
+  readerOpen = true;
+  assert.equal(sw.pinchIgnored(at(true), opts, true), false);
+  assert.equal(sw.pinchIgnored(null, {}, false), false);
+});
+
+test('the main page keeps the reader out of the overview pinch', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), 'utf8');
+  const mount = html.slice(html.indexOf('window.ProjectSwitcher.mount('), html.indexOf('// ------------------------------------------------------------------ load'));
+  assert.match(mount, /pinchIgnore: '[^']*#reader[^']*'/);
+  assert.match(mount, /pinchBlocked: \(\) => document\.body\.classList\.contains\('reader-open'\)/);
+});

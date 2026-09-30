@@ -98,13 +98,22 @@
     }
   }
 
+  /* While closed, a pinch belongs to the page when it lands on a zoomable area
+     (pinchIgnore) or while a full-screen view that zooms by itself is up (pinchBlocked). */
+  function pinchIgnored(target, opts, open) {
+    if (open) return false;
+    if (opts.pinchBlocked && opts.pinchBlocked()) return true;
+    return !!(opts.pinchIgnore && target && target.closest && target.closest(opts.pinchIgnore));
+  }
+
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const editable = el => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   /* DOM controller.
      opts: {root, button, getProjects(), getCurrent(), onSelect(id) -> Promise, onCreate(),
-            pinchIgnore: selector whose own pinch zoom must keep working} */
+            pinchIgnore: selector whose own pinch zoom must keep working,
+            pinchBlocked(): true while the overview must not open on a pinch at all} */
   function mount(opts) {
     const root = opts.root;
     // After the page in tree order, so ids inside page clones never shadow the live ones.
@@ -340,7 +349,7 @@
     window.addEventListener('keydown', ev => dispatch(
       { type: 'key', key: ev.key, alt: ev.altKey, ctrl: ev.ctrlKey || ev.metaKey, shift: ev.shiftKey }, ev), true);
 
-    const ignored = ev => !state.open && opts.pinchIgnore && ev.target?.closest?.(opts.pinchIgnore);
+    const ignored = ev => pinchIgnored(ev.target, opts, state.open);
     const hasGestures = typeof window.GestureEvent !== 'undefined';
     // Trackpad pinch arrives as ctrl+wheel in Chromium and as gesture events in WebKit.
     window.addEventListener('wheel', ev => {
@@ -381,7 +390,7 @@
     };
   }
 
-  const api = { order, touch, recordSwitch, grid, initial, openState, reduce, mount };
+  const api = { order, touch, recordSwitch, grid, initial, openState, reduce, pinchIgnored, mount };
   window.ProjectSwitcher = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

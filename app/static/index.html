@@ -833,7 +833,9 @@ const projectSwitcher = window.ProjectSwitcher.mount({
   getCurrent: () => state.currentProject,
   onSelect: id => switchProject(id),
   onCreate: () => { window.location.href = '/project_creation.html'; },
-  pinchIgnore: '.org-graph',
+  // The PDF reader zooms with the same pinch, so it never opens the overview.
+  pinchIgnore: '.org-graph, #reader, .pdfbox',
+  pinchBlocked: () => document.body.classList.contains('reader-open'),
 });
 
 // ------------------------------------------------------------------ load
