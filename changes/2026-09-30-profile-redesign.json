@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-30-profile-redesign",
+  "class": "critical",
+  "summary": "重构用户画像页为证据导向的本地事实入口：首屏信号、项目内证据、可读活动周桶、统一周报和可撤销修正使用同一数据口径。",
+  "tasks": [
+    "PROFILE-02",
+    "PROFILE-01",
+    "AI-03",
+    "PILOT-01"
+  ],
+  "requirements": [
+    "R-PROFILE",
+    "R-NODEBT",
+    "R-WEEKLY",
+    "R-LOCAL",
+    "R-HARNESS"
+  ],
+  "files": [
+    "AGENTS.md",
+    "app/migrations.py",
+    "app/profile_insights.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/icons/chart-column.svg",
+    "app/static/icons/check.svg",
+    "app/static/icons/chevron-down.svg",
+    "app/static/icons/folder-open.svg",
+    "app/static/icons/folder.svg",
+    "app/static/icons/plus.svg",
+    "app/static/index.html",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "app/static/profile-ui.js",
+    "app/static/profile.css",
+    "app/static/settings.html",
+    "app/static/weekly_report.html",
+    "app/weekly_report.py",
+    "changes/2026-09-29-graph-redesign.json",
+    "changes/2026-09-30-profile-redesign.json",
+    "changes/2026-09-30-profile-truth.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/evidence/2026-09-29-graph-redesign-budget.txt",
+    "docs/evidence/2026-09-29-graph-redesign-checks.txt",
+    "docs/evidence/2026-09-29-graph-redesign-self-review.md",
+    "docs/evidence/2026-09-29-graph-redesign-tests.txt",
+    "docs/evidence/2026-09-30-graph-refinement.txt",
+    "docs/evidence/2026-09-30-profile-redesign-checks.txt",
+    "docs/evidence/2026-09-30-profile-truth.txt",
+    "harness/tasks.json",
+    "tests/test_app_server.py",
+    "tests/test_organization_ui.cjs",
+    "tests/test_organization_worker.py",
+    "tests/test_profile_insights.py",
+    "tests/test_profile_redesign.py",
+    "tests/test_ui_layout.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "画像、证据、活动周桶和周报均由本地 SQLite 数据整理；没有新增模型调用、provider SDK、上传、重试或预算网关操作。",
+    "before": "画像页连续堆叠重复统计、超长词条、画布兴趣曲线、旧版画像摘要和独立周报；证据和语义难以追溯。",
+    "after": "画像页以当前信号、论文/反馈证据、活动、周变化和修正入口分层展示；weekly_report.html 复用相同本地数据和视觉组件；运行时 token 增量为零。",
+    "developer_usage": "unknown"
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-30-profile-redesign-checks.txt",
+      "note": "221 tests passed."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-30-profile-redesign-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-30-profile-redesign-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent",
+      "evidence": "docs/evidence/2026-09-30-profile-redesign-checks.txt",
+      "note": "Reviewed semantics, project isolation, empty states, undo refresh, UI diff and native smoke evidence."
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "profile_redesign_review_final",
+      "evidence": "docs/evidence/2026-09-30-profile-redesign-checks.txt",
+      "note": "Independent review found two input-boundary defects; both were fixed and covered by regression tests."
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "真实长周期使用仍需用户试用来验证词项和信号是否足够有帮助；本页展示事实证据，不声称兴趣概率。",
+    "本次未启用 weekly_digest 或任何模型润色；未来 AI 分析需要单独预算和网关审查。",
+    "本地构建使用 ad-hoc 签名完成原生验收；发布公证仍是独立 release gate。",
+    "本变更记录覆盖此前图谱、详情和画像 truth-data 的当前工作树文件，避免 harness 记录遗漏。"
+  ]
+}

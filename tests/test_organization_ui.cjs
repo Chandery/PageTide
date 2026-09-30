@@ -20,7 +20,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   ui.createGraph = elements => {
     context.elements=elements;
     vm.runInContext(fs.readFileSync(path.join(__dirname,'../app/static/vendor/cytoscape/cytoscape.min.js'),'utf8'),context);
-    return vm.runInContext("cytoscape({headless:true,elements,layout:{name:'preset'}})",context);
+    return vm.runInContext("cytoscape({headless:true,elements:JSON.parse(JSON.stringify(elements)),layout:{name:'preset'}})",context);
   };
   ui.S.root = { querySelector: () => null };
   return ui;
@@ -34,7 +34,7 @@ function snapshot(extra = {}) {
 test('graph focus highlights a neighborhood and replaces camera motion; zoom keeps its center', () => {
   const ui = fixture(), calls = [];
   const collection = { length: 1, removeClass(c) {calls.push(['remove',c]);return this;}, addClass(c) {calls.push(['add',c]);return this;}, boundingBox:()=>({x1:0,x2:200,y1:0,y2:100,w:200,h:100}) };
-  const node = {...collection, closedNeighborhood:()=>collection};
+  const node = {...collection, position:()=>({x:100,y:50}), closedNeighborhood:()=>collection};
   ui.S.cy = { elements:()=>collection, getElementById:()=>node, resize(){}, stop(...a){calls.push(['stop',...a]);}, minZoom:()=>0.12, maxZoom:()=>3, width:()=>800,height:()=>600, zoom:()=>1,pan:()=>({x:20,y:40}),animate(t,o){calls.push(['animate',t,o]);}, viewport(t){calls.push(['viewport',t]);} };
   ui.focusGraph('direction:a'); ui.focusGraph('paper:b');
   assert.equal(ui.S.graphFocus,'paper:b');
@@ -48,18 +48,44 @@ test('graph focus highlights a neighborhood and replaces camera motion; zoom kee
   assert.equal(calls.at(-1)[0],'viewport');
 });
 
-test('network omits empty directions and uses one paper with multiple real links', () => {
+test('paper-only network deduplicates memberships and keeps only valid similarity edges', () => {
   const ui = fixture();
   const data = snapshot({ directions: [{id:'a',name:'A'},{id:'b',name:'B'},{id:'empty',name:'Empty'}], items:[
     {key:'one',title:'Paper One',directions:['a','b']}, {key:'two',title:'Paper Two',directions:['a']} ] });
   const elements = ui.networkElements(data, {edges:[{source:'one',target:'two',weight:0.7},{source:'one',target:'missing',weight:1}]});
   const nodes = elements.filter(e=>!e.data.source), edges = elements.filter(e=>e.data.source);
-  assert.equal(nodes.length,4);
+  assert.equal(nodes.length,2);
   assert.equal(nodes.filter(e=>e.data.key==='one').length,1);
   assert.equal(nodes.some(e=>e.data.direction==='empty'),false);
-  assert.equal(edges.filter(e=>e.data.kind==='membership').length,3);
+  assert.equal(edges.filter(e=>e.data.kind==='membership').length,0);
   assert.equal(edges.filter(e=>e.data.kind==='similarity').length,1);
   assert.equal(ui.networkElements({items:[],directions:data.directions},null).length,0);
+});
+
+test('graph node color keeps category hue and darkens newer papers', () => {
+  const ui = fixture();
+  const data = { directions: [{ id: 'a', name: 'A', color: '#168579' }], items: [
+    { key: 'old', title: 'Old', published: '2022', directions: ['a'] },
+    { key: 'new', title: 'New', published: '2026', directions: ['a'] },
+  ] };
+  const nodes = ui.networkElements(data, null).filter(e => !e.data.source);
+  const oldColor = nodes.find(e => e.data.key === 'old').data.color;
+  const newColor = nodes.find(e => e.data.key === 'new').data.color;
+  assert.equal(oldColor.split(',')[0], newColor.split(',')[0]);
+  assert.ok(Number(newColor.match(/,(\d+)%\)$/)[1]) < Number(oldColor.match(/,(\d+)%\)$/)[1]));
+});
+
+test('initial radial layout assigns distinct positions around the selected origin', () => {
+  const ui = fixture();
+  const nodes = [
+    { data: () => ({ id: 'paper:origin', degree: 3 }) },
+    { data: () => ({ id: 'paper:a', degree: 2 }) },
+    { data: () => ({ id: 'paper:b', degree: 1 }) },
+  ];
+  const positions = ui.radialPositions(nodes, 'paper:origin');
+  assert.equal(positions['paper:origin'].x, 0);
+  assert.equal(positions['paper:origin'].y, 0);
+  assert.ok(positions['paper:a'].x !== positions['paper:b'].x || positions['paper:a'].y !== positions['paper:b'].y);
 });
 
 test('library paper action opens PDF directly without changing note selection', async () => {
@@ -74,7 +100,7 @@ test('library paper action opens PDF directly without changing note selection', 
 test('Cytoscape constructor positions never alias saved snapshot coordinates',()=>{
   const ui=fixture(), snap=snapshot(), positions={'direction:d1':{x:803,y:460},'paper:paper:one':{x:100,y:100}};
   const cy=ui.createGraph(ui.networkElements(snap,null,positions));
-  assert.equal(cy.nodes().length,2);
+  assert.equal(cy.nodes().length,1);
   cy.nodes().forEach(n=>n.position({x:50,y:60}));cy.destroy();
   assert.deepEqual(positions,{'direction:d1':{x:803,y:460},'paper:paper:one':{x:100,y:100}});
 });
@@ -219,6 +245,8 @@ test('paper links accept HTTP(S) only', () => {
   assert.equal(ui.safePaperURL('https://example.org/paper'), 'https://example.org/paper');
   assert.equal(ui.safePaperURL('http://example.org/paper'), 'http://example.org/paper');
   for (const value of ['javascript:alert(1)', 'file:///etc/passwd', 'data:text/html,test', '/relative', null]) assert.equal(ui.safePaperURL(value), null);
+  assert.equal(ui.paperURL({arxiv_id: '2401.01234'}), 'https://arxiv.org/abs/2401.01234');
+  assert.equal(ui.paperURL({doi: '10.1000/example'}), 'https://doi.org/10.1000/example');
 });
 
 test('newer local draft wins reload while remote alternatives and client versions survive', async () => {
@@ -342,13 +370,13 @@ test('category tree traverses nested folders and parent view deduplicates shared
   assert.deepEqual(Array.from(ui.visible(),p=>p.key),['shared','second']);
 });
 
-test('nested graph includes ancestor folders and one shared paper, with collapse respecting other memberships', () => {
+test('paper-only graph respects nested collapse and preserves shared papers', () => {
   const ui=fixture();
   const snap=snapshot({directions:[{id:'a',name:'A'},{id:'b',name:'B',parent_id:'a'},{id:'c',name:'C'}],items:[
     {key:'shared',directions:['b','c']},{key:'inside',directions:['b']}],positions:{}});
   const expanded=ui.networkElements(snap,null);
   assert.equal(expanded.filter(e=>e.data.key==='shared').length,1);
-  assert.equal(expanded.filter(e=>e.data.kind==='hierarchy').length,1);
+  assert.equal(expanded.filter(e=>e.data.kind==='hierarchy').length,0);
   const collapsed=ui.networkElements({...snap,collapsed:['a']},null);
   assert.equal(collapsed.filter(e=>e.data.key==='shared').length,1);
   assert.equal(collapsed.filter(e=>e.data.key==='inside').length,0);
@@ -367,4 +395,71 @@ test('directory retains expansion for persisted collapsed leaf categories in gra
   assert.match(markup,/展开 Saved &lt;leaf&gt;/);
   assert.match(markup,/org-category-menu/);
   assert.doesNotMatch(markup,/Saved <leaf>/);
+});
+
+test('reading viewport stays readable and centers a real paper in a dispersed corpus', () => {
+  const ui=fixture(), cy=ui.createGraph([
+    {data:{id:'paper:a',key:'a'},position:{x:0,y:0}},
+    {data:{id:'paper:b',key:'b'},position:{x:5000,y:3000}}
+  ]);
+  ui.S.cy=cy; cy.width=()=>800; cy.height=()=>550;
+  const target=ui.graphViewport(cy.nodes());
+  assert.ok(target.zoom>=0.9);
+  assert.ok(cy.nodes().some(n=>{
+    const p=n.position();
+    return Math.abs(p.x*target.zoom+target.pan.x-400)<1 && Math.abs(p.y*target.zoom+target.pan.y-275)<1;
+  }));
+  const overview=ui.graphViewport(cy.nodes(),true);
+  assert.ok(overview.zoom<target.zoom);
+  cy.destroy();
+});
+
+test('paper focus centers the chosen paper even with a distant neighbor', () => {
+  const ui=fixture(), cy=ui.createGraph([
+    {data:{id:'paper:a',key:'a'},position:{x:50,y:70}},
+    {data:{id:'paper:b',key:'b'},position:{x:7000,y:4000}},
+    {data:{id:'ab',source:'paper:a',target:'paper:b'}}
+  ]);
+  ui.S.cy=cy; cy.width=()=>800; cy.height=()=>550;
+  let target; cy.animate=t=>{target=t;};
+  ui.focusGraph('paper:a');
+  assert.ok(target.zoom>=1);
+  assert.equal(50*target.zoom+target.pan.x,400);
+  assert.equal(70*target.zoom+target.pan.y,275);
+  cy.destroy();
+});
+
+test('category focus clears stale paper focus and locates uncategorized papers', () => {
+  const ui=fixture();
+  ui.S.snapshot=snapshot({items:[{key:'a',directions:['d1']},{key:'b',directions:[]}]});
+  const cy=ui.createGraph([{data:{id:'paper:a',key:'a'},position:{x:0,y:0}},
+    {data:{id:'paper:b',key:'b'},position:{x:2000,y:700}}]);
+  ui.S.cy=cy; cy.width=()=>800; cy.height=()=>550;
+  let target; cy.animate=t=>{target=t;};
+  ui.S.graphFocus='paper:a'; ui.S.filter='';
+  ui.focusCategory();
+  assert.equal(ui.S.graphFocus,null);
+  assert.equal(cy.getElementById('paper:b').hasClass('org-dim'),false);
+  assert.equal(cy.getElementById('paper:a').hasClass('org-dim'),true);
+  assert.equal(2000*target.zoom+target.pan.x,400);
+  ui.S.filter='empty'; target=null; ui.focusCategory();
+  assert.equal(target,null);
+  assert.match(ui.S.notice,/没有/);
+  cy.destroy();
+});
+
+test('selected category reveals folded papers without changing saved collapse or coordinates', () => {
+  const ui=fixture(), snap=snapshot({collapsed:['d1'],positions:{'paper:paper:one':{x:123,y:456}}});
+  const before=JSON.stringify(snap);
+  const elements=ui.networkElements(snap,null,snap.positions,new Set(['paper:one']));
+  assert.equal(elements.filter(e=>e.data.key==='paper:one').length,1);
+  assert.equal(JSON.stringify(snap),before);
+  assert.ok(elements[0].data.size>=28);
+});
+
+test('graph sidebar nests papers under their category for direct paper focus', () => {
+  const ui=fixture();
+  ui.S.mode='graph'; ui.S.snapshot=snapshot({items:[{key:'a',title:'Alpha Paper',published:'2025-01-01',directions:['d1']},{key:'b',title:'Beta Paper',published:'2024-01-01',directions:[]}]});
+  const markup=ui.sidebarHTML();
+  assert.doesNotMatch(markup,/图谱论文/); assert.match(markup,/Alpha Paper/); assert.match(markup,/Beta Paper/); assert.match(markup,/data-action="graph-paper-focus"/);
 });

@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "logo-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "docs/design/logo"],
+      "port": 8765
+    },
+    {
+      "name": "static-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8766", "--directory", "app/static"],
+      "port": 8766
+    },
+    {
+      "name": "app-ui",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["PAPERDIGHELPER_DATA=.local/ui-redesign-data", "python3", "-m", "app.server", "8767"],
+      "port": 8767
+    }
+  ]
+}

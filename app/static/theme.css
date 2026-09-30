@@ -1,0 +1,32 @@
+/* PaperDig palette — the single source of colour tokens for every page.
+   Warm paper, ink, and one bookmark red (--mark) used sparingly: saved state,
+   the active marker and the "Dig" in the wordmark. Matches the app logo.
+   tests/test_ui_contrast.py checks every text/surface pair here at WCAG AA. */
+:root {
+  --base:#f4efe6; --text:#1c2230; --muted:#5e5a52;
+  --line:#e2d9c9; --line-strong:#cfc4b1;
+  --surface-1:#fbf8f2; --surface-2:#efe8dc; --surface-3:#e7dfd0;
+  --accent:#1c2230; --accent-ink:#fbf8f2; --accent-text:#1c2230;
+  --accent-soft:rgba(28,34,48,.07);
+  --mark:#d9462b; --mark-text:#a8331d;   /* bookmark red: saved state, active marker, "Dig" */
+  --good:#2f6a4c; --bad:#a8331d; --warn:#7f5410;
+  --ai:#b3a893; --ai-text:#4a4f5c;       /* AI text stays neutral; it is labelled, not coloured */
+  --serif:"New York","Iowan Old Style","Songti SC",Georgia,serif;
+  --sh-1:0 1px 2px rgba(28,34,48,.05); --sh-2:0 6px 18px rgba(28,34,48,.07);
+  --sh-3:0 18px 44px rgba(28,34,48,.13);
+  --r-lg:10px; --r-md:8px; --r-sm:6px;
+  --sh-out:var(--sh-2); --sh-out-sm:var(--sh-1);
+  --sh-in:inset 0 0 0 1px var(--line); --sh-in-sm:inset 0 0 0 1px var(--line);
+  --ease-out:cubic-bezier(.2,.8,.3,1); --ease-spring:cubic-bezier(.2,.9,.3,1.05);
+}
+html[data-mode="dark"] {
+  --base:#12151c; --text:#efe8dc; --muted:#a8a193;
+  --line:#2a3140; --line-strong:#3c4455;
+  --surface-1:#1a1f2a; --surface-2:#222835; --surface-3:#2a3140;
+  --accent:#efe8dc; --accent-ink:#1c2230; --accent-text:#efe8dc;
+  --accent-soft:rgba(239,232,220,.08);
+  --mark:#e0583b; --mark-text:#f09a86;
+  --good:#86c4a0; --bad:#f09a86; --warn:#e2ba72;
+  --ai:#4f5869; --ai-text:#c9c2b4;
+  --sh-1:0 1px 3px rgba(0,0,0,.28); --sh-2:0 6px 22px rgba(0,0,0,.3); --sh-3:0 20px 52px rgba(0,0,0,.42);
+}

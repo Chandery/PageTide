@@ -1,44 +1,12 @@
 <!doctype html>
-<html lang="zh-CN" data-mode="light" data-accent="violet">
+<html lang="zh-CN" data-mode="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <title>PaperDigHelper</title>
+<link rel="stylesheet" href="/theme.css">
 <style>
-  /* Neumorphism: one surface colour, depth from paired shadows (no borders). */
-  :root {
-    --base:#e7ebf1; --text:#3b4058; --muted:#61687f;   /* AA against the darkest light surface */
-    --line:rgba(16,26,42,.13); --line-strong:rgba(16,26,42,.24);
-    --sd:rgba(163,177,198,.62); --sl:rgba(255,255,255,.96);
-    --accent:#6d5dfc; --accent-soft:rgba(109,93,252,.14);
-    --good:#097849; --bad:#b74131; --warn:#995a00; --ai-text:#5e4eed;
-    --accent-ink:#ffffff; --accent-text:#5e4eed;   /* ink = text ON the accent fill */
-    --r-lg:20px; --r-md:14px; --r-sm:10px;
-    --sh-out:7px 7px 16px var(--sd), -7px -7px 16px var(--sl);
-    --sh-out-sm:4px 4px 9px var(--sd), -4px -4px 9px var(--sl);
-    --sh-in:inset 5px 5px 11px var(--sd), inset -5px -5px 11px var(--sl);
-    --sh-in-sm:inset 3px 3px 7px var(--sd), inset -3px -3px 7px var(--sl);
-  }
-  html[data-mode="dark"] {
-    --base:#272b33; --text:#e3e7ee; --muted:#9ca5b5;
-    --line:rgba(255,255,255,.11); --line-strong:rgba(255,255,255,.22);
-    --sd:rgba(0,0,0,.62); --sl:rgba(255,255,255,.055);
-    --accent-soft:rgba(109,93,252,.20);
-    --good:#4ecb8d; --bad:#f38672; --warn:#e0b25c; --ai:#a892ff;
-    --accent-ink:#0d1016; --accent-text:#a597ff; --ai-text:#a597ff;
-  }
-  /* accent = fill colour; accent-text = AA-safe text/link colour; accent-ink = text ON the fill */
-  html[data-accent="violet"] { --accent:#6d5dfc; --accent-ink:#ffffff; --accent-text:#5e4eed; --ai:#7b61ff; --ai-text:#5e4eed; }
-  html[data-accent="mint"]   { --accent:#1f9d6b; --accent-ink:#151009; --accent-text:#007846; --ai:#2fa07a; --ai-text:#007846; }
-  html[data-accent="coral"]  { --accent:#e2653f; --accent-ink:#151009; --accent-text:#bb3e18; --ai:#d0723f; --ai-text:#bb3e18; }
-  html[data-accent="rose"]   { --accent:#ca5087; --accent-ink:#151009; --accent-text:#b43a71; --ai:#b5629a; --ai-text:#b43a71; }
-  html[data-accent="amber"]  { --accent:#c78a1a; --accent-ink:#151009; --accent-text:#975a00; --ai:#b3861f; --ai-text:#975a00; }
-  html[data-mode="dark"][data-accent="violet"] { --accent:#8b7dff; --accent-ink:#0d1016; --accent-text:#a597ff; --ai:#a394ff; --ai-text:#a597ff; }
-  html[data-mode="dark"][data-accent="mint"]   { --accent:#3ecf9a; --accent-ink:#0d1016; --accent-text:#3ecf9a; --ai:#54c69a; --ai-text:#3ecf9a; }
-  html[data-mode="dark"][data-accent="coral"]  { --accent:#ff8a63; --accent-ink:#0d1016; --accent-text:#ff8a63; --ai:#e8946b; --ai-text:#ff8a63; }
-  html[data-mode="dark"][data-accent="rose"]   { --accent:#f07aae; --accent-ink:#0d1016; --accent-text:#f47eb2; --ai:#dd8fbb; --ai-text:#f47eb2; }
-  html[data-mode="dark"][data-accent="amber"]  { --accent:#e8b04a; --accent-ink:#0d1016; --accent-text:#e8b04a; --ai:#d7a44e; --ai-text:#e8b04a; }
-
   * { box-sizing:border-box; }
   html,body { margin:0; }
   body {
@@ -67,13 +35,6 @@
   .stat { font-size:12px; color:var(--muted); display:flex; gap:10px; }
   .stat b { color:var(--text); font-weight:650; }
   .controls { display:flex; align-items:center; gap:8px; }
-  .sw { width:17px; height:17px; border-radius:50%; cursor:pointer; box-shadow:var(--sh-out-sm);
-        transition:transform .15s ease; }
-  .sw:hover { transform:scale(1.12); }
-  .sw.active { box-shadow:var(--sh-in-sm); }
-  .sw[data-a="violet"]{background:#6d5dfc}.sw[data-a="mint"]{background:#1f9d6b}
-  .sw[data-a="coral"]{background:#e2653f}.sw[data-a="rose"]{background:#c94f86}
-  .sw[data-a="amber"]{background:#c78a1a}
   .modes { padding:4px; border-radius:12px; box-shadow:var(--sh-in-sm); display:flex; }
 
   /* --------------------------------------------------------- project selector */
@@ -92,7 +53,7 @@
   .project-item { width:100%; padding:10px 12px; border-radius:var(--r-sm); cursor:pointer; display:flex;
                   align-items:center; gap:9px; transition:background .15s ease; font-size:13.5px;
                   text-align:left; border:none; background:transparent; }
-  .project-item:hover { background:rgba(109,93,252,.08); }
+  .project-item:hover { background:var(--accent-soft); }
   .project-item.active { background:var(--accent-soft); font-weight:600; }
   .project-item .icon { font-size:14px; color:var(--accent-text); flex-shrink:0; }
   .project-item span { flex:1; }
@@ -102,25 +63,8 @@
                     color:var(--accent-text); font-weight:600; background:transparent; border:none;
                     cursor:pointer; display:flex; align-items:center; gap:8px; transition:background .15s ease;
                     text-align:left; box-shadow:none; }
-  .project-create:hover { background:rgba(109,93,252,.08); transform:none; }
+  .project-create:hover { background:var(--accent-soft); transform:none; }
   .project-create .icon { font-size:14px; }
-
-  /* --------------------------------------------------------- profile visualization */
-  .profile-stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:16px; margin:24px 0; }
-  .stat-card { background:var(--surface-1); border:1px solid var(--line); border-radius:var(--r-lg); padding:20px; text-align:center; }
-  .stat-icon { font-size:32px; margin-bottom:8px; }
-  .stat-value { font-size:28px; font-weight:700; color:var(--accent-text); margin-bottom:4px; }
-  .stat-label { font-size:12px; color:var(--muted); }
-  .profile-section { margin:32px 0; padding:24px; background:var(--surface-1); border:1px solid var(--line); border-radius:var(--r-lg); }
-  .profile-section h2 { font-size:18px; margin:0 0 16px; }
-  .keyword-cloud { min-height:200px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }
-  .keyword-tag { display:inline-block; padding:6px 12px; border-radius:999px; background:var(--accent-soft); color:var(--accent-text); font-weight:500; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease; }
-  .keyword-tag:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(109,93,252,.2); }
-  .ai-summary-panel { position:fixed; top:80px; right:24px; width:400px; max-height:calc(100vh - 120px); background:var(--base); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-out); z-index:100; overflow:hidden; }
-  .panel-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); }
-  .panel-header h3 { margin:0; font-size:16px; }
-  .panel-content { padding:20px; max-height:calc(100vh - 200px); overflow-y:auto; }
-  .panel-content .loading { text-align:center; color:var(--muted); padding:40px 0; }
 
   main { max-width:920px; margin:20px auto 90px; padding:0 16px; }
   h1 { font-size:23px; margin:0 0 4px; letter-spacing:0; }
@@ -160,7 +104,7 @@
           box-shadow:var(--sh-out); border-radius:var(--r-lg); animation:rise .45s ease both;
           transition:box-shadow .22s ease, transform .22s ease; }
   .card:hover { transform:translateY(-2px);
-                box-shadow:10px 10px 22px var(--sd), -10px -10px 22px var(--sl); }
+                box-shadow:var(--sh-2); }
   .card:active { box-shadow:var(--sh-in); transform:none; }
   .card h3 { font-size:15.5px; margin:0 0 9px; line-height:1.44; letter-spacing:0; }
   .meta { font-size:12px; color:var(--muted); display:flex; gap:9px; flex-wrap:wrap; align-items:center; margin-bottom:11px; }
@@ -206,6 +150,36 @@
   /* ----------------------------------------------------------- detail page */
   .page { position:fixed; inset:0; z-index:80; overflow:auto; padding:28px 16px 70px; background:var(--base);
           animation:slideIn .28s ease both; }
+  /* Paper details use the same calm right-hand reading rail as Connected Papers.
+     The graph/list stays visible behind it, and the rail owns its own scroll. */
+  #detail.detail-page { padding:0; overflow:hidden; background:transparent; animation:none; display:flex; justify-content:flex-end; }
+  #detail.detail-page .detail-scrim { position:absolute; inset:0; background:rgba(20,28,38,.16); opacity:0; transition:opacity .22s ease; }
+  #detail.detail-page:not(.hidden) .detail-scrim { opacity:1; }
+  #detail.detail-page .detail-panel { position:relative; z-index:1; width:min(520px,100vw); height:100%; margin:0; overflow:auto;
+    padding:28px 34px 44px; background:var(--surface-1); border-left:1px solid var(--line);
+    border-radius:14px 0 0 14px; box-shadow:-18px 0 48px rgba(28,34,48,.14);
+    transform:translateX(100%); transition:transform .28s cubic-bezier(.22,.8,.28,1); }
+  #detail.detail-page:not(.hidden) .detail-panel { transform:translateX(0); }
+  .detail-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+  .detail-head .label { margin:0; }
+  .detail-close { width:38px; height:38px; padding:0; justify-content:center; border-radius:12px; }
+  .detail-kicker { display:inline-flex; align-items:center; gap:7px; color:var(--accent-text); font-size:12px; font-weight:650; }
+  .detail-kicker::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--mark); }
+  .detail-panel h2 { font-size:25px; line-height:1.28; margin:0 0 13px; }
+  .detail-meta { display:flex; flex-wrap:wrap; align-items:center; gap:7px 12px; color:var(--muted); font-size:13px; }
+  .detail-meta span + span { position:relative; }
+  .detail-meta span + span::before { content:"·"; position:absolute; left:-9px; color:var(--line-strong); }
+  .detail-actions { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 25px; padding-bottom:22px; border-bottom:1px solid var(--line); }
+  .detail-project-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .detail-project-row select { flex:1; min-width:0; padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; background:var(--surface-1); color:var(--text); }
+  .detail-projects .hint { font-size:12px; color:var(--muted); line-height:1.6; }
+  .detail-section { padding:0 0 24px; }
+  .detail-section h3 { margin:0 0 10px; font-size:14px; }
+  .detail-section .full { font-size:14px; line-height:1.8; color:var(--text); opacity:.9; }
+  .detail-ai { margin:0 0 24px; padding:14px 15px; border:1px solid var(--line); border-left:2px solid var(--ai); border-radius:4px 10px 10px 4px; background:var(--surface-2); }
+  .detail-ai .ai-line { box-shadow:none; padding:0; background:transparent; }
+  .detail-ai .sub { margin-top:7px; line-height:1.55; }
+  @media (prefers-reduced-motion: reduce) { #detail.detail-page .detail-scrim, #detail.detail-page .detail-panel { transition:none; } }
   .page-inner { max-width:800px; margin:0 auto; padding:28px; background:var(--base);
                 box-shadow:var(--sh-out); border-radius:var(--r-lg); }
   .page h2 { font-size:22px; line-height:1.4; margin:0 0 10px; letter-spacing:0; }
@@ -227,7 +201,7 @@
               box-shadow:var(--sh-out); border-radius:var(--r-lg); animation:rise .4s ease both;
               transition:box-shadow .2s, transform .2s; }
   .lib-item:hover { transform:translateY(-2px);
-                    box-shadow:9px 9px 20px var(--sd), -9px -9px 20px var(--sl); }
+                    box-shadow:var(--sh-2); }
   .lib-item h4 { margin:0 0 6px; font-size:14.5px; line-height:1.45; }
 
   /* ---------------------------------------------------------------- reader */
@@ -335,247 +309,101 @@
   @keyframes fade { from{opacity:0;} to{opacity:1;} }
   @keyframes spin { to { transform:rotate(360deg); } }
   @keyframes slideIn { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:none;} }
-  /* ================= design refresh: layered surfaces, separation, motion ================= */
-  :root { --surface-1:#f8fafc; --surface-2:#eef2f7; --surface-3:#e3e9f2;
-          --sh-1:0 1px 2px rgba(16,24,40,.06); --sh-2:0 8px 22px rgba(16,24,40,.10);
-          --sh-3:0 18px 44px rgba(16,24,40,.16); }
-  html[data-mode="dark"] { --surface-1:#232834; --surface-2:#2a3140; --surface-3:#333b4d;
-          --sh-1:0 1px 2px rgba(0,0,0,.45); --sh-2:0 8px 24px rgba(0,0,0,.5); --sh-3:0 20px 52px rgba(0,0,0,.6); }
-  .glass, .hero, .card, .lib-item, .page-inner, .petpanel, .sheet, .toast { background:var(--surface-1);
-      border:1px solid var(--line); box-shadow:var(--sh-2); }
-  header.top { background:color-mix(in srgb, var(--surface-1) 90%, transparent);
-               backdrop-filter:blur(20px) saturate(150%); box-shadow:var(--sh-2); }
-  .tabs { background:var(--surface-2); box-shadow:none; border:1px solid var(--line); }
-  .tab.active { background:var(--surface-1); box-shadow:var(--sh-1); }
-  button, .btn { background:var(--surface-2); border:1px solid var(--line); box-shadow:var(--sh-1); }
-  button.primary { background:var(--accent);   /* flat fill keeps the verified ink contrast */
-      border-color:transparent; color:var(--accent-ink);
-      box-shadow:0 6px 16px color-mix(in srgb, var(--accent) 32%, transparent); }
-  button.primary:hover { box-shadow:0 10px 26px color-mix(in srgb, var(--accent) 44%, transparent); transform:translateY(-1px); }
-  .chip, .badge { background:var(--surface-2); border:1px solid var(--line); }
-  .card { overflow:hidden; }
-  .card::before { content:''; position:absolute; left:0; top:14px; bottom:14px; width:3px; border-radius:0 3px 3px 0;
-      background:linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)); }
-  .card:hover { box-shadow:var(--sh-3); border-color:color-mix(in srgb, var(--accent) 34%, var(--line)); }
-  .hero { position:relative; overflow:hidden; }
-  .hero::after { content:''; position:absolute; right:-60px; top:-80px; width:220px; height:220px; border-radius:50%;
-      background:radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%); pointer-events:none; }
-  .hero h1 { letter-spacing:0; }
-  .section-title, .label { display:flex; align-items:center; gap:8px; }
-  .section-title::before, .label::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--accent); }
-  .ai-line { background:var(--surface-2); border:1px solid var(--line); border-left:3px solid var(--ai); }
-  .msg { border:1px solid var(--line); box-shadow:var(--sh-1); animation:msgIn .22s cubic-bezier(.2,.8,.3,1) both; }
-  .msg.user { background:var(--surface-2); }
-  .msg.ai { background:var(--surface-1); }
-  .msg.sys { border:none; box-shadow:none; background:transparent; }
-  .fol { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; animation:msgIn .24s ease both; }
-  .fol button { font-size:12px; padding:6px 12px; background:var(--surface-1); }
-  .fol button:hover { border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); }
-  .refcard { display:flex; gap:10px; align-items:flex-start; padding:9px 11px; margin-top:8px; max-width:100%;
-      border:1px solid var(--line); border-radius:12px; background:var(--surface-2); box-shadow:var(--sh-1); }
-  .refcard .ricon { width:22px; height:27px; flex:0 0 auto; border:1px solid var(--line); border-radius:5px;
-      background:var(--surface-1); display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--accent); }
-  .refcard .rmeta { min-width:0; flex:1; }
-  .refcard .rlabel { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
-  .refcard .rsnip { font-size:12px; opacity:.88; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-      overflow:hidden; }
-  .refcard .rx { cursor:pointer; color:var(--muted); flex:0 0 auto; }
-  .refcard .rx:hover { color:var(--bad); }
-  .popts { display:flex; gap:10px; align-items:center; padding:9px 14px 0; font-size:11.5px; color:var(--muted); }
-  .msg .meta { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-  #petRef { padding:10px 14px 0; }
-  .petpanel header b { letter-spacing:0; }
-  @keyframes msgIn { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
-  /* ================= motion pass ================= */
-  :root { --ease-spring:cubic-bezier(.2,.9,.3,1.08); --ease-out:cubic-bezier(.2,.8,.3,1); }
-  button, .btn, .tab, .card, .lib-item, .chip, .badge, .pet {
-    transition: transform .16s var(--ease-out), background .2s ease, border-color .2s ease,
-                box-shadow .24s var(--ease-out), color .2s ease, opacity .2s ease;
-  }
-  button:active, .btn:active { transform:scale(.965); }
-  .card { transition: transform .24s var(--ease-out), box-shadow .26s var(--ease-out), border-color .2s ease; }
-  .card:hover { transform:translateY(-4px) scale(1.006); }
-  .lib-item:hover { transform:translateX(4px); }
-  .chip:hover, .badge:hover { transform:translateY(-1px); }
-  .pet:hover { transform:translateY(-3px) scale(1.06); }
-  .pet:active { transform:scale(.94); }
-  .tabs .tab.active { animation:tabPop .26s var(--ease-spring) both; }
-  .msg { animation:springUp .32s var(--ease-spring) both; }
-  .fol { animation:springUp .3s var(--ease-spring) both; }
-  .fol button { animation:springUp .3s var(--ease-spring) both; }
-  .fol button:nth-child(2) { animation-delay:.03s; }
-  .fol button:nth-child(3) { animation-delay:.06s; }
-  .fol button:nth-child(4) { animation-delay:.09s; }
-  .fol button:nth-child(5) { animation-delay:.12s; }
-  .fol button:nth-child(6) { animation-delay:.15s; }
-  .toast { animation:slideInRight .28s var(--ease-out) both; }
-  .hero, .petpanel, .sheet, .page-inner { animation:springUp .34s var(--ease-spring) both; }
-  #preview.show { animation:previewIn .18s var(--ease-out) both; }
-  @keyframes tabPop { from{opacity:.4; transform:scale(.96);} to{opacity:1; transform:none;} }
-  @keyframes springUp { 0%{opacity:0; transform:translateY(12px) scale(.985);} 62%{transform:translateY(-2px) scale(1.004);} 100%{opacity:1; transform:none;} }
-  @keyframes slideInRight { from{opacity:0; transform:translateX(18px);} to{opacity:1; transform:none;} }
-  @keyframes previewIn { from{opacity:0; transform:translateY(10px) scale(.97);} to{opacity:1; transform:none;} }
-  @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
+  /* ═══════════════════════════════════════════════════════════════
+     VISUAL LAYER — single authoritative override. Tokens → layout → components → motion.
+  ═══════════════════════════════════════════════════════════════ */
 
-  /* ------------------------------------------------------------------ compact pass
-     This app is used as a daily reading tool, so the reference's spacious
-     composition needs a denser default scale than a marketing landing page. */
-  body { font-size:14px; line-height:1.55; }
-  header.top { padding-top:12px; padding-bottom:12px; }
-  .brand { font-size:15px; gap:9px; }
-  .brand-mark { width:30px; height:30px; }
-  .tab { padding:7px 11px; font-size:12.5px; }
-  .right { gap:9px; }
-  .stat { font-size:11px; gap:6px; }
-  .controls { gap:7px; }
-  #modeBtn { width:30px; height:30px; padding:7px; }
-  main { padding-top:20px; padding-bottom:20px; }
-  .hero { padding-top:16px; padding-bottom:20px; margin-bottom:18px; }
-  .hero h1 { font-size:26px; line-height:1.2; }
-  .hero .sub { margin-top:8px; font-size:12.5px; }
-  .hero .row { margin-top:18px !important; }
-  button,.btn { padding:8px 14px; font-size:13px; }
-  .grid { gap:12px; }
-  .card { padding:18px; }
-  .card h3 { font-size:15px; line-height:1.38; margin-bottom:7px; }
-  .meta { font-size:11px; margin-bottom:8px; }
-  .abs { font-size:12.5px; line-height:1.62; -webkit-line-clamp:3; }
-  .ai-line { font-size:12.5px; line-height:1.58; padding-left:10px; }
-  .whyline { font-size:11.5px; padding-top:10px; margin-top:10px; }
-  .card .actions { padding-top:12px; }
-  .card .actions button { font-size:11.5px; padding:7px 11px; }
-  .badge { font-size:10px; padding:2px 8px; }
-  .edition { font-size:11px; margin-bottom:9px; }
-  .view-heading .count { font-size:11.5px; }
-  .devbanner { font-size:11.5px; margin-top:12px; }
-  footer { font-size:10.5px; }
-  @media (max-width:700px) {
-    header.top { padding:10px 14px; }
-    .brand { font-size:13px; }
-    .brand-mark { width:26px; height:26px; }
-    main { padding:18px 14px 58px; }
-    .hero { padding:14px 0 18px; }
-    .hero h1 { font-size:24px; }
-    .hero .sub { font-size:12px; }
-    .card { padding:16px; }
-    .card h3 { font-size:14.5px; }
-  }
+  /* — base — */
+  body { background:var(--base); font-size:15px; line-height:1.58; }
 
-  /* ------------------------------------------------------------------ editorial refresh
-     The reference uses a bright canvas, generous whitespace and one confident
-     ink colour. Keep the data-dense paper workflow, but remove the stacked
-     neumorphic surfaces that made every element look equally important. */
-  :root {
-    --base:#fafafa; --text:#24212d; --muted:#696573;
-    --line:#e9e5ef; --line-strong:#d9d2e4;
-    --surface-1:#ffffff; --surface-2:#f5f5f7; --surface-3:#efedf3;
-    --accent:#392276; --accent-ink:#ffffff; --accent-text:#392276;
-    --accent-soft:rgba(57,34,118,.10); --good:#16704c; --bad:#ad3f50;
-    --warn:#8b5d0d; --ai:#6f35d6; --ai-text:#5b27b3;
-    --sh-1:0 1px 2px rgba(33,20,65,.04);
-    --sh-2:0 12px 34px rgba(33,20,65,.07);
-    --sh-3:0 22px 58px rgba(33,20,65,.13);
-    --r-lg:8px; --r-md:8px; --r-sm:6px;
-    --sh-out:var(--sh-2); --sh-out-sm:var(--sh-1); --sh-in:none; --sh-in-sm:none;
-  }
-  html[data-mode="dark"] {
-    --base:#15121e; --text:#f7f4fb; --muted:#aaa3b7;
-    --line:#332d40; --line-strong:#4b415b;
-    --surface-1:#211c2c; --surface-2:#2a2437; --surface-3:#342d43;
-    --accent:#a98aff; --accent-ink:#1b142d; --accent-text:#c1abff;
-    --accent-soft:rgba(169,138,255,.16); --good:#62d5a2; --bad:#ff9aa7;
-    --warn:#f0c36a; --ai:#c29cff; --ai-text:#c29cff;
-    --sh-1:0 1px 2px rgba(0,0,0,.24); --sh-2:0 14px 38px rgba(0,0,0,.24);
-    --sh-3:0 24px 60px rgba(0,0,0,.38);
-  }
-  html[data-accent="violet"] { --accent:#392276; --accent-ink:#fff; --accent-text:#392276; --ai-text:#5b27b3; }
-  html[data-accent="mint"] { --accent:#17674d; --accent-ink:#fff; --accent-text:#17674d; --ai-text:#17674d; }
-  html[data-accent="coral"] { --accent:#9a3d32; --accent-ink:#fff; --accent-text:#9a3d32; --ai-text:#9a3d32; }
-  html[data-accent="rose"] { --accent:#9c315f; --accent-ink:#fff; --accent-text:#9c315f; --ai-text:#9c315f; }
-  html[data-accent="amber"] { --accent:#845400; --accent-ink:#fff; --accent-text:#845400; --ai-text:#845400; }
-  html[data-mode="dark"][data-accent="violet"] { --accent:#a98aff; --accent-ink:#1b142d; --accent-text:#c1abff; --ai-text:#c29cff; }
-  html[data-mode="dark"][data-accent="mint"] { --accent:#62d5a2; --accent-ink:#10251d; --accent-text:#62d5a2; --ai-text:#62d5a2; }
-  html[data-mode="dark"][data-accent="coral"] { --accent:#ff9a83; --accent-ink:#321713; --accent-text:#ffad9b; --ai-text:#ffad9b; }
-  html[data-mode="dark"][data-accent="rose"] { --accent:#ff91b9; --accent-ink:#321522; --accent-text:#ffacd0; --ai-text:#ffacd0; }
-  html[data-mode="dark"][data-accent="amber"] { --accent:#f4c76a; --accent-ink:#2b1e06; --accent-text:#f4c76a; --ai-text:#f4c76a; }
-  body { background:var(--base); font-size:15px; }
-  header.top { top:0; max-width:none; margin:0; padding:18px max(24px,calc((100vw - 1160px)/2));
-    border-radius:0; border:0; border-bottom:1px solid var(--line); box-shadow:0 4px 18px rgba(33,20,65,.04); }
-  .brand { font-size:17px; letter-spacing:0; gap:11px; white-space:nowrap; }
-  .dot { width:11px; height:11px; box-shadow:0 0 0 5px var(--accent-soft); }
-  .tabs { background:transparent; border:0; padding:0; gap:4px; }
-  .tab { padding:8px 14px; border-radius:999px; }
-  .tab.active { background:var(--accent); color:var(--accent-ink); box-shadow:0 6px 15px color-mix(in srgb,var(--accent) 22%,transparent); }
-  main { max-width:1160px; margin:0 auto 32px; padding:24px 28px; }
-  .hero { padding:20px 0 26px; margin-bottom:24px; background:transparent; border:0; border-bottom:1px solid var(--line); box-shadow:none; border-radius:0; }
+  /* — header — */
+  header.top { top:0; max-width:none; margin:0; padding:12px max(24px,calc((100vw - 1200px)/2));
+    border-radius:0; border:0; border-bottom:1px solid var(--line);
+    box-shadow:0 1px 0 var(--line); gap:12px;
+    background:color-mix(in srgb, var(--surface-1) 92%, transparent);
+    backdrop-filter:blur(20px) saturate(160%); }
+  .brand { font-size:15.5px; letter-spacing:0; gap:10px; white-space:nowrap; }
+  .wordmark { font-family:var(--serif); font-size:19px; font-weight:600; }
+  .wordmark em { color:var(--mark); font-style:italic; }
+  h1, .card h3, .lib-item h4, .detail-panel h2, .page h2, #preview h4, .ptitle { font-family:var(--serif); }
+  .brand-mark { width:30px; height:30px; display:block; flex:none; }
+  .dot { width:10px; height:10px; box-shadow:0 0 0 4px var(--accent-soft); }
+  .tabs { background:transparent; border:0; padding:0; box-shadow:none; gap:2px; }
+  .tab { position:relative; padding:6px 13px; border-radius:6px; font-size:13px; color:var(--muted); }
+  .tab:hover { color:var(--text); background:var(--surface-2); }
+  .tab.active { background:transparent; color:var(--text); box-shadow:none; font-weight:600; }
+  .tab.active::after { content:""; position:absolute; left:13px; right:13px; bottom:-1px; height:2px;
+    border-radius:2px; background:var(--mark); }
+
+  /* — main layout — */
+  main { max-width:1200px; margin:0 auto 48px; padding:28px max(28px,calc((100vw - 1200px)/2)); }
+
+  /* — hero — */
+  .hero { padding:24px 0 28px; margin-bottom:24px; background:transparent;
+    border:0; border-bottom:1px solid var(--line); box-shadow:none; border-radius:0; }
   .hero::after { display:none; }
-  .hero h1 { font-size:30px; line-height:1.25; letter-spacing:0; max-width:720px; }
-  .hero .sub { margin-top:12px; font-size:14px; }
-  .hero .row { margin-top:24px !important; }
-  button,.btn { background:var(--surface-1); border:1px solid var(--line); box-shadow:none; padding:10px 17px; }
-  button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:0 9px 20px color-mix(in srgb,var(--accent) 22%,transparent); }
-  button.primary:hover { box-shadow:0 13px 28px color-mix(in srgb,var(--accent) 32%,transparent); }
-  button:hover,.btn:hover { border-color:var(--accent); }
-  .grid { gap:16px; }
-  .card { padding:22px; border:1px solid var(--line); border-radius:8px; background:var(--surface-1); box-shadow:none;
-    display:flex; flex-direction:column; min-width:0; }
+  .hero h1 { font-size:28px; line-height:1.25; }
+  .hero .sub { margin-top:10px; font-size:13.5px; color:var(--muted); }
+  .hero .row { margin-top:20px !important; }
+
+  /* — buttons — */
+  button, .btn { background:var(--surface-1); border:1px solid var(--line); box-shadow:none;
+    padding:9px 16px; font-size:13.5px; border-radius:8px; }
+  button:hover, .btn:hover { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); transform:translateY(-1px); }
+  button:active, .btn:active { transform:scale(.97); }
+  button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:none; }
+  button.primary:hover { background:color-mix(in srgb, var(--accent) 86%, var(--surface-1)); box-shadow:var(--sh-1); }
+  .saved, .badge.saved { color:var(--mark-text); }
+  button.saved { border-color:color-mix(in srgb, var(--mark) 40%, var(--line)); }
+  button.ghost { background:transparent; border-color:transparent; box-shadow:none; }
+  button.ghost:hover { background:var(--surface-2); border-color:var(--line); }
+  button:focus-visible, .btn:focus-visible { outline:2px solid var(--accent-text); outline-offset:3px; }
+  /* — cards — */
+  .card { padding:20px 22px; border:1px solid var(--line); border-radius:var(--r-lg);
+    background:var(--surface-1); box-shadow:none; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
   .card::before { display:none; }
-  .card:hover { transform:translateY(-3px); box-shadow:var(--sh-2); border-color:var(--line-strong); }
-  .card h3 { font-size:17px; line-height:1.38; }
-  .abs { color:var(--muted); line-height:1.7; opacity:1; -webkit-line-clamp:3; }
-  .badge,.chip { background:var(--surface-2); border:1px solid var(--line); box-shadow:none; }
-  .whyline { border-top:1px solid var(--line); padding-top:13px; }
+  .card:hover { transform:translateY(-2px); box-shadow:var(--sh-2); border-color:var(--line-strong); }
+  .card:active { transform:none; }
+  .card h3 { font-size:16px; line-height:1.38; margin-bottom:8px; }
+  .card .actions { padding-top:16px; margin-top:auto; gap:8px; }
+  .card .actions button { font-size:12px; padding:7px 12px; }
+  .card .actions .read-action { margin-left:auto; color:var(--accent-text); border-color:var(--accent-soft); }
+  .abs { color:var(--muted); line-height:1.7; opacity:1; -webkit-line-clamp:3; font-size:13px; }
+  .badge, .chip { background:var(--surface-2); border:1px solid var(--line); box-shadow:none; font-size:11px; }
+  .whyline { border-top:1px solid var(--line); padding-top:12px; margin-top:12px; font-size:12px; }
   .whyline span { background:none; border:0; padding:0; border-radius:0; box-shadow:none; }
-  .ai-line { background:none; padding:2px 0 2px 13px; border:0; border-left:2px solid var(--ai); border-radius:0; box-shadow:none; }
-  .devbanner { max-width:1160px; margin:18px auto 0; }
-  .empty { background:var(--surface-2); border:1px dashed var(--line-strong); box-shadow:none; }
-  .page { background:var(--base); }
-  .page-inner { max-width:860px; padding:38px; background:transparent; border:0; border-radius:0; box-shadow:none; }
-  .pet { background:var(--accent); color:var(--accent-ink); box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 30%,transparent); }
-  .petpanel { border:1px solid var(--line); box-shadow:var(--sh-3); }
-  @media (max-width:700px) {
-    header.top { padding:14px 16px; gap:10px; }
-    .right { width:100%; margin-left:0; justify-content:space-between; }
-    main { padding:26px 16px 70px; }
-    .hero { padding:24px 0; }
-    .hero h1 { font-size:28px; }
-    .page-inner { padding:24px 18px; }
-  }
-  .icon { display:inline-block; width:18px; height:18px; flex:0 0 18px; background:currentColor;
-    mask:center / contain no-repeat; -webkit-mask:center / contain no-repeat; }
-  .icon.book { mask-image:url("/icons/book-open.svg"); -webkit-mask-image:url("/icons/book-open.svg"); }
-  .icon.sparkles { mask-image:url("/icons/sparkles.svg"); -webkit-mask-image:url("/icons/sparkles.svg"); }
-  .icon.library { mask-image:url("/icons/library.svg"); -webkit-mask-image:url("/icons/library.svg"); }
-  .icon.profile { mask-image:url("/icons/sliders-horizontal.svg"); -webkit-mask-image:url("/icons/sliders-horizontal.svg"); }
-  .icon.bookmark { mask-image:url("/icons/bookmark.svg"); -webkit-mask-image:url("/icons/bookmark.svg"); }
-  .icon.mode { mask-image:url("/icons/sun-moon.svg"); -webkit-mask-image:url("/icons/sun-moon.svg"); }
-  .icon.settings { mask-image:url("/icons/settings.svg"); -webkit-mask-image:url("/icons/settings.svg"); }
-  .brand-mark { width:34px; height:34px; display:grid; place-items:center; border-radius:8px;
-    background:var(--accent); color:var(--accent-ink); }
-  .sws { display:flex; gap:6px; }
-  button.sw { min-width:0; width:14px; height:14px; padding:0; border:0; box-shadow:none; }
-  button.sw.active { outline:1px solid var(--muted); outline-offset:3px; }
-  button.sw:hover { transform:scale(1.12); }
-  .modes { box-shadow:none; padding:0; }
-  #modeBtn { width:34px; height:34px; padding:8px; border-radius:50%; }
-  button:focus-visible,.btn:focus-visible { outline:2px solid var(--accent-text); outline-offset:4px; }
-  .edition { display:flex; align-items:center; gap:9px; color:var(--muted); font-size:12px; margin-bottom:14px; }
-  .edition .live-dot { width:6px; height:6px; background:var(--good); border-radius:50%; }
-  .view-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
-  .view-heading .count { font-size:13px; color:var(--muted); white-space:nowrap; }
-  .paper-topline { display:flex; align-items:center; justify-content:space-between; margin-bottom:15px; gap:12px; }
-  .paper-number { font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:8px; }
+  .ai-line { background:none; padding:3px 0 3px 12px; border:0;
+    border-left:2px solid var(--ai); border-radius:0; box-shadow:none; font-size:12.5px; }
+  .grid { gap:14px; }
+  .paper-topline { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:12px; }
+  .paper-number { font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;
+    display:flex; align-items:center; gap:8px; }
   .paper-number .icon { color:var(--accent-text); }
-  .paper-title,.library-title { padding:0; display:block; white-space:normal; text-align:left; font:inherit; color:inherit;
-    background:none; border:0; border-radius:0; box-shadow:none; overflow-wrap:anywhere; }
-  .paper-title:hover,.library-title:hover { transform:none; color:var(--accent-text); }
-  .card .actions { padding-top:18px; margin-top:auto; gap:8px; }
-  .card .actions button { font-size:12px; }
-  .card .actions .read-action { margin-left:auto; color:var(--accent-text); }
-  .lib-item { border-radius:8px; box-shadow:none; align-items:flex-start; min-width:0; }
-  .lib-item:hover { transform:translateY(-2px); box-shadow:var(--sh-2); }
+  .paper-title, .library-title { padding:0; display:block; white-space:normal; text-align:left;
+    font:inherit; color:inherit; background:none; border:0; border-radius:0; box-shadow:none; overflow-wrap:anywhere; }
+  .paper-title:hover, .library-title:hover { transform:none; color:var(--accent-text); }
+
+  /* — library items — */
+  .lib-item { border-radius:var(--r-lg); box-shadow:none; border:1px solid var(--line);
+    background:var(--surface-1); align-items:flex-start; min-width:0; }
+  .lib-item:hover { transform:translateY(-2px); box-shadow:var(--sh-2); border-color:var(--line-strong); }
+  .lib-item h4 { font-size:14px; line-height:1.45; }
   .library-copy { flex:1; min-width:0; }
   #library { grid-template-columns:1fr; }
+
+  /* — badges and meta — */
+  .meta { font-size:11.5px; margin-bottom:9px; }
+  .edition { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; margin-bottom:12px; }
+  .edition .live-dot { width:6px; height:6px; background:var(--mark); border-radius:50%; }
+  .view-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:4px; }
+  .view-heading .count { font-size:12.5px; color:var(--muted); white-space:nowrap; }
+  .label, .brand, .refcard .rlabel, .msg .meta { letter-spacing:0; }
+
+  /* — inputs — */
+  input[type=text], input[type=password] { background:var(--surface-1); box-shadow:none;
+    border:1px solid var(--line-strong); border-radius:8px; color:var(--text); font:inherit; padding:9px 14px; }
+  input[type=text]:focus, input[type=password]:focus { outline:none; border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft); }
   .switch input { appearance:none; width:30px; height:18px; border-radius:12px; margin:0; position:relative;
     background:var(--line-strong); border:1px solid var(--muted); cursor:pointer; transition:background .18s ease; }
   .switch input::after { content:""; position:absolute; width:12px; height:12px; top:2px; left:2px;
@@ -583,44 +411,111 @@
   .switch input:checked { background:var(--accent); border-color:var(--accent); }
   .switch input:checked::after { transform:translateX(12px); background:var(--accent-ink); }
   .switch input:focus-visible { outline:2px solid var(--accent-text); outline-offset:3px; }
-  .pet { width:48px; height:48px; padding:0; }
-  .pet .icon { width:21px; height:21px; }
-  .petpanel header { box-shadow:none; border-bottom:1px solid var(--line); }
+
+  /* — page / detail — */
+  .page { background:var(--base); }
+  .page-inner { max-width:860px; padding:36px 48px; background:transparent; border:0; border-radius:0; box-shadow:none; }
+
+  /* — chat panel — */
+  .pet { width:46px; height:46px; background:var(--accent); color:var(--accent-ink); padding:0;
+    box-shadow:var(--sh-2); border:0; }
+  .pet .icon { width:20px; height:20px; }
+  .pet:hover { transform:translateY(-2px) scale(1.04); }
+  .petpanel { border:1px solid var(--line); box-shadow:var(--sh-3); background:var(--surface-1); }
+  .petpanel header { box-shadow:none; border-bottom:1px solid var(--line); padding:11px 14px; }
   .petpanel .prow input { min-width:0; }
-  input[type=text] { background:var(--surface-1); box-shadow:none; border:1px solid var(--line-strong); border-radius:8px; }
-  input[type=text]:focus { box-shadow:0 0 0 2px var(--accent-soft); }
+  .msg { border:1px solid var(--line); box-shadow:none; }
+  .msg.user { background:var(--surface-2); }
+  .msg.ai { background:var(--surface-1); }
+  .msg.sys { border:none; box-shadow:none; background:transparent; }
+  .fol { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
+  .fol button { font-size:12px; padding:5px 11px; background:var(--surface-1); }
+  .fol button:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .refcard { border-radius:8px; border:1px solid var(--line); background:var(--surface-2); box-shadow:none; }
+  .refcard .rlabel { font-size:10px; color:var(--muted); }
+
+  /* — toasts & misc — */
+  .toast { border:1px solid var(--line); box-shadow:var(--sh-3); background:var(--surface-1);
+    border-left:3px solid var(--accent); }
+  .toast.ai { border-left-color:var(--ai); }
+  .toast.ok { border-left-color:var(--good); }
+  .toast.warn { border-left-color:var(--warn); }
+  .toast.err { border-left-color:var(--bad); }
+  .empty { background:var(--surface-2); border:1px dashed var(--line-strong); box-shadow:none; }
+  .devbanner { max-width:1200px; }
   #preview { background:var(--surface-1); border:1px solid var(--line); box-shadow:var(--sh-3); }
-  .reader .rbar { background:var(--surface-1); border-bottom:1px solid var(--line); box-shadow:none; flex-wrap:wrap; }
-  .reader .pages { min-width:0; }
+  .reader .rbar { background:var(--surface-1); border-bottom:1px solid var(--line); box-shadow:none; }
   .reader .rside { border-right:1px solid var(--line); box-shadow:none; }
   .reader .pg { box-shadow:var(--sh-2); }
-  .label,.brand,.refcard .rlabel,.msg .meta { letter-spacing:0; }
-  .refcard { border-radius:8px; }
-  #profileBox { margin-bottom:0; }
-  .profile-facts { display:flex; flex-wrap:wrap; gap:28px; padding-top:8px; }
-  .profile-facts span { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
-  .profile-facts b { font-size:24px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
-  main > section:not(.hidden) { animation:viewEnter .32s var(--ease-out) both; }
-  @keyframes viewEnter { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  /* — icon system — */
+  .icon { display:inline-block; width:18px; height:18px; flex:0 0 18px; background:currentColor;
+    mask:center / contain no-repeat; -webkit-mask:center / contain no-repeat; }
+  .icon.book        { mask-image:url("/icons/book-open.svg");          -webkit-mask-image:url("/icons/book-open.svg"); }
+  .icon.sparkles    { mask-image:url("/icons/sparkles.svg");           -webkit-mask-image:url("/icons/sparkles.svg"); }
+  .icon.library     { mask-image:url("/icons/library.svg");            -webkit-mask-image:url("/icons/library.svg"); }
+  .icon.profile     { mask-image:url("/icons/sliders-horizontal.svg"); -webkit-mask-image:url("/icons/sliders-horizontal.svg"); }
+  .icon.bookmark    { mask-image:url("/icons/bookmark.svg");           -webkit-mask-image:url("/icons/bookmark.svg"); }
+  .icon.mode        { mask-image:url("/icons/sun-moon.svg");           -webkit-mask-image:url("/icons/sun-moon.svg"); }
+  .icon.settings    { mask-image:url("/icons/settings.svg");           -webkit-mask-image:url("/icons/settings.svg"); }
+  .icon.chart       { mask-image:url("/icons/chart-column.svg");       -webkit-mask-image:url("/icons/chart-column.svg"); }
+  .icon.folder      { mask-image:url("/icons/folder.svg");             -webkit-mask-image:url("/icons/folder.svg"); }
+  .icon.folder-open { mask-image:url("/icons/folder-open.svg");        -webkit-mask-image:url("/icons/folder-open.svg"); }
+  .icon.chevron-down{ mask-image:url("/icons/chevron-down.svg");       -webkit-mask-image:url("/icons/chevron-down.svg"); }
+  .icon.plus        { mask-image:url("/icons/plus.svg");               -webkit-mask-image:url("/icons/plus.svg"); }
+  .icon.check       { mask-image:url("/icons/check.svg");              -webkit-mask-image:url("/icons/check.svg"); }
+
+  /* — header controls — */
+  .modes { box-shadow:none; padding:0; }
+  #modeBtn { width:34px; height:34px; padding:8px; border-radius:50%; }
+
+  /* — motion — */
+  button, .btn, .tab, .card, .lib-item, .pet {
+    transition: transform .16s var(--ease-out), background .18s ease, border-color .18s ease,
+                box-shadow .22s var(--ease-out), color .18s ease, opacity .18s ease;
+  }
+  .card { transition: transform .2s var(--ease-out), box-shadow .22s var(--ease-out), border-color .18s ease; }
+  .fol { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; animation:springUp .3s var(--ease-spring) both; }
+  .fol button { font-size:12px; padding:5px 11px; background:var(--surface-1);
+    animation:springUp .3s var(--ease-spring) both; }
+  .fol button:nth-child(2) { animation-delay:.03s; }
+  .fol button:nth-child(3) { animation-delay:.06s; }
+  .fol button:nth-child(4) { animation-delay:.09s; }
+  .toast { animation:slideInRight .26s var(--ease-out) both; }
+  main > section:not(.hidden) { animation:viewEnter .28s var(--ease-out) both; }
+  #preview.show { animation:previewIn .16s var(--ease-out) both; }
+  @keyframes springUp { 0%{opacity:0;transform:translateY(10px) scale(.988);} 65%{transform:translateY(-1px) scale(1.003);} 100%{opacity:1;transform:none;} }
+  @keyframes slideInRight { from{opacity:0;transform:translateX(16px);} to{opacity:1;transform:none;} }
+  @keyframes viewEnter { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
+  @keyframes previewIn { from{opacity:0;transform:translateY(8px) scale(.98);} to{opacity:1;transform:none;} }
+
+  /* — responsive — */
   @media (max-width:900px) {
-    header.top { gap:14px; } .stat { gap:7px; }
+    header.top { gap:12px; }
     .petpanel.docked { width:310px; }
   }
   @media (max-width:700px) {
-    .tabs { margin-left:auto; } .tab { padding:8px 10px; font-size:12px; }
+    header.top { padding:12px 16px; gap:10px; }
+    .right { width:100%; margin-left:0; justify-content:space-between; }
+    .tabs { margin-left:auto; }
+    .tab { padding:7px 10px; font-size:12px; }
     .tab .icon { display:none; }
     .brand { font-size:14px; gap:8px; }
     .brand-mark { width:28px; height:28px; }
-    .card { padding:20px; } .card h3 { font-size:16px; }
+    main { padding:20px 16px 70px; }
+    .hero { padding:20px 0; }
+    .hero h1 { font-size:24px; }
+    .card { padding:18px; }
+    .card h3 { font-size:15px; }
+    .page-inner { padding:22px 18px; }
     .view-heading { align-items:flex-start; }
-    .devbanner { margin:12px 16px 0; border-radius:8px; }
-    .lib-item { flex-wrap:wrap; gap:12px; }
+    .devbanner { margin:10px 16px 0; border-radius:8px; }
+    .lib-item { flex-wrap:wrap; gap:10px; }
     .library-copy { flex-basis:calc(100% - 40px); }
     .petpanel.docked { position:absolute; right:12px; bottom:0; width:min(380px,calc(100% - 24px));
       height:min(60%,480px); margin:12px; z-index:5; }
     .reader .rside { width:100px; }
     .reader .rside .thumb canvas { width:72px; }
-    .reader .rbar { gap:5px; padding:8px; }
+    .reader .rbar { gap:5px; padding:8px; flex-wrap:wrap; }
     .reader .rbar h2 { min-width:120px; }
     #pin { width:100%; min-width:0; flex-basis:100%; }
     #toasts { left:16px; right:16px; bottom:76px; }
@@ -629,10 +524,11 @@
   @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
 </style>
 <link rel="stylesheet" href="/organization.css">
+<link rel="stylesheet" href="/profile.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="brand-mark"><i class="icon book" aria-hidden="true"></i></span>PaperDigHelper</div>
+  <div class="brand"><img class="brand-mark" src="/brand-mark.svg" alt="" aria-hidden="true"><span class="wordmark">Paper<em>Dig</em>Helper</span></div>
   <div class="project-selector">
     <div class="project-btn" id="projectBtn">
       <i class="icon folder" aria-hidden="true"></i>
@@ -652,13 +548,10 @@
     <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>
     <button class="tab" data-view="knowledge"><i class="icon book" aria-hidden="true"></i>知识库</button>
     <button class="tab" data-view="profile"><i class="icon profile" aria-hidden="true"></i>画像</button>
-    <a class="tab" href="/weekly_report.html"><i class="icon chart" aria-hidden="true"></i>周报</a>
-    <a class="tab" href="/settings.html"><i class="icon settings" aria-hidden="true"></i>设置</a>
   </nav>
   <div class="right">
     <div class="stat" id="stats"></div>
     <div class="controls">
-      <div class="sws" id="sws" title="强调色"></div>
       <div class="modes"><button class="tiny ghost" id="settingsBtn" title="AI 与接口设置" aria-label="AI 与接口设置"><i class="icon settings" aria-hidden="true"></i></button><button class="tiny ghost" id="modeBtn" title="切换明暗主题" aria-label="切换明暗主题"><i class="icon mode" aria-hidden="true"></i></button></div>
     </div>
   </div>
@@ -687,62 +580,7 @@
     <div id="library" class="grid"></div>
   </section>
 
-  <section id="view-profile" class="hidden">
-    <section class="hero">
-      <h1>我的画像</h1>
-      <div class="sub">研究兴趣与学习轨迹</div>
-      <div class="row" style="margin-top:16px">
-        <input type="text" id="pin" aria-label="固定关键词" placeholder="world model, JEPA, planning">
-        <button id="btnPin">保存关键词</button>
-        <button id="btnProfileSummary">AI 生成总结</button>
-      </div>
-    </section>
-
-    <section class="profile-stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">📚</div>
-        <div class="stat-value" id="statPapers">0</div>
-        <div class="stat-label">文献总数</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">⭐</div>
-        <div class="stat-value" id="statSaved">0</div>
-        <div class="stat-label">已收藏</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">👍</div>
-        <div class="stat-value" id="statPositive">0</div>
-        <div class="stat-label">正例反馈</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">👎</div>
-        <div class="stat-value" id="statNegative">0</div>
-        <div class="stat-label">负例反馈</div>
-      </div>
-    </section>
-
-    <section class="profile-section">
-      <h2>关键词分布</h2>
-      <div id="keywordCloud" class="keyword-cloud"></div>
-    </section>
-
-    <section class="profile-section">
-      <h2>兴趣时间线</h2>
-      <canvas id="interestTimeline" width="800" height="300"></canvas>
-    </section>
-
-    <section class="hero" id="profileBox"></section>
-
-    <div id="aiSummaryPanel" class="ai-summary-panel hidden">
-      <div class="panel-header">
-        <h3>AI 画像总结</h3>
-        <button class="tiny ghost" id="closeSummary">×</button>
-      </div>
-      <div id="aiSummaryContent" class="panel-content">
-        <div class="loading">生成中...</div>
-      </div>
-    </div>
-  </section>
+  <section id="view-profile" class="profile-page hidden" aria-label="用户画像"></section>
 </main>
 <section id="organizationRoot" class="hidden"></section>
 <footer id="foot"></footer>
@@ -788,89 +626,21 @@
 <div id="transPop"></div>
 
 <div id="preview"></div>
-<div id="detail" class="page hidden"></div>
+<div id="detail" class="page detail-page hidden"></div>
 <div id="settingsPage" class="page hidden" role="dialog" aria-modal="true" aria-label="设置"></div>
 <div id="toasts"></div>
 
+<script src="/profile-ui.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, triaging:false, version:'?',
+const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
                 currentProject:null, projects:[] };
 
-// ------------------------------------------------------------ projects
-async function loadProjects() {
-  try {
-    const data = await api('/api/projects');
-    state.projects = data.projects || [];
-    if (state.projects.length > 0 && !state.currentProject) {
-      state.currentProject = state.projects[0].id;
-      localStorage.setItem('pdh-current-project', state.currentProject);
-    }
-    renderProjectSelector();
-  } catch (e) {
-    console.error('Failed to load projects:', e);
-    toast('加载项目失败', 'error');
-  }
-}
-
-function renderProjectSelector() {
-  const current = state.projects.find(p => p.id === state.currentProject) || state.projects[0];
-  $('#currentProjectName').textContent = current ? current.name : '未选择项目';
-
-  $('#projectList').innerHTML = state.projects.map(p => {
-    const active = p.id === state.currentProject ? 'active' : '';
-    return `<div class="project-item ${active}" data-id="${p.id}">
-      <i class="icon folder" aria-hidden="true"></i>
-      <span>${esc(p.name)}</span>
-    </div>`;
-  }).join('');
-
-  document.querySelectorAll('.project-item').forEach(el => {
-    el.onclick = () => switchProject(el.dataset.id);
-  });
-}
-
-async function switchProject(projectId) {
-  if (projectId === state.currentProject) {
-    $('#projectDropdown').classList.remove('show');
-    return;
-  }
-
-  state.currentProject = projectId;
-  localStorage.setItem('pdh-current-project', projectId);
-  $('#projectDropdown').classList.remove('show');
-  renderProjectSelector();
-
-  // Reload current view with new project
-  await loadHome();
-  toast('已切换项目', 'ok');
-}
-
-$('#projectBtn').onclick = (e) => {
-  e.stopPropagation();
-  $('#projectDropdown').classList.toggle('show');
-};
-
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.project-selector')) {
-    $('#projectDropdown').classList.remove('show');
-  }
-});
-
-$('#createProjectBtn').onclick = () => {
-  window.location.href = '/project_creation.html';
-};
-
 // ------------------------------------------------------------ appearance
-const ACCENTS = ['violet','mint','coral','rose','amber'];
-function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m); }
-function setAccent(a){ document.documentElement.dataset.accent = a; localStorage.setItem('pdh-accent', a);
-  document.querySelectorAll('.sw').forEach(s => s.classList.toggle('active', s.dataset.a === a)); }
-const ACCENT_NAMES = {violet:'紫色', mint:'绿色', coral:'珊瑚色', rose:'玫瑰色', amber:'琥珀色'};
-$('#sws').innerHTML = ACCENTS.map(a => `<button class="sw" data-a="${a}" title="${ACCENT_NAMES[a]}" aria-label="${ACCENT_NAMES[a]}"></button>`).join('');
-document.querySelectorAll('.sw').forEach(s => s.onclick = () => setAccent(s.dataset.a));
+function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m);
+  window.dispatchEvent(new CustomEvent('pdh-mode', { detail:m })); }
 setMode(localStorage.getItem('pdh-mode') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-setAccent(localStorage.getItem('pdh-accent') || 'violet');
+localStorage.removeItem('pdh-accent');   // accent picker retired with the PaperDig palette
 $('#modeBtn').onclick = () => setMode(document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark');
 
 // ------------------------------------------------------------------ utils
@@ -978,101 +748,20 @@ function renderLibrary() {
       <button class="tiny danger" data-unsave="${esc(p.key)}">取消收藏</button>
     </article>`).join('') : `<div class="empty">暂无收藏论文</div>`;
 }
+let profileUI;
 function renderProfile() {
-  const p = state.profile || {};
-  const s = state.stats || {};
-
-  // Update stat cards
-  $('#statPapers').textContent = s.papers ?? 0;
-  $('#statSaved').textContent = s.saved ?? 0;
-  $('#statPositive').textContent = s.positive ?? 0;
-  $('#statNegative').textContent = s.negative ?? 0;
-
-  // Render keyword cloud
-  renderKeywordCloud(p.pinned_terms || []);
-
-  // Render interest timeline (placeholder for now)
-  renderInterestTimeline();
-
-  // Original profile box
-  $('#profileBox').innerHTML = `
-    <div class="sub">项目：<b>${esc(p.project || '')}</b></div>
-    <div class="label">固定关键词</div>
-    <div>${(p.pinned_terms || []).length ? p.pinned_terms.map(t => `<span class="badge">${esc(t)}</span>`).join(' ') : '<span class="sub">（无）</span>'}</div>
-    <div class="label">种子与反馈</div>
-    <div class="profile-facts"><span>正向种子<b>${(p.positive_seeds || []).length}</b></span><span>反馈正例<b>${(p.positive_feedback || []).length}</b></span>
-      <span>显式负例<b>${(p.explicit_negatives || []).length}</b></span><span>太难反馈<b>${(p.too_hard_feedback || []).length}</b></span></div>`;
-}
-
-function renderKeywordCloud(keywords) {
-  const cloud = $('#keywordCloud');
-  if (!keywords.length) {
-    cloud.innerHTML = '<div class="sub" style="text-align:center; padding:40px 0;">暂无固定关键词</div>';
+  if (!profileUI) profileUI = PDHProfile.create($('#view-profile'), {
+    api, refresh:load, openPaper:openDetail, notify:toast,
+    projectName:()=>state.projects.find(p=>p.id===state.currentProject)?.name || '当前项目'
+  });
+  if (state.insights?.error) {
+    $('#view-profile').innerHTML = '<h1>画像暂未加载</h1><p class="sub">本地数据读取失败，请重试。</p><button id="retryProfile">重试</button>';
+    $('#retryProfile').onclick=()=>load().catch(e=>toast(e.message,'err'));
     return;
   }
-
-  cloud.innerHTML = keywords.map(kw => {
-    const size = 14 + Math.random() * 8; // Random size between 14-22px
-    return `<span class="keyword-tag" style="font-size:${size}px">${esc(kw)}</span>`;
-  }).join('');
+  if (state.insights) profileUI.render(state.insights, state.profile,
+    state.projects.find(p=>p.id===state.currentProject)?.name || '当前项目');
 }
-
-function renderInterestTimeline() {
-  const canvas = $('#interestTimeline');
-  if (!canvas) return;
-
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
-
-  // Clear canvas
-  ctx.clearRect(0, 0, w, h);
-
-  // Simple placeholder visualization
-  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-text').trim();
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-
-  // Draw a sample timeline curve
-  const points = 20;
-  for (let i = 0; i <= points; i++) {
-    const x = (w / points) * i;
-    const y = h/2 + Math.sin(i * 0.5) * (h/4) + Math.random() * 20 - 10;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-
-  // Add axis labels
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
-  ctx.font = '11px system-ui';
-  ctx.fillText('时间轴（示例数据）', 10, h - 10);
-}
-
-$('#btnProfileSummary').onclick = async () => {
-  const panel = $('#aiSummaryPanel');
-  const content = $('#aiSummaryContent');
-
-  panel.classList.remove('hidden');
-  content.innerHTML = '<div class="loading">AI 正在生成画像总结...</div>';
-
-  try {
-    // TODO: Call API endpoint for AI summary
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-    content.innerHTML = `
-      <div style="line-height:1.7">
-        <p><strong>研究方向：</strong>世界模型、自监督学习、规划算法</p>
-        <p><strong>关注重点：</strong>基于 JEPA 架构的视觉表示学习，以及在强化学习中的应用</p>
-        <p><strong>阅读偏好：</strong>理论性较强的论文，偏好 NeurIPS/ICML 会议</p>
-        <p><strong>建议：</strong>可以关注最新的扩散模型与世界模型结合的工作</p>
-      </div>`;
-  } catch (e) {
-    content.innerHTML = `<div style="color:var(--warn)">生成失败：${esc(e.message)}</div>`;
-  }
-};
-
-$('#closeSummary').onclick = () => {
-  $('#aiSummaryPanel').classList.add('hidden');
-};
 
 // ------------------------------------------------------------------ projects
 async function loadProjects() {
@@ -1080,6 +769,9 @@ async function loadProjects() {
   state.projects = data.projects || [];
 
   // If no current project set, use first one
+  if (state.currentProject && !state.projects.some(p => p.id === state.currentProject)) {
+    state.currentProject = null;
+  }
   if (!state.currentProject && state.projects.length > 0) {
     state.currentProject = state.projects[0].id;
     localStorage.setItem('pdh-current-project', state.currentProject);
@@ -1106,6 +798,7 @@ function renderProjectSelector() {
 }
 
 async function switchProject(projectId) {
+  if (profileUI) profileUI.invalidate();
   state.currentProject = projectId;
   localStorage.setItem('pdh-current-project', projectId);
   renderProjectSelector();
@@ -1135,17 +828,14 @@ $('#projectList').addEventListener('click', (e) => {
   }
   $('#projectDropdown').classList.remove('show');
 });
-
-// Create project button (placeholder for now)
-$('#createProjectBtn').onclick = () => {
-  toast('创建项目功能即将推出', 'warn');
-  $('#projectDropdown').classList.remove('show');
-};
+$('#createProjectBtn').onclick = () => { window.location.href = '/project_creation.html'; };
 
 // ------------------------------------------------------------------ load
 async function load() {
-  const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
+  const projectAtStart = state.currentProject;
+  const params = state.currentProject ? `?project_id=${encodeURIComponent(state.currentProject)}` : '';
   const data = await api(`/api/home${params}`);
+  if (state.currentProject !== projectAtStart) return;
   state.version = data.server_version || '?';
   state.usage = data.usage || null;
   state.devMode = Boolean(data.dev_mode);
@@ -1163,6 +853,14 @@ async function load() {
       (state.usage ? ` 今日测试用量 ${state.usage.tokens.toLocaleString()} / ${state.usage.ceiling.toLocaleString()} token。` : '');
   }
   state.stats = data.stats; state.profile = data.profile; state.summaries = data.summaries || {};
+  try {
+    const insights = await api(`/api/profile/insights${params}`);
+    if (state.currentProject !== projectAtStart) return;
+    state.insights = insights;
+  } catch (e) {
+    state.insights = { error: true };
+    console.warn('Failed to load profile insights', e);
+  }
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
   renderStats(); renderCards(); renderProfile();
   const u = state.usage;
@@ -1225,13 +923,6 @@ $('#btnRefresh').onclick = async () => {
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
   finally { b.disabled = false; b.textContent = '抓取新论文'; }
 };
-$('#btnPin').onclick = async () => {
-  const body = { terms: $('#pin').value };
-  if (state.currentProject) body.project_id = state.currentProject;
-  const r = await api('/api/pin', body);
-  state.profile = r.profile; state.stats = r.stats; renderStats(); renderProfile(); toast('关键词已保存');
-};
-
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => {
     x.classList.toggle('active', x === t);
@@ -1247,13 +938,17 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   $('#view-today').classList.toggle('hidden', state.view !== 'today');
   $('#view-library').classList.toggle('hidden', state.view !== 'library');
   $('#view-profile').classList.toggle('hidden', state.view !== 'profile');
+  window.scrollTo(0,0);
+  if (state.view === 'profile') load().catch(e=>toast(e.message,'err'));
   if (organized) window.PDHOrganization.open(state.view).catch(e => toast(e.message, 'err'));
 });
 
 // --------------------------------------------------------------- feedback
 async function doFeedback(key, action) {
   if (action === 'unsave') {
-    await api('/api/unsave', { key });
+    const body = { key };
+    if (state.currentProject) body.project_id = state.currentProject;
+    await api('/api/unsave', body);
     toast('已取消收藏', 'warn');
   } else {
     const body = { key, action };
@@ -1326,34 +1021,56 @@ async function openDetail(key) {
   hidePreview();
   try {
     // POST with the key in the body: no URL-encoding pitfalls for URL-shaped keys.
-    const d = await api('/api/detail', { key });
+    const d = await api('/api/detail', { key, project_id: state.currentProject });
     const s = d.summary;
+    const joinedProjectIds = new Set((d.projects || []).map(p => p.project_id));
     $('#detail').innerHTML = `
-      <div class="page-inner">
-        <button class="ghost" id="backBtn">← 返回</button>
-        <div class="label" style="margin-top:20px">论文详情</div>
+      <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
+      <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
+        <div class="detail-head"><span class="detail-kicker">论文详情</span><button class="detail-close ghost" id="backBtn" aria-label="关闭论文详情">×</button></div>
         <h2>${esc(d.title)}</h2>
-        <div class="meta">
-          <span>${esc(d.published || '')}</span><span>${esc(d.source || '')}</span>
-          ${d.arxiv_id ? `<span class="badge">arXiv:${esc(d.arxiv_id)}</span>` : ''}
-          ${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
+        <div class="detail-meta">
+          ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}
+          ${d.arxiv_id ? `<span>arXiv:${esc(d.arxiv_id)}</span>` : ''}
+          ${d.doi ? `<span>DOI</span>` : ''}${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
         </div>
-        ${s ? `<div class="ai-line" style="margin-top:18px"><b>AI 速览</b> ${md(s.one_liner || '')}
-          <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div>` : ''}
-        <div class="label">完整摘要</div>
-        <div class="full">${md(d.abstract || '（无摘要）')}</div>
-        <div class="row" style="margin-top:20px">
-          <button class="primary" id="dRead">全屏阅读 PDF</button>
+        <div class="detail-actions">
+          <button class="primary" id="dRead">阅读 PDF</button>
           <button id="dToggle" class="${d.saved ? 'saved' : 'primary'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
-            ${d.saved ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库'}</button>
+            ${d.saved ? '✓ 已收藏' : '☆ 收藏到论文库'}</button>
+          ${d.url ? `<a class="btn tiny" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
           <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
           <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
-          <a class="btn" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>
         </div>
-      </div>`;
+        <section class="detail-section detail-projects"><h3>加入其他项目</h3>
+          <div class="detail-project-row">
+            <select id="dProjectTarget" aria-label="选择项目">
+              ${(state.projects || []).filter(p => p.id !== state.currentProject).map(p => `<option value="${esc(p.id)}" ${joinedProjectIds.has(p.id) ? 'disabled' : ''}>${esc(p.name)}${joinedProjectIds.has(p.id) ? '（已加入）' : ''}</option>`).join('')}
+            </select>
+            <button class="tiny" id="dAddProject" ${state.projects.filter(p => p.id !== state.currentProject && !joinedProjectIds.has(p.id)).length ? '' : 'disabled'}>加入项目</button>
+          </div>
+          <div class="hint">共享论文元数据；收藏、反馈和画像仍按项目独立记录。</div>
+          <div id="dProjectList" class="hint">${(d.projects || []).map(p => `${esc(p.name)} · ${esc(p.relation_kind || 'shared')}${p.source_project_name ? ` · 来源：${esc(p.source_project_name)}` : ''}`).join('<br>') || '尚未加入其他项目'}</div>
+        </section>
+        ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> ${md(s.one_liner || '')}
+          <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div></section>` : ''}
+        <section class="detail-section"><h3>摘要</h3><div class="full">${md(d.abstract || '暂无摘要')}</div></section>
+      </aside>`;
     $('#detail').classList.remove('hidden');
-    $('#backBtn').onclick = () => $('#detail').classList.add('hidden');
+    const close = () => $('#detail').classList.add('hidden');
+    $('#backBtn').onclick = close;
+    $('.detail-scrim').onclick = close;
     $('#dRead').onclick = () => window.PDH.openReader(d.key, d.title);
+    $('#dAddProject')?.addEventListener('click', async () => {
+      const target = $('#dProjectTarget')?.value;
+      if (!target) return;
+      try {
+        await api('/api/project-papers', { project_id: target, paper_key: d.key, relation_kind: 'shared', source_project_id: state.currentProject });
+        const projects = await api(`/api/paper/${encodeURIComponent(d.key)}/projects`);
+        $('#dProjectList').innerHTML = (projects.projects || []).map(p => `${esc(p.name)} · ${esc(p.relation_kind || 'shared')}${p.source_project_name ? ` · 来源：${esc(p.source_project_name)}` : ''}`).join('<br>') || '尚未加入其他项目';
+        toast('论文已加入项目', 'ok');
+      } catch (e) { toast(`加入失败：${e.message}`, 'err'); }
+    });
     window.PDH.setPetContext(d.key, d.title);
     $('#dToggle').onclick = async (ev) => {
       const btn = ev.currentTarget, wasSaved = btn.dataset.saved === 'true';
@@ -1361,7 +1078,7 @@ async function openDetail(key) {
       const now = !wasSaved;
       btn.dataset.saved = String(now);
       btn.className = now ? 'saved' : 'primary';
-      btn.textContent = now ? '✓ 已收藏（点击取消）' : '☆ 收藏到论文库';
+      btn.textContent = now ? '✓ 已收藏' : '☆ 收藏到论文库';
     };
   } catch (e) {
     toast(`打不开详情：${e.message}`, 'err', 6000);
@@ -1424,15 +1141,17 @@ async function openSettings() {
     };
   } catch (e) { toast(`打不开设置：${e.message}`, 'err'); }
 }
-$('#settingsBtn').onclick = openSettings;
+$('#settingsBtn').onclick = () => { window.location.href = '/settings.html'; };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('#detail').classList.add('hidden'); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
 document.addEventListener('scroll', hidePreview, { passive: true });
 
 // Load projects first, then load home
 (async () => {
   try {
+    const requested = new URLSearchParams(window.location.search).get('project_id');
+    if (requested) state.currentProject = requested;
     const saved = localStorage.getItem('pdh-current-project');
-    if (saved) state.currentProject = saved;
+    if (!requested && saved) state.currentProject = saved;
     await loadProjects();
     await load();
   } catch (e) {
@@ -1553,7 +1272,13 @@ async function layoutPages() {
   surface.className = 'page-surface';
   stage.appendChild(surface);
   box.appendChild(stage);
-  const usedScale = pageScale(R.pages[0]);
+  // Keep one scale for the entire tree. Previously a resize/re-fit could build
+  // wrappers at the old rendered scale while a lazy page rendered at its new
+  // page-specific scale; the later canvas then sat shrunken in the top-left of
+  // its wrapper. Set the tree scale before creating any lazy-page observers so
+  // layout and rendering share the same geometry.
+  const usedScale = R.fit ? pageScale(R.pages[0]) : (R.renderedScale || R.scale || 1.2);
+  R.renderedScale = usedScale;
   // During a pinch the whole surface is transformed, so the crisp layout must
   // use the exact gap captured from the final gesture frame.
   surface.style.gap = `${pendingBeforeLayout?.gap ?? 22}px`;
@@ -1607,7 +1332,6 @@ async function layoutPages() {
   surface.style.width = `${Math.max(box.clientWidth, heldSurfaceWidth, maxPageWidth)}px`;
   stage.style.width = `${surface.offsetWidth}px`;
   stage.style.height = `${surface.offsetHeight}px`;
-  R.renderedScale = usedScale;
   $('#zoomLabel').textContent = `${Math.round(usedScale * 100)}%`;
   // Keep the old surface visible while the new canvas is being prepared. Swap
   // only after the anchor page is ready, so a release never exposes a blank
@@ -1693,7 +1417,10 @@ function renderPage(n, root = document, jobs = R.jobs) {
     const pageDiv = wrap.querySelector('.pg');
     const canvas = pageDiv.querySelector('canvas');
     const textDiv = pageDiv.querySelector('.textLayer');
-    const vp = page.getViewport({ scale: pageScale(page) });
+    // Lazy pages must use the same tree scale as their wrapper. During zoom the
+    // visible tree stays at the rendered scale and is transformed visually;
+    // using the current zoom scale here would make a late page shrink/crop.
+    const vp = page.getViewport({ scale: R.renderedScale || pageScale(page) });
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(vp.width * dpr);
     canvas.height = Math.floor(vp.height * dpr);
@@ -1958,6 +1685,7 @@ async function ask(question) {
   }
   try {
     const r = await api('/api/qa', { key: pet.key, question, selection: quoted, image, page_hint: pageHint,
+                                    project_id: state.currentProject,
                                     context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
     thinking.remove();
     const meta = r.ok

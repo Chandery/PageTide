@@ -1,0 +1,19 @@
+2026-09-30 profile/weekly report truth-data checks
+
+- `.local/desktop-build-env/bin/python -m unittest discover -s tests -v`: exit 0, 206 tests passed.
+- `node --test tests/test_organization_ui.cjs tests/test_graph_motion.cjs`: exit 0, 35 tests passed.
+- Focused profile tests: `python3 -m unittest tests.test_profile_insights tests.test_ui_layout -v`: exit 0; deterministic keyword evidence, real-event timeline, weekly period comparison, and UI no-random/no-example assertions passed.
+- No provider call was made. The profile endpoint and weekly report use local SQLite paper, exposure, library and feedback records only; `weekly_digest` remains an unapproved proposal.
+- Manual empty-database probe returned `keyword_distribution=[]` and `timeline.has_activity=false`; no placeholder curve or trend was generated.
+- `python3 scripts/budget.py --check`: exit 0, budget arithmetic and generated document parity.
+- `python3 scripts/harness.py check`: exit 0, repository checks.
+- `python3 scripts/harness.py review changes/2026-09-30-profile-truth.json`: exit 0, change record covers the current worktree.
+- `.local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app`: exit 0; ad-hoc `codesign --verify --deep --strict` exit 0 for `src-tauri/target/release/bundle/macos/PaperDigHelper.app`.
+- Native smoke check on the rebuilt bundle: profile page rendered evidence-count bars, a real-activity timeline, and a factual summary; weekly report displayed measured current/previous term counts and the local no-activity analysis without placeholder text.
+- Follow-up dashboard pass: 16 focused UI/profile tests passed; native profile view showed readable cards for activity total, active weeks, interest score, evidence-paper count, plus separate timeline legend and caption. No canvas-side `活动量`/`兴趣分数` labels are used.
+- Paper-detail rail pass: the daily recommendation detail opens as a right-hand reading rail with a scrim, close control, real metadata, actions, AI context and abstract; the knowledge-base detail keeps the graph visible, wraps long titles, opens the real abstract by default, shows category evidence and provides PDF plus arXiv/DOI links when present.
+- Focused detail checks: `python3 -m unittest tests.test_ui_layout -v` exit 0 (15 tests); `node --test tests/test_organization_ui.cjs tests/test_graph_motion.cjs` exit 0 (35 tests), including paper URL construction and detail contracts.
+- Latest release build: `.local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app` exit 0; ad-hoc deep codesign and `git diff --check` exit 0. Native smoke was performed against the rebuilt app at `127.0.0.1:50118/`; the knowledge-base detail exposed the generated arXiv link and the wrapped title in the accessibility tree.
+- Environment completion: installed the declared `networkx==3.2.1` into the current user's Python 3.9 site-packages (the desktop build environment already carried the same version). A fresh `python3 -m unittest discover -s tests -v` then ran 205 tests with exit 0; the organization clustering and worker tests are green again.
+- PDF lazy-page scale pass: `renderPage()` now uses the layout tree's `R.renderedScale` so pages loaded after zoom cannot be rendered at a different scale from their wrappers; the layout regression test covers this exact function block. After rebuilding and restarting the app, a 23-page PDF was opened and scrolled through initial, middle and later pages; the later pages kept full-page content and readable text instead of shrinking into the upper-left corner.
+- Latest full regression after the PDF fix: `python3 -m unittest discover -s tests -v` exit 0 with 206 tests; Node graph/organization suite exit 0 with 35 tests; budget and harness checks exit 0.

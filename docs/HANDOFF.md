@@ -1,4 +1,64 @@
+# 当前工作单元：整体 UI 改为 logo 配色（2026-09-30）
+
+- owner 反馈原 UI（紫色拟物风 + 五种可选强调色）与书签海狮 logo 不搭、颜色太花。现改为单一纸/墨/红配色：`app/static/theme.css` 为唯一色板来源，四个页面都链接它；红色只用于收藏/书签、当前标签、字标 “Dig”、图谱起点等“标记”位置；标题用衬线字体；强调色选择器已删除。
+- 深浅模式统一为 `pdh-mode` 键（无值跟随系统），切换时图谱实时重绘。创建项目页原先是独立的深紫主题，也已并入同一色板；周报页补上了色板与返回按钮样式。
+- 零模型调用、零预算影响。`tests/test_ui_contrast.py` 锁定单一色板与对比度；283 + 30 个测试在用户终端通过。自审见 [UI 重设计自审](evidence/2026-09-30-ui-redesign-review.md)，记录见 [变更](../changes/2026-09-30-ui-redesign.json)。审美需 owner 在 .app 中确认。
+
+# 当前工作单元：应用图标替换为书签海狮（2026-09-30）
+
+- owner 选定「书签海狮」为 PaperDig 标志（落选：鼹鼠、寻回犬、瑞吉正面顶书等探索稿，已删除）。唯一生成源：`docs/design/logo/sealion.html`；`python3 docs/design/logo/build_icons.py` 重新导出 SVG 母版、`app/static/{brand-mark,favicon}.svg` 和 `src-tauri/icons/`（手工组装 `icon.icns`，因沙箱内 `iconutil` 失败）。≤32 px 使用简化母版（无腮红、鳍缝加宽、眼睛放大）。
+- 接入：`tauri.conf.json` 的 `bundle.icon`；首页品牌标识改为 `/brand-mark.svg`；四个页面加 SVG favicon。`app/static/icons/` 下的功能性线条图标没有改动。零模型调用，零预算影响。
+- 验证见 [检查](evidence/2026-09-30-app-icon-checks.txt)：281 个测试在用户终端全部通过（沙箱不允许本地端口绑定），桌面构建成功，.app 内的 `icon.icns` 与源文件一致。Dock/Finder 可能缓存旧图标，需重新启动应用或重建图标缓存后才会显示新图标。
+
+# 当前工作单元：PROJECT-01 依赖链收口（2026-09-30）
+
+- 范围：只收口 `PLAN-02`/`BUDGET-01`/`DATA-01` → `CORE-01`/`REUSE-01` → `PROFILE-01` → `EVAL-01`/`AI-01` → `PROJECT-01`；`PROFILE-02`、`PILOT-01` 状态不变。没有真实模型调用，`project_guidance` 仍 `owner_approved=false`。
+- 结果：`BUDGET-01` 为 `done`；其余 8 项为 `review`，逐项缺口见 [链路状态](evidence/2026-09-30-project01-chain-status.md) 与 `harness/tasks.json` 的 `missing_inputs`。最关键的 owner 输入：PLAN-02 的最小有意义差值/样本量/资源目标、owner 盲评标签、是否接受保留现有排序器、`project_guidance` 真实调用批准。
+- 新增行为：画像冻结/解冻、恢复默认（可找回原钉死词）；反馈幂等；撤销回放一致（收藏保留，沿用画像重构决定）；“太难”不进入负例；不足五篇给出 `shortfall` 原因；种子逐个报告 resolved/duplicate/not_found/network_error/failed（404 不重试）；迁移前自动备份；删除项目清理曝光/问答/引导记录/项目设置；跨项目加入不会把种子降级；只能取消草稿会话。网关预留账本与 AI 总开关见 [ADR 0009](decisions/0009-gateway-ledger-profile-control.md)。
+- 本地基线：[REUSE-01 基线](evidence/2026-09-30-reuse-baseline.md)，SVM 相比现有排序器无实质增益；P@5 饱和，结论只作探索性参考；上游探针未运行。
+- 测试：`tests/test_profile_core_chain.py`、`tests/test_project_chain.py`、`tests/test_gateway_budget.py`。本沙箱禁止本地端口绑定，23 个 HTTP 测试无法运行；新增路由用 socketpair 驱动真实 Handler 补测（15/15），详见 [检查](evidence/2026-09-30-project01-chain-checks.txt)。需在允许 `sandbox.network.allowLocalBinding` 的环境重跑全量。`harness.py review changes/2026-09-30-project01-chain.json` 目前只剩这一项未通过（测试检查如实记录 exit 1）。
+- 独立审查（结论：修复后通过，无阻断项）：已修复 3 个重要问题：自由文本或异常种子在项目写入后抛出未捕获错误；取消收藏后重复点“有用”仍报告已保存；冻结期间撤销冻结前的反馈不生效。另外已限制客户端设置 seed 关系，并修正了基线表的措辞。其余次要项见 [审查记录](evidence/2026-09-30-project01-chain-review.md)。
+- 已知未做：设置页的推荐数量、衰减窗口、新论文加权、来源、更新频率、时间偏好字段仍未接入后端；“探索主题”未成为结构化画像字段。
+
+# 当前工作单元：PROJECT-01 项目引导与跨项目共享（2026-10-01）
+
+已实现本地 `project_guidance_sessions` 草稿会话、六轮结构化引导、候选预览、用户确认和本地降级；手动 DOI/arXiv 种子逐个解析并记录部分失败。新增 `project_papers` 与 `project_library` 迁移，使规范论文事实可跨项目复用，同时反馈、收藏、曝光、推荐、画像和问答历史保持项目隔离。论文详情支持显式加入其他项目，项目删除只清理关系和项目状态，不删除全局论文事实。
+
+新增验证覆盖会话恢复/取消/六轮上限、AI/本地路径、候选确认、共享论文隔离、删除保留、HTTP 路由和创建页静态行为。预算登记了独立的 `project_guidance` 操作，但该操作标记为待 owner 批准，网关会强制本地模式；本工作单元没有进行真实模型调用。待完成：完整 harness/review 记录、桌面构建及独立审查。
+
 # 当前交接：推荐优先路线、复用调研与行动前 token 预算
+
+## 2026-09-30 画像证据导向重构（Current）
+
+- 画像页正在从重复统计卡和长条图改为“当前判断→证据→活动→本周变化→修正”阅读顺序；固定关键词、收藏、有用、不相关、太难分组展示。
+- 新增本地证据接口 `/api/profile/evidence`，项目隔离、分页上限 25 条；反馈撤销保留收藏并即时刷新画像。
+- 周报改为复用画像页的 UTC 周期统计，保持零 token；未引入 AI 调用或外发数据。
+- 当前 worktree 仍包含此前图谱/详情/画像事实改动；完整测试、harness、预算检查、桌面构建和原生验收已记录在 [画像重构检查](evidence/2026-09-30-profile-redesign-checks.txt) 与 [变更记录](../changes/2026-09-30-profile-redesign.json)。
+
+
+## 2026-09-30 画像与周报事实数据修订（Current）
+
+- 画像关键词分布改为从当前项目真实论文证据计算：种子、正向反馈和收藏按可解释权重汇总，固定关键词单独标记；不再使用随机字号或无证据的固定示例。
+- 兴趣时间线改为记录实际曝光、收藏与反馈的 12 个周桶；正向/负向反馈形成兴趣分数，太难单独统计；没有活动时显示空状态，不把无动作猜成不感兴趣。
+- 画像总结改为本地事实摘要，显示关键词证据篇数和有活动的周数；周报关键词变化比较本周与前一周真实收藏/正向反馈论文的词项计数，变化条目带有前后计数。
+- 周报统计保持零 token；现有 `weekly_digest` 仍是未批准提案，未新增或触发模型调用。证据：[画像事实检查](evidence/2026-09-30-profile-truth.txt)、[变更记录](../changes/2026-09-30-profile-truth.json)。
+- 当前测试覆盖关键词确定性、真实事件时间线、周报前后周期比较和画像 UI 不含随机/示例数据；真实项目的长期兴趣收益仍需 owner 试用确认。
+
+## 2026-09-30 论文详情阅读栏修订（Current）
+
+- 今日推荐的论文详情改为右侧滑入阅读栏：背景保留可见，标题、元数据、阅读/收藏/原文操作、AI 速览与完整摘要按 Connected Papers 的阅读顺序组织，关闭按钮和 Escape 都能返回。
+- 论文库/知识图谱沿用同一层级：知识图谱右侧详情保留图谱在左，标题自然换行，摘要默认展开，分类显示为可验证的标签；已有 arXiv、DOI 或落地页时提供真实原文链接，不生成引用数量或作者等缺失字段。
+- 证据：[画像事实检查](evidence/2026-09-30-profile-truth.txt)。普通详情与知识库详情的聚焦测试、35 个 Node UI/动效测试、桌面构建和签名校验已完成。
+- 已将 `networkx==3.2.1` 补到当前用户 Python 环境，与 `requirements-desktop.txt` 和桌面打包环境一致；全量 Python 测试 205 项通过，图谱聚类与 worker 测试恢复为绿色。
+
+## 2026-09-30 Connected Papers 图谱可读性修订（Current）
+
+- 对照 Dia 中 Connected Papers 的布局重新整理知识图谱：首次进入以当前论文为中心，用受控径向分布显示周边论文；避免 Cytoscape 后台自动排布把节点推到视口外。
+- 节点改为紧凑的标题锚点 + 年份，左侧目录在每个类别下直接列出论文，可以直接聚焦节点并同步详情；类别筛选继续定位到对应论文集合。
+- 关闭论文详情后，图谱布局切换为“目录 + 全宽画布”，重新计算 Cytoscape 尺寸，避免右侧留下空栏。
+- 同一类别使用同一色相，出版年份只改变明暗，越新的论文越深；边改为细实线并按关系权重调透明度，类别补充边明确标注为非引用关系。
+- 证据：[图谱修订检查](evidence/2026-09-30-graph-refinement.txt)、[变更记录](../changes/2026-09-29-graph-redesign.json)。35 个 Node UI/动效测试、199 个 Python 测试通过；`budget.py --check`、`harness.py check`、桌面构建和 ad-hoc 签名校验通过。
+- 仍未测量大规模混合年份语料的关系质量和密度；当前类别边只表达整理关系，不是引用事实。运行包位于 `src-tauri/target/release/bundle/macos/PaperDigHelper.app`。
 
 ## 2026-09-29 Feedback simplification (Phase 4) (Current)
 
@@ -277,5 +337,11 @@ UI 第三轮（按 owner 反馈第二轮）：
 - **实验 4（滚动 10 批，跨 12 个月）**：重建 754 篇候选、累计 268 条标签；9 个评估批 mean AUC rolling **0.910** vs frozen **0.891**（delta **+0.018**，wins 4 / ties 3 / losses 2）。→ **实验 3 高估了反馈收益**；正确说法是“小幅、不稳定”。见 [滚动反馈 1](evidence/2026-09-11-rolling-feedback-1.md)。
 - **重要方法学缺陷**：标注提示词里包含了种子标题 → 种子相似论文被构造性地判为有用，frozen/rolling 的 AUC 都偏高。**修好提示词（不再给种子标题）前，排序与反馈评估都不可信。** `E-RANKING`、`E-FEEDBACK-VALUE` 保持 `not_run`。
 - taomu 网关实测：屏蔽无 UA / `Python-urllib` UA；每次调用含 ~4,224 cached 隐藏前缀。两次标注共 15 次调用约 82k token。
+
+**2026-09-30 PDF 懒加载缩放修复**
+
+- 修复后续 PDF 页面缩小到左上角的问题：页面树建立时固定 `R.renderedScale`，懒加载页面沿用同一比例；缩放手势只做视觉变换，不让后加载页面误用当前缩放值。
+- 已在重启后的最新桌面包中打开 23 页论文，滚动到初始、中段和后段页面验证，页面内容保持完整宽度，文字和图表没有缩到左上角。
+- `python3 -m unittest discover -s tests -v`：206 项通过；Node 图谱/组织测试 35 项通过；预算、harness、桌面构建和签名校验均通过。
 
 **不开始新的 PDF 阅读器平台，不自动执行整条路线。**

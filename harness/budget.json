@@ -173,6 +173,27 @@
       },
       "scope": "optional one-off bilingual term setup; never recurring automatically"
     },
+    "project_guidance": {
+      "owner_approved": false,
+      "approval_note": "待 owner 单独批准 project_guidance；未批准前网关强制本地模式。",
+      "prompt": "prompts/project-guidance.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 800,
+        "output": 300
+      },
+      "cap": {
+        "input": 1200,
+        "output": 500
+      },
+      "input_cap_components": {
+        "instructions_and_schema": 350,
+        "bounded_conversation": 700,
+        "framing_and_margin": 150
+      },
+      "scope": "one explicit project-creation session of at most six turns; current draft only, no other project data, no paper selection"
+    },
     "paper_vision_qa": {
       "prompt": "prompts/paper-vision-qa.md",
       "trigger": "interactive",

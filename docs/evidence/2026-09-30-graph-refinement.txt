@@ -1,0 +1,21 @@
+2026-09-30 Connected Papers graph refinement verification
+
+Focused UI and motion tests:
+  command: node --test tests/test_organization_ui.cjs tests/test_graph_motion.cjs
+  result: exit 0; 35 tests passed, 0 failed.
+
+Repository Python suite in the bundled desktop environment:
+  command: .local/desktop-build-env/bin/python -m unittest discover -s tests -q
+  result: exit 0; Ran 199 tests in 122.475s; OK.
+
+Harness and budget:
+  python3 scripts/budget.py --check: exit 0
+  python3 scripts/harness.py check: exit 0
+
+Desktop release:
+  .local/desktop-build-env/bin/python scripts/build_desktop.py: succeeded
+  cargo tauri build --bundles app: succeeded
+  codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app: exit 0 after ad-hoc signing.
+
+Manual native QA:
+  Relaunched the rebuilt app and opened 知识图谱. The first view showed the selected origin in the center with surrounding paper nodes and compact labels; papers appeared directly beneath their categories in the left directory and remained clickable for direct focus. Closing the paper detail hid the detail column and expanded the graph across the remaining workspace. The graph worker reported 11 nodes and 9 relations in the fixture. Category colors remained consistent while node lightness was derived from publication year.

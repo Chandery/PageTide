@@ -1,9 +1,58 @@
+import json
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
 from app import server
+
+
+class WorkerStdoutPurityTests(unittest.TestCase):
+    """The worker's stdout is a single JSON blob; server.organization_job json.loads it whole.
+
+    Regression: apply_migrations() used to print its progress to stdout, so a
+    first run on a fresh database produced "Database is up to date (version 1)"
+    ahead of the JSON and the knowledge graph failed to load with
+    "JSONDecodeError: Expecting value: line 1 column 1 (char 0)".
+    """
+
+    def _run_worker(self, db_path):
+        # Same argv shape the server builds: db, project, parent pid, operation.
+        return subprocess.run(
+            [sys.executable, "-m", "app.organization_worker",
+             db_path, "default", str(os.getpid()), "graph"],
+            capture_output=True, text=True, timeout=120,
+        )
+
+    def test_fresh_database_stdout_is_pure_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = os.path.join(tmp, "fresh.sqlite")
+            result = self._run_worker(db)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)  # must not raise
+            self.assertIn("relations", payload)
+            self.assertEqual(result.stdout.strip().count("\n"), 0,
+                             f"stdout carried more than one value: {result.stdout!r}")
+
+    def test_second_run_stdout_is_pure_json(self):
+        """The up-to-date branch is the one that used to pollute stdout."""
+        with tempfile.TemporaryDirectory() as tmp:
+            db = os.path.join(tmp, "twice.sqlite")
+            self._run_worker(db)
+            result = self._run_worker(db)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertIn("relations", payload)
+
+    def test_migration_progress_goes_to_stderr_not_stdout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run_worker(os.path.join(tmp, "logged.sqlite"))
+            self.assertIn("migration", result.stderr.lower(),
+                          "expected migration diagnostics on stderr")
+            self.assertNotIn("migration", result.stdout.lower())
+            self.assertNotIn("Database is up to date", result.stdout)
 
 
 class WorkerLifecycleTests(unittest.TestCase):

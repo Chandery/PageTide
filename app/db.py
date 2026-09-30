@@ -76,12 +76,31 @@ class Store:
         self.conn.execute("PRAGMA foreign_keys=ON")
 
     def init(self):
+        from app.migrations import apply_migrations, get_schema_version, pending
+        if self._has_user_data() and pending(self.conn) > 0:
+            self.backup(self.path.with_name(
+                f"{self.path.name}.pre-v{get_schema_version(self.conn)}.bak"))
         self.conn.executescript(SCHEMA)
         self._migrate()
         # Apply structured migrations
-        from app.migrations import apply_migrations
         apply_migrations(self.conn)
         self.conn.commit()
+
+    def _has_user_data(self):
+        return self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='papers'").fetchone() is not None
+
+    def backup(self, target):
+        """Consistent single-file copy (WAL included); an existing backup is never overwritten."""
+        target = Path(target)
+        if target.exists():
+            return target
+        destination = sqlite3.connect(str(target))
+        try:
+            self.conn.backup(destination)
+        finally:
+            destination.close()
+        return target
 
     def _migrate(self):
         """Additive migrations so an existing local database keeps working."""
@@ -117,8 +136,62 @@ class Store:
                  paper["title"], paper.get("abstract"), paper.get("published"),
                  paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now()))
             added += cur.rowcount
+            if paper_project_id:
+                self.add_project_paper(paper_project_id, paper["key"],
+                                       paper.get("relation_kind") or
+                                       ("seed" if paper.get("group_name") == "seed" else "discovered"),
+                                       paper.get("source_project_id"), commit=False)
         self.conn.commit()
         return added
+
+    def add_project_paper(self, project_id, paper_key, relation_kind="shared",
+                          source_project_id=None, commit=True):
+        """Link a canonical paper to a project. An existing link keeps its kind (a seed is
+        never downgraded by a later discovery/share); only promotion to 'seed' applies."""
+        if relation_kind not in {"discovered", "seed", "imported", "shared"}:
+            raise ValueError("关系类型无效")
+        if not self.conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone():
+            raise ValueError("项目不存在")
+        if source_project_id and not self.conn.execute("SELECT 1 FROM projects WHERE id=?", (source_project_id,)).fetchone():
+            raise ValueError("来源项目不存在")
+        if not self.conn.execute("SELECT 1 FROM papers WHERE key=?", (paper_key,)).fetchone():
+            raise ValueError("论文不存在")
+        self.conn.execute(
+            """INSERT INTO project_papers(project_id,paper_key,relation_kind,added_at,source_project_id)
+               VALUES (?,?,?,?,?) ON CONFLICT(project_id,paper_key) DO UPDATE SET
+               relation_kind=CASE WHEN excluded.relation_kind='seed' THEN 'seed'
+                                  ELSE project_papers.relation_kind END,
+               source_project_id=COALESCE(project_papers.source_project_id, excluded.source_project_id)""",
+            (project_id, paper_key, relation_kind or "shared", now(), source_project_id))
+        if commit:
+            self.conn.commit()
+
+    def remove_project_paper(self, project_id, paper_key):
+        if not self.conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone():
+            raise ValueError("项目不存在")
+        relation = self.conn.execute(
+            "SELECT relation_kind FROM project_papers WHERE project_id=? AND paper_key=?",
+            (project_id, paper_key)).fetchone()
+        self.conn.execute("DELETE FROM project_papers WHERE project_id=? AND paper_key=?", (project_id, paper_key))
+        self.conn.execute("DELETE FROM project_library WHERE project_id=? AND paper_key=?", (project_id, paper_key))
+        if not self.conn.execute("SELECT 1 FROM project_library WHERE paper_key=? LIMIT 1", (paper_key,)).fetchone():
+            self.conn.execute("DELETE FROM library WHERE paper_key=?", (paper_key,))
+        if relation and relation[0] == "seed":
+            keys = self.get_setting(f"seed_keys_{project_id}", [])
+            self.set_setting(f"seed_keys_{project_id}", [key for key in keys if key != paper_key])
+        self.conn.commit()
+
+    def project_papers(self, project_id):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT p.*, pp.relation_kind, pp.added_at, pp.source_project_id "
+            "FROM project_papers pp JOIN papers p ON p.key=pp.paper_key "
+            "WHERE pp.project_id=? ORDER BY p.published DESC, p.key", (project_id,))]
+
+    def paper_projects(self, paper_key):
+        return [dict(r) for r in self.conn.execute(
+            "SELECT pp.*, pr.name, spr.name AS source_project_name FROM project_papers pp "
+            "JOIN projects pr ON pr.id=pp.project_id LEFT JOIN projects spr ON spr.id=pp.source_project_id "
+            "WHERE pp.paper_key=? ORDER BY pr.creation_timestamp", (paper_key,))]
 
     def paper(self, key):
         row = self.conn.execute("SELECT * FROM papers WHERE key=?", (key,)).fetchone()
@@ -238,30 +311,100 @@ class Store:
         return {r["paper_key"]: dict(r) for r in self.conn.execute("SELECT * FROM summaries")}
 
     # --------------------------------------------------------------- library
-    def save_to_library(self, paper_key, note=None):
+    def save_to_library(self, paper_key, note=None, project_id=None):
         """Idempotent: saving the same paper twice is a no-op."""
+        if project_id:
+            self.add_project_paper(project_id, paper_key, "shared", commit=False)
+            self.conn.execute(
+                "INSERT OR IGNORE INTO project_library(project_id,paper_key,saved_at,note) VALUES (?,?,?,?)",
+                (project_id, paper_key, now(), note))
+            # Keep the legacy global view available to older callers.  It is only
+            # a compatibility index; project_library remains the source of truth.
+            self.conn.execute(
+                "INSERT OR IGNORE INTO library (paper_key, saved_at, note) VALUES (?,?,?)",
+                (paper_key, now(), note))
+            self.conn.commit()
+            return
+        # Older integrations did not pass a project.  Mirror the save into the
+        # owning project when one can be determined, while retaining the legacy
+        # row for compatibility with those integrations.
+        owner = self.conn.execute("SELECT project_id FROM papers WHERE key=?", (paper_key,)).fetchone()
+        if owner and owner[0]:
+            self.add_project_paper(owner[0], paper_key, "discovered", commit=False)
+            self.conn.execute(
+                "INSERT OR IGNORE INTO project_library(project_id,paper_key,saved_at,note) VALUES (?,?,?,?)",
+                (owner[0], paper_key, now(), note))
         self.conn.execute(
             "INSERT OR IGNORE INTO library (paper_key, saved_at, note) VALUES (?,?,?)",
             (paper_key, now(), note))
         self.conn.commit()
 
-    def remove_from_library(self, paper_key):
+    def remove_from_library(self, paper_key, project_id=None):
+        if project_id:
+            self.conn.execute("DELETE FROM project_library WHERE project_id=? AND paper_key=?", (project_id, paper_key))
+            remaining = self.conn.execute("SELECT 1 FROM project_library WHERE paper_key=? LIMIT 1", (paper_key,)).fetchone()
+            if not remaining:
+                self.conn.execute("DELETE FROM library WHERE paper_key=?", (paper_key,))
+            self.conn.commit()
+            return
         self.conn.execute("DELETE FROM library WHERE paper_key=?", (paper_key,))
         self.conn.commit()
 
-    def library(self):
+    def library(self, project_id=None):
+        if project_id:
+            rows = self.conn.execute(
+                """SELECT l.saved_at, l.note, p.* FROM project_library l
+                   JOIN papers p ON p.key=l.paper_key WHERE l.project_id=?
+                   ORDER BY l.saved_at DESC""", (project_id,)).fetchall()
+            return [dict(r) for r in rows]
         rows = self.conn.execute(
             """SELECT l.saved_at, l.note, p.* FROM library l JOIN papers p ON p.key=l.paper_key
                ORDER BY l.saved_at DESC""").fetchall()
         return [dict(r) for r in rows]
 
-    def in_library(self, paper_key):
+    def in_library(self, paper_key, project_id=None):
+        if project_id:
+            return self.conn.execute("SELECT 1 FROM project_library WHERE project_id=? AND paper_key=?",
+                                     (project_id, paper_key)).fetchone() is not None
         return self.conn.execute("SELECT 1 FROM library WHERE paper_key=?", (paper_key,)).fetchone() is not None
 
+    # -------------------------------------------------------- guidance drafts
+    def create_guidance_session(self, session_id, name, transcript, draft, status="draft"):
+        stamp = now()
+        self.conn.execute("""INSERT INTO project_guidance_sessions
+            (id,name,status,transcript,draft,turn_count,created_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?)""",
+            (session_id, name, status, json.dumps(transcript, ensure_ascii=False),
+             json.dumps(draft, ensure_ascii=False), 0, stamp, stamp))
+        self.conn.commit()
+
+    def guidance_session(self, session_id):
+        row = self.conn.execute("SELECT * FROM project_guidance_sessions WHERE id=?", (session_id,)).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["transcript"] = json.loads(result["transcript"] or "[]")
+        result["draft"] = json.loads(result["draft"] or "{}")
+        return result
+
+    def update_guidance_session(self, session_id, **fields):
+        allowed = {"status", "transcript", "draft", "turn_count"}
+        fields = {k: v for k, v in fields.items() if k in allowed}
+        if not fields:
+            return
+        if "transcript" in fields:
+            fields["transcript"] = json.dumps(fields["transcript"], ensure_ascii=False)
+        if "draft" in fields:
+            fields["draft"] = json.dumps(fields["draft"], ensure_ascii=False)
+        fields["updated_at"] = now()
+        sql = ", ".join(f"{k}=?" for k in fields)
+        self.conn.execute(f"UPDATE project_guidance_sessions SET {sql} WHERE id=?", (*fields.values(), session_id))
+        self.conn.commit()
+
     # ------------------------------------------------------------ qa history
-    def add_qa(self, paper_key, role, content):
-        self.conn.execute("INSERT INTO qa_history (paper_key, role, content, created_at) VALUES (?,?,?,?)",
-                          (paper_key, role, content, now()))
+    def add_qa(self, paper_key, role, content, project_id=None):
+        self.conn.execute("INSERT INTO qa_history (paper_key, role, content, created_at, project_id) VALUES (?,?,?,?,?)",
+                          (paper_key, role, content, now(), project_id))
         self.conn.commit()
 
     # ------------------------------------------------------------- full text
@@ -280,8 +423,13 @@ class Store:
             "SELECT page, content FROM fulltext WHERE paper_key=? ORDER BY page", (paper_key,)).fetchall()
         return [{"page": r["page"], "text": r["content"]} for r in rows]
 
-    def qa_history(self, paper_key, limit=20):
-        rows = self.conn.execute(
-            "SELECT role, content, created_at FROM qa_history WHERE paper_key IS ? ORDER BY id DESC LIMIT ?",
-            (paper_key, limit)).fetchall()
+    def qa_history(self, paper_key, limit=20, project_id=None):
+        if project_id:
+            rows = self.conn.execute(
+                "SELECT role, content, created_at FROM qa_history WHERE paper_key IS ? AND project_id=? ORDER BY id DESC LIMIT ?",
+                (paper_key, project_id, limit)).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT role, content, created_at FROM qa_history WHERE paper_key IS ? AND project_id IS NULL ORDER BY id DESC LIMIT ?",
+                (paper_key, limit)).fetchall()
         return [dict(r) for r in reversed(rows)]

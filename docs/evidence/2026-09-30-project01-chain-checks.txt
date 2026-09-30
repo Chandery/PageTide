@@ -1,0 +1,69 @@
+# PROJECT-01 依赖链收口检查（2026-09-30，macOS arm64 开发机，Claude Code 沙箱内）
+# 以下为修复独立审查问题后的复验结果（审查见 2026-09-30-project01-chain-review.md）
+
+## Python 单元测试
+$ python3 -m unittest discover -s tests
+Ran 281 tests: 258 passed, 23 errors, 0 failures.
+全部 23 个 error 均为 PermissionError: [Errno 1] Operation not permitted（沙箱禁止绑定本地端口）：
+  test_app_server.ServerSmokeTests 14 个、test_organization_http 6 个、test_provider_settings.SettingsHTTPTests 3 个。
+这些 HTTP 测试本次未运行通过，不作为通过证据；需在允许 sandbox.network.allowLocalBinding 的环境重跑。
+
+$ python3 -m unittest tests.test_profile_core_chain tests.test_project_chain tests.test_gateway_budget
+Ran 44 tests in 0.180s（含 4 个审查回归：自由文本/异常种子、无效 URL/非 JSON、取消收藏后重复有用、冻结内撤销）
+
+OK
+(test_provider_settings 的 3 个 HTTP 用例同样因端口绑定报错，非 HTTP 用例通过)
+
+## 新增 HTTP 路由补测（未绑定端口，socketpair 直接驱动 app.server.Handler）
+方法：AF_UNIX socketpair 发送原始 HTTP/1.1 请求到真实 Handler；不是 TCP 服务器测试，不能替代上面的 HTTP 用例。
+PASS create project 200
+PASS freeze 200 + frozen
+PASS freeze non-bool 400
+PASS restore 200 + unfrozen + default pins
+PASS restore missing project 400
+PASS guidance create 201
+PASS guidance turn local
+PASS cancel draft 200
+PASS cancel twice 409
+PASS cancel missing 404
+PASS settings GET has no key material
+PASS AI switch off 200
+PASS AI switch persisted off
+PASS free-text seeds 200 + invalid_input, no fetch
+PASS client relation_kind=seed 400
+15/15 passed
+
+## Node UI 测试
+$ node --test tests/*.cjs
+# tests 35
+# pass 35
+# fail 0
+
+## 离线基线（0 token，0 网络）
+$ python3 tools/reuse_baseline.py  -> 见 2026-09-30-reuse-baseline.txt
+  existing_ranker      P@5=1.00 u/shown=1.00 AUC=0.94 meanRank=43.41
+  svm_unlabelled_neg   P@5=1.00 u/shown=1.00 AUC=0.93 meanRank=43.47
+  svm_explicit_neg     P@5=1.00 u/shown=1.00 AUC=0.95 meanRank=43.15
+  recency              P@5=1.00 u/shown=1.00 AUC=0.64 meanRank=51.66
+
+EXPLORATORY: annotator labels saw seed titles; not owner labels; upstream probe not run.
+
+## 预算
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+## 桌面构建与签名
+$ .local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app
+exit 0; bundle: src-tauri/target/release/bundle/macos/PaperDigHelper.app
+codesign --verify --deep --strict 对 tauri 产物首次失败（code has no resources but signature indicates they must be present）；
+codesign --force --deep --sign - 本地 ad-hoc 重签后复验 exit 0。仅为本地验收签名，未公证。
+
+## harness
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+（修复中发现 test_harness 的临时根目录不复制 tests/，已把 tasks.json 证据中的 tests/*.py 路径移除，改由本文件引用）
+
+## 其他
+git diff --check: exit 0
+真实模型调用：0；付费评测：未运行；eval_probe.py label：未运行。

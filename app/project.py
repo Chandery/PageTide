@@ -29,6 +29,11 @@ class ProjectManager:
         Returns:
             project_id: UUID string
         """
+        if creation_mode not in {"quick", "manual", "ai_guided"}:
+            raise ValueError("invalid creation mode")
+        name = str(name or "").strip()
+        if not name or len(name) > 120:
+            raise ValueError("项目名称不能为空且不能超过 120 个字符")
         project_id = str(uuid.uuid4())
 
         self.store.conn.execute("""
@@ -111,46 +116,52 @@ class ProjectManager:
         self.store.conn.commit()
 
     def delete_project(self, project_id):
-        """Delete a project and all associated data.
-
-        WARNING: This cascades to papers, feedback, library, snapshots, and reports.
-        Use with caution.
-        """
-        # Delete in reverse dependency order
-        tables = [
-            "weekly_reports",
-            "profile_snapshots",
-            "feedback",
-            "library",
-            "papers",
-            "projects"
-        ]
-
-        for table in tables:
-            if table == "papers":
-                self.store.conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
-            elif table == "feedback":
-                self.store.conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
-            elif table == "library":
-                # library doesn't have project_id directly, delete via paper keys
-                self.store.conn.execute("""
-                    DELETE FROM library WHERE paper_key IN
-                    (SELECT key FROM papers WHERE project_id=?)
-                """, (project_id,))
-            else:
-                self.store.conn.execute(f"DELETE FROM {table} WHERE project_id=?", (project_id,))
-
+        """Delete one project's state while retaining canonical paper facts."""
+        self.store.conn.execute("DELETE FROM project_library WHERE project_id=?", (project_id,))
+        self.store.conn.execute("DELETE FROM project_papers WHERE project_id=?", (project_id,))
+        self.store.conn.execute("DELETE FROM feedback WHERE project_id=?", (project_id,))
+        self.store.conn.execute(
+            "DELETE FROM exposures WHERE batch_id IN (SELECT id FROM batches WHERE project_id=?)", (project_id,))
+        self.store.conn.execute("DELETE FROM batches WHERE project_id=?", (project_id,))
+        self.store.conn.execute("DELETE FROM qa_history WHERE project_id=?", (project_id,))
+        for row in self.store.conn.execute(
+                "SELECT id, draft FROM project_guidance_sessions WHERE status='confirmed'").fetchall():
+            try:
+                if json.loads(row["draft"]).get("project_id") == project_id:
+                    self.store.conn.execute("DELETE FROM project_guidance_sessions WHERE id=?", (row["id"],))
+            except (TypeError, ValueError):
+                continue
+        self.store.conn.execute("DELETE FROM profile_snapshots WHERE project_id=?", (project_id,))
+        self.store.conn.execute("DELETE FROM weekly_reports WHERE project_id=?", (project_id,))
+        for row in self.store.conn.execute("SELECT id, data FROM profile_versions").fetchall():
+            try:
+                if json.loads(row["data"]).get("project_id") == project_id:
+                    self.store.conn.execute("DELETE FROM profile_versions WHERE id=?", (row["id"],))
+            except (TypeError, ValueError):
+                continue
+        # Legacy compatibility column may still point at the deleted project;
+        # relationship rows above are now the authoritative ownership model.
+        self.store.conn.execute("UPDATE papers SET project_id=NULL WHERE project_id=?", (project_id,))
+        # The legacy global library is kept only while at least one project still
+        # has the paper saved; canonical metadata/PDF/fulltext always remains.
+        self.store.conn.execute("""
+            DELETE FROM library WHERE paper_key NOT IN
+            (SELECT paper_key FROM project_library)
+        """)
+        self.store.conn.execute("DELETE FROM projects WHERE id=?", (project_id,))
+        self.store.conn.execute(
+            "DELETE FROM settings WHERE key IN (?,?,?)",
+            (f"seed_keys_{project_id}", f"profile_freeze_{project_id}", f"project_default_terms_{project_id}"))
         self.store.conn.commit()
 
     def get_project_stats(self, project_id):
         """Get statistics for a project."""
         paper_count = self.store.conn.execute(
-            "SELECT COUNT(*) as cnt FROM papers WHERE project_id=?", (project_id,)
+            "SELECT COUNT(*) as cnt FROM project_papers WHERE project_id=?", (project_id,)
         ).fetchone()["cnt"]
 
         library_count = self.store.conn.execute("""
-            SELECT COUNT(*) as cnt FROM library
-            WHERE paper_key IN (SELECT key FROM papers WHERE project_id=?)
+            SELECT COUNT(*) as cnt FROM project_library WHERE project_id=?
         """, (project_id,)).fetchone()["cnt"]
 
         feedback_count = self.store.conn.execute(

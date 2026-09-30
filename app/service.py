@@ -4,18 +4,29 @@ The daily loop is zero-token: discover -> dedupe -> rank -> diversify -> 5 cards
 Feedback updates a transparent profile. AI triage is optional and budgeted.
 """
 import json
+import re
+import uuid
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import ranking
 from .db import Store, now
 from .gateway import Gateway
 from .project import ProjectManager
-from .sources import OpenAlex, resolve_seed
+from .sources import OpenAlex, SourceError, resolve_seed, slim
 
 ACTIONS = ("useful", "irrelevant", "too_hard")
 POSITIVE_ACTIONS = {"useful"}
 NEGATIVE_ACTIONS = {"irrelevant"}
-TOO_HARD_ACTIONS = {"too_hard"}  # Reduces weight but may be re-recommended later
+TOO_HARD_ACTIONS = {"too_hard"}  # Familiarity signal only: never an interest negative
+DEFAULT_WEIGHTS = {"pos": 1.0, "neg": 0.5}
+GUIDANCE_MAX_TURNS = 6
+PROFILE_STOPWORDS = {
+    "across", "achieves", "available", "both", "changes", "combined", "current",
+    "each", "environment", "environments", "experiments", "furthermore", "increasingly",
+    "introduce", "improving", "key", "not", "recent", "single", "states", "through",
+}
 
 
 class App:
@@ -38,6 +49,273 @@ class App:
         # Create default project
         return self.projects.create_project("默认项目", "manual", [])
 
+    @staticmethod
+    def _guidance_terms(text, limit=20):
+        terms = []
+        for token in ranking.tokenize(text or ""):
+            if token not in terms:
+                terms.append(token)
+        return terms[:limit]
+
+    @staticmethod
+    def _bounded_guidance_draft(draft):
+        draft = draft if isinstance(draft, dict) else {}
+        keywords = []
+        for value in draft.get("keywords") or []:
+            value = str(value).strip()
+            if value and value not in keywords:
+                keywords.append(value[:120])
+        queries = []
+        for value in draft.get("search_queries") or []:
+            value = str(value).strip()
+            if value and value not in queries:
+                queries.append(value[:180])
+        path = []
+        for item in draft.get("learning_path") or []:
+            if isinstance(item, dict):
+                title = str(item.get("title") or "").strip()[:160]
+                purpose = str(item.get("purpose") or "").strip()[:300]
+                if title:
+                    path.append({"title": title, "purpose": purpose})
+        return {
+            "goal": str(draft.get("goal") or "").strip()[:4000],
+            "creation_mode": draft.get("creation_mode") if draft.get("creation_mode") in {"quick", "ai_guided"} else "ai_guided",
+            "keywords": keywords[:20],
+            "search_queries": queries[:6],
+            "learning_path": path[:8],
+            "next_question": str(draft.get("next_question") or "").strip()[:500],
+            "candidates": draft.get("candidates") or [],
+        }
+
+    def create_project(self, name, creation_mode="manual", keywords=None, seeds=None,
+                       guidance_transcript=None, learning_path=None):
+        """Create a project and optionally resolve explicit public seed identifiers."""
+        if creation_mode not in {"quick", "manual", "ai_guided"}:
+            raise ValueError("invalid creation mode")
+        if not isinstance(name, str):
+            raise ValueError("项目名称必须是文本")
+        if keywords is not None and not isinstance(keywords, list):
+            raise ValueError("关键词必须是列表")
+        if seeds is not None and not isinstance(seeds, list):
+            raise ValueError("种子论文必须是列表")
+        name = name.strip()
+        if not name or len(name) > 120:
+            raise ValueError("项目名称不能为空且不能超过 120 个字符")
+        keywords = [str(k).strip()[:120] for k in (keywords or []) if str(k).strip()][:40]
+        project_id = self.projects.create_project(name, creation_mode, keywords,
+                                                   guidance_transcript=guidance_transcript,
+                                                   learning_path=learning_path)
+        # "Restore default" returns to exactly these creation-time terms.
+        self.store.set_setting(f"project_default_terms_{project_id}", keywords)
+        results = []
+        seen_seed_keys = set()
+        for raw in (seeds or [])[:40]:
+            if not isinstance(raw, str):
+                results.append({"input": str(raw)[:120], "status": "failed", "error": "种子标识必须是文本"})
+                continue
+            seed = str(raw).strip()
+            if not seed:
+                continue
+            if len(seed) > 300:
+                results.append({"input": seed[:120], "status": "failed", "error": "种子标识过长"})
+                continue
+            identifier = seed
+            arxiv = re.fullmatch(r"(?:arxiv:)?(\d{4}\.\d{4,5})(v\d+)?", seed, re.I)
+            arxiv_url = re.fullmatch(r"https?://arxiv\.org/(?:abs|pdf)/([0-9]{4}\.\d{4,5})(v\d+)?", seed, re.I)
+            if arxiv or arxiv_url:
+                match = arxiv or arxiv_url
+                identifier = f"https://doi.org/10.48550/arxiv.{match.group(1)}{match.group(2) or ''}"
+            elif re.fullmatch(r"10\.\d{4,9}/\S+", seed):
+                identifier = f"https://doi.org/{seed}"
+            elif not re.fullmatch(r"(?:https?://openalex\.org/)?W\d+|https?://doi\.org/10\.\d{4,9}/\S+", seed, re.I):
+                # Only public identifiers leave the machine; free text is never sent as a lookup.
+                results.append({"input": seed, "status": "invalid_input",
+                                "error": "无法识别的标识：请填 arXiv 编号、DOI 或 OpenAlex W 编号"})
+                continue
+            try:
+                work = self.source.work(identifier)
+            except SourceError as exc:
+                results.append({"input": seed, "status": exc.kind, "error": str(exc)[:200]})
+                continue
+            except Exception as exc:
+                # The project already exists; one bad seed must not abort the request.
+                results.append({"input": seed, "status": "failed", "error": str(exc)[:200]})
+                continue
+            try:
+                paper = slim(work or {}, group="seed")
+                if not paper.get("key") or not paper.get("title"):
+                    results.append({"input": seed, "status": "not_found", "error": "公开元数据缺少论文标题"})
+                    continue
+                if paper["key"] in seen_seed_keys or self.store.conn.execute(
+                        "SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?",
+                        (project_id, paper["key"])).fetchone():
+                    results.append({"input": seed, "status": "duplicate", "key": paper["key"], "title": paper["title"]})
+                    continue
+                paper["project_id"] = project_id
+                paper["relation_kind"] = "seed"
+                self.store.upsert_papers([paper])
+                keys = self.seed_keys(project_id)
+                if paper["key"] not in keys:
+                    keys.append(paper["key"])
+                self.store.set_setting(f"seed_keys_{project_id}", keys)
+                seen_seed_keys.add(paper["key"])
+                results.append({"input": seed, "status": "resolved", "key": paper["key"], "title": paper["title"]})
+            except Exception as exc:
+                results.append({"input": seed, "status": "failed", "error": str(exc)[:200]})
+        return {"project_id": project_id, "name": name, "seed_results": results}
+
+    def create_guidance_session(self, name, goal, creation_mode="ai_guided"):
+        if not isinstance(name, str) or not isinstance(goal, str):
+            raise ValueError("项目名称和研究目标必须是文本")
+        name, goal = name.strip(), goal.strip()
+        if not name or len(name) > 120:
+            raise ValueError("项目名称不能为空且不能超过 120 个字符")
+        if not goal or len(goal) > 4000:
+            raise ValueError("研究目标不能为空且不能超过 4000 个字符")
+        if creation_mode not in {"quick", "ai_guided"}:
+            raise ValueError("引导创建模式无效")
+        session_id = str(uuid.uuid4())
+        draft = self._bounded_guidance_draft({"goal": goal, "keywords": self._guidance_terms(goal),
+                                               "search_queries": [goal], "creation_mode": creation_mode})
+        self.store.create_guidance_session(session_id, name, [{"role": "user", "content": goal}], draft)
+        return self.store.guidance_session(session_id)
+
+    def _local_guidance(self, session, message):
+        draft = self._bounded_guidance_draft(session["draft"])
+        combined = f"{draft.get('goal', '')} {message}"
+        terms = draft["keywords"][:]
+        for term in self._guidance_terms(combined):
+            if term not in terms:
+                terms.append(term)
+        query = " ".join(terms[:8]) or message[:180]
+        draft.update({"keywords": terms[:20], "search_queries": [query],
+                      "next_question": "还需要限定应用场景、方法路线或时间范围吗？"})
+        return "我已先按本地词项整理方向。你可以继续补充场景或方法，也可以直接查看候选论文。", draft
+
+    def guidance_turn(self, session_id, message, dry_run=False):
+        session = self.store.guidance_session(session_id)
+        if not session:
+            raise ValueError("引导会话不存在")
+        if session["status"] != "draft":
+            raise ValueError("引导会话已结束")
+        if session["turn_count"] >= GUIDANCE_MAX_TURNS:
+            raise ValueError("已达到 6 轮引导上限，请确认或编辑当前草稿")
+        message = str(message or "").strip()
+        if not message or len(message) > 2000:
+            raise ValueError("本轮内容不能为空且不能超过 2000 个字符")
+        transcript = list(session["transcript"])
+        transcript.append({"role": "user", "content": message})
+        draft = self._bounded_guidance_draft(session["draft"])
+        model_draft = {
+            "goal": draft.get("goal", "")[:300],
+            "keywords": [str(x)[:40] for x in draft.get("keywords", [])[:6]],
+            "search_queries": [str(x)[:80] for x in draft.get("search_queries", [])[:2]],
+            "learning_path": [{"title": str(x.get("title") or "")[:60],
+                               "purpose": str(x.get("purpose") or "")[:100]}
+                              for x in draft.get("learning_path", [])[:2]],
+            "next_question": draft.get("next_question", "")[:120],
+        }
+        bounded_conversation = [
+            {"role": item.get("role", "user"), "content": str(item.get("content") or "")[:220]}
+            for item in transcript[-4:] if isinstance(item, dict)
+        ]
+        messages = [{"role": "system", "content": (
+            "你是本地论文项目创建助手。只根据当前创建对话整理研究方向，不读取或推断其他项目。"
+            "只输出 JSON：{\"reply\":\"...\",\"draft\":{\"keywords\":[],"
+            "search_queries\":[],\"learning_path\":[{\"title\":\"\",\"purpose\":\"\"}],"
+            "next_question\":\"\"}}。不要选择或声称确认种子论文。")},
+                    {"role": "user", "content": json.dumps({
+                        "current_draft": model_draft, "conversation": bounded_conversation}, ensure_ascii=False)}]
+        try:
+            result = self.gateway.call("project_guidance", messages, dry_run=dry_run) or {}
+        except Exception as exc:
+            result = {"ok": False, "degraded": True, "reason": str(exc)}
+        mode, reply = "ai", ""
+        if dry_run or not result.get("ok"):
+            mode = "local"
+            reply, draft = self._local_guidance(session, message)
+        else:
+            raw = (result.get("content") or "").strip()
+            match = re.search(r"\{.*\}", raw, re.S)
+            payload = {}
+            if match:
+                try:
+                    payload = json.loads(match.group(0))
+                except ValueError:
+                    payload = {}
+            if not isinstance(payload, dict):
+                payload = {}
+            if not isinstance(payload.get("draft"), dict):
+                mode = "local"
+                reply, draft = self._local_guidance(session, message)
+            else:
+                draft = self._bounded_guidance_draft({**draft, **payload["draft"]})
+                reply = str(payload.get("reply") or "已更新项目草稿，请检查关键词和学习路径。")[:1000]
+        transcript.append({"role": "assistant", "content": reply, "mode": mode})
+        self.store.update_guidance_session(session_id, transcript=transcript, draft=draft,
+                                           turn_count=session["turn_count"] + 1)
+        return {"session": self.store.guidance_session(session_id), "reply": reply,
+                "mode": mode, "degraded": mode == "local"}
+
+    def guidance_preview(self, session_id, draft=None):
+        session = self.store.guidance_session(session_id)
+        if not session or session["status"] != "draft":
+            raise ValueError("引导会话不存在或已结束")
+        if draft is not None and not isinstance(draft, dict):
+            raise ValueError("草稿格式无效")
+        draft = self._bounded_guidance_draft(draft or session["draft"])
+        queries = draft["search_queries"] or draft["keywords"][:3] or [draft["goal"]]
+        papers, errors, seen = [], [], set()
+        for query in queries[:3]:
+            try:
+                for paper in self.source.discover(search=query, pages=1, per_page=12):
+                    if paper["key"] not in seen:
+                        seen.add(paper["key"])
+                        papers.append(paper)
+            except Exception as exc:
+                errors.append({"query": query, "error": str(exc)[-200:]})
+        draft["candidates"] = papers[:30]
+        self.store.update_guidance_session(session_id, draft=draft)
+        return {"session": self.store.guidance_session(session_id), "items": papers[:30], "errors": errors}
+
+    def cancel_guidance(self, session_id):
+        session = self.store.guidance_session(session_id)
+        if not session:
+            raise LookupError("引导会话不存在")
+        if session["status"] != "draft":
+            raise ValueError("只有未确认的草稿可以取消")
+        self.store.update_guidance_session(session_id, status="cancelled")
+        return {"cancelled": True, "session_id": session_id}
+
+    def finalize_guidance(self, session_id, draft=None, selected_keys=None):
+        session = self.store.guidance_session(session_id)
+        if not session or session["status"] != "draft":
+            raise ValueError("引导会话不存在或已结束")
+        if draft is not None and not isinstance(draft, dict):
+            raise ValueError("草稿格式无效")
+        if selected_keys is not None and not isinstance(selected_keys, list):
+            raise ValueError("候选选择格式无效")
+        incoming = self._bounded_guidance_draft(draft or session["draft"])
+        stored = self._bounded_guidance_draft(session["draft"])
+        draft = {**stored, **incoming, "candidates": stored.get("candidates") or []}
+        selected = {str(key) for key in (selected_keys or []) if isinstance(key, str)}
+        candidates = {p.get("key"): p for p in draft.get("candidates") or [] if isinstance(p, dict) and p.get("key")}
+        chosen = [dict(candidates[key], project_id=None, relation_kind="imported")
+                  for key in selected if key in candidates]
+        result = self.create_project(session["name"], draft.get("creation_mode") or "ai_guided", draft["keywords"],
+                                     guidance_transcript=session["transcript"],
+                                     learning_path=draft["learning_path"])
+        project_id = result["project_id"]
+        for paper in chosen:
+            paper["project_id"] = project_id
+        if chosen:
+            self.store.upsert_papers(chosen)
+        draft["candidates"] = draft.get("candidates") or []
+        draft["project_id"] = project_id  # lets project deletion remove its creation transcript
+        self.store.update_guidance_session(session_id, status="confirmed", draft=draft)
+        result["selected"] = len(chosen)
+        return result
+
     def seeds(self, project_id=None):
         """Get seeds from harness/seeds.json. Global for now, will be project-scoped later."""
         return json.loads((self.root / "harness" / "seeds.json").read_text())["seeds"]
@@ -45,8 +323,10 @@ class App:
     def seed_keys(self, project_id=None):
         """Get seed keys for a project. Currently stored in settings, will be project-scoped."""
         if project_id:
-            # For now, use global setting with project prefix
-            return self.store.get_setting(f"seed_keys_{project_id}", [])
+            configured = self.store.get_setting(f"seed_keys_{project_id}", [])
+            valid = {row["paper_key"] for row in self.store.conn.execute(
+                "SELECT paper_key FROM project_papers WHERE project_id=? AND relation_kind='seed'", (project_id,))}
+            return [key for key in configured if key in valid]
         return self.store.get_setting("seed_keys", [])
 
     def ensure_seed_papers(self, project_id=None):
@@ -73,19 +353,38 @@ class App:
                                "weights": {"pos": 1.0, "neg": 0.5}}, note="initial")
         return keys
 
-    def latest_feedback(self, project_id=None):
-        """Get feedback for a project. If no project_id, get all feedback."""
+    def latest_feedback(self, project_id=None, through_id=None):
+        """Get feedback for a project. If no project_id, get all feedback.
+
+        through_id limits the replay to events recorded up to a frozen snapshot.
+        """
         if not project_id:
             return self.store.feedback_by_paper()
 
         # Filter by project_id
         result = {}
         for row in self.store.conn.execute(
-            "SELECT * FROM feedback WHERE undone=0 AND project_id=? ORDER BY id",
-            (project_id,)
+            """SELECT f.* FROM feedback f
+               JOIN project_papers pp ON pp.project_id=f.project_id AND pp.paper_key=f.paper_key
+               WHERE f.undone=0 AND f.project_id=? AND f.id<=? ORDER BY f.id""",
+            (project_id, through_id if through_id is not None else 2 ** 62)
         ):
             result[row["paper_key"]] = {"action": row["action"], "reason": row["reason"], "id": row["id"]}
         return result
+
+    def project_pinned_terms(self, project_id, base):
+        project = self.projects.get_project(project_id)
+        if not project:
+            raise ValueError("项目不存在")
+        versions = self.profile_versions(project_id)
+        if versions:
+            return versions[-1]["data"].get("pinned_terms", [])
+        if project["keywords"]:
+            return project["keywords"]
+        # Legacy global preferences belong only to the migrated default project.
+        if project_id == self.get_default_project_id() and not base.get("project_id"):
+            return base.get("pinned_terms", [])
+        return []
 
     def profile(self, project_id=None):
         """Get profile for a project. Legacy support: if no project_id, use default."""
@@ -93,21 +392,100 @@ class App:
             project_id = self.get_default_project_id()
 
         base = self.store.current_profile() or {"project": "world-models", "pinned_terms": [],
-                                                "weights": {"pos": 1.0, "neg": 0.5}}
+                                                "weights": dict(DEFAULT_WEIGHTS)}
         feedback = self.latest_feedback(project_id)
         positives = [k for k, v in feedback.items() if v["action"] in POSITIVE_ACTIONS]
         negatives = [k for k, v in feedback.items() if v["action"] in NEGATIVE_ACTIONS]
         too_hard = [k for k, v in feedback.items() if v["action"] in TOO_HARD_ACTIONS]
+        freeze = self.store.get_setting(f"profile_freeze_{project_id}")
+        if freeze and "through_feedback_id" in freeze:
+            # Feedback events are still recorded, but learning replays only the events up to the
+            # freeze; undoing one of those still takes effect immediately.
+            frozen = self.latest_feedback(project_id, freeze["through_feedback_id"])
+            positives = [k for k, v in frozen.items() if v["action"] in POSITIVE_ACTIONS]
+            negatives = [k for k, v in frozen.items() if v["action"] in NEGATIVE_ACTIONS]
+        elif freeze:
+            # Snapshots written before through_feedback_id existed keep their stored lists.
+            positives, negatives = freeze["positive_feedback"], freeze["explicit_negatives"]
+        stored = base.get("weights") or {}
         return {
             "project_id": project_id,
             "project": base["project"],
-            "pinned_terms": base.get("pinned_terms", []),
-            "weights": base.get("weights", {"pos": 1.0, "neg": 0.3, "hard": 0.7}),
+            "pinned_terms": self.project_pinned_terms(project_id, base),
+            "weights": {k: stored.get(k, v) for k, v in DEFAULT_WEIGHTS.items()},
             "positive_seeds": self.seed_keys(project_id),
             "positive_feedback": sorted(positives),
             "explicit_negatives": sorted(negatives),
             "too_hard_feedback": sorted(too_hard),
+            "frozen": bool(freeze),
+            "frozen_at": freeze["frozen_at"] if freeze else None,
         }
+
+    def profile_insights(self, project_id=None, weeks=12):
+        from .profile_insights import insights
+        return insights(self, project_id, weeks)
+
+    def profile_evidence(self, project_id=None, kind="feedback", term="", start=None, end=None, offset=0):
+        from .profile_insights import evidence
+        return evidence(self, project_id, kind, term, start, end, offset)
+
+    def profile_versions(self, project_id):
+        default = self.get_default_project_id()
+        return [v for v in self.store.profile_versions()
+                if v["data"].get("project_id", default) == project_id and v["note"] in ("pin", "restore")]
+
+    def pin_terms(self, terms, project_id=None):
+        project_id = project_id or self.get_default_project_id()
+        if not self.projects.get_project(project_id):
+            raise ValueError("项目不存在")
+        terms = list(dict.fromkeys(t.strip() for t in terms if t.strip()))
+        if len(terms) > 40 or any(len(t) > 100 for t in terms):
+            raise ValueError("最多 40 个关键词，每个不超过 100 字")
+        data = self.profile(project_id)
+        data["project_id"] = project_id
+        data["pinned_terms"] = terms
+        self.projects.update_project(project_id, keywords=terms)
+        self.save_profile(data, note="pin")
+        return {"profile": self.profile(project_id), "stats": self.stats(project_id)}
+
+    def _require_project(self, project_id):
+        project_id = project_id or self.get_default_project_id()
+        if not self.projects.get_project(project_id):
+            raise ValueError("项目不存在")
+        return project_id
+
+    def set_profile_frozen(self, frozen, project_id=None):
+        """Freeze or resume automatic learning. Pins stay editable either way."""
+        project_id = self._require_project(project_id)
+        key = f"profile_freeze_{project_id}"
+        current = self.store.get_setting(key)
+        if frozen and not current:
+            live = self.profile(project_id)
+            through = self.store.conn.execute("SELECT COALESCE(MAX(id), 0) FROM feedback").fetchone()[0]
+            self.store.set_setting(key, {"frozen_at": now(), "through_feedback_id": through,
+                                         "positive_feedback": live["positive_feedback"],
+                                         "explicit_negatives": live["explicit_negatives"]})
+        elif not frozen and current:
+            self.store.conn.execute("DELETE FROM settings WHERE key=?", (key,))
+            self.store.conn.commit()
+        if bool(frozen) != bool(current):
+            data = self.profile(project_id)
+            self.save_profile({**data, "project_id": project_id}, note="freeze" if frozen else "unfreeze")
+        return {"profile": self.profile(project_id), "stats": self.stats(project_id)}
+
+    def restore_default_profile(self, project_id=None):
+        """Return pins to the creation-time terms and resume learning; no feedback event is deleted."""
+        project_id = self._require_project(project_id)
+        previous = self.profile(project_id)["pinned_terms"]
+        defaults = self.store.get_setting(f"project_default_terms_{project_id}", [])
+        self.store.conn.execute("DELETE FROM settings WHERE key=?", (f"profile_freeze_{project_id}",))
+        self.store.conn.commit()
+        self.projects.update_project(project_id, keywords=defaults)
+        data = self.profile(project_id)
+        data["pinned_terms"] = list(defaults)
+        self.save_profile({**data, "project_id": project_id}, note="restore")
+        return {"profile": self.profile(project_id), "stats": self.stats(project_id),
+                "previous_pinned_terms": previous}
 
     def save_profile(self, data, note=None):
         return self.store.save_profile(data, note=note)
@@ -118,7 +496,7 @@ class App:
         seeds = [papers_by_key[k] for k in profile["positive_seeds"] if k in papers_by_key]
         # seed papers may not be in the candidate pool; fall back to the stored seed set
         seed_texts = [f"{p.get('title') or ''} {p.get('abstract') or ''}" for p in seeds]
-        if not seed_texts:
+        if not seed_texts and project_id == self.get_default_project_id():
             seed_texts = [s["title"] for s in self.seeds(project_id)]
         seed_vectors = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(t), idf)) for t in seed_texts]
         term_text = " ".join(profile["pinned_terms"])
@@ -130,11 +508,8 @@ class App:
         neg = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
             f"{papers_by_key[k].get('title') or ''} {papers_by_key[k].get('abstract') or ''}"), idf))
             for k in profile["explicit_negatives"] if k in papers_by_key]
-        hard = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
-            f"{papers_by_key[k].get('title') or ''} {papers_by_key[k].get('abstract') or ''}"), idf))
-            for k in profile.get("too_hard_feedback", []) if k in papers_by_key]
-        return ranking.rocchio(seed_vectors, pos, neg + hard, weights.get("pos", 1.0),
-                              weights.get("neg", 0.3) if neg else weights.get("hard", 0.7))
+        # "too_hard" describes difficulty, not disinterest, so it never enters the negatives.
+        return ranking.rocchio(seed_vectors, pos, neg, weights["pos"], weights["neg"])
 
     # ------------------------------------------------------------------ daily
     def usage(self):
@@ -157,16 +532,15 @@ class App:
             # Project-specific stats
             feedback = self.latest_feedback(project_id)
             paper_count = self.store.conn.execute(
-                "SELECT COUNT(*) as cnt FROM papers WHERE project_id=?", (project_id,)
+                "SELECT COUNT(*) as cnt FROM project_papers WHERE project_id=?", (project_id,)
             ).fetchone()["cnt"]
             library_count = self.store.conn.execute("""
-                SELECT COUNT(*) as cnt FROM library
-                WHERE paper_key IN (SELECT key FROM papers WHERE project_id=?)
+                SELECT COUNT(*) as cnt FROM project_library WHERE project_id=?
             """, (project_id,)).fetchone()["cnt"]
             shown_count = self.store.conn.execute("""
-                SELECT COUNT(DISTINCT paper_key) as cnt FROM exposures e
-                JOIN papers p ON e.paper_key = p.key
-                WHERE p.project_id=?
+                SELECT COUNT(DISTINCT e.paper_key) as cnt FROM exposures e
+                JOIN batches b ON e.batch_id = b.id
+                WHERE b.project_id=?
             """, (project_id,)).fetchone()["cnt"]
 
             return {
@@ -177,7 +551,9 @@ class App:
                 "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
                 "too_hard": sum(1 for v in feedback.values() if v["action"] in TOO_HARD_ACTIONS),
                 "shown": shown_count,
-                "summaries": len(self.store.summaries()),
+                "summaries": self.store.conn.execute(
+                    "SELECT COUNT(*) FROM summaries s JOIN project_papers pp ON pp.paper_key=s.paper_key "
+                    "WHERE pp.project_id=?", (project_id,)).fetchone()[0],
             }
         else:
             # Global stats (legacy)
@@ -199,13 +575,7 @@ class App:
         items = []
 
         if project_id:
-            # Filter by project
-            rows = self.store.conn.execute("""
-                SELECT l.saved_at, l.note, p.* FROM library l
-                JOIN papers p ON p.key = l.paper_key
-                WHERE p.project_id = ?
-                ORDER BY l.saved_at DESC
-            """, (project_id,)).fetchall()
+            rows = self.store.library(project_id)
         else:
             rows = self.store.library()
 
@@ -220,7 +590,7 @@ class App:
             })
         return items
 
-    def paper_detail(self, key):
+    def paper_detail(self, key, project_id=None):
         paper = self.store.paper(key)
         if not paper:
             return None
@@ -230,11 +600,12 @@ class App:
             "doi": paper["doi"], "arxiv_id": paper["arxiv_id"],
             "url": (f"https://arxiv.org/abs/{paper['arxiv_id']}" if paper["arxiv_id"]
                     else (paper["doi"] or paper["openalex_id"])),
-            "feedback": self.latest_feedback().get(key),
-            "saved": self.store.in_library(key),
+            "feedback": self.latest_feedback(project_id).get(key) if project_id else self.latest_feedback().get(key),
+            "saved": self.store.in_library(key, project_id),
+            "projects": self.store.paper_projects(key),
             "summary": self.store.summaries().get(key),
             "topic": paper.get("topic"),
-            "why": self.explain(paper)["why"],
+            "why": self.explain(paper, project_id)["why"],
             "has_pdf": self.pdf_path(key) is not None,
         }
 
@@ -287,7 +658,8 @@ class App:
 
         # Get papers for this project only
         rows = self.store.conn.execute(
-            "SELECT * FROM papers WHERE project_id=? ORDER BY published DESC",
+            """SELECT p.* FROM project_papers pp JOIN papers p ON p.key=pp.paper_key
+               WHERE pp.project_id=? ORDER BY p.published DESC""",
             (project_id,)
         ).fetchall()
         papers = [dict(r) for r in rows]
@@ -296,17 +668,23 @@ class App:
         if exclude_seen:
             seen = {r["paper_key"] for r in self.store.conn.execute("""
                 SELECT DISTINCT e.paper_key FROM exposures e
-                JOIN papers p ON e.paper_key = p.key
-                WHERE p.project_id = ?
+                JOIN batches b ON e.batch_id = b.id
+                WHERE b.project_id = ?
             """, (project_id,))}
         else:
             seen = set()
 
         feedback = self.latest_feedback(project_id)
         pool = [p for p in papers if p["key"] not in seen and p["key"] not in feedback]
+        shortfall = None
+        if len(pool) < limit:
+            shortfall = {"requested": limit, "available": len(pool), "candidates": len(papers),
+                         "excluded_seen": sum(1 for p in papers if p["key"] in seen),
+                         "excluded_feedback": sum(1 for p in papers if p["key"] in feedback and p["key"] not in seen),
+                         "reason": f"项目候选池中只剩 {len(pool)} 篇未展示且未反馈的论文"}
 
         if not pool:
-            return {"batch_id": None, "cards": [], "reason": "no unseen candidates"}
+            return {"batch_id": None, "cards": [], "reason": "no unseen candidates", "shortfall": shortfall}
 
         corpus = [f"{p['title']} {p['abstract'] or ''}" for p in pool]
         idf = ranking.build_idf([ranking.tokenize(doc) for doc in corpus])
@@ -318,7 +696,7 @@ class App:
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
         batch_id = self.store.create_batch(run_date, chosen, project_id=project_id)
-        return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id)}
+        return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
 
     def _reference_docs(self, project_id=None):
         """Seeds and saved papers, used to explain *which* direction a card resembles."""
@@ -333,9 +711,9 @@ class App:
 
         # Get library items for this project
         rows = self.store.conn.execute("""
-            SELECT p.* FROM library l
+            SELECT p.* FROM project_library l
             JOIN papers p ON p.key = l.paper_key
-            WHERE p.project_id = ?
+            WHERE l.project_id = ?
         """, (project_id,)).fetchall()
 
         for row in rows:
@@ -401,7 +779,7 @@ class App:
                 "matched_terms": explanation["matched_terms"],
                 "shared_terms": explanation["shared_terms"],
                 "mode": "sparse",
-                "saved": self.store.in_library(row["key"]),
+                "saved": self.store.in_library(row["key"], project_id),
                 "feedback": (feedback.get(row["key"]) or {}).get("action"),
                 "summary": summaries.get(row["key"]),
             })
@@ -420,7 +798,20 @@ class App:
             if not project_id:
                 project_id = self.get_default_project_id()
 
-        # Add feedback with project_id
+        if not self.store.conn.execute(
+                "SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?",
+                (project_id, paper_key)).fetchone():
+            raise ValueError("论文不属于当前项目")
+
+        current = self.latest_feedback(project_id).get(paper_key)
+        if current and current["action"] == action:
+            # Idempotent: repeating the effective label (double click, retry) adds no event,
+            # but a repeated "useful" still means "keep it saved" if the user unsaved it meanwhile.
+            if action in POSITIVE_ACTIONS:
+                self.store.save_to_library(paper_key, note=reason, project_id=project_id)
+            return {"feedback_id": current["id"], "action": action, "interest_changed": False,
+                    "saved": action in POSITIVE_ACTIONS, "duplicate": True}
+
         cursor = self.store.conn.execute(
             "INSERT INTO feedback (paper_key, action, reason, created_at, project_id) VALUES (?,?,?,?,?)",
             (paper_key, action, reason, now(), project_id))
@@ -429,19 +820,20 @@ class App:
 
         # 'useful' means "save to my library"; it does not remove the card from view.
         if action in POSITIVE_ACTIONS:
-            self.store.save_to_library(paper_key, note=reason)
-        self.save_profile(self.store.current_profile() or {"project": "world-models", "pinned_terms": [],
-                                                           "weights": {"pos": 1.0, "neg": 0.5}},
-                          note=f"feedback:{action}")
+            self.store.save_to_library(paper_key, note=reason, project_id=project_id)
         return {"feedback_id": feedback_id, "action": action,
                 "interest_changed": action in (POSITIVE_ACTIONS | NEGATIVE_ACTIONS),
                 "saved": action in POSITIVE_ACTIONS}
 
-    def unsave(self, paper_key):
-        self.store.remove_from_library(paper_key)
+    def unsave(self, paper_key, project_id=None):
+        self.store.remove_from_library(paper_key, project_id=project_id)
         return {"saved": False}
 
-    def undo_feedback(self, feedback_id):
+    def undo_feedback(self, feedback_id, project_id=None):
+        row = self.store.conn.execute("SELECT project_id FROM feedback WHERE id=?", (feedback_id,)).fetchone()
+        if not row or (project_id and row["project_id"] != project_id):
+            raise ValueError("反馈不属于当前项目")
+        # Undo restores the profile signals; a library save is a separate user fact and stays.
         self.store.undo_feedback(feedback_id)
         return {"undone": feedback_id}
 
@@ -537,7 +929,11 @@ class App:
                  "不要编造引用、页码或结论。回答用中文，简洁，术语给英文原词。")
 
     def qa(self, paper_key, question, selection=None, image=None, page_hint=None, context="normal",
-           dry_run=False):
+           dry_run=False, project_id=None):
+        if project_id and not self.store.conn.execute(
+                "SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?",
+                (project_id, paper_key)).fetchone():
+            raise ValueError("论文不属于当前项目")
         paper = self.store.paper(paper_key) if paper_key else None
         parts = []
         if paper:
@@ -571,7 +967,7 @@ class App:
         if image:
             parts.append(f"随本次提问附上第 {page_hint or '?'} 页的页面图片，图中可能包含用户问到的图表。")
         messages = [{"role": "system", "content": self.QA_SYSTEM}]
-        for entry in self.store.qa_history(paper_key)[-6:]:
+        for entry in self.store.qa_history(paper_key, project_id=project_id)[-6:]:
             messages.append({"role": entry["role"], "content": entry["content"]})
         instructions = ("\n\n".join(parts) + f"\n\n问题：{question}\n\n"
                         '只输出 JSON：{"answer": "回答（可用 Markdown）", '
@@ -601,8 +997,8 @@ class App:
             except ValueError:
                 pass  # keep the raw answer when the model does not return valid JSON
         if paper_key:
-            self.store.add_qa(paper_key, "user", question)
-            self.store.add_qa(paper_key, "assistant", answer)
+            self.store.add_qa(paper_key, "user", question, project_id=project_id)
+            self.store.add_qa(paper_key, "assistant", answer, project_id=project_id)
         return {"ok": True, "answer": answer, "followups": followups,
                 "mode": "vision" if image else "text", "pages": pages,
                 "context_chars": sum(len(h["text"]) for h in hits),
@@ -623,8 +1019,8 @@ class App:
         return {"ok": True, "translation": (result.get("content") or "").strip(),
                 "usage": result["usage"], "usd": result["usd"]}
 
-    def qa_history(self, paper_key):
-        return self.store.qa_history(paper_key)
+    def qa_history(self, paper_key, project_id=None):
+        return self.store.qa_history(paper_key, project_id=project_id)
 
     # ------------------------------------------------------------------- pdf
     def pdf_path(self, paper_key):
@@ -683,9 +1079,15 @@ class App:
         if dry_run or not result.get("ok"):
             return {"ok": False, "degraded": True, "reason": result.get("reason"),
                     "items": [], "mode": "sparse", "reservation": result.get("reservation")}
-        import re
-        match = re.search(r"\[.*\]", result["content"], re.S)
-        items = json.loads(match.group(0)) if match else []
+        match = re.search(r"\[.*\]", result.get("content") or "", re.S)
+        try:
+            items = json.loads(match.group(0)) if match else None
+        except ValueError:
+            items = None
+        if not isinstance(items, list):
+            return {"ok": False, "degraded": True, "reason": "AI 速览返回格式无法解析，保留本地卡片",
+                    "items": [], "mode": "sparse", "usage": result.get("usage"), "usd": result.get("usd")}
+        items = [item for item in items if isinstance(item, dict)]
         for item in items:
             key = item.get("paper_id")
             if key:

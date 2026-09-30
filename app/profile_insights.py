@@ -1,0 +1,186 @@
+"""Local profile presentation: explicit facts, bounded responses, no model calls."""
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
+from . import ranking
+
+KINDS = {'saved', 'positive', 'negative', 'too_hard', 'seed', 'term', 'feedback', 'week', 'exposed'}
+LABELS = {'positive': '有用', 'negative': '不相关', 'too_hard': '太难', 'saved': '收藏', 'exposed': '曝光'}
+STOP = {'further', 'framework', 'model', 'models', 'using', 'propose', 'proposed', 'approach'}
+
+
+def context(app, project_id):
+    project_id = project_id or app.get_default_project_id()
+    project = app.projects.get_project(project_id)
+    if not project:
+        raise ValueError('项目不存在')
+    c = app.store.conn
+    papers = {r['key']: dict(r) for r in c.execute('''
+        SELECT p.* FROM project_papers pp JOIN papers p ON p.key=pp.paper_key
+        WHERE pp.project_id=?
+    ''', (project_id,))}
+    feedback = [dict(r) for r in c.execute('''SELECT f.* FROM feedback f
+        JOIN project_papers pp ON pp.project_id=f.project_id AND pp.paper_key=f.paper_key
+        WHERE f.project_id=? ORDER BY f.id''', (project_id,))]
+    latest = {}
+    for r in feedback:
+        if not r['undone']:
+            latest[r['paper_key']] = r
+    saved = {r['paper_key']: dict(r) for r in c.execute('''
+        SELECT l.* FROM project_library l JOIN papers p ON p.key=l.paper_key
+        WHERE l.project_id=?''', (project_id,))}
+    profile = app.profile(project_id)
+    evidence = {}
+    for key, paper in papers.items():
+        sources = []
+        if key in profile['positive_seeds']:
+            sources.append('seed')
+        if latest.get(key, {}).get('action') == 'useful':
+            sources.append('useful_feedback')
+        if key in saved:
+            sources.append('saved')
+        if sources:
+            evidence[key] = sources
+    events = []
+    def event(key, kind, timestamp, **extra):
+        if key in papers:
+            p = papers[key]
+            events.append(dict(key=key, title=p['title'], published=p.get('published'), kind=kind,
+                               time=timestamp, sources=evidence.get(key, []), **extra))
+    for r in feedback:
+        if not r['undone']:
+            kind = {'useful': 'positive', 'irrelevant': 'negative', 'too_hard': 'too_hard'}.get(r['action'], 'other')
+            event(r['paper_key'], kind, r['created_at'], feedback_id=r['id'], action=r['action'], reason=r['reason'])
+    for key, r in saved.items():
+        event(key, 'saved', r['saved_at'])
+    for r in c.execute('''SELECT e.* FROM exposures e JOIN batches b ON b.id=e.batch_id
+        WHERE b.project_id=?''', (project_id,)):
+        event(r['paper_key'], 'exposed', r['shown_at'])
+    return dict(project_id=project_id, project=project, profile=profile, papers=papers,
+                feedback=feedback, latest=latest, saved=saved, evidence=evidence, events=events)
+
+
+def stamp(value):
+    try:
+        d = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        return d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d.astimezone(timezone.utc)
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def period_events(ctx, start, end):
+    return [e for e in ctx['events'] if stamp(e['time']) and start <= stamp(e['time']) < end]
+
+
+def boundary():
+    # Calendar days, UTC; identical windows throughout a day and no sliding bucket labels.
+    return datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
+
+def keywords(ctx, stopwords):
+    docs = defaultdict(set)
+    for key in ctx['evidence']:
+        p = ctx['papers'][key]
+        for term in set(ranking.tokenize((p['title'] or '') + ' ' + (p['abstract'] or ''))) - stopwords - STOP:
+            docs[term].add(key)
+    top = sorted(docs, key=lambda t: (-len(docs[t]), t))[:20]
+    maximum = max((len(docs[t]) for t in top), default=1)
+    return [dict(term=t, score=len(docs[t])/maximum, documents=len(docs[t]), explicit=False,
+                 sources=sorted({s for k in docs[t] for s in ctx['evidence'][k]}),
+                 evidence_keys=sorted(docs[t])[:5]) for t in top]
+
+
+def weekly(ctx):
+    end = boundary()
+    start, prev = end-timedelta(days=7), end-timedelta(days=14)
+    current_events, previous_events = period_events(ctx, start, end), period_events(ctx, prev, start)
+    def counts(events):
+        cnt = Counter(e['kind'] for e in events)
+        return {**{k: cnt[k] for k in LABELS}, 'feedback': sum('feedback_id' in e for e in events),
+                'activity': len(events), 'total_saved': len(ctx['saved'])}
+    def terms(events):
+        keys = {e['key'] for e in events if e['kind'] in ('saved', 'positive')}
+        from .service import PROFILE_STOPWORDS
+        counter = Counter()
+        for key in keys:
+            p = ctx['papers'][key]
+            counter.update(set(ranking.tokenize(f"{p['title'] or ''} {p['abstract'] or ''}"))-PROFILE_STOPWORDS-STOP)
+        return counter
+    a, b = terms(current_events), terms(previous_events)
+    changes = [dict(term=t, current=a[t], previous=b[t], delta=a[t]-b[t]) for t in a.keys() | b.keys()]
+    changes.sort(key=lambda r: (-abs(r['delta']), -r['current'], r['term']))
+    return dict(week_start=start.isoformat(), week_end=end.isoformat(), previous_start=prev.isoformat(),
+                stats=counts(current_events), previous_stats=counts(previous_events),
+                has_activity=bool(current_events), comparable=bool(current_events and previous_events),
+                keyword_changes={name: [r for r in changes if fn(r['delta'])][:5] for name, fn in
+                                 [('rising', lambda d: d>0), ('stable', lambda d: d==0), ('falling', lambda d: d<0)]})
+
+
+def insights(app, project_id, weeks=12):
+    ctx = context(app, project_id)
+    end = boundary()
+    start = end-timedelta(weeks=weeks)
+    buckets = []
+    for i in range(weeks):
+        a, b = start+timedelta(weeks=i), start+timedelta(weeks=i+1)
+        events = period_events(ctx, a, b)
+        cnt = Counter(e['kind'] for e in events)
+        buckets.append(dict(start=a.date().isoformat(), end=b.date().isoformat(),
+                            **{k: cnt[k] for k in LABELS}, activity=len(events), interest_score=cnt['positive']-cnt['negative']))
+    from .service import PROFILE_STOPWORDS
+    terms = keywords(ctx, PROFILE_STOPWORDS)
+    latest_counts = Counter(r['action'] for r in ctx['latest'].values())
+    signals = dict(pinned=len(ctx['profile']['pinned_terms']), saved=len(ctx['saved']),
+                   positive=latest_counts['useful'], negative=latest_counts['irrelevant'], too_hard=latest_counts['too_hard'], seed=len(ctx['evidence'].keys() & set(ctx['profile']['positive_seeds'])))
+    recent = sorted([e for e in ctx['events'] if 'feedback_id' in e], key=lambda e: e['feedback_id'], reverse=True)[:5]
+    versions = app.profile_versions(ctx['project_id'])
+    last = max([e['time'] for e in ctx['events']] + [v['created_at'] for v in versions], default=None)
+    summary = ('当前论文证据中常见：' + '、'.join(t['term'] for t in terms[:3]) + '。词项表示论文内容，不代表已确认的长期偏好。') if terms else '暂无论文证据形成关注词项；可以先填写固定关键词，或对论文给出明确反馈。'
+    return dict(project_id=ctx['project_id'], keyword_distribution=terms,
+                keyword_evidence=dict(papers=len(ctx['evidence']), sources=sorted({s for ss in ctx['evidence'].values() for s in ss})),
+                timeline=dict(weeks=buckets, has_activity=any(b['activity'] for b in buckets), window_weeks=weeks),
+                coverage=dict(start=start.date().isoformat(), end=end.date().isoformat(), timezone='UTC', last_activity=last, has_activity=any(b['activity'] for b in buckets)),
+                signals=signals, summary=summary, recent_feedback=recent, weekly_change=weekly(ctx), versions=versions[-10:][::-1])
+
+
+def evidence(app, project_id, kind, term='', start=None, end=None, offset=0):
+    if kind not in KINDS or offset < 0:
+        raise ValueError('无效的证据查询')
+    if kind == 'term' and (start or end):
+        a, b = stamp(start), stamp(end)
+        if not a or not b or a >= b:
+            raise ValueError('无效的日期范围')
+    ctx = context(app, project_id)
+    if kind in ('week', 'feedback', 'exposed') or (start and kind != 'term'):
+        items = ctx['events']
+        if kind == 'feedback':
+            items = [e for e in items if 'feedback_id' in e]
+        elif kind != 'week':
+            items = [e for e in items if e['kind'] == kind]
+        if start or end:
+            a, b = stamp(start), stamp(end)
+            if not a or not b or a >= b:
+                raise ValueError('无效的日期范围')
+            items = [e for e in items if stamp(e['time']) and a <= stamp(e['time']) < b]
+        elif kind == 'week':
+            raise ValueError('周明细需要日期范围')
+    else:
+        items = []
+        action = {'positive': 'useful', 'negative': 'irrelevant', 'too_hard': 'too_hard'}.get(kind)
+        for key, p in ctx['papers'].items():
+            fb = ctx['latest'].get(key, {})
+            matched = (kind=='saved' and key in ctx['saved']) or (action and fb.get('action')==action) or (kind=='seed' and key in ctx['profile']['positive_seeds'])
+            if kind == 'term':
+                matched = key in ctx['evidence'] and term in ranking.tokenize(f"{p['title'] or ''} {p['abstract'] or ''}")
+            if matched:
+                if kind == 'term' and (start or end):
+                    a, b = stamp(start), stamp(end)
+                    saved_at = ctx['saved'].get(key, {}).get('saved_at')
+                    fb_at = ctx['latest'].get(key, {}).get('created_at')
+                    times = [stamp(t) for t in (saved_at, fb_at) if stamp(t)]
+                    matched = bool(a and b and any(a <= t < b for t in times))
+            if matched:
+                items.append(dict(key=key, title=p['title'], published=p.get('published'), kind=kind,
+                                  time=fb.get('created_at') or ctx['saved'].get(key, {}).get('saved_at'),
+                                  action=fb.get('action'), feedback_id=fb.get('id'), sources=ctx['evidence'].get(key, [])))
+    items = sorted(items, key=lambda r: (r.get('time') or '', r['key']), reverse=True)
+    return dict(project_id=ctx['project_id'], items=items[offset:offset+25], total=len(items), offset=offset, limit=25)

@@ -42,6 +42,7 @@ Skills use the Agent Skills format; discovery varies by client. If not auto-disc
 5. Run checks, inspect the actual diff, review data/privacy and budget failure paths.
 6. Update the same work unit's change record, task state, relevant docs and HANDOFF.
 7. Report failures and unmeasured items. Independent review is a separate review, not a second self-rating.
+8. Build the desktop release: run `build_desktop.py` then `cargo tauri build --bundles app`. Every completed work unit must end with a green build at `src-tauri/target/release/bundle/macos/PaperDigHelper.app`; a code change that cannot produce a working build is not done.
 
 ## Commands available now (Python 3.9+, standard library)
 ```sh
@@ -50,6 +51,10 @@ python3 scripts/harness.py check
 python3 -m unittest discover -s tests -v
 python3 scripts/harness.py impact
 python3 scripts/harness.py review changes/<id>.json
+# Build desktop release (run after tests pass):
+.local/desktop-build-env/bin/python scripts/build_desktop.py
+cargo tauri build --bundles app
+# Output: src-tauri/target/release/bundle/macos/PaperDigHelper.app
 ```
 `impact` inspects tracked and untracked changes; `review` requires its record to cover the entire current worktree change set.
 Commit or isolate work units before mixing unrelated edits. Never discard the owner's existing work.

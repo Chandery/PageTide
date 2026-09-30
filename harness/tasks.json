@@ -69,7 +69,7 @@
       "id": "BUDGET-01",
       "stage": "research",
       "title": "行动前算出每日最低token开销并登记可复算预算提案",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "PLAN-01"
       ],
@@ -85,13 +85,17 @@
         "用官方价格按30天+周任务、同日峰值与重试复算token与USD，生成表与JSON一致",
         "明确所有数值是未批准、未实测的提案；发布与付费仍被阻断，等待用户确认"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-09-11-plan-budget-checks.txt",
+        "docs/evidence/2026-09-11-plan02-decisions-and-graph-self-review.md",
+        "docs/evidence/2026-09-30-project01-chain-checks.txt"
+      ]
     },
     {
       "id": "PLAN-02",
       "stage": "research",
       "title": "确认领域/种子、反馈定义与首轮实验方案",
-      "status": "in_progress",
+      "status": "review",
       "depends_on": [
         "PLAN-01",
         "BUDGET-01"
@@ -108,13 +112,20 @@
         "确认首版切片：核心推荐画像 + PDF 下载归档 + AI 速览与追问；笔记/高亮/划词后置",
         "待确认：AI 每日/每月 token 与金额上限的明确接受、数据源出站范围、PDF 归档位置与 Zotero 是否写入"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-09-30-project01-chain-status.md",
+        "docs/evidence/2026-09-11-plan02-decisions-and-graph-self-review.md",
+        "docs/evidence/2026-09-11-label-threshold-freeze.md"
+      ],
+      "missing_inputs": [
+        "owner 确认“优于关键词基线”与“更新画像优于冻结画像”的最小有意义差值、样本量与资源目标"
+      ]
     },
     {
       "id": "REUSE-01",
       "stage": "benchmark",
       "title": "隔离验证上游纯推荐子集与轻量基线，决定直接采用或最小适配",
-      "status": "planned",
+      "status": "review",
       "depends_on": [
         "PLAN-02"
       ],
@@ -130,13 +141,21 @@
         "真实验证标签/负反馈/撤销/重启及出站边界，测索引/排序资源",
         "记录采纳/淘汰依据；开源源码存在不算运行通过"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-09-30-reuse-baseline.md",
+        "tools/reuse_baseline.py",
+        "docs/evidence/2026-09-30-reuse-baseline.txt"
+      ],
+      "missing_inputs": [
+        "上游 arxiv-sanity-lite 探针未运行（owner 选择只做本地基线）",
+        "owner 决定是否接受保留现有排序器"
+      ]
     },
     {
       "id": "DATA-01",
       "stage": "benchmark",
       "title": "验证领域数据覆盖、规范ID和时间语义，冻结可回放候选集",
-      "status": "in_progress",
+      "status": "review",
       "depends_on": [
         "PLAN-02"
       ],
@@ -153,7 +172,12 @@
       ],
       "evidence": [
         "docs/evidence/2026-09-11-data01-openalex-report.md",
-        "tools/data_probe.py"
+        "tools/data_probe.py",
+        "docs/evidence/2026-09-30-project01-chain-status.md"
+      ],
+      "missing_inputs": [
+        "依赖 PLAN-02 完成",
+        "owner 确认数据源覆盖结论"
       ]
     },
     {
@@ -181,7 +205,7 @@
       "id": "CORE-01",
       "stage": "feedback",
       "title": "候选→推荐→明确反馈→画像版本的最短闭环（排序与去重）",
-      "status": "in_progress",
+      "status": "review",
       "depends_on": [
         "REUSE-01",
         "DATA-01"
@@ -204,14 +228,21 @@
         "docs/evidence/2026-09-11-ranking-experiment-1.md",
         "docs/evidence/2026-09-11-ranking-experiment-2.md",
         "tools/eval_probe.py",
-        "docs/evidence/2026-09-11-label-validation-1.md"
+        "docs/evidence/2026-09-11-label-validation-1.md",
+        "docs/evidence/2026-09-30-project01-chain-status.md",
+        "docs/evidence/2026-09-30-project01-chain-checks.txt",
+        "docs/evidence/2026-09-30-reuse-baseline.md"
+      ],
+      "missing_inputs": [
+        "依赖 PLAN-02、REUSE-01 完成",
+        "owner 标签下的排序质量评估"
       ]
     },
     {
       "id": "PROFILE-01",
       "stage": "feedback",
       "title": "可解释、可编辑、可撤销、可冻结的画像与事件语义",
-      "status": "in_progress",
+      "status": "review",
       "depends_on": [
         "CORE-01"
       ],
@@ -229,7 +260,14 @@
       ],
       "evidence": [
         "docs/evidence/2026-09-11-feedback-value-1.md",
-        "tools/eval_probe.py"
+        "tools/eval_probe.py",
+        "docs/evidence/2026-09-30-project01-chain-status.md",
+        "docs/evidence/2026-09-30-project01-chain-checks.txt",
+        "docs/decisions/0009-gateway-ledger-profile-control.md"
+      ],
+      "missing_inputs": [
+        "“探索主题”尚未作为结构化画像字段实现；熟悉度仅由“太难”事件表达",
+        "依赖 CORE-01 完成"
       ]
     },
     {
@@ -259,7 +297,7 @@
       "id": "EVAL-01",
       "stage": "feedback",
       "title": "独立比较推荐质量与反馈收益，不达标回退而非扩展配套",
-      "status": "in_progress",
+      "status": "review",
       "depends_on": [
         "PROFILE-01"
       ],
@@ -277,7 +315,13 @@
       "evidence": [
         "docs/evidence/2026-09-11-feedback-value-1.md",
         "tools/eval_probe.py",
-        "docs/evidence/2026-09-11-rolling-feedback-1.md"
+        "docs/evidence/2026-09-11-rolling-feedback-1.md",
+        "docs/evidence/2026-09-30-project01-chain-status.md",
+        "docs/evidence/2026-09-30-reuse-baseline.md"
+      ],
+      "missing_inputs": [
+        "owner 盲评标签；现有 P@5 饱和，不能判定 E-RANKING/E-FEEDBACK-VALUE 通过",
+        "依赖 PROFILE-01 完成"
       ]
     },
     {
@@ -386,7 +430,7 @@
       "id": "AI-01",
       "stage": "assist",
       "title": "唯一预算网关 + 每日五篇速览（可关闭、默认前先授权）",
-      "status": "in_progress",
+      "status": "review",
       "depends_on": [
         "EVAL-01",
         "PLAN-02"
@@ -407,7 +451,14 @@
         "docs/decisions/0005-implementation-start-tauri-python.md",
         "docs/evidence/2026-09-20-provider-key-checks.txt",
         "app/service.py",
-        "app/gateway.py"
+        "app/gateway.py",
+        "docs/evidence/2026-09-30-project01-chain-status.md",
+        "docs/evidence/2026-09-30-project01-chain-checks.txt",
+        "docs/decisions/0009-gateway-ledger-profile-control.md"
+      ],
+      "missing_inputs": [
+        "未经授权不做真实调用：运行时 token 实测与 tokenizer 对齐仍缺",
+        "依赖 EVAL-01、PLAN-02 完成"
       ]
     },
     {
@@ -453,6 +504,30 @@
         "周报不生成未完成条数、不把AI文本当用户笔记"
       ],
       "evidence": []
+    },
+    {
+      "id": "PROFILE-02",
+      "stage": "feedback",
+      "title": "画像页证据导向重构与周报统一入口",
+      "status": "in_progress",
+      "depends_on": [
+        "PROFILE-01"
+      ],
+      "requirements": [
+        "R-PROFILE",
+        "R-NODEBT",
+        "R-WEEKLY"
+      ],
+      "acceptance": [
+        "首屏显示当前画像信号、证据周期和修正入口；不重复显示全局统计",
+        "固定关键词、收藏、有用、不相关、太难分组展示；点击数字或词项能追溯到项目内论文/事件",
+        "最近12周使用可读周桶显示曝光、收藏、反馈和空状态；沉默不作为负反馈",
+        "画像内显示本周与上周实际活动变化；独立周报复用同一数据口径",
+        "固定关键词按项目隔离；反馈可撤销并即时刷新画像、证据与周报；模型不可用时页面仍完整工作"
+      ],
+      "evidence": [
+        "docs/evidence/2026-09-30-profile-redesign-checks.txt"
+      ]
     },
     {
       "id": "PILOT-01",
@@ -522,6 +597,49 @@
         "用户批准预算/数据外发/发布；agent不得自批"
       ],
       "evidence": []
+    },
+    {
+      "id": "PROJECT-01",
+      "stage": "delivery",
+      "title": "项目创建引导与跨项目共享论文（画像独立）",
+      "status": "review",
+      "depends_on": [
+        "CORE-01",
+        "PROFILE-01",
+        "AI-01"
+      ],
+      "requirements": [
+        "R-BUDGET",
+        "R-DURABILITY",
+        "R-HARNESS",
+        "R-LOCAL",
+        "R-NODEBT",
+        "R-PROFILE",
+        "R-WEEKLY"
+      ],
+      "acceptance": [
+        "创建草稿会话支持最多六轮、可恢复/取消/确认；AI 只生成结构化关键词、检索式和学习路径",
+        "AI 无 key、预算不足或网络失败时本地解析与公开元数据检索仍可完成创建",
+        "同一规范论文可加入多个项目，收藏、反馈、曝光、推荐和画像按项目隔离",
+        "候选论文须由用户勾选后加入；详情页可显式加入其他项目，移除关系不删除全局事实",
+        "手动种子逐个报告成功/失败/重复；URL project_id 优先于旧 localStorage 项目",
+        "迁移、HTTP、UI、预算、harness 和桌面构建检查均有可复核证据"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-01-project-guidance-sharing-checks.txt",
+        "docs/evidence/2026-10-01-project-guidance-sharing-review.md",
+        "docs/evidence/2026-09-30-project01-chain-status.md",
+        "docs/evidence/2026-09-30-project01-chain-checks.txt"
+      ],
+      "related_tasks": [
+        "PROFILE-02",
+        "PILOT-01"
+      ],
+      "missing_inputs": [
+        "依赖链 CORE-01/PROFILE-01/AI-01 未 done",
+        "project_guidance 需 owner 单独批准才可真实调用",
+        "HTTP 路由测试需在允许本地端口绑定的环境重跑"
+      ]
     }
   ]
 }

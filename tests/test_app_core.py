@@ -109,6 +109,12 @@ class GatewayTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertTrue(result["degraded"])
 
+    def test_unapproved_project_guidance_is_forced_to_local_mode(self):
+        gateway = Gateway(root=".", ledger=Path(self.tmp.name) / "usage.jsonl")
+        result = gateway.call("project_guidance", [], dry_run=True)
+        self.assertFalse(result["ok"])
+        self.assertIn("owner approval", result["reason"])
+
 
 class ServiceTests(unittest.TestCase):
     def setUp(self):

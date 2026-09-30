@@ -173,6 +173,33 @@ class SettingsHTTPTests(unittest.TestCase):
                                      origin="http://evil.example")
         self.assertEqual(status, 403)
 
+    def test_ai_switch_and_user_settings_never_store_the_key(self):
+        status, body = self._request("POST", "/api/settings", {"ai_enabled": False})
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertFalse(payload["ai_enabled"])
+        self.assertIn("daily_total_tokens", payload["limits"])
+        status, body = self._request("POST", "/api/settings", {"ai_enabled": "no"})
+        self.assertEqual(status, 400)
+        status, _ = self._request("POST", "/api/user_settings",
+                                  {"settings": {"theme": "dark", "apiKey": "sk-leak", "dailyLimit": 0}})
+        self.assertEqual(status, 200)
+        status, body = self._request("GET", "/api/user_settings")
+        self.assertNotIn("sk-leak", body.decode())
+        self.assertNotIn("dailyLimit", json.loads(body)["settings"])
+        status, body = self._request("POST", "/api/settings", {"ai_enabled": True})
+        self.assertTrue(json.loads(body)["ai_enabled"])
+
+
+class SettingsPageTests(unittest.TestCase):
+    def test_settings_page_has_no_fake_budget_controls(self):
+        html = (Path(__file__).resolve().parents[1] / "app/static/settings.html").read_text()
+        for removed in ("dailyLimit", "aiRerank", "settings.apiKey", "apiKey:"):
+            self.assertNotIn(removed, html)
+        self.assertIn('id="aiEnabled"', html)
+        self.assertIn("ai_enabled", html)
+        self.assertIn('id="budgetLimits"', html)
+
 
 if __name__ == "__main__":
     unittest.main()

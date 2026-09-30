@@ -7,6 +7,7 @@ caller (local mode) - there is never a silent provider fallback.
 """
 import json
 import os
+import threading
 import urllib.error
 import urllib.request
 from decimal import Decimal
@@ -25,6 +26,9 @@ DEV_MARKER = Path("DEV_MODE")
 DEV_LEDGER = Path("usage-dev.jsonl")
 DEV_POLICY = {"daily_total_tokens": 5_000_000, "monthly_total_tokens": 50_000_000,
               "daily_usd": "10.00", "monthly_usd": "50.00"}
+# Owner-facing kill switch: while this marker exists every call returns degraded
+# before admission, so no request (not even a dry-run reservation) is made.
+AI_DISABLED_MARKER = Path("AI_DISABLED")
 ENV_FILE = Path(".local/deepseek.env")
 KEY_FILE_NAME = "deepseek.env"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
@@ -63,6 +67,10 @@ def _cost(provider, input_tokens, output_tokens, cache_hits=0):
 
 class BudgetExceeded(RuntimeError):
     pass
+
+
+# Admission and reservation must be atomic across the threaded local server.
+_LEDGER_LOCK = threading.Lock()
 
 
 class Gateway:
@@ -149,24 +157,60 @@ class Gateway:
             policy.update(DEV_POLICY)
         return policy
 
+    # ------------------------------------------------------------ switch
+    def enabled(self):
+        return not (self.data_dir / AI_DISABLED_MARKER).exists()
+
+    def set_enabled(self, enabled):
+        marker = self.data_dir / AI_DISABLED_MARKER
+        if enabled:
+            try:
+                marker.unlink()
+            except FileNotFoundError:
+                pass
+        else:
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text("AI disabled by owner\n")
+        return self.enabled()
+
     # ------------------------------------------------------------ accounting
-    def _entries(self, day, month):
+    def _entries(self):
+        """Effective ledger rows: one per legacy row or per reservation id.
+
+        A reservation stays charged at its registered cap until a later row
+        reconciles it (actual usage) or releases it (provider rejected before
+        generation). Unknown usage therefore keeps the reservation.
+        """
         if not self.ledger.exists():
             return []
-        entries = []
+        plain, by_id = [], {}
         for line in self.ledger.read_text().splitlines():
             if not line.strip():
                 continue
             entry = json.loads(line)
-            if entry["date"] == day or entry["date"].startswith(month):
-                entries.append(entry)
-        return entries
+            rid = entry.get("id")
+            if not rid:
+                plain.append(entry)
+                continue
+            current = by_id.get(rid)
+            if current is None or current.get("status") in ("reserved", "unknown"):
+                if entry.get("status") == "unknown" and current is not None:
+                    continue  # unknown keeps the reserved values
+                by_id[rid] = entry
+        return plain + list(by_id.values())
 
     def _usage(self, day, month):
-        entries = self._entries(day, month)
-        tokens = sum(e["input"] + e["output"] for e in entries)
-        usd = sum(Decimal(str(e["usd"])) for e in entries) if entries else Decimal(0)
-        return tokens, usd
+        """Return ((day_tokens, day_usd), (month_tokens, month_usd))."""
+        day_tokens = month_tokens = 0
+        day_usd = month_usd = Decimal(0)
+        for entry in self._entries():
+            tokens = int(entry.get("input", 0)) + int(entry.get("output", 0))
+            usd = Decimal(str(entry.get("usd", "0")))
+            if entry["date"] == day:
+                day_tokens, day_usd = day_tokens + tokens, day_usd + usd
+            if entry["date"].startswith(month):
+                month_tokens, month_usd = month_tokens + tokens, month_usd + usd
+        return (day_tokens, day_usd), (month_tokens, month_usd)
 
     def admit(self, operation, day, month):
         """Return reservation (input, output, usd) or raise BudgetExceeded."""
@@ -176,53 +220,74 @@ class Gateway:
         op = self.config["operations"].get(operation)
         if op is None:
             raise BudgetExceeded(f"operation not registered: {operation}")
+        if op.get("owner_approved") is False:
+            raise BudgetExceeded(f"operation awaiting owner approval: {operation}")
         cap_in, cap_out = op["cap"]["input"], op["cap"]["output"]
         reserve_usd = _cost(provider, cap_in, cap_out)
-        tokens, usd = self._usage(day, month)
+        (day_tokens, day_usd), (month_tokens, month_usd) = self._usage(day, month)
         policy = self.limits()
-        if tokens + cap_in + cap_out > policy["daily_total_tokens"]:
-            raise BudgetExceeded(f"daily token ceiling ({tokens:,}/{policy['daily_total_tokens']:,} used)")
-        if tokens + cap_in + cap_out > policy["monthly_total_tokens"]:
-            raise BudgetExceeded(f"monthly token ceiling ({tokens:,}/{policy['monthly_total_tokens']:,} used)")
-        if usd + reserve_usd > Decimal(str(policy["daily_usd"])):
-            raise BudgetExceeded(f"daily USD ceiling (${usd:.4f}/${policy['daily_usd']} used)")
-        if usd + reserve_usd > Decimal(str(policy["monthly_usd"])):
-            raise BudgetExceeded(f"monthly USD ceiling (${usd:.4f}/${policy['monthly_usd']} used)")
+        if day_tokens + cap_in + cap_out > policy["daily_total_tokens"]:
+            raise BudgetExceeded(f"daily token ceiling ({day_tokens:,}/{policy['daily_total_tokens']:,} used)")
+        if month_tokens + cap_in + cap_out > policy["monthly_total_tokens"]:
+            raise BudgetExceeded(f"monthly token ceiling ({month_tokens:,}/{policy['monthly_total_tokens']:,} used)")
+        if day_usd + reserve_usd > Decimal(str(policy["daily_usd"])):
+            raise BudgetExceeded(f"daily USD ceiling (${day_usd:.4f}/${policy['daily_usd']} used)")
+        if month_usd + reserve_usd > Decimal(str(policy["monthly_usd"])):
+            raise BudgetExceeded(f"monthly USD ceiling (${month_usd:.4f}/${policy['monthly_usd']} used)")
         return cap_in, cap_out, reserve_usd
 
     def usage_today(self):
         import datetime
         today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-        tokens, usd = self._usage(today, today[:7])
-        return {"tokens": tokens, "usd": str(usd), "ceiling": self.limits()["daily_total_tokens"], "dev": self.dev}
+        (tokens, usd), (month_tokens, month_usd) = self._usage(today, today[:7])
+        return {"tokens": tokens, "usd": str(usd), "month_tokens": month_tokens, "month_usd": str(month_usd),
+                "ceiling": self.limits()["daily_total_tokens"], "dev": self.dev, "enabled": self.enabled()}
 
-    def _record(self, date, operation, usage, usd, model):
+    def _append(self, entry):
         self.ledger.parent.mkdir(parents=True, exist_ok=True)
         with self.ledger.open("a") as handle:
-            handle.write(json.dumps({
-                "date": date, "operation": operation, "model": model,
-                "input": usage.get("prompt_tokens", 0), "output": usage.get("completion_tokens", 0),
-                "cache_hit": usage.get("prompt_cache_hit_tokens", 0),
-                "total": usage.get("total_tokens", 0), "usd": str(usd),
-            }) + "\n")
+            handle.write(json.dumps(entry) + "\n")
+
+    def _record(self, date, operation, usage, usd, model, rid=None, status=None):
+        entry = {
+            "date": date, "operation": operation, "model": model,
+            "input": usage.get("prompt_tokens", 0), "output": usage.get("completion_tokens", 0),
+            "cache_hit": usage.get("prompt_cache_hit_tokens", 0),
+            "total": usage.get("total_tokens", 0), "usd": str(usd),
+        }
+        if rid:
+            entry.update({"id": rid, "status": status})
+        self._append(entry)
 
     # -------------------------------------------------------------- provider
     def call(self, operation, messages, dry_run=False, timeout=90):
-        """Call the runtime provider for a registered operation. Returns dict or None."""
+        """Call the runtime provider for a registered operation. Returns dict or None.
+
+        One attempt only: no retry, no model fallback. The envelope is written to
+        the ledger as an in-flight reservation before sending and is reconciled
+        only when the provider reports usage.
+        """
         import datetime
+        import uuid
+        if not self.enabled():
+            return {"ok": False, "degraded": True, "disabled": True, "reason": "AI 已关闭"}
         today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
         month = today[:7]
-        try:
-            cap_in, cap_out, reserve_usd = self.admit(operation, today, month)
-        except BudgetExceeded as exc:
-            return {"ok": False, "degraded": True, "reason": str(exc)}
-        if dry_run:
-            return {"ok": True, "dry_run": True, "operation": operation,
-                    "reservation": {"input": cap_in, "output": cap_out, "usd": str(reserve_usd)}}
-        key, _source = self._load_key()
-        if not key:
-            return {"ok": False, "degraded": True, "reason": "no API key"}
         provider = self.config["provider"]
+        with _LEDGER_LOCK:
+            try:
+                cap_in, cap_out, reserve_usd = self.admit(operation, today, month)
+            except BudgetExceeded as exc:
+                return {"ok": False, "degraded": True, "reason": str(exc)}
+            if dry_run:
+                return {"ok": True, "dry_run": True, "operation": operation,
+                        "reservation": {"input": cap_in, "output": cap_out, "usd": str(reserve_usd)}}
+            key, _source = self._load_key()
+            if not key:
+                return {"ok": False, "degraded": True, "reason": "no API key"}
+            rid = uuid.uuid4().hex
+            self._record(today, operation, {"prompt_tokens": cap_in, "completion_tokens": cap_out},
+                         reserve_usd, provider["model"], rid, "reserved")
         body = json.dumps({
             "model": provider["model"],
             "thinking": {"type": "disabled"},
@@ -236,12 +301,25 @@ class Gateway:
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 payload = json.loads(response.read().decode("utf-8", "replace"))
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
-            return {"ok": False, "degraded": True, "reason": f"{type(exc).__name__}: {exc}"}
-        usage = payload.get("usage", {})
-        model = payload.get("model", provider["model"])
+        except urllib.error.HTTPError as exc:
+            if 400 <= exc.code < 500:
+                # Rejected before generation (auth, balance, validation, rate limit).
+                self._record(today, operation, {}, Decimal(0), provider["model"], rid, "released")
+            return {"ok": False, "degraded": True, "reason": f"HTTPError: {exc.code}"}
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            # The request may have been processed: keep the reservation charged.
+            return {"ok": False, "degraded": True, "usage_unknown": True,
+                    "reason": f"{type(exc).__name__}: {exc}"}
+        usage = payload.get("usage") if isinstance(payload, dict) else None
+        model = (payload.get("model") if isinstance(payload, dict) else None) or provider["model"]
+        content = (((payload.get("choices") or [{}])[0].get("message") or {}).get("content", "")
+                   if isinstance(payload, dict) else "")
+        if not isinstance(usage, dict) or "prompt_tokens" not in usage or "completion_tokens" not in usage:
+            self._record(today, operation, {"prompt_tokens": cap_in, "completion_tokens": cap_out},
+                         reserve_usd, model, rid, "unknown")
+            return {"ok": True, "content": content, "usage": {"total_tokens": cap_in + cap_out},
+                    "usage_unknown": True, "usd": str(reserve_usd), "model": model, "dev": self.dev}
         usd = _cost(provider, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
                     usage.get("prompt_cache_hit_tokens", 0))
-        self._record(today, operation, usage, usd, model)
-        content = ((payload.get("choices") or [{}])[0].get("message") or {}).get("content", "")
+        self._record(today, operation, usage, usd, model, rid, "reconciled")
         return {"ok": True, "content": content, "usage": usage, "usd": str(usd), "model": model, "dev": self.dev}

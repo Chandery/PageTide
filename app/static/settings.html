@@ -3,119 +3,112 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>设置 - PaperDigHelper</title>
+  <link rel="stylesheet" href="/theme.css">
   <style>
-    :root {
-      --base: #f0f0f3;
-      --text: #2c3e50;
-      --text-sub: #7f8c8d;
-      --primary: #3498db;
-      --sh-out: 6px 6px 12px rgba(163,177,198,0.6), -6px -6px 12px rgba(255,255,255,0.8);
-      --sh-out-sm: 3px 3px 6px rgba(163,177,198,0.4), -3px -3px 6px rgba(255,255,255,0.8);
-      --sh-in: inset 4px 4px 8px rgba(163,177,198,0.5), inset -4px -4px 8px rgba(255,255,255,0.8);
-      --r-lg: 16px;
-      --r-md: 12px;
-    }
-    * { margin:0; padding:0; box-sizing:border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--base);
       color: var(--text);
-      padding: 40px 20px;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
     }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
+    /* — layout — */
+    .container { max-width: 680px; margin: 0 auto; }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--muted); text-decoration: none; font-size: 13px;
+      margin-bottom: 28px; transition: color .16s ease;
     }
-    h1 {
-      font-size: 28px;
-      margin-bottom: 32px;
-      text-align: center;
-    }
+    .back-link:hover { color: var(--text); }
+    h1 { font-family: var(--serif); font-size: 26px; font-weight: 600; margin-bottom: 28px; }
+    /* — section cards — */
     .section {
-      background: var(--base);
-      box-shadow: var(--sh-out);
-      border-radius: var(--r-lg);
-      padding: 24px;
-      margin-bottom: 24px;
+      background: var(--surface-1); border: 1px solid var(--line);
+      border-radius: var(--r-lg); padding: 22px 24px; margin-bottom: 16px;
+      box-shadow: var(--sh-1);
     }
     .section h2 {
-      font-size: 18px;
-      margin-bottom: 16px;
-      color: var(--primary);
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
     }
-    .field {
-      margin-bottom: 16px;
-    }
+    /* — fields — */
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
     .field label {
-      display: block;
-      font-size: 14px;
-      font-weight: 500;
-      margin-bottom: 8px;
+      display: block; font-size: 13px; font-weight: 500;
+      color: var(--text); margin-bottom: 6px;
     }
-    .field input, .field select {
-      width: 100%;
-      padding: 10px 14px;
-      font-size: 14px;
-      border: none;
-      border-radius: var(--r-md);
-      background: var(--base);
-      box-shadow: var(--sh-in);
-      color: var(--text);
-      outline: none;
+    .field label.inline {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 400; cursor: pointer; user-select: none;
+    }
+    .field small { display: block; margin-top: 5px; font-size: 12px; color: var(--muted); }
+    .readonly-note { font-size: 13px; color: var(--text, inherit); padding: 8px 10px; border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 8px; }
+    /* — inputs — */
+    .field input[type="text"],
+    .field input[type="password"],
+    .field input[type="number"],
+    .field select {
+      width: 100%; padding: 8px 11px; font-size: 13px;
+      border: 1px solid var(--line); border-radius: var(--r-sm);
+      background: var(--base); color: var(--text); outline: none;
+      transition: border-color .16s ease, box-shadow .16s ease;
     }
     .field input:focus, .field select:focus {
-      box-shadow: var(--sh-in), 0 0 0 2px var(--primary);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
-    .field small {
-      display: block;
-      margin-top: 6px;
-      font-size: 12px;
-      color: var(--text-sub);
+    .field input[readonly] { color: var(--muted); cursor: default; }
+    /* checkbox */
+    .field input[type="checkbox"] {
+      width: 16px; height: 16px; flex: 0 0 16px;
+      accent-color: var(--accent); cursor: pointer;
     }
-    .actions {
-      display: flex;
-      gap: 12px;
-      justify-content: flex-end;
-      margin-top: 24px;
-    }
+    /* — buttons — */
     button {
-      padding: 10px 24px;
-      font-size: 14px;
-      font-weight: 500;
-      border: none;
-      border-radius: 999px;
-      cursor: pointer;
-      background: var(--base);
-      box-shadow: var(--sh-out-sm);
-      color: var(--text);
-      transition: all 0.2s;
+      padding: 8px 18px; font-size: 13px; font-weight: 500;
+      border: 1px solid var(--line); border-radius: var(--r-sm);
+      cursor: pointer; background: var(--surface-1); color: var(--text);
+      transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
     }
-    button:hover {
-      box-shadow: var(--sh-out);
-    }
-    button:active {
-      box-shadow: var(--sh-in);
-    }
+    button:hover { background: var(--surface-2); }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     button.primary {
-      background: var(--primary);
-      color: white;
-      box-shadow: 0 4px 12px rgba(52,152,219,0.3);
+      background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
     }
+    button.primary:hover { background: color-mix(in srgb, var(--accent) 86%, var(--surface-1)); }
     button.danger {
-      background: #e74c3c;
-      color: white;
-      box-shadow: 0 4px 12px rgba(231,76,60,0.3);
+      background: var(--surface-1); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, transparent);
     }
-    .back-link {
-      display: inline-block;
-      margin-bottom: 20px;
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 14px;
+    button.danger:hover { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+    button.ghost { border-color: transparent; background: transparent; }
+    button.ghost:hover { background: var(--surface-2); }
+    /* — actions bar — */
+    .actions {
+      display: flex; gap: 10px; justify-content: flex-end;
+      margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line);
     }
-    .back-link:hover {
-      text-decoration: underline;
+    /* motion */
+    @media (prefers-reduced-motion: no-preference) {
+      .section { animation: fadeUp .22s ease both; }
+      .section:nth-child(2) { animation-delay: .04s; }
+      .section:nth-child(3) { animation-delay: .08s; }
+      .section:nth-child(4) { animation-delay: .12s; }
+      .section:nth-child(5) { animation-delay: .16s; }
+    }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    @media (max-width:600px) {
+      body { padding: 24px 16px 60px; }
+      .section { padding: 18px 16px; }
+      h1 { font-size: 20px; }
+      .actions { flex-direction: column-reverse; }
+      .actions button { width: 100%; justify-content: center; }
     }
   </style>
 </head>
@@ -140,11 +133,6 @@
           <option value="dark">深色</option>
           <option value="auto">跟随系统</option>
         </select>
-        <small>深色主题即将推出</small>
-      </div>
-      <div class="field">
-        <label for="accentColor">强调色</label>
-        <input type="color" id="accentColor" value="#3498db">
       </div>
     </div>
 
@@ -159,13 +147,20 @@
       </div>
       <div class="field">
         <label for="apiKey">API 密钥</label>
-        <input type="password" id="apiKey" placeholder="sk-...">
-        <small>用于 AI 分析和问答功能</small>
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+        <small id="apiKeyStatus">密钥只写入应用数据目录的本地密钥文件（0600），不会保存在设置文件或回显</small>
       </div>
       <div class="field">
-        <label for="dailyLimit">每日 Token 限制</label>
-        <input type="number" id="dailyLimit" value="100000" min="0">
-        <small>防止意外消耗过多 token</small>
+        <label class="inline">
+          <input type="checkbox" id="aiEnabled" checked>
+          启用 AI（速览、问答、翻译）
+        </label>
+        <small>关闭后所有模型请求为 0，推荐、画像和归档仍在本地运行</small>
+      </div>
+      <div class="field">
+        <label>预算上限（由唯一预算网关执行，只读）</label>
+        <div id="budgetLimits" class="readonly-note">读取中…</div>
+        <small>上限变更需要 owner 在预算文件中批准，不能在此处放宽</small>
       </div>
     </div>
 
@@ -183,27 +178,20 @@
       <div class="field">
         <label for="newPaperBoost">新论文权重提升</label>
         <input type="number" id="newPaperBoost" value="0.2" min="0" max="1" step="0.1">
-        <small>提升最近发表论文的排名权重</small>
-      </div>
-      <div class="field">
-        <label>
-          <input type="checkbox" id="aiRerank">
-          启用 AI 重排序
-        </label>
-        <small>使用 AI 对推荐结果进行二次排序（消耗 token）</small>
+        <small>提升最近发表论文的排名权重（0–1）</small>
       </div>
     </div>
 
     <div class="section">
       <h2>数据源</h2>
       <div class="field">
-        <label>
+        <label class="inline">
           <input type="checkbox" id="sourceArxiv" checked>
           arXiv
         </label>
       </div>
       <div class="field">
-        <label>
+        <label class="inline">
           <input type="checkbox" id="sourceOpenAlex" checked>
           OpenAlex
         </label>
@@ -234,7 +222,7 @@
         <small>数据存储位置（只读）</small>
       </div>
       <div class="field">
-        <button id="exportBtn">导出所有数据</button>
+        <button id="exportBtn" class="ghost" style="padding-left:0">导出所有数据</button>
         <small>导出为 JSON 格式</small>
       </div>
       <div class="field">
@@ -244,66 +232,110 @@
     </div>
 
     <div class="actions">
-      <button id="cancelBtn">取消</button>
+      <button id="cancelBtn" class="ghost">取消</button>
       <button id="saveBtn" class="primary">保存设置</button>
     </div>
   </div>
 
   <script>
     const $ = sel => document.querySelector(sel);
+
+    // Same storage key as the main page ('pdh-mode'); no stored value means follow the system.
+    const systemDark = () => matchMedia('(prefers-color-scheme:dark)').matches;
+    const storedMode = localStorage.getItem('pdh-mode');
+    document.documentElement.dataset.mode = storedMode || (systemDark() ? 'dark' : 'light');
+
     let settings = {};
 
     async function loadSettings() {
-      const res = await fetch('/api/user_settings');
-      const data = await res.json();
-      settings = data.settings || {};
+      try {
+        const res = await fetch('/api/user_settings');
+        const data = await res.json();
+        settings = data.settings || {};
+      } catch { settings = {}; }
 
-      // 填充表单
-      $('#language').value = settings.language || 'zh-CN';
-      $('#theme').value = settings.theme || 'light';
-      $('#accentColor').value = settings.accentColor || '#3498db';
-      $('#apiProvider').value = settings.apiProvider || 'deepseek';
-      $('#apiKey').value = settings.apiKey || '';
-      $('#dailyLimit').value = settings.dailyLimit || 100000;
-      $('#recommendCount').value = settings.recommendCount || 5;
-      $('#decayWindow').value = settings.decayWindow || 30;
-      $('#newPaperBoost').value = settings.newPaperBoost || 0.2;
-      $('#aiRerank').checked = settings.aiRerank || false;
-      $('#sourceArxiv').checked = settings.sourceArxiv !== false;
+      $('#language').value       = settings.language       || 'zh-CN';
+      $('#theme').value          = storedMode || 'auto';
+      $('#apiProvider').value    = settings.apiProvider    || 'deepseek';
+      $('#apiKey').value         = '';
+      $('#recommendCount').value = settings.recommendCount ?? 5;
+      $('#decayWindow').value    = settings.decayWindow    ?? 30;
+      $('#newPaperBoost').value  = settings.newPaperBoost  ?? 0.2;
+      $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
-      $('#timePreference').value = settings.timePreference || 'recent';
+      $('#timePreference').value  = settings.timePreference  || 'recent';
+
+      await loadGateway();
+    }
+
+    function renderGateway(data) {
+      $('#aiEnabled').checked = data.ai_enabled !== false;
+      const l = data.limits || {};
+      const u = data.usage || {};
+      $('#budgetLimits').textContent =
+        `今日 ${u.tokens ?? 0} / ${l.daily_total_tokens ?? '—'} token · 本月 ${u.month_tokens ?? 0} / ${l.monthly_total_tokens ?? '—'} token · ` +
+        `每日 $${l.daily_usd ?? '—'} · 每月 $${l.monthly_usd ?? '—'}` + (data.dev_mode ? ' · 测试模式独立账本' : '');
+      const p = data.provider || {};
+      $('#apiKeyStatus').textContent = p.configured
+        ? '已配置密钥（不回显）；留空保存则保持不变'
+        : '未配置密钥：AI 功能会降级为本地模式';
+    }
+
+    async function loadGateway() {
+      try {
+        const res = await fetch('/api/settings');
+        renderGateway(await res.json());
+      } catch { $('#budgetLimits').textContent = '无法读取预算网关状态'; }
+    }
+
+    async function postGateway(body) {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '保存失败');
+      renderGateway(data);
     }
 
     async function saveSettings() {
+      const btn = $('#saveBtn');
+      btn.disabled = true;
+      btn.textContent = '保存中…';
       const newSettings = {
-        language: $('#language').value,
-        theme: $('#theme').value,
-        accentColor: $('#accentColor').value,
-        apiProvider: $('#apiProvider').value,
-        apiKey: $('#apiKey').value,
-        dailyLimit: parseInt($('#dailyLimit').value),
-        recommendCount: parseInt($('#recommendCount').value),
-        decayWindow: parseInt($('#decayWindow').value),
-        newPaperBoost: parseFloat($('#newPaperBoost').value),
-        aiRerank: $('#aiRerank').checked,
-        sourceArxiv: $('#sourceArxiv').checked,
+        language:       $('#language').value,
+        theme:          $('#theme').value,
+        apiProvider:    $('#apiProvider').value,
+        recommendCount: parseInt($('#recommendCount').value) || 5,
+        decayWindow:    parseInt($('#decayWindow').value) || 30,
+        newPaperBoost:  parseFloat($('#newPaperBoost').value) || 0.2,
+        sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
         updateFrequency: $('#updateFrequency').value,
-        timePreference: $('#timePreference').value,
+        timePreference:  $('#timePreference').value,
       };
-
-      await fetch('/api/user_settings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({settings: newSettings})
-      });
-
-      alert('设置已保存！');
-      window.location.href = '/';
+      try {
+        await postGateway({ai_enabled: $('#aiEnabled').checked});
+        const key = $('#apiKey').value.trim();
+        if (key) await postGateway({api_key: key});
+        await fetch('/api/user_settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({settings: newSettings})
+        });
+        if (newSettings.theme === 'auto') localStorage.removeItem('pdh-mode');
+        else localStorage.setItem('pdh-mode', newSettings.theme);
+        window.location.href = '/';
+      } catch {
+        btn.disabled = false;
+        btn.textContent = '保存设置';
+        alert('保存失败，请重试。');
+      }
     }
 
-    $('#saveBtn').onclick = saveSettings;
+    $('#saveBtn').onclick  = saveSettings;
     $('#cancelBtn').onclick = () => window.location.href = '/';
 
     $('#exportBtn').onclick = async () => {
@@ -311,9 +343,9 @@
       const res = await fetch(`/api/export?project_id=${projectId || ''}`);
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
       a.download = `paperdighelper-export-${new Date().toISOString().slice(0,10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
@@ -326,7 +358,7 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({_method: 'DELETE'})
       });
-      alert('缓存已清除！');
+      alert('缓存已清除。');
     };
 
     loadSettings();

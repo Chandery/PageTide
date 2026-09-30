@@ -1,0 +1,62 @@
+/* Profile: one reading order, facts first, evidence on demand. */
+.profile-page, .profile-evidence { --p-positive:var(--accent); --p-saved:var(--mark); --p-hard:#b08d57; --p-negative:var(--muted); --p-exposed:var(--line-strong); }
+.profile-page { max-width:1120px; margin:auto; color:var(--text); }
+.profile-page *, .profile-evidence * { box-sizing:border-box; }
+.profile-page h1 { font-size:26px; margin:4px 0 12px; font-family:var(--serif); font-weight:600; }
+.profile-page h2 { font-size:17px; margin:0 0 10px; font-family:var(--serif); font-weight:600; }
+.profile-page h3 { font-size:14px; margin:0 0 12px; }
+.profile-kicker { color:var(--mark-text); font-size:12px; font-weight:650; }
+.profile-head { padding:8px 0 22px; border-bottom:1px solid var(--line); }
+.profile-headline { display:flex; gap:20px; align-items:flex-start; justify-content:space-between; }
+.profile-headline p { margin:0 0 12px; max-width:740px; line-height:1.7; font-size:14px; }
+.profile-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.profile-meta,.profile-note { color:var(--muted); font-size:12px; line-height:1.65; }
+.profile-page button,.profile-evidence button { box-shadow:none; border:1px solid var(--line); background:var(--surface-1); border-radius:8px; padding:7px 11px; font:inherit; font-size:13px; color:var(--text); cursor:pointer; white-space:normal; }
+.profile-page button:hover,.profile-evidence button:hover { border-color:var(--accent); background:var(--surface-2); transform:none; }
+.profile-page button:focus-visible,.profile-page summary:focus-visible,.profile-page a:focus-visible,.profile-evidence button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.profile-page button:disabled { opacity:.5; cursor:wait; }
+.profile-page .primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.profile-signals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:20px 0; }
+.profile-signal { padding:18px; background:var(--surface-1); border:1px solid var(--line); border-radius:12px; min-width:0; }
+.profile-counts { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.profile-counts button { display:flex; align-items:center; gap:7px; border:0; padding:0 12px 0 0; background:transparent; }
+.profile-counts b { font-size:25px; font-weight:650; font-variant-numeric:tabular-nums; }
+.profile-pins { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+.profile-pin { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--accent); background:var(--accent-soft); color:var(--accent-text); padding:5px 8px; border-radius:6px; font-size:12px; overflow-wrap:anywhere; }
+.profile-pin button { border:0; padding:0 3px; background:none; color:inherit; }
+.profile-section { padding:20px 0; margin:0; border:0; border-top:1px solid var(--line); border-radius:0; background:transparent; }
+.profile-section summary { cursor:pointer; font-size:16px; font-weight:600; padding:4px 0 12px; }
+.profile-section summary .profile-note { font-weight:400; display:block; margin-top:5px; }
+.profile-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.profile-keywords { margin:14px 0; }
+.profile-term { display:grid!important; grid-template-columns:minmax(100px,1fr) minmax(70px,2fr) 90px; align-items:center; gap:16px; width:100%; text-align:left; padding:10px 0!important; border:0!important; border-bottom:1px solid var(--line)!important; border-radius:0!important; background:transparent!important; }
+.profile-term span:first-child { font-weight:600; overflow-wrap:anywhere; }
+.profile-term small { display:block; color:var(--muted); font-weight:400; font-size:11px; margin-top:4px; }
+.profile-bar { height:5px; border-radius:3px; background:var(--surface-2); overflow:hidden; }
+.profile-bar i { display:block; height:100%; background:var(--accent); }
+.profile-term-count { text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
+.profile-week-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; margin:15px 0; }
+.profile-week { text-align:left; font-size:11px!important; }
+.profile-week b { display:block; margin:6px 0; font-size:18px; }
+.profile-segments { display:flex; height:5px; background:var(--surface-2); gap:1px; margin-bottom:8px; }
+.profile-legend { display:flex; flex-wrap:wrap; gap:12px; }
+.profile-legend span { display:flex; gap:5px; align-items:center; }
+.profile-dot { width:7px; height:7px; border-radius:2px; display:inline-block; }
+.profile-table-wrap { overflow-x:auto; }
+.profile-table { width:100%; border-collapse:collapse; font-size:13px; text-align:left; margin:12px 0; }
+.profile-table th,.profile-table td { padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+.profile-table th { font-weight:500; color:var(--muted); }
+.profile-feedback-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+.profile-feedback-row .paper-link { text-align:left; border:0; padding:0; background:none; line-height:1.6; }
+.profile-empty { padding:18px; border:1px dashed var(--line); border-radius:8px; color:var(--muted); font-size:13px; line-height:1.7; }
+.profile-form { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.profile-form input { flex:1; min-width:150px; font:inherit; border:1px solid var(--line); padding:8px 10px; border-radius:8px; background:var(--surface-1); color:var(--text); }
+.profile-evidence { color:var(--text); background:var(--base); border:1px solid var(--line); border-radius:14px; width:min(680px,calc(100vw - 32px)); max-height:85vh; padding:24px; box-shadow:var(--sh-3); }
+.profile-evidence::backdrop { background:rgba(28,34,48,.4); }
+.profile-evidence header { position:static; display:flex; justify-content:space-between; align-items:center; padding:0 0 12px; background:none; box-shadow:none; border:0; }
+.profile-evidence h2 { margin:0; font-size:18px; }
+.profile-evidence .profile-feedback-row { font-size:13px; }
+.profile-evidence .profile-note { margin-top:5px; }
+.profile-error { color:var(--bad); }
+@media(min-width:900px) { main:has(.profile-page:not(.hidden)) { padding:24px 28px 60px; max-width:1176px; } }
+@media(max-width:760px) { .profile-signals { grid-template-columns:1fr; } .profile-headline { display:block; } .profile-week-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .profile-term { gap:10px; grid-template-columns:minmax(90px,1fr) minmax(40px,1fr) 72px; } }

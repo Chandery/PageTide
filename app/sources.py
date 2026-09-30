@@ -4,6 +4,7 @@ Read-only, public metadata only. No private seed IDs are ever sent to a
 recommender service. Responses are cached on disk so a batch can be replayed.
 """
 import hashlib
+import http.client
 import json
 import time
 import urllib.error
@@ -69,6 +70,14 @@ def slim(work, group="field"):
     }
 
 
+class SourceError(RuntimeError):
+    """A public-metadata fetch failed; kind is not_found, network_error, invalid_input or bad_response."""
+
+    def __init__(self, message, kind):
+        super().__init__(message)
+        self.kind = kind
+
+
 class OpenAlex:
     def __init__(self, cache_dir):
         self.cache = Path(cache_dir)
@@ -78,18 +87,30 @@ class OpenAlex:
         digest = hashlib.sha256(url.encode()).hexdigest()[:16]
         cached = self.cache / f"{digest}.json"
         if cached.exists():
-            return json.loads(cached.read_text())
+            try:
+                return json.loads(cached.read_text())
+            except ValueError:
+                cached.unlink()  # a corrupt cache entry is refetched, not trusted
         last = None
         for attempt in range(retries):
             try:
                 request = urllib.request.Request(url, headers={"User-Agent": UA})
                 with urllib.request.urlopen(request, timeout=30) as response:
                     body = response.read().decode("utf-8", "replace")
+                try:
+                    payload = json.loads(body)
+                except ValueError as exc:
+                    raise SourceError(f"OpenAlex returned a non-JSON body: {url}", "bad_response") from exc
                 cached.write_text(body)
                 time.sleep(GAP_SECONDS)
-                return json.loads(body)
+                return payload
+            except http.client.InvalidURL as exc:
+                raise SourceError(f"Invalid OpenAlex identifier: {url}", "invalid_input") from exc
             except urllib.error.HTTPError as exc:
                 last = exc
+                if exc.code == 404:
+                    # A missing identifier will not appear on retry.
+                    raise SourceError(f"OpenAlex has no record: {url}", "not_found") from exc
                 retry_after = exc.headers.get("Retry-After") if exc.headers else None
                 try:
                     delay = float(retry_after) if retry_after is not None else GAP_SECONDS * (attempt + 1)
@@ -100,7 +121,7 @@ class OpenAlex:
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 last = exc
                 time.sleep(min(GAP_SECONDS * (attempt + 1), 10))
-        raise RuntimeError(f"OpenAlex fetch failed: {url}: {last}")
+        raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "network_error")
 
     def discover(self, search=FIELD_QUERY, from_date="2024-01-01", to_date=None, pages=1, per_page=100,
                  source_id=ARXIV_SOURCE_ID):
@@ -147,7 +168,8 @@ class OpenAlex:
 
     def work(self, identifier):
         """Fetch one work by DOI URL, OpenAlex ID or W-id. Used for seed resolution."""
-        return self._fetch(f"{API}/{identifier}?mailto={urllib.parse.quote(MAILTO)}")
+        # Quote so a stray "?", "#" or space cannot change which request is made.
+        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}")
 
 
 def resolve_seed(client, seed):

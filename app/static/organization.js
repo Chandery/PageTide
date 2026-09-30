@@ -1,8 +1,13 @@
 (() => {
   'use strict';
-  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '' };
+  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#168579';
+  const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#64748b';
+  // Graph colours follow the page palette (index.html tokens) so light/dark stay in sync.
+  const theme = (name, fallback) => {
+    try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
+    catch { return fallback; }
+  };
   const $ = selector => S.root.querySelector(selector);
   const icons = { undo: 'undo-2', refresh: 'refresh-cw', export: 'download', fit: 'maximize', rearrange: 'grid-2x2', 'zoom-in': 'plus', 'zoom-out': 'minus', 'direction-new': 'plus', collapse: 'chevron-down', 'direction-edit': 'pencil', 'category-child': 'plus', 'direction-delete': 'x', 'direction-up': 'arrow-up', 'direction-down': 'arrow-down', 'detail-close': 'x', 'dialog-close': 'x', history: 'history', 'note-save': 'check' };
   const button = (action, label, symbol, extra = '') => `<button type="button" data-action="${action}" title="${h(label)}" aria-label="${h(label)}" ${extra}><img class="org-icon" src="/icons/org/${icons[action] || 'pencil'}.svg" width="16" height="16" alt=""></button>`;
@@ -152,7 +157,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools">${button('undo', '撤销上一步', '&#8630;')}${button('refresh', '刷新', '&#8635;')}<button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '适应画布', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文方向图谱"></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools">${button('undo', '撤销上一步', '&#8630;')}${button('refresh', '刷新', '&#8635;')}<button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -179,10 +184,16 @@
   function sidebarHTML() {
     const rows = treeRows();
     const count = id => { const ids = categoryIds(id); return S.snapshot.items.filter(p => memberships(p).some(m => ids.has(m))).length; };
-    return `<div class="org-section-head org-directory-title"><h3>目录</h3>${button('direction-new','新建类别','')}</div><button class="org-filter ${S.filter === '*' ? 'is-active' : ''}" data-action="filter" data-id="*"><img class="org-folder-icon" src="/icons/org/book-open.svg" alt=""><span>全部论文</span><small>${S.snapshot.items.length}</small></button><button class="org-filter ${S.filter === '' ? 'is-active' : ''}" data-action="filter" data-id=""><img class="org-folder-icon" src="/icons/org/folder.svg" alt=""><span>未分类</span><small>${S.snapshot.items.filter(p => !memberships(p).length).length}</small></button><div class="org-directions" role="list" aria-label="类别目录">${rows.filter(d => !d.hidden).map(d => {
+    const graphPaperButton = p => `<button class="org-directory-paper ${S.key === p.key ? 'is-active' : ''}" data-action="graph-paper-focus" data-key="${h(p.key)}" title="${h(p.title || p.key)}"><strong>${h(p.title || p.key)}</strong><span>${h(p.authors?.[0] || p.author || '')}${p.published ? ` · ${h(String(p.published).slice(0,4))}` : ''}</span></button>`;
+    const graphPapersUnder = (id, folded) => {
+      if (S.mode !== 'graph' || folded) return '';
+      const papers = S.snapshot.items.filter(p => id === '' ? !memberships(p).length : memberships(p).includes(String(id))).sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+      return papers.length ? `<div class="org-directory-papers" aria-label="${h(id === '' ? '未分类论文' : `${categoryPath(id)} 下的论文`)}">${papers.map(graphPaperButton).join('')}</div>` : '';
+    };
+    return `<div class="org-section-head org-directory-title"><h3>目录</h3>${button('direction-new','新建类别','')}</div><button class="org-filter ${S.filter === '*' ? 'is-active' : ''}" data-action="filter" data-id="*"><img class="org-folder-icon" src="/icons/org/book-open.svg" alt=""><span>全部论文</span><small>${S.snapshot.items.length}</small></button><div class="org-directory-group org-uncategorized-group"><button class="org-filter ${S.filter === '' ? 'is-active' : ''}" data-action="filter" data-id=""><img class="org-folder-icon" src="/icons/org/folder.svg" alt=""><span>未分类</span><small>${S.snapshot.items.filter(p => !memberships(p).length).length}</small></button>${graphPapersUnder('', false)}</div><div class="org-directions" role="list" aria-label="类别目录">${rows.filter(d => !d.hidden).map(d => {
       const siblings = directions().filter(other => (other.parent_id || null) === (d.parent_id || null)), i = siblings.findIndex(other => other.id === d.id);
       const folded = S.collapsed.has(String(d.id)), selected = S.filter === String(d.id);
-      return `<div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',(folded ? '展开 ' : '折叠 ')+d.name,'',`data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><span>${h(d.name)}</span><small>${count(d.id)}</small></button><details class="org-category-menu"><summary aria-label="更多操作 ${h(d.path)}" title="更多操作"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title">${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>`;
+      return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',(folded ? '展开 ' : '折叠 ')+d.name,'',`data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><span>${h(d.name)}</span><small>${count(d.id)}</small></button><details class="org-category-menu"><summary aria-label="更多操作 ${h(d.path)}" title="更多操作"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title">${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
     }).join('') || '<p class="org-directory-empty">还没有类别<br>点击上方 + 建立目录</p>'}</div>`;
   }
   function renderSidebar() { $('.org-sidebar').innerHTML = sidebarHTML(); }
@@ -200,16 +211,18 @@
     panel.classList.toggle('has-paper', !!p);
     if (!p) { panel.innerHTML = '<p class="org-empty">选择一篇论文</p>'; return; }
     const draft = draftFor(p);
+    const paperDirections = directions().filter(d => memberships(p).includes(String(d.id)));
+    const sourceMeta = [p.published, p.source, p.arxiv_id ? `arXiv:${p.arxiv_id}` : '', p.doi ? 'DOI' : ''].filter(Boolean);
     const editor = $('[data-note-editor]');
     const focused = editor && document.activeElement === editor;
     const selection = focused ? [editor.selectionStart, editor.selectionEnd] : null;
-    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h3 class="org-detail-title">${h(p.title)}</h3><p class="org-paper-meta">${h(p.published || '')}</p><button data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button><details class="org-abstract"><summary>摘要</summary><p>${h(p.abstract || '暂无摘要')}</p></details><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div>`;
+    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${sourceMeta.map(h).map(v => `<span>${v}</span>`).join('')}</div>${paperDirections.length ? `<div class="org-detail-badges">${paperDirections.map(d => `<span class="org-detail-badge"><i style="background:${color(d.color)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</div>` : ''}<button data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button><details class="org-abstract" open><summary>摘要</summary><p>${h(p.abstract || '暂无摘要')}</p></details><section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
     const reading = document.createElement('div'); reading.className = 'org-reading-tools';
     const read = document.createElement('button'); read.type = 'button'; read.innerHTML = '<img class="org-icon" src="/icons/org/book-open.svg" width="16" height="16" alt="">阅读 PDF';
     read.disabled = typeof window.PDH.openReader !== 'function';
     read.title = read.disabled ? '阅读器尚未加载，请刷新' : '阅读 PDF';
     read.onclick = () => window.PDH.openReader(p.key, p.title); reading.append(read);
-    const url = safePaperURL(p.url || p.source_url || p.landing_page_url);
+    const url = paperURL(p);
     if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开论文'; reading.append(link); }
     panel.querySelector('[data-action=paper-membership]').after(reading);
     if (selection) { $('[data-note-editor]').focus(); $('[data-note-editor]').setSelectionRange(...selection); }
@@ -227,37 +240,142 @@
   }
   function graphPosition(node) { return S.motion?.position(node) || {...node.position()}; }
   const paperNodeId = key => `paper:${key}`;
-  function networkElements(snapshot, relations, positions = {}) {
+  // Categories keep one hue; publication year only changes the lightness.
+  // This mirrors Connected Papers' visual grammar while remaining deterministic
+  // when an imported category does not have a saved color. Saturation is capped
+  // low so the graph reads as ink on paper, not a colour chart.
+  const _categoryHues = [214, 18, 152, 40, 262, 188, 336, 90, 2, 232];
+  function _hexHsl(value) {
+    const hex = String(value || '').replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(hex)) return null;
+    const r = parseInt(hex.slice(0, 2), 16) / 255, g = parseInt(hex.slice(2, 4), 16) / 255, b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let hue = 0;
+    if (d) {
+      if (max === r) hue = ((g - b) / d) % 6;
+      else if (max === g) hue = (b - r) / d + 2;
+      else hue = (r - g) / d + 4;
+      hue = Math.round(hue * 60); if (hue < 0) hue += 360;
+    }
+    const lightness = (max + min) / 2;
+    const saturation = d ? d / (1 - Math.abs(2 * lightness - 1)) : 0;
+    return { hue, saturation: Math.round(saturation * 100), lightness: Math.round(lightness * 100) };
+  }
+  function _nodeColor(paper, category, yearRange = {}) {
+    const fallbackHue = _categoryHues[Math.max(0, Number(category?.index) || 0) % _categoryHues.length];
+    const base = _hexHsl(category?.color) || { hue: fallbackHue, saturation: 26, lightness: 48 };
+    const published = parseInt(String(paper.published || '').slice(0, 4), 10);
+    const year = Number.isFinite(published) ? published : (yearRange.max || new Date().getFullYear());
+    const minYear = yearRange.min ?? year, maxYear = yearRange.max ?? year;
+    const yearProgress = maxYear > minYear ? Math.max(0, Math.min(1, (year - minYear) / (maxYear - minYear))) : 0.5;
+    // Newer papers are darker; clamp to keep labels and node edges legible.
+    const lightness = Math.round(68 - yearProgress * 30);
+    const saturation = Math.max(14, Math.min(32, base.saturation || 26));
+    return `hsl(${base.hue},${saturation}%,${lightness}%)`;
+  }
+  function graphLabel(paper) {
+    const title = String(paper.title || paper.key || '').replace(/\s+/g, ' ').trim();
+    const year = String(paper.published || '').slice(0, 4);
+    // Metadata currently has no author column, so use a short title anchor until author import exists.
+    const anchor = title.split(':')[0].split('—')[0].trim();
+    const short = anchor.length > 22 ? `${anchor.slice(0, 21).trim()}…` : anchor;
+    return year ? `${short}, ${year}` : short;
+  }
+  function radialPositions(nodes, originId) {
+    const dataOf = node => typeof node.data === 'function' ? node.data() : (node.data || {});
+    const idOf = node => dataOf(node).id;
+    const origin = nodes.find(n => idOf(n) === originId) || nodes[0];
+    const rest = nodes.filter(n => n !== origin).sort((a, b) => (dataOf(b).degree || 0) - (dataOf(a).degree || 0));
+    const out = {};
+    if (!origin) return out;
+    out[idOf(origin)] = { x: 0, y: 0 };
+    const rings = [];
+    let cursor = 0, remaining = rest.length;
+    for (let ring = 0; remaining > 0; ring++) {
+      const count = Math.min(8 + ring * 6, remaining);
+      const radius = 190 + ring * 165;
+      rings.push({ count, radius }); remaining -= count;
+    }
+    for (const ring of rings) {
+      for (let i = 0; i < ring.count; i++) {
+        const n = rest[cursor++], angle = -Math.PI / 2 + (i / ring.count) * Math.PI * 2 + (ring.count % 2 ? 0.12 : 0);
+        out[idOf(n)] = { x: Math.cos(angle) * ring.radius, y: Math.sin(angle) * ring.radius };
+      }
+    }
+    return out;
+  }
+  function networkElements(snapshot, relations, positions = {}, revealed = new Set()) {
     const papers = snapshot.items || [], rows = treeRows(snapshot);
-    const counts = new Map(rows.map(d => { const ids = categoryIds(d.id, snapshot); return [String(d.id), papers.filter(p => memberships(p).some(id => ids.has(id))).length]; }));
-    const groups = rows.filter(d => !d.hidden && counts.get(String(d.id)) > 0);
-    const groupIds = new Set(groups.map(d => String(d.id)));
     const collapsed = new Set(snapshot.collapsed || []);
-    const shown = papers.filter(p => !memberships(p).length || memberships(p).some(id => groupIds.has(id) && !collapsed.has(id)));
+    const groupIds = new Set(rows.filter(d => !d.hidden).map(d => String(d.id)));
+    const shown = papers.filter(p =>
+      revealed.has(p.key) || !memberships(p).length || memberships(p).some(id => groupIds.has(id) && !collapsed.has(id))
+    );
     const present = new Set(shown.map(p => p.key)), elements = [];
-    const palette = ['#198b76', '#357dc1', '#ca6b35', '#bd5475', '#8b8333', '#687cc5'];
-    groups.forEach((d, i) => {
-      const id = groupId(d.id), count = counts.get(String(d.id));
-      elements.push({ data: { id, direction: String(d.id), group: true, label: d.name, color: !d.color || d.color === '#168579' ? palette[i % palette.length] : color(d.color), size: 44 + Math.min(26, count * 2) }, ...(positions[id] ? { position: {...positions[id]} } : {}) });
+    // degree from similarity edges — proxy for how prominent a paper is in this corpus
+    const deg = new Map(shown.map(p => [p.key, 0]));
+    (relations?.edges || []).forEach(e => {
+      if (present.has(e.source) && present.has(e.target)) {
+        deg.set(e.source, (deg.get(e.source) || 0) + 1);
+        deg.set(e.target, (deg.get(e.target) || 0) + 1);
+      }
     });
-    groups.forEach(d => {
-      if (d.parent_id && groupIds.has(String(d.parent_id))) elements.push({data:{
-        id:`hierarchy:${d.id}`, source:groupId(d.parent_id), target:groupId(d.id), kind:'hierarchy', color:'#87968f', weight:1
-      }});
-    });
+    const years = shown.map(p => parseInt(String(p.published || '').slice(0, 4), 10)).filter(Number.isFinite);
+    const yearRange = { min: years.length ? Math.min(...years) : new Date().getFullYear(), max: years.length ? Math.max(...years) : new Date().getFullYear() };
     shown.forEach(p => {
-      const index = groups.findIndex(d => memberships(p).includes(String(d.id)));
-      const id = paperNodeId(p.key);
-      elements.push({ data: { id, key: p.key, label: (p.title || p.key).slice(0, 64), color: index < 0 ? '#7295ac' : palette[index % palette.length], size: 17 }, ...(positions[id] ? { position: {...positions[id]} } : {}) });
-      groups.filter(d => memberships(p).includes(String(d.id))).forEach(d => {
-        elements.push({ data: { id: `member:${JSON.stringify([p.key,d.id])}`, source: groupId(d.id), target: id, kind: 'membership', color: color(d.color), weight: 1 } });
-      });
+      const id = paperNodeId(p.key), d = deg.get(p.key) || 0;
+      const row = rows.find(r => memberships(p).includes(String(r.id)));
+      const category = row ? { ...row, index: rows.indexOf(row) } : { index: 0 };
+      elements.push({ data: { id, key: p.key, label: graphLabel(p), degree: d, color: _nodeColor(p, category, yearRange), size: Math.round(28 + Math.min(24, d * 3)) }, ...(positions[id] ? { position: { ...positions[id] } } : {}) });
     });
+    const linked = new Set();
     (relations?.edges || []).forEach((edge, i) => {
-      if (edge.source !== edge.target && present.has(edge.source) && present.has(edge.target))
-        elements.push({ data: { id: `similar:${i}`, source: paperNodeId(edge.source), target: paperNodeId(edge.target), kind: 'similarity', color: '#bac5cc', weight: edge.weight } });
+      if (edge.source !== edge.target && present.has(edge.source) && present.has(edge.target)) {
+        linked.add([edge.source, edge.target].sort().join('\0'));
+        elements.push({ data: { id: `similar:${i}`, source: paperNodeId(edge.source), target: paperNodeId(edge.target), kind: 'similarity', color: '#a89e8b', weight: edge.weight } });
+      }
     });
+    // Keep the graph readable when the similarity worker returns a sparse result: connect a bounded
+    // number of papers that share a saved direction. This is an organization relation, never a citation claim.
+    let categoryEdge = 0;
+    for (let i = 0; i < shown.length; i++) for (let j = i + 1; j < shown.length; j++) {
+      const a = shown[i], b = shown[j], key = [a.key, b.key].sort().join('\0');
+      if (linked.has(key) || !memberships(a).some(id => memberships(b).includes(id))) continue;
+      elements.push({ data: { id: `category:${categoryEdge++}`, source: paperNodeId(a.key), target: paperNodeId(b.key), kind: 'category', color: '#cbbfa9', weight: 0.22 } });
+      linked.add(key);
+    }
     return elements;
+  }
+  function graphStyle(transition) {
+    const paper = theme('--surface-1', '#fbf8f2'), ink = theme('--text', '#1c2230'),
+      muted = theme('--muted', '#5e5a52'), mark = theme('--mark', '#d9462b');
+    return [
+      { selector: 'node', style: { shape: 'ellipse', width: 'data(size)', height: 'data(size)', 'background-color': 'data(color)', 'border-color': paper, 'border-width': 2, label: 'data(label)', color: ink, 'font-size': 14, 'font-weight': 500, 'text-wrap': 'ellipsis', 'text-max-width': 150, 'text-valign': 'bottom', 'text-margin-y': 8, 'text-background-color': paper, 'text-background-opacity': 0.82, 'text-background-padding': 2, 'transition-property': 'opacity, border-color, border-width', 'transition-duration': transition } },
+      { selector: 'node.org-current, node:selected, node.org-connected', style: { 'text-background-opacity': 0.95, 'text-background-padding': 3 } },
+      { selector: 'edge', style: { width: 'mapData(weight, 0, 1, 0.6, 2.4)', 'line-color': 'data(color)', opacity: 'mapData(weight, 0, 1, 0.18, 0.72)', 'curve-style': 'straight', 'transition-property': 'opacity, line-color, width', 'transition-duration': transition } },
+      { selector: '.org-dim', style: { opacity: 0.2 } },
+      { selector: '.org-leaving', style: { opacity: 0 } },
+      { selector: '.org-current, :selected', style: { 'border-color': ink, 'border-width': 3 } },
+      { selector: 'edge.org-connected', style: { opacity: 1, 'line-color': muted, width: 2 } },
+      { selector: 'node.org-focused, node.org-dragging, node.org-pulse', style: { 'border-color': ink, 'border-width': 4, 'overlay-color': 'data(color)', 'overlay-opacity': 0.12, 'overlay-padding': 9, 'overlay-shape': 'ellipse' } },
+      { selector: 'node.org-focused', style: { 'font-size': 16, 'font-weight': 650, 'text-max-width': 180, 'text-background-opacity': 1 } },
+      { selector: 'node.org-origin', style: { 'border-color': mark, 'border-width': 5, 'overlay-color': mark, 'overlay-opacity': 0.18, 'overlay-padding': 8 } },
+      { selector: 'edge.org-pulse', style: { opacity: 1, width: 2.5 } }
+    ];
+  }
+  // index.html announces light/dark switches; restyle a live graph instead of rebuilding it.
+  window.addEventListener('pdh-mode', () => {
+    if (S.cy) S.cy.style(graphStyle(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? '0ms' : '180ms'));
+  });
+  function renderGraphLegend() {
+    const legend = $('.org-graph-legend');
+    if (!legend) return;
+    const rows = treeRows();
+    if (!rows.length) { legend.hidden = true; return; }
+    legend.hidden = false;
+    legend.innerHTML = rows.slice(0, 10).map((d, i) =>
+      `<div class="org-graph-legend-item"><span class="org-graph-legend-dot" style="background:${_nodeColor({}, { ...d, index: i })}"></span><span>${h(d.name)}</span></div>`
+    ).join('');
   }
   async function loadRelations() {
     if (S.relationsLoading) { S.relationsReload = true; return; }
@@ -297,9 +415,11 @@
     const container = $('.org-graph'); container.innerHTML = '';
     if (!window.cytoscape) { container.innerHTML = '<p class="org-empty org-error">图谱组件未加载，请刷新重试</p>'; return; }
     if (!S.snapshot.items.length) { container.innerHTML = '<p class="org-empty">暂无已收藏论文</p>'; return; }
-    const positions = { ...S.snapshot.positions, ...S.positions };
-    const elements = networkElements(S.snapshot, S.relations, positions);
-    const nodes = elements.filter(e => !e.data.source), allPlaced = nodes.every(n => n.position);
+    const forceRadial = S.graphRadialPending && !!S.relations;
+    const positions = forceRadial ? {} : { ...S.snapshot.positions, ...S.positions };
+    const revealed = S.filter !== '*' ? new Set(visible().map(p => p.key)) : new Set();
+    const elements = networkElements(S.snapshot, S.relations, positions, revealed);
+    const nodes = elements.filter(e => !e.data.source), allPlaced = !forceRadial && nodes.every(n => n.position);
     const hasPlaced = nodes.some(n => n.position);
     if (hasPlaced) {
       nodes.filter(n => !n.position).forEach((n, i) => {
@@ -313,31 +433,34 @@
     const transition = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? '0ms' : '180ms';
     container.setAttribute('aria-label', `论文关系网络，${nodes.length} 个节点，${elements.length - nodes.length} 条关系`);
     S.cy = window.cytoscape({ container, elements,
-      layout: hasPlaced ? { name: 'preset' } : { name: 'cose', animate: false, randomize: true, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 120000, idealEdgeLength: () => 180, nodeOverlap: 35, componentSpacing: 160, numIter: 450, padding: 65 },
-      minZoom: 0.12, maxZoom: 3, wheelSensitivity: 0.18, boxSelectionEnabled: true,
-      style: [
-        { selector: 'node', style: { shape: 'ellipse', width: 'data(size)', height: 'data(size)', 'background-color': 'data(color)', 'border-color': '#ffffff', 'border-width': 2, label: 'data(label)', color: '#485661', 'font-size': 10, 'text-wrap': 'ellipsis', 'text-max-width': 140, 'text-valign': 'bottom', 'text-margin-y': 8, 'transition-property': 'opacity, border-color, border-width', 'transition-duration': transition } },
-        { selector: 'node[group]', style: { color: 'data(color)', 'font-size': 16, 'font-weight': 650, 'text-max-width': 220, 'text-margin-y': 12 } },
-        { selector: 'node[key]', style: { label: '' } },
-        { selector: 'node[key].org-current, node[key]:selected, node[key].org-connected', style: { label: 'data(label)', 'text-background-color': '#ffffff', 'text-background-opacity': 0.9, 'text-background-padding': 3 } },
-        { selector: 'node[group]', style: { 'text-wrap': 'wrap', 'text-max-width': 145, 'font-size': 14 } },
-        { selector: 'edge', style: { width: 1, 'line-color': 'data(color)', opacity: 0.5, 'curve-style': 'straight', 'transition-property': 'opacity, line-color, width', 'transition-duration': transition } },
-        { selector: 'edge[kind="hierarchy"]', style: { width:2, 'line-style':'dashed', opacity:0.65 } },
-        { selector: 'edge[kind="membership"]', style: { width: 1.5, opacity: 0.45 } },
-        { selector: '.org-dim', style: { opacity: 0.28 } },
-        { selector: '.org-leaving', style: { opacity: 0 } },
-        { selector: '.org-current, :selected', style: { 'border-color': '#273c48', 'border-width': 3 } },
-        { selector: 'edge.org-connected', style: { opacity: 1, 'line-color': '#487b93', width: 2 } },
-        { selector: 'node.org-focused, node.org-dragging, node.org-pulse', style: { 'border-color': '#155e78', 'border-width': 4, 'overlay-color': 'data(color)', 'overlay-opacity': 0.12, 'overlay-padding': 9, 'overlay-shape': 'ellipse' } },
-        { selector: 'edge.org-pulse', style: { opacity: 1, width: 2.5 } }
-      ] });
+      // Positions are assigned below by the bounded radial layout. Do not start
+      // CoSE here: its asynchronous relaxation can move nodes after the camera
+      // is centered and scatter the first view out of frame.
+      layout: { name: 'preset' },
+      minZoom: 0.08, maxZoom: 3, wheelSensitivity: 0.18, boxSelectionEnabled: true,
+      style: graphStyle(transition) });
+    const originId = S.key ? paperNodeId(S.key) : nodes[0]?.data.id;
+    if (!allPlaced) {
+      const radial = radialPositions(S.cy.nodes().toArray(), originId);
+      S.cy.nodes().forEach(n => { if (radial[n.id()]) n.position(radial[n.id()]); });
+    }
     S.motion = window.PDHGraphMotion?.create(S.cy, {reduced:()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches});
+    if (originId) S.cy.getElementById(originId).addClass('org-origin');
+    if (forceRadial) S.graphRadialPending = false;
     if (prior && allPlaced) { S.cy.zoom(prior.zoom); S.cy.pan(prior.pan); }
-    else { S.cy.fit(undefined, 65); if (S.cy.zoom() > 1.2) { S.cy.zoom(1.2); S.cy.center(); } }
+    else if (forceRadial && originId) {
+      const origin = S.cy.getElementById(originId), p = origin.position(), zoom = Math.min(0.84, S.cy.maxZoom());
+      S.cy.viewport({ zoom, pan: { x: S.cy.width()/2 - p.x*zoom, y: S.cy.height()/2 - p.y*zoom } });
+    } else {
+      const keys = new Set(visible().map(p => p.key));
+      const initial = S.cy.nodes().filter(n => keys.has(n.data('key')));
+      const target = graphViewport(initial.length ? initial : S.cy.nodes());
+      if (target) S.cy.viewport(target);
+    }
     S.cy.nodes().forEach(n => { if (S.selected.has(n.data('key'))) n.select(); });
     let before;
     S.cy.on('tap', 'node', e => {
-      if (e.target.data('key')) { S.key = e.target.data('key'); renderDetail(); renderList(); }
+      if (e.target.data('key')) { S.key = e.target.data('key'); renderSidebar(); renderDetail(); renderList(); }
       else { S.filter = e.target.data('direction'); renderSidebar(); }
       filterGraph(); focusGraph(e.target.id());
     });
@@ -346,7 +469,7 @@
       container.title = e.target.data('key') ? item(e.target.data('key'))?.title || '' : e.target.data('label');
     });
     S.cy.on('mouseout', 'node', () => { container.title = ''; highlightGraph(); });
-    S.cy.on('mouseover', 'edge', e => { container.title = e.target.data('kind') === 'similarity' ? `内容相似度 ${Math.round(e.target.data('weight') * 100)}%（非引用关系）` : e.target.data('kind') === 'hierarchy' ? '类别上下级关系' : '研究方向归属'; });
+    S.cy.on('mouseover', 'edge', e => { container.title = e.target.data('kind') === 'similarity' ? `内容相似度 ${Math.round(e.target.data('weight') * 100)}%（非引用关系）` : e.target.data('kind') === 'category' ? '同一研究方向（非引用关系）' : e.target.data('kind') === 'hierarchy' ? '类别上下级关系' : '研究方向归属'; });
     S.cy.on('select unselect', 'node', () => { syncGraphSelection(S.cy.nodes()); renderBulk(); });
     const cy = S.cy;
     const writer = positionWriter(S.snapshot.revision, data => { if (data && S.cy === cy) { S.renderedSignature = graphSignature(S.snapshot); capturePositions(); } });
@@ -375,8 +498,10 @@
       const initial = {};
       S.cy.nodes().forEach(n => { initial[n.id()] = graphPosition(n); });
       savePositions(initial);
+      if (forceRadial) localStorage.setItem('pdh-graph-layout-v3', '1');
     }
     highlightGraph();
+    renderGraphLegend();
     S.motion?.enter(previousElements);
     S.graphSeen = new Set(S.cy.elements().map(e=>e.id()));
     S.resizeObserver?.disconnect(); S.resizeObserver = new ResizeObserver(() => S.cy?.resize()); S.resizeObserver.observe(container);
@@ -422,17 +547,43 @@
       node.addClass('org-focused');
     } else filterGraph();
   }
+  // Keep reading views legible. Only the explicit overview may shrink the whole corpus.
+  function graphViewport(nodes, overview = false) {
+    const cy = S.cy;
+    if (!cy || !nodes.length) return null;
+    const b = nodes.boundingBox({ includeLabels: true });
+    const fit = Math.min((cy.width() - 100) / Math.max(1, b.w), (cy.height() - 140) / Math.max(1, b.h));
+    const zoom = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), overview ? Math.min(1.15, fit) : Math.max(0.9, Math.min(1.15, fit))));
+    let center = { x: (b.x1 + b.x2)/2, y: (b.y1 + b.y2)/2 };
+    // A large saved layout can have an empty center. Anchor to an actual paper.
+    if (!overview && fit < 0.9) {
+      let closest, distance = Infinity;
+      nodes.forEach(n => { const p = n.position(), d = (p.x-center.x)**2 + (p.y-center.y)**2; if (d < distance) { closest = p; distance = d; } });
+      center = closest;
+    }
+    return { zoom, pan: { x: cy.width()/2-center.x*zoom, y: cy.height()/2-center.y*zoom } };
+  }
+  function focusCategory() {
+    const cy = S.cy; if (!cy) return;
+    S.graphFocus = null; highlightGraph(); cy.resize();
+    const keys = new Set(visible().map(p => p.key));
+    const nodes = cy.nodes().filter(n => keys.has(n.data('key')));
+    const target = graphViewport(nodes);
+    S.notice = nodes.length ? `${visible().length} 篇论文 · 已定位，滚轮缩放或拖动画布浏览` : '当前类别或搜索没有可显示的论文';
+    status();
+    if (target) animateViewport(target);
+  }
   function focusGraph(id) {
     const cy = S.cy; if (!cy) return;
     S.graphFocus = id; highlightGraph(); cy.resize();
     const node = id ? cy.getElementById(id) : null;
     S.motion?.pulse(node);
-    const elements = node?.length ? node.closedNeighborhood() : cy.elements();
-    if (!elements.length) return;
-    const b = elements.boundingBox({ includeLabels: true });
-    const zoom = Math.max(cy.minZoom(), Math.min(1.65, (cy.width() - 140) / Math.max(1,b.w), (cy.height() - 140) / Math.max(1,b.h)));
-    const target = { zoom, pan: { x: cy.width()/2 - (b.x1+b.x2)*zoom/2, y: cy.height()/2 - (b.y1+b.y2)*zoom/2 } };
-    animateViewport(target);
+    let target;
+    if (node?.length) {
+      const p = node.position(), zoom = Math.min(cy.maxZoom(), Math.max(1.15, Math.min(1.5, cy.zoom())));
+      target = { zoom, pan: { x: cy.width()/2-p.x*zoom, y: cy.height()/2-p.y*zoom } };
+    } else target = graphViewport(cy.nodes(), true);
+    if (target) animateViewport(target);
   }
   function animateViewport(target) {
     const cy = S.cy; if (!cy) return;
@@ -469,6 +620,16 @@
   function safePaperURL(value) {
     try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : null; }
     catch (_) { return null; }
+  }
+  function paperURL(paper) {
+    const direct = safePaperURL(paper?.url || paper?.source_url || paper?.landing_page_url);
+    if (direct) return direct;
+    if (paper?.arxiv_id) return `https://arxiv.org/abs/${encodeURIComponent(String(paper.arxiv_id))}`;
+    if (paper?.doi) {
+      const doi = String(paper.doi).replace(/^https?:\/\/doi\.org\//i, '').replace(/^doi:/i, '');
+      return doi ? `https://doi.org/${encodeURIComponent(doi).replace(/%2F/g, '/')}` : null;
+    }
+    return safePaperURL(paper?.openalex_id);
   }
   function dialog(title, body, submitLabel, submit) {
     const host = $('.org-dialog-host'), previous = document.activeElement;
@@ -574,14 +735,29 @@
     if (!Array.isArray(snap.items)) throw new Error('导出数据缺少论文列表');
     return '# PaperDigHelper\n\n' + snap.items.map(p => `## ${String(p.title || p.key).replace(/\n/g, ' ')}\n\n${p.published || ''}\n\n${(snap.directions || []).filter(d => memberships(p).includes(String(d.id))).map(d => categoryPath(d.id, snap)).join(', ')}\n\n${p.abstract || ''}\n\n### Note\n\n${p.note || ''}\n`).join('\n');
   }
-  async function refresh() { await S.positionQueue; await S.queue; accept(await window.PDH.api('/api/organization')); S.loading = false; S.error = ''; S.positions = {}; S.cy?.destroy(); S.cy = null; renderData(); if (S.mode === 'graph') await loadRelations(); }
+  async function refresh() { await S.positionQueue; await S.queue; accept(await window.PDH.api('/api/organization')); S.loading = false; S.error = ''; S.positions = {}; S.cy?.destroy(); S.cy = null; if (S.mode === 'graph' && !item(S.key)) S.key = S.snapshot.items[0]?.key || null; renderData(); if (S.mode === 'graph') await loadRelations(); }
   async function handle(action, b) {
     switch (action) {
       case 'library': case 'graph': await S.positionQueue; capturePositions(); S.mode = action; renderSidebar(); setMode(); if (action === 'graph') await loadRelations(); break;
-      case 'filter': S.filter = b.dataset.id; renderSidebar(); renderList(); filterGraph(); focusGraph(S.filter && S.filter !== '*' ? groupId(S.filter) : null); break;
+      case 'filter': {
+        S.filter = b.dataset.id; S.graphFocus = null;
+        renderSidebar(); renderList();
+        if (S.cy) {
+          // Folded directory rows must not make a selected category impossible to locate.
+          const missing = visible().some(p => !S.cy.getElementById(paperNodeId(p.key)).length);
+          if (missing) renderGraph(false);
+          focusCategory();
+        }
+        break;
+      }
+      case 'graph-paper-focus': {
+        const p = item(b.dataset.key); if (!p || !S.cy) break;
+        S.key = p.key; S.graphFocus = paperNodeId(p.key); renderSidebar(); renderDetail(); renderList();
+        S.notice = `${p.title || p.key} · 已定位`; status(); focusGraph(S.graphFocus); break;
+      }
       case 'read': { const p = item(b.dataset.key); if (p) await window.PDH.openReader(p.key, p.title); break; }
       case 'detail': S.key = b.dataset.key; renderDetail(); renderList(); filterGraph(); break;
-      case 'detail-close': S.key = null; renderDetail(); renderList(); filterGraph(); break;
+      case 'detail-close': S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); break;
       case 'direction-new': editDirection(); break;
       case 'category-child': editDirection(undefined, b.dataset.id); break;
       case 'direction-edit': editDirection(b.dataset.id); break;
@@ -641,13 +817,13 @@
       case 'export': await exportData(); break;
       case 'fit': focusGraph(null); break;
       case 'rearrange':
-        if (window.confirm('重新排列所有方向和论文卡片？可撤销此操作。')) {
+        dialog('重新排列', '<p>重新排列所有论文卡片？可使用「撤销上一步」恢复布局。</p>', '重新排列', async () => {
           await S.positionQueue;
           const previous = S.snapshot.positions;
           S.snapshot.positions = {}; S.positions = {}; S.cy?.destroy(); S.cy = null; renderGraph(false); capturePositions();
           try { await mutate({ action: 'positions', positions: { ...Object.fromEntries(Object.keys(previous).map(id => [id, null])), ...S.positions } }, false); renderGraph(false); }
           catch (error) { S.snapshot.positions = previous; S.positions = {}; S.cy?.destroy(); S.cy = null; renderGraph(); throw error; }
-        } break;
+        }); break;
       case 'zoom-in': case 'zoom-out': zoomGraph(action === 'zoom-in' ? 1.2 : 1 / 1.2); break;
       case 'dialog-close': $('dialog')?.close(); break;
     }
@@ -656,8 +832,10 @@
   window.PDHOrganization = { async open(mode = 'library') {
     S.root = document.getElementById('organizationRoot');
     if (!S.root) throw new Error('Missing #organizationRoot');
-    S.loading = true; S.mode = mode === 'graph' || mode === 'knowledge' ? 'graph' : 'library'; S.root.hidden = false; renderShell();
+    S.loading = true; S.mode = mode === 'graph' || mode === 'knowledge' ? 'graph' : 'library';
+    if (S.mode === 'graph' && !localStorage.getItem('pdh-graph-layout-v3')) S.graphRadialPending = true;
+    S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, focusGraph, zoomGraph, positionWriter, bindGraphDrag };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
 })();

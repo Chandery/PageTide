@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 
 HTML = Path(__file__).resolve().parents[1] / "app/static/index.html"
+ORG_CSS = Path(__file__).resolve().parents[1] / "app/static/organization.css"
+ORG_JS = Path(__file__).resolve().parents[1] / "app/static/organization.js"
 
 
 class LayoutTests(unittest.TestCase):
@@ -18,6 +20,22 @@ class LayoutTests(unittest.TestCase):
     def test_paper_titles_are_keyboard_operable(self):
         self.assertIn('class="paper-title"', self.html)
         self.assertIn('class="library-title"', self.html)
+
+    def test_paper_detail_uses_a_reading_rail(self):
+        self.assertIn('id="detail" class="page detail-page hidden"', self.html)
+        self.assertIn('class="detail-scrim"', self.html)
+        self.assertIn('class="detail-panel page-inner"', self.html)
+        self.assertIn('role="dialog" aria-modal="true" aria-label="论文详情"', self.html)
+        self.assertIn('class="detail-actions"', self.html)
+
+    def test_knowledge_detail_keeps_summary_open_and_groups_metadata(self):
+        org_css = ORG_CSS.read_text()
+        org_js = ORG_JS.read_text()
+        self.assertIn('class="org-detail-meta"', org_js)
+        self.assertIn('class="org-detail-badges"', org_js)
+        self.assertIn('class="org-notes"', org_js)
+        self.assertIn('<details class="org-abstract" open>', org_js)
+        self.assertIn('.org-detail.has-paper', org_css)
 
     def test_motion_has_final_reduced_motion_override(self):
         self.assertIn("@keyframes viewEnter", self.css)
@@ -34,6 +52,16 @@ class LayoutTests(unittest.TestCase):
     def test_no_viewport_scaled_fonts_or_negative_tracking(self):
         self.assertNotRegex(self.css, r"font-size:[^;}]*vw")
         self.assertNotRegex(self.css, r"letter-spacing:\s*-")
+
+    def test_profile_visuals_use_explainable_evidence_sections(self):
+        self.assertIn("/api/profile/insights", self.html)
+        self.assertIn('src="/profile-ui.js"', self.html)
+        self.assertIn('href="/profile.css"', self.html)
+        self.assertIn('aria-label="用户画像"', self.html)
+        self.assertNotIn('id="profileActivityTotal"', self.html)
+        self.assertNotIn('id="profileInterestScore"', self.html)
+        self.assertNotIn('id="aiSummaryPanel"', self.html)
+        self.assertNotIn("Math.random()", self.html)
 
     def test_pinch_anchor_scales_pointer_offset_before_rerender(self):
         # Regression for the trackpad release jump: the point under the pointer
@@ -97,6 +125,19 @@ class LayoutTests(unittest.TestCase):
             "scale: R.renderedScale || pageScale(page)",
             self.html,
         )
+        render_start = self.html.find("function renderPage")
+        render_end = self.html.find("function ", render_start + 1)
+        render_block = self.html[render_start:render_end if render_end >= 0 else None]
+        self.assertIn(
+            "const vp = page.getViewport({ scale: R.renderedScale || pageScale(page) });",
+            render_block,
+        )
+
+    def test_pdf_layout_sets_tree_scale_before_lazy_page_observers(self):
+        scale_line = "const usedScale = R.fit ? pageScale(R.pages[0]) : (R.renderedScale || R.scale || 1.2);"
+        self.assertIn(scale_line, self.html)
+        self.assertIn("R.renderedScale = usedScale;", self.html)
+        self.assertLess(self.html.find("R.renderedScale = usedScale;"), self.html.find("for (let i = 0; i < R.pages.length; i++)"))
 
     def test_repeated_zoom_converts_transformed_anchor_back_to_base_space(self):
         self.assertIn("const activeK = R.fit ? 1 : (R.scale / renderedScale);", self.html)

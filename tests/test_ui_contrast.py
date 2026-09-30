@@ -3,14 +3,19 @@
 The owner reported "dark text on dark buttons". The cause was that --accent-ink
 was never defined, so the primary button inherited its text colour, plus several
 token pairs sitting below WCAG AA. This test parses the real token definitions out
-of app/static/index.html, resolves the light/dark backgrounds against every accent
-variant, and fails if any text pair drops below 4.5:1.
+of app/static/theme.css, resolves the light and dark PaperDig palettes (the
+per-user accent picker was retired on 2026-09-30), and fails if any text pair
+drops below 4.5:1.
 """
 import re
 import unittest
 from pathlib import Path
 
-HTML = Path(__file__).resolve().parents[1] / "app" / "static" / "index.html"
+STATIC = Path(__file__).resolve().parents[1] / "app" / "static"
+HTML = STATIC / "index.html"
+THEME = STATIC / "theme.css"
+# Every stylesheet that consumes the shared tokens.
+CONSUMERS = ("organization.css", "profile.css")
 
 
 def parse_hex(value):
@@ -46,6 +51,11 @@ def style_text():
     return match.group(1)
 
 
+def all_css():
+    """index.html's inline style plus every linked stylesheet and the theme itself."""
+    return "\n".join([style_text(), THEME.read_text()] + [(STATIC / name).read_text() for name in CONSUMERS])
+
+
 def declarations(block):
     return {k.strip(): v.strip() for k, v in re.findall(r"--([a-z0-9-]+)\s*:\s*([^;]+);", block)}
 
@@ -65,29 +75,23 @@ def _blocks_matching(css, pattern):
 
 def token_sets():
     """Resolve the palette from the literal selectors used in the stylesheet."""
-    css = style_text()
-    # The light palette lives in the first :root that declares --base; a later
-    # design-refresh :root adds surface/shadow tokens, so merge every :root block.
+    css = THEME.read_text()
     base = {}
     for match in re.finditer(r"(?m)^\s*:root\s*\{([^}]*)\}", css, re.S):
         base.update(declarations(match.group(1)))
-    # There are two html[data-mode="dark"] blocks (base palette, then the design
-    # refresh that adds --surface-*); the browser merges them, so merge them too.
     dark = {}
     for match in re.finditer(r'html\[data-mode="dark"\]\s*\{([^}]*)\}', css, re.S):
         dark.update(declarations(match.group(1)))
-    accents_light = _blocks_matching(css, r'html\[data-accent="([a-z]+)"\]\s*\{([^}]*)\}')
-    accents_dark = _blocks_matching(css, r'html\[data-mode="dark"\]\[data-accent="([a-z]+)"\]\s*\{([^}]*)\}')
-    return base, dark, accents_light, accents_dark
+    accents = _blocks_matching(all_css(), r'html\[(?:data-mode="dark"\]\[)?data-accent="([a-z]+)"\]\s*\{([^}]*)\}')
+    return base, dark, accents
 
 
 class ContrastTests(unittest.TestCase):
     def setUp(self):
-        base, dark, accents_light, accents_dark = token_sets()
+        base, dark, self.accents = token_sets()
         self.base, self.dark = base, dark
-        self.accents_light, self.accents_dark = accents_light, accents_dark
         self.assertIn("base", base, "could not parse the light palette")
-        self.assertTrue(accents_light, "no accent variants parsed")
+        self.assertIn("base", dark, "could not parse the dark palette")
 
     def _ratio(self, tokens, fg, bg):
         f, b = tokens.get(fg), tokens.get(bg)
@@ -111,6 +115,7 @@ class ContrastTests(unittest.TestCase):
                 (f"good on {surface}", "good", surface),
                 (f"bad on {surface}", "bad", surface),
                 (f"ai-text on {surface}", "ai-text", surface),
+                (f"mark-text on {surface}", "mark-text", surface),
             ]
         pairs.append(("accent-ink on accent fill", "accent-ink", "accent"))
         for name, fg, bg in pairs:
@@ -119,33 +124,36 @@ class ContrastTests(unittest.TestCase):
                 self.assertGreaterEqual(round(ratio, 2), 4.5,
                                         f"{label}: {name} is {ratio:.2f}:1, below WCAG AA 4.5:1")
 
-    def test_light_accent_variants_are_readable(self):
-        for accent, tokens in self.accents_light.items():
-            merged = {**self.base, **tokens}
-            # the light :root already carries defaults for --accent-ink etc.
-            self._check(f"light/{accent}", merged)
+    def test_light_palette_is_readable(self):
+        self._check("light", self.base)
 
-    def test_dark_accent_variants_are_readable(self):
-        for accent, tokens in self.accents_dark.items():
-            merged = {**self.base, **self.dark, **self.accents_light.get(accent, {}), **tokens}
-            self._check(f"dark/{accent}", merged)
+    def test_dark_palette_is_readable(self):
+        self._check("dark", {**self.base, **self.dark})
 
-    def test_every_accent_defines_its_own_text_tokens(self):
+    def test_both_modes_define_their_own_text_tokens(self):
         """The original bug: --accent-ink was undefined, so buttons inherited a colour."""
-        for accent, tokens in self.accents_light.items():
-            for token in ("accent-ink", "accent-text", "ai-text"):
-                self.assertIn(token, tokens, f"light/{accent} does not define {token}")
-        for accent, tokens in self.accents_dark.items():
-            for token in ("accent-ink", "accent-text", "ai-text"):
-                self.assertIn(token, tokens, f"dark/{accent} does not define {token}")
+        for label, tokens in (("light", self.base), ("dark", self.dark)):
+            for token in ("accent", "accent-ink", "accent-text", "ai-text", "mark-text", "text", "muted"):
+                self.assertIn(token, tokens, f"{label} does not define {token}")
+
+    def test_index_does_not_redefine_the_palette(self):
+        """theme.css is the single source; an inline :root in index.html would shadow it."""
+        self.assertNotRegex(style_text(), r"(?m)^\s*:root\s*\{")
+        self.assertNotRegex(style_text(), r'html\[data-mode="dark"\]\s*\{')
+        for page in ("index.html", "settings.html", "project_creation.html", "weekly_report.html"):
+            with self.subTest(page=page):
+                self.assertIn('href="/theme.css"', (STATIC / page).read_text())
+
+    def test_accent_picker_stays_retired(self):
+        """One palette only: a stale data-accent block would silently override it."""
+        self.assertEqual(self.accents, {}, "data-accent overrides are back in index.html")
 
     def test_every_css_variable_used_is_defined(self):
         """An undefined token silently inherits a colour - the dark-on-dark bug."""
-        css = style_text()
-        base, dark, accents_light, accents_dark = token_sets()
-        defined = set(base) | set(dark)
-        for tokens in list(accents_light.values()) + list(accents_dark.values()):
-            defined |= set(tokens)
+        css = all_css()
+        base, dark, _ = token_sets()
+        # component-scoped tokens (e.g. --org-*, --p-*) are defined where they are used
+        defined = set(base) | set(dark) | set(declarations(css))
         literal = set(base)   # tokens referenced only inside :root (e.g. --sd in shadows)
         used_without_fallback = set(re.findall(r"var\(--([a-z0-9-]+)\s*\)", css))
         missing = sorted(used_without_fallback - defined - literal)

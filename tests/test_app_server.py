@@ -34,6 +34,26 @@ class ServerSmokeTests(unittest.TestCase):
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read()
 
+    def _post(self, path, payload):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}{path}", data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read())
+
+    def _delete(self, path, payload):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}{path}", data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"}, method="DELETE")
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read())
+
     def test_index_and_state_are_served(self):
         status, body = self._get("/")
         self.assertEqual(status, 200)
@@ -65,6 +85,60 @@ class ServerSmokeTests(unittest.TestCase):
         status, _ = self._get("/api/paper?key=missing")
         self.assertEqual(status, 404)
 
+    def test_project_guidance_and_explicit_paper_sharing_routes(self):
+        status, created = self._post("/api/projects", {"name": "项目 A", "creation_mode": "manual", "keywords": ["world models"]})
+        self.assertEqual(status, 200)
+        project_id = created["project_id"]
+        status, bad = self._post("/api/projects", {"name": "坏项目", "creation_mode": "unknown"})
+        self.assertEqual(status, 400)
+        self.assertIn("invalid", bad["error"])
+        status, session = self._post("/api/project-guidance/sessions", {"name": "引导项目", "goal": "理解 JEPA"})
+        self.assertEqual(status, 201)
+        sid = session["session"]["id"]
+        status, resumed_raw = self._get(f"/api/project-guidance/sessions/{sid}")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(resumed_raw)["session"]["id"], sid)
+        status, turn = self._post(f"/api/project-guidance/sessions/{sid}/turn", {"message": "关注规划", "dry_run": True})
+        self.assertEqual(status, 200)
+        self.assertEqual(turn["mode"], "local")
+        status, cancelled = self._delete(f"/api/project-guidance/sessions/{sid}", {})
+        self.assertEqual(status, 200)
+        self.assertTrue(cancelled["cancelled"])
+        status, _ = self._delete(f"/api/project-guidance/sessions/{sid}", {})
+        self.assertEqual(status, 409)
+        status, _ = self._delete("/api/project-guidance/sessions/missing", {})
+        self.assertEqual(status, 404)
+
+        app = server.make_app(str(self.root))
+        app.store.upsert_papers([{"key": "shared", "title": "Shared", "abstract": "x", "published": "2026-01-01",
+                                  "group_name": "field", "project_id": project_id}])
+        status, relation = self._post("/api/project-papers", {"project_id": project_id, "paper_key": "shared"})
+        self.assertEqual(status, 200)
+        self.assertTrue(relation["added"])
+        status, projects_raw = self._get("/api/paper/shared/projects")
+        self.assertEqual(status, 200)
+        projects = json.loads(projects_raw)
+        self.assertEqual(projects["projects"][0]["project_id"], project_id)
+        status, removed = self._delete("/api/project-papers", {"project_id": project_id, "paper_key": "shared"})
+        self.assertEqual(status, 200)
+        self.assertTrue(removed["removed"])
+
+    def test_profile_freeze_and_restore_routes(self):
+        status, created = self._post("/api/projects", {"name": "画像", "creation_mode": "manual",
+                                                       "keywords": ["world models"]})
+        project_id = created["project_id"]
+        status, frozen = self._post("/api/profile/freeze", {"project_id": project_id, "frozen": True})
+        self.assertEqual(status, 200)
+        self.assertTrue(frozen["profile"]["frozen"])
+        status, _ = self._post("/api/profile/freeze", {"project_id": project_id, "frozen": "yes"})
+        self.assertEqual(status, 400)
+        status, restored = self._post("/api/profile/restore", {"project_id": project_id})
+        self.assertEqual(status, 200)
+        self.assertFalse(restored["profile"]["frozen"])
+        self.assertEqual(restored["profile"]["pinned_terms"], ["world models"])
+        status, _ = self._post("/api/profile/restore", {"project_id": "missing"})
+        self.assertEqual(status, 400)
+
     def test_paper_detail_via_post_body(self):
         """This is the path the UI uses; a POST body avoids URL-encoding issues."""
         app = server.make_app(str(self.root))
@@ -84,6 +158,16 @@ class ServerSmokeTests(unittest.TestCase):
         status, body = self._get("/api/home")
         self.assertEqual(status, 200)
         self.assertIn("server_version", json.loads(body))
+
+    def test_invalid_project_id_is_a_client_error(self):
+        status, body = self._get("/api/home?project_id=missing-project")
+        self.assertEqual(status, 404)
+        self.assertIn("项目不存在", json.loads(body)["error"])
+
+    def test_profile_evidence_rejects_invalid_offset(self):
+        status, body = self._get("/api/profile/evidence?kind=feedback&offset=abc")
+        self.assertEqual(status, 400)
+        self.assertIn("分页", json.loads(body)["error"])
 
     def test_pdf_view_404_when_not_downloaded(self):
         status, body = self._get("/api/pdf/view?key=missing")

@@ -1,0 +1,37 @@
+pool=754 labelled=268 sha=bc84cac1af8ae1d3 tokens=0 network=0 total=2.36s peak_rss=77.9MB
+
+split 2026-02-26: feedback +56/-38 holdout=147 (useful 104)
+  system                 P@5  u/shown shown   AUC meanRank
+  existing_ranker       1.00     1.00    10  0.95    54.45
+  svm_unlabelled_neg    1.00     1.00    10  0.95    54.49
+  svm_explicit_neg      1.00     1.00    10  0.95    54.83
+  recency               1.00     1.00    10  0.67    66.84
+
+split 2026-04-21: feedback +68/-50 holdout=123 (useful 92)
+  system                 P@5  u/shown shown   AUC meanRank
+  existing_ranker       1.00     1.00    10  0.95    48.16
+  svm_unlabelled_neg    1.00     1.00    10  0.95    48.20
+  svm_explicit_neg      1.00     1.00    10  0.96    47.74
+  recency               1.00     1.00    10  0.62    58.22
+
+split 2026-05-28: feedback +86/-58 holdout=97 (useful 74)
+  system                 P@5  u/shown shown   AUC meanRank
+  existing_ranker       1.00     1.00    10  0.94    38.88
+  svm_unlabelled_neg    1.00     1.00    10  0.95    38.64
+  svm_explicit_neg      1.00     1.00    10  0.97    38.28
+  recency               1.00     1.00    10  0.67    45.18
+
+split 2026-07-27: feedback +99/-68 holdout=74 (useful 61)
+  system                 P@5  u/shown shown   AUC meanRank
+  existing_ranker       1.00     1.00    10  0.91    32.16
+  svm_unlabelled_neg    1.00     1.00    10  0.88    32.56
+  svm_explicit_neg      1.00     1.00    10  0.94    31.74
+  recency               1.00     1.00    10  0.58    36.41
+
+mean over splits:
+  existing_ranker      P@5=1.00 u/shown=1.00 AUC=0.94 meanRank=43.41
+  svm_unlabelled_neg   P@5=1.00 u/shown=1.00 AUC=0.93 meanRank=43.47
+  svm_explicit_neg     P@5=1.00 u/shown=1.00 AUC=0.95 meanRank=43.15
+  recency              P@5=1.00 u/shown=1.00 AUC=0.64 meanRank=51.66
+
+EXPLORATORY: annotator labels saw seed titles; not owner labels; upstream probe not run.
