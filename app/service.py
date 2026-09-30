@@ -14,7 +14,7 @@ from . import ranking
 from .db import Store, now
 from .gateway import Gateway
 from .project import ProjectManager
-from .sources import OpenAlex, SourceError, resolve_seed, slim
+from .sources import OpenAlex, SourceError, fetch_seed_work, resolve_seed, slim
 
 ACTIONS = ("useful", "irrelevant", "too_hard")
 POSITIVE_ACTIONS = {"useful"}
@@ -109,6 +109,7 @@ class App:
         self.store.set_setting(f"project_default_terms_{project_id}", keywords)
         results = []
         seen_seed_keys = set()
+        seen_identifiers = set()
         for raw in (seeds or [])[:40]:
             if not isinstance(raw, str):
                 results.append({"input": str(raw)[:120], "status": "failed", "error": "种子标识必须是文本"})
@@ -119,12 +120,13 @@ class App:
             if len(seed) > 300:
                 results.append({"input": seed[:120], "status": "failed", "error": "种子标识过长"})
                 continue
-            identifier = seed
+            identifier, arxiv_id = seed, None
             arxiv = re.fullmatch(r"(?:arxiv:)?(\d{4}\.\d{4,5})(v\d+)?", seed, re.I)
             arxiv_url = re.fullmatch(r"https?://arxiv\.org/(?:abs|pdf)/([0-9]{4}\.\d{4,5})(v\d+)?", seed, re.I)
             if arxiv or arxiv_url:
                 match = arxiv or arxiv_url
-                identifier = f"https://doi.org/10.48550/arxiv.{match.group(1)}{match.group(2) or ''}"
+                arxiv_id = match.group(1)
+                identifier = f"https://doi.org/10.48550/arxiv.{arxiv_id}{match.group(2) or ''}"
             elif re.fullmatch(r"10\.\d{4,9}/\S+", seed):
                 identifier = f"https://doi.org/{seed}"
             elif not re.fullmatch(r"(?:https?://openalex\.org/)?W\d+|https?://doi\.org/10\.\d{4,9}/\S+", seed, re.I):
@@ -132,8 +134,13 @@ class App:
                 results.append({"input": seed, "status": "invalid_input",
                                 "error": "无法识别的标识：请填 arXiv 编号、DOI 或 OpenAlex W 编号"})
                 continue
+            # The same paper typed twice (e.g. "2601.1" and "arxiv:2601.1") is one lookup.
+            if (arxiv_id or identifier.lower()) in seen_identifiers:
+                results.append({"input": seed, "status": "duplicate"})
+                continue
+            seen_identifiers.add(arxiv_id or identifier.lower())
             try:
-                work = self.source.work(identifier)
+                work = fetch_seed_work(self.source, identifier, arxiv_id)
             except SourceError as exc:
                 results.append({"input": seed, "status": exc.kind, "error": str(exc)[:200]})
                 continue
@@ -143,6 +150,7 @@ class App:
                 continue
             try:
                 paper = slim(work or {}, group="seed")
+                paper["arxiv_id"] = paper["arxiv_id"] or arxiv_id
                 if not paper.get("key") or not paper.get("title"):
                     results.append({"input": seed, "status": "not_found", "error": "公开元数据缺少论文标题"})
                     continue
@@ -190,6 +198,10 @@ class App:
         query = " ".join(terms[:8]) or message[:180]
         draft.update({"keywords": terms[:20], "search_queries": [query],
                       "next_question": "还需要限定应用场景、方法路线或时间范围吗？"})
+        if not terms:
+            # The local tokenizer is English-only and OpenAlex titles are mostly English.
+            return ("本地模式只能识别英文词项，这段描述没有提取到关键词。请用英文补充关键词或检索式，"
+                    "例如 world model, robot manipulation。"), draft
         return "我已先按本地词项整理方向。你可以继续补充场景或方法，也可以直接查看候选论文。", draft
 
     def guidance_turn(self, session_id, message, dry_run=False):
@@ -204,7 +216,10 @@ class App:
         if not message or len(message) > 2000:
             raise ValueError("本轮内容不能为空且不能超过 2000 个字符")
         transcript = list(session["transcript"])
-        transcript.append({"role": "user", "content": message})
+        # The session already holds the goal; a first turn on that same goal only asks for a reply.
+        if not (session["turn_count"] == 0 and transcript and transcript[-1].get("role") == "user"
+                and transcript[-1].get("content") == message):
+            transcript.append({"role": "user", "content": message})
         draft = self._bounded_guidance_draft(session["draft"])
         model_draft = {
             "goal": draft.get("goal", "")[:300],
@@ -273,7 +288,10 @@ class App:
                         seen.add(paper["key"])
                         papers.append(paper)
             except Exception as exc:
-                errors.append({"query": query, "error": str(exc)[-200:]})
+                kind = getattr(exc, "kind", "error")
+                errors.append({"query": query, "kind": kind, "error": str(exc)[-200:]})
+                if kind == "unavailable":
+                    break  # OpenAlex is shedding load; more queries only add waiting
         draft["candidates"] = papers[:30]
         self.store.update_guidance_session(session_id, draft=draft)
         return {"session": self.store.guidance_session(session_id), "items": papers[:30], "errors": errors}

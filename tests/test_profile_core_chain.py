@@ -253,12 +253,74 @@ class SeedResolutionTests(unittest.TestCase):
                 raise SourceError("missing", "not_found")
             raise SourceError("offline", "network_error")
 
-        with mock.patch.object(self.app.source, "work", side_effect=work):
+        with mock.patch.object(self.app.source, "work", side_effect=work), \
+                mock.patch.object(self.app.source, "find_arxiv", side_effect=SourceError("missing", "not_found")):
             result = self.app.create_project("Seeds", "manual", ["x"],
                                              seeds=["2601.00001", "arxiv:2601.00001", "2601.00002", "2601.00003", 7])
         statuses = [r["status"] for r in result["seed_results"]]
         self.assertEqual(statuses, ["resolved", "duplicate", "not_found", "network_error", "failed"])
         self.assertEqual(self.app.stats(result["project_id"])["seeds"], 1)
+
+    def test_old_arxiv_seed_falls_back_to_landing_page_lookup(self):
+        # OpenAlex has no record for many pre-2022 arXiv DOIs (e.g. 1706.03762).
+        def work(identifier):
+            raise SourceError("missing", "not_found")
+
+        def find_arxiv(arxiv_id):
+            if arxiv_id == "1706.03762":
+                return {"id": "https://openalex.org/W2626778328", "title": "Attention Is All You Need",
+                        "publication_date": "2017-06-12"}
+            raise SourceError("missing", "not_found")
+
+        with mock.patch.object(self.app.source, "work", side_effect=work), \
+                mock.patch.object(self.app.source, "find_arxiv", side_effect=find_arxiv) as fallback:
+            result = self.app.create_project("Old arXiv", "manual", ["x"],
+                                             seeds=["1706.03762v5", "2999.99999", "10.1234/none"])
+        statuses = [r["status"] for r in result["seed_results"]]
+        self.assertEqual(statuses, ["resolved", "not_found", "not_found"])
+        # Only arXiv identifiers use the arXiv fallback; the versionless ID is what is looked up.
+        self.assertEqual([c.args[0] for c in fallback.call_args_list], ["1706.03762", "2999.99999"])
+        paper = self.app.store.conn.execute("SELECT arxiv_id FROM papers WHERE key=?",
+                                            (result["seed_results"][0]["key"],)).fetchone()
+        self.assertEqual(paper[0], "1706.03762")
+
+    def test_repeated_seed_input_is_duplicate_without_another_lookup(self):
+        calls = []
+
+        def work(identifier):
+            calls.append(identifier)
+            raise SourceError("offline", "network_error")
+
+        with mock.patch.object(self.app.source, "work", side_effect=work):
+            result = self.app.create_project("Repeat", "manual", ["x"],
+                                             seeds=["2601.00009", "arxiv:2601.00009", "https://arxiv.org/abs/2601.00009"])
+        statuses = [r["status"] for r in result["seed_results"]]
+        self.assertEqual(statuses, ["network_error", "duplicate", "duplicate"])
+        self.assertEqual(len(calls), 1)
+
+    def test_find_arxiv_queries_the_http_landing_page(self):
+        from app.sources import OpenAlex
+        client = OpenAlex(Path(self.tmp.name) / "cache")
+        with mock.patch.object(client, "_fetch", return_value={"results": [{"id": "W9", "title": "T"}]}) as fetch:
+            self.assertEqual(client.find_arxiv("1706.03762")["id"], "W9")
+        self.assertIn("locations.landing_page_url%3Ahttp%3A%2F%2Farxiv.org%2Fabs%2F1706.03762", fetch.call_args.args[0])
+        with mock.patch.object(client, "_fetch", return_value={"results": []}):
+            with self.assertRaises(SourceError) as caught:
+                client.find_arxiv("2999.99999")
+        self.assertEqual(caught.exception.kind, "not_found")
+
+    def test_overloaded_openalex_is_reported_as_unavailable(self):
+        import io
+        import urllib.error
+        from app.sources import OpenAlex
+        client = OpenAlex(Path(self.tmp.name) / "cache")
+        busy = urllib.error.HTTPError("u", 503, "Service Unavailable", {}, io.BytesIO(b"{}"))
+        with mock.patch("app.sources.urllib.request.urlopen", side_effect=busy) as urlopen, \
+                mock.patch("app.sources.time.sleep"):
+            with self.assertRaises(SourceError) as caught:
+                client.work("W1")
+        self.assertEqual(caught.exception.kind, "unavailable")
+        self.assertEqual(urlopen.call_count, 2)  # bounded retries, no loop
 
     def test_unusable_seed_input_never_escapes_after_project_creation(self):
         import http.client

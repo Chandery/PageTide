@@ -71,7 +71,7 @@ def slim(work, group="field"):
 
 
 class SourceError(RuntimeError):
-    """A public-metadata fetch failed; kind is not_found, network_error, invalid_input or bad_response."""
+    """A public-metadata fetch failed; kind is not_found, network_error, unavailable, invalid_input or bad_response."""
 
     def __init__(self, message, kind):
         super().__init__(message)
@@ -121,7 +121,9 @@ class OpenAlex:
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 last = exc
                 time.sleep(min(GAP_SECONDS * (attempt + 1), 10))
-        raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "network_error")
+        # 429/503 mean OpenAlex is shedding load (e.g. anonymous search paused), not a local network fault.
+        busy = isinstance(last, urllib.error.HTTPError) and last.code in (429, 503)
+        raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "unavailable" if busy else "network_error")
 
     def discover(self, search=FIELD_QUERY, from_date="2024-01-01", to_date=None, pages=1, per_page=100,
                  source_id=ARXIV_SOURCE_ID):
@@ -171,6 +173,28 @@ class OpenAlex:
         # Quote so a stray "?", "#" or space cannot change which request is made.
         return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}")
 
+    def find_arxiv(self, arxiv_id):
+        """Find an arXiv paper by its landing page when OpenAlex lacks the arXiv DOI (common before 2022).
+
+        Only the http:// form is indexed; the https:// form times out on OpenAlex.
+        """
+        params = {"filter": f"locations.landing_page_url:http://arxiv.org/abs/{arxiv_id}",
+                  "per-page": 1, "mailto": MAILTO}
+        results = self._fetch(f"{API}?{urllib.parse.urlencode(params)}").get("results") or []
+        if not results:
+            raise SourceError(f"OpenAlex has no arXiv record: {arxiv_id}", "not_found")
+        return results[0]
+
+
+def fetch_seed_work(client, identifier, arxiv_id=None):
+    """Fetch one seed work; an arXiv DOI missing from OpenAlex falls back to the landing page."""
+    try:
+        return client.work(identifier)
+    except SourceError as exc:
+        if exc.kind != "not_found" or not arxiv_id:
+            raise
+    return client.find_arxiv(arxiv_id)
+
 
 def resolve_seed(client, seed):
     """Resolve a seed dict {title, ids:{...}} to a slim paper, or None."""
@@ -183,8 +207,9 @@ def resolve_seed(client, seed):
     elif ids.get("doi"):
         identifier = f"https://doi.org/{ids['doi']}"
     if identifier:
-        work = client.work(identifier)
+        work = fetch_seed_work(client, identifier, ids.get("arxiv_id"))
         paper = slim(work, group="seed")
+        paper["arxiv_id"] = paper["arxiv_id"] or ids.get("arxiv_id")
         paper["seed_title"] = seed["title"]
         paper["title_matches"] = normalize_title(work.get("title")) == normalize_title(seed["title"])
         return paper

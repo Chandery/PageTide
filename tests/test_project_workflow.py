@@ -62,6 +62,29 @@ class ProjectWorkflowTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.app.guidance_turn(session["id"], "再问一轮")
 
+    def test_first_turn_on_the_goal_is_not_recorded_twice(self):
+        # Quick creation sends the goal itself as the first turn to get a reply.
+        session = self.app.create_guidance_session("快速", "world model planning")
+        with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
+            turn = self.app.guidance_turn(session["id"], "world model planning")
+        roles = [m["role"] for m in turn["session"]["transcript"]]
+        self.assertEqual(roles, ["user", "assistant"])
+        with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
+            again = self.app.guidance_turn(session["id"], "world model planning")
+        # A later identical answer is a real new turn.
+        self.assertEqual([m["role"] for m in again["session"]["transcript"]], ["user", "assistant", "user", "assistant"])
+
+    def test_local_guidance_says_when_it_finds_no_english_terms(self):
+        session = self.app.create_guidance_session("中文", "用视频预训练的世界模型做机器人操作规划")
+        with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
+            turn = self.app.guidance_turn(session["id"], "偏向真实机器人")
+        self.assertEqual(turn["session"]["draft"]["keywords"], [])
+        self.assertIn("英文", turn["reply"])
+        with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
+            turn = self.app.guidance_turn(session["id"], "world model, robot manipulation")
+        self.assertNotIn("英文", turn["reply"])
+        self.assertIn("robot", turn["session"]["draft"]["keywords"])
+
     def test_malformed_or_failed_guidance_response_stays_local(self):
         session = self.app.create_guidance_session("容错项目", "研究检索")
         for response in ({"ok": True, "content": "not-json"}, RuntimeError("network")):
@@ -79,6 +102,16 @@ class ProjectWorkflowTests(unittest.TestCase):
         with patch.object(self.app.gateway, "call", side_effect=fake):
             self.app.guidance_turn(session["id"], "y" * 2000)
         self.assertLess(len(captured["text"]), 4200)
+
+    def test_preview_stops_after_openalex_is_unavailable(self):
+        from app.sources import SourceError
+        session = self.app.create_guidance_session("限流", "world model")
+        draft = {**session["draft"], "search_queries": ["a", "b", "c"]}
+        with patch.object(self.app.source, "discover", side_effect=SourceError("503", "unavailable")) as discover:
+            preview = self.app.guidance_preview(session["id"], draft)
+        self.assertEqual(discover.call_count, 1)
+        self.assertEqual(preview["items"], [])
+        self.assertEqual([e["kind"] for e in preview["errors"]], ["unavailable"])
 
     def test_project_creation_rejects_invalid_mode(self):
         with self.assertRaises(ValueError):

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-09-30-project-creation-switcher",
+  "class": "standard",
+  "summary": "Fix the bugs found by testing every project-creation path (old arXiv seeds, repeated seeds, merged failure labels, doubled first turn, silent Chinese goal, OpenAlex 503 shown as stacked generic errors, failed seeds flashing before redirect, learning path not editable in local mode) and replace the project dropdown with a macOS Mission Control style overview (current page zooms out into a window card, projects shown as window thumbnails in a grid, the chosen one zooms back to full screen; Option+Up, header click or trackpad pinch).",
+  "tasks": [
+    "PILOT-01",
+    "REL-01"
+  ],
+  "files": [
+    "app/service.py",
+    "app/sources.py",
+    "app/static/index.html",
+    "app/static/project-switcher.js",
+    "app/static/project_creation.html",
+    "changes/2026-09-30-project-creation-switcher.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-09-30-project-creation-switcher-checks.txt",
+    "docs/evidence/2026-09-30-project-creation-switcher-review.md",
+    "docs/evidence/2026-09-30-project-creation-switcher-tests.txt",
+    "tests/test_profile_core_chain.py",
+    "tests/test_project_creation_ui.py",
+    "tests/test_project_switcher.cjs",
+    "tests/test_project_workflow.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "No gateway operation, prompt, provider call or ceiling changed. OpenAlex public-metadata requests are bounded more tightly: a preview now stops after the first 429/503 instead of trying the remaining queries; the arXiv landing-page fallback adds at most one public request per unresolved arXiv seed.",
+    "before": "Runtime model tokens and USD zero on these paths; preview could issue 3 failing OpenAlex queries with retries during an outage.",
+    "after": "Runtime model tokens and USD remain zero; preview issues at most one query (2 attempts) during an outage.",
+    "developer_usage": "unknown"
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-30-project-creation-switcher-tests.txt",
+      "note": "Run in the owner's terminal because the agent sandbox blocks localhost binds; includes node tests for organization UI and the project switcher."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-30-project-creation-switcher-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-09-30-project-creation-switcher-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; exercised every creation path and the project overview (click, Option+Up, pinch, arrows, Enter, Escape, background click, graph pinch exclusion) in the browser preview, light and dark mode, including a paused mid-animation frame.",
+      "evidence": "docs/evidence/2026-09-30-project-creation-switcher-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Selecting and importing live candidates was not exercised: OpenAlex paused anonymous search (HTTP 503) during testing; covered only by unit tests.",
+    "The four-finger swipe and Ctrl+Up are reserved by macOS and cannot reach the app. Option+Up and trackpad pinch in the packaged WKWebView were not tested with real input (sandbox blocks input automation); pinch was verified only with synthetic ctrl+wheel events. The click path always works.",
+    "Snapshots of other projects are DOM clones kept in memory for the session only (at most 8); projects not opened this session show a placeholder page, and scroll positions inside inner panels are not captured.",
+    "The saved learning path is not displayed anywhere after creation.",
+    "Local guidance extracts English terms only."
+  ]
+}

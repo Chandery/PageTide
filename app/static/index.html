@@ -37,34 +37,64 @@
   .controls { display:flex; align-items:center; gap:8px; }
   .modes { padding:4px; border-radius:12px; box-shadow:var(--sh-in-sm); display:flex; }
 
-  /* --------------------------------------------------------- project selector */
-  .project-selector { position:relative; }
-  .project-btn { padding:7px 14px; border-radius:999px; font-size:13px; cursor:pointer;
-                 background:var(--base); box-shadow:var(--sh-out-sm); display:flex; align-items:center; gap:7px;
+  /* ------------------------------------------ project overview (Mission Control style) */
+  .project-btn { padding:7px 12px 7px 14px; border-radius:999px; font-size:13px; cursor:pointer;
+                 background:var(--base); box-shadow:var(--sh-out-sm); display:flex; align-items:center; gap:8px;
                  transition:box-shadow .16s ease, transform .16s ease; user-select:none; }
   .project-btn:hover { transform:translateY(-1px); }
   .project-btn .icon { font-size:14px; }
-  .project-btn .icon.chevron-down { font-size:11px; opacity:.6; }
-  .project-dropdown { position:absolute; top:calc(100% + 8px); left:0; min-width:260px;
-                      background:var(--base); box-shadow:var(--sh-out); border-radius:var(--r-lg);
-                      padding:8px; display:none; z-index:50; animation:rise .2s ease both; }
-  .project-dropdown.show { display:block; }
-  .project-list { max-height:320px; overflow-y:auto; }
-  .project-item { width:100%; padding:10px 12px; border-radius:var(--r-sm); cursor:pointer; display:flex;
-                  align-items:center; gap:9px; transition:background .15s ease; font-size:13.5px;
-                  text-align:left; border:none; background:transparent; }
-  .project-item:hover { background:var(--accent-soft); }
-  .project-item.active { background:var(--accent-soft); font-weight:600; }
-  .project-item .icon { font-size:14px; color:var(--accent-text); flex-shrink:0; }
-  .project-item span { flex:1; }
-  .project-item .icon.check { font-size:13px; }
-  .project-sep { height:1px; background:var(--line); margin:8px 0; }
-  .project-create { width:100%; padding:10px 12px; border-radius:var(--r-sm); font-size:13.5px;
-                    color:var(--accent-text); font-weight:600; background:transparent; border:none;
-                    cursor:pointer; display:flex; align-items:center; gap:8px; transition:background .15s ease;
-                    text-align:left; box-shadow:none; }
-  .project-create:hover { background:var(--accent-soft); transform:none; }
-  .project-create .icon { font-size:14px; }
+  .project-btn kbd { font:11px/1 -apple-system,BlinkMacSystemFont,sans-serif; color:var(--muted);
+                     padding:3px 5px; border-radius:5px; box-shadow:inset 0 0 0 1px var(--line-strong); }
+  html.mc-open, html.mc-open body { overflow:hidden; }
+  .mc { position:fixed; inset:0; z-index:200; --desk:#262c33; --desk-2:#3a3531; }
+  html[data-mode="dark"] .mc { --desk:#0d1013; --desk-2:#1d1a17; }
+  .mc[hidden] { display:none; }
+  .mc-desk { position:absolute; inset:0;
+             background:radial-gradient(120% 90% at 50% 0%, var(--desk-2), var(--desk));
+             -webkit-backdrop-filter:blur(30px); backdrop-filter:blur(30px); }
+  .mc-bar { position:absolute; left:0; right:0; top:0; height:64px; display:flex; align-items:center;
+            justify-content:center; gap:14px; color:#f3eee6; }
+  .mc-title { font:600 15px/1 var(--serif); letter-spacing:.02em; }
+  .mc-hint { font-size:11.5px; opacity:.6; }
+  .mc-bar .mc-add { position:absolute; right:22px; top:14px; width:36px; height:36px; padding:0; border-radius:10px;
+                    display:grid; place-items:center; color:#f3eee6; background:rgba(255,255,255,.1);
+                    border:1px solid rgba(255,255,255,.16); box-shadow:none; }
+  .mc-bar .mc-add:hover { background:rgba(255,255,255,.18); transform:none; }
+  .mc-stage { position:absolute; inset:0; top:0; }
+  .mc-bar { z-index:1; }
+  .mc-card { position:absolute; cursor:pointer; }
+  .mc-card.front { z-index:2; }
+  .mc-window { position:relative; overflow:hidden; border-radius:10px; transform-origin:0 0;
+               background:var(--base); box-shadow:0 18px 44px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.08); }
+  .mc-window::after { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+                      box-shadow:inset 0 0 0 0 transparent; transition:box-shadow .14s ease; }
+  .mc-card[aria-selected="true"] .mc-window::after { box-shadow:inset 0 0 0 3px var(--accent); }
+  .mc-scale { transform-origin:0 0; }
+  .mc-page { position:relative; overflow:hidden; background:var(--base); color:var(--text); pointer-events:none; }
+  .mc-page, .mc-page * { animation:none !important; transition:none !important; }
+  .mc-label { display:flex; align-items:center; justify-content:center; gap:7px; height:30px; padding-top:8px;
+              font-size:12.5px; color:rgba(243,238,230,.78); white-space:nowrap; overflow:hidden; }
+  .mc-label span:last-child { overflow:hidden; text-overflow:ellipsis; }
+  .mc-card[aria-selected="true"] .mc-label { color:#fff; font-weight:600; }
+  .mc-dot { flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--mark); }
+  /* placeholder page for projects not opened in this session */
+  .mc-ph-top { display:flex; align-items:center; gap:14px; padding:14px max(24px,calc((100% - 1200px)/2));
+               border-bottom:1px solid var(--line); background:var(--surface-1); }
+  .mc-ph-top img { width:30px; height:30px; }
+  .mc-ph-top b { font:600 20px/1 var(--serif); }
+  .mc-ph-top b em { color:var(--accent-text); }
+  .mc-ph-pill { padding:8px 16px; border-radius:999px; font-size:14px; box-shadow:var(--sh-out-sm); }
+  .mc-ph-body { max-width:1200px; margin:0 auto; padding:40px max(28px,calc((100% - 1200px)/2)); }
+  .mc-ph-edition { color:var(--muted); font-size:14px; letter-spacing:.08em; }
+  .mc-ph-body h1 { margin:10px 0 18px; font:600 44px/1.15 var(--serif); }
+  .mc-ph-chips { display:flex; flex-wrap:wrap; gap:10px; }
+  .mc-ph-chips span { padding:6px 14px; border-radius:999px; background:var(--accent-soft); color:var(--accent-text); font-size:15px; }
+  .mc-ph-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:34px; }
+  .mc-ph-grid div { height:190px; padding:22px; border-radius:var(--r-lg); background:var(--surface-1);
+                    border:1px solid var(--line); display:flex; flex-direction:column; gap:14px; }
+  .mc-ph-grid i { display:block; height:14px; border-radius:7px; background:var(--surface-3); }
+  .mc-ph-grid i:first-child { width:80%; height:20px; }
+  .mc-ph-grid i:last-child { width:55%; }
 
   main { max-width:920px; margin:20px auto 90px; padding:0 16px; }
   h1 { font-size:23px; margin:0 0 4px; letter-spacing:0; }
@@ -529,20 +559,11 @@
 <body>
 <header class="top">
   <div class="brand"><img class="brand-mark" src="/brand-mark.svg" alt="" aria-hidden="true"><span class="wordmark">Paper<em>Dig</em>Helper</span></div>
-  <div class="project-selector">
-    <div class="project-btn" id="projectBtn">
-      <i class="icon folder" aria-hidden="true"></i>
-      <span id="currentProjectName">加载中...</span>
-      <i class="icon chevron-down" aria-hidden="true"></i>
-    </div>
-    <div class="project-dropdown" id="projectDropdown">
-      <div class="project-list" id="projectList"></div>
-      <div class="project-sep"></div>
-      <button class="project-create" id="createProjectBtn">
-        <i class="icon plus" aria-hidden="true"></i> 创建新项目
-      </button>
-    </div>
-  </div>
+  <button class="project-btn" id="projectBtn" title="项目总览（⌥↑，或双指捏合）" aria-haspopup="dialog">
+    <i class="icon folder" aria-hidden="true"></i>
+    <span id="currentProjectName">加载中...</span>
+    <kbd aria-hidden="true">⌥↑</kbd>
+  </button>
   <nav class="tabs" aria-label="主导航">
     <button class="tab active" data-view="today" aria-current="page"><i class="icon sparkles" aria-hidden="true"></i>今日</button>
     <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>
@@ -558,6 +579,16 @@
 </header>
 
 <div id="devbanner" class="devbanner" style="display:none"></div>
+<div class="mc" id="projectSwitcher" role="dialog" aria-modal="true" aria-label="项目总览" hidden>
+  <div class="mc-desk"></div>
+  <div class="mc-bar">
+    <span class="mc-title">项目</span>
+    <span class="mc-hint">方向键选择 · 回车或双指张开进入 · Esc 返回</span>
+    <button class="mc-add" type="button" title="新建项目" aria-label="新建项目"><i class="icon plus" aria-hidden="true"></i></button>
+  </div>
+  <div class="mc-stage" role="listbox" aria-label="项目"></div>
+</div>
+
 <main>
   <section id="view-today">
     <section class="hero">
@@ -631,6 +662,7 @@
 <div id="toasts"></div>
 
 <script src="/profile-ui.js"></script>
+<script src="/project-switcher.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
@@ -783,18 +815,6 @@ async function loadProjects() {
 function renderProjectSelector() {
   const current = state.projects.find(p => p.id === state.currentProject);
   $('#currentProjectName').textContent = current?.name || '选择项目';
-
-  const list = $('#projectList');
-  if (!list) return;
-
-  list.innerHTML = state.projects.map(p => {
-    const active = p.id === state.currentProject ? ' active' : '';
-    return `<button class="project-item${active}" data-project="${esc(p.id)}">
-      <i class="icon folder-open" aria-hidden="true"></i>
-      <span>${esc(p.name)}</span>
-      ${active ? '<i class="icon check" aria-hidden="true"></i>' : ''}
-    </button>`;
-  }).join('');
 }
 
 async function switchProject(projectId) {
@@ -806,29 +826,15 @@ async function switchProject(projectId) {
   if (state.view === 'library') await loadLibrary();
 }
 
-// Project dropdown toggle
-$('#projectBtn').onclick = () => {
-  $('#projectDropdown').classList.toggle('show');
-};
-
-// Click outside to close
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.project-selector')) {
-    $('#projectDropdown').classList.remove('show');
-  }
+const projectSwitcher = window.ProjectSwitcher.mount({
+  root: $('#projectSwitcher'),
+  button: $('#projectBtn'),
+  getProjects: () => state.projects,
+  getCurrent: () => state.currentProject,
+  onSelect: id => switchProject(id),
+  onCreate: () => { window.location.href = '/project_creation.html'; },
+  pinchIgnore: '.org-graph',
 });
-
-// Switch project when clicked
-$('#projectList').addEventListener('click', (e) => {
-  const btn = e.target.closest('.project-item');
-  if (!btn) return;
-  const projectId = btn.dataset.project;
-  if (projectId !== state.currentProject) {
-    switchProject(projectId);
-  }
-  $('#projectDropdown').classList.remove('show');
-});
-$('#createProjectBtn').onclick = () => { window.location.href = '/project_creation.html'; };
 
 // ------------------------------------------------------------------ load
 async function load() {
