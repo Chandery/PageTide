@@ -9,6 +9,63 @@ const date = t => t ? String(t).slice(0,10) : '暂无记录';
 const empty = text => `<div class="profile-empty">${esc(text)}</div>`;
 const button = (text, attrs='') => `<button type="button" ${attrs}>${text}</button>`;
 const evidenceAttrs = (kind, extra='') => `data-evidence="${kind}" ${extra}`;
+const signed = n => n>0 ? `+${n}` : String(n);
+/* Pure numbers for the dashboard; everything is a count of local records, nothing is estimated. */
+function dashboard(data) {
+  const weeks=data.timeline?.weeks||[], s=data.signals||{}, wc=data.weekly_change||{};
+  const now=wc.stats||{}, prev=wc.previous_stats||{};
+  const kpis=['saved','positive','negative','too_hard'].map(key=>({key, label:labels[key], value:s[key]||0, week:now[key]||0, prev:prev[key]||0, trend:weeks.map(w=>w[key]||0), color:colors[key], evidence:evidenceAttrs(key), unit:'篇'}));
+  const activity={key:'activity', label:'本周活动', value:now.activity||0, week:now.activity||0, prev:prev.activity||0, trend:weeks.map(w=>w.activity||0), color:'var(--accent)', unit:'次', weekly:true,
+    evidence:evidenceAttrs('week',`data-start="${esc(wc.week_start||'')}" data-end="${esc(wc.week_end||'')}"`)};
+  const positive=s.positive||0, negative=s.negative||0, tooHard=s.too_hard||0, judged=positive+negative;
+  const peak=Math.max(0,...weeks.map(w=>w.activity||0));
+  const maxDocs=Math.max(1,...(data.keyword_distribution||[]).map(t=>t.documents||0));
+  return {kpis, activity,
+    feedback:{positive, negative, too_hard:tooHard, judged, rate:judged ? Math.round(positive/judged*100) : null, few:judged<5},
+    weeks:{list:weeks, peak, active:weeks.filter(w=>w.activity>0).length},
+    termWidth:t=>Math.max(3,Math.round((t.documents||0)/maxDocs*100))};
+}
+function spark(values, color) {
+  if(values.length<2 || !values.some(Boolean)) return '<span class="pd-spark is-flat" aria-hidden="true"></span>';
+  const max=Math.max(...values), n=values.length;
+  const pts=values.map((v,i)=>`${(i/(n-1)*100).toFixed(1)},${(29-v/max*25).toFixed(1)}`).join(' ');
+  return `<svg class="pd-spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true" style="color:${color}"><polygon points="0,30 ${pts} 100,30" fill="currentColor" opacity=".12"/><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function kpiHTML(k) {
+  const delta=k.weekly ? `上周 ${k.prev} 次` : `本周新增 ${k.week} · 上周 ${k.prev}`;
+  const note=k.key==='too_hard' ? '<span class="pd-kpi-tag">不算负面</span>' : '';
+  return button(`<span class="pd-kpi-label"><i class="profile-dot" style="background:${k.color}"></i>${k.label}${note}</span><b>${k.value}<small>${k.unit}</small></b><span class="pd-kpi-delta">${delta}</span>${spark(k.trend,k.color)}`,`class="pd-kpi" data-kpi="${k.key}" ${k.evidence}`);
+}
+function feedbackHTML(f) {
+  const parts=[['positive',f.positive],['negative',f.negative],['too_hard',f.too_hard]], total=f.positive+f.negative+f.too_hard;
+  let at=0;
+  const rings=total ? parts.filter(([,v])=>v).map(([k,v])=>{const len=v/total*100, seg=`<circle r="15.915" cx="18" cy="18" fill="none" stroke="${colors[k]}" stroke-width="3.6" stroke-dasharray="${len.toFixed(2)} ${(100-len).toFixed(2)}" stroke-dashoffset="${(25-at).toFixed(2)}"/>`;at+=len;return seg;}).join('') : '';
+  const center=f.rate===null ? '<b>—</b><span>还没有评价</span>' : `<b>${f.rate}%</b><span>有用率</span>`;
+  return `<div class="pd-card-head"><h2>明确反馈</h2></div><div class="pd-donut-wrap"><div class="pd-donut"><svg viewBox="0 0 36 36" aria-hidden="true"><circle r="15.915" cx="18" cy="18" fill="none" stroke="var(--surface-2)" stroke-width="3.6"/>${rings}</svg><div class="pd-donut-center">${center}</div></div>
+    <div class="pd-legend">${parts.map(([k,v])=>button(`<i class="profile-dot" style="background:${colors[k]}"></i><span>${labels[k]}</span><b>${v}</b>`,`class="pd-legend-row" ${evidenceAttrs(k)}`)).join('')}</div></div>
+    <p class="pd-foot">${f.judged ? `有用率 = 有用 ÷（有用 + 不相关），共 ${f.judged} 篇${f.few?'，样本还少，仅供参考':''}。` : '标记“有用 / 不相关”后显示有用率。'}“太难”不计入。</p>`;
+}
+function activityHTML(w) {
+  const order=['positive','saved','negative','too_hard','exposed'];
+  const legend=order.map(k=>`<span><i class="profile-dot" style="background:${colors[k]}"></i>${labels[k]}</span>`).join('');
+  const head=`<div class="pd-card-head"><h2>最近 12 周</h2><span class="profile-note">${w.active} / ${w.list.length} 周有记录${w.peak?` · 最多 ${w.peak} 次/周`:''}</span></div>`;
+  if(!w.list.length || !w.peak) return head+empty('最近 12 周没有活动记录，不推断兴趣变化。');
+  const cols=w.list.map((x,i)=>{
+    const last=i===w.list.length-1, tip=`${x.start.slice(5)} 起 · ${order.map(k=>`${labels[k]} ${x[k]||0}`).join(' · ')}`;
+    const stack=order.map(k=>x[k] ? `<i style="height:${(x[k]/w.peak*100).toFixed(1)}%;background:${colors[k]}"></i>` : '').join('');
+    return button(`<span class="pd-col-value">${x.activity||''}</span><span class="pd-col-bar">${stack}</span><span class="pd-col-label">${last?'本周':x.start.slice(5)}</span>`,`class="pd-col${last?' is-current':''}" title="${esc(tip)}" aria-label="${esc(tip)}" ${evidenceAttrs('week',`data-start="${esc(x.start)}" data-end="${esc(x.end)}"`)}`);
+  }).join('');
+  return `${head}<div class="pd-chart">${cols}</div><div class="profile-legend profile-note">${legend}</div>`;
+}
+function trendHTML(wc) {
+  const now=wc.stats||{}, prev=wc.previous_stats||{}, kinds=['saved','positive','negative','too_hard'];
+  const max=Math.max(1,...kinds.flatMap(k=>[now[k]||0,prev[k]||0]));
+  const bars=kinds.map(k=>`<div class="pd-pair"><span>${labels[k]}</span><span class="pd-pair-bars"><i class="is-prev" style="width:${(prev[k]||0)/max*100}%;background:${colors[k]}"></i><i style="width:${(now[k]||0)/max*100}%;background:${colors[k]}"></i></span><span class="pd-pair-num">${prev[k]||0} → <b>${now[k]||0}</b></span></div>`).join('');
+  const changes=wc.keyword_changes||{}, chip=(t,dir)=>button(`${dir==='up'?'↑':'↓'} ${esc(t.term)} <small>${signed(t.delta)}</small>`,`class="pd-chip is-${dir}" ${evidenceAttrs('term',`data-term="${esc(t.term)}" data-start="${esc(wc.week_start)}" data-end="${esc(wc.week_end)}"`)}`);
+  const terms=!wc.comparable ? `<p class="pd-foot">${wc.has_activity ? '上周没有记录' : '本周还没有记录'}，暂不比较词项；这不表示兴趣下降。</p>`
+    : `<div class="pd-chips">${(changes.rising||[]).map(t=>chip(t,'up')).join('')}${(changes.falling||[]).map(t=>chip(t,'down')).join('')}</div>${!(changes.rising||[]).length&&!(changes.falling||[]).length?'<p class="pd-foot">词项与上周持平。</p>':''}`;
+  return `<div class="pd-pairs"><div class="pd-pair pd-pair-head"><span></span><span class="profile-note">淡色 上周 · 实色 本周（${date(wc.week_start)} 起）</span><span></span></div>${bars}</div>${terms}`;
+}
 function weeklyHTML(report) {
   if (!report) return empty('暂未加载周报');
   const cols = ['saved','positive','negative','too_hard','exposed'];
@@ -28,15 +85,26 @@ function create(root, options) {
     generation++; request++; data=next; profile=p; project=p.project_id; pins=[...(p.pinned_terms||[])];
     if(dialog) { dialog.close(); dialog.remove(); dialog=null; }
     const opened = new Set([...root.querySelectorAll('details[open]')].map(el=>el.id));
-    const signals=data.signals||{};
-    const count=(key,label)=>button(`<b>${signals[key]||0}</b><span>${label}</span>`,evidenceAttrs(key));
-    const terms=data.keyword_distribution||[];
-    root.innerHTML=`<div class="profile-head"><div class="profile-kicker">${esc(projectName)} · 本地画像</div><div class="profile-headline"><div><h1>系统如何理解你的关注</h1><p>${esc(data.summary)}</p></div></div><div class="profile-meta">活动范围 ${date(data.coverage.start)} 至 ${date(data.coverage.end)}（UTC，右端不含） · 最近记录 ${date(data.coverage.last_activity)}</div><div class="profile-actions">${button('编辑固定关键词','class="primary" data-edit-pins')}${button('查看反馈历史','data-history')}</div><div class="profile-note">依据本地论文、收藏、曝光和明确反馈。当前关注依据全部保留记录；下方活动展示最近 12 周。沉默不表示不感兴趣。</div></div>
-    <section class="profile-signals" aria-label="当前画像信号"><article class="profile-signal"><h2>你指定的关注</h2><span class="profile-note">用户填写 · 始终保留</span><div class="profile-pins">${pins.length ? pins.slice(0,4).map(t=>`<span class="profile-pin">${esc(t)}</span>`).join('') : '<span class="profile-note">尚未设置</span>'}</div>${button(`${pins.length} 个固定关键词 · 编辑`,'data-edit-pins')}</article><article class="profile-signal"><h2>你留下的兴趣线索</h2><div class="profile-counts">${count('positive','有用')}${count('saved','收藏')}</div><p class="profile-note">两组可重叠，不相加。收藏是保留资料，不等于确认强烈兴趣。</p></article><article class="profile-signal"><h2>排除与暂时困难</h2><div class="profile-counts">${count('negative','不相关')}${count('too_hard','太难')}</div><p class="profile-note">不相关用于排除；太难单独记录，不作为负兴趣展示。</p></article></section>
-    <section class="profile-section"><div class="profile-section-heading"><h2>为什么这样判断</h2>${button(`${data.keyword_evidence.papers} 篇证据`,evidenceAttrs('term'))}</div><p class="profile-note">论文词项按覆盖篇数排序，每篇只计一次。点击查看来源；这不是偏好概率。</p><div class="profile-keywords">${terms.length ? terms.slice(0,allTerms?20:5).map(t=>button(`<span>${esc(t.term)}<small>${t.sources.map(s=>esc(sources[s]||s)).join(' / ')}</small></span><span class="profile-bar" aria-hidden="true"><i style="width:${Math.max(0,Math.min(100,t.score*100))}%"></i></span><span class="profile-term-count">${t.documents} 篇 →</span>`,`class="profile-term" ${evidenceAttrs('term',`data-term="${esc(t.term)}"`)}`)).join(''):empty('还没有论文证据。固定关键词独立保留；曝光与太难不会生成兴趣词项。')}</div>${terms.length>5?button(allTerms?'收起词项':`查看全部 ${terms.length} 个词项`,'data-all-terms'):''}</section>
-    <details class="profile-section" id="profileActivity"><summary>最近发生了什么<span class="profile-note">最近 12 周 · 展开周记录与最近反馈</span></summary><div class="profile-legend profile-note">${Object.keys(colors).map(k=>`<span><i class="profile-dot" style="background:${colors[k]}"></i>${labels[k]}</span>`).join('')}</div>${data.timeline.has_activity?`<div class="profile-week-grid">${data.timeline.weeks.map(w=>{const total=w.activity;return button(`<span>${w.start.slice(5)} 起</span><b>${total} 次</b><span class="profile-segments" aria-hidden="true">${Object.keys(colors).map(k=>`<i style="width:${total?w[k]/total*100:0}%;background:${colors[k]}"></i>`).join('')}</span><span>${Object.keys(colors).map(k=>`${labels[k]} ${w[k]}`).join(' · ')}</span>`,`class="profile-week" ${evidenceAttrs('week',`data-start="${w.start}" data-end="${w.end}"`)}`)}).join('')}</div>`:empty('最近 12 周没有活动记录，不推断兴趣变化。')}<h3>最近反馈</h3><div>${data.recent_feedback.map(e=>row(e,true)).join('')||empty('暂无明确反馈')}</div>${button('查看全部反馈','data-history')}</details>
-    <details class="profile-section" id="profileWeekly"><summary>本周变化<span class="profile-note">与前 7 天比较 · 仅统计本地实际记录</span></summary>${weeklyHTML(data.weekly_change)}<p><a href="/weekly_report.html?project_id=${encodeURIComponent(project)}">打开完整周报 →</a></p></details>
-    <details class="profile-section" id="profileCorrection"><summary>修正画像<span class="profile-note">编辑固定项、检查历史版本、撤销反馈</span></summary><h3>固定关键词</h3><div class="profile-pins" id="profilePinDraft">${pinHTML()}</div><form class="profile-form" id="profilePinForm"><input id="profilePinInput" aria-label="新增固定关键词" placeholder="输入关键词，多个用逗号分隔" maxlength="4040">${button('添加','data-add-pin')}${button('保存修改','class="primary" data-save-pins')}</form><p class="profile-note">移除标签后需保存。撤销反馈会保留收藏；收藏可在论文库单独取消。</p><div id="profileMessage" role="status"></div><h3>自动学习</h3><p class="profile-note" id="profileFreezeState">${profile.frozen ? `已冻结（${date(profile.frozen_at)}起）：新反馈照常记录，但不改变推荐。` : '学习中：明确的“有用 / 不相关”会调整推荐；“太难”不算不感兴趣。'}</p><div class="profile-actions">${button(profile.frozen ? '恢复自动学习' : '冻结画像', `data-freeze="${profile.frozen ? 'false' : 'true'}"`)}${button('恢复默认','data-restore-default')}</div><details><summary>固定关键词版本（最近 10 次）</summary>${(data.versions||[]).map(v=>`<div class="profile-feedback-row"><span>${date(v.created_at)} · ${esc((v.data.pinned_terms||[]).join('、')||'无固定词')}</span>${button('载入编辑',`data-version="${v.id}"`)}</div>`).join('')||empty('暂无编辑版本')}</details>${button('查看反馈历史','data-history')}</details>`;
+    const m=dashboard(data), terms=data.keyword_distribution||[], wc=data.weekly_change||{};
+    const lede=terms.length ? `画像主要由 ${terms.slice(0,3).map(t=>`<b>${esc(t.term)}</b>`).join(' · ')} 构成` : '还没有收藏或“有用”反馈，画像暂时为空';
+    const status=profile.frozen ? `<span class="pd-status is-frozen">已冻结</span>` : `<span class="pd-status">学习中</span>`;
+    root.innerHTML=`<header class="pd-head"><div><div class="profile-kicker">${esc(projectName)} · 本地画像</div><h1>兴趣画像 ${status}</h1><p class="pd-lede">${lede}</p><div class="profile-meta">${date(data.coverage.start)} 至 ${date(data.coverage.end)} · 最近记录 ${date(data.coverage.last_activity)}</div></div><div class="profile-actions">${button('编辑固定关键词','class="primary" data-edit-pins')}${button('反馈历史','data-history')}</div></header>
+    <section class="pd-kpis" aria-label="画像指标">${m.kpis.map(kpiHTML).join('')}${kpiHTML(m.activity)}</section>
+    <div class="pd-row">
+      <section class="pd-card pd-terms" aria-label="兴趣词项"><div class="pd-card-head"><h2>兴趣词项</h2>${button(`${data.keyword_evidence.papers} 篇证据 →`,`class="pd-link" ${evidenceAttrs('term')}`)}</div>
+        <div class="pd-pins"><span class="pd-pins-label">固定</span>${pins.length ? pins.map(t=>`<span class="profile-pin">${esc(t)}</span>`).join('') : '<span class="profile-note">未设置</span>'}${button(pins.length?'编辑':'添加','class="pd-link" data-edit-pins')}</div>
+        <div class="profile-keywords">${terms.length ? terms.slice(0,allTerms?20:8).map(t=>button(`<span class="pd-term-name">${esc(t.term)}</span><span class="profile-bar" aria-hidden="true"><i style="width:${m.termWidth(t)}%"></i></span><span class="profile-term-count">${t.documents} 篇</span>`,`class="profile-term" title="来源：${esc(t.sources.map(s=>sources[s]||s).join(' / '))}" ${evidenceAttrs('term',`data-term="${esc(t.term)}"`)}`)).join('') : empty('还没有论文证据。收藏论文或标记“有用”后会出现词项。')}</div>
+        ${terms.length>8?button(allTerms?'收起':`查看全部 ${terms.length} 个`,'class="pd-link" data-all-terms'):''}
+        <p class="pd-foot">长度 = 含该词的收藏 / 有用论文篇数（每篇计一次），不是偏好概率。</p></section>
+      <section class="pd-card pd-feedback" aria-label="明确反馈">${feedbackHTML(m.feedback)}</section>
+    </div>
+    <section class="pd-card pd-block" aria-label="最近 12 周活动">${activityHTML(m.weeks)}</section>
+    <div class="pd-row pd-row-even">
+      <section class="pd-card" aria-label="本周动向"><div class="pd-card-head"><h2>本周动向</h2><a class="pd-link" href="/weekly_report.html?project_id=${encodeURIComponent(project)}">完整周报 →</a></div>${trendHTML(wc)}</section>
+      <section class="pd-card" aria-label="最近反馈"><div class="pd-card-head"><h2>最近反馈</h2>${button('全部 →','class="pd-link" data-history')}</div><div>${data.recent_feedback.map(e=>row(e,true)).join('')||empty('暂无明确反馈')}</div></section>
+    </div>
+    <p class="pd-honesty">全部由本地记录计算，不调用模型。没有操作不代表不感兴趣；“太难”单独记录，不算负面兴趣。</p>
+    <details class="profile-section" id="profileCorrection"><summary>修正画像<span class="profile-note">编辑固定项、冻结学习、历史版本</span></summary><h3>固定关键词</h3><div class="profile-pins" id="profilePinDraft">${pinHTML()}</div><form class="profile-form" id="profilePinForm"><input id="profilePinInput" aria-label="新增固定关键词" placeholder="输入关键词，多个用逗号分隔" maxlength="4040">${button('添加','data-add-pin')}${button('保存修改','class="primary" data-save-pins')}</form><p class="profile-note">移除标签后需保存。撤销反馈会保留收藏；收藏可在论文库单独取消。</p><div id="profileMessage" role="status"></div><h3>自动学习</h3><p class="profile-note" id="profileFreezeState">${profile.frozen ? `已冻结（${date(profile.frozen_at)}起）：新反馈照常记录，但不改变推荐。` : '学习中：明确的“有用 / 不相关”会调整推荐；“太难”不算不感兴趣。'}</p><div class="profile-actions">${button(profile.frozen ? '恢复自动学习' : '冻结画像', `data-freeze="${profile.frozen ? 'false' : 'true'}"`)}${button('恢复默认','data-restore-default')}</div><details><summary>固定关键词版本（最近 10 次）</summary>${(data.versions||[]).map(v=>`<div class="profile-feedback-row"><span>${date(v.created_at)} · ${esc((v.data.pinned_terms||[]).join('、')||'无固定词')}</span>${button('载入编辑',`data-version="${v.id}"`)}</div>`).join('')||empty('暂无编辑版本')}</details></details>`;
     opened.forEach(id=>{const d=root.querySelector('#'+id);if(d)d.open=true;});
   }
   function focusCorrection() { const d=root.querySelector('#profileCorrection');d.open=true;d.scrollIntoView({block:'start'});root.querySelector('#profilePinInput').focus(); }
@@ -82,5 +150,6 @@ function create(root, options) {
   });
   return {render, invalidate(){generation++;request++;if(dialog){dialog.close();dialog.remove();dialog=null;}root.innerHTML=empty('正在读取当前项目画像…');}, weekly:weeklyHTML};
 }
-global.PDHProfile={create,weeklyHTML,esc};
+global.PDHProfile={create,weeklyHTML,esc,dashboard,kpiHTML,feedbackHTML,activityHTML,trendHTML};
+if (typeof module !== 'undefined') module.exports=global.PDHProfile;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,0 +1,1722 @@
+test_dev_mode_uses_separate_ledger_and_loose_limits (test_app_core.GatewayTests.test_dev_mode_uses_separate_ledger_and_loose_limits) ... ok
+test_dry_run_reserves_without_network (test_app_core.GatewayTests.test_dry_run_reserves_without_network) ... ok
+test_unapproved_project_guidance_is_forced_to_local_mode (test_app_core.GatewayTests.test_unapproved_project_guidance_is_forced_to_local_mode) ... ok
+test_unregistered_operation_is_rejected (test_app_core.GatewayTests.test_unregistered_operation_is_rejected) ... ok
+test_mmr_is_deterministic (test_app_core.RankingTests.test_mmr_is_deterministic) ... ok
+test_mmr_prefers_diverse_selection (test_app_core.RankingTests.test_mmr_prefers_diverse_selection) ... ok
+test_rocchio_subtracts_negatives (test_app_core.RankingTests.test_rocchio_subtracts_negatives) ... ok
+test_build_batch_excludes_seen_and_feedback (test_app_core.ServiceTests.test_build_batch_excludes_seen_and_feedback) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_caption_passages_anchor_on_the_figure_number (test_app_core.ServiceTests.test_caption_passages_anchor_on_the_figure_number) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_cards_have_distinct_reasons (test_app_core.ServiceTests.test_cards_have_distinct_reasons) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_cards_have_reason_and_url (test_app_core.ServiceTests.test_cards_have_reason_and_url) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_explain_is_specific_and_names_a_reference (test_app_core.ServiceTests.test_explain_is_specific_and_names_a_reference) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_feedback_does_not_remove_card_from_view (test_app_core.ServiceTests.test_feedback_does_not_remove_card_from_view) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_figure_page_handles_mid_line_captions_and_fallback (test_app_core.ServiceTests.test_figure_page_handles_mid_line_captions_and_fallback) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_figure_page_prefers_caption_over_body_references (test_app_core.ServiceTests.test_figure_page_prefers_caption_over_body_references) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_fulltext_cache_and_retrieval (test_app_core.ServiceTests.test_fulltext_cache_and_retrieval) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_irrelevant_is_explicit_negative (test_app_core.ServiceTests.test_irrelevant_is_explicit_negative) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_passages_empty_without_fulltext (test_app_core.ServiceTests.test_passages_empty_without_fulltext) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_pinned_terms_are_used (test_app_core.ServiceTests.test_pinned_terms_are_used) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_qa_dry_run_records_no_history (test_app_core.ServiceTests.test_qa_dry_run_records_no_history) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_qa_falls_back_to_raw_text_without_json (test_app_core.ServiceTests.test_qa_falls_back_to_raw_text_without_json) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_qa_parses_answer_and_followups (test_app_core.ServiceTests.test_qa_parses_answer_and_followups) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_qa_reports_mode_pages_and_uses_vision_operation (test_app_core.ServiceTests.test_qa_reports_mode_pages_and_uses_vision_operation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_too_hard_does_not_change_interest (test_app_core.ServiceTests.test_too_hard_does_not_change_interest) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_unknown_action_rejected (test_app_core.ServiceTests.test_unknown_action_rejected) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_unsave_removes_from_library (test_app_core.ServiceTests.test_unsave_removes_from_library) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_useful_saves_to_library_and_card_stays (test_app_core.ServiceTests.test_useful_saves_to_library_and_card_stays) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_feedback_and_undo (test_app_core.StoreTests.test_feedback_and_undo) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_papers_batch_and_cards (test_app_core.StoreTests.test_papers_batch_and_cards) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_profile_versions_are_append_only (test_app_core.StoreTests.test_profile_versions_are_append_only) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_upsert_is_idempotent (test_app_core.StoreTests.test_upsert_is_idempotent) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_feedback_round_trip_over_http (test_app_server.ServerSmokeTests.test_feedback_round_trip_over_http) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_home_reports_server_version (test_app_server.ServerSmokeTests.test_home_reports_server_version) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_index_and_state_are_served (test_app_server.ServerSmokeTests.test_index_and_state_are_served) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_invalid_project_id_is_a_client_error (test_app_server.ServerSmokeTests.test_invalid_project_id_is_a_client_error) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_paper_detail_endpoint (test_app_server.ServerSmokeTests.test_paper_detail_endpoint) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+[404] paper key='missing'
+ok
+test_paper_detail_via_post_body (test_app_server.ServerSmokeTests.test_paper_detail_via_post_body)
+This is the path the UI uses; a POST body avoids URL-encoding issues. ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_pdf_view_404_when_not_downloaded (test_app_server.ServerSmokeTests.test_pdf_view_404_when_not_downloaded) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_pdf_view_serves_stored_file (test_app_server.ServerSmokeTests.test_pdf_view_serves_stored_file) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_profile_evidence_rejects_invalid_offset (test_app_server.ServerSmokeTests.test_profile_evidence_rejects_invalid_offset) ... ok
+test_profile_freeze_and_restore_routes (test_app_server.ServerSmokeTests.test_profile_freeze_and_restore_routes) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_project_guidance_and_explicit_paper_sharing_routes (test_app_server.ServerSmokeTests.test_project_guidance_and_explicit_paper_sharing_routes) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_qa_and_translate_dry_run_reserve_without_calling (test_app_server.ServerSmokeTests.test_qa_and_translate_dry_run_reserve_without_calling) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_qa_history_endpoint (test_app_server.ServerSmokeTests.test_qa_history_endpoint) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_vendored_pdfjs_is_served (test_app_server.ServerSmokeTests.test_vendored_pdfjs_is_served) ... ok
+test_abstract_only_groups_show_evidence (test_broad_organization.BroadOrganizationTests.test_abstract_only_groups_show_evidence) ... ok
+test_ambiguous_words_do_not_invent_disciplines (test_broad_organization.BroadOrganizationTests.test_ambiguous_words_do_not_invent_disciplines) ... ok
+test_broad_determinism (test_broad_organization.BroadOrganizationTests.test_broad_determinism) ... ok
+test_chinese_papers_are_not_empty_vocabulary (test_broad_organization.BroadOrganizationTests.test_chinese_papers_are_not_empty_vocabulary) ... ok
+test_cross_discipline_and_unknown_terms (test_broad_organization.BroadOrganizationTests.test_cross_discipline_and_unknown_terms) ... ok
+test_generic_academic_language_does_not_force_grouping (test_broad_organization.BroadOrganizationTests.test_generic_academic_language_does_not_force_grouping) ... ok
+test_same_topic_survives_neighbor_cap (test_broad_organization.BroadOrganizationTests.test_same_topic_survives_neighbor_cap) ... ok
+test_shared_topic_unites_different_methods (test_broad_organization.BroadOrganizationTests.test_shared_topic_unites_different_methods) ... ok
+test_echoed_preview_color_preserves_automatic_status_but_edits_protect (test_broad_organization.RegroupTests.test_echoed_preview_color_preserves_automatic_status_but_edits_protect) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_replaces_only_untouched_automatic_groups_and_undo_restores (test_broad_organization.RegroupTests.test_replaces_only_untouched_automatic_groups_and_undo_restores) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_approval_and_enforcement_require_json_booleans (test_budget.BudgetTests.test_approval_and_enforcement_require_json_booleans) ... ok
+test_cache_cost_not_zero (test_budget.BudgetTests.test_cache_cost_not_zero) ... ok
+test_calendar_and_peak_are_not_prorated (test_budget.BudgetTests.test_calendar_and_peak_are_not_prorated) ... ok
+test_changed_calendar_and_price_render_dynamically (test_budget.BudgetTests.test_changed_calendar_and_price_render_dynamically) ... ok
+test_configured_contract_valid (test_budget.BudgetTests.test_configured_contract_valid) ... ok
+test_current_plan_is_owner_approved_but_not_enforced (test_budget.BudgetTests.test_current_plan_is_owner_approved_but_not_enforced) ... ok
+test_envelope_reference_and_duplicate_prompt_rejected (test_budget.BudgetTests.test_envelope_reference_and_duplicate_prompt_rejected) ... ok
+test_evaluation_annotator_is_separate_and_token_only (test_budget.BudgetTests.test_evaluation_annotator_is_separate_and_token_only) ... ok
+test_invalid_calendar_rejected (test_budget.BudgetTests.test_invalid_calendar_rejected) ... ok
+test_invalid_money_and_counts (test_budget.BudgetTests.test_invalid_money_and_counts) ... ok
+test_pending_reservations_count_in_arithmetic (test_budget.BudgetTests.test_pending_reservations_count_in_arithmetic) ... ok
+test_provider_absent_cannot_hide_calls_or_limits (test_budget.BudgetTests.test_provider_absent_cannot_hide_calls_or_limits) ... ok
+test_reasoning_fallback_and_cache_discount_not_default (test_budget.BudgetTests.test_reasoning_fallback_and_cache_discount_not_default) ... ok
+test_reasoning_not_double_counted_and_inconsistent_usage_rejected (test_budget.BudgetTests.test_reasoning_not_double_counted_and_inconsistent_usage_rejected) ... ok
+test_registered_proposal_daily_minimum_and_stress (test_budget.BudgetTests.test_registered_proposal_daily_minimum_and_stress) ... ok
+test_retry_and_monthly_demand_not_authorization (test_budget.BudgetTests.test_retry_and_monthly_demand_not_authorization) ... ok
+test_unregistered_calls_and_empty_configured_operations_rejected (test_budget.BudgetTests.test_unregistered_calls_and_empty_configured_operations_rejected) ... ok
+test_cycles_unknown_parent_and_invalid_parent_rejected_atomically (test_category_tree.CategoryTreeTests.test_cycles_unknown_parent_and_invalid_parent_rejected_atomically) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_delete_only_category_promotes_children_preserves_papers_and_undo (test_category_tree.CategoryTreeTests.test_delete_only_category_promotes_children_preserves_papers_and_undo) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_legacy_flat_data_gets_root_without_migration (test_category_tree.CategoryTreeTests.test_legacy_flat_data_gets_root_without_migration) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_nested_categories_persist_and_papers_have_multiple_memberships (test_category_tree.CategoryTreeTests.test_nested_categories_persist_and_papers_have_multiple_memberships) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_reparent_preserves_descendants_and_memberships (test_category_tree.CategoryTreeTests.test_reparent_preserves_descendants_and_memberships) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_determinism_across_hash_seeds (test_clustering.ClusteringTests.test_determinism_across_hash_seeds) ... ok
+test_determinism_and_stable_ids (test_clustering.ClusteringTests.test_determinism_and_stable_ids) ... ok
+test_empty_singleton_and_no_vocabulary (test_clustering.ClusteringTests.test_empty_singleton_and_no_vocabulary) ... ok
+test_groups_separate_topics_and_keep_isolated_papers (test_clustering.ClusteringTests.test_groups_separate_topics_and_keep_isolated_papers) ... ok
+test_bad_corpus_rejected (test_clustering.FingerprintTests.test_bad_corpus_rejected) ... ok
+test_missing_dependency_explicit_even_for_empty_corpus (test_clustering.FingerprintTests.test_missing_dependency_explicit_even_for_empty_corpus) ... ok
+test_order_independent_and_excludes_private_notes (test_clustering.FingerprintTests.test_order_independent_and_excludes_private_notes) ... ok
+test_resource_limits_do_not_silently_sample (test_clustering.FingerprintTests.test_resource_limits_do_not_silently_sample) ... ok
+test_abstract_text_rebuilds_word_order (test_data_probe.DataProbeTests.test_abstract_text_rebuilds_word_order) ... ok
+test_best_match_prefers_exact_then_prefix (test_data_probe.DataProbeTests.test_best_match_prefers_exact_then_prefix) ... ok
+test_best_match_scores_partial_overlap_and_handles_empty (test_data_probe.DataProbeTests.test_best_match_scores_partial_overlap_and_handles_empty) ... ok
+test_normalize_title_collapses_punctuation_and_case (test_data_probe.DataProbeTests.test_normalize_title_collapses_punctuation_and_case) ... ok
+test_openalex_ids_pulls_arxiv_from_doi (test_data_probe.DataProbeTests.test_openalex_ids_pulls_arxiv_from_doi) ... ok
+test_parse_arxiv_entries_extracts_fields_and_flattens_whitespace (test_data_probe.DataProbeTests.test_parse_arxiv_entries_extracts_fields_and_flattens_whitespace) ... ok
+test_parser_rejects_malformed_xml (test_data_probe.DataProbeTests.test_parser_rejects_malformed_xml) ... ok
+test_centroid_normalized_and_orders_top_terms (test_eval_probe.EvalProbeTests.test_centroid_normalized_and_orders_top_terms) ... ok
+test_cosine_handles_empty_vectors (test_eval_probe.EvalProbeTests.test_cosine_handles_empty_vectors) ... ok
+test_equal_batches_splits_contiguously (test_eval_probe.EvalProbeTests.test_equal_batches_splits_contiguously) ... ok
+test_feedback_split_honours_explicit_date (test_eval_probe.EvalProbeTests.test_feedback_split_honours_explicit_date) ... ok
+test_feedback_split_is_chronological_and_disjoint (test_eval_probe.EvalProbeTests.test_feedback_split_is_chronological_and_disjoint) ... ok
+test_idf_downweights_common_terms (test_eval_probe.EvalProbeTests.test_idf_downweights_common_terms) ... ok
+test_mean_rank_of_useful (test_eval_probe.EvalProbeTests.test_mean_rank_of_useful) ... ok
+test_mean_relevance_at_k (test_eval_probe.EvalProbeTests.test_mean_relevance_at_k) ... ok
+test_parse_spotcheck_sheet_reads_levels_and_keys (test_eval_probe.EvalProbeTests.test_parse_spotcheck_sheet_reads_levels_and_keys) ... ok
+test_precision_at_k_returns_none_for_unjudged_top_k (test_eval_probe.EvalProbeTests.test_precision_at_k_returns_none_for_unjudged_top_k) ... ok
+test_ranking_auc_rewards_useful_items_on_top (test_eval_probe.EvalProbeTests.test_ranking_auc_rewards_useful_items_on_top) ... ok
+test_rocchio_profile_adds_positives_and_subtracts_negatives (test_eval_probe.EvalProbeTests.test_rocchio_profile_adds_positives_and_subtracts_negatives) ... ok
+test_rocchio_profile_is_l2_normalized (test_eval_probe.EvalProbeTests.test_rocchio_profile_is_l2_normalized) ... ok
+test_spotcheck_agreement_counts_exact_within1_and_binary (test_eval_probe.EvalProbeTests.test_spotcheck_agreement_counts_exact_within1_and_binary) ... ok
+test_spotcheck_agreement_ignores_unmatched_keys (test_eval_probe.EvalProbeTests.test_spotcheck_agreement_ignores_unmatched_keys) ... ok
+test_tokenize_drops_stopwords_and_short_tokens (test_eval_probe.EvalProbeTests.test_tokenize_drops_stopwords_and_short_tokens) ... ok
+test_vectorize_and_cosine_rank_similar_docs_higher (test_eval_probe.EvalProbeTests.test_vectorize_and_cosine_rank_similar_docs_higher) ... ok
+test_ai_off_blocks_every_request_including_dry_run (test_gateway_budget.GatewayBudgetTests.test_ai_off_blocks_every_request_including_dry_run) ... ok
+test_budget_refusal_makes_no_request (test_gateway_budget.GatewayBudgetTests.test_budget_refusal_makes_no_request) ... ok
+test_client_rejection_releases_and_network_failure_does_not_retry (test_gateway_budget.GatewayBudgetTests.test_client_rejection_releases_and_network_failure_does_not_retry) ... ok
+test_daily_ceiling_uses_only_today (test_gateway_budget.GatewayBudgetTests.test_daily_ceiling_uses_only_today) ... ok
+test_daily_usd_ceiling_refuses (test_gateway_budget.GatewayBudgetTests.test_daily_usd_ceiling_refuses) ... ok
+test_in_flight_reservation_blocks_concurrent_admission (test_gateway_budget.GatewayBudgetTests.test_in_flight_reservation_blocks_concurrent_admission) ... ok
+test_missing_usage_keeps_the_reservation (test_gateway_budget.GatewayBudgetTests.test_missing_usage_keeps_the_reservation) ... ok
+test_monthly_ceiling_counts_the_whole_month (test_gateway_budget.GatewayBudgetTests.test_monthly_ceiling_counts_the_whole_month) ... ok
+test_no_key_degrades_without_request (test_gateway_budget.GatewayBudgetTests.test_no_key_degrades_without_request) ... ok
+test_reservation_is_written_before_send_and_reconciled (test_gateway_budget.GatewayBudgetTests.test_reservation_is_written_before_send_and_reconciled) ... ok
+test_unapproved_guidance_never_sends (test_gateway_budget.GatewayBudgetTests.test_unapproved_guidance_never_sends) ... ok
+test_ai_off_triage_guidance_and_creation_make_zero_requests (test_gateway_budget.ServiceDegradeTests.test_ai_off_triage_guidance_and_creation_make_zero_requests) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_triage_network_failure_keeps_local_cards (test_gateway_budget.ServiceDegradeTests.test_triage_network_failure_keeps_local_cards) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_triage_unparseable_reply_degrades (test_gateway_budget.ServiceDegradeTests.test_triage_unparseable_reply_degrades) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_changed_impact_requires_quantities (test_harness.HarnessTests.test_changed_impact_requires_quantities) ... ok
+test_classification_consequence_not_size (test_harness.HarnessTests.test_classification_consequence_not_size) ... ok
+test_declared_stages_are_not_tied_to_legacy_abcd (test_harness.HarnessTests.test_declared_stages_are_not_tied_to_legacy_abcd) ... ok
+test_done_without_evidence_rejected (test_harness.HarnessTests.test_done_without_evidence_rejected) ... ok
+test_evidence_cannot_escape_repository (test_harness.HarnessTests.test_evidence_cannot_escape_repository) ... ok
+test_future_provider_verification_rejected (test_harness.HarnessTests.test_future_provider_verification_rejected) ... ok
+test_generated_budget_drift_detected (test_harness.HarnessTests.test_generated_budget_drift_detected) ... ok
+test_invalid_source_interval_rejected (test_harness.HarnessTests.test_invalid_source_interval_rejected) ... ok
+test_local_broken_link_detected (test_harness.HarnessTests.test_local_broken_link_detected) ... ok
+test_multi_node_task_cycle_detected (test_harness.HarnessTests.test_multi_node_task_cycle_detected) ... ok
+test_nested_unregistered_prompt_detected (test_harness.HarnessTests.test_nested_unregistered_prompt_detected) ... ok
+test_orphan_evaluation_not_referenced_by_requirement (test_harness.HarnessTests.test_orphan_evaluation_not_referenced_by_requirement) ... ok
+test_passed_eval_requires_evidence (test_harness.HarnessTests.test_passed_eval_requires_evidence) ... ok
+test_record_approval_requires_true_boolean (test_harness.HarnessTests.test_record_approval_requires_true_boolean) ... ok
+test_record_cannot_downgrade_or_omit_changed_files (test_harness.HarnessTests.test_record_cannot_downgrade_or_omit_changed_files) ... ok
+test_record_categories_and_impact_required (test_harness.HarnessTests.test_record_categories_and_impact_required) ... ok
+test_release_still_blocked_by_unrun_gates (test_harness.HarnessTests.test_release_still_blocked_by_unrun_gates) ... ok
+test_stage_registry_must_be_nonempty_unique_names (test_harness.HarnessTests.test_stage_registry_must_be_nonempty_unique_names) ... ok
+test_stale_sources_detected_without_network (test_harness.HarnessTests.test_stale_sources_detected_without_network) ... ok
+test_string_false_cannot_pass_release_approval (test_harness.HarnessTests.test_string_false_cannot_pass_release_approval) ... ok
+test_task_cycle_detected (test_harness.HarnessTests.test_task_cycle_detected) ... ok
+test_undeclared_stage_is_rejected (test_harness.HarnessTests.test_undeclared_stage_is_rejected) ... ok
+test_unknown_requirement_detected (test_harness.HarnessTests.test_unknown_requirement_detected) ... ok
+test_unregistered_prompt_detected (test_harness.HarnessTests.test_unregistered_prompt_detected) ... ok
+test_active_transaction_not_committed_or_discarded (test_organization.OrganizationTests.test_active_transaction_not_committed_or_discarded) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_backup_failure_prevents_schema_creation (test_organization.OrganizationTests.test_backup_failure_prevents_schema_creation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_backup_precedes_schema_and_preserves_wal_data (test_organization.OrganizationTests.test_backup_precedes_schema_and_preserves_wal_data) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_collapse_persists_is_project_scoped_and_undoable (test_organization.OrganizationTests.test_collapse_persists_is_project_scoped_and_undoable) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_compound_positions_virtual_anchor_and_direction_delete (test_organization.OrganizationTests.test_compound_positions_virtual_anchor_and_direction_delete) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_direction_edit_rank_delete_and_undo (test_organization.OrganizationTests.test_direction_edit_rank_delete_and_undo) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_draft_survives_reopen_and_unsave_without_changing_notes_or_undo (test_organization.OrganizationTests.test_draft_survives_reopen_and_unsave_without_changing_notes_or_undo) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_draft_versions_clients_and_stale_clear_protect_newer_edits (test_organization.OrganizationTests.test_draft_versions_clients_and_stale_clear_protect_newer_edits) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_graph_is_read_only_and_uses_only_saved_metadata (test_organization.OrganizationTests.test_graph_is_read_only_and_uses_only_saved_metadata) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_injected_schema_failure_rolls_back_and_backup_restores (test_organization.OrganizationTests.test_injected_schema_failure_rolls_back_and_backup_restores) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_legacy_import_and_notes_optimistic_history_restore (test_organization.OrganizationTests.test_legacy_import_and_notes_optimistic_history_restore) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_manually_removed_membership_stays_removed_after_reclassification (test_organization.OrganizationTests.test_manually_removed_membership_stays_removed_after_reclassification) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_metadata_changes_stale_and_preview_cannot_be_forged (test_organization.OrganizationTests.test_metadata_changes_stale_and_preview_cannot_be_forged) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_missing_dependency_does_not_mutate_state (test_organization.OrganizationTests.test_missing_dependency_does_not_mutate_state) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_new_legacy_note_saved_then_unsaved_without_snapshot_is_retained (test_organization.OrganizationTests.test_new_legacy_note_saved_then_unsaved_without_snapshot_is_retained) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_persistence_export_and_position_removal (test_organization.OrganizationTests.test_persistence_export_and_position_removal) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_project_isolation_notes_memberships_positions_revisions_and_undo (test_organization.OrganizationTests.test_project_isolation_notes_memberships_positions_revisions_and_undo) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_revision_conflict_across_connections (test_organization.OrganizationTests.test_revision_conflict_across_connections) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_selected_suggestion_names_colors_and_members_are_editable (test_organization.OrganizationTests.test_selected_suggestion_names_colors_and_members_are_editable) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_selected_suggestions_cannot_inject_or_duplicate_keys (test_organization.OrganizationTests.test_selected_suggestions_cannot_inject_or_duplicate_keys) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_suggest_rechecks_corpus_and_explicit_revision_after_computation (test_organization.OrganizationTests.test_suggest_rechecks_corpus_and_explicit_revision_after_computation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_suggest_releases_transaction_and_preserves_concurrent_edits (test_organization.OrganizationTests.test_suggest_releases_transaction_and_preserves_concurrent_edits) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_suggestions_preview_apply_stale_and_manual_protection (test_organization.OrganizationTests.test_suggestions_preview_apply_stale_and_manual_protection) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_unsave_resave_preserves_organization_and_note (test_organization.OrganizationTests.test_unsave_resave_preserves_organization_and_note) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_unsaved_position_cleanup_and_rearrangement_keep_write_validation (test_organization.OrganizationTests.test_unsaved_position_cleanup_and_rearrangement_keep_write_validation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_validation_and_atomic_batch_rollback (test_organization.OrganizationTests.test_validation_and_atomic_batch_rollback) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_classification_worker_returns_job_result (test_organization_http.OrganizationHTTPTests.test_classification_worker_returns_job_result) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_graph_uses_bounded_job_and_does_not_create_suggestions (test_organization_http.OrganizationHTTPTests.test_graph_uses_bounded_job_and_does_not_create_suggestions) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_operation_alias_cannot_bypass_worker (test_organization_http.OrganizationHTTPTests.test_operation_alias_cannot_bypass_worker) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_organization_rejects_invalid_and_foreign_requests (test_organization_http.OrganizationHTTPTests.test_organization_rejects_invalid_and_foreign_requests) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_organization_round_trip (test_organization_http.OrganizationHTTPTests.test_organization_round_trip) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_shared_job_and_home_routes_reject_rebound_host (test_organization_http.OrganizationHTTPTests.test_shared_job_and_home_routes_reject_rebound_host) ... ok
+test_shutdown_terminates_and_reaps_only_registered_worker (test_organization_worker.WorkerLifecycleTests.test_shutdown_terminates_and_reaps_only_registered_worker) ... ok
+test_timeout_kills_and_reaps_worker_and_releases_lock (test_organization_worker.WorkerLifecycleTests.test_timeout_kills_and_reaps_worker_and_releases_lock) ... ok
+test_fresh_database_stdout_is_pure_json (test_organization_worker.WorkerStdoutPurityTests.test_fresh_database_stdout_is_pure_json) ... ok
+test_migration_progress_goes_to_stderr_not_stdout (test_organization_worker.WorkerStdoutPurityTests.test_migration_progress_goes_to_stderr_not_stdout) ... ok
+test_second_run_stdout_is_pure_json (test_organization_worker.WorkerStdoutPurityTests.test_second_run_stdout_is_pure_json)
+The up-to-date branch is the one that used to pollute stdout. ... ok
+test_delete_project_removes_its_state_and_keeps_canonical_facts (test_profile_core_chain.CoreChainTests.test_delete_project_removes_its_state_and_keeps_canonical_facts) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_feedback_is_idempotent (test_profile_core_chain.CoreChainTests.test_feedback_is_idempotent) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_freeze_keeps_learning_still_and_matches_snapshot_after_undo (test_profile_core_chain.CoreChainTests.test_freeze_keeps_learning_still_and_matches_snapshot_after_undo) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_labels_are_distinct_and_too_hard_is_not_disinterest (test_profile_core_chain.CoreChainTests.test_labels_are_distinct_and_too_hard_is_not_disinterest) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_no_action_changes_nothing (test_profile_core_chain.CoreChainTests.test_no_action_changes_nothing) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_ranking_is_replayable_and_needs_no_pdf_or_model (test_profile_core_chain.CoreChainTests.test_ranking_is_replayable_and_needs_no_pdf_or_model) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_repeat_exposure_and_feedback_exclusion (test_profile_core_chain.CoreChainTests.test_repeat_exposure_and_feedback_exclusion) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_repeated_useful_after_unsave_saves_again (test_profile_core_chain.CoreChainTests.test_repeated_useful_after_unsave_saves_again) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_restore_default_is_safe_and_reversible (test_profile_core_chain.CoreChainTests.test_restore_default_is_safe_and_reversible) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_two_projects_are_isolated (test_profile_core_chain.CoreChainTests.test_two_projects_are_isolated) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_undo_of_feedback_inside_the_frozen_snapshot_takes_effect_now (test_profile_core_chain.CoreChainTests.test_undo_of_feedback_inside_the_frozen_snapshot_takes_effect_now) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_undo_replays_to_the_pre_feedback_state_everywhere (test_profile_core_chain.CoreChainTests.test_undo_replays_to_the_pre_feedback_state_everywhere) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_undo_restores_an_earlier_label_and_is_project_checked (test_profile_core_chain.CoreChainTests.test_undo_restores_an_earlier_label_and_is_project_checked) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_fresh_database_makes_no_backup (test_profile_core_chain.MigrationBackupTests.test_fresh_database_makes_no_backup) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_pending_migration_backs_up_and_backup_restores (test_profile_core_chain.MigrationBackupTests.test_pending_migration_backs_up_and_backup_restores) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 3 to 4
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 3 to 4
+ok
+test_each_seed_reports_its_own_status (test_profile_core_chain.SeedResolutionTests.test_each_seed_reports_its_own_status) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_find_arxiv_queries_the_http_landing_page (test_profile_core_chain.SeedResolutionTests.test_find_arxiv_queries_the_http_landing_page) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_old_arxiv_seed_falls_back_to_landing_page_lookup (test_profile_core_chain.SeedResolutionTests.test_old_arxiv_seed_falls_back_to_landing_page_lookup) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_openalex_404_is_not_retried (test_profile_core_chain.SeedResolutionTests.test_openalex_404_is_not_retried) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_openalex_bad_url_and_bad_body_become_source_errors (test_profile_core_chain.SeedResolutionTests.test_openalex_bad_url_and_bad_body_become_source_errors) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_overloaded_openalex_is_reported_as_unavailable (test_profile_core_chain.SeedResolutionTests.test_overloaded_openalex_is_reported_as_unavailable) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_repeated_seed_input_is_duplicate_without_another_lookup (test_profile_core_chain.SeedResolutionTests.test_repeated_seed_input_is_duplicate_without_another_lookup) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_unusable_seed_input_never_escapes_after_project_creation (test_profile_core_chain.SeedResolutionTests.test_unusable_seed_input_never_escapes_after_project_creation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_keywords_are_deterministic_and_evidence_backed (test_profile_insights.ProfileInsightsTests.test_keywords_are_deterministic_and_evidence_backed) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_timeline_only_counts_real_events (test_profile_insights.ProfileInsightsTests.test_timeline_only_counts_real_events) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_weekly_keyword_changes_compare_two_real_periods (test_profile_insights.ProfileInsightsTests.test_weekly_keyword_changes_compare_two_real_periods) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_keywords_are_deterministic_and_evidence_backed (tests.test_profile_insights.ProfileInsightsTests.test_keywords_are_deterministic_and_evidence_backed) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_timeline_only_counts_real_events (tests.test_profile_insights.ProfileInsightsTests.test_timeline_only_counts_real_events) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_weekly_keyword_changes_compare_two_real_periods (tests.test_profile_insights.ProfileInsightsTests.test_weekly_keyword_changes_compare_two_real_periods) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_keywords_are_deterministic_and_evidence_backed (test_profile_redesign.ProfileRedesignHTTPTests.test_keywords_are_deterministic_and_evidence_backed) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_profile_evidence_contract_is_project_scoped (test_profile_redesign.ProfileRedesignHTTPTests.test_profile_evidence_contract_is_project_scoped) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_timeline_only_counts_real_events (test_profile_redesign.ProfileRedesignHTTPTests.test_timeline_only_counts_real_events) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_weekly_keyword_changes_compare_two_real_periods (test_profile_redesign.ProfileRedesignHTTPTests.test_weekly_keyword_changes_compare_two_real_periods) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_evidence_pagination_and_validation (test_profile_redesign.ProfileRedesignTests.test_evidence_pagination_and_validation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_hard_is_not_interest_evidence (test_profile_redesign.ProfileRedesignTests.test_hard_is_not_interest_evidence) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_keywords_are_deterministic_and_evidence_backed (test_profile_redesign.ProfileRedesignTests.test_keywords_are_deterministic_and_evidence_backed) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_project_pins_and_evidence_isolation (test_profile_redesign.ProfileRedesignTests.test_project_pins_and_evidence_isolation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_timeline_only_counts_real_events (test_profile_redesign.ProfileRedesignTests.test_timeline_only_counts_real_events) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_undo_refreshes_counts_and_preserves_saved_paper (test_profile_redesign.ProfileRedesignTests.test_undo_refreshes_counts_and_preserves_saved_paper) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_weekly_keyword_changes_compare_two_real_periods (test_profile_redesign.ProfileRedesignTests.test_weekly_keyword_changes_compare_two_real_periods) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_explicit_add_records_source_and_never_downgrades_a_seed (test_project_chain.CrossProjectSharingTests.test_explicit_add_records_source_and_never_downgrades_a_seed) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_feedback_saves_exposure_and_qa_stay_per_project (test_project_chain.CrossProjectSharingTests.test_feedback_saves_exposure_and_qa_stay_per_project) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_removing_a_relation_keeps_global_facts (test_project_chain.CrossProjectSharingTests.test_removing_a_relation_keeps_global_facts) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_after_six_turns_the_draft_can_still_be_edited_and_confirmed (test_project_chain.GuidedCreationTests.test_after_six_turns_the_draft_can_still_be_edited_and_confirmed) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_budget_refusal_keeps_guidance_local (test_project_chain.GuidedCreationTests.test_budget_refusal_keeps_guidance_local) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_cancel_only_applies_to_drafts (test_project_chain.GuidedCreationTests.test_cancel_only_applies_to_drafts) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_creation_completes_without_key_budget_or_network (test_project_chain.GuidedCreationTests.test_creation_completes_without_key_budget_or_network) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_draft_resumes_after_restart (test_project_chain.GuidedCreationTests.test_draft_resumes_after_restart) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_no_candidate_is_added_without_explicit_selection (test_project_chain.GuidedCreationTests.test_no_candidate_is_added_without_explicit_selection) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_project_deletion_removes_its_creation_transcript (test_project_chain.GuidedCreationTests.test_project_deletion_removes_its_creation_transcript) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_url_project_id_wins_over_stored_project (test_project_chain.URLProjectPrecedenceTests.test_url_project_id_wins_over_stored_project)
+Execute the actual start-up selection lines from index.html. ... ok
+test_detail_has_explicit_project_sharing_control (test_project_creation_ui.ProjectCreationUITests.test_detail_has_explicit_project_sharing_control) ... ok
+test_guided_creation_is_a_confirmed_local_preview_flow (test_project_creation_ui.ProjectCreationUITests.test_guided_creation_is_a_confirmed_local_preview_flow) ... ok
+test_learning_path_can_be_built_by_hand_in_local_mode (test_project_creation_ui.ProjectCreationUITests.test_learning_path_can_be_built_by_hand_in_local_mode) ... ok
+test_manual_creation_keeps_seed_failures_on_screen (test_project_creation_ui.ProjectCreationUITests.test_manual_creation_keeps_seed_failures_on_screen) ... ok
+test_manual_creation_sends_seed_identifiers_and_url_project_wins (test_project_creation_ui.ProjectCreationUITests.test_manual_creation_sends_seed_identifiers_and_url_project_wins) ... ok
+test_preview_errors_replace_one_slot_and_name_openalex_outage (test_project_creation_ui.ProjectCreationUITests.test_preview_errors_replace_one_slot_and_name_openalex_outage) ... ok
+test_finalize_ignores_unpreviewed_client_candidates (test_project_workflow.ProjectWorkflowTests.test_finalize_ignores_unpreviewed_client_candidates) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_first_turn_on_the_goal_is_not_recorded_twice (test_project_workflow.ProjectWorkflowTests.test_first_turn_on_the_goal_is_not_recorded_twice) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_guidance_local_fallback_and_turn_cap (test_project_workflow.ProjectWorkflowTests.test_guidance_local_fallback_and_turn_cap) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_guidance_model_payload_is_bounded (test_project_workflow.ProjectWorkflowTests.test_guidance_model_payload_is_bounded) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_guidance_session_turn_preview_and_finalize (test_project_workflow.ProjectWorkflowTests.test_guidance_session_turn_preview_and_finalize) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_local_guidance_says_when_it_finds_no_english_terms (test_project_workflow.ProjectWorkflowTests.test_local_guidance_says_when_it_finds_no_english_terms) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_malformed_or_failed_guidance_response_stays_local (test_project_workflow.ProjectWorkflowTests.test_malformed_or_failed_guidance_response_stays_local) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_preview_stops_after_openalex_is_unavailable (test_project_workflow.ProjectWorkflowTests.test_preview_stops_after_openalex_is_unavailable) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_project_creation_rejects_invalid_mode (test_project_workflow.ProjectWorkflowTests.test_project_creation_rejects_invalid_mode) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_shared_paper_has_independent_library_and_feedback (test_project_workflow.ProjectWorkflowTests.test_shared_paper_has_independent_library_and_feedback) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_configured_key_reaches_the_provider_and_records_usage_locally (test_provider_settings.GatewayKeyTests.test_configured_key_reaches_the_provider_and_records_usage_locally) ... ok
+test_key_is_loaded_from_the_data_directory (test_provider_settings.GatewayKeyTests.test_key_is_loaded_from_the_data_directory) ... ok
+test_legacy_checkout_env_file_still_works (test_provider_settings.GatewayKeyTests.test_legacy_checkout_env_file_still_works) ... ok
+test_missing_key_degrades_without_calling_out (test_provider_settings.GatewayKeyTests.test_missing_key_degrades_without_calling_out) ... ok
+test_save_key_is_private_and_clearable (test_provider_settings.GatewayKeyTests.test_save_key_is_private_and_clearable) ... ok
+test_save_key_rejects_empty_and_multiline (test_provider_settings.GatewayKeyTests.test_save_key_rejects_empty_and_multiline) ... ok
+test_usage_ledger_and_dev_marker_live_in_the_data_directory (test_provider_settings.GatewayKeyTests.test_usage_ledger_and_dev_marker_live_in_the_data_directory) ... ok
+test_ai_switch_and_user_settings_never_store_the_key (test_provider_settings.SettingsHTTPTests.test_ai_switch_and_user_settings_never_store_the_key) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_settings_rejects_bad_input_and_cross_origin (test_provider_settings.SettingsHTTPTests.test_settings_rejects_bad_input_and_cross_origin) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+ok
+test_settings_round_trip_never_returns_the_key (test_provider_settings.SettingsHTTPTests.test_settings_round_trip_never_returns_the_key) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+Database is up to date (version 4)
+ok
+test_settings_page_has_no_fake_budget_controls (test_provider_settings.SettingsPageTests.test_settings_page_has_no_fake_budget_controls) ... ok
+test_explicit_add_applies_to_classified_protected_papers_and_undo (test_suggestion_apply.SelectedSuggestionTests.test_explicit_add_applies_to_classified_protected_papers_and_undo) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_explicit_add_rejects_empty_group_without_mutation (test_suggestion_apply.SelectedSuggestionTests.test_explicit_add_rejects_empty_group_without_mutation) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_explicit_add_rejects_empty_selection (test_suggestion_apply.SelectedSuggestionTests.test_explicit_add_rejects_empty_selection) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_renamed_manual_target_is_not_overwritten (test_suggestion_apply.SelectedSuggestionTests.test_renamed_manual_target_is_not_overwritten) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_repeat_is_idempotent_and_reports_already_present (test_suggestion_apply.SelectedSuggestionTests.test_repeat_is_idempotent_and_reports_already_present) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Database migrated from version 0 to 4
+ok
+test_rust_shell_owns_only_spawned_python_process (test_tauri_shell.TauriShellTests.test_rust_shell_owns_only_spawned_python_process) ... ok
+test_shell_does_not_add_remote_frontend_or_provider_permissions (test_tauri_shell.TauriShellTests.test_shell_does_not_add_remote_frontend_or_provider_permissions) ... ok
+test_tauri_config_loads_local_server_and_resizable_window (test_tauri_shell.TauriShellTests.test_tauri_config_loads_local_server_and_resizable_window) ... ok
+test_accent_picker_stays_retired (test_ui_contrast.ContrastTests.test_accent_picker_stays_retired)
+One palette only: a stale data-accent block would silently override it. ... ok
+test_both_modes_define_their_own_text_tokens (test_ui_contrast.ContrastTests.test_both_modes_define_their_own_text_tokens)
+The original bug: --accent-ink was undefined, so buttons inherited a colour. ... ok
+test_dark_palette_is_readable (test_ui_contrast.ContrastTests.test_dark_palette_is_readable) ... ok
+test_every_css_variable_used_is_defined (test_ui_contrast.ContrastTests.test_every_css_variable_used_is_defined)
+An undefined token silently inherits a colour - the dark-on-dark bug. ... ok
+test_index_does_not_redefine_the_palette (test_ui_contrast.ContrastTests.test_index_does_not_redefine_the_palette)
+theme.css is the single source; an inline :root in index.html would shadow it. ... ok
+test_known_bad_pair_would_be_caught (test_ui_contrast.ContrastTests.test_known_bad_pair_would_be_caught)
+Guard the guard: the colours that caused the original report still fail. ... ok
+test_light_palette_is_readable (test_ui_contrast.ContrastTests.test_light_palette_is_readable) ... ok
+test_knowledge_detail_header_rules_do_not_leak_into_notes (test_ui_layout.LayoutTests.test_knowledge_detail_header_rules_do_not_leak_into_notes) ... ok
+test_knowledge_detail_keeps_summary_open_and_groups_metadata (test_ui_layout.LayoutTests.test_knowledge_detail_keeps_summary_open_and_groups_metadata) ... ok
+test_lazy_pages_use_the_existing_tree_scale_during_zoom (test_ui_layout.LayoutTests.test_lazy_pages_use_the_existing_tree_scale_during_zoom) ... ok
+test_motion_has_final_reduced_motion_override (test_ui_layout.LayoutTests.test_motion_has_final_reduced_motion_override) ... ok
+test_navigation_is_keyboard_operable (test_ui_layout.LayoutTests.test_navigation_is_keyboard_operable) ... ok
+test_no_network_visual_dependencies (test_ui_layout.LayoutTests.test_no_network_visual_dependencies) ... ok
+test_no_viewport_scaled_fonts_or_negative_tracking (test_ui_layout.LayoutTests.test_no_viewport_scaled_fonts_or_negative_tracking) ... ok
+test_paper_detail_uses_a_reading_rail (test_ui_layout.LayoutTests.test_paper_detail_uses_a_reading_rail) ... ok
+test_paper_titles_are_keyboard_operable (test_ui_layout.LayoutTests.test_paper_titles_are_keyboard_operable) ... ok
+test_pdf_layout_sets_tree_scale_before_lazy_page_observers (test_ui_layout.LayoutTests.test_pdf_layout_sets_tree_scale_before_lazy_page_observers) ... ok
+test_pinch_anchor_scales_pointer_offset_before_rerender (test_ui_layout.LayoutTests.test_pinch_anchor_scales_pointer_offset_before_rerender) ... ok
+test_pinch_visual_phase_reserves_scaled_page_geometry (test_ui_layout.LayoutTests.test_pinch_visual_phase_reserves_scaled_page_geometry) ... ok
+test_plain_trackpad_scroll_is_not_cancelled (test_ui_layout.LayoutTests.test_plain_trackpad_scroll_is_not_cancelled) ... ok
+test_profile_visuals_use_explainable_evidence_sections (test_ui_layout.LayoutTests.test_profile_visuals_use_explainable_evidence_sections) ... ok
+test_provider_settings_ui_is_wired_and_keeps_the_key_off_client_storage (test_ui_layout.LayoutTests.test_provider_settings_ui_is_wired_and_keeps_the_key_off_client_storage) ... ok
+test_repeated_zoom_converts_transformed_anchor_back_to_base_space (test_ui_layout.LayoutTests.test_repeated_zoom_converts_transformed_anchor_back_to_base_space) ... ok
+test_zoom_commit_keeps_visible_pdf_tree (test_ui_layout.LayoutTests.test_zoom_commit_keeps_visible_pdf_tree) ... ok
+
+----------------------------------------------------------------------
+Ran 294 tests in 124.325s
+
+OK
+unittest exit 0
+# tests 45
+# pass 45
+# fail 0
+PASS repository checks only; app gates/real billing are not implied
+harness exit 0
+PASS budget arithmetic and generated document parity (no live API)
+budget exit 0

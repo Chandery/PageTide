@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-profile-dashboard",
+  "class": "standard",
+  "summary": "Profile page becomes a dashboard: five KPI cards (saved, useful, irrelevant, too hard, this week's activity) with this-week/last-week counts and 12-week sparklines, an interest-term bar chart with pinned terms on top, an explicit-feedback donut showing the useful rate (useful / (useful + irrelevant), sample size shown, flagged below 5, too hard excluded), a 12-week stacked bar chart whose columns open that week's evidence, a week-over-week comparison with rising/falling terms only when the weeks are comparable, and recent feedback with undo. The scattered disclaimers collapse into one line; the correction section and every evidence/undo/pin/freeze action are unchanged.",
+  "tasks": [
+    "PROFILE-02",
+    "PILOT-01"
+  ],
+  "files": [
+    "app/static/profile-ui.js",
+    "app/static/profile.css",
+    "changes/2026-10-01-profile-dashboard.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-01-profile-dashboard-review.md",
+    "docs/evidence/2026-10-01-profile-dashboard-tests.txt",
+    "tests/test_profile_dashboard.cjs"
+  ],
+  "scope_note": "Frontend only; reuses /api/profile/insights unchanged. Shares the uncommitted worktree with 2026-09-30-project-creation-switcher and 2026-09-30-knowledge-detail (docs/HANDOFF.md is edited by all three).",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Static JS/CSS presentation computed from existing local counts; no model call, prompt, provider or external request added.",
+    "before": "Zero model tokens on the profile view.",
+    "after": "Zero model tokens on the profile view.",
+    "developer_usage": "unknown"
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-profile-dashboard-tests.txt",
+      "note": "Run in the owner's terminal because the agent sandbox blocks localhost binds; the evidence file also records the node tests (organization UI, project switcher, profile dashboard)."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-profile-dashboard-tests.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-profile-dashboard-tests.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; exercised KPI, week-column and term evidence dialogs, term expansion and the pin-edit jump in the browser preview at 1280px and ~800px, light and dark mode.",
+      "evidence": "docs/evidence/2026-10-01-profile-dashboard-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "The useful rate is a ratio of explicit labels, not a measurement of recommendation quality; with few labels it swings widely (flagged in the UI below 5).",
+    "Exposures usually dwarf feedback in the weekly bars, so feedback segments look short; exact counts are in the tooltip and evidence dialog.",
+    "Layout below 760px follows the CSS rules but was not viewed on a device."
+  ]
+}
