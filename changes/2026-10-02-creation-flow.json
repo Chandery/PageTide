@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-02-creation-flow",
+  "class": "critical",
+  "summary": "Redo project creation: live status and elapsed time for every wait, named reasons when the AI did not answer (with one-click retry), per-query streamed candidate papers with details, a genuinely different quick mode (one AI call), guided mode with edits carried into each turn, and manual seeds by identifier, paper-name search or dropped PDF.",
+  "tasks": [
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-BUDGET",
+    "R-LOCAL",
+    "R-PROFILE",
+    "R-NODEBT"
+  ],
+  "files": [
+    "app/server.py",
+    "app/service.py",
+    "app/static/creation-pdf.js",
+    "app/static/i18n/en-US.json",
+    "app/static/project-creation.css",
+    "app/static/project-creation.js",
+    "app/static/project_creation.html",
+    "changes/2026-10-02-creation-flow.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0010-project-creation-flow.md",
+    "docs/evidence/2026-10-02-creation-flow-budget.txt",
+    "docs/evidence/2026-10-02-creation-flow-checks.txt",
+    "docs/evidence/2026-10-02-creation-flow-review.md",
+    "harness/tasks.json",
+    "scripts/i18n_extract.py",
+    "src-tauri/src/main.rs",
+    "tests/test_app_server.py",
+    "tests/test_creation_pdf.cjs",
+    "tests/test_project_creation_ui.py",
+    "tests/test_ui_contrast.py"
+  ],
+  "scope_note": "The backend half (app/creation.py, guidance turn/search changes, routes, tests) is already committed on this branch as f620d28; this record covers the remaining uncommitted files. See docs/decisions/0010-project-creation-flow.md.",
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "No new model operation and no budget change. Quick creation is now capped at one project_guidance turn; guided creation keeps six, but a turn without a model answer no longer uses one up and each retry is one explicit user-triggered request. A guided session now asks the model once at start (the goal) instead of waiting for the first typed message, which is inside the same six. Page edits to the draft are included in the next turn's already-bounded current_draft.",
+    "before": "Quick and guided sessions both allowed up to 6 project_guidance turns (7200 input / 3000 output tokens at the registered caps), all counted even when the model did not answer.",
+    "after": "Guided: up to 6 model-answered turns at the same caps. Quick: 1 turn (1200 input / 500 output). Measured usage unknown (no live call was made).",
+    "quantified": {
+      "period": "one project-guidance session, worst case",
+      "before": {
+        "input_tokens": 7200,
+        "output_tokens": 3000,
+        "usd": "0.00576"
+      },
+      "after": {
+        "input_tokens": 7200,
+        "output_tokens": 3000,
+        "usd": "0.00576"
+      }
+    },
+    "developer_usage": "unknown"
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-02-creation-flow-checks.txt",
+      "note": "367 Python tests and 82 node tests passed, run outside the sandbox so HTTP tests could bind a local port."
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-02-creation-flow-budget.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-02-creation-flow-budget.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent",
+      "evidence": "docs/evidence/2026-10-02-creation-flow-review.md",
+      "note": "Self-review only."
+    },
+    {
+      "kind": "independent",
+      "result": "not_run",
+      "reviewer": "none",
+      "evidence": "docs/evidence/2026-10-02-creation-flow-review.md",
+      "note": "Critical change (IPC routes, file import, budget behaviour): independent review is still required before release."
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "No live OpenAlex or DeepSeek request was made: name-search and PDF-matching hit rate, AI answer quality and real token use are unmeasured.",
+    "Dropping a PDF inside the built app's WKWebView relies on Tauri's disable_drag_drop_handler(); it was built but not exercised by hand.",
+    "PDF-derived titles are sent to OpenAlex without a per-search confirmation (disclosed on the page).",
+    "Release approval and independent review are pending."
+  ]
+}

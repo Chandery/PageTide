@@ -15,7 +15,7 @@ STATIC = Path(__file__).resolve().parents[1] / "app" / "static"
 HTML = STATIC / "index.html"
 THEME = STATIC / "theme.css"
 # Every stylesheet that consumes the shared tokens.
-CONSUMERS = ("organization.css", "profile.css")
+CONSUMERS = ("organization.css", "profile.css", "project-creation.css")
 
 
 def parse_hex(value):

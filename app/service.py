@@ -225,7 +225,7 @@ class App:
                     "or go straight to the candidate papers."), draft
         return "我已先按本地词项整理方向。你可以继续补充场景或方法，也可以直接查看候选论文。", draft
 
-    def guidance_turn(self, session_id, message, dry_run=False, retry=False):
+    def guidance_turn(self, session_id, message, dry_run=False, retry=False, draft_edits=None):
         """One guidance turn. Only a turn the model actually answered counts toward the cap, so a
         missing key, an outage or an unreadable reply never uses one up; ``retry`` re-asks the model
         for the last message after such a turn instead of recording it a second time."""
@@ -235,6 +235,11 @@ class App:
         if session["status"] != "draft":
             raise ValueError("引导会话已结束")
         draft = self._bounded_guidance_draft(session["draft"])
+        if isinstance(draft_edits, dict):  # what the user changed on screen since the last turn
+            edits = self._bounded_guidance_draft(draft_edits)
+            for field in ("keywords", "search_queries", "learning_path"):
+                if field in draft_edits:
+                    draft[field] = edits[field]
         cap = GUIDANCE_QUICK_MAX_TURNS if draft["creation_mode"] == "quick" else GUIDANCE_MAX_TURNS
         if session["turn_count"] >= cap:
             raise ValueError("快速创建只调用一次 AI，请直接编辑草稿后创建" if cap == GUIDANCE_QUICK_MAX_TURNS

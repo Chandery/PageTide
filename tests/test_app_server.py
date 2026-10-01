@@ -4,8 +4,10 @@ import tempfile
 import threading
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import server
@@ -122,6 +124,57 @@ class ServerSmokeTests(unittest.TestCase):
         status, removed = self._delete("/api/project-papers", {"project_id": project_id, "paper_key": "shared"})
         self.assertEqual(status, 200)
         self.assertTrue(removed["removed"])
+
+    def _upload(self, data, name="paper.pdf"):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/seeds/pdf", data=data,
+            headers={"Content-Type": "application/pdf", "X-Filename": urllib.parse.quote(name)}, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read())
+
+    def test_seed_routes_validate_input_without_the_network(self):
+        status, out = self._post("/api/seeds/resolve", {"input": "attention is all you need"})
+        self.assertEqual((status, out["status"]), (200, "invalid_input"))  # free text is searched, never sent as an id
+        self.assertEqual(self._post("/api/seeds/resolve", {"input": "  "})[0], 400)
+        self.assertEqual(self._post("/api/seeds/search", {"query": "ab"})[0], 400)
+
+    def test_dropped_pdf_is_kept_and_attached_to_the_resolved_seed(self):
+        from app import creation
+        creation._SEED_CACHE.clear()
+        pdf = b"%PDF-1.7\n1 0 obj<<>>endobj\n%%EOF\n"
+        self.assertEqual(self._upload(b"<html>nope</html>")[0], 400)
+        status, uploaded = self._upload(pdf, "my paper.pdf")
+        self.assertEqual(status, 200)
+        self.assertEqual(uploaded["filename"], "my paper.pdf")
+        work = {"id": "https://openalex.org/W77", "doi": "https://doi.org/10.48550/arxiv.2401.00001", "ids": {},
+                "title": "Latent World Models", "publication_date": "2024-01-02", "authorships": []}
+        with mock.patch("app.sources.OpenAlex.work", return_value=work):
+            status, found = self._post("/api/seeds/resolve", {"input": "arXiv:2401.00001"})
+            self.assertEqual((status, found["status"]), (200, "resolved"))
+            status, created = self._post("/api/projects", {
+                "name": "PDF 项目", "creation_mode": "manual", "keywords": ["world models"],
+                "seeds": [{"identifier": found["paper"]["openalex_id"], "pdf_id": uploaded["pdf_id"]}]})
+        self.assertEqual(status, 200)
+        outcome = created["seed_results"][0]
+        self.assertEqual((outcome["status"], outcome["pdf_attached"]), ("resolved", True))
+        status, body = self._get(f"/api/pdf/view?key={urllib.parse.quote(outcome['key'], safe='')}")
+        self.assertEqual((status, body), (200, pdf))
+
+    def test_guidance_search_and_retry_routes(self):
+        status, session = self._post("/api/project-guidance/sessions", {"name": "检索", "goal": "world models"})
+        sid = session["session"]["id"]
+        self.assertEqual(self._post(f"/api/project-guidance/sessions/{sid}/search", {"query": ""})[0], 400)
+        status, out = self._post(f"/api/project-guidance/sessions/{sid}/turn", {"retry": True})
+        self.assertEqual(status, 400)  # nothing to retry yet
+        status, out = self._post(f"/api/project-guidance/sessions/{sid}/turn",
+                                 {"message": "关注规划", "dry_run": True, "draft": {"keywords": ["jepa"]}})
+        self.assertEqual((status, out["reason_code"]), (200, "dry_run"))
+        self.assertIn("jepa", out["session"]["draft"]["keywords"])  # edits made on the page reach the draft
+        status, out = self._post(f"/api/project-guidance/sessions/{sid}/turn", {"retry": True, "dry_run": True})
+        self.assertEqual(status, 200)
 
     def test_profile_freeze_and_restore_routes(self):
         status, created = self._post("/api/projects", {"name": "画像", "creation_mode": "manual",

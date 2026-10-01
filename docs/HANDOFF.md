@@ -1,3 +1,17 @@
+# 当前工作单元：创建项目流程重做（2026-10-02，分支 feature/project-creation-redesign）
+
+- owner 反馈：AI 参与时没有状态反馈、不知道有没有在请求；候选论文空白后整批突然出现且只有题目；快速创建和 AI 引导几乎一样；手动种子只认标识符，应能拖 PDF 或按名称检索。
+- 做了什么（详见 [ADR 0010](decisions/0010-project-creation-flow.md)）：
+  - 页面拆成 `project_creation.html` + `project-creation.css` + `project-creation.js` + `creation-pdf.js`（纯函数，有 node 测试）。
+  - 每次等待显示动作和已等秒数；每个 AI 回合标明“AI 已回复 · 约 N token · X 秒”或“没有使用 AI + 原因”（无 key、总开关关闭、未批准、预算、HTTP、网络、回复格式），可一键重试；没拿到 AI 回答的回合不占 6 轮名额。
+  - 候选论文逐条检索、逐批出现，先有占位；卡片有作者、日期、可展开摘要、原文链接和命中的检索式；不预勾选。
+  - 快速创建＝一次 AI（服务端限制 1 次 AI 回合）+ 自动检索 + 审阅；AI 引导＝对话（开始即回应目标，页面上的修改带入下一轮）；手动创建＝关键词 + 种子（DOI/arXiv/链接、名称检索、拖入 PDF）。
+  - PDF：浏览器用内置 pdf.js 读前两页，找 arXiv 编号 / DOI / 标题，再向 OpenAlex 核对（相似度 ≥ 0.8 自动采用，否则让用户选）；原文件保存为该论文的 PDF，不上传。Tauri 窗口加了 `disable_drag_drop_handler()`。
+  - 后端：新增 `app/creation.py`、路由 `/api/seeds/resolve|search|pdf` 和 `/api/project-guidance/sessions/<id>/search`，`turn` 增加 `retry` 与 `draft`。
+- 没有新增模型操作，也没有改预算上限。
+- 未验证：桌面包里实际拖放 PDF、OpenAlex 名称检索与 PDF 匹配的真实命中率、真实 DeepSeek 回合；沙盒连不上外网，浏览器检查用的是模拟接口。候选检索本身仍是 arXiv / 2024 起 / 按日期倒序的标题词检索。
+- 独立审查未做；见[自审](evidence/2026-10-02-creation-flow-review.md)和[变更](../changes/2026-10-02-creation-flow.json)。
+
 # 当前工作单元：项目创建的 AI 引导接上模型（2026-10-01）
 
 - owner 反馈：创建项目的三种入口测试时都是本地模式，没有接上模型。

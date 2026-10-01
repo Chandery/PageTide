@@ -623,13 +623,16 @@
         "同一规范论文可加入多个项目，收藏、反馈、曝光、推荐和画像按项目隔离",
         "候选论文须由用户勾选后加入；详情页可显式加入其他项目，移除关系不删除全局事实",
         "手动种子逐个报告成功/失败/重复；URL project_id 优先于旧 localStorage 项目",
-        "迁移、HTTP、UI、预算、harness 和桌面构建检查均有可复核证据"
+        "迁移、HTTP、UI、预算、harness 和桌面构建检查均有可复核证据",
+        "创建过程每次等待都有状态与耗时；每个 AI 回合标明是否由 AI 回答及原因；候选论文逐条检索、逐批显示并含摘要；快速创建仅一次 AI 调用；手动种子支持标识符、名称检索与 PDF 拖入识别（ADR 0010）"
       ],
       "evidence": [
         "docs/evidence/2026-10-01-project-guidance-sharing-checks.txt",
         "docs/evidence/2026-10-01-project-guidance-sharing-review.md",
         "docs/evidence/2026-09-30-project01-chain-status.md",
-        "docs/evidence/2026-09-30-project01-chain-checks.txt"
+        "docs/evidence/2026-09-30-project01-chain-checks.txt",
+        "docs/evidence/2026-10-02-creation-flow-checks.txt",
+        "docs/evidence/2026-10-02-creation-flow-review.md"
       ],
       "related_tasks": [
         "PROFILE-02",
@@ -638,7 +641,8 @@
       "missing_inputs": [
         "依赖链 CORE-01/PROFILE-01/AI-01 未 done",
         "project_guidance 已于 2026-10-01 获 owner 批准；真实调用的回答质量与实际 token 用量尚未实测",
-        "HTTP 路由测试需在允许本地端口绑定的环境重跑"
+        "HTTP 路由测试需在允许本地端口绑定的环境重跑",
+        "名称检索与 PDF 识别的真实命中率、真实 AI 回合的质量和用量尚未在真实网络下测量"
       ]
     },
     {
