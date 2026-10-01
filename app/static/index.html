@@ -316,6 +316,8 @@
   .pfoot .switch { font-size:11.5px; gap:6px; white-space:nowrap; }
   .pfoot #petSend { padding:5px 14px; }
   .pfoot #petSend:disabled { opacity:.5; cursor:default; }
+  .pfoot #petImg { padding:3px 8px; white-space:nowrap; }
+  .pfoot #petImg[aria-pressed="true"] { color:var(--accent); box-shadow:var(--sh-in-sm); border-color:var(--accent); }
   #petRef:empty { display:none; }
   /* A quote is a compact card: two lines, expandable, never taller than a third of the panel. */
   .refcard { display:flex; gap:8px; align-items:flex-start; padding:6px 8px 6px 10px; max-width:100%;
@@ -662,6 +664,7 @@
     <textarea id="petInput" rows="1" placeholder="追问，例如：这个方法的核心假设是什么？"></textarea>
     <div class="pfoot">
       <span id="petFt" class="pft">全文未提取</span>
+      <button class="tiny ghost" id="petImg" type="button" aria-pressed="false" title="把当前页（有引用时为引用所在页）渲染成图片随下一个问题发送，估计约多 1500 token（未实测）。只作用于下一个问题，回答失败时保持开启；换论文时关闭。问题提到图/表时会自动附图。">附本页图</button>
       <label class="switch" title="检索更多全文段落，消耗更多 token"><input type="checkbox" id="fullCtx"> 更多上下文</label>
       <button class="primary tiny" id="petSend">发送</button>
     </div>
@@ -678,6 +681,7 @@
 
 <script src="/profile-ui.js"></script>
 <script src="/project-switcher.js"></script>
+<script src="/figure-intent.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
@@ -1188,7 +1192,7 @@ window.PDH = { api, toast, esc, md, state, openDetail, setPetContext: (k, t) => 
 <script type="module">
 const { api, toast } = window.PDH;
 const $ = (s) => document.querySelector(s);
-const pet = { key: null, title: null, selection: null, selPage: null, busy: false };
+const pet = { key: null, title: null, selection: null, selPage: null, busy: false, attachPage: false };
 window.PDHSetContext = (key, title) => {
   pet.key = key; pet.title = title;
   const el = $('#petPaper');
@@ -1244,6 +1248,7 @@ const R = { doc:null, pages:[], scale:null, fit:true, side:false, observer:null,
 
 async function openReader(key, title) {
   window.PDHSetContext(key, title);
+  setAttachPage(false);   // a pending 附本页图 belongs to the paper it was pressed on
   const box = $('#readerPages'), side = $('#readerSide'), reader = $('#reader');
   $('#readerTitle').textContent = title || '';
   $('#readerInfo').textContent = '';
@@ -1471,7 +1476,6 @@ function markCurrent(n) {
 }
 
 /* --------------------------------------------------- full text + vision */
-const FIG_RE = /(fig(?:ure)?\.?\s*\d+|table\s*\d+|eq(?:uation)?\.?\s*\d+|图\s*\d+|表\s*\d+|公式\s*\d+)/i;
 
 async function extractFulltext(key) {
   try {
@@ -1503,31 +1507,6 @@ async function extractFulltext(key) {
 function setFulltextBadge(pages, chars) {
   const el = $('#petFt');
   if (el) el.textContent = `全文已缓存 · ${pages} 页 / ${Math.round(chars / 1000)}k 字符`;
-}
-
-function figureNumber(question) {
-  const m = question.match(/(?:fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*(\d+)/i);
-  return m ? Number(m[1]) : null;
-}
-
-// Count mentions per page for the requested number, so "Fig. 3" and "Figure 3"
-// both resolve, and pick the page where it is described most.
-function findFigurePage(question) {
-  const texts = R.pageTexts || [];
-  if (!texts.length) return null;
-  const n = figureNumber(question);
-  const pattern = n
-    ? new RegExp(`(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\\s*\\.?\\s*${n}\\b`, 'gi')
-    : /(fig(?:ure)?|table)\s*\.?\s*\d+/gi;
-  // Prefer the page that carries the caption (line starts with the label), then most mentions.
-  let best = null, bestHits = 0;
-  for (let i = 0; i < texts.length; i++) {
-    const lines = texts[i].split('\n');
-    const captionLine = lines.some((line) => /^\s*(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*\d+/i.test(line));
-    const hits = (texts[i].match(pattern) || []).length + (captionLine ? 3 : 0);
-    if (hits > bestHits) { best = i + 1; bestHits = hits; }
-  }
-  return best;   // null when the figure is not mentioned anywhere in the extracted text
 }
 
 async function pageImage(pageNumber) {
@@ -1700,27 +1679,42 @@ function addMsg(kind, text, followups, meta) {
 async function ask(question) {
   if (!question.trim() || pet.busy) return;
   openPet(); pet.busy = true;
-  const quoted = pet.selection;
+  const quoted = pet.selection, quotedPage = pet.selPage;   // setReference(null) clears both
   const userEl = addMsg('user', question);
-  if (quoted) userEl.prepend(refCard(quoted, pet.selPage));
+  if (quoted) userEl.prepend(refCard(quoted, quotedPage));
   setReference(null);
   $('#petSend').disabled = true;
   const thinking = addMsg('sys', '思考中…');
-  let image = null, pageHint = null, located = false;
-  if (R.doc && FIG_RE.test(question)) {
-    // The server owns figure location because it holds the cached full text.
-    let found = null;
-    try {
-      const res = await api('/api/figure-page?key=' + encodeURIComponent(R.key) + '&q=' + encodeURIComponent(question));
-      found = res.page || null;
-    } catch (e) { found = null; }
-    if (!found) found = findFigurePage(question);   // local fallback when the server has no text
-    located = Boolean(found);
-    pageHint = found || (R.current || 1);   // still unknown -> send the page the user is looking at
-    thinking.textContent = located
-      ? `需要看图，正在渲染第 ${pageHint} 页…`
-      : `图注未找到，改为发送当前第 ${pageHint} 页…`;
-    try { image = await pageImage(pageHint); } catch (e) { pageHint = null; image = null; }
+  let image = null, pageHint = null, located = false, imageNote = '';
+  const figure = PDHFigure.figureRequest(question);
+  const forced = pet.attachPage;
+  setAttachPage(false);   // the switch covers one question; a page image costs extra tokens
+  const keepSwitch = () => { if (forced) setAttachPage(true); };   // ...unless that question failed
+  if (R.doc && (figure || forced)) {
+    // The page the question is about: a quote's page, else the page in view.
+    const here = quotedPage || R.current || 1;
+    if (figure && figure.number) {
+      // The server owns figure location because it holds the cached full text.
+      let found = null;
+      try {
+        const res = await api('/api/figure-page?key=' + encodeURIComponent(R.key) + '&q=' + encodeURIComponent(question));
+        found = res.page || null;
+      } catch (e) { found = null; }
+      if (!found) found = PDHFigure.findFigurePage(R.pageTexts || [], figure.kind, figure.number);   // local fallback when the server has no text
+      located = Boolean(found);
+      pageHint = found || here;   // still unknown -> send the page the user is looking at
+      imageNote = located ? '' : '（图注未定位，发送的是当前页）';
+      thinking.textContent = located
+        ? `需要看图，正在渲染第 ${pageHint} 页…`
+        : `图注未找到，改为发送第 ${pageHint} 页…`;
+    } else {
+      pageHint = here;
+      located = true;
+      imageNote = quotedPage ? '（引用所在页）' : '（当前页）';
+      thinking.textContent = `正在渲染第 ${pageHint} 页给模型看…`;
+    }
+    try { image = await pageImage(pageHint); } catch (e) { pageHint = null; image = null; imageNote = ''; }
+    if (!image) { thinking.textContent = '页面渲染失败，改用纯文本回答…'; keepSwitch(); }
   }
   try {
     const r = await api('/api/qa', { key: pet.key, question, selection: quoted, image, page_hint: pageHint,
@@ -1728,14 +1722,14 @@ async function ask(question) {
                                     context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
     thinking.remove();
     const meta = r.ok
-      ? `${r.mode === 'vision' ? '视觉 · 第 ' + (r.page_hint || pageHint || '?') + ' 页'
-            + (located ? '' : '（图注未定位，发送的是当前页）') : '全文检索'}` +
+      ? `${r.mode === 'vision' ? '视觉 · 第 ' + (r.page_hint || pageHint || '?') + ' 页' + imageNote : '全文检索'}` +
         `${r.pages && r.pages.length ? ' · 命中第 ' + r.pages.join(',') + ' 页' : ''}` +
         `${r.context_chars ? ' · ' + Math.round(r.context_chars / 1000) + 'k 字符' : ''}`
       : '';
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
+    if (!r.ok) keepSwitch();
     if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}${r.mode === 'vision' ? ' · 视觉' : ''}`, 'ai');
-  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
+  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); keepSwitch(); }
   finally { pet.busy = false; $('#petSend').disabled = false; }
 }
 async function translate(text, rect) {
@@ -1782,6 +1776,14 @@ function growInput() {
   input.style.height = `${input.scrollHeight}px`;
 }
 $('#petSend').onclick = sendInput;
+function setAttachPage(on) {
+  pet.attachPage = Boolean(on);
+  $('#petImg').setAttribute('aria-pressed', String(pet.attachPage));
+}
+$('#petImg').onclick = () => {
+  if (!R.doc) { toast('先打开论文 PDF，才能附上页面图片', 'warn'); return; }
+  setAttachPage(!pet.attachPage);
+};
 $('#petInput').addEventListener('input', growInput);
 $('#petInput').addEventListener('keydown', (e) => {
   // Enter that confirms an IME candidate (Chinese input) must not send; Shift+Enter adds a line.
