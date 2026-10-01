@@ -46,6 +46,22 @@ class LayoutTests(unittest.TestCase):
         # List cards stack title, date and category tags instead of inheriting a flex row.
         self.assertIn('.pdh-organization .org-paper-open { display:block;', org_css)
 
+    def test_assistant_quote_stays_compact_and_log_keeps_room(self):
+        # A quoted selection once filled the whole panel and squeezed the log to nothing.
+        self.assertRegex(self.css, r"\.refcard \.rsnip \{[^}]*-webkit-line-clamp:2")
+        self.assertRegex(self.css, r"\.refcard\.expanded \.rsnip \{[^}]*max-height:30vh")
+        self.assertRegex(self.css, r"\.plog \{[^}]*min-height:140px")
+        self.assertIn(".petpanel > header, .pcompose { flex:0 0 auto; }", self.css)
+        # The quote lives in the composer, below the log.
+        panel = self.html[self.html.index('id="petPanel"'):self.html.index('id="pet"')]
+        self.assertLess(panel.index('id="petLog"'), panel.index('id="petRef"'))
+        self.assertLess(panel.index('id="petRef"'), panel.index('id="petInput"'))
+
+    def test_assistant_input_respects_ime_and_keeps_pending_questions(self):
+        self.assertIn("e.isComposing || e.keyCode === 229", self.html)
+        send = self.html[self.html.index("function sendInput()"):self.html.index("function growInput()")]
+        self.assertLess(send.index("if (pet.busy"), send.index("input.value = ''"))
+
     def test_motion_has_final_reduced_motion_override(self):
         self.assertIn("@keyframes viewEnter", self.css)
         self.assertRegex(

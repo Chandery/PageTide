@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-assistant-composer",
+  "class": "standard",
+  "summary": "Reader assistant: a quoted selection no longer fills the whole panel. The UI redesign had dropped the quote card layout (no line clamp), so a long selection pushed the log out of view. The quote now sits in a composer below the log as a two-line card with page and length, expandable in place (capped at 30vh); the log keeps a minimum height. Also: Enter during Chinese IME composition no longer sends, Shift+Enter adds a line (textarea auto-grows), a question typed while an answer is pending is no longer wiped, send is disabled while busy, the quote in a sent message is shown above the question, clearing the log restores the starter questions, and the duplicated paper title line is folded into the header.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/static/index.html",
+    "changes/2026-10-01-assistant-composer.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-01-assistant-composer-review.md",
+    "docs/evidence/2026-10-01-assistant-composer-tests.txt",
+    "tests/test_ui_layout.py"
+  ],
+  "scope_note": "Frontend presentation and input handling of the reader assistant only; /api/qa and its prompt are unchanged.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No prompt, provider, retry or context change; the request body sent to /api/qa is unchanged.",
+    "before": "One gateway call per question sent.",
+    "after": "One gateway call per question sent.",
+    "developer_usage": "One real paper_qa call was made while verifying in the browser preview (the preview data directory holds a configured key); its token count was shown in the app toast, not recorded here."
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-assistant-composer-tests.txt",
+      "note": "Run in the owner's terminal because the agent sandbox blocks localhost binds; the evidence file also records the node tests."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-assistant-composer-tests.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-assistant-composer-tests.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; selected a 5.4k-character passage in the reader preview and measured quote/log heights, exercised IME Enter, busy send, expand/collapse and a real answer.",
+      "evidence": "docs/evidence/2026-10-01-assistant-composer-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "/api/qa has no length cap on the quoted selection (translation caps at ~1200 chars); a whole-page quote is sent in full. The card now shows the character count, but a cap is a prompt/budget change left for owner decision.",
+    "Verified in the Chromium preview; the .app WKWebView layout and IME behaviour need the owner's check."
+  ]
+}
