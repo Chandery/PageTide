@@ -1,3 +1,10 @@
+# 当前工作单元：中文分词与标题归一化（CHAN-01，2026-10-01，worktree `worktree-channels`）
+
+- `ranking.tokenize`：英文规则不变；中文（含日文、韩文）连续片段切成字二元组。遇到“的/了”断开，并去掉“本文、研究、基于”等 21 个常见框架词。全角字母和全角空格先转成 ASCII。oracle 测试证明：不含中日韩字符和全角字符的文本，输出与旧版逐字节一致。
+- `normalize_title`（移到 `app/channels/text.py`，`app.sources` 仍可导入）保留中日韩字符，中文旁边的空格不计入。不同中文标题不再得到同一个空 key。同一文件新增 `detect_language`（按文字判断 zh/ja/ko/en/und）。
+- 本地引导：中文描述现在提取整词作为关键词（如“数字人文”“古籍整理”），而不是字二元组；提示语不再要求必须用英文。旧测试 `test_local_guidance_says_when_it_finds_no_english_terms` 依赖的就是旧限制，已按新行为改写。
+- 零模型调用。未测：真实中文语料的排序质量（需要中文学科用户判断，E-CJK-RANKING 仍为 not_run）；画像页可能显示“字人”这类二元组词项。记录见[变更](../changes/2026-10-01-chan01-cjk-tokens.json)。
+
 # 当前工作单元：多学科渠道与登录会话——决策与登记（CHAN-00，2026-10-01，worktree `worktree-channels`）
 
 - owner 要求：支持理工科（WoS 等）和文科/中文（知网等）渠道；需要登录的站点登录一次后保存 cookie 继续使用；以后会有其他人使用；每条链路都要测试。

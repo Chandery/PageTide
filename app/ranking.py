@@ -7,6 +7,8 @@ enough and easy to explain.
 import math
 import re
 
+from .channels import text as script_text
+
 STOPWORDS = {
     "the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with", "we", "our", "is", "are",
     "that", "this", "as", "by", "from", "it", "its", "be", "can", "which", "these", "their", "at",
@@ -17,8 +19,13 @@ STOPWORDS = {
 
 
 def tokenize(text):
-    words = re.findall(r"[a-z0-9][a-z0-9\-]+", (text or "").lower())
-    return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
+    """English words as before, then CJK character bigrams (ADR 0010)."""
+    text = script_text.fold(text)
+    words = re.findall(r"[a-z0-9][a-z0-9\-]+", text.lower())
+    tokens = [w for w in words if len(w) >= 3 and w not in STOPWORDS]
+    if script_text.has_cjk(text):
+        tokens.extend(script_text.cjk_tokens(text))
+    return tokens
 
 
 def build_idf(token_lists):

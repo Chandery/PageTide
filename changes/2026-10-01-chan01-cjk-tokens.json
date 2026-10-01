@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-chan01-cjk-tokens",
+  "class": "critical",
+  "summary": "Chinese papers can now be ranked and kept apart. ranking.tokenize keeps the English rule and appends character bigrams of CJK runs (split at 的/了, 21 frame-word bigrams dropped); full-width ASCII and the ideographic space fold to ASCII first. normalize_title moves to app/channels/text.py (re-exported by app.sources), keeps CJK characters and ignores spacing next to them, so distinct Chinese titles without DOI no longer collapse to one empty key. text.py also adds detect_language (script-based zh/ja/ko/en/und) and cjk_phrases. Local guidance uses whole Chinese phrases as editable keywords instead of reporting that only English works; its reply text changes accordingly. An oracle test proves English tokens and title keys are byte-identical to the previous functions for text without CJK or full-width characters.",
+  "tasks": [
+    "CHAN-01"
+  ],
+  "files": [
+    "app/channels/__init__.py",
+    "app/channels/text.py",
+    "app/ranking.py",
+    "app/service.py",
+    "app/sources.py",
+    "changes/2026-10-01-chan01-cjk-tokens.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-01-chan01-checks.txt",
+    "harness/tasks.json",
+    "tests/test_project_workflow.py",
+    "tests/test_ranking_cjk.py"
+  ],
+  "scope_note": "Class is critical only because harness/tasks.json changes (task state); the code change is standard. test_local_guidance_says_when_it_finds_no_english_terms asserted the old English-only limitation and is rewritten for the new behaviour. tools/eval_probe.py and tools/data_probe.py keep their own frozen copies for past experiments. Desktop build (.local/desktop-build-env/bin/python scripts/build_desktop.py, then cargo tauri build --bundles app) finished green; app.channels.text is in the PyInstaller archive TOC. The .app was not launched.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Local tokenization only; no provider, prompt, network or gateway change.",
+    "before": "Zero model tokens; Chinese text produced no tokens.",
+    "after": "Zero model tokens; Chinese text adds bigram tokens, CPU cost linear in text length."
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 1,
+      "evidence": "docs/evidence/2026-10-01-chan01-checks.txt",
+      "note": "311 of 335 passed; the 24 errors are HTTP tests whose localhost bind the agent sandbox blocks (EPERM), same as baseline. All 15 new CJK tests and the rewritten guidance test pass."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-chan01-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-chan01-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; read the diff, checked every tokenize/normalize_title caller in app/ and that the frozen tools copies are untouched.",
+      "evidence": "docs/evidence/2026-10-01-chan01-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Ranking quality on real Chinese corpora is unmeasured; E-CJK-RANKING stays not_run until a Chinese-discipline user judges it.",
+    "Bigrams without a dictionary add noise tokens (for example 字人) that can surface as profile terms.",
+    "Splitting at 的 drops words such as 目的; phrase keywords split at 和/与/及/或 can cut words such as 和平.",
+    "Text with full-width ASCII now tokenizes where it previously gave nothing; title keys of such stored papers change only when they have no DOI or OpenAlex ID.",
+    "The HTTP tests were not run because the sandbox blocks localhost binds."
+  ]
+}

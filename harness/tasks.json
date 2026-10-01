@@ -665,7 +665,7 @@
       "id": "CHAN-01",
       "stage": "delivery",
       "title": "中文分词与标题归一化（中文论文不再被去重成一篇）",
-      "status": "planned",
+      "status": "review",
       "depends_on": [
         "CHAN-00"
       ],
@@ -678,7 +678,10 @@
         "中文字二元组与少量停用词；中英混合查询可匹配",
         "不同中文标题得到不同 key；中文固定词把匹配论文排在前面"
       ],
-      "evidence": []
+      "evidence": [
+        "tests/test_ranking_cjk.py",
+        "docs/evidence/2026-10-01-chan01-checks.txt"
+      ]
     },
     {
       "id": "CHAN-02",

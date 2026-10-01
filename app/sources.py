@@ -12,6 +12,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from .channels.text import normalize_title  # noqa: F401  (re-exported; CJK-aware)
+
 API = "https://api.openalex.org/works"
 ARXIV_SOURCE_ID = "S4306400194"  # OpenAlex source: arXiv (Cornell University)
 UA = "PaperDigHelper/0.1 (local research; read-only metadata)"
@@ -33,11 +35,6 @@ def abstract_text(inverted):
     return " ".join(word for _, word in positions)
 
 
-def normalize_title(text):
-    import re
-    text = (text or "").lower()
-    text = re.sub(r"[^a-z0-9]+", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def ids_of(work):

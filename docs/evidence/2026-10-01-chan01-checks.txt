@@ -1,0 +1,22 @@
+test_local_guidance_keeps_chinese_phrases_and_says_when_nothing_is_found (test_project_workflow.ProjectWorkflowTests.test_local_guidance_keeps_chinese_phrases_and_says_when_nothing_is_found) ... Applying migration 1: migrate_001_multi_project
+test_overlong_runs_are_not_keywords (test_ranking_cjk.ChinesePhrases.test_overlong_runs_are_not_keywords) ... ok
+test_phrases_split_on_connectives_and_drop_frame_words (test_ranking_cjk.ChinesePhrases.test_phrases_split_on_connectives_and_drop_frame_words) ... ok
+test_pinned_chinese_term_puts_matching_papers_first (test_ranking_cjk.ChinesePinnedTermRanks.test_pinned_chinese_term_puts_matching_papers_first) ... ok
+test_chinese_title_normalization_ignores_punctuation_width_and_spacing (test_ranking_cjk.ChineseTitles.test_chinese_title_normalization_ignores_punctuation_width_and_spacing) ... ok
+test_distinct_chinese_titles_get_distinct_keys (test_ranking_cjk.ChineseTitles.test_distinct_chinese_titles_get_distinct_keys) ... ok
+test_cjk_punctuation_separates_runs (test_ranking_cjk.ChineseTokens.test_cjk_punctuation_separates_runs) ... ok
+test_fullwidth_latin_and_ideographic_space_fold_to_ascii (test_ranking_cjk.ChineseTokens.test_fullwidth_latin_and_ideographic_space_fold_to_ascii) ... ok
+test_han_runs_become_bigrams (test_ranking_cjk.ChineseTokens.test_han_runs_become_bigrams) ... ok
+test_mixed_text_keeps_english_tokens_first (test_ranking_cjk.ChineseTokens.test_mixed_text_keeps_english_tokens_first) ... ok
+test_particles_split_runs_and_common_bigrams_are_dropped (test_ranking_cjk.ChineseTokens.test_particles_split_runs_and_common_bigrams_are_dropped) ... ok
+test_single_han_character_alone_is_not_a_token (test_ranking_cjk.ChineseTokens.test_single_han_character_alone_is_not_a_token) ... ok
+test_none_is_handled (test_ranking_cjk.EnglishUnchanged.test_none_is_handled) ... ok
+test_normalize_title_matches_previous_for_text_without_cjk_or_fullwidth (test_ranking_cjk.EnglishUnchanged.test_normalize_title_matches_previous_for_text_without_cjk_or_fullwidth) ... ok
+test_tokenize_matches_previous_tokenizer_byte_for_byte (test_ranking_cjk.EnglishUnchanged.test_tokenize_matches_previous_tokenizer_byte_for_byte) ... ok
+test_detect_language (test_ranking_cjk.Language.test_detect_language) ... ok
+
+## python3 -m unittest discover -s tests -v (worktree-channels, CHAN-01)
+Ran 335 tests: 311 passed, 24 errors. All 24 errors are PermissionError [Errno 1] on localhost bind (agent sandbox blocks local ports), same set as baseline. Not re-run outside the sandbox.
+Oracle: tests/test_ranking_cjk.EnglishUnchanged compares ranking.tokenize and sources.normalize_title with verbatim copies of the previous functions over the seed titles, Latin/ligature/accented strings and 400 seeded random ASCII+Latin strings: identical.
+PASS budget arithmetic and generated document parity (no live API)
+PASS repository checks only; app gates/real billing are not implied

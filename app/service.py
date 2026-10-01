@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import ranking
+from .channels import text as script_text
 from .db import Store, now
 from .gateway import Gateway
 from .project import ProjectManager
@@ -52,7 +53,9 @@ class App:
     @staticmethod
     def _guidance_terms(text, limit=20):
         terms = []
-        for token in ranking.tokenize(text or ""):
+        # English words, then whole Chinese phrases: bigrams would make poor editable keywords.
+        words = [t for t in ranking.tokenize(text or "") if not script_text.has_cjk(t)]
+        for token in words + script_text.cjk_phrases(text or ""):
             if token not in terms:
                 terms.append(token)
         return terms[:limit]
@@ -199,9 +202,8 @@ class App:
         draft.update({"keywords": terms[:20], "search_queries": [query],
                       "next_question": "还需要限定应用场景、方法路线或时间范围吗？"})
         if not terms:
-            # The local tokenizer is English-only and OpenAlex titles are mostly English.
-            return ("本地模式只能识别英文词项，这段描述没有提取到关键词。请用英文补充关键词或检索式，"
-                    "例如 world model, robot manipulation。"), draft
+            return ("本地模式没有从这段描述里提取到关键词。请补充关键词或检索式，"
+                    "例如 world model, robot manipulation 或 数字人文、古籍整理。"), draft
         return "我已先按本地词项整理方向。你可以继续补充场景或方法，也可以直接查看候选论文。", draft
 
     def guidance_turn(self, session_id, message, dry_run=False):

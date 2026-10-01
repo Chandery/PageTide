@@ -74,15 +74,21 @@ class ProjectWorkflowTests(unittest.TestCase):
         # A later identical answer is a real new turn.
         self.assertEqual([m["role"] for m in again["session"]["transcript"]], ["user", "assistant", "user", "assistant"])
 
-    def test_local_guidance_says_when_it_finds_no_english_terms(self):
-        session = self.app.create_guidance_session("中文", "用视频预训练的世界模型做机器人操作规划")
+    def test_local_guidance_keeps_chinese_phrases_and_says_when_nothing_is_found(self):
+        # CHAN-01: Chinese descriptions now give Chinese phrase keywords instead of none.
+        session = self.app.create_guidance_session("中文", "数字人文与古籍整理")
+        self.assertEqual(session["draft"]["keywords"], ["数字人文", "古籍整理"])
         with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
-            turn = self.app.guidance_turn(session["id"], "偏向真实机器人")
+            turn = self.app.guidance_turn(session["id"], "偏向地方志")
+        self.assertIn("地方志", turn["session"]["draft"]["keywords"])
+        self.assertNotIn("没有", turn["reply"])
+        empty = self.app.create_guidance_session("空", "？")
+        with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
+            turn = self.app.guidance_turn(empty["id"], "嗯")
         self.assertEqual(turn["session"]["draft"]["keywords"], [])
-        self.assertIn("英文", turn["reply"])
+        self.assertIn("没有从这段描述里提取到关键词", turn["reply"])
         with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
             turn = self.app.guidance_turn(session["id"], "world model, robot manipulation")
-        self.assertNotIn("英文", turn["reply"])
         self.assertIn("robot", turn["session"]["draft"]["keywords"])
 
     def test_malformed_or_failed_guidance_response_stays_local(self):
