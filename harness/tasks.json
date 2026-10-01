@@ -640,6 +640,245 @@
         "project_guidance 需 owner 单独批准才可真实调用",
         "HTTP 路由测试需在允许本地端口绑定的环境重跑"
       ]
+    },
+    {
+      "id": "CHAN-00",
+      "stage": "research",
+      "title": "多学科渠道与凭据：ADR、需求/验收/任务/来源登记",
+      "status": "review",
+      "depends_on": [],
+      "requirements": [
+        "R-CHANNELS",
+        "R-CREDENTIALS",
+        "R-HARNESS"
+      ],
+      "acceptance": [
+        "ADR 0010 记录 owner 决策、四级渠道、保险箱威胁模型与后台会话检索风险",
+        "R-CHANNELS/R-CREDENTIALS 与 E-CHANNELS/E-CREDENTIALS/E-CJK-RANKING 登记且 not_run",
+        "每个渠道有 sources 条目与复查日期；未实测的写明未实测"
+      ],
+      "evidence": [
+        "docs/decisions/0010-multi-channel-credentials-session-search.md"
+      ]
+    },
+    {
+      "id": "CHAN-01",
+      "stage": "delivery",
+      "title": "中文分词与标题归一化（中文论文不再被去重成一篇）",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-00"
+      ],
+      "requirements": [
+        "R-CHANNELS",
+        "R-DISCOVERY"
+      ],
+      "acceptance": [
+        "英文分词与旧版逐字节一致（oracle 测试）",
+        "中文字二元组与少量停用词；中英混合查询可匹配",
+        "不同中文标题得到不同 key；中文固定词把匹配论文排在前面"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-02",
+      "stage": "delivery",
+      "title": "渠道框架、迁移005、跨渠道去重、刷新按项目关键词分发到各渠道",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-01"
+      ],
+      "requirements": [
+        "R-CHANNELS",
+        "R-DISCOVERY",
+        "R-DURABILITY",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "共享 HTTP 客户端：按 host 限速、缓存、错误类型映射、密钥不进缓存 key 与错误信息",
+        "迁移 005 先备份、可重复执行，回填 title_norm/year/paper_ids",
+        "arXiv 与 OpenAlex 记录合并为一个 key；中文标题+年份去重；只补空字段",
+        "刷新使用项目关键词；单渠道失败不阻塞；每个渠道的检索词、条数与错误可见"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-03",
+      "stage": "delivery",
+      "title": "凭据保险箱与“渠道与账号”设置页",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-02"
+      ],
+      "requirements": [
+        "R-CREDENTIALS",
+        "R-CHANNELS",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "钥匙串经 stdin 写入，密钥不在进程参数；非 macOS/测试用 0600 文件",
+        "接口只返回已配置/状态，不回显密钥；同源与 8KB 校验",
+        "替换设置页的死开关；联系邮箱只用于 polite pool 并在隐私说明列出"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-04",
+      "stage": "delivery",
+      "title": "学科预设、建项目学科选择、项目级渠道开关与来源徽标",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-03"
+      ],
+      "requirements": [
+        "R-CHANNELS",
+        "R-PROFILE",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "七个预设；需要 key/登录的渠道列出但标注",
+        "项目级启用/停用持久化；已有项目为 cs_ai",
+        "卡片按实际来源显示徽标与链接，不再写死 arXiv"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-05",
+      "stage": "delivery",
+      "title": "其余 A 级公开渠道与“每个渠道都有测试”守卫",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-02"
+      ],
+      "requirements": [
+        "R-CHANNELS",
+        "R-DISCOVERY"
+      ],
+      "acceptance": [
+        "Semantic Scholar/PubMed/Europe PMC/bioRxiv/medRxiv/DBLP/OpenReview/CORE/DOAJ/HAL/Zenodo/OSF/ERIC 各有 fixture、解析与错误测试",
+        "registry 守卫：缺 fixture/测试/sources/预设即失败",
+        "channel_smoke 每渠道一次极小真实查询，脱敏证据写入 docs/evidence"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-06",
+      "stage": "delivery",
+      "title": "PDF 解析链与 Unpaywall",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-02"
+      ],
+      "requirements": [
+        "R-PDF",
+        "R-CHANNELS",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "顺序：本地→arXiv→开放获取链接→Unpaywall→登录渠道（用户点击）→落地页",
+        "仅 https；重定向后拒绝 loopback/私网；100MB 上限；%PDF 校验；原子写入",
+        "失败原因与落地页可见；不绕过付费墙"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-07",
+      "stage": "delivery",
+      "title": "登录基础设施：Rust 桥接、登录窗口、手动粘贴 Cookie、导入当前页",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-03"
+      ],
+      "requirements": [
+        "R-CREDENTIALS",
+        "R-CHANNELS",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "stdout 持续读取；PDH_SHELL/stdin 行协议有长度与格式校验；不加 Tauri command/capability",
+        "登录窗口独立数据存储且禁止 loopback/私网；CARSI 跨站复用",
+        "无外壳时 409 并提供粘贴 Cookie；owner 走查知网个人与 CARSI 登录、重启与过期提示"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-08",
+      "stage": "delivery",
+      "title": "B 级渠道：WoS Starter、IEEE、Springer、Scopus（用户自己的 key）",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-05"
+      ],
+      "requirements": [
+        "R-CHANNELS",
+        "R-CREDENTIALS"
+      ],
+      "acceptance": [
+        "每日上限按各家条款；key 缺失显示需要密钥",
+        "Scopus 校外无摘要可正常处理",
+        "owner 提供 key 后各一次真实查询"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-09",
+      "stage": "research",
+      "title": "owner 在场实测登录渠道检索端点并录制脱敏 fixture",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-07"
+      ],
+      "requirements": [
+        "R-CHANNELS",
+        "R-CREDENTIALS"
+      ],
+      "acceptance": [
+        "记录知网/万方/维普/NCPSSD/CSSCI 的端点、参数、认证 cookie 名、登录墙与验证码标记",
+        "fixture 去除 cookie/token/账号/机构/IP，经 owner 审核才提交",
+        "translators_CN 只读参考，不复制代码"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-10",
+      "stage": "delivery",
+      "title": "登录渠道后台检索框架 + 知网、万方",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-09"
+      ],
+      "requirements": [
+        "R-CREDENTIALS",
+        "R-CHANNELS",
+        "R-NODEBT"
+      ],
+      "acceptance": [
+        "项目级开关需确认风险；全进程串行、8–15s 间隔、每日上限（临时值待 owner 批准）",
+        "验证码/登录墙首次命中即中止整轮并停用到重新验证",
+        "会话写回保险箱；不进导出/日志/缓存/fixture"
+      ],
+      "evidence": []
+    },
+    {
+      "id": "CHAN-11",
+      "stage": "delivery",
+      "title": "维普、NCPSSD、CSSCI 与登录渠道按需 PDF",
+      "status": "planned",
+      "depends_on": [
+        "CHAN-10",
+        "CHAN-06"
+      ],
+      "requirements": [
+        "R-CHANNELS",
+        "R-PDF",
+        "R-CREDENTIALS"
+      ],
+      "acceptance": [
+        "三个渠道 fixture 与解析/失败测试",
+        "解析失败显示“页面结构变化”",
+        "仅用户点击时经登录渠道下载 PDF，计入上限"
+      ],
+      "evidence": []
     }
   ]
 }

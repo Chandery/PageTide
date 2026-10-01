@@ -2,7 +2,7 @@
   "schema_version": 1,
   "requirements": [
     {"id":"R-REUSE","text":"先评估直接采用/改造开源推荐与画像系统，仅自建已验证的缺口","gates":["E-REUSE"]},
-    {"id":"R-DISCOVERY","text":"领域覆盖和兴趣排序分别验证；少量有用论文、去重、日期与理由可追溯","gates":["E-DATA","E-RANKING"]},
+    {"id":"R-DISCOVERY","text":"领域覆盖和兴趣排序分别验证；少量有用论文、去重、日期与理由可追溯","gates":["E-DATA","E-RANKING","E-CJK-RANKING"]},
     {"id":"R-PROFILE","text":"核心画像透明可编辑冻结撤销；显式反馈学习有效，不把未选/忙/难懂当不喜欢","gates":["E-PROFILE","E-FEEDBACK-VALUE"]},
     {"id":"R-NODEBT","text":"没空/暂停/连续未读不制造阅读债务；只调整提醒与探索，不推断负反馈","gates":["E-NO-DEBT"]},
     {"id":"R-LOCAL","text":"本地保存推荐/画像/反馈/笔记；离线可查看导出；新数据外发最小授权","gates":["E-PRIVACY","E-OFFLINE"]},
@@ -18,6 +18,8 @@
     {"id":"R-HYBRID","text":"允许显式启用的稀疏+大模型混合排序；可关闭、可对照、标注来源模式，模型不可用时回退确定性且不静默换模型","gates":["E-RANKING","E-NO-MODEL","E-BUDGET"]},
     {"id":"R-GRAPH","text":"论文图谱与聚类：相似论文聚合、不同观点/子领域分开、分组标签可编辑；优先复用开源、本地优先","gates":["E-GRAPH","E-ORGANIZATION"]},
     {"id":"R-EVAL-LABEL","text":"评估标签可由大模型预标且对排序不可见；硬门槛需人工抽检标签质量，且同一模型不得同时做重排与最终裁判","gates":["E-LLM-LABEL-VALIDITY","E-RANKING"]},
-    {"id":"R-WEEKLY","text":"周报只基于实际活动，统计本地零token，不制造未读债务","gates":["E-WEEKLY-OPTIONAL"]}
+    {"id":"R-WEEKLY","text":"周报只基于实际活动，统计本地零token，不制造未读债务","gates":["E-WEEKLY-OPTIONAL"]},
+    {"id":"R-CHANNELS","text":"按项目与学科预设选择多学科论文渠道（公开API/用户key/登录会话/只外链四级）；检索词按文字种类分发并可见；单个渠道失败不阻塞其他渠道；跨渠道去重；中文论文可去重与排序","gates":["E-CHANNELS","E-CJK-RANKING","E-PRIVACY"]},
+    {"id":"R-CREDENTIALS","text":"用户本人的API key与登录会话只存本机保险箱（钥匙串/0600文件），任何响应/日志/导出/缓存/fixture不含密钥；登录渠道后台检索须按项目开启并确认风险，串行限速、每日上限、验证码/登录墙即中止","gates":["E-CREDENTIALS","E-SECURITY"]}
   ]
 }

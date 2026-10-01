@@ -1,3 +1,10 @@
+# 当前工作单元：多学科渠道与登录会话——决策与登记（CHAN-00，2026-10-01，worktree `worktree-channels`）
+
+- owner 要求：支持理工科（WoS 等）和文科/中文（知网等）渠道；需要登录的站点登录一次后保存 cookie 继续使用；以后会有其他人使用；每条链路都要测试。
+- owner 已决定：登录渠道后台自动检索（接受条款和封号风险）；按项目选择学科预设，凭据全局共享；在独立 worktree 中开发；可以提供学校 CARSI、知网/万方个人账号和出版商 API key。
+- 本单元只做文档和登记：新增 [ADR 0010](decisions/0010-multi-channel-credentials-session-search.md)；新增 `R-CHANNELS`、`R-CREDENTIALS`；新增 `E-CHANNELS`、`E-CREDENTIALS`、`E-CJK-RANKING`（均为 not_run）；新增任务 `CHAN-00…11`；为每个渠道登记 sources 条目；更新 PRODUCT、DOMAIN、ARCHITECTURE、FEASIBILITY、RESEARCH 和 AGENTS 中的范围说明。没有代码改动，零模型调用。
+- 下一步按顺序实施 CHAN-01（中文分词与标题归一化）→ CHAN-02（渠道框架与迁移 005）→ ……。仍需 owner 拍板：会话检索的每日上限（临时值 10/30，CSSCI 5/15）；万方开放 API 和 PhilPapers 是否接入。记录见[变更](../changes/2026-10-01-chan00-channels-adr.json)。
+
 # 当前工作单元：知识库清空的类别自动删除（2026-10-01）
 
 - owner 反馈：在论文库里「编辑类别」后，某个类别下已经没有论文，但类别还留着，应当删掉。

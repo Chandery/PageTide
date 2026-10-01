@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-chan00-channels-adr",
+  "class": "critical",
+  "summary": "Registers the owner's 2026-10-01 decision to support paper channels for all disciplines (WoS, PubMed, CNKI, Wanfang and others) with saved login sessions. ADR 0010 records the four channel tiers, per-project discipline presets with global credentials, the Keychain vault and its threat model, the stdout/stdin login bridge, the guarded background session search the owner chose (provisional daily caps, unapproved), the PDF resolver chain and CJK handling. Adds R-CHANNELS and R-CREDENTIALS, the not_run evaluations E-CHANNELS, E-CREDENTIALS and E-CJK-RANKING (E-CJK-RANKING also gates R-DISCOVERY), tasks CHAN-00..CHAN-11, a sources entry with recheck date for every channel, and short scope notes in PRODUCT, DOMAIN, ARCHITECTURE (new outbound data: project keywords to enabled channels, contact email to polite pools), FEASIBILITY, RESEARCH, AGENTS and HANDOFF.",
+  "tasks": [
+    "CHAN-00"
+  ],
+  "files": [
+    "AGENTS.md",
+    "changes/2026-10-01-chan00-channels-adr.json",
+    "docs/ARCHITECTURE.md",
+    "docs/DOMAIN.md",
+    "docs/FEASIBILITY.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/RESEARCH.md",
+    "docs/decisions/0010-multi-channel-credentials-session-search.md",
+    "docs/evidence/2026-10-01-chan00-checks.txt",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/sources.json",
+    "harness/tasks.json"
+  ],
+  "scope_note": "Docs and harness registration only, in worktree branch worktree-channels; no app, Rust, prompt or budget code changed. Sources entries were checked against documentation only; none records a live call. Session-search caps in ADR 0010 are provisional and need owner approval.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No runtime code changed. The planned channels are metadata HTTP calls with zero model tokens; their request budgets are registered per task and measured later.",
+    "before": "Zero model tokens; OpenAlex only.",
+    "after": "Zero model tokens; unchanged runtime until CHAN-02."
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-chan00-checks.txt",
+      "note": "The first run in the evidence file failed only because this change record did not exist yet; re-run after writing it passed."
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-chan00-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 1,
+      "evidence": "docs/evidence/2026-10-01-chan00-checks.txt",
+      "note": "296 of 320 passed; the 24 errors are HTTP tests whose localhost bind the agent sandbox blocks (EPERM), same as baseline. No code changed in this unit."
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; read the full diff, checked that every new requirement has a task and gates, every new evaluation is referenced and not_run, and that no doc claims a live call or measurement.",
+      "evidence": "docs/evidence/2026-10-01-chan00-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Background session search may breach CNKI and other sites' terms and get the owner's account or campus IP range blocked; guards only lower the chance.",
+    "Provisional session-search daily caps (10/30, CSSCI 5/15; hard 30/100) are unapproved.",
+    "Channel facts (quotas, key requirements, endpoints) come from documentation read on 2026-10-01 and may change; session-channel endpoints are not yet observed.",
+    "Critical class needs an independent review before release; none was run for this docs-only unit."
+  ]
+}

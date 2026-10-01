@@ -1,0 +1,11 @@
+FAIL docs/HANDOFF.md: missing file link ../changes/2026-10-01-chan00-channels-adr.json
+PASS budget arithmetic and generated document parity (no live API)
+
+## python3 -m unittest discover -s tests -v (2026-10-01, worktree-channels, after CHAN-00 edits)
+Ran 320 tests: 296 passed, 24 errors. All 24 errors are PermissionError [Errno 1] on localhost bind (agent sandbox blocks local ports): test_app_server / test_organization_http / test_provider_settings HTTP tests. Same set as the pre-change baseline. Not re-run outside the sandbox.
+CHAN-00 changes only docs and harness JSON; no app code changed.
+
+## Desktop build
+.local/desktop-build-env/bin/python scripts/build_desktop.py -> exit 0 (worktree .local/desktop-build-env is a symlink to the main checkout venv)
+cargo tauri build --bundles app -> exit 0; bundle at src-tauri/target/release/bundle/macos/PaperDigHelper.app (worktree target dir). Not launched or clicked through.
+PASS repository checks only; app gates/real billing are not implied

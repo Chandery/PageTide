@@ -62,7 +62,7 @@
       "url": "https://developers.openalex.org/api-reference/authentication",
       "verified_on": "2026-09-11",
       "recheck_after_days": 30,
-      "claim": "OpenAlex works API: metered. Observed 2026-09-11: each search costs $0.001 / 10 credits, daily allowance 1000 credits and $0.10 (reset ~22h); bursts of ~0.3s trigger HTTP 429 and need >=2s pacing plus Retry-After. Keyword search is NOT a field filter (3.28M hits for 'world model'); references are largely absent for arXiv preprints (only 1/8 resolved seeds had any).",
+      "claim": "OpenAlex works API: metered. Observed 2026-09-11: each search costs $0.001 / 10 credits, daily allowance 1000 credits and $0.10 (reset ~22h); bursts of ~0.3s trigger HTTP 429 and need >=2s pacing plus Retry-After. Keyword search is NOT a field filter (3.28M hits for 'world model'); references are largely absent for arXiv preprints (only 1/8 resolved seeds had any). Since 2026-02-13 OpenAlex expects a per-user API key (survey 2026-10-01); keyless allowance to be measured in CHAN-02/03.",
       "verification": "Live read-only probe tools/data_probe.py: 8/10 seeds resolved to DOI/OpenAlex IDs, abstracts present, citations sparse, future-dated records found without a date ceiling; raw snapshots kept in .local/, report in docs/evidence/2026-09-11-data01-openalex-report.md"
     },
     {
@@ -400,6 +400,214 @@
       "recheck_after_days": 30,
       "claim": "deepseek-flash accepts OpenAI-compatible content parts: text plus image_url with either a base64 data URL or a public http(s) link (<=32 MiB, link <=8192 chars). The same model name serves vision, so no separate vision model is required.",
       "verification": "official vision guide fetched (HTTP 200); request shape cross-checked with the OpenAI-format example on the page; no live image call made yet"
+    },
+    {
+      "id": "CH-ARXIV-API",
+      "url": "https://info.arxiv.org/help/api/user-manual.html",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "arXiv Atom query API (export.arxiv.org/api/query): search_query by ti/abs/all, sortBy submittedDate; legacy terms ask <=1 request per 3 s, single connection.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-PUBMED",
+      "url": "https://www.ncbi.nlm.nih.gov/books/NBK25497/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "NCBI E-utilities esearch/efetch: free; 3 req/s without key, 10 req/s with a user API key; tool and email parameters requested.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-EUROPEPMC",
+      "url": "https://europepmc.org/RestfulWebService",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "Europe PMC REST search: free, no key; JSON results with title/abstract/doi/pmid/OA flags.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-BIORXIV",
+      "url": "https://api.biorxiv.org/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "bioRxiv/medRxiv API: details by date interval with cursor paging (100 per page); no keyword search endpoint, so filtering is local.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-DBLP",
+      "url": "https://dblp.org/faq/How+to+use+the+dblp+search+API.html",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "dblp publication search API (dblp.org/search/publ/api?format=json): free, no abstracts; polite rate expected.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-OPENREVIEW",
+      "url": "https://docs.openreview.net/getting-started/using-the-api",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "OpenReview API v2 (api2.openreview.net/notes/search): public notes searchable without login; rate limited.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-CORE",
+      "url": "https://core.ac.uk/services/api",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "CORE API v3 search/works: free registration key required for practical use; OA full-text links.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-DOAJ",
+      "url": "https://doaj.org/api/v4/docs",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "DOAJ API v4 search/articles: free, no key for search; open-access journal articles only.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-HAL",
+      "url": "https://api.archives-ouvertes.fr/docs/search",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "HAL search API (Solr syntax, wt=json): free, no key; strong humanities/social-science coverage, French and English.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-ZENODO",
+      "url": "https://developers.zenodo.org/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "Zenodo records search API: free; search API behaviour changed 2025-11 (blog.zenodo.org), anonymous rate limits apply.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-OSF",
+      "url": "https://developer.osf.io/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "OSF API v2 preprints (PsyArXiv, SocArXiv etc.): free, no key for public preprints; filter by provider.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-ERIC",
+      "url": "https://eric.ed.gov/?api",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "ERIC API (api.ies.ed.gov/eric): free, no key; education research records.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-UNPAYWALL",
+      "url": "https://unpaywall.org/products/api",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "Unpaywall REST by DOI: free with email parameter, 100k calls/day; returns best open-access PDF location; PDF lookup only.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-WOS-STARTER",
+      "url": "https://developer.clarivate.com/apis/wos-starter",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 30,
+      "claim": "Web of Science Starter API: per-user API key from Clarivate developer portal; free trial plan has a small daily quota (about 50 requests/day at survey time).",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-IEEE",
+      "url": "https://developer.ieee.org/API_Terms_of_Use2",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "IEEE Xplore Metadata API: per-user key; terms forbid sharing keys; daily call cap (about 200/day default).",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-SPRINGER",
+      "url": "https://dev.springernature.com/terms-conditions/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "Springer Nature Metadata/Open Access API: per-user key; free tier has a daily cap (about 500/day).",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-SCOPUS",
+      "url": "https://dev.elsevier.com/api_key_settings.html",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 60,
+      "claim": "Elsevier Scopus Search API: per-user key; weekly/rate quotas; abstracts and full views need an institutional (campus IP or insttoken) entitlement.",
+      "verification": "official documentation page identified in the 2026-10-01 channel survey; no live call from this app yet (CHAN-05/08 smoke pending)"
+    },
+    {
+      "id": "CH-CNKI",
+      "url": "https://www.cnki.net/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 14,
+      "claim": "CNKI (中国知网): personal or institutional (IP/CARSI) login; no public search API; foreign access tightened since 2023; automated querying not permitted by default terms (owner accepted the risk, ADR 0010).",
+      "verification": "site and access model identified in the 2026-10-01 survey (library guides/news); search endpoints undocumented and not yet observed (CHAN-09 owner-present discovery pending)"
+    },
+    {
+      "id": "CH-WANFANG",
+      "url": "https://www.wanfangdata.com.cn/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 14,
+      "claim": "Wanfang (万方数据): personal or institutional login; an open-skills/open API exists (github.com/wanfangdata/wfdata-open-skills) but its terms are unclear, so tier B use is deferred.",
+      "verification": "site and access model identified in the 2026-10-01 survey (library guides/news); search endpoints undocumented and not yet observed (CHAN-09 owner-present discovery pending)"
+    },
+    {
+      "id": "CH-CQVIP",
+      "url": "https://www.cqvip.com/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 14,
+      "claim": "VIP / CQVIP (维普): institutional or personal login; no public search API.",
+      "verification": "site and access model identified in the 2026-10-01 survey (library guides/news); search endpoints undocumented and not yet observed (CHAN-09 owner-present discovery pending)"
+    },
+    {
+      "id": "CH-NCPSSD",
+      "url": "https://www.ncpssd.cn/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 14,
+      "claim": "National Center for Philosophy and Social Sciences Documentation (NCPSSD, 国家哲学社会科学文献中心): free personal registration; humanities/social-science journals; no documented API; endpoints known to be fragile.",
+      "verification": "site and access model identified in the 2026-10-01 survey (library guides/news); search endpoints undocumented and not yet observed (CHAN-09 owner-present discovery pending)"
+    },
+    {
+      "id": "CH-CSSCI",
+      "url": "https://cssci.nju.edu.cn/",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 14,
+      "claim": "CSSCI (中文社会科学引文索引, Nanjing University): institutional access only; no public API; strict access controls.",
+      "verification": "site and access model identified in the 2026-10-01 survey (library guides/news); search endpoints undocumented and not yet observed (CHAN-09 owner-present discovery pending)"
+    },
+    {
+      "id": "CARSI",
+      "url": "https://library.xmu.edu.cn/zy/xwfw/CARSI.htm",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 30,
+      "claim": "CARSI (CERNET federated identity): university SSO to CNKI, WoS, Scopus and others from off campus; session cookies at the IdP make re-login a single click.",
+      "verification": "several university library CARSI guides read in the 2026-10-01 survey; not yet exercised with the owner's account"
+    },
+    {
+      "id": "TRANSLATORS-CN",
+      "url": "https://github.com/l0o0/translators_CN",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "Zotero translators for Chinese sites (CNKI, Wanfang, VIP ...): used only as read-only reference for endpoints/selectors; licence may be AGPL, so nothing is copied or bundled.",
+      "verification": "repository page identified in the 2026-10-01 survey; licence file to be re-read before CHAN-09 uses it as reference"
+    },
+    {
+      "id": "TAURI-WEBVIEW",
+      "url": "https://docs.rs/tauri/2.11.5/tauri/webview/struct.WebviewWindowBuilder.html",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "Tauri 2.11.5 WebviewWindowBuilder: data_store_identifier (macOS 14+, separate WKWebsiteDataStore), on_page_load, on_navigation, on_new_window, on_download; WebviewWindow::cookies() includes HttpOnly cookies and must run off the main thread; cookies_for_url only matches the exact host.",
+      "verification": "read in the local cargo registry source tauri-2.11.5/src/webview/webview_window.rs (lines 266/315/384/421/1135/2537/2562) and wry wkwebview/mod.rs; not yet exercised in a build"
+    },
+    {
+      "id": "LINKOUT-D",
+      "url": "https://libraries.acm.org/digital-library/policies",
+      "verified_on": "2026-10-01",
+      "recheck_after_days": 90,
+      "claim": "Tier D link-out only: Google Scholar, Baidu Scholar, SSRN, ACM DL, JSTOR, RePEc and direct ChemRxiv have no usable public search API or terms forbid automated access; the app only builds a search link.",
+      "verification": "ACM DL policy, SSRN terms and Google Scholar API status pages read in the 2026-10-01 survey"
     }
   ]
 }

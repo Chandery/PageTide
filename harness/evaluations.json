@@ -184,6 +184,27 @@
       "activation": "Enable gate before reports/reminders are adopted/released.",
       "method": "No-activity/busy/pause/week boundaries: only actual activity, no private notes without consent, reminders capped, no invented work or reading debt.",
       "evidence": []
+    },
+    {
+      "id": "E-CHANNELS",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "Per registered channel: sanitized fixtures for success/empty/401-403/429/malformed (session channels add CAPTCHA and login-wall pages) map to the right error kind; registry guard fails on any channel missing fixture, parse test, error test, sources entry or preset; one tiny live query per channel via tools/channel_smoke.py (tier A by agent, tier B/C with owner key/session present); one failing channel never blocks the others; per-channel query terms visible.",
+      "evidence": []
+    },
+    {
+      "id": "E-CREDENTIALS",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "Secrets never appear in any HTTP response, log, export, backup, cache file, fixture or subprocess argv; file backend is 0600; live Keychain round trip incl. a >=32KB session value; session expiry becomes visible 'expired'; auto-search refuses without acknowledged_risk, never exceeds hard caps, aborts the whole run on the first CAPTCHA/login-wall response; owner walkthrough: CNKI personal + CARSI login, restart, re-login.",
+      "evidence": []
+    },
+    {
+      "id": "E-CJK-RANKING",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "English tokenization byte-identical to the pre-CJK tokenizer on seeds/fixtures (oracle test); distinct Chinese titles get distinct keys; a Chinese pinned term ranks matching Chinese papers first in a synthetic pool; real Chinese-corpus ranking quality judged by a Chinese-discipline user before any quality claim.",
+      "evidence": []
     }
   ]
 }

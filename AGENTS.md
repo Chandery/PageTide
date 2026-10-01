@@ -3,7 +3,7 @@
 ## Purpose and current phase
 PaperDigHelper's core is useful paper recommendations and a transparent, editable user profile learned from explicit feedback.
 The owner reset the old ABCD roadmap on 2026-09-11. Research reusable systems and validate recommendation/profile value before choosing an app stack.
-Current work is research and replanning. At the owner's request, the old app, incomplete reader fixes, dependencies and runtime generators have been removed. The reuse survey, stage plan and a **pre-build token budget proposal** are registered; the budget is unapproved and unmeasured. v1 = recommendation/profile core + PDF download/archive + AI triage with follow-up QA; owner confirmed English AI / world models, macOS-only, Zotero.
+Current work is research and replanning. At the owner's request, the old app, incomplete reader fixes, dependencies and runtime generators have been removed. The reuse survey, stage plan and a **pre-build token budget proposal** are registered; the budget is unapproved and unmeasured. v1 = recommendation/profile core + PDF download/archive + AI triage with follow-up QA; owner confirmed English AI / world models, macOS-only, Zotero. Since 2026-10-01 scope extends to other disciplines and Chinese channels with saved login sessions ([ADR 0010](docs/decisions/0010-multi-channel-credentials-session-search.md), CHAN-*).
 Read [HANDOFF](docs/HANDOFF.md), [DOMAIN](docs/DOMAIN.md), [ROADMAP](docs/ROADMAP.md), [RESEARCH](docs/RESEARCH.md) and [BRAINSTORM](docs/BRAINSTORM.md) before choosing work.
 
 ## Source of truth

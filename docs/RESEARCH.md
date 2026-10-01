@@ -109,6 +109,8 @@ OpenAlex当前[价格页](https://developers.openalex.org/api-reference/authenti
 
 数据适配计划必须区分首次发表、版本更新、抓取发现日期；标题相似不能直接合并不同论文。要先测领域种子回收和摘要完整性，再选一个主源，不能默认所有研究都在arXiv。
 
+2026-10-01 渠道调研扩展到其他学科与中文渠道，按 A（公开 API）/ B（用户 key）/ C（登录会话）/ D（只给外链）分级，每个渠道的文档链接、条款要点与复查日期登记在 `harness/sources.json`（`CH-*`、`CARSI`、`TRANSLATORS-CN`、`TAURI-WEBVIEW`、`LINKOUT-D`）。结论与风险见 [ADR 0010](decisions/0010-multi-channel-credentials-session-search.md)。这些条目都只核对过文档，尚无本应用的真实调用。
+
 ### 3b. DATA-01 实测（2026-09-11）
 
 只读探针 `tools/data_probe.py` + 原始快照，完整报告见 [DATA-01 报告](evidence/2026-09-11-data01-openalex-report.md)。要点：
