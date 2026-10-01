@@ -21,6 +21,29 @@
 - 本单元只做文档和登记：新增 [ADR 0010](decisions/0010-multi-channel-credentials-session-search.md)；新增 `R-CHANNELS`、`R-CREDENTIALS`；新增 `E-CHANNELS`、`E-CREDENTIALS`、`E-CJK-RANKING`（均为 not_run）；新增任务 `CHAN-00…11`；为每个渠道登记 sources 条目；更新 PRODUCT、DOMAIN、ARCHITECTURE、FEASIBILITY、RESEARCH 和 AGENTS 中的范围说明。没有代码改动，零模型调用。
 - 下一步按顺序实施 CHAN-01（中文分词与标题归一化）→ CHAN-02（渠道框架与迁移 005）→ ……。仍需 owner 拍板：会话检索的每日上限（临时值 10/30，CSSCI 5/15）；万方开放 API 和 PhilPapers 是否接入。记录见[变更](../changes/2026-10-01-chan00-channels-adr.json)。
 
+# 当前工作单元：创建项目流程重做（2026-10-02，分支 feature/project-creation-redesign）
+
+- owner 反馈：AI 参与时没有状态反馈、不知道有没有在请求；候选论文空白后整批突然出现且只有题目；快速创建和 AI 引导几乎一样；手动种子只认标识符，应能拖 PDF 或按名称检索。
+- 做了什么（详见 [ADR 0010](decisions/0010-project-creation-flow.md)）：
+  - 页面拆成 `project_creation.html` + `project-creation.css` + `project-creation.js` + `creation-pdf.js`（纯函数，有 node 测试）。
+  - 每次等待显示动作和已等秒数；每个 AI 回合标明“AI 已回复 · 约 N token · X 秒”或“没有使用 AI + 原因”（无 key、总开关关闭、未批准、预算、HTTP、网络、回复格式），可一键重试；没拿到 AI 回答的回合不占 6 轮名额。
+  - 候选论文逐条检索、逐批出现，先有占位；卡片有作者、日期、可展开摘要、原文链接和命中的检索式；不预勾选。
+  - 快速创建＝一次 AI（服务端限制 1 次 AI 回合）+ 自动检索 + 审阅；AI 引导＝对话（开始即回应目标，页面上的修改带入下一轮）；手动创建＝关键词 + 种子（DOI/arXiv/链接、名称检索、拖入 PDF）。
+  - PDF：浏览器用内置 pdf.js 读前两页，找 arXiv 编号 / DOI / 标题，再向 OpenAlex 核对（相似度 ≥ 0.8 自动采用，否则让用户选）；原文件保存为该论文的 PDF，不上传。Tauri 窗口加了 `disable_drag_drop_handler()`。
+  - 后端：新增 `app/creation.py`、路由 `/api/seeds/resolve|search|pdf` 和 `/api/project-guidance/sessions/<id>/search`，`turn` 增加 `retry` 与 `draft`。
+- 没有新增模型操作，也没有改预算上限。
+- 未验证：桌面包里实际拖放 PDF、OpenAlex 名称检索与 PDF 匹配的真实命中率、真实 DeepSeek 回合；沙盒连不上外网，浏览器检查用的是模拟接口。候选检索本身仍是 arXiv / 2024 起 / 按日期倒序的标题词检索。
+- 独立审查未做；见[自审](evidence/2026-10-02-creation-flow-review.md)和[变更](../changes/2026-10-02-creation-flow.json)。
+
+# 当前工作单元：项目创建的 AI 引导接上模型（2026-10-01）
+
+- owner 反馈：创建项目的三种入口测试时都是本地模式，没有接上模型。
+- 原因：不是接线错误。`harness/budget.json` 里 `project_guidance` 的 `owner_approved` 一直是 `false`，网关 `admit()` 因此对每一轮都返回“待 owner 批准”，服务退回本地词项解析。手动创建本来就不调用模型；快速创建和 AI 引导走同一个 `guidance_turn`。
+- owner 在会话中明确批准后，改为 `owner_approved: true`（单会话最多 6 轮，每轮上限 1200 输入 / 500 输出，沿用全局日/月上限；没有 key、AI 总开关关闭或超预算时仍降级为本地模式）。
+- 顺带修复：系统提示里的 JSON 示例缺了 `search_queries` 与 `next_question` 的开头引号（审批前从未真正发送过），加了解析该示例的测试。
+- 测试：原来断言“未批准就拒绝”的三个测试改为用关闭审批的网关配置验证机制；新增“已批准则发送一次并按上限预留”和“模型回复生成 mode=ai”的测试。`test_project_chain` 现在整类替换 `urlopen`，因为该操作批准后不再是“没发请求”。
+- 未实测：没有对 DeepSeek 做真实调用，回答质量和实际 token 用量都没有测量；沙盒阻止本地端口，HTTP 测试需在终端重跑。创建页仍写“本地优先”“可随时切换本地模式”，降级原因（无 key / 总开关 / 超预算）仍只显示“AI 未参与本轮”。
+
 # 当前工作单元：知识库清空的类别自动删除（2026-10-01）
 
 - owner 反馈：在论文库里「编辑类别」后，某个类别下已经没有论文，但类别还留着，应当删掉。
@@ -155,7 +178,7 @@
 
 已实现本地 `project_guidance_sessions` 草稿会话、六轮结构化引导、候选预览、用户确认和本地降级；手动 DOI/arXiv 种子逐个解析并记录部分失败。新增 `project_papers` 与 `project_library` 迁移，使规范论文事实可跨项目复用，同时反馈、收藏、曝光、推荐、画像和问答历史保持项目隔离。论文详情支持显式加入其他项目，项目删除只清理关系和项目状态，不删除全局论文事实。
 
-新增验证覆盖会话恢复/取消/六轮上限、AI/本地路径、候选确认、共享论文隔离、删除保留、HTTP 路由和创建页静态行为。预算登记了独立的 `project_guidance` 操作，但该操作标记为待 owner 批准，网关会强制本地模式；本工作单元没有进行真实模型调用。待完成：完整 harness/review 记录、桌面构建及独立审查。
+新增验证覆盖会话恢复/取消/六轮上限、AI/本地路径、候选确认、共享论文隔离、删除保留、HTTP 路由和创建页静态行为。预算登记了独立的 `project_guidance` 操作；本工作单元完成时它标记为待 owner 批准（此后已批准，见上方“AI 引导接上模型”），当时没有进行真实模型调用。待完成：完整 harness/review 记录、桌面构建及独立审查。
 
 # 当前交接：推荐优先路线、复用调研与行动前 token 预算
 

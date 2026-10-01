@@ -28,11 +28,46 @@ class GuidedCreationTests(unittest.TestCase):
         env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PDH_DEV": "0"})
         env.start()
         self.addCleanup(env.stop)
+        # project_guidance is owner-approved, so the gateway would really send: the transport is
+        # replaced for every test here and an offline network must leave the session usable.
+        transport = mock.patch("app.gateway.urllib.request.urlopen",
+                               side_effect=urllib.error.URLError("offline"))
+        self.urlopen = transport.start()
+        self.addCleanup(transport.stop)
         self.data = Path(self.tmp.name) / "app"
         self.app = App(root=ROOT, data_dir=self.data)
 
+    def answer_like_the_model(self, keywords=("world models",)):
+        reply = {"reply": "先限定场景", "draft": {"keywords": list(keywords), "search_queries": ["world models planning"],
+                                                  "learning_path": [], "next_question": "哪类环境？"}}
+        body = json.dumps({"model": "deepseek-flash", "choices": [{"message": {"content": json.dumps(reply)}}],
+                           "usage": {"prompt_tokens": 300, "completion_tokens": 100, "total_tokens": 400}}).encode()
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = body
+        self.urlopen.side_effect = None
+        self.urlopen.return_value = response
+
+    def test_approved_guidance_turn_uses_the_model_reply(self):
+        self.answer_like_the_model()
+        session = self.app.create_guidance_session("接模型", "world models")
+        turn = self.app.guidance_turn(session["id"], "world models")
+        self.assertEqual(turn["mode"], "ai")
+        self.assertFalse(turn["degraded"])
+        self.assertEqual(turn["reply"], "先限定场景")
+        self.assertEqual(turn["tokens"], 400)
+        self.assertIsNone(turn["reason_code"])
+        self.assertEqual(self.urlopen.call_count, 1)
+
+    def test_guidance_prompt_schema_example_is_valid_json(self):
+        session = self.app.create_guidance_session("提示", "world models")
+        self.app.guidance_turn(session["id"], "world models")
+        system = json.loads(self.urlopen.call_args[0][0].data)["messages"][0]["content"]
+        schema = json.loads(system[system.index("{"):system.rindex("}") + 1])
+        self.assertEqual(set(schema["draft"]), {"keywords", "search_queries", "learning_path", "next_question"})
+
     def test_draft_resumes_after_restart(self):
         session = self.app.create_guidance_session("可恢复", "world model planning")
+        self.answer_like_the_model(["robot manipulation"])
         self.app.guidance_turn(session["id"], "robot manipulation")
         restarted = App(root=ROOT, data_dir=self.data)
         resumed = restarted.store.guidance_session(session["id"])
@@ -62,14 +97,82 @@ class GuidedCreationTests(unittest.TestCase):
         with self.assertRaises(LookupError):
             self.app.cancel_guidance("missing")
 
+    def test_turns_without_an_ai_answer_do_not_use_up_the_six(self):
+        session = self.app.create_guidance_session("离线", "latent planning")
+        for i in range(GUIDANCE_MAX_TURNS + 2):  # offline transport: every turn degrades to local
+            turn = self.app.guidance_turn(session["id"], f"方向 {i}")
+            self.assertEqual((turn["mode"], turn["reason_code"]), ("local", "network"))
+        self.assertEqual(self.app.store.guidance_session(session["id"])["turn_count"], 0)
+
+    def test_retry_asks_the_model_again_without_recording_the_question_twice(self):
+        session = self.app.create_guidance_session("重试", "latent planning")
+        self.app.guidance_turn(session["id"], "world models")  # offline: local answer
+        self.answer_like_the_model()
+        turn = self.app.guidance_turn(session["id"], None, retry=True)
+        self.assertEqual(turn["mode"], "ai")
+        roles = [m["role"] for m in turn["session"]["transcript"]]
+        self.assertEqual(roles, ["user", "user", "assistant"])  # goal, question, one answer
+        self.assertEqual(turn["session"]["turn_count"], 1)
+        with self.assertRaisesRegex(ValueError, "重试"):
+            self.app.guidance_turn(session["id"], None, retry=True)  # last answer came from the model
+
+    def test_quick_creation_is_a_single_ai_call(self):
+        session = self.app.create_guidance_session("快速", "world models", "quick")
+        self.answer_like_the_model()
+        self.assertEqual(self.app.guidance_turn(session["id"], "world models")["mode"], "ai")
+        with self.assertRaisesRegex(ValueError, "快速创建"):
+            self.app.guidance_turn(session["id"], "再问一次")
+        self.assertEqual(self.urlopen.call_count, 1)
+
+    def test_the_reason_a_turn_had_no_ai_is_named(self):
+        session = self.app.create_guidance_session("原因", "latent planning")
+        turn = self.app.guidance_turn(session["id"], "a", dry_run=True)
+        self.assertEqual(turn["reason_code"], "dry_run")
+        import io
+        self.urlopen.side_effect = urllib.error.HTTPError("u", 401, "no", {}, io.BytesIO(b""))
+        turn = self.app.guidance_turn(session["id"], "b")
+        self.assertEqual((turn["reason_code"], turn["mode"]), ("http", "local"))
+        self.assertIn("401", turn["reason"])
+        self.assertIn("401", self.app.store.guidance_session(session["id"])["transcript"][-1]["reason_text"])
+        self.urlopen.side_effect = None
+        self.urlopen.return_value = mock.MagicMock()
+        self.urlopen.return_value.__enter__.return_value.read.return_value = json.dumps(
+            {"choices": [{"message": {"content": "not json"}}], "usage": {"prompt_tokens": 1, "completion_tokens": 1}}).encode()
+        turn = self.app.guidance_turn(session["id"], "c")
+        self.assertEqual(turn["reason_code"], "bad_reply")
+        self.assertEqual(self.app.store.guidance_session(session["id"])["transcript"][-1]["reason"], "bad_reply")
+
+    def test_search_streams_per_query_and_merges_candidates(self):
+        session = self.app.create_guidance_session("流式", "world models")
+        with mock.patch.object(self.app.source, "discover", return_value=[candidate("a"), candidate("b")]):
+            first = self.app.guidance_search(session["id"], "world models")
+        with mock.patch.object(self.app.source, "discover", return_value=[candidate("b"), candidate("c")]):
+            second = self.app.guidance_search(session["id"], "latent planning")
+        self.assertEqual([i["new"] for i in first["items"]], [True, True])
+        self.assertEqual([(i["key"], i["new"]) for i in second["items"]], [("b", False), ("c", True)])
+        self.assertEqual(second["total"], 3)
+        merged = {i["key"]: i["matched_queries"] for i in second["items"]}
+        self.assertEqual(merged["b"], ["world models", "latent planning"])
+        stored = self.app.store.guidance_session(session["id"])["draft"]["candidates"]
+        self.assertEqual([p["key"] for p in stored], ["a", "b", "c"])
+
+    def test_a_failed_query_reports_why_and_keeps_earlier_results(self):
+        from app.sources import SourceError
+        session = self.app.create_guidance_session("限流", "world models")
+        with mock.patch.object(self.app.source, "discover", return_value=[candidate("a")]):
+            self.app.guidance_search(session["id"], "q1")
+        with mock.patch.object(self.app.source, "discover", side_effect=SourceError("503", "unavailable")):
+            result = self.app.guidance_search(session["id"], "q2")
+        self.assertEqual((result["items"], result["error"]["kind"], result["total"]), ([], "unavailable", 1))
+
     def test_after_six_turns_the_draft_can_still_be_edited_and_confirmed(self):
         session = self.app.create_guidance_session("六轮", "latent planning")
-        with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
-            for i in range(GUIDANCE_MAX_TURNS):
-                self.app.guidance_turn(session["id"], f"方向 {i}")
-            with self.assertRaises(ValueError):
-                self.app.guidance_turn(session["id"], "第七轮")
-        urlopen.assert_not_called()  # project_guidance is not owner-approved
+        self.answer_like_the_model()
+        for i in range(GUIDANCE_MAX_TURNS):
+            self.assertEqual(self.app.guidance_turn(session["id"], f"方向 {i}")["mode"], "ai")
+        with self.assertRaises(ValueError):
+            self.app.guidance_turn(session["id"], "第七轮")
+        self.assertEqual(self.urlopen.call_count, GUIDANCE_MAX_TURNS)  # no retry, nothing after the cap
         edited = {"keywords": ["edited term"], "search_queries": ["edited query"]}
         with mock.patch.object(self.app.source, "discover", return_value=[candidate("c1"), candidate("c2")]):
             preview = self.app.guidance_preview(session["id"], edited)

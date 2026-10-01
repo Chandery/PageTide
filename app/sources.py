@@ -60,6 +60,8 @@ def slim(work, group="field"):
         "published": work.get("publication_date"),
         "source": ((work.get("primary_location") or {}).get("source") or {}).get("display_name"),
         "topic": topic,
+        "authors": [name for name in ((a.get("author") or {}).get("display_name")
+                                      for a in (work.get("authorships") or [])[:6]) if name],
         "group_name": group,
     }
 
@@ -122,6 +124,16 @@ class OpenAlex:
         """Fetch one work by DOI URL, OpenAlex ID or W-id. Used for seed resolution."""
         # Quote so a stray "?", "#" or space cannot change which request is made.
         return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}", ttl=LOOKUP_TTL)
+
+    def search_works(self, query, per_page=8):
+        """Relevance search by paper name for the manual seed picker (an explicit user query).
+
+        No source or date restriction: a seed may be older or outside arXiv. Only the typed
+        text is sent, as a public metadata query.
+        """
+        params = {"search": query, "per-page": per_page, "mailto": MAILTO}
+        payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
+        return [slim(work, group="seed") for work in payload.get("results", []) if work.get("title")]
 
     def find_arxiv(self, arxiv_id):
         """Find an arXiv paper by its landing page when OpenAlex lacks the arXiv DOI (common before 2022).

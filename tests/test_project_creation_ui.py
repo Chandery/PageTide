@@ -1,45 +1,84 @@
+"""Static contracts of the project-creation page; behaviour is covered by the backend and node tests."""
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+STATIC = ROOT / "app/static"
 
 
 class ProjectCreationUITests(unittest.TestCase):
     def setUp(self):
-        self.html = (ROOT / "app/static/project_creation.html").read_text()
-        self.index = (ROOT / "app/static/index.html").read_text()
+        self.html = (STATIC / "project_creation.html").read_text()
+        self.js = (STATIC / "project-creation.js").read_text()
+        self.css = (STATIC / "project-creation.css").read_text()
+        self.index = (STATIC / "index.html").read_text()
 
-    def test_guided_creation_is_a_confirmed_local_preview_flow(self):
-        for marker in ("/api/project-guidance/sessions", "/turn", "/preview", "/finalize",
-                       "候选论文（勾选后才会加入项目）", "本地模式可用", "6"):
+    def test_page_is_split_into_markup_style_and_script(self):
+        for asset in ("/project-creation.css", "/creation-pdf.js", "/project-creation.js"):
+            self.assertIn(asset, self.html)
+            self.assertTrue((STATIC / asset.lstrip("/")).is_file())
+        self.assertNotIn("<style>", self.html)
+
+    def test_three_modes_are_distinct_and_say_what_they_cost(self):
+        for mode in ("quick", "ai_guided", "manual"):
+            self.assertIn(f'data-mode="{mode}"', self.html)
+        for label in ("AI · 1 次调用", "AI · 最多 6 轮", "不用 AI"):
+            self.assertIn(label, self.html)
+        self.assertIn('role="radiogroup"', self.html)
+        # Quick creation has no conversation box; guided creation does.
+        quick = self.html[self.html.index('id="quickForm"'):self.html.index('id="guidedForm"')]
+        self.assertNotIn("guideMessage", quick)
+        self.assertIn('id="guideMessage"', self.html)
+
+    def test_every_wait_has_a_live_status_with_elapsed_time(self):
+        for region in ("quickActivity", "guidedActivity", "seedSearchActivity", "manualActivity"):
+            self.assertRegex(self.html, rf'id="{region}" role="status" aria-live="polite"')
+        self.assertIn('data-role="searchActivity"', self.html)
+        for marker in ("function makeActivity", "最长约", "setInterval(tick"):
+            self.assertIn(marker, self.js)
+        self.assertIn("prefers-reduced-motion", self.css)
+
+    def test_each_ai_turn_says_whether_the_model_answered(self):
+        for marker in ("AI 已回复", "这一轮没有使用 AI", "reason_text", "重试 AI", "retry: true", "打开设置"):
+            self.assertIn(marker, self.js)
+        # A failed request keeps what was typed instead of swallowing it.
+        self.assertIn("guideMessage').value = message", self.js)
+
+    def test_candidates_stream_per_query_with_placeholders_and_details(self):
+        self.assertIn("/search`", self.js)
+        self.assertNotIn("/preview", self.js)
+        for marker in ("skeleton", "matched_queries", "展开摘要", "打开原文", "继续查找", "OpenAlex 暂时不可用"):
+            self.assertIn(marker, self.js)
+        # The model never selects: nothing starts ticked.
+        self.assertIn("selected.has(paper.key)", self.js)
+        self.assertIn("勾选后才会加入项目", self.html)
+        self.assertNotIn("selected.add(paper.key)", self.js)
+
+    def test_manual_seeds_accept_identifiers_titles_and_dropped_pdfs(self):
+        for marker in ('id="seedInput"', 'id="dropzone"', 'id="pdfPick"', "PDF 文件本身不离开这台电脑"):
             self.assertIn(marker, self.html)
-        self.assertNotIn("敬请期待", self.html)
-        self.assertNotIn("AI 帮你初筛论文", self.html)
+        for marker in ("/api/seeds/resolve", "/api/seeds/search", "/api/seeds/pdf", "pdf_id",
+                       "getTextContent", "PDF.identify", "looksLikeIdentifier"):
+            self.assertIn(marker, self.js)
+        self.assertIn("creation_mode: 'manual'", self.js)
 
-    def test_manual_creation_sends_seed_identifiers_and_url_project_wins(self):
-        self.assertIn("seeds", self.html)
-        self.assertIn("creation_mode:'manual'", self.html)
-        self.assertIn("new URLSearchParams(window.location.search).get('project_id')", self.index)
-
-    def test_preview_errors_replace_one_slot_and_name_openalex_outage(self):
-        self.assertIn('id="previewError"', self.html)
-        self.assertNotIn("insertAdjacentHTML('beforebegin'", self.html)
-        self.assertIn("OpenAlex 暂时不可用", self.html)
-
-    def test_manual_creation_keeps_seed_failures_on_screen(self):
-        # Failed seeds must stay readable instead of flashing before an automatic redirect.
-        self.assertIn("unavailable:", self.html)
-        self.assertIn("进入项目", self.html)
+    def test_seed_failures_stay_on_screen_with_a_way_forward(self):
+        for marker in ("data-do=\"again\"", "data-do=\"pick\"", "data-do=\"remove\"", "进入项目", "pdf_error"):
+            self.assertIn(marker, self.js)
 
     def test_learning_path_can_be_built_by_hand_in_local_mode(self):
         # Local guidance never proposes a path, so the owner must be able to add and remove stages.
         self.assertIn("添加阶段", self.html)
-        self.assertIn("function addPathItem", self.html)
+        self.assertIn("function addPathItem", self.js)
 
     def test_detail_has_explicit_project_sharing_control(self):
         self.assertIn("/api/project-papers", self.index)
         self.assertIn("加入其他项目", self.index)
         self.assertIn("收藏、反馈和画像仍按项目独立记录", self.index)
+        self.assertIn("new URLSearchParams(window.location.search).get('project_id')", self.index)
+
+    def test_desktop_shell_lets_the_page_receive_dropped_files(self):
+        self.assertIn("disable_drag_drop_handler()", (ROOT / "src-tauri/src/main.rs").read_text())
 
 
 if __name__ == "__main__":

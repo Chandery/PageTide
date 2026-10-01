@@ -78,6 +78,10 @@ fn main() {
                 .inner_size(1120.0, 760.0)
                 .min_inner_size(640.0, 480.0)
                 .resizable(true)
+                // Let the page receive dropped files (a PDF dragged onto project creation); without
+                // this Tauri swallows the drop. A drop that navigates the window is still refused by
+                // on_navigation below.
+                .disable_drag_drop_handler()
                 .on_navigation(move |url| {
                     if url.origin() == origin {
                         true

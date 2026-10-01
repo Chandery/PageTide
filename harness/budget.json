@@ -174,8 +174,8 @@
       "scope": "optional one-off bilingual term setup; never recurring automatically"
     },
     "project_guidance": {
-      "owner_approved": false,
-      "approval_note": "待 owner 单独批准 project_guidance；未批准前网关强制本地模式。",
+      "owner_approved": true,
+      "approval_note": "owner 于 2026-10-01 在会话中明确批准 project_guidance 真实调用（单会话最多 6 轮，沿用全局日/月上限）；无 key、AI 总开关关闭或超预算时仍降级为本地模式。",
       "prompt": "prompts/project-guidance.md",
       "trigger": "interactive",
       "enabled_by_default": false,
