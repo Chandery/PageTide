@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-i18n",
+  "class": "critical",
+  "summary": "Switching the settings language to English changed nothing: app/static/i18n.js and the language packs were never loaded by any page, and nothing read the saved language. New app/language.py reads `language` from the data directory's settings.json (anything missing or invalid means Chinese); the server resolves that directory with the same rule as the app (data_dir(root)) without building an App per request. The server injects /i18n/current.js and /i18n.js right after <head> of every page; /i18n/current.js carries the English pack (app/static/i18n/en-US.json, 642 entries keyed by the Chinese source text) only when English is chosen, escapes '</', and falls back to Chinese when the pack is unreadable. i18n.js translates rendered text nodes, title/placeholder/aria-label/alt and alert/confirm/prompt by exact key, part by part for ' · ' lists, or by '{0}' pattern keys. A slot next to a counter word or after 第/共 takes only a number; a Chinese capture is translated only as a whole (a pack entry, a list of them, or another pattern sentence under the same rules, depth-bounded) and is otherwise kept verbatim; a capture glued to the key's own Chinese rejects the pattern; a pattern that is not itself a list never swallows one; plural forms are chosen before named slots are filled. Titles, abstracts, AI summary text, quoted text, user questions, AI answers and selection translations are marked data-no-i18n, the knowledge base's title/abstract/note containers are skipped, and model follow-up questions are swapped only on an exact pack match. Text fields keep the user's text but get translated hints. Server-written prose (recommendation reasons, local guidance, pool shortfall, weekly analysis, suggestion names and reasons) has English branches with singular/plural forms. In English, paper_qa uses an English system prompt and daily_triage/project_guidance get one sentence asking for English output (placed before the profile and candidate text in triage); the Chinese prompts are byte-identical. scripts/i18n_extract.py lists every Chinese UI string statically, and a test requires an English entry for each. The unused legacy zh-CN.json pack is deleted. Independent review round 1 failed (half-translation, data-dir mismatch, plurals, directive order, head regex, vision prompt doc); round 2 confirmed five fixed and found nested pattern sentences still half-translated; round 3 passed the nested fix, and its three minor notes (glue guard for nested sentences, risk wording, stale HANDOFF) were addressed afterwards without another review.",
+  "tasks": [
+    "I18N-01"
+  ],
+  "files": [
+    "app/language.py",
+    "app/organization_facets.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n.js",
+    "app/static/i18n/en-US.json",
+    "app/static/i18n/zh-CN.json",
+    "app/static/index.html",
+    "app/static/settings.html",
+    "changes/2026-10-01-i18n.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-01-i18n-review.md",
+    "docs/evidence/2026-10-01-i18n-tests.txt",
+    "harness/tasks.json",
+    "prompts/daily-triage.md",
+    "prompts/paper-qa.md",
+    "prompts/paper-vision-qa.md",
+    "prompts/project-guidance.md",
+    "scripts/i18n_extract.py",
+    "tests/test_i18n.cjs",
+    "tests/test_i18n.py"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "No registry change and no new model call. The interface language layer is zero-token and offline. Only in English, paper_qa, daily_triage and project_guidance append one fixed sentence asking for English output (about 45 CJK characters; estimated 40-60 tokens, not measured), inside each operation's registered instructions component; paper_qa's English system prompt replaces, not adds to, the Chinese one. Caps, attempts and the single gateway are unchanged; English answers may differ in output length (not measured), still bounded by the registered output caps.",
+    "before": "Chinese prompts only; English setting had no effect.",
+    "after": "Chinese prompts byte-identical; English adds one sentence per call to three operations, within registered caps.",
+    "developer_usage": "No paid calls. The preview data directory holds a live key, so /api/qa and /api/translate were intercepted in the page; all other checks are local.",
+    "quantified": {
+      "period": "one paper_qa call at the registered cap, peak cache-miss price (4200 x $0.30/M + 1100 x $1.20/M); arithmetic from harness/budget.json, not a measurement; the cap is unchanged",
+      "before": {
+        "input_tokens": 4200,
+        "output_tokens": 1100,
+        "usd": "0.00258"
+      },
+      "after": {
+        "input_tokens": 4200,
+        "output_tokens": 1100,
+        "usd": "0.00258"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-i18n-tests.txt",
+      "note": "Run in the owner's terminal because the agent sandbox blocks localhost binds; the evidence file also records the node tests."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-i18n-tests.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-i18n-tests.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; English preview audit of home, detail, reader (quote card, stubbed /api/qa), knowledge base, profile and settings with misses() listing only user data, then back to Chinese unchanged.",
+      "evidence": "docs/evidence/2026-10-01-i18n-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Separate read-only code-review subagents with no part in the implementation; no model calls. Round 1 FAIL (half-translation, data-dir mismatch, plurals, directive after untrusted text, head regex, vision prompt doc). Round 2 FAIL (five fixed; nested pattern sentences half-translated). Round 3 PASS on the real pack with bounded runtime; three minor notes fixed afterwards and covered by tests, not re-reviewed.",
+      "evidence": "docs/evidence/2026-10-01-i18n-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "No live English request has been sent: whether the model answers in English reliably is unmeasured.",
+    "User data stays as stored: Chinese project and category names, cached Chinese AI summaries, AI text and paper text are not translated; the knowledge base's '暂无摘要' fallback sits inside a skipped container and stays Chinese.",
+    "User text (a project, category or pinned-keyword name) that equals a pack key, such as 收藏, or is shaped like a pattern sentence, such as 来源：arXiv or 有用 3, is translated in English mode.",
+    "A new UI string without a pack entry stays Chinese; the coverage test catches strings in the scanned files, not text built at runtime from fragments.",
+    "The DOM walk is checked by static markup assertions and the Chromium preview, not by an automated DOM test; the .app WKWebView needs the owner's look after switching the language."
+  ]
+}

@@ -122,7 +122,7 @@
       <div class="field">
         <label for="language">语言 / Language</label>
         <select id="language">
-          <option value="zh-CN">中文</option>
+          <option value="zh-CN" data-no-i18n>中文</option>
           <option value="en-US">English</option>
         </select>
       </div>
@@ -273,9 +273,12 @@
       $('#aiEnabled').checked = data.ai_enabled !== false;
       const l = data.limits || {};
       const u = data.usage || {};
-      $('#budgetLimits').textContent =
-        `今日 ${u.tokens ?? 0} / ${l.daily_total_tokens ?? '—'} token · 本月 ${u.month_tokens ?? 0} / ${l.monthly_total_tokens ?? '—'} token · ` +
-        `每日 $${l.daily_usd ?? '—'} · 每月 $${l.monthly_usd ?? '—'}` + (data.dev_mode ? ' · 测试模式独立账本' : '');
+      $('#budgetLimits').textContent = [   // one phrase per part: the language layer translates a " · " list part by part
+        `今日 ${u.tokens ?? 0} / ${l.daily_total_tokens ?? '—'} token`,
+        `本月 ${u.month_tokens ?? 0} / ${l.monthly_total_tokens ?? '—'} token`,
+        `每日 $${l.daily_usd ?? '—'}`, `每月 $${l.monthly_usd ?? '—'}`,
+        data.dev_mode ? '测试模式独立账本' : '',
+      ].filter(Boolean).join(' · ');
       const p = data.provider || {};
       $('#apiKeyStatus').textContent = p.configured
         ? '已配置密钥（不回显）；留空保存则保持不变'

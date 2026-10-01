@@ -194,6 +194,21 @@ def _group(kind, basis, keys, parent, name, reason, terms):
             "source": kind, "terms": terms, "reason": reason, "color": DEFAULT_COLOR}
 
 
+# Suggestion reasons in the interface language (profile["language"], set by the server).
+REASONS = {
+    "zh-CN": {"nested": "固定关键词「%s」的论文大多也属于「%s」，放在其下",
+              "phrase": "「%s」中 %d 篇标题都出现 “%s”%s", "echo": "；含画像兴趣词 ", "sep": "、",
+              "pinned": "来自画像固定关键词「%s」：标题或摘要提到它的论文",
+              "rest": "不含画像固定关键词；%d 篇标题都出现 “%s”",
+              "rest_unpinned": "当前项目还没有固定关键词；%d 篇标题都出现 “%s”"},
+    "en-US": {"nested": "Most papers with the pinned keyword “%s” also belong to “%s”, so it sits under it",
+              "phrase": "In “%s”, %d titles contain “%s”%s", "echo": "; includes profile interest words ", "sep": ", ",
+              "pinned": "From the pinned profile keyword “%s”: papers whose title or abstract mention it",
+              "rest": "No pinned profile keyword; %d titles contain “%s”",
+              "rest_unpinned": "This project has no pinned keywords yet; %d titles contain “%s”"},
+}
+
+
 def _phrase_name(gram, surface):
     label = _label(list(gram))
     return label or surface
@@ -214,6 +229,11 @@ def suggest_groups(papers, profile=None):
     profile = profile or {}
     if not isinstance(profile, dict):
         raise ValueError("profile must be an object")
+    english = profile.get("language") == "en-US"
+    text_of = REASONS["en-US" if english else "zh-CN"]
+    # The glossary gives Chinese display names; an English interface keeps the paper's wording.
+    display = (lambda term: term) if english else (lambda term: LABELS.get(term.lower(), term))
+    phrase_name = (lambda gram, surface: surface) if english else _phrase_name
     pinned = _clean_terms(profile.get("pinned"))
     interest = {stem(t.lower()) for t in _clean_terms(profile.get("interest")) if not CJK.search(t)}
     rows = {row["key"]: row for row in rows_list}
@@ -259,8 +279,8 @@ def suggest_groups(papers, profile=None):
         for child in reserved:
             share = set(child["keys"]) & members
             groups.append(_group("pinned", child["term"], share, parent_group["id"],
-                                 LABELS.get(child["term"].lower(), child["term"]),
-                                 "固定关键词「%s」的论文大多也属于「%s」，放在其下" % (child["term"], parent_group["name"]),
+                                 display(child["term"]),
+                                 text_of["nested"] % (child["term"], parent_group["name"]),
                                  [child["term"]]))
         candidates = {gram: value for gram, value in _phrases(rows, members, exclude).items()
                       if len(value[0]) < len(members)
@@ -269,16 +289,15 @@ def suggest_groups(papers, profile=None):
             # Only name interest words the parent does not already say.
             echo = sorted(set(gram) & interest - WEAK - {s for ex in exclude for s in ex})
             groups.append(_group("phrase", " ".join(gram), share, parent_group["id"],
-                                 _phrase_name(gram, surface),
-                                 "「%s」中 %d 篇标题都出现 “%s”%s" % (
+                                 phrase_name(gram, surface),
+                                 text_of["phrase"] % (
                                      parent_group["name"], len(share), surface,
-                                     "；含画像兴趣词 " + "、".join(echo) if echo else ""),
+                                     text_of["echo"] + text_of["sep"].join(echo) if echo else ""),
                                  [surface]))
 
     for top in tops:
         group = _group("pinned", top["term"], top["keys"], None,
-                       LABELS.get(top["term"].lower(), top["term"]),
-                       "来自画像固定关键词「%s」：标题或摘要提到它的论文" % top["term"], [top["term"]])
+                       display(top["term"]), text_of["pinned"] % top["term"], [top["term"]])
         groups.append(group)
         own = [tuple(v) for v in top["variants"]] + [tuple(_stems(top["term"]))]
         add_children(group, top["keys"], [ex for ex in own if ex], children[top["term"]])
@@ -288,9 +307,8 @@ def suggest_groups(papers, profile=None):
     rest = [key for key in keys if key not in covered]
     phrase_tops = _pick(_phrases(rows, rest, []), rest + ["\0"], MAX_TOP - len(tops), interest) if len(rest) >= MIN_GROUP else []
     for gram, members, surface in phrase_tops:
-        reason = ("不含画像固定关键词；%d 篇标题都出现 “%s”" if pinned else
-                  "当前项目还没有固定关键词；%d 篇标题都出现 “%s”") % (len(members), surface)
-        group = _group("phrase", " ".join(gram), members, None, _phrase_name(gram, surface), reason, [surface])
+        reason = text_of["rest" if pinned else "rest_unpinned"] % (len(members), surface)
+        group = _group("phrase", " ".join(gram), members, None, phrase_name(gram, surface), reason, [surface])
         groups.append(group)
         if len(members) >= 2 * MIN_GROUP:
             add_children(group, members, [gram], [])

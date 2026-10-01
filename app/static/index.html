@@ -324,6 +324,7 @@
              border-left:3px solid var(--accent) !important; }
   .refcard .rmeta { min-width:0; flex:1; }
   .refcard .rlabel { font-size:10.5px; color:var(--muted); display:flex; gap:6px; align-items:center; }
+  html[lang="en"] .ai-label { margin-right:.3em; }   /* "Related:" then the model's text */
   .refcard .rsnip { font-size:12px; line-height:1.5; color:var(--text); opacity:.85; margin-top:2px; cursor:pointer;
                     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
   .refcard.expanded .rsnip { display:block; -webkit-line-clamp:unset; max-height:30vh; overflow-y:auto; }
@@ -747,8 +748,8 @@ function renderStats() {
 
 // ------------------------------------------------------------------ cards
 function aiSlot(c) {
-  if (c.summary) return `<div class="ai-line"><b>AI 速览</b> ${esc(c.summary.one_liner || '')}
-    ${c.summary.why_relevant ? `<div class="sub">相关：${esc(c.summary.why_relevant)}</div>` : ''}</div>`;
+  if (c.summary) return `<div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
+    ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>`;
   if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
 }
@@ -758,12 +759,12 @@ function cardHTML(c, i) {
   <article class="card" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <div class="paper-topline"><span class="paper-number"><i class="icon book" aria-hidden="true"></i>${String(i + 1).padStart(2,'0')}</span>
       ${c.summary ? '<span class="badge ai">AI 已速览</span>' : '<span class="badge">待速览</span>'}</div>
-    <h3><button class="paper-title">${esc(c.title)}</button></h3>
+    <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
       ${saved ? '<span class="badge saved">已收藏</span>' : ''}
     </div>
-    <div class="abs">${esc(c.abstract || '（无摘要）')}</div>
+    <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
     <div class="actions">
@@ -792,7 +793,7 @@ function renderLibrary() {
     <article class="lib-item" data-key="${esc(p.key)}" style="animation-delay:${i*40}ms">
       <i class="icon book" aria-hidden="true"></i>
       <div class="library-copy">
-        <h4><button class="library-title">${esc(p.title)}</button></h4>
+        <h4><button class="library-title" data-no-i18n>${esc(p.title)}</button></h4>
         <div class="meta"><span>${esc(p.published || '')}</span><span>${esc(p.source || '')}</span>
           <span>收藏于 ${esc((p.saved_at || '').slice(0,10))}</span></div>
       </div>
@@ -891,8 +892,8 @@ async function load() {
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
   renderStats(); renderCards(); renderProfile();
   const u = state.usage;
-  $('#foot').textContent = `本地运行 · 数据在 .local/app · 服务端版本 ${state.version}` +
-    (u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
+  $('#foot').replaceChildren(`本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`,   // two phrases, two pack entries
+    u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
 }
 async function loadLibrary() {
   const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
@@ -1026,7 +1027,7 @@ $('#preview').addEventListener('mouseleave', scheduleHide);
 function showPreview(card) {
   const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
   const p = $('#preview');
-  p.innerHTML = `<h4>${esc(c.title)}</h4><div class="pabs">${esc(c.abstract || '（无摘要）')}</div>
+  p.innerHTML = `<h4 data-no-i18n>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
     <div class="phint">点击卡片打开详情页（含 PDF 预览）</div>`;
   p.style.left = '0px'; p.style.top = '0px';
   p.classList.add('show');
@@ -1055,7 +1056,7 @@ async function openDetail(key) {
       <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
       <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
         <div class="detail-head"><span class="detail-kicker">论文详情</span><button class="detail-close ghost" id="backBtn" aria-label="关闭论文详情">×</button></div>
-        <h2>${esc(d.title)}</h2>
+        <h2 data-no-i18n>${esc(d.title)}</h2>
         <div class="detail-meta">
           ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}
           ${d.arxiv_id ? `<span>arXiv:${esc(d.arxiv_id)}</span>` : ''}
@@ -1079,9 +1080,9 @@ async function openDetail(key) {
           <div class="hint">共享论文元数据；收藏、反馈和画像仍按项目独立记录。</div>
           <div id="dProjectList" class="hint">${(d.projects || []).map(p => `${esc(p.name)} · ${esc(p.relation_kind || 'shared')}${p.source_project_name ? ` · 来源：${esc(p.source_project_name)}` : ''}`).join('<br>') || '尚未加入其他项目'}</div>
         </section>
-        ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> ${md(s.one_liner || '')}
-          <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div></section>` : ''}
-        <section class="detail-section"><h3>摘要</h3><div class="full">${md(d.abstract || '暂无摘要')}</div></section>
+        ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
+          <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
+        <section class="detail-section"><h3>摘要</h3><div class="full">${d.abstract ? `<div data-no-i18n>${md(d.abstract)}</div>` : '暂无摘要'}</div></section>
       </aside>`;
     $('#detail').classList.remove('hidden');
     const close = () => $('#detail').classList.add('hidden');
@@ -1196,6 +1197,7 @@ const pet = { key: null, title: null, selection: null, selPage: null, busy: fals
 window.PDHSetContext = (key, title) => {
   pet.key = key; pet.title = title;
   const el = $('#petPaper');
+  el.toggleAttribute('data-no-i18n', !!title);   // a title is the paper's own text
   el.textContent = title || '未选择论文';
   el.title = title || '';
 };
@@ -1209,10 +1211,14 @@ function refCard(text, page, removable) {
   const label = document.createElement('div');
   label.className = 'rlabel';
   const n = clean.length;
-  label.textContent = `引用${page ? ' · 第 ' + page + ' 页' : ''} · ${n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n} 字`;
+  const size = n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n;
+  label.textContent = page ? `引用 · 第 ${page} 页 · ${size} 字` : `引用 · ${size} 字`;   // whole phrases, one pack entry each
   const snip = document.createElement('div');
   snip.className = 'rsnip';
-  snip.textContent = clean;
+  const quoted = document.createElement('span');
+  quoted.dataset.noI18n = '';   // the paper's text; the tooltip below is UI
+  quoted.textContent = clean;
+  snip.append(quoted);
   snip.title = '点击展开 / 收起';
   snip.onclick = () => card.classList.toggle('expanded');
   meta.append(label, snip);
@@ -1642,8 +1648,10 @@ function followupRow(list) {
   for (const q of (list && list.length ? list : SUGGESTIONS)) {
     const b = document.createElement('button');
     b.className = 'tiny';
-    b.textContent = q;
-    b.onclick = () => ask(q);
+    // Ask what the button shows; a model's own follow-up is only swapped for a whole pack entry.
+    const label = window.PDHi18n ? PDHi18n.exact(q) : q;
+    b.textContent = label;
+    b.onclick = () => ask(label);
     row.appendChild(b);
   }
   return row;
@@ -1659,11 +1667,22 @@ function addMsg(kind, text, followups, meta) {
   if (kind === 'user') {
     const q = document.createElement('div');
     q.className = 'qtext';
+    q.dataset.noI18n = '';   // the owner's own words and the model's answer are never translated
     q.textContent = text;
     el.appendChild(q);
   } else if (kind === 'ai') {
-    if (meta) { const m = document.createElement('div'); m.className = 'meta'; m.textContent = meta; el.appendChild(m); }
+    if (meta) {
+      const m = document.createElement('div');
+      m.className = 'meta';
+      const line = m.appendChild(document.createElement('span'));   // .meta is a flex row: one item
+      [].concat(meta).forEach((part, i) => {
+        if (i) line.append(' · ');
+        line.appendChild(document.createElement('span')).textContent = part;
+      });
+      el.appendChild(m);
+    }
     const body = document.createElement('div');
+    body.dataset.noI18n = '';
     body.innerHTML = window.PDH.md(text);
     el.appendChild(body);
   } else el.textContent = text;
@@ -1721,14 +1740,15 @@ async function ask(question) {
                                     project_id: state.currentProject,
                                     context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
     thinking.remove();
-    const meta = r.ok
-      ? `${r.mode === 'vision' ? '视觉 · 第 ' + (r.page_hint || pageHint || '?') + ' 页' + imageNote : '全文检索'}` +
-        `${r.pages && r.pages.length ? ' · 命中第 ' + r.pages.join(',') + ' 页' : ''}` +
-        `${r.context_chars ? ' · ' + Math.round(r.context_chars / 1000) + 'k 字符' : ''}`
-      : '';
+    const meta = r.ok ? [   // separate parts, so each is one phrase for the language pack
+      r.mode === 'vision' ? `视觉 · 第 ${r.page_hint || pageHint || '?'} 页${imageNote}` : '全文检索',
+      r.pages && r.pages.length ? `命中第 ${r.pages.join(',')} 页` : '',
+      r.context_chars ? `${Math.round(r.context_chars / 1000)}k 字符` : '',
+    ].filter(Boolean) : null;
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
     if (!r.ok) keepSwitch();
-    if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}${r.mode === 'vision' ? ' · 视觉' : ''}`, 'ai');
+    if (r.ok) toast(r.mode === 'vision' ? `回答完成 · ${r.usage.total_tokens} token · $${r.usd} · 视觉`
+                                         : `回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
   } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); keepSwitch(); }
   finally { pet.busy = false; $('#petSend').disabled = false; }
 }
@@ -1739,7 +1759,8 @@ async function translate(text, rect) {
   pop.classList.add('show');
   try {
     const r = await api('/api/translate', { text });
-    pop.innerHTML = `<div class="tlabel">划词翻译</div><div class="tbody">${
+    pop.innerHTML = `<div class="tlabel">划词翻译</div>
+      <div class="tbody"${r.ok ? ' data-no-i18n' : ''}>${
       r.ok ? window.PDH.md(r.translation) : esc(aiFailure(r.reason))}</div>
       <div class="row" style="margin-top:10px">
         <button class="tiny" id="transCopy">复制</button>
