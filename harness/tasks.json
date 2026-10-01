@@ -637,7 +637,7 @@
       ],
       "missing_inputs": [
         "依赖链 CORE-01/PROFILE-01/AI-01 未 done",
-        "project_guidance 需 owner 单独批准才可真实调用",
+        "project_guidance 已于 2026-10-01 获 owner 批准；真实调用的回答质量与实际 token 用量尚未实测",
         "HTTP 路由测试需在允许本地端口绑定的环境重跑"
       ]
     },

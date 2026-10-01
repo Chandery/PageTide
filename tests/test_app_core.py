@@ -109,11 +109,20 @@ class GatewayTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertTrue(result["degraded"])
 
-    def test_unapproved_project_guidance_is_forced_to_local_mode(self):
+    def test_operation_without_owner_approval_is_forced_to_local_mode(self):
         gateway = Gateway(root=".", ledger=Path(self.tmp.name) / "usage.jsonl")
+        gateway.config["operations"]["project_guidance"] = {
+            **gateway.config["operations"]["project_guidance"], "owner_approved": False}
         result = gateway.call("project_guidance", [], dry_run=True)
         self.assertFalse(result["ok"])
         self.assertIn("owner approval", result["reason"])
+
+    def test_owner_approved_project_guidance_is_admitted(self):
+        gateway = Gateway(root=".", ledger=Path(self.tmp.name) / "usage.jsonl")
+        self.assertIs(gateway.config["operations"]["project_guidance"]["owner_approved"], True)
+        result = gateway.call("project_guidance", [], dry_run=True)
+        if not result["ok"]:  # AI switch or provider config may degrade, never the approval gate
+            self.assertNotIn("owner approval", result["reason"])
 
 
 class ServiceTests(unittest.TestCase):

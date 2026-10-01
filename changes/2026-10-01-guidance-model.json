@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-guidance-model",
+  "class": "critical",
+  "summary": "Connect project creation (quick and AI-guided) to the model: the owner approved the project_guidance operation, so harness/budget.json sets owner_approved=true and the gateway no longer forces local mode. Also fixes the malformed JSON example in the guidance system prompt and updates the tests that asserted the unapproved state.",
+  "tasks": [
+    "PROJECT-01",
+    "AI-01"
+  ],
+  "requirements": [
+    "R-BUDGET",
+    "R-LOCAL"
+  ],
+  "files": [
+    "app/service.py",
+    "changes/2026-10-01-guidance-model.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0008-project-guidance-sharing.md",
+    "docs/decisions/0009-gateway-ledger-profile-control.md",
+    "docs/evidence/2026-10-01-guidance-model-budget.txt",
+    "docs/evidence/2026-10-01-guidance-model-checks.txt",
+    "docs/evidence/2026-10-01-guidance-model-review.md",
+    "harness/budget.json",
+    "harness/tasks.json",
+    "tests/test_app_core.py",
+    "tests/test_gateway_budget.py",
+    "tests/test_project_chain.py"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "project_guidance becomes callable: one request per interactive guidance turn, at most six turns per session, each capped at 1200 input / 500 output tokens and subject to the global daily/monthly ceilings. No key, AI switch off, ceiling hit, network error or malformed reply still degrade to local mode with no retry and no fallback model.",
+    "before": "Every guidance turn was refused at the gateway (operation awaiting owner approval); 0 model tokens.",
+    "after": "Up to 6 turns per session, reference 800 in / 300 out per turn, cap 1200 in / 500 out; measured usage unknown (no live call was made).",
+    "quantified": {
+      "period": "one project-guidance session, max six interactive turns",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 7200,
+        "output_tokens": 3000,
+        "usd": "0.00576"
+      }
+    },
+    "developer_usage": "unknown"
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-guidance-model-checks.txt",
+      "note": "341 tests passed, run outside the sandbox so HTTP tests could bind a local port."
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-guidance-model-budget.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-guidance-model-budget.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent",
+      "evidence": "docs/evidence/2026-10-01-guidance-model-review.md",
+      "note": "Self-review only."
+    },
+    {
+      "kind": "independent",
+      "result": "not_run",
+      "reviewer": "none",
+      "evidence": "docs/evidence/2026-10-01-guidance-model-review.md",
+      "note": "Critical change: independent review is still required before release."
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "No live DeepSeek call was made: answer quality, latency and real token use for project_guidance are unmeasured.",
+    "The creation page still says quick creation is local-first and does not show why a turn degraded.",
+    "Release approval and independent review are pending."
+  ]
+}

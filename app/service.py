@@ -253,8 +253,8 @@ class App:
         messages = [{"role": "system", "content": (
             "你是本地论文项目创建助手。只根据当前创建对话整理研究方向，不读取或推断其他项目。"
             "只输出 JSON：{\"reply\":\"...\",\"draft\":{\"keywords\":[],"
-            "search_queries\":[],\"learning_path\":[{\"title\":\"\",\"purpose\":\"\"}],"
-            "next_question\":\"\"}}。不要选择或声称确认种子论文。"
+            "\"search_queries\":[],\"learning_path\":[{\"title\":\"\",\"purpose\":\"\"}],"
+            "\"next_question\":\"\"}}。不要选择或声称确认种子论文。"
             + (self.ENGLISH_OUTPUT if self.english() else ""))},
                     {"role": "user", "content": json.dumps({
                         "current_draft": model_draft, "conversation": bounded_conversation}, ensure_ascii=False)}]
