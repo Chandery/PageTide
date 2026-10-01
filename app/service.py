@@ -5,12 +5,13 @@ Feedback updates a transparent profile. AI triage is optional and budgeted.
 """
 import json
 import re
+import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import ranking
+from . import creation, ranking
 from .db import Store, now
 from .gateway import Gateway
 from .language import language
@@ -22,7 +23,10 @@ POSITIVE_ACTIONS = {"useful"}
 NEGATIVE_ACTIONS = {"irrelevant"}
 TOO_HARD_ACTIONS = {"too_hard"}  # Familiarity signal only: never an interest negative
 DEFAULT_WEIGHTS = {"pos": 1.0, "neg": 0.5}
-GUIDANCE_MAX_TURNS = 6
+GUIDANCE_MAX_TURNS = 6          # AI turns in a guided session; a turn that got no AI answer is free
+GUIDANCE_QUICK_MAX_TURNS = 1    # quick creation is one AI call, not a conversation
+GUIDANCE_MAX_MESSAGES = 40      # bound on a session's transcript, including no-AI turns
+GUIDANCE_MAX_CANDIDATES = 60
 PROFILE_STOPWORDS = {
     "across", "achieves", "available", "both", "changes", "combined", "current",
     "each", "environment", "environments", "experiments", "furthermore", "increasingly",
@@ -119,6 +123,10 @@ class App:
         seen_seed_keys = set()
         seen_identifiers = set()
         for raw in (seeds or [])[:40]:
+            pdf_id = None
+            if isinstance(raw, dict):  # {"identifier": ..., "pdf_id": ...}: a seed with its dropped PDF
+                pdf_id = raw.get("pdf_id")
+                raw = raw.get("identifier")
             if not isinstance(raw, str):
                 results.append({"input": str(raw)[:120], "status": "failed", "error": "种子标识必须是文本"})
                 continue
@@ -128,27 +136,18 @@ class App:
             if len(seed) > 300:
                 results.append({"input": seed[:120], "status": "failed", "error": "种子标识过长"})
                 continue
-            identifier, arxiv_id = seed, None
-            arxiv = re.fullmatch(r"(?:arxiv:)?(\d{4}\.\d{4,5})(v\d+)?", seed, re.I)
-            arxiv_url = re.fullmatch(r"https?://arxiv\.org/(?:abs|pdf)/([0-9]{4}\.\d{4,5})(v\d+)?", seed, re.I)
-            if arxiv or arxiv_url:
-                match = arxiv or arxiv_url
-                arxiv_id = match.group(1)
-                identifier = f"https://doi.org/10.48550/arxiv.{arxiv_id}{match.group(2) or ''}"
-            elif re.fullmatch(r"10\.\d{4,9}/\S+", seed):
-                identifier = f"https://doi.org/{seed}"
-            elif not re.fullmatch(r"(?:https?://openalex\.org/)?W\d+|https?://doi\.org/10\.\d{4,9}/\S+", seed, re.I):
-                # Only public identifiers leave the machine; free text is never sent as a lookup.
-                results.append({"input": seed, "status": "invalid_input",
-                                "error": "无法识别的标识：请填 arXiv 编号、DOI 或 OpenAlex W 编号"})
+            try:
+                identifier, arxiv_id, dedupe = creation.parse_seed(seed)
+            except ValueError as exc:
+                results.append({"input": seed, "status": "invalid_input", "error": str(exc)})
                 continue
             # The same paper typed twice (e.g. "2601.1" and "arxiv:2601.1") is one lookup.
-            if (arxiv_id or identifier.lower()) in seen_identifiers:
+            if dedupe in seen_identifiers:
                 results.append({"input": seed, "status": "duplicate"})
                 continue
-            seen_identifiers.add(arxiv_id or identifier.lower())
+            seen_identifiers.add(dedupe)
             try:
-                work = fetch_seed_work(self.source, identifier, arxiv_id)
+                paper = creation.fetch_seed_paper(self.source, identifier, arxiv_id)
             except SourceError as exc:
                 results.append({"input": seed, "status": exc.kind, "error": str(exc)[:200]})
                 continue
@@ -157,8 +156,6 @@ class App:
                 results.append({"input": seed, "status": "failed", "error": str(exc)[:200]})
                 continue
             try:
-                paper = slim(work or {}, group="seed")
-                paper["arxiv_id"] = paper["arxiv_id"] or arxiv_id
                 if not paper.get("key") or not paper.get("title"):
                     results.append({"input": seed, "status": "not_found", "error": "公开元数据缺少论文标题"})
                     continue
@@ -175,7 +172,15 @@ class App:
                     keys.append(paper["key"])
                 self.store.set_setting(f"seed_keys_{project_id}", keys)
                 seen_seed_keys.add(paper["key"])
-                results.append({"input": seed, "status": "resolved", "key": paper["key"], "title": paper["title"]})
+                outcome = {"input": seed, "status": "resolved", "key": paper["key"], "title": paper["title"]}
+                if pdf_id:
+                    try:
+                        path = creation.take_imported_pdf(self.data, pdf_id)
+                        self.store.record_pdf(paper["key"], path, "user-import")
+                        outcome["pdf_attached"] = True
+                    except (ValueError, OSError) as exc:
+                        outcome.update(pdf_attached=False, pdf_error=str(exc)[:200])
+                results.append(outcome)
             except Exception as exc:
                 results.append({"input": seed, "status": "failed", "error": str(exc)[:200]})
         return {"project_id": project_id, "name": name, "seed_results": results}
@@ -220,23 +225,42 @@ class App:
                     "or go straight to the candidate papers."), draft
         return "我已先按本地词项整理方向。你可以继续补充场景或方法，也可以直接查看候选论文。", draft
 
-    def guidance_turn(self, session_id, message, dry_run=False):
+    def guidance_turn(self, session_id, message, dry_run=False, retry=False, draft_edits=None):
+        """One guidance turn. Only a turn the model actually answered counts toward the cap, so a
+        missing key, an outage or an unreadable reply never uses one up; ``retry`` re-asks the model
+        for the last message after such a turn instead of recording it a second time."""
         session = self.store.guidance_session(session_id)
         if not session:
             raise ValueError("引导会话不存在")
         if session["status"] != "draft":
             raise ValueError("引导会话已结束")
-        if session["turn_count"] >= GUIDANCE_MAX_TURNS:
-            raise ValueError("已达到 6 轮引导上限，请确认或编辑当前草稿")
+        draft = self._bounded_guidance_draft(session["draft"])
+        if isinstance(draft_edits, dict):  # what the user changed on screen since the last turn
+            edits = self._bounded_guidance_draft(draft_edits)
+            for field in ("keywords", "search_queries", "learning_path"):
+                if field in draft_edits:
+                    draft[field] = edits[field]
+        cap = GUIDANCE_QUICK_MAX_TURNS if draft["creation_mode"] == "quick" else GUIDANCE_MAX_TURNS
+        if session["turn_count"] >= cap:
+            raise ValueError("快速创建只调用一次 AI，请直接编辑草稿后创建" if cap == GUIDANCE_QUICK_MAX_TURNS
+                             else "已达到 6 轮引导上限，请确认或编辑当前草稿")
+        transcript = list(session["transcript"])
+        if retry:
+            # Drop the answer that came without the model; its question is asked again below.
+            if not (len(transcript) >= 2 and transcript[-1].get("role") == "assistant"
+                    and transcript[-1].get("mode") == "local" and transcript[-2].get("role") == "user"):
+                raise ValueError("没有可以重试的上一轮")
+            transcript.pop()
+            message = transcript[-1]["content"]
         message = str(message or "").strip()
         if not message or len(message) > 2000:
             raise ValueError("本轮内容不能为空且不能超过 2000 个字符")
-        transcript = list(session["transcript"])
+        if len(transcript) + 2 > GUIDANCE_MAX_MESSAGES:
+            raise ValueError("这次对话已经很长，请确认或编辑当前草稿")
         # The session already holds the goal; a first turn on that same goal only asks for a reply.
-        if not (session["turn_count"] == 0 and transcript and transcript[-1].get("role") == "user"
-                and transcript[-1].get("content") == message):
+        if not retry and not (not transcript[1:] and transcript and transcript[-1].get("role") == "user"
+                              and transcript[-1].get("content") == message):
             transcript.append({"role": "user", "content": message})
-        draft = self._bounded_guidance_draft(session["draft"])
         model_draft = {
             "goal": draft.get("goal", "")[:300],
             "keywords": [str(x)[:40] for x in draft.get("keywords", [])[:6]],
@@ -253,19 +277,21 @@ class App:
         messages = [{"role": "system", "content": (
             "你是本地论文项目创建助手。只根据当前创建对话整理研究方向，不读取或推断其他项目。"
             "只输出 JSON：{\"reply\":\"...\",\"draft\":{\"keywords\":[],"
-            "search_queries\":[],\"learning_path\":[{\"title\":\"\",\"purpose\":\"\"}],"
-            "next_question\":\"\"}}。不要选择或声称确认种子论文。"
+            "\"search_queries\":[],\"learning_path\":[{\"title\":\"\",\"purpose\":\"\"}],"
+            "\"next_question\":\"\"}}。不要选择或声称确认种子论文。"
             + (self.ENGLISH_OUTPUT if self.english() else ""))},
                     {"role": "user", "content": json.dumps({
                         "current_draft": model_draft, "conversation": bounded_conversation}, ensure_ascii=False)}]
+        started = time.monotonic()
         try:
             result = self.gateway.call("project_guidance", messages, dry_run=dry_run) or {}
         except Exception as exc:
             result = {"ok": False, "degraded": True, "reason": str(exc)}
-        mode, reply = "ai", ""
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        mode, reply, reason_code, reason = "ai", "", None, None
         if dry_run or not result.get("ok"):
             mode = "local"
-            reply, draft = self._local_guidance(session, message)
+            reason_code, reason = creation.degrade_reason(result, self.english())
         else:
             raw = (result.get("content") or "").strip()
             match = re.search(r"\{.*\}", raw, re.S)
@@ -275,45 +301,98 @@ class App:
                     payload = json.loads(match.group(0))
                 except ValueError:
                     payload = {}
-            if not isinstance(payload, dict):
-                payload = {}
-            if not isinstance(payload.get("draft"), dict):
-                mode = "local"
-                reply, draft = self._local_guidance(session, message)
+            if not isinstance(payload, dict) or not isinstance(payload.get("draft"), dict):
+                mode, reason_code = "local", "bad_reply"
+                reason = creation.reason_text(reason_code, self.english())
             else:
                 draft = self._bounded_guidance_draft({**draft, **payload["draft"]})
                 reply = str(payload.get("reply") or (
                     "Draft updated; please check the keywords and learning path." if self.english()
                     else "已更新项目草稿，请检查关键词和学习路径。"))[:1000]
-        transcript.append({"role": "assistant", "content": reply, "mode": mode})
-        self.store.update_guidance_session(session_id, transcript=transcript, draft=draft,
-                                           turn_count=session["turn_count"] + 1)
+        if mode == "local":
+            reply, draft = self._local_guidance({**session, "draft": draft}, message)
+        tokens = (result.get("usage") or {}).get("total_tokens") if mode == "ai" else None
+        entry = {"role": "assistant", "content": reply, "mode": mode}
+        if reason_code:
+            entry["reason"], entry["reason_text"] = reason_code, reason
+        if tokens:
+            entry["tokens"] = tokens
+        transcript.append(entry)
+        self.store.update_guidance_session(
+            session_id, transcript=transcript, draft=draft,
+            turn_count=session["turn_count"] + (1 if mode == "ai" else 0))
         return {"session": self.store.guidance_session(session_id), "reply": reply,
-                "mode": mode, "degraded": mode == "local"}
+                "mode": mode, "degraded": mode == "local",
+                "reason_code": reason_code,
+                "reason": reason,
+                "tokens": tokens, "elapsed_ms": elapsed_ms}
+
+    def guidance_search(self, session_id, query):
+        """Candidate papers for ONE search query, merged into the session's candidate list.
+
+        The page calls this once per query so results appear as each query returns."""
+        session = self.store.guidance_session(session_id)
+        if not session or session["status"] != "draft":
+            raise ValueError("引导会话不存在或已结束")
+        query = re.sub(r"\s+", " ", str(query or "")).strip()[:180]
+        if not query:
+            raise ValueError("检索式不能为空")
+        draft = self._bounded_guidance_draft(session["draft"])
+        error = None
+        try:
+            found = self.source.discover(search=query, pages=1, per_page=12)
+        except Exception as exc:
+            found, error = [], {"kind": getattr(exc, "kind", "error"), "message": str(exc)[-200:]}
+        known = {p["key"]: p for p in draft["candidates"] if isinstance(p, dict) and p.get("key")}
+        items = []
+        for paper in found:
+            if not paper.get("key"):
+                continue
+            entry = known.get(paper["key"])
+            is_new = entry is None
+            if is_new:
+                if len(known) >= GUIDANCE_MAX_CANDIDATES:
+                    continue
+                entry = known[paper["key"]] = {**paper, "matched_queries": []}
+            if query not in entry.setdefault("matched_queries", []):
+                entry["matched_queries"].append(query)
+            items.append({**creation.paper_view(entry), "matched_queries": entry["matched_queries"], "new": is_new})
+        draft["candidates"] = list(known.values())
+        self.store.update_guidance_session(session_id, draft=draft)
+        return {"query": query, "items": items, "total": len(known), "error": error}
 
     def guidance_preview(self, session_id, draft=None):
+        """All queries at once (kept for callers that do not stream); the page uses guidance_search."""
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
             raise ValueError("引导会话不存在或已结束")
         if draft is not None and not isinstance(draft, dict):
             raise ValueError("草稿格式无效")
         draft = self._bounded_guidance_draft(draft or session["draft"])
+        self.store.update_guidance_session(session_id, draft={**draft, "candidates": session["draft"].get("candidates") or []})
         queries = draft["search_queries"] or draft["keywords"][:3] or [draft["goal"]]
         papers, errors, seen = [], [], set()
         for query in queries[:3]:
-            try:
-                for paper in self.source.discover(search=query, pages=1, per_page=12):
-                    if paper["key"] not in seen:
-                        seen.add(paper["key"])
-                        papers.append(paper)
-            except Exception as exc:
-                kind = getattr(exc, "kind", "error")
-                errors.append({"query": query, "kind": kind, "error": str(exc)[-200:]})
-                if kind == "unavailable":
+            result = self.guidance_search(session_id, query)
+            if result["error"]:
+                errors.append({"query": query, "kind": result["error"]["kind"], "error": result["error"]["message"]})
+                if result["error"]["kind"] == "unavailable":
                     break  # OpenAlex is shedding load; more queries only add waiting
-        draft["candidates"] = papers[:30]
-        self.store.update_guidance_session(session_id, draft=draft)
+            for paper in result["items"]:
+                if paper["key"] not in seen:
+                    seen.add(paper["key"])
+                    papers.append(paper)
         return {"session": self.store.guidance_session(session_id), "items": papers[:30], "errors": errors}
+
+    # ------------------------------------------------------- manual creation helpers
+    def seed_lookup(self, text):
+        return creation.lookup_seed(self.source, text)
+
+    def seed_search(self, query):
+        return creation.search_seeds(self.source, query)
+
+    def import_pdf(self, data, filename=""):
+        return creation.import_pdf(self.data, data, filename)
 
     def cancel_guidance(self, session_id):
         session = self.store.guidance_session(session_id)

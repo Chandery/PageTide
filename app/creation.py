@@ -1,0 +1,218 @@
+"""Project-creation helpers: seed identifiers, paper-name search, imported PDFs, AI degrade reasons.
+
+Everything here is deterministic and offline except the OpenAlex lookups, which send only a public
+identifier or an explicit user-typed title. No model is called from this module.
+"""
+import hashlib
+import re
+import threading
+import time
+from collections import OrderedDict
+from pathlib import Path
+
+from .sources import SourceError, fetch_seed_work, slim
+
+PDF_MAX_BYTES = 60 * 1024 * 1024
+IMPORT_TTL_SECONDS = 24 * 3600
+SEED_CACHE_LIMIT = 200
+
+_ARXIV = re.compile(r"(?:arxiv:)?(\d{4}\.\d{4,5})(v\d+)?", re.I)
+_ARXIV_URL = re.compile(r"https?://(?:www\.)?arxiv\.org/(?:abs|pdf)/(\d{4}\.\d{4,5})(v\d+)?(?:\.pdf)?/?", re.I)
+_DOI = re.compile(r"10\.\d{4,9}/\S+")
+_DOI_URL = re.compile(r"https?://(?:dx\.)?doi\.org/(10\.\d{4,9}/\S+)", re.I)
+_OPENALEX = re.compile(r"(?:https?://openalex\.org/)?(W\d+)", re.I)
+_PDF_ID = re.compile(r"[0-9a-f]{64}")
+
+# Resolved papers are remembered between the lookup and the project creation request, so a seed the
+# user already saw resolve is not fetched (and rate-limited) a second time. The App object is rebuilt
+# for every request, hence module state.
+_SEED_CACHE = OrderedDict()
+_SEED_LOCK = threading.Lock()
+
+
+def parse_seed(text):
+    """(identifier for OpenAlex, arXiv id or None, dedupe key) or ValueError for free text."""
+    seed = str(text or "").strip()
+    seed = re.sub(r"^doi:\s*", "", seed, flags=re.I).rstrip(".,;")
+    match = _ARXIV.fullmatch(seed) or _ARXIV_URL.fullmatch(seed)
+    if match:
+        arxiv_id = match.group(1)
+        return f"https://doi.org/10.48550/arxiv.{arxiv_id}{match.group(2) or ''}", arxiv_id, arxiv_id
+    doi_url = _DOI_URL.fullmatch(seed)
+    if doi_url:
+        seed = doi_url.group(1)
+    if _DOI.fullmatch(seed):
+        return f"https://doi.org/{seed}", None, f"https://doi.org/{seed}".lower()
+    work = _OPENALEX.fullmatch(seed)
+    if work:
+        wid = work.group(1).upper()
+        return wid, None, wid
+    # Only public identifiers leave the machine; free text is looked up by search, not as an identifier.
+    raise ValueError("无法识别的标识：请填 arXiv 编号、DOI 或 OpenAlex W 编号，或改用名称检索")
+
+
+def _remember(paper):
+    wid = _OPENALEX.search(paper.get("openalex_id") or "")
+    if not wid:
+        return
+    with _SEED_LOCK:
+        _SEED_CACHE[wid.group(1).upper()] = paper
+        _SEED_CACHE.move_to_end(wid.group(1).upper())
+        while len(_SEED_CACHE) > SEED_CACHE_LIMIT:
+            _SEED_CACHE.popitem(last=False)
+
+
+def _cached(identifier):
+    wid = _OPENALEX.fullmatch(identifier)
+    if not wid:
+        return None
+    with _SEED_LOCK:
+        paper = _SEED_CACHE.get(wid.group(1).upper())
+    return dict(paper) if paper else None
+
+
+def fetch_seed_paper(client, identifier, arxiv_id=None):
+    """One slim public-metadata paper for a parsed identifier; SourceError on lookup failure."""
+    paper = _cached(identifier)
+    if paper:
+        return paper
+    paper = slim(fetch_seed_work(client, identifier, arxiv_id) or {}, group="seed")
+    paper["arxiv_id"] = paper["arxiv_id"] or arxiv_id
+    if paper.get("key") and paper.get("title"):
+        _remember(paper)
+    return paper
+
+
+def paper_view(paper, abstract_limit=1200):
+    """What the creation page may show about a paper; never the stored/private state."""
+    arxiv_id, doi = paper.get("arxiv_id"), paper.get("doi") or ""
+    url = (f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id
+           else doi if doi.startswith("http") else paper.get("openalex_id"))
+    return {"key": paper.get("key"), "title": paper.get("title"),
+            "abstract": (paper.get("abstract") or "")[:abstract_limit],
+            "published": paper.get("published"), "source": paper.get("source"),
+            "authors": paper.get("authors") or [], "openalex_id": paper.get("openalex_id"),
+            "doi": doi or None, "arxiv_id": arxiv_id, "url": url}
+
+
+def source_failure(exc):
+    kind = getattr(exc, "kind", None) or "failed"
+    return {"status": kind, "error": str(exc)[:200]}
+
+
+def lookup_seed(client, text):
+    """Resolve one typed/pasted identifier. Expected failures come back as a status, not an exception."""
+    text = str(text or "").strip()
+    if not text or len(text) > 300:
+        raise ValueError("请输入 DOI、arXiv 编号或链接（不超过 300 个字符）")
+    try:
+        identifier, arxiv_id, _ = parse_seed(text)
+    except ValueError as exc:
+        return {"status": "invalid_input", "error": str(exc)}
+    try:
+        paper = fetch_seed_paper(client, identifier, arxiv_id)
+    except SourceError as exc:
+        return source_failure(exc)
+    except Exception as exc:
+        return {"status": "failed", "error": str(exc)[:200]}
+    if not paper.get("key") or not paper.get("title"):
+        return {"status": "not_found", "error": "公开元数据缺少论文标题"}
+    return {"status": "resolved", "paper": paper_view(paper)}
+
+
+def search_seeds(client, query):
+    """Paper-name search for the seed picker. The user typed the query; it is the only thing sent."""
+    query = re.sub(r"\s+", " ", str(query or "")).strip()
+    if len(query) < 3 or len(query) > 200:
+        raise ValueError("请输入至少 3 个字符的论文名称（不超过 200 个字符）")
+    try:
+        papers = client.search_works(query)
+    except SourceError as exc:
+        return {**source_failure(exc), "items": []}
+    except Exception as exc:
+        return {"status": "failed", "error": str(exc)[:200], "items": []}
+    for paper in papers:
+        _remember(paper)
+    return {"status": "ok" if papers else "empty", "items": [paper_view(p) for p in papers]}
+
+
+# ------------------------------------------------------------------ imported PDFs
+def import_pdf(data_dir, data, filename=""):
+    """Keep a dropped PDF (original bytes, untouched) until a project creation attaches it."""
+    if not isinstance(data, (bytes, bytearray)) or not bytes(data[:5]).startswith(b"%PDF"):
+        raise ValueError("这不是 PDF 文件")
+    if len(data) > PDF_MAX_BYTES:
+        raise ValueError("PDF 超过 60 MB，无法导入")
+    folder = Path(data_dir) / "imports"
+    folder.mkdir(parents=True, exist_ok=True)
+    cutoff = time.time() - IMPORT_TTL_SECONDS
+    for old in folder.glob("*.pdf"):  # uploads nobody attached are not kept
+        try:
+            if old.stat().st_mtime < cutoff:
+                old.unlink()
+        except OSError:
+            pass
+    digest = hashlib.sha256(data).hexdigest()
+    (folder / f"{digest}.pdf").write_bytes(bytes(data))
+    name = re.sub(r"[^\w.\- ()一-鿿]", "_", Path(str(filename)).name)[:120] or "paper.pdf"
+    return {"pdf_id": digest, "bytes": len(data), "filename": name}
+
+
+def take_imported_pdf(data_dir, pdf_id):
+    """Move an uploaded PDF into the library's pdfs folder and return its path."""
+    if not isinstance(pdf_id, str) or not _PDF_ID.fullmatch(pdf_id):
+        raise ValueError("PDF 标识无效")
+    source = Path(data_dir) / "imports" / f"{pdf_id}.pdf"
+    if not source.is_file():
+        raise ValueError("导入的 PDF 已过期，请重新拖入")
+    target_dir = Path(data_dir) / "pdfs"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / f"import-{pdf_id[:24]}.pdf"
+    if target.exists():
+        source.unlink()
+    else:
+        source.replace(target)
+    return target
+
+
+# ---------------------------------------------------------- why the AI did not answer
+_REASONS = {
+    "ai_off": ("AI 总开关已关闭", "The AI switch is off"),
+    "no_key": ("还没有配置 DeepSeek key，请到设置页填写", "No DeepSeek key is set; add one in Settings"),
+    "not_approved": ("这项 AI 调用还没有获得批准", "This AI call has not been approved"),
+    "budget": ("已达到每日或每月的额度上限", "A daily or monthly budget ceiling was reached"),
+    "http": ("DeepSeek 拒绝了这次请求", "DeepSeek rejected the request"),
+    "network": ("请求没有成功（网络或超时）；这次预留的额度仍会计入", "The request did not complete (network or timeout); the reserved budget still counts"),
+    "bad_reply": ("模型的回复不是有效的草稿，已改用本地整理", "The model's reply was not a valid draft; local terms were used"),
+    "error": ("调用出现意外错误", "The call failed unexpectedly"),
+    "dry_run": ("试运行：只预留额度，没有发送", "Dry run: budget reserved, nothing was sent"),
+}
+
+
+def degrade_reason(result, english=False):
+    """(code, text) for why a gateway result did not produce an AI answer."""
+    result = result or {}
+    raw = str(result.get("reason") or "")
+    if result.get("dry_run"):
+        code = "dry_run"
+    elif result.get("disabled"):
+        code = "ai_off"
+    elif raw == "no API key":
+        code = "no_key"
+    elif "awaiting owner approval" in raw:
+        code = "not_approved"
+    elif "ceiling" in raw:
+        code = "budget"
+    elif raw.startswith("HTTPError"):
+        code = "http"
+    elif result.get("usage_unknown") or raw.startswith(("URLError", "TimeoutError", "OSError")):
+        code = "network"
+    else:
+        code = "error"
+    return code, reason_text(code, english) + (f"（{raw}）" if code == "http" and raw and not english
+                                                else f" ({raw})" if code == "http" and raw else "")
+
+
+def reason_text(code, english=False):
+    zh, en = _REASONS.get(code, _REASONS["error"])
+    return en if english else zh

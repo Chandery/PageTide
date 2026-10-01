@@ -158,11 +158,25 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertEqual(result["reason"], "no API key")
         self.assertEqual(self._rows(), [])
 
-    def test_unapproved_guidance_never_sends(self):
+    def test_unapproved_operation_never_sends(self):
+        ops = self.gateway.config["operations"]
+        ops["project_guidance"] = {**ops["project_guidance"], "owner_approved": False}
         with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
             result = self.gateway.call("project_guidance", [])
         urlopen.assert_not_called()
         self.assertIn("owner approval", result["reason"])
+        self.assertEqual(self._rows(), [])
+
+    def test_approved_project_guidance_sends_once_within_its_cap(self):
+        payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],
+                   "usage": {"prompt_tokens": 300, "completion_tokens": 100, "total_tokens": 400}}
+        with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
+            result = self.gateway.call("project_guidance", [{"role": "user", "content": "x"}])
+        self.assertTrue(result["ok"])
+        self.assertEqual(urlopen.call_count, 1)
+        self.assertEqual(json.loads(urlopen.call_args[0][0].data)["max_tokens"],
+                         self.gateway.config["operations"]["project_guidance"]["cap"]["output"])
+        self.assertEqual([r["operation"] for r in self._rows()], ["project_guidance", "project_guidance"])
 
     def test_ai_off_blocks_every_request_including_dry_run(self):
         self.gateway.set_enabled(False)

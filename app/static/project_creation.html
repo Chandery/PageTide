@@ -5,119 +5,147 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script>document.documentElement.dataset.mode=localStorage.getItem('pdh-mode')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')</script>
 <link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/project-creation.css">
 <title>创建项目 · PaperDigHelper</title>
-<style>
-body{--bg:var(--base);--panel:var(--surface-1);--panel2:var(--surface-2);--danger:var(--bad)}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC",sans-serif}
-.container{max-width:920px;margin:38px auto;padding:0 22px 80px}
-.back{color:var(--muted);text-decoration:none}
-.back:hover{color:var(--text)}
-h1{font-family:var(--serif);font-size:30px;font-weight:600;margin:22px 0 6px}
-.lead{color:var(--muted);margin:0 0 26px}
-.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
-.mode-card{border:1px solid var(--line);background:var(--panel);border-radius:var(--r-lg);padding:18px;cursor:pointer;transition:border-color .15s,background .15s}
-.mode-card:hover{border-color:var(--line-strong)}
-.mode-card.selected{border-color:var(--accent);background:var(--accent-soft)}
-.mode-card h2{font-family:var(--serif);font-size:17px;font-weight:600;margin:0 0 6px}
-.mode-card p{color:var(--muted);font-size:13px;margin:0}
-.badge{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:11px;font-weight:500;color:var(--muted);border:1px solid var(--line-strong);border-radius:999px;padding:1px 7px;margin-left:5px}
-.panel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px;box-shadow:var(--sh-1)}
-.panel.active{display:block}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.field{margin-bottom:16px}
-.field.full{grid-column:1/-1}
-label{display:block;font-weight:600;font-size:13px;margin-bottom:7px}
-.hint,.status{font-size:12px;color:var(--muted)}
-input,textarea{width:100%;padding:11px 13px;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--base);color:var(--text);font:inherit}
-textarea{min-height:100px;resize:vertical}
-input:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
-button{border:1px solid var(--line-strong);border-radius:var(--r-md);padding:9px 16px;color:var(--text);background:var(--panel2);cursor:pointer;font:inherit}
-button:hover{background:var(--surface-3)}
-button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
-button.primary:hover{background:color-mix(in srgb,var(--accent) 86%,var(--base))}
-button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
-button.ghost:hover{color:var(--text)}
-button:disabled{opacity:.45;cursor:not-allowed}
-.actions{display:flex;gap:10px;align-items:center;margin-top:18px}
-.step{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--line)}
-.step strong{font-size:14px}
-.mode-pill{color:var(--muted);font-size:13px}
-.chat{display:flex;flex-direction:column;gap:10px;max-height:270px;overflow:auto;margin:8px 0 15px}
-.msg{padding:10px 12px;border-radius:var(--r-md);background:var(--base);border:1px solid var(--line);white-space:pre-wrap}
-.msg.user{background:var(--panel2)}
-.msg.assistant{border-left:2px solid var(--ai)}
-.draft{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.draft .full{grid-column:1/-1}
-.chips{display:flex;flex-wrap:wrap;gap:7px}
-.chip{padding:4px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:12px}
-.path-head{display:flex;gap:8px;align-items:center}.path-head input{flex:1}.path-head button{padding:6px 10px}
-.path-item,.candidate{border:1px solid var(--line);border-radius:var(--r-md);padding:10px;background:var(--base);margin:7px 0}
-.candidate{display:flex;gap:10px;align-items:flex-start}
-.candidate input{width:auto;margin-top:4px}
-.candidate small{color:var(--muted)}
-.notice{padding:10px 12px;border-radius:var(--r-md);background:var(--panel2);color:var(--muted);font-size:13px;margin:12px 0}
-.error{color:var(--danger)}
-.success{color:var(--good)}
-@media(max-width:720px){.modes,.grid,.draft{grid-template-columns:1fr}.container{margin-top:22px}.panel{padding:17px}}
-</style>
 </head>
 <body>
 <div class="container">
 <a class="back" href="/">← 返回主页</a>
 <h1>创建研究项目</h1>
-<p class="lead">先整理方向，再由本地公开元数据检索候选论文。确认前不会创建正式项目，也不会修改画像。</p>
-<div class="modes">
-  <div class="mode-card" data-mode="quick"><h2>快速创建 <span class="badge">本地优先</span></h2><p>输入目标，复用同一套引导会话，完成后再确认。</p></div>
-  <div class="mode-card" data-mode="manual"><h2>手动创建</h2><p>填写关键词和 DOI / arXiv 种子，逐个显示解析结果。</p></div>
-  <div class="mode-card" data-mode="ai_guided"><h2>AI 引导创建</h2><p>最多 6 轮整理关键词、检索式和学习路径；AI 不选择论文。</p></div>
+<p class="lead">选一种方式开始。AI 只帮你整理关键词和检索式，不会替你挑论文；每一步都会告诉你它有没有真的在工作。</p>
+
+<div class="modes" role="radiogroup" aria-label="创建方式">
+  <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="quick">
+    <span class="mode-title">快速创建</span><span class="badge ai">AI · 1 次调用</span>
+    <span class="mode-desc">一句话说清目标，AI 一次性整理出关键词和检索式，自动找出候选论文，你看过再创建。</span>
+  </button>
+  <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="ai_guided">
+    <span class="mode-title">AI 引导</span><span class="badge ai">AI · 最多 6 轮</span>
+    <span class="mode-desc">像和助手聊天：它追问，你回答，右边的关键词、检索式和学习路径随对话一起完善。</span>
+  </button>
+  <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="manual">
+    <span class="mode-title">手动创建</span><span class="badge">不用 AI</span>
+    <span class="mode-desc">自己填关键词；种子论文可以粘贴 DOI / arXiv、按论文名称检索，或直接把 PDF 拖进来。</span>
+  </button>
 </div>
 
-<section id="quickForm" class="panel">
- <div class="step"><strong>快速创建 · 1 / 3</strong><span class="mode-pill">可随时切换本地模式</span></div>
- <div class="grid"><div class="field"><label for="quickName">项目名称</label><input id="quickName" placeholder="例如：具身世界模型"></div><div class="field"><label for="quickInterest">研究目标</label><input id="quickInterest" placeholder="你想理解或解决什么问题？"></div></div>
- <div class="actions"><button class="ghost" onclick="reset()">取消</button><button class="primary" onclick="startQuick()">开始整理方向</button></div>
+<!-- ===================================================================== 快速创建 -->
+<section id="quickForm" class="panel" aria-label="快速创建">
+  <div id="quickStart">
+    <div class="grid">
+      <div class="field"><label for="quickName">项目名称</label><input id="quickName" maxlength="120" placeholder="例如：具身世界模型"></div>
+      <div class="field"><label for="quickGoal">研究目标</label><textarea id="quickGoal" rows="3" maxlength="4000" placeholder="你想理解或解决什么问题？中文、英文都可以"></textarea></div>
+    </div>
+    <p class="hint">会调用 1 次 AI 来整理关键词和检索式（输入上限约 1,200 token）。没有 key、被关闭或失败时，改用本地词项整理——本地只认英文词项，并且会明确告诉你原因。</p>
+    <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="quickGo">整理方向并查找论文</button></div>
+  </div>
+  <div id="quickWork" hidden>
+    <div class="activity" id="quickActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
+    <div class="ai-note" id="quickNote" hidden></div>
+    <div id="quickReview"></div>
+  </div>
 </section>
 
-<section id="manualForm" class="panel">
- <div class="step"><strong>手动创建</strong><span class="mode-pill">候选失败不会回滚项目</span></div>
- <div class="grid"><div class="field"><label for="manualName">项目名称</label><input id="manualName" placeholder="例如：计算机视觉研究"></div><div class="field"><label for="manualKeywords">关键词</label><input id="manualKeywords" placeholder="逗号分隔，例如：world models, JEPA"></div><div class="field full"><label for="manualSeeds">种子论文（可选）</label><textarea id="manualSeeds" placeholder="每行一个 DOI、arXiv ID 或 OpenAlex W 编号"></textarea><p class="hint">系统会显示成功、未找到、重复、格式无法识别和网络失败；不影响其他种子。</p></div></div>
- <div id="manualResult" class="status"></div><div class="actions"><button class="ghost" onclick="reset()">取消</button><button class="primary" id="manualButton" onclick="createManual()">创建项目</button></div>
+<!-- ===================================================================== AI 引导 -->
+<section id="guidedForm" class="panel" aria-label="AI 引导">
+  <div id="guidedStart">
+    <div class="grid">
+      <div class="field"><label for="guidedName">项目名称</label><input id="guidedName" maxlength="120" placeholder="例如：世界模型入门"></div>
+      <div class="field"><label for="guidedGoal">研究目标</label><textarea id="guidedGoal" rows="3" maxlength="4000" placeholder="描述你想理解的主题、应用或方法"></textarea></div>
+    </div>
+    <p class="hint">开始后，助手会先回应你的目标并追问；你可以最多和 AI 来回 6 轮。没有拿到 AI 回答的那一轮不占名额，也可以一键重试。</p>
+    <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="guidedGo">开始引导</button></div>
+  </div>
+  <div id="guidedWork" class="split" hidden>
+    <div class="chat-col">
+      <div class="col-head"><strong>对话</strong><span class="hint" id="turnCounter"></span></div>
+      <div id="guideChat" class="chat" aria-live="polite"></div>
+      <div class="activity" id="guidedActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
+      <div class="composer">
+        <textarea id="guideMessage" rows="2" maxlength="2000" placeholder="补充应用场景、方法偏好、时间范围，或回答助手的追问（⌘/Ctrl + 回车发送）"></textarea>
+        <button type="button" class="primary" id="guideSend">发送</button>
+      </div>
+    </div>
+    <div class="draft-col" id="guidedReview"></div>
+  </div>
 </section>
 
-<section id="ai_guidedForm" class="panel">
- <div class="step"><strong id="guideStep">AI 引导 · 1 / 4</strong><span id="guideMode" class="mode-pill">本地模式可用</span></div>
- <div id="guideStart"><div class="grid"><div class="field"><label for="guidedName">项目名称</label><input id="guidedName" placeholder="例如：世界模型入门"></div><div class="field"><label for="guidedGoal">研究目标</label><textarea id="guidedGoal" placeholder="描述你想理解的主题、应用或方法"></textarea></div></div><div class="actions"><button class="ghost" onclick="reset()">取消</button><button class="primary" onclick="startGuidance()">开始引导</button></div></div>
- <div id="guideWorkspace" hidden>
-  <div id="guideNotice" class="notice">当前会话只包含本次创建对话，不读取其他项目。</div>
-  <div id="guideChat" class="chat"></div>
-  <div class="field"><label for="guideMessage">补充一轮回答（剩余 <span id="turnsLeft">6</span> 轮）</label><textarea id="guideMessage" placeholder="补充应用场景、方法偏好、时间范围，或直接说“开始检索”"></textarea></div>
-  <div class="actions"><button class="primary" id="turnButton" onclick="turnGuidance()">继续引导</button><button onclick="previewGuidance()">查看候选论文</button><button class="ghost" onclick="cancelGuidance()">取消草稿</button></div>
-  <div class="draft"><div class="field"><label for="draftKeywords">关键词（可编辑）</label><textarea id="draftKeywords"></textarea></div><div class="field"><label for="draftQueries">检索式（每行一条）</label><textarea id="draftQueries"></textarea></div><div class="field full"><label>学习路径（可编辑，最多 8 个阶段）</label><div id="draftPath"></div><button class="ghost" type="button" id="addPath" onclick="addPathItem({})">+ 添加阶段</button></div></div>
-  <div class="actions"><button class="primary" onclick="finalizeGuidance()">确认并创建项目</button></div>
-  <div id="candidateBox" class="field full" hidden><label>候选论文（勾选后才会加入项目）</label><div id="previewError" class="notice error" hidden></div><div id="candidateList"></div></div>
- </div>
+<!-- ===================================================================== 手动创建 -->
+<section id="manualForm" class="panel" aria-label="手动创建">
+  <div class="grid">
+    <div class="field"><label for="manualName">项目名称</label><input id="manualName" maxlength="120" placeholder="例如：计算机视觉研究"></div>
+    <div class="field"><label for="manualKeywordsInput">关键词</label><div class="chip-input" id="manualKeywords"><span class="chips"></span><input id="manualKeywordsInput" placeholder="输入后回车或逗号添加，例如：world models"></div></div>
+  </div>
+
+  <div class="field">
+    <label for="seedInput">种子论文 <span class="opt">（可选）</span></label>
+    <div class="seed-add">
+      <input id="seedInput" placeholder="粘贴 DOI / arXiv 编号 / 链接，或输入论文名称" autocomplete="off">
+      <button type="button" class="primary" id="seedAdd">添加</button>
+    </div>
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="拖入或选择 PDF">
+      <input type="file" id="pdfPick" accept="application/pdf,.pdf" multiple hidden>
+      <strong>把论文 PDF 拖到这里</strong><span>或点击选择文件。会在本机读取首页，识别出是哪篇论文；原文件保存在项目里，不会上传。</span>
+    </div>
+    <p class="hint" id="seedPrivacy">只有标识符（DOI、arXiv 编号）或你输入/识别出的标题会发送给 OpenAlex 做公开元数据查询；PDF 文件本身不离开这台电脑。</p>
+    <p class="hint" id="seedNote" role="status" hidden></p>
+    <div class="seed-search" id="seedSearch" hidden>
+      <div class="seed-search-head"><strong id="seedSearchTitle"></strong><button type="button" class="ghost small" id="seedSearchClose">关闭</button></div>
+      <div class="activity" id="seedSearchActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
+      <div class="notice" id="seedSearchNotice" hidden></div>
+      <div id="seedSearchList"></div>
+    </div>
+    <ul class="seeds" id="seedList" aria-live="polite"></ul>
+  </div>
+
+  <div class="create-bar">
+    <span id="manualSummary" class="summary"></span>
+    <button type="button" class="ghost" data-act="cancel">取消</button>
+    <button type="button" class="primary" id="manualCreate">创建项目</button>
+  </div>
+  <div class="activity" id="manualActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
+  <div id="manualResult" class="result" hidden></div>
 </section>
 </div>
-<script>
-const $=s=>document.querySelector(s);let selectedMode=null,guidanceSession=null;
-function api(path,opts={}){return fetch(path,{...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}}).then(async r=>{let j={};try{j=await r.json()}catch{}if(!r.ok)throw Error(j.error||'请求失败');return j})}
-document.querySelectorAll('.mode-card').forEach(c=>c.onclick=()=>{selectedMode=c.dataset.mode;document.querySelectorAll('.mode-card').forEach(x=>x.classList.toggle('selected',x===c));document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));$('#'+(selectedMode==='ai_guided'?'ai_guidedForm':selectedMode+'Form')).classList.add('active')});
-function reset(){selectedMode=null;guidanceSession=null;document.querySelectorAll('.mode-card').forEach(c=>c.classList.remove('selected'));document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'))}
-function draftFromUI(){let d=guidanceSession.draft||{};d.keywords=$('#draftKeywords').value.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);d.search_queries=$('#draftQueries').value.split('\n').map(x=>x.trim()).filter(Boolean);d.learning_path=[...document.querySelectorAll('#draftPath .path-item')].map((el,i)=>({title:el.querySelector('input')?.value||'',purpose:el.querySelector('textarea')?.value||''}));return d}
-function renderDraft(d){$('#draftKeywords').value=(d.keywords||[]).join(', ');$('#draftQueries').value=(d.search_queries||[]).join('\n');$('#draftPath').innerHTML='';(d.learning_path||[]).forEach(addPathItem);syncPathButton()}
-function addPathItem(x){if(document.querySelectorAll('#draftPath .path-item').length>=8)return;let e=document.createElement('div');e.className='path-item';e.innerHTML=`<div class="path-head"><input value="${esc(x.title||'')}" placeholder="阶段标题"><button class="ghost" type="button" title="删除阶段">删除</button></div><textarea placeholder="目的">${esc(x.purpose||'')}</textarea>`;e.querySelector('button').onclick=()=>{e.remove();syncPathButton()};$('#draftPath').appendChild(e);syncPathButton();if(!x.title)e.querySelector('input').focus()}
-function syncPathButton(){$('#addPath').disabled=document.querySelectorAll('#draftPath .path-item').length>=8}
-function renderChat(t){$('#guideChat').innerHTML=(t||[]).map(x=>`<div class="msg ${x.role==='user'?'user':'assistant'}"><b>${x.role==='user'?'你':'引导助手'}：</b> ${esc(x.content||'')}</div>`).join('');$('#guideChat').scrollTop=$('#guideChat').scrollHeight}
-function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function syncSession(s){guidanceSession=s;localStorage.setItem('pdh-guidance-session',s.id);$('#guideStart').hidden=true;$('#guideWorkspace').hidden=false;renderChat(s.transcript);renderDraft(s.draft);let left=Math.max(0,6-(s.turn_count||0));$('#turnsLeft').textContent=left;$('#turnButton').disabled=left===0;$('#guideStep').textContent=`引导草稿 · ${s.turn_count||0} / 6`;$('#guideMode').textContent=(s.transcript||[]).at(-1)?.mode==='local'?'本地模式（AI 未参与本轮）':'AI 可选；本地模式始终可用'}
-async function startGuidance(){try{let s=await api('/api/project-guidance/sessions',{method:'POST',body:JSON.stringify({name:$('#guidedName').value,goal:$('#guidedGoal').value,creation_mode:'ai_guided'})});syncSession(s.session)}catch(e){alert(e.message)}}
-async function startQuick(){if(!$('#quickName').value.trim()||!$('#quickInterest').value.trim())return alert('请填写项目名称和研究目标');$('#guidedName').value=$('#quickName').value;$('#guidedGoal').value=$('#quickInterest').value;selectedMode='quick';try{let s=await api('/api/project-guidance/sessions',{method:'POST',body:JSON.stringify({name:$('#quickName').value,goal:$('#quickInterest').value,creation_mode:'quick'})});document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));$('#ai_guidedForm').classList.add('active');syncSession(s.session);await turnGuidance(true)}catch(e){alert(e.message)}}
-async function turnGuidance(initial=false){if(!guidanceSession)return;let m=initial?guidanceSession.draft.goal:$('#guideMessage').value.trim();if(!m)return alert('请填写本轮内容');try{let r=await api(`/api/project-guidance/sessions/${guidanceSession.id}/turn`,{method:'POST',body:JSON.stringify({message:m})});syncSession(r.session);$('#guideMessage').value='';if(r.degraded)$('#guideNotice').textContent='AI 未参与本轮，已使用本地关键词解析；你仍可继续或直接检索。'}catch(e){alert(e.message)}}
-async function previewGuidance(){if(!guidanceSession)return;try{let r=await api(`/api/project-guidance/sessions/${guidanceSession.id}/preview`,{method:'POST',body:JSON.stringify({draft:draftFromUI()})});guidanceSession=r.session;renderDraft(guidanceSession.draft);$('#candidateBox').hidden=false;$('#candidateList').innerHTML=r.items.length?r.items.map(p=>`<label class="candidate"><input type="checkbox" value="${esc(p.key)}"><span><b>${esc(p.title)}</b><br><small>${esc(p.published||'')} · ${esc(p.source||'')}</small></span></label>`).join(''):r.errors.length?'':'<div class="notice">暂无候选论文，请修改检索式后重试。</div>';let pe=$('#previewError');pe.hidden=!r.errors.length;pe.textContent=r.errors.some(x=>x.kind==='unavailable')?'OpenAlex 暂时不可用（对方服务限流或维护中），草稿已保存，请稍后再点「查看候选论文」。':'部分检索失败，但草稿仍可编辑。'}catch(e){alert(e.message)}}
-async function finalizeGuidance(){if(!guidanceSession)return;try{let r=await api(`/api/project-guidance/sessions/${guidanceSession.id}/finalize`,{method:'POST',body:JSON.stringify({draft:draftFromUI(),selected_keys:[...document.querySelectorAll('#candidateList input:checked')].map(x=>x.value)})});localStorage.removeItem('pdh-guidance-session');location.href=`/?project_id=${encodeURIComponent(r.project_id)}`}catch(e){alert(e.message)}}
-async function cancelGuidance(){if(guidanceSession)await fetch(`/api/project-guidance/sessions/${guidanceSession.id}`,{method:'DELETE'});localStorage.removeItem('pdh-guidance-session');reset()}
-async function createManual(){let name=$('#manualName').value.trim(),kw=$('#manualKeywords').value.split(',').map(x=>x.trim()).filter(Boolean),seeds=$('#manualSeeds').value.split('\n').map(x=>x.trim()).filter(Boolean);if(!name||!kw.length)return alert('请填写项目名称和关键词');let b=$('#manualButton');b.disabled=true;try{let r=await api('/api/projects',{method:'POST',body:JSON.stringify({name,creation_mode:'manual',keywords:kw,seeds})});$('#manualResult').innerHTML=(r.seed_results||[]).map(x=>{let label={resolved:'已加入',duplicate:'重复，已保留现有关联',invalid_input:'格式无法识别，未发送',not_found:'未找到',network_error:'网络失败',unavailable:'OpenAlex 暂时不可用，稍后可在项目中补充'}[x.status]||'解析失败';let cls=x.status==='resolved'?'success':x.status==='duplicate'?'status':'error';return `${esc(x.input)}：<span class="${cls}">${label}${x.error?`（${esc(x.error)}）`:''}</span>`}).join('<br>')||'项目已创建';let go=`/?project_id=${encodeURIComponent(r.project_id)}`;if((r.seed_results||[]).every(x=>x.status==='resolved'||x.status==='duplicate'))setTimeout(()=>location.href=go,500);else $('#manualResult').insertAdjacentHTML('beforeend','<div class="actions"><button class="primary" id="enterProject">进入项目</button></div>');$('#enterProject')&&($('#enterProject').onclick=()=>location.href=go)}catch(e){alert(e.message);b.disabled=false}}
-const savedGuidance=localStorage.getItem('pdh-guidance-session');if(savedGuidance)api(`/api/project-guidance/sessions/${savedGuidance}`).then(r=>{if(r.session.status==='draft'){document.querySelector('[data-mode="ai_guided"]').click();syncSession(r.session)}}).catch(()=>localStorage.removeItem('pdh-guidance-session'));
-</script>
-</body></html>
+
+<!-- 候选论文、关键词、检索式、学习路径的审阅区：快速创建和 AI 引导共用 -->
+<template id="reviewTpl">
+<div class="review">
+  <section class="rv-block">
+    <header><h3>关键词</h3><span class="hint">用于推荐排序，可以增删</span></header>
+    <div class="chip-input" data-role="keywords"><span class="chips"></span><input placeholder="输入后回车添加"></div>
+  </section>
+  <section class="rv-block">
+    <header><h3>检索式</h3><span class="hint">每行一条，最多 6 条；查找论文时用前 3 条</span></header>
+    <textarea data-role="queries" rows="3" placeholder="例如：world model embodied planning"></textarea>
+  </section>
+  <section class="rv-block" data-role="pathBlock">
+    <header><h3>学习路径</h3><button type="button" class="ghost small" data-role="addPath">+ 添加阶段</button></header>
+    <div data-role="path"></div>
+  </section>
+  <section class="rv-block">
+    <header><h3>候选论文</h3><span class="hint">勾选后才会加入项目，AI 不替你选</span></header>
+    <div class="cand-toolbar">
+      <button type="button" data-role="search">按检索式查找论文</button>
+      <span class="status" data-role="searchStatus"></span>
+      <span class="spacer"></span>
+      <button type="button" class="ghost small" data-role="selectAll">全选</button>
+      <button type="button" class="ghost small" data-role="selectNone">清空</button>
+    </div>
+    <div class="activity" data-role="searchActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
+    <div class="notice" data-role="searchNotice" hidden></div>
+    <div class="cands" data-role="cands"></div>
+  </section>
+  <div class="create-bar">
+    <span class="summary" data-role="summary"></span>
+    <button type="button" class="ghost" data-act="cancel">取消草稿</button>
+    <button type="button" class="primary" data-role="create">确认并创建项目</button>
+  </div>
+  <div class="activity" data-role="createActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
+</div>
+</template>
+
+<script src="/creation-pdf.js"></script>
+<script src="/project-creation.js"></script>
+</body>
+</html>
