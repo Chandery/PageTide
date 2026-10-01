@@ -22,6 +22,7 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from . import creation
 from .language import language
 from .service import App
 
@@ -256,6 +257,24 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def _import_pdf(self):
+        """A dropped PDF as raw bytes; kept untouched until a project creation attaches it to a seed."""
+        origin = self.headers.get("Origin")
+        if origin and origin != "http://" + self.headers.get("Host", ""):
+            return self._json({"error": "cross-origin request denied"}, 403)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self._json({"error": "invalid content length"}, 400)
+        if length <= 0 or length > creation.PDF_MAX_BYTES:
+            self.close_connection = True
+            return self._json({"error": "PDF 大小必须在 60 MB 以内"}, 413)
+        data = self.rfile.read(length)
+        try:
+            self._json(self._app().import_pdf(data, unquote(self.headers.get("X-Filename", ""))))
+        except ValueError as exc:
+            self._json({"error": str(exc)}, 400)
+
     def _body(self):
         length = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(length) or b"{}")
@@ -421,6 +440,8 @@ class Handler(BaseHTTPRequestHandler):
             if length < 0 or length > limit:
                 self.close_connection = True
                 return self._json({"error": "request too large"}, 413)
+        if route == "/api/seeds/pdf":
+            return self._import_pdf()
         try:
             body = self._body()
         except (ValueError, json.JSONDecodeError):
@@ -473,6 +494,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"project_id": project_id, "paper_key": paper_key, "added": True})
             except (ValueError, TypeError, sqlite3.IntegrityError) as exc:
                 return self._json({"error": str(exc)}, 400)
+        elif route in ("/api/seeds/resolve", "/api/seeds/search"):
+            try:
+                if route.endswith("resolve"):
+                    self._json(app.seed_lookup(body.get("input")))
+                else:
+                    self._json(app.seed_search(body.get("query")))
+            except (ValueError, TypeError) as exc:
+                return self._json({"error": str(exc)}, 400)
         elif route == "/api/project-guidance/sessions":
             try:
                 self._json({"session": app.create_guidance_session(body.get("name"), body.get("goal"), body.get("creation_mode", "ai_guided"))}, 201)
@@ -485,7 +514,10 @@ class Handler(BaseHTTPRequestHandler):
             session_id, action = parts[4], parts[5] if len(parts) > 5 else "turn"
             try:
                 if action == "turn":
-                    self._json(app.guidance_turn(session_id, body.get("message"), bool(body.get("dry_run"))))
+                    self._json(app.guidance_turn(session_id, body.get("message"), bool(body.get("dry_run")),
+                                                 retry=bool(body.get("retry"))))
+                elif action == "search":
+                    self._json(app.guidance_search(session_id, body.get("query")))
                 elif action == "preview":
                     self._json(app.guidance_preview(session_id, body.get("draft")))
                 elif action == "finalize":

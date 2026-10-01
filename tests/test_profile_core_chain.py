@@ -240,6 +240,8 @@ class CoreChainTests(unittest.TestCase):
 
 class SeedResolutionTests(unittest.TestCase):
     def setUp(self):
+        from app import creation
+        creation._SEED_CACHE.clear()  # resolved papers are remembered process-wide
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(root=ROOT, data_dir=Path(self.tmp.name) / "app")

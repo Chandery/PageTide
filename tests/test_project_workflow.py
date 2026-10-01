@@ -11,6 +11,11 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(root=".", data_dir=Path(self.tmp.name) / "app")
+        # project_guidance is approved: a test that forgets to replace the gateway must fail, not call out.
+        transport = patch("app.gateway.urllib.request.urlopen",
+                          side_effect=AssertionError("tests must not reach the network"))
+        transport.start()
+        self.addCleanup(transport.stop)
 
     def paper(self, key="shared-1"):
         return {"key": key, "title": "Shared World Model", "abstract": "planning and prediction",
@@ -52,15 +57,30 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(project["creation_mode"], "ai_guided")
         self.assertEqual(self.app.store.project_papers(result["project_id"])[0]["relation_kind"], "imported")
 
-    def test_guidance_local_fallback_and_turn_cap(self):
+    def test_guidance_local_fallback_is_free_and_the_cap_counts_model_turns(self):
         session = self.app.create_guidance_session("本地项目", "稀疏检索")
         with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True, "reason": "no API key"}):
-            for i in range(GUIDANCE_MAX_TURNS):
+            for i in range(GUIDANCE_MAX_TURNS + 1):
                 result = self.app.guidance_turn(session["id"], f"补充方向 {i}")
                 self.assertEqual(result["mode"], "local")
                 self.assertTrue(result["degraded"])
-        with self.assertRaises(ValueError):
-            self.app.guidance_turn(session["id"], "再问一轮")
+                self.assertEqual(result["reason_code"], "no_key")
+        self.assertEqual(self.app.store.guidance_session(session["id"])["turn_count"], 0)
+        payload = '{"reply":"好","draft":{"keywords":["a"],"search_queries":["a"],"learning_path":[],"next_question":""}}'
+        with patch.object(self.app.gateway, "call", return_value={"ok": True, "content": payload}):
+            for i in range(GUIDANCE_MAX_TURNS):
+                self.assertEqual(self.app.guidance_turn(session["id"], f"模型 {i}")["mode"], "ai")
+            with self.assertRaises(ValueError):
+                self.app.guidance_turn(session["id"], "再问一轮")
+
+    def test_the_transcript_is_bounded_even_without_the_model(self):
+        from app.service import GUIDANCE_MAX_MESSAGES
+        session = self.app.create_guidance_session("长对话", "稀疏检索")
+        with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
+            with self.assertRaises(ValueError):
+                for i in range(GUIDANCE_MAX_MESSAGES):
+                    self.app.guidance_turn(session["id"], f"补充方向 {i}")
+        self.assertLessEqual(len(self.app.store.guidance_session(session["id"])["transcript"]), GUIDANCE_MAX_MESSAGES)
 
     def test_first_turn_on_the_goal_is_not_recorded_twice(self):
         # Quick creation sends the goal itself as the first turn to get a reply.
