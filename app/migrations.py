@@ -206,11 +206,66 @@ def migrate_004_project_scoped_qa(conn):
     set_schema_version(conn, 4)
 
 
+def migrate_005_channels(conn):
+    """Multi-channel papers (ADR 0010): identity columns, per-channel provenance, per-project channels."""
+    from app.channels import dedup
+    from app.channels.presets import DEFAULT, LEGACY_CHANNELS
+    for column, kind in (("language", "TEXT"), ("url", "TEXT"), ("pdf_url", "TEXT"), ("channel", "TEXT"),
+                         ("authors", "TEXT"), ("title_norm", "TEXT"), ("year", "INTEGER")):
+        try:
+            conn.execute(f"ALTER TABLE papers ADD COLUMN {column} {kind}")
+        except sqlite3.OperationalError:
+            pass  # column already exists
+    conn.execute("""CREATE TABLE IF NOT EXISTS paper_ids (
+        scheme TEXT NOT NULL, value TEXT NOT NULL,
+        paper_key TEXT NOT NULL REFERENCES papers(key) ON DELETE CASCADE,
+        PRIMARY KEY (scheme, value))""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_paper_ids_paper ON paper_ids(paper_key)")
+    conn.execute("""CREATE TABLE IF NOT EXISTS paper_sources (
+        paper_key TEXT NOT NULL REFERENCES papers(key) ON DELETE CASCADE,
+        channel TEXT NOT NULL, query TEXT, found_at TEXT NOT NULL,
+        PRIMARY KEY (paper_key, channel))""")
+    try:
+        conn.execute("ALTER TABLE projects ADD COLUMN discipline TEXT NOT NULL DEFAULT 'cs_ai'")
+    except sqlite3.OperationalError:
+        pass
+    conn.execute("""CREATE TABLE IF NOT EXISTS project_channels (
+        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        channel TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
+        auto_search INTEGER NOT NULL DEFAULT 0, query_override TEXT,
+        PRIMARY KEY (project_id, channel))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS channel_usage (
+        channel TEXT NOT NULL, day TEXT NOT NULL, requests INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (channel, day))""")
+    # Holds no secret: only the state the settings page shows (configured / expired / last check).
+    conn.execute("""CREATE TABLE IF NOT EXISTS channel_status (
+        channel TEXT PRIMARY KEY, state TEXT NOT NULL, detail TEXT, checked_at TEXT NOT NULL)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_papers_title_year ON papers(title_norm, year)")
+    # Backfill: every earlier paper came from OpenAlex or an import of OpenAlex data.
+    for row in conn.execute("SELECT key, openalex_id, doi, arxiv_id, title, published FROM papers").fetchall():
+        paper = dict(row)
+        conn.execute("UPDATE papers SET title_norm=?, year=?, channel=COALESCE(channel, ?) WHERE key=?",
+                     (dedup.title_key(paper["title"]), dedup.year_of(paper["published"]),
+                      "openalex" if paper["openalex_id"] else None, paper["key"]))
+        for scheme, value in dedup.paper_ids(paper):
+            conn.execute("INSERT OR IGNORE INTO paper_ids(scheme, value, paper_key) VALUES (?,?,?)",
+                         (scheme, value, paper["key"]))
+        conn.execute("""INSERT OR IGNORE INTO paper_sources(paper_key, channel, query, found_at)
+                        SELECT key, 'openalex', NULL, created_at FROM papers WHERE key=? AND openalex_id IS NOT NULL""",
+                     (paper["key"],))
+    for row in conn.execute("SELECT id FROM projects").fetchall():
+        for channel in LEGACY_CHANNELS:
+            conn.execute("INSERT OR IGNORE INTO project_channels(project_id, channel) VALUES (?,?)",
+                         (row["id"], channel))
+    set_schema_version(conn, 5)
+
+
 MIGRATIONS = [
     migrate_001_multi_project,
     migrate_002_shared_papers,
     migrate_003_project_guidance,
     migrate_004_project_scoped_qa,
+    migrate_005_channels,
 ]
 
 

@@ -5,6 +5,8 @@ Each project has independent profile, recommendations, and paper library.
 import json
 import uuid
 
+from .channels import presets
+
 
 def now():
     import datetime
@@ -16,7 +18,7 @@ class ProjectManager:
         self.store = store
 
     def create_project(self, name, creation_mode="manual", keywords=None,
-                      guidance_transcript=None, learning_path=None):
+                      guidance_transcript=None, learning_path=None, discipline=presets.DEFAULT):
         """Create a new research project.
 
         Args:
@@ -25,6 +27,7 @@ class ProjectManager:
             keywords: List of initial keywords (optional)
             guidance_transcript: AI conversation history for ai_guided mode
             learning_path: Recommended learning path for ai_guided mode
+            discipline: preset naming the channels the project starts with (app.channels.presets)
 
         Returns:
             project_id: UUID string
@@ -34,13 +37,15 @@ class ProjectManager:
         name = str(name or "").strip()
         if not name or len(name) > 120:
             raise ValueError("项目名称不能为空且不能超过 120 个字符")
+        if not presets.valid(discipline):
+            raise ValueError("学科预设无效")
         project_id = str(uuid.uuid4())
 
         self.store.conn.execute("""
             INSERT INTO projects
             (id, name, creation_mode, creation_timestamp, keywords,
-             guidance_transcript, recommended_learning_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+             guidance_transcript, recommended_learning_path, discipline)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             project_id,
             name,
@@ -48,8 +53,10 @@ class ProjectManager:
             now(),
             json.dumps(keywords or [], ensure_ascii=False),
             json.dumps(guidance_transcript or [], ensure_ascii=False) if guidance_transcript else None,
-            json.dumps(learning_path or {}, ensure_ascii=False) if learning_path else None
+            json.dumps(learning_path or {}, ensure_ascii=False) if learning_path else None,
+            discipline
         ))
+        self.set_channels(project_id, presets.channels_for(discipline), commit=False)
         self.store.conn.commit()
 
         return project_id
@@ -70,6 +77,7 @@ class ProjectManager:
             "creation_timestamp": row["creation_timestamp"],
             "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
             "decay_window_days": row["decay_window_days"],
+            "discipline": row["discipline"],
             "guidance_transcript": json.loads(row["guidance_transcript"]) if row["guidance_transcript"] else None,
             "recommended_learning_path": json.loads(row["recommended_learning_path"]) if row["recommended_learning_path"] else None
         }
@@ -87,7 +95,8 @@ class ProjectManager:
                 "creation_mode": row["creation_mode"],
                 "creation_timestamp": row["creation_timestamp"],
                 "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                "decay_window_days": row["decay_window_days"]
+                "decay_window_days": row["decay_window_days"],
+                "discipline": row["discipline"]
             }
             for row in rows
         ]
@@ -115,8 +124,27 @@ class ProjectManager:
         self.store.conn.execute(sql, params)
         self.store.conn.commit()
 
+    def channels(self, project_id):
+        """Enabled channel ids of a project, in the order they were added."""
+        return [r["channel"] for r in self.store.conn.execute(
+            "SELECT channel FROM project_channels WHERE project_id=? AND enabled=1 ORDER BY rowid", (project_id,))]
+
+    def set_channels(self, project_id, channel_ids, commit=True):
+        """Replace the project's channel set; auto_search flags of kept channels are preserved."""
+        keep = list(dict.fromkeys(channel_ids))
+        self.store.conn.execute(
+            f"DELETE FROM project_channels WHERE project_id=? AND channel NOT IN ({','.join('?' * len(keep)) or 'NULL'})",
+            (project_id, *keep))
+        for channel in keep:
+            self.store.conn.execute(
+                "INSERT INTO project_channels(project_id, channel, enabled) VALUES (?,?,1) "
+                "ON CONFLICT(project_id, channel) DO UPDATE SET enabled=1", (project_id, channel))
+        if commit:
+            self.store.conn.commit()
+
     def delete_project(self, project_id):
         """Delete one project's state while retaining canonical paper facts."""
+        self.store.conn.execute("DELETE FROM project_channels WHERE project_id=?", (project_id,))
         self.store.conn.execute("DELETE FROM project_library WHERE project_id=?", (project_id,))
         self.store.conn.execute("DELETE FROM project_papers WHERE project_id=?", (project_id,))
         self.store.conn.execute("DELETE FROM feedback WHERE project_id=?", (project_id,))

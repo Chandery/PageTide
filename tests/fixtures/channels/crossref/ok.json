@@ -1,0 +1,29 @@
+{
+  "status": "ok",
+  "message-type": "work-list",
+  "message": {
+    "total-results": 2,
+    "items": [
+      {
+        "DOI": "10.1000/XYZ.123",
+        "title": ["Digital Humanities and the  Edition of Old Books"],
+        "abstract": "<jats:p>An <jats:italic>edition</jats:italic> of old books.</jats:p>",
+        "author": [{"given": "Ada", "family": "Lovelace"}, {"name": "Consortium X"}],
+        "published": {"date-parts": [[2025, 3]]},
+        "container-title": ["Journal of Digital Humanities"],
+        "URL": "https://doi.org/10.1000/xyz.123",
+        "subject": ["Humanities"],
+        "language": "en",
+        "link": [{"URL": "https://example.org/xyz.pdf", "content-type": "application/pdf"}]
+      },
+      {
+        "DOI": "10.1000/abc",
+        "title": ["Year only record"],
+        "issued": {"date-parts": [[2024]]},
+        "author": []
+      },
+      {"DOI": "10.1000/notitle", "title": []},
+      {"title": ["No DOI"]}
+    ]
+  }
+}

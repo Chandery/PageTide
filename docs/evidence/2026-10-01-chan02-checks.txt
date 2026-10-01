@@ -1,0 +1,30 @@
+CHAN-02 checks, 2026-10-01, worktree branch worktree-channels (agent sandbox, macOS)
+
+$ python3 -m unittest discover -s tests
+Ran 394 tests. 27 errors, all "PermissionError: [Errno 1] Operation not permitted" when the HTTP
+tests bind a localhost port (the agent sandbox forbids it; same 27 as before this unit). No
+failures. 42 of the tests are new (tests/test_channels_core.py): shared client (error kinds,
+secrets absent from errors/cache names, TTL, bounded retry, size cap, per-host gap), parsers on
+hand-written fixtures (arXiv/OpenAlex/Crossref: ok, empty, malformed; arXiv entity refusal),
+request shapes, script routing, dedup (DOI spellings, arXiv ids, title+year, Chinese titles,
+gap fill, project link), migration 005 (backfill, idempotent, backup), daily ceiling, refresh
+fan-out (project terms, one channel failing, skips with reason, quota, no-keyword project) and
+the smoke tool. The HTTP route tests did not run.
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+
+$ tools/channel_smoke.py  (see docs/evidence/2026-10-01-chan02-channel-smoke.md)
+All rows are network_error: the agent sandbox denied export.arxiv.org, api.openalex.org and
+api.crossref.org. The fixtures are hand-written from the documented formats, not recordings.
+No live channel call has been made; E-CHANNELS stays not_run.
+
+$ PYINSTALLER_CONFIG_DIR=.local/pyi-config .local/desktop-build-env/bin/python scripts/build_desktop.py
+$ cargo tauri build --bundles app
+Built src-tauri/target/release/bundle/macos/PaperDigHelper.app. app.channels.{arxiv,crossref,
+openalex,registry,usage,...} are in the PyInstaller archive. The .app was not launched, so
+migration 005 on a real user database inside the bundle is untested (it is tested on a legacy
+database in the unit tests).

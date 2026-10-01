@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <title>ArXiv Query: search_query=all:"world model"</title>
+  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">2</opensearch:totalResults>
+  <entry>
+    <id>http://arxiv.org/abs/2601.01234v2</id>
+    <updated>2026-01-05T10:00:00Z</updated>
+    <published>2026-01-03T09:30:00Z</published>
+    <title>A Latent  World Model
+      for Manipulation</title>
+    <summary>  We learn a latent world model.
+ It predicts futures.  </summary>
+    <author><name>Ada Lovelace</name></author>
+    <author><name>Alan Turing</name></author>
+    <link href="http://arxiv.org/abs/2601.01234v2" rel="alternate" type="text/html"/>
+    <link title="pdf" href="http://arxiv.org/pdf/2601.01234v2" rel="related" type="application/pdf"/>
+    <arxiv:primary_category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/cs/0501001v1</id>
+    <published>2005-01-01T00:00:00Z</published>
+    <title>Old style identifier paper</title>
+    <summary>Old.</summary>
+    <author><name>Grace Hopper</name></author>
+    <arxiv:doi>10.1000/old.paper.1</arxiv:doi>
+    <arxiv:primary_category term="cs.AI"/>
+  </entry>
+</feed>

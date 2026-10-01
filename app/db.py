@@ -7,6 +7,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+from .channels import dedup
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS papers (
   key TEXT PRIMARY KEY,              -- DOI or OpenAlex ID or normalized title
@@ -128,14 +130,24 @@ class Store:
         added = 0
         for paper in papers:
             paper_project_id = paper.get("project_id") or project_id or default_project_id
-            cur = self.conn.execute(
-                """INSERT OR IGNORE INTO papers
-                   (key, openalex_id, doi, arxiv_id, title, abstract, published, source, topic, group_name, project_id, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (paper["key"], paper.get("openalex_id"), paper.get("doi"), paper.get("arxiv_id"),
-                 paper["title"], paper.get("abstract"), paper.get("published"),
-                 paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now()))
-            added += cur.rowcount
+            existing = dedup.find_existing(self.conn, paper)
+            if existing:
+                paper["key"] = existing  # the same paper found again, possibly through another channel
+                self._fill_gaps(existing, paper)
+            else:
+                cur = self.conn.execute(
+                    """INSERT OR IGNORE INTO papers
+                       (key, openalex_id, doi, arxiv_id, title, abstract, published, source, topic, group_name,
+                        project_id, created_at, language, url, pdf_url, channel, authors, title_norm, year)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (paper["key"], paper.get("openalex_id"), paper.get("doi"), paper.get("arxiv_id"),
+                     paper["title"], paper.get("abstract"), paper.get("published"),
+                     paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now(),
+                     paper.get("language"), paper.get("url"), paper.get("pdf_url"), paper.get("channel"),
+                     json.dumps(paper["authors"], ensure_ascii=False) if paper.get("authors") else None,
+                     dedup.title_key(paper["title"]), dedup.year_of(paper.get("published"))))
+                added += cur.rowcount
+            self._record_identity(paper)
             if paper_project_id:
                 self.add_project_paper(paper_project_id, paper["key"],
                                        paper.get("relation_kind") or
@@ -143,6 +155,31 @@ class Store:
                                        paper.get("source_project_id"), commit=False)
         self.conn.commit()
         return added
+
+    _FILLABLE = ("openalex_id", "doi", "arxiv_id", "abstract", "published", "source", "topic",
+                 "language", "url", "pdf_url", "channel")
+
+    def _fill_gaps(self, key, paper):
+        """A duplicate found through another channel fills fields the stored row lacks; it never overwrites."""
+        sets, values = [], []
+        for column in self._FILLABLE:
+            if paper.get(column):
+                sets.append(f"{column}=CASE WHEN {column} IS NULL OR {column}='' THEN ? ELSE {column} END")
+                values.append(paper[column])
+        if paper.get("authors"):
+            sets.append("authors=COALESCE(authors, ?)")
+            values.append(json.dumps(paper["authors"], ensure_ascii=False))
+        if sets:
+            self.conn.execute(f"UPDATE papers SET {', '.join(sets)} WHERE key=?", (*values, key))
+
+    def _record_identity(self, paper):
+        for scheme, value in dedup.paper_ids(paper):
+            self.conn.execute("INSERT OR IGNORE INTO paper_ids(scheme, value, paper_key) VALUES (?,?,?)",
+                              (scheme, value, paper["key"]))
+        if paper.get("channel"):
+            self.conn.execute(
+                "INSERT OR IGNORE INTO paper_sources(paper_key, channel, query, found_at) VALUES (?,?,?,?)",
+                (paper["key"], paper["channel"], paper.get("query"), now()))
 
     def add_project_paper(self, project_id, paper_key, relation_kind="shared",
                           source_project_id=None, commit=True):

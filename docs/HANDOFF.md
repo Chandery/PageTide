@@ -1,3 +1,12 @@
+# 当前工作单元：渠道框架、迁移 005 与按项目关键词刷新（CHAN-02，2026-10-01，worktree `worktree-channels`）
+
+- `app/channels/`：`base`（Channel 约定、`make_paper`、DOI 规范化）、`http`（共享客户端：按 host 限速、搜索缓存 12 小时/查询缓存 30 天、错误种类 `auth_required`/`captcha`/`quota_exhausted` 等；api_key、mailto 等不进缓存文件名和错误信息）、`dedup`、`presets`、`query`（按文字分发：中文词只发给收中文的渠道）、`usage`（每日请求上限，先占额再请求）、`registry`（静态 import），以及 arxiv、openalex、crossref 三个渠道。`app/sources.py` 仍是兼容层，`OpenAlex` 改走共享客户端，原有测试不用改。
+- 迁移 005（先备份、可重复执行）：papers 增加 language/url/pdf_url/channel/authors/title_norm/year；新表 paper_ids、paper_sources、project_channels、channel_usage、channel_status；projects.discipline 默认 cs_ai；旧项目启用 arxiv、openalex、crossref。
+- `upsert_papers`：先按 ID，再按 DOI，再按（标题归一化，年份）找已有论文，只补空字段，不覆盖；同题短标题（少于 12 个字符，中文 6 个）不合并；调用方拿到的 `paper["key"]` 是规范 key。测试里原先用同标题、不同 key 的论文，已改成不同标题。
+- `refresh_candidates`：使用项目固定词/关键词（不再固定搜 “world model”；只有迁移来的默认项目在没有任何词时仍回退到它），每个渠道最多 3 个词，渠道并发，单个渠道失败不影响其他渠道；返回每个渠道的检索词、条数、状态和错误。需要密钥的渠道在没有凭据时标为 skipped/needs_credential；未实现的预设渠道标为 not_available。没有关键词的项目直接报告，不发请求。
+- 界面：抓取按钮提示改为“按项目启用的渠道”，结果提示显示哪些渠道未完成；英文包已同步。
+- 未测/未做：沙盒禁止访问 arXiv、OpenAlex、Crossref，实时 smoke 没有成功（`docs/evidence/2026-10-01-chan02-channel-smoke.md` 全是 network_error，fixtures 为按文档手写，不是实测录制）；HTTP 路由测试因端口限制未运行；.app 未启动。每日上限（arXiv 100、OpenAlex 60、Crossref 120）是临时值，未经 owner 批准。OpenAlex 无 key 时是否还有额度仍未实测，key 的录入在 CHAN-03。设置页里 sourceArxiv/sourceOpenAlex 两个死开关仍在，由 CHAN-03 替换。记录见[变更](../changes/2026-10-01-chan02-channel-framework.json)。
+
 # 当前工作单元：中文分词与标题归一化（CHAN-01，2026-10-01，worktree `worktree-channels`）
 
 - `ranking.tokenize`：英文规则不变；中文（含日文、韩文）连续片段切成字二元组。遇到“的/了”断开，并去掉“本文、研究、基于”等 21 个常见框架词。全角字母和全角空格先转成 ASCII。oracle 测试证明：不含中日韩字符和全角字符的文本，输出与旧版逐字节一致。

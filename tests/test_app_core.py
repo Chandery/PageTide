@@ -18,7 +18,9 @@ class StoreTests(unittest.TestCase):
         self.store.init()
         self.addCleanup(self.store.close)
 
-    def _paper(self, key, title="World Model Paper"):
+    def _paper(self, key, title=None):
+        # Distinct titles: the store merges equal (title, year) pairs into one paper (ADR 0010).
+        title = title or f"World Model Paper {key}"
         self.store.upsert_papers([{"key": key, "title": title, "abstract": "latent prediction",
                                    "published": "2026-01-01", "group_name": "field"}])
 
@@ -32,7 +34,7 @@ class StoreTests(unittest.TestCase):
 
     def test_upsert_is_idempotent(self):
         self._paper("p1")
-        added = self.store.upsert_papers([{"key": "p1", "title": "World Model Paper"}])
+        added = self.store.upsert_papers([{"key": "p1", "title": "World Model Paper p1"}])
         self.assertEqual(added, 0)
         self.assertEqual(len(self.store.papers()), 1)
 

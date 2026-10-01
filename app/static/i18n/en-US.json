@@ -102,11 +102,11 @@
   "AI 已速览 {0} 条 · {1} token · ${2}": "AI triaged {0} · {1} tokens · ${2}",
   "AI 速览失败：{0}": "AI triage failed: {0}",
   "抓取中…": "Fetching…",
-  "后台抓取中（OpenAlex 公开元数据）…": "Fetching in the background (OpenAlex public metadata)…",
+  "后台抓取中（按项目启用的渠道）…": "Fetching in the background (the channels this project enables)…",
   "抓取失败：{0}": "Fetch failed: {0}",
-  "（{0} 个查询被限流跳过）": [
-   "({0} query skipped by rate limiting)",
-   "({0} queries skipped by rate limiting)"
+  "（{0} 个渠道未能完成：{1}）": [
+   "({0} channel did not finish: {1})",
+   "({0} channels did not finish: {1})"
   ],
   "新增 {0} 条{1}": [
    "{0} new paper {1}",

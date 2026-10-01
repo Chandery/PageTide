@@ -942,11 +942,15 @@ $('#btnRefresh').onclick = async () => {
     const body = { pages: 1 };
     if (state.currentProject) body.project_id = state.currentProject;
     const job = await api('/api/refresh', body);
-    toast('后台抓取中（OpenAlex 公开元数据）…', 'warn');
+    toast('后台抓取中（按项目启用的渠道）…', 'warn');
     let r;
     for (let i = 0; i < 90; i++) { r = await api(`/api/jobs/${job.id}`); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
     if (r.state === 'failed') toast(`抓取失败：${r.error}`, 'err');
-    else { const q = r.result || {}; toast(`新增 ${q.added || 0} 条${q.errors?.length ? `（${q.errors.length} 个查询被限流跳过）` : ''}`, q.errors?.length ? 'warn' : 'ok'); }
+    else {
+      const q = r.result || {};
+      const bad = [...new Set((q.errors || []).map(e => e.channel || e.query))];
+      toast(`新增 ${q.added || 0} 条${bad.length ? `（${bad.length} 个渠道未能完成：${bad.join(', ')}）` : ''}`, bad.length ? 'warn' : 'ok');
+    }
     await load();
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
   finally { b.disabled = false; b.textContent = '抓取新论文'; }

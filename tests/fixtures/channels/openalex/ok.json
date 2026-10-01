@@ -1,0 +1,33 @@
+{
+  "meta": {"count": 2, "page": 1, "per_page": 25},
+  "results": [
+    {
+      "id": "https://openalex.org/W4300000001",
+      "doi": "https://doi.org/10.48550/arxiv.2601.01234",
+      "title": "A Latent World Model for Manipulation",
+      "display_name": "A Latent World Model for Manipulation",
+      "publication_date": "2026-01-03",
+      "language": "en",
+      "ids": {"openalex": "https://openalex.org/W4300000001", "doi": "https://doi.org/10.48550/arxiv.2601.01234", "arxiv": "https://arxiv.org/abs/2601.01234"},
+      "primary_location": {"landing_page_url": "http://arxiv.org/abs/2601.01234", "pdf_url": "https://arxiv.org/pdf/2601.01234", "source": {"display_name": "arXiv (Cornell University)"}},
+      "best_oa_location": {"pdf_url": "https://arxiv.org/pdf/2601.01234"},
+      "primary_topic": {"display_name": "Robot Manipulation", "field": {"display_name": "Engineering"}},
+      "authorships": [{"author": {"display_name": "Ada Lovelace"}}, {"author": {"display_name": "Alan Turing"}}],
+      "abstract_inverted_index": {"We": [0], "learn": [1], "a": [2], "world": [3], "model.": [4]}
+    },
+    {
+      "id": "https://openalex.org/W4300000002",
+      "doi": null,
+      "title": "数字人文中的古籍整理",
+      "publication_date": "2025-11-01",
+      "language": "zh",
+      "ids": {"openalex": "https://openalex.org/W4300000002"},
+      "primary_location": {"landing_page_url": "https://example.org/zh/1", "source": {"display_name": "某学报"}},
+      "best_oa_location": null,
+      "primary_topic": null,
+      "authorships": [],
+      "abstract_inverted_index": null
+    },
+    {"id": "https://openalex.org/W4300000003", "title": null, "publication_date": "2025-01-01"}
+  ]
+}

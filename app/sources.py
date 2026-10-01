@@ -3,20 +3,17 @@
 Read-only, public metadata only. No private seed IDs are ever sent to a
 recommender service. Responses are cached on disk so a batch can be replayed.
 """
-import hashlib
-import http.client
-import json
-import time
-import urllib.error
+import time  # noqa: F401  (tests patch app.sources.time.sleep; the shared client sleeps on the same module)
 import urllib.parse
-import urllib.request
+import urllib.request  # noqa: F401  (tests patch app.sources.urllib.request.urlopen)
 from pathlib import Path
 
+from .channels.http import (LOOKUP_TTL, SEARCH_TTL, UA, Client,  # noqa: F401  (re-exported)
+                            SourceError)
 from .channels.text import normalize_title  # noqa: F401  (re-exported; CJK-aware)
 
 API = "https://api.openalex.org/works"
 ARXIV_SOURCE_ID = "S4306400194"  # OpenAlex source: arXiv (Cornell University)
-UA = "PaperDigHelper/0.1 (local research; read-only metadata)"
 MAILTO = "owner@example.invalid"  # replace with the owner's contact for heavier use
 GAP_SECONDS = 2.0
 FIELD_QUERY = "world model"
@@ -67,60 +64,16 @@ def slim(work, group="field"):
     }
 
 
-class SourceError(RuntimeError):
-    """A public-metadata fetch failed; kind is not_found, network_error, unavailable, invalid_input or bad_response."""
-
-    def __init__(self, message, kind):
-        super().__init__(message)
-        self.kind = kind
-
-
 class OpenAlex:
-    def __init__(self, cache_dir):
+    def __init__(self, cache_dir, api_key=None):
         self.cache = Path(cache_dir)
-        self.cache.mkdir(parents=True, exist_ok=True)
+        self.client = Client(self.cache, label="OpenAlex", gap=GAP_SECONDS, user_agent=UA)
+        self.api_key = api_key  # per-user key (OpenAlex since 2026-02-13); stripped from caches and errors
 
-    def _fetch(self, url, retries=2):
-        digest = hashlib.sha256(url.encode()).hexdigest()[:16]
-        cached = self.cache / f"{digest}.json"
-        if cached.exists():
-            try:
-                return json.loads(cached.read_text())
-            except ValueError:
-                cached.unlink()  # a corrupt cache entry is refetched, not trusted
-        last = None
-        for attempt in range(retries):
-            try:
-                request = urllib.request.Request(url, headers={"User-Agent": UA})
-                with urllib.request.urlopen(request, timeout=30) as response:
-                    body = response.read().decode("utf-8", "replace")
-                try:
-                    payload = json.loads(body)
-                except ValueError as exc:
-                    raise SourceError(f"OpenAlex returned a non-JSON body: {url}", "bad_response") from exc
-                cached.write_text(body)
-                time.sleep(GAP_SECONDS)
-                return payload
-            except http.client.InvalidURL as exc:
-                raise SourceError(f"Invalid OpenAlex identifier: {url}", "invalid_input") from exc
-            except urllib.error.HTTPError as exc:
-                last = exc
-                if exc.code == 404:
-                    # A missing identifier will not appear on retry.
-                    raise SourceError(f"OpenAlex has no record: {url}", "not_found") from exc
-                retry_after = exc.headers.get("Retry-After") if exc.headers else None
-                try:
-                    delay = float(retry_after) if retry_after is not None else GAP_SECONDS * (attempt + 1)
-                except (TypeError, ValueError):
-                    delay = GAP_SECONDS * (attempt + 1)
-                # Bound the wait: a hot shared API must not hang the app.
-                time.sleep(min(max(delay, GAP_SECONDS), 10))
-            except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                last = exc
-                time.sleep(min(GAP_SECONDS * (attempt + 1), 10))
-        # 429/503 mean OpenAlex is shedding load (e.g. anonymous search paused), not a local network fault.
-        busy = isinstance(last, urllib.error.HTTPError) and last.code in (429, 503)
-        raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "unavailable" if busy else "network_error")
+    def _fetch(self, url, retries=2, ttl=None):
+        if self.api_key:
+            url += ("&" if "?" in url else "?") + urllib.parse.urlencode({"api_key": self.api_key})
+        return self.client.get(url, ttl=ttl, retries=retries)
 
     def discover(self, search=FIELD_QUERY, from_date="2024-01-01", to_date=None, pages=1, per_page=100,
                  source_id=ARXIV_SOURCE_ID):
@@ -137,7 +90,7 @@ class OpenAlex:
                            f"from_publication_date:{from_date},to_publication_date:{to_date}"),
                 "sort": "publication_date:desc", "per-page": per_page, "page": page, "mailto": MAILTO,
             }
-            payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
+            payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL)
             for work in payload.get("results", []):
                 title = normalize_title(work.get("title"))
                 if title in seen:
@@ -157,7 +110,7 @@ class OpenAlex:
                 "sort": "publication_date:desc", "per-page": per_query, "page": 1, "mailto": MAILTO,
             }
             try:
-                payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
+                payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL)
             except RuntimeError as exc:
                 errors.append({"query": query, "error": str(exc)[-120:]})
                 break  # hot API: stop instead of stacking retries
@@ -168,7 +121,7 @@ class OpenAlex:
     def work(self, identifier):
         """Fetch one work by DOI URL, OpenAlex ID or W-id. Used for seed resolution."""
         # Quote so a stray "?", "#" or space cannot change which request is made.
-        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}")
+        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}", ttl=LOOKUP_TTL)
 
     def find_arxiv(self, arxiv_id):
         """Find an arXiv paper by its landing page when OpenAlex lacks the arXiv DOI (common before 2022).
@@ -177,7 +130,7 @@ class OpenAlex:
         """
         params = {"filter": f"locations.landing_page_url:http://arxiv.org/abs/{arxiv_id}",
                   "per-page": 1, "mailto": MAILTO}
-        results = self._fetch(f"{API}?{urllib.parse.urlencode(params)}").get("results") or []
+        results = self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=LOOKUP_TTL).get("results") or []
         if not results:
             raise SourceError(f"OpenAlex has no arXiv record: {arxiv_id}", "not_found")
         return results[0]

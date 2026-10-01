@@ -686,7 +686,7 @@
       "id": "CHAN-02",
       "stage": "delivery",
       "title": "渠道框架、迁移005、跨渠道去重、刷新按项目关键词分发到各渠道",
-      "status": "planned",
+      "status": "review",
       "depends_on": [
         "CHAN-01"
       ],
@@ -702,7 +702,10 @@
         "arXiv 与 OpenAlex 记录合并为一个 key；中文标题+年份去重；只补空字段",
         "刷新使用项目关键词；单渠道失败不阻塞；每个渠道的检索词、条数与错误可见"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-01-chan02-checks.txt",
+        "docs/evidence/2026-10-01-chan02-channel-smoke.md"
+      ]
     },
     {
       "id": "CHAN-03",

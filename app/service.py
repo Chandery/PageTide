@@ -11,7 +11,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import ranking
+from .channels import presets as channel_presets
+from .channels import query as channel_query
+from .channels import registry as channel_registry
 from .channels import text as script_text
+from .channels import usage as channel_usage
+from .channels.base import Context
 from .db import Store, now
 from .gateway import Gateway
 from .language import language
@@ -39,6 +44,7 @@ class App:
         self.store = Store(self.data / "paperdighelper.sqlite")
         self.store.init()
         self.source = OpenAlex(self.data / "cache")
+        self.channel_ctx = Context(cache_dir=self.data / "cache" / "channels")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
 
@@ -99,7 +105,7 @@ class App:
         }
 
     def create_project(self, name, creation_mode="manual", keywords=None, seeds=None,
-                       guidance_transcript=None, learning_path=None):
+                       guidance_transcript=None, learning_path=None, discipline=channel_presets.DEFAULT):
         """Create a project and optionally resolve explicit public seed identifiers."""
         if creation_mode not in {"quick", "manual", "ai_guided"}:
             raise ValueError("invalid creation mode")
@@ -115,7 +121,7 @@ class App:
         keywords = [str(k).strip()[:120] for k in (keywords or []) if str(k).strip()][:40]
         project_id = self.projects.create_project(name, creation_mode, keywords,
                                                    guidance_transcript=guidance_transcript,
-                                                   learning_path=learning_path)
+                                                   learning_path=learning_path, discipline=discipline)
         # "Restore default" returns to exactly these creation-time terms.
         self.store.set_setting(f"project_default_terms_{project_id}", keywords)
         results = []
@@ -648,29 +654,104 @@ class App:
             "has_pdf": self.pdf_path(key) is not None,
         }
 
-    def refresh_candidates(self, search="world model", from_date="2024-01-01", pages=1, per_page=100,
+    LEGACY_TERM = "world model"  # the domain the app shipped with; only the migrated default project falls back to it
+    CHANNEL_WORKERS = 4
+    PER_TERM_LIMIT = 50
+
+    def refresh_terms(self, project_id):
+        """Search terms for a project: pinned/profile terms, else its keywords."""
+        terms = list(self.project_pinned_terms(project_id, self.profile(project_id)))
+        return [t for t in dict.fromkeys(str(t).strip() for t in terms) if t]
+
+    def refresh_candidates(self, search=None, from_date="2024-01-01", pages=1, per_page=None,
                            include_distractors=False, distractor_per_query=20, project_id=None):
-        """Fast by default: one field query; distractors are opt-in (five more calls)."""
+        """Search every enabled channel with the project's own terms; one channel failing never blocks another.
+
+        Reports per channel which terms were sent, how many papers came back and, when it failed, why.
+        Distractors stay opt-in and arXiv/OpenAlex only. Fast by default: at most MAX_TERMS terms per channel.
+        """
         if not project_id:
             project_id = self.get_default_project_id()
+        limit = per_page or self.PER_TERM_LIMIT
+        if search:
+            terms = [search]
+        else:
+            terms = self.refresh_terms(project_id)
+            if not terms and project_id == self.get_default_project_id():
+                terms = [self.LEGACY_TERM]
+        errors, reports, jobs = [], [], []
+        if not terms:
+            errors.append({"channel": None, "kind": "invalid_input",
+                           "query": "", "error": "项目还没有关键词；请先在项目里添加关键词。"})
+        for channel_id in self.projects.channels(project_id) if terms else []:
+            channel = channel_registry.get(channel_id)
+            if channel is None:
+                reports.append({"channel": channel_id, "status": "skipped", "reason": "not_available",
+                                "terms": [], "fetched": 0})
+                continue
+            if channel.auth != "none" and not self.channel_ctx.credential(channel.id, "api_key"):
+                reports.append({"channel": channel.id, "status": "skipped", "reason": "needs_credential",
+                                "terms": [], "fetched": 0})
+                continue
+            sent = channel_query.terms_for(channel, terms)
+            if not sent:
+                reports.append({"channel": channel.id, "status": "skipped", "reason": "no_matching_terms",
+                                "terms": [], "fetched": 0})
+                continue
+            reserved = []
+            report = {"channel": channel.id, "status": "ok", "terms": reserved, "fetched": 0}
+            for term in sent:
+                try:
+                    channel_usage.reserve(self.store.conn, channel.id, channel.daily_cap)
+                except SourceError as exc:
+                    report.update(status="error", kind=exc.kind, error=str(exc))
+                    errors.append({"channel": channel.id, "kind": exc.kind, "query": term, "error": str(exc)[-160:]})
+                    break
+                reserved.append(term)
+            reports.append(report)
+            if reserved:
+                jobs.append((channel, report, reserved))
 
-        errors = []
-        try:
-            field = self.source.discover(search=search, from_date=from_date, pages=pages, per_page=per_page)
-        except RuntimeError as exc:
-            field, errors = [], errors + [{"query": search, "error": str(exc)[-120:]}]
-        papers = list(field)
+        def run(job):
+            channel, report, sent = job
+            found, failure = [], None
+            for term in sent:
+                try:
+                    for paper in channel.search(self.channel_ctx, term, from_date, limit):
+                        paper["query"] = term
+                        found.append(paper)
+                except SourceError as exc:
+                    failure = (term, exc)
+                    break  # a hot or refusing service: stop instead of stacking retries
+            return found, failure
+
+        papers = []
+        if jobs:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=min(self.CHANNEL_WORKERS, len(jobs))) as pool:
+                outcomes = list(pool.map(run, jobs))
+            for (channel, report, _sent), (found, failure) in zip(jobs, outcomes):
+                report["fetched"] = len(found)
+                papers += found
+                if failure:
+                    term, exc = failure
+                    report.update(status="error" if not found else "partial", kind=exc.kind, error=str(exc)[-160:])
+                    errors.append({"channel": channel.id, "kind": exc.kind, "query": term, "error": str(exc)[-160:]})
+
+        field = len(papers)
         if include_distractors:
-            extra, distractor_errors = self.source.distractors(from_date=from_date, per_query=distractor_per_query)
+            try:
+                extra, distractor_errors = self.source.distractors(from_date=from_date,
+                                                                   per_query=distractor_per_query)
+            except SourceError as exc:
+                extra, distractor_errors = [], [{"query": "distractors", "error": str(exc)[-160:]}]
             papers += extra
             errors += distractor_errors
-
-        # Add project_id to all papers
         for paper in papers:
             paper["project_id"] = project_id
-
         added = self.store.upsert_papers(papers)
-        return {"fetched": len(papers), "added": added, "field": len(field), "errors": errors}
+        return {"fetched": len(papers), "added": added, "field": field, "terms": terms,
+                "errors": errors, "channels": reports}
 
     def import_candidates(self, path, project_id=None):
         """Load a frozen candidate JSON (e.g. from the DATA-01 experiments) for offline/dev use."""

@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-chan02-channel-framework",
+  "class": "critical",
+  "summary": "Papers can now come from several channels and are kept as one row. New app/channels package: shared HTTP client (per-host gap, TTL cache, error kinds incl. auth_required/captcha/quota_exhausted, credentials and contact address removed from cache names and error text), channel contract and parsers for arXiv (Atom), OpenAlex and Crossref, discipline presets, script-based term routing, daily request ceilings reserved in SQLite before the request, and a static registry. Migration 005 (backed up first, idempotent) adds identity/provenance columns and tables and enables arxiv/openalex/crossref on existing projects. upsert_papers dedups by shared IDs, then DOI, then (title, year) and fills only empty fields. refresh_candidates searches each enabled channel concurrently with the project's own terms (the fixed 'world model' query remains only for the migrated default project) and reports terms, count and error per channel; one failing channel does not block the others. OpenAlex class in app.sources now uses the shared client; tools/channel_smoke.py added. The refresh toast names the channels that did not finish.",
+  "tasks": [
+    "CHAN-02"
+  ],
+  "files": [
+    "app/channels/arxiv.py",
+    "app/channels/base.py",
+    "app/channels/crossref.py",
+    "app/channels/dedup.py",
+    "app/channels/http.py",
+    "app/channels/openalex.py",
+    "app/channels/presets.py",
+    "app/channels/query.py",
+    "app/channels/registry.py",
+    "app/channels/usage.py",
+    "app/db.py",
+    "app/migrations.py",
+    "app/project.py",
+    "app/service.py",
+    "app/sources.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "changes/2026-10-01-chan02-channel-framework.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-01-chan02-channel-smoke.md",
+    "docs/evidence/2026-10-01-chan02-checks.txt",
+    "harness/tasks.json",
+    "tests/fixtures/channels/arxiv/empty.xml",
+    "tests/fixtures/channels/arxiv/entity.xml",
+    "tests/fixtures/channels/arxiv/error.xml",
+    "tests/fixtures/channels/arxiv/ok.xml",
+    "tests/fixtures/channels/crossref/empty.json",
+    "tests/fixtures/channels/crossref/malformed.json",
+    "tests/fixtures/channels/crossref/ok.json",
+    "tests/fixtures/channels/openalex/empty.json",
+    "tests/fixtures/channels/openalex/malformed.json",
+    "tests/fixtures/channels/openalex/ok.json",
+    "tests/test_app_core.py",
+    "tests/test_channels_core.py",
+    "tools/channel_smoke.py"
+  ],
+  "scope_note": "Critical because migrations and harness/tasks.json change. test_app_core used two papers with the same title and different keys; it now uses distinct titles because equal (title, year) pairs merge by design. OpenAlex request caching changed from forever to 12h (search) / 30d (lookup) and cache file names changed, so older cache files are simply unused. Fixtures are hand-written from documented formats. The desktop build needed PYINSTALLER_CONFIG_DIR=.local/pyi-config because the sandbox cannot write PyInstaller's default cache; the build is green but the .app was not launched.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "No model call or gateway change. Adds public metadata requests to arXiv, OpenAlex and Crossref bounded by per-channel daily ceilings (arXiv 100, OpenAlex 60, Crossref 120; provisional, not owner-approved) and at most 3 terms per channel per refresh.",
+    "before": "Zero model tokens; one OpenAlex query ('world model') per refresh.",
+    "after": "Zero model tokens; up to 3 terms x 3 channels of public metadata requests per refresh."
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 1,
+      "evidence": "docs/evidence/2026-10-01-chan02-checks.txt",
+      "note": "394 run, 27 errors, all PermissionError on localhost bind (agent sandbox), none in code under change; 42 new tests pass. HTTP route tests did not run."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-chan02-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-chan02-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; read the diff, checked every upsert_papers and refresh_candidates caller, and that no secret reaches cache names, errors or the database.",
+      "evidence": "docs/evidence/2026-10-01-chan02-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "No live request to arXiv, OpenAlex or Crossref has succeeded; request shapes (title_and_abstract.search, query.bibliographic, Atom parsing) are checked only against hand-written fixtures.",
+    "OpenAlex may refuse keyless requests; the key can only be entered once CHAN-03 lands, so OpenAlex may report auth_required until then.",
+    "Daily ceilings are provisional and unapproved.",
+    "(title, year) merging can join two different papers with the same long title in one year; DOI and IDs are tried first.",
+    "Migration 005 was not run on a real user database or inside the packaged app.",
+    "Preset channels that are not implemented yet (s2, dblp, openreview, ...) show as not_available on refresh until CHAN-05.",
+    "The settings page still shows the dead sourceArxiv/sourceOpenAlex toggles until CHAN-03."
+  ]
+}
