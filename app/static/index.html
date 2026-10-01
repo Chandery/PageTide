@@ -316,12 +316,15 @@
   .pfoot .switch { font-size:11.5px; gap:6px; white-space:nowrap; }
   .pfoot #petSend { padding:5px 14px; }
   .pfoot #petSend:disabled { opacity:.5; cursor:default; }
+  .pfoot #petImg { padding:3px 8px; white-space:nowrap; }
+  .pfoot #petImg[aria-pressed="true"] { color:var(--accent); box-shadow:var(--sh-in-sm); border-color:var(--accent); }
   #petRef:empty { display:none; }
   /* A quote is a compact card: two lines, expandable, never taller than a third of the panel. */
   .refcard { display:flex; gap:8px; align-items:flex-start; padding:6px 8px 6px 10px; max-width:100%;
              border-left:3px solid var(--accent) !important; }
   .refcard .rmeta { min-width:0; flex:1; }
   .refcard .rlabel { font-size:10.5px; color:var(--muted); display:flex; gap:6px; align-items:center; }
+  html[lang="en"] .ai-label { margin-right:.3em; }   /* "Related:" then the model's text */
   .refcard .rsnip { font-size:12px; line-height:1.5; color:var(--text); opacity:.85; margin-top:2px; cursor:pointer;
                     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
   .refcard.expanded .rsnip { display:block; -webkit-line-clamp:unset; max-height:30vh; overflow-y:auto; }
@@ -662,6 +665,7 @@
     <textarea id="petInput" rows="1" placeholder="追问，例如：这个方法的核心假设是什么？"></textarea>
     <div class="pfoot">
       <span id="petFt" class="pft">全文未提取</span>
+      <button class="tiny ghost" id="petImg" type="button" aria-pressed="false" title="把当前页（有引用时为引用所在页）渲染成图片随下一个问题发送，估计约多 1500 token（未实测）。只作用于下一个问题，回答失败时保持开启；换论文时关闭。问题提到图/表时会自动附图。">附本页图</button>
       <label class="switch" title="检索更多全文段落，消耗更多 token"><input type="checkbox" id="fullCtx"> 更多上下文</label>
       <button class="primary tiny" id="petSend">发送</button>
     </div>
@@ -678,6 +682,7 @@
 
 <script src="/profile-ui.js"></script>
 <script src="/project-switcher.js"></script>
+<script src="/figure-intent.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
@@ -743,8 +748,8 @@ function renderStats() {
 
 // ------------------------------------------------------------------ cards
 function aiSlot(c) {
-  if (c.summary) return `<div class="ai-line"><b>AI 速览</b> ${esc(c.summary.one_liner || '')}
-    ${c.summary.why_relevant ? `<div class="sub">相关：${esc(c.summary.why_relevant)}</div>` : ''}</div>`;
+  if (c.summary) return `<div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
+    ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>`;
   if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
 }
@@ -754,12 +759,12 @@ function cardHTML(c, i) {
   <article class="card" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <div class="paper-topline"><span class="paper-number"><i class="icon book" aria-hidden="true"></i>${String(i + 1).padStart(2,'0')}</span>
       ${c.summary ? '<span class="badge ai">AI 已速览</span>' : '<span class="badge">待速览</span>'}</div>
-    <h3><button class="paper-title">${esc(c.title)}</button></h3>
+    <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
       ${saved ? '<span class="badge saved">已收藏</span>' : ''}
     </div>
-    <div class="abs">${esc(c.abstract || '（无摘要）')}</div>
+    <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
     <div class="actions">
@@ -788,7 +793,7 @@ function renderLibrary() {
     <article class="lib-item" data-key="${esc(p.key)}" style="animation-delay:${i*40}ms">
       <i class="icon book" aria-hidden="true"></i>
       <div class="library-copy">
-        <h4><button class="library-title">${esc(p.title)}</button></h4>
+        <h4><button class="library-title" data-no-i18n>${esc(p.title)}</button></h4>
         <div class="meta"><span>${esc(p.published || '')}</span><span>${esc(p.source || '')}</span>
           <span>收藏于 ${esc((p.saved_at || '').slice(0,10))}</span></div>
       </div>
@@ -887,8 +892,8 @@ async function load() {
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
   renderStats(); renderCards(); renderProfile();
   const u = state.usage;
-  $('#foot').textContent = `本地运行 · 数据在 .local/app · 服务端版本 ${state.version}` +
-    (u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
+  $('#foot').replaceChildren(`本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`,   // two phrases, two pack entries
+    u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
 }
 async function loadLibrary() {
   const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
@@ -1022,7 +1027,7 @@ $('#preview').addEventListener('mouseleave', scheduleHide);
 function showPreview(card) {
   const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
   const p = $('#preview');
-  p.innerHTML = `<h4>${esc(c.title)}</h4><div class="pabs">${esc(c.abstract || '（无摘要）')}</div>
+  p.innerHTML = `<h4 data-no-i18n>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
     <div class="phint">点击卡片打开详情页（含 PDF 预览）</div>`;
   p.style.left = '0px'; p.style.top = '0px';
   p.classList.add('show');
@@ -1051,7 +1056,7 @@ async function openDetail(key) {
       <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
       <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
         <div class="detail-head"><span class="detail-kicker">论文详情</span><button class="detail-close ghost" id="backBtn" aria-label="关闭论文详情">×</button></div>
-        <h2>${esc(d.title)}</h2>
+        <h2 data-no-i18n>${esc(d.title)}</h2>
         <div class="detail-meta">
           ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}
           ${d.arxiv_id ? `<span>arXiv:${esc(d.arxiv_id)}</span>` : ''}
@@ -1075,9 +1080,9 @@ async function openDetail(key) {
           <div class="hint">共享论文元数据；收藏、反馈和画像仍按项目独立记录。</div>
           <div id="dProjectList" class="hint">${(d.projects || []).map(p => `${esc(p.name)} · ${esc(p.relation_kind || 'shared')}${p.source_project_name ? ` · 来源：${esc(p.source_project_name)}` : ''}`).join('<br>') || '尚未加入其他项目'}</div>
         </section>
-        ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> ${md(s.one_liner || '')}
-          <div class="sub">相关：${esc(s.why_relevant || '')}${s.caution ? ` · 注意：${esc(s.caution)}` : ''}</div></div></section>` : ''}
-        <section class="detail-section"><h3>摘要</h3><div class="full">${md(d.abstract || '暂无摘要')}</div></section>
+        ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
+          <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
+        <section class="detail-section"><h3>摘要</h3><div class="full">${d.abstract ? `<div data-no-i18n>${md(d.abstract)}</div>` : '暂无摘要'}</div></section>
       </aside>`;
     $('#detail').classList.remove('hidden');
     const close = () => $('#detail').classList.add('hidden');
@@ -1188,10 +1193,11 @@ window.PDH = { api, toast, esc, md, state, openDetail, setPetContext: (k, t) => 
 <script type="module">
 const { api, toast } = window.PDH;
 const $ = (s) => document.querySelector(s);
-const pet = { key: null, title: null, selection: null, selPage: null, busy: false };
+const pet = { key: null, title: null, selection: null, selPage: null, busy: false, attachPage: false };
 window.PDHSetContext = (key, title) => {
   pet.key = key; pet.title = title;
   const el = $('#petPaper');
+  el.toggleAttribute('data-no-i18n', !!title);   // a title is the paper's own text
   el.textContent = title || '未选择论文';
   el.title = title || '';
 };
@@ -1205,10 +1211,14 @@ function refCard(text, page, removable) {
   const label = document.createElement('div');
   label.className = 'rlabel';
   const n = clean.length;
-  label.textContent = `引用${page ? ' · 第 ' + page + ' 页' : ''} · ${n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n} 字`;
+  const size = n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n;
+  label.textContent = page ? `引用 · 第 ${page} 页 · ${size} 字` : `引用 · ${size} 字`;   // whole phrases, one pack entry each
   const snip = document.createElement('div');
   snip.className = 'rsnip';
-  snip.textContent = clean;
+  const quoted = document.createElement('span');
+  quoted.dataset.noI18n = '';   // the paper's text; the tooltip below is UI
+  quoted.textContent = clean;
+  snip.append(quoted);
   snip.title = '点击展开 / 收起';
   snip.onclick = () => card.classList.toggle('expanded');
   meta.append(label, snip);
@@ -1244,6 +1254,7 @@ const R = { doc:null, pages:[], scale:null, fit:true, side:false, observer:null,
 
 async function openReader(key, title) {
   window.PDHSetContext(key, title);
+  setAttachPage(false);   // a pending 附本页图 belongs to the paper it was pressed on
   const box = $('#readerPages'), side = $('#readerSide'), reader = $('#reader');
   $('#readerTitle').textContent = title || '';
   $('#readerInfo').textContent = '';
@@ -1471,7 +1482,6 @@ function markCurrent(n) {
 }
 
 /* --------------------------------------------------- full text + vision */
-const FIG_RE = /(fig(?:ure)?\.?\s*\d+|table\s*\d+|eq(?:uation)?\.?\s*\d+|图\s*\d+|表\s*\d+|公式\s*\d+)/i;
 
 async function extractFulltext(key) {
   try {
@@ -1503,31 +1513,6 @@ async function extractFulltext(key) {
 function setFulltextBadge(pages, chars) {
   const el = $('#petFt');
   if (el) el.textContent = `全文已缓存 · ${pages} 页 / ${Math.round(chars / 1000)}k 字符`;
-}
-
-function figureNumber(question) {
-  const m = question.match(/(?:fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*(\d+)/i);
-  return m ? Number(m[1]) : null;
-}
-
-// Count mentions per page for the requested number, so "Fig. 3" and "Figure 3"
-// both resolve, and pick the page where it is described most.
-function findFigurePage(question) {
-  const texts = R.pageTexts || [];
-  if (!texts.length) return null;
-  const n = figureNumber(question);
-  const pattern = n
-    ? new RegExp(`(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\\s*\\.?\\s*${n}\\b`, 'gi')
-    : /(fig(?:ure)?|table)\s*\.?\s*\d+/gi;
-  // Prefer the page that carries the caption (line starts with the label), then most mentions.
-  let best = null, bestHits = 0;
-  for (let i = 0; i < texts.length; i++) {
-    const lines = texts[i].split('\n');
-    const captionLine = lines.some((line) => /^\s*(fig(?:ure)?|table|eq(?:uation)?|图|表|公式)\s*\.?\s*\d+/i.test(line));
-    const hits = (texts[i].match(pattern) || []).length + (captionLine ? 3 : 0);
-    if (hits > bestHits) { best = i + 1; bestHits = hits; }
-  }
-  return best;   // null when the figure is not mentioned anywhere in the extracted text
 }
 
 async function pageImage(pageNumber) {
@@ -1663,8 +1648,10 @@ function followupRow(list) {
   for (const q of (list && list.length ? list : SUGGESTIONS)) {
     const b = document.createElement('button');
     b.className = 'tiny';
-    b.textContent = q;
-    b.onclick = () => ask(q);
+    // Ask what the button shows; a model's own follow-up is only swapped for a whole pack entry.
+    const label = window.PDHi18n ? PDHi18n.exact(q) : q;
+    b.textContent = label;
+    b.onclick = () => ask(label);
     row.appendChild(b);
   }
   return row;
@@ -1680,11 +1667,22 @@ function addMsg(kind, text, followups, meta) {
   if (kind === 'user') {
     const q = document.createElement('div');
     q.className = 'qtext';
+    q.dataset.noI18n = '';   // the owner's own words and the model's answer are never translated
     q.textContent = text;
     el.appendChild(q);
   } else if (kind === 'ai') {
-    if (meta) { const m = document.createElement('div'); m.className = 'meta'; m.textContent = meta; el.appendChild(m); }
+    if (meta) {
+      const m = document.createElement('div');
+      m.className = 'meta';
+      const line = m.appendChild(document.createElement('span'));   // .meta is a flex row: one item
+      [].concat(meta).forEach((part, i) => {
+        if (i) line.append(' · ');
+        line.appendChild(document.createElement('span')).textContent = part;
+      });
+      el.appendChild(m);
+    }
     const body = document.createElement('div');
+    body.dataset.noI18n = '';
     body.innerHTML = window.PDH.md(text);
     el.appendChild(body);
   } else el.textContent = text;
@@ -1700,42 +1698,58 @@ function addMsg(kind, text, followups, meta) {
 async function ask(question) {
   if (!question.trim() || pet.busy) return;
   openPet(); pet.busy = true;
-  const quoted = pet.selection;
+  const quoted = pet.selection, quotedPage = pet.selPage;   // setReference(null) clears both
   const userEl = addMsg('user', question);
-  if (quoted) userEl.prepend(refCard(quoted, pet.selPage));
+  if (quoted) userEl.prepend(refCard(quoted, quotedPage));
   setReference(null);
   $('#petSend').disabled = true;
   const thinking = addMsg('sys', '思考中…');
-  let image = null, pageHint = null, located = false;
-  if (R.doc && FIG_RE.test(question)) {
-    // The server owns figure location because it holds the cached full text.
-    let found = null;
-    try {
-      const res = await api('/api/figure-page?key=' + encodeURIComponent(R.key) + '&q=' + encodeURIComponent(question));
-      found = res.page || null;
-    } catch (e) { found = null; }
-    if (!found) found = findFigurePage(question);   // local fallback when the server has no text
-    located = Boolean(found);
-    pageHint = found || (R.current || 1);   // still unknown -> send the page the user is looking at
-    thinking.textContent = located
-      ? `需要看图，正在渲染第 ${pageHint} 页…`
-      : `图注未找到，改为发送当前第 ${pageHint} 页…`;
-    try { image = await pageImage(pageHint); } catch (e) { pageHint = null; image = null; }
+  let image = null, pageHint = null, located = false, imageNote = '';
+  const figure = PDHFigure.figureRequest(question);
+  const forced = pet.attachPage;
+  setAttachPage(false);   // the switch covers one question; a page image costs extra tokens
+  const keepSwitch = () => { if (forced) setAttachPage(true); };   // ...unless that question failed
+  if (R.doc && (figure || forced)) {
+    // The page the question is about: a quote's page, else the page in view.
+    const here = quotedPage || R.current || 1;
+    if (figure && figure.number) {
+      // The server owns figure location because it holds the cached full text.
+      let found = null;
+      try {
+        const res = await api('/api/figure-page?key=' + encodeURIComponent(R.key) + '&q=' + encodeURIComponent(question));
+        found = res.page || null;
+      } catch (e) { found = null; }
+      if (!found) found = PDHFigure.findFigurePage(R.pageTexts || [], figure.kind, figure.number);   // local fallback when the server has no text
+      located = Boolean(found);
+      pageHint = found || here;   // still unknown -> send the page the user is looking at
+      imageNote = located ? '' : '（图注未定位，发送的是当前页）';
+      thinking.textContent = located
+        ? `需要看图，正在渲染第 ${pageHint} 页…`
+        : `图注未找到，改为发送第 ${pageHint} 页…`;
+    } else {
+      pageHint = here;
+      located = true;
+      imageNote = quotedPage ? '（引用所在页）' : '（当前页）';
+      thinking.textContent = `正在渲染第 ${pageHint} 页给模型看…`;
+    }
+    try { image = await pageImage(pageHint); } catch (e) { pageHint = null; image = null; imageNote = ''; }
+    if (!image) { thinking.textContent = '页面渲染失败，改用纯文本回答…'; keepSwitch(); }
   }
   try {
     const r = await api('/api/qa', { key: pet.key, question, selection: quoted, image, page_hint: pageHint,
                                     project_id: state.currentProject,
                                     context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
     thinking.remove();
-    const meta = r.ok
-      ? `${r.mode === 'vision' ? '视觉 · 第 ' + (r.page_hint || pageHint || '?') + ' 页'
-            + (located ? '' : '（图注未定位，发送的是当前页）') : '全文检索'}` +
-        `${r.pages && r.pages.length ? ' · 命中第 ' + r.pages.join(',') + ' 页' : ''}` +
-        `${r.context_chars ? ' · ' + Math.round(r.context_chars / 1000) + 'k 字符' : ''}`
-      : '';
+    const meta = r.ok ? [   // separate parts, so each is one phrase for the language pack
+      r.mode === 'vision' ? `视觉 · 第 ${r.page_hint || pageHint || '?'} 页${imageNote}` : '全文检索',
+      r.pages && r.pages.length ? `命中第 ${r.pages.join(',')} 页` : '',
+      r.context_chars ? `${Math.round(r.context_chars / 1000)}k 字符` : '',
+    ].filter(Boolean) : null;
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
-    if (r.ok) toast(`回答完成 · ${r.usage.total_tokens} token · $${r.usd}${r.mode === 'vision' ? ' · 视觉' : ''}`, 'ai');
-  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); }
+    if (!r.ok) keepSwitch();
+    if (r.ok) toast(r.mode === 'vision' ? `回答完成 · ${r.usage.total_tokens} token · $${r.usd} · 视觉`
+                                         : `回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); keepSwitch(); }
   finally { pet.busy = false; $('#petSend').disabled = false; }
 }
 async function translate(text, rect) {
@@ -1745,7 +1759,8 @@ async function translate(text, rect) {
   pop.classList.add('show');
   try {
     const r = await api('/api/translate', { text });
-    pop.innerHTML = `<div class="tlabel">划词翻译</div><div class="tbody">${
+    pop.innerHTML = `<div class="tlabel">划词翻译</div>
+      <div class="tbody"${r.ok ? ' data-no-i18n' : ''}>${
       r.ok ? window.PDH.md(r.translation) : esc(aiFailure(r.reason))}</div>
       <div class="row" style="margin-top:10px">
         <button class="tiny" id="transCopy">复制</button>
@@ -1782,6 +1797,14 @@ function growInput() {
   input.style.height = `${input.scrollHeight}px`;
 }
 $('#petSend').onclick = sendInput;
+function setAttachPage(on) {
+  pet.attachPage = Boolean(on);
+  $('#petImg').setAttribute('aria-pressed', String(pet.attachPage));
+}
+$('#petImg').onclick = () => {
+  if (!R.doc) { toast('先打开论文 PDF，才能附上页面图片', 'warn'); return; }
+  setAttachPage(!pet.attachPage);
+};
 $('#petInput').addEventListener('input', growInput);
 $('#petInput').addEventListener('keydown', (e) => {
   // Enter that confirms an IME candidate (Chinese input) must not send; Shift+Enter adds a line.

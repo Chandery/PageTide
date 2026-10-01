@@ -22,6 +22,7 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from .language import language
 from .service import App
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -111,11 +112,28 @@ def suggestion_profile(app, project_id=None):
             "pinned": [term for term in app.profile(project_id)["pinned_terms"]
                        if isinstance(term, str) and 0 < len(term) <= 100][:40],
             "interest": [item["term"] for item in keywords(context(app, project_id), PROFILE_STOPWORDS)
-                         if isinstance(item.get("term"), str) and 0 < len(item["term"]) <= 100][:40]}
+                         if isinstance(item.get("term"), str) and 0 < len(item["term"]) <= 100][:40],
+            "language": app.language()}
 
 
 # Keys and budget ceilings are owned by the gateway, not the cosmetic settings file.
 USER_SETTINGS_EXCLUDED = {"apiKey", "api_key", "dailyLimit", "aiRerank"}
+
+# Every page loads these first: the language pack for the chosen interface language, then the
+# layer that applies it (app/static/i18n.js). Chinese pages carry no pack at all.
+I18N_SCRIPTS = b'<script src="/i18n/current.js"></script><script src="/i18n.js"></script>'
+
+
+def i18n_script(lang):
+    """window.PDH_I18N for the chosen language; the English pack is keyed by Chinese source text."""
+    messages = {}
+    if lang == "en-US":
+        try:
+            messages = json.loads((STATIC / "i18n" / "en-US.json").read_text(encoding="utf-8"))["messages"]
+        except (OSError, ValueError, KeyError, TypeError):
+            lang, messages = "zh-CN", {}   # a broken pack shows the Chinese source, never a blank page
+    payload = json.dumps({"lang": lang, "messages": messages}, ensure_ascii=False)
+    return ("window.PDH_I18N=" + payload.replace("</", "<\\/") + ";\n").encode()
 
 
 def make_app(root="."):
@@ -123,14 +141,14 @@ def make_app(root="."):
     return App(root=root, data_dir=os.environ.get("PAPERDIGHELPER_DATA"))
 
 
-def data_dir():
-    """Resolved data directory, matching where the store actually lives.
+def data_dir(root="."):
+    """Resolved data directory, the same one App(root) uses, without opening the store.
 
     The desktop shell points PAPERDIGHELPER_DATA at Application Support; the CLI
     falls back to <root>/.local/app. Never hardcode a path here -- guessing
     ~/Documents wrote settings to a directory the app never reads.
     """
-    return str(make_app().data)
+    return os.environ.get("PAPERDIGHELPER_DATA") or str(Path(root) / ".local" / "app")
 
 
 def _job_start(name, fn):
@@ -166,6 +184,10 @@ class Handler(BaseHTTPRequestHandler):
     def _app(self):
         return make_app(getattr(self.server, "root", "."))
 
+    def _data(self):
+        # Settings, the language pack and App(root) must all read one directory.
+        return data_dir(getattr(self.server, "root", "."))
+
     def _json(self, payload, status=200):
         body = json.dumps(payload, ensure_ascii=False).encode()
         self.send_response(status)
@@ -181,6 +203,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         body = target.read_bytes()
         if target.suffix == ".html":
+            body = re.sub(rb"(<head(?:\s[^>]*)?>)", lambda m: m.group(1) + I18N_SCRIPTS, body, count=1)
             # Inject a cache-buster on every local JS/CSS URL so WKWebView
             # fetches the latest build instead of serving a stale cached copy.
             ver = _static_version().encode()
@@ -248,6 +271,15 @@ class Handler(BaseHTTPRequestHandler):
             checker = self._app()
             if not checker.projects.get_project(requested_project):
                 return self._json({"error": "项目不存在"}, 404)
+        if route == "/i18n/current.js":
+            body = i18n_script(language(self._data()))
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if route == "/api/projects":
             return self._list_projects()
         if route == "/api/organization":
@@ -359,7 +391,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(data)
         elif route == "/api/user_settings":
             # GET settings from file
-            settings_file = Path(data_dir()) / "settings.json"
+            settings_file = Path(self._data()) / "settings.json"
             if settings_file.exists():
                 settings = json.loads(settings_file.read_text())
             else:
@@ -544,9 +576,25 @@ class Handler(BaseHTTPRequestHandler):
             project_id = body.get("project_id")
             if not project_id:
                 return self._json({"error": "project_id required"}, 400)
-            report = generate_weekly_report(project_id, self._app())
+            app = self._app()
+            report = generate_weekly_report(project_id, app)
             stats = report["stats"]
-            if not report["has_activity"]:
+            if app.english():
+                if not report["has_activity"]:
+                    analysis = ("No views, saves or feedback were recorded this week, "
+                                "so no change of interest is inferred.")
+                else:
+                    n = stats["activity"]
+                    parts = [f"{n} {'activity' if n == 1 else 'activities'} recorded this week"]
+                    if stats["saved"]:
+                        parts.append(f"{stats['saved']} positive feedback")
+                    if stats["negative"]:
+                        parts.append(f"{stats['negative']} explicitly marked not relevant")
+                    if stats["too_hard"]:
+                        parts.append(f"{stats['too_hard']} marked too hard")
+                    analysis = ("; ".join(parts) + ". This summary only uses local records and never reads "
+                                "a lack of action as a lack of interest.")
+            elif not report["has_activity"]:
                 analysis = "本周没有记录到浏览、收藏或反馈活动，因此不对兴趣变化作推断。"
             else:
                 parts = [f"本周记录了 {stats['activity']} 次活动"]
@@ -560,7 +608,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"analysis": analysis, "local": True, "report": report})
         elif route == "/api/user_settings":
             # POST: save settings
-            settings_file = Path(data_dir()) / "settings.json"
+            settings_file = Path(self._data()) / "settings.json"
             settings_file.parent.mkdir(parents=True, exist_ok=True)
             settings = body.get("settings", {})
             if not isinstance(settings, dict):
@@ -571,7 +619,7 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/cache":
             # DELETE cache (via POST with _method: DELETE)
             if body.get("_method") == "DELETE":
-                cache_dir = Path(data_dir()) / "cache"
+                cache_dir = Path(self._data()) / "cache"
                 if cache_dir.exists():
                     import shutil
                     shutil.rmtree(cache_dir)

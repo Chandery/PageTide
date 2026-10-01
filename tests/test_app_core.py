@@ -318,6 +318,63 @@ class ServiceTests(unittest.TestCase):
         self.assertIsInstance(parts, list)
         self.assertEqual(parts[1]["type"], "image_url")
         self.assertEqual(parts[1]["image_url"]["url"], "data:image/jpeg;base64,AAAA")
+        self.assertIn("附有论文页面图片", seen["messages"][0]["content"])
+        self.app.qa(key, "explain the method")
+        self.assertNotIn("附有论文页面图片", seen["messages"][0]["content"])
+
+    def test_chinese_numeral_figure_references_resolve(self):
+        # The owner asked "图二讲了什么？": a Chinese numeral must find Figure 2 like "图2" does.
+        for question, number in [("图二讲了什么？", 2), ("你看一下图二这个图片", 2), ("第三张图", 3),
+                                 ("表十二的结果", 12), ("Fig. 3a", 3), ("Eq. (4)", 4), ("图 21", 21)]:
+            self.assertEqual(self.app.figure_number(question), number, question)
+        for question in ["试图解决什么问题", "图像生成效果", "这表明了什么", "图神经网络", "二十一"]:
+            self.assertIsNone(self.app.figure_number(question), question)
+        # Review findings: English labels glued to Chinese text, and compound words that only
+        # look like a label or a count that only looks like a number.
+        for question, ref in [("解释一下Figure 2", ("figure", 2)), ("看一下Figure2", ("figure", 2)),
+                              ("图一中的箭头", ("figure", 1)), ("第一个表格", ("table", 1))]:
+            self.assertEqual(self.app.figure_ref(question), ref, question)
+        for question in ["这个向量代表一个token吗", "发表一篇", "试图一次性解决", "第一个表示方法",
+                         "把这些图一起看", "列表三项"]:
+            self.assertIsNone(self.app.figure_ref(question), question)
+        key = "cn1"
+        self.app.store.upsert_papers([{"key": key, "title": "T", "abstract": "a",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.save_fulltext(key, [{"page": 1, "text": "As shown in Figure 2, we train."},
+                                     {"page": 3, "text": "Figure 2: Data composition and pipeline."}])
+        self.assertEqual(self.app.figure_page(key, "图二讲了什么？"), 3)
+        captions = self.app.caption_passages(key, "图二讲了什么？")
+        self.assertTrue(any(c["page"] == 3 for c in captions))
+
+    def test_figure_page_never_takes_a_table_caption_for_a_figure(self):
+        # Shaped like the owner's Zero-WAM PDF: "Figure 2" resolved to the page with the
+        # "Table 2" caption, and the real caption was glued to the previous word.
+        key = "zw"
+        self.app.store.upsert_papers([{"key": key, "title": "T", "abstract": "a",
+                                       "published": "2026-08-01", "group_name": "field"}])
+        self.app.save_fulltext(key, [
+            {"page": 2, "text": "for pretraining. Figure 2 summarizes the resulting data composition."},
+            {"page": 3, "text": "Real-world ICL (Section 2.3). Figure 2 summarizes this data"},
+            {"page": 4, "text": "RobotwinFigure 2 Data construction and in-context human video generation.\n"
+                                "The bottom part of Figure 2 shows the pipeline."},
+            {"page": 9, "text": "A Stable 2 baseline is reported in figure 3."},
+            {"page": 11, "text": "Results\nTable 2 Zero-shot cross-task results on seven unseen tasks."},
+        ])
+        for question in ["图二讲了什么？", "Figure 2", "第二张图", "fig. 2 的箭头"]:
+            self.assertEqual(self.app.figure_page(key, question), 4, question)
+        self.assertEqual(self.app.figure_page(key, "表二的结果"), 11)
+        self.assertEqual(self.app.figure_page(key, "Table 2"), 11)
+        self.assertEqual(self.app.caption_passages(key, "图二讲了什么？")[0]["page"], 4)
+        self.assertFalse(any(c["page"] == 11 for c in self.app.caption_passages(key, "Figure 2")))
+
+    def test_qa_rejects_an_image_that_is_not_a_local_page_render(self):
+        class Never:
+            def call(self, *a, **k):
+                raise AssertionError("must not reach the gateway")
+        self.app.gateway = Never()
+        for image in ["https://example.com/x.png", "data:text/html;base64,AAAA", "data:image/jpeg;base64,AA AA", 42]:
+            with self.assertRaises(ValueError):
+                self.app.qa(None, "这张图是什么？", image=image)
 
     def test_cards_have_distinct_reasons(self):
         self.app.build_batch(limit=2)

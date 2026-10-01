@@ -679,7 +679,6 @@
         "不同中文标题得到不同 key；中文固定词把匹配论文排在前面"
       ],
       "evidence": [
-        "tests/test_ranking_cjk.py",
         "docs/evidence/2026-10-01-chan01-checks.txt"
       ]
     },
@@ -882,6 +881,40 @@
         "仅用户点击时经登录渠道下载 PDF，计入上限"
       ],
       "evidence": []
+    },
+    {
+      "id": "I18N-01",
+      "stage": "delivery",
+      "title": "界面语言切换：设置为 English 时界面、服务端文字与 AI 回答都用英文",
+      "status": "review",
+      "depends_on": [
+        "PILOT-01"
+      ],
+      "requirements": [
+        "R-AGENT",
+        "R-BUDGET",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "设置页选 English 后，所有页面的界面文字、提示、对话框与服务端生成的说明都显示英文；选中文时界面与提示词逐字不变",
+        "论文标题、用户笔记、用户输入、AI 回答与已存的类别名等用户数据不被翻译或改写",
+        "AI 问答、速览与项目引导在英文界面下要求英文输出，只追加一句固定指令，走同一预算网关，不额外调用模型",
+        "语言包缺失或损坏时回退中文界面，不出现空白页；未覆盖的界面字符串由测试发现",
+        "零 token、离线可用；不上传任何文字"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-01-i18n-review.md",
+        "docs/evidence/2026-10-01-i18n-tests.txt"
+      ],
+      "related_tasks": [
+        "AI-01",
+        "AI-02",
+        "PROJECT-01"
+      ],
+      "missing_inputs": [
+        "英文回答质量未做真实付费调用验证",
+        ".app（WKWebView）需 owner 实际切换一次语言查看"
+      ]
     }
   ]
 }
