@@ -55,6 +55,71 @@ class WorkerStdoutPurityTests(unittest.TestCase):
             self.assertNotIn("Database is up to date", result.stdout)
 
 
+class WorkerStdinTests(unittest.TestCase):
+    """Profile terms are user text: the worker takes them on stdin, never in argv."""
+
+    def _run(self, db, payload, operation="suggest"):
+        return subprocess.run(
+            [sys.executable, "-m", "app.organization_worker", db, "default", str(os.getpid()),
+             operation, "stdin"], input=payload, capture_output=True, text=True, timeout=120)
+
+    def test_profile_reaches_suggest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run(os.path.join(tmp, "s.sqlite"),
+                               json.dumps({"profile": {"pinned": ["world models"], "project": "WM"}}))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            profile = json.loads(result.stdout)["suggestions"]["profile"]
+            self.assertEqual(profile["pinned"], ["world models"])
+            self.assertEqual(profile["project"], "WM")
+
+    def test_rejects_other_keys_operations_and_bad_profiles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = os.path.join(tmp, "r.sqlite")
+            for payload, operation in ((json.dumps({"action": "undo"}), "suggest"),
+                                       (json.dumps([]), "suggest"),
+                                       (json.dumps({"profile": {"pinned": "x"}}), "suggest"),
+                                       (json.dumps({"profile": {}}), "graph")):
+                result = self._run(db, payload, operation)
+                self.assertNotEqual(result.returncode, 0, payload)
+                self.assertEqual(result.stdout, "")
+
+    def test_job_sends_body_on_stdin_not_argv(self):
+        from unittest.mock import MagicMock
+        worker = MagicMock()
+        worker.communicate.return_value = ("{}", "")
+        worker.returncode = 0
+        worker.poll.return_value = 0
+        with patch.object(server.subprocess, "Popen", return_value=worker) as popen:
+            server.organization_job("db", "default", "suggest", {"profile": {"pinned": ["秘密词"]}})
+        argv = popen.call_args.args[0]
+        self.assertEqual(argv[-1], "stdin")
+        self.assertNotIn("秘密词", " ".join(argv))
+        sent = worker.communicate.call_args.kwargs["input"]
+        self.assertTrue(sent.isascii())  # escaped JSON: no locale-dependent pipe encoding
+        self.assertEqual(json.loads(sent)["profile"]["pinned"], ["秘密词"])
+
+
+class SuggestionProfileTests(unittest.TestCase):
+    def test_interest_terms_are_bounded_like_pinned_terms(self):
+        from app.organization_facets import suggest_groups
+        terms = [{"term": "x" * 101}, {"term": ""}, {"term": None}] + [{"term": "t%d" % i} for i in range(60)]
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "harness").mkdir()
+            (Path(tmp) / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
+            (Path(tmp) / "harness" / "budget.json").write_text(
+                (Path(__file__).resolve().parents[1] / "harness" / "budget.json").read_text())
+            with patch.dict(os.environ, {"PAPERDIGHELPER_DATA": tmp}):
+                app = server.make_app(tmp)
+            try:
+                with patch("app.profile_insights.keywords", return_value=terms):
+                    profile = server.suggestion_profile(app)
+            finally:
+                app.store.close()
+        self.assertEqual(profile["interest"], ["t%d" % i for i in range(40)])
+        suggest_groups([], profile)  # the worker would accept it
+
+
 class WorkerLifecycleTests(unittest.TestCase):
     def tearDown(self):
         server.stop_organization_workers()

@@ -19,6 +19,8 @@
 .org-search { flex:1 1 180px; width:180px; }
 .org-tools button { display:inline-flex; align-items:center; justify-content:center; gap:5px; }
 .org-tools img { width:15px; height:15px; }
+.org-undo-slot { display:contents; }
+.org-tools .org-undo { font-size:12.5px; }
 .pdh-organization .org-icon { display:block; width:16px; height:16px; margin:auto; pointer-events:none; }
 .pdh-organization [data-action=collapse][aria-expanded=false] .org-icon { transform:rotate(-90deg); }
 html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-tools img { filter:invert(1); }
@@ -84,6 +86,9 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .org-suggestion { min-width:0; border:1px solid var(--org-border); border-radius:6px; padding:12px; margin:0; }
 .org-suggestion-head { display:flex; align-items:center; gap:8px; }
 .org-suggestion-head input[data-name] { flex:1; width:100%; }
+.org-suggestion.is-child { margin-left:calc(var(--depth, 1) * 22px); border-left:3px solid var(--org-border); }
+.org-suggestion-parent { flex:none; font-size:12.5px; color:var(--org-muted); white-space:nowrap; }
+.org-suggestion-members-wrap summary { cursor:pointer; font-size:12.5px; color:var(--org-muted); padding-top:6px; }
 .org-suggestion-members { display:grid; gap:8px; max-height:220px; overflow:auto; padding-top:12px; }
 .org-suggestion-members label { display:flex; align-items:flex-start; gap:8px; }
 .org-suggestion-members input { margin-top:3px !important; }

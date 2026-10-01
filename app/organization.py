@@ -38,6 +38,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from .clustering import cluster, corpus_fingerprint
+from .organization_facets import suggest_groups
 from .db import now
 
 
@@ -54,7 +55,7 @@ SCHEMA = (
         PRIMARY KEY(project, paper_key, version))""",
     """CREATE TABLE org_events (
         id INTEGER PRIMARY KEY, project TEXT NOT NULL, before_data TEXT NOT NULL,
-        note_key TEXT, note_before TEXT, undone INTEGER NOT NULL DEFAULT 0)""",
+        note_key TEXT, note_before TEXT, undone INTEGER NOT NULL DEFAULT 0, label TEXT)""",
     "CREATE INDEX org_events_project ON org_events(project, undone, id)",
     # Capture legacy notes even when a caller uses Store directly after migration.
     """CREATE TRIGGER org_library_insert AFTER INSERT ON library BEGIN
@@ -66,6 +67,10 @@ SCHEMA = (
         ('default', OLD.paper_key, 0, COALESCE(OLD.note, ''), strftime('%Y-%m-%dT%H:%M:%SZ','now'));
         END""",
 )
+
+# What the undo button names. Layout events (dragging, folding) stay undoable in
+# history order but are never offered on their own: the owner cannot see them.
+LAYOUT_LABELS = ("调整布局", "折叠目录")
 
 DRAFT_SCHEMA = """CREATE TABLE IF NOT EXISTS org_drafts (
     project TEXT NOT NULL, paper_key TEXT NOT NULL, client TEXT NOT NULL,
@@ -106,6 +111,10 @@ class Organization:
                 self.conn.execute("""INSERT INTO org_notes
                     SELECT 'default', paper_key, 0, COALESCE(note,''), saved_at FROM library""")
             self.conn.execute(DRAFT_SCHEMA)
+            if "label" not in {row[1] for row in self.conn.execute("PRAGMA table_info(org_events)")}:
+                # Additive, nullable column; legacy events keep NULL and are never offered by name.
+                self._backup()
+                self.conn.execute("ALTER TABLE org_events ADD COLUMN label TEXT")
             self.conn.execute("INSERT OR IGNORE INTO org_projects VALUES (?,0,?)",
                               (project, _dump({"directions": [], "memberships": {},
                                                "positions": {}, "protected": []})))
@@ -207,6 +216,8 @@ class Organization:
                   "items": papers, "positions": data["positions"], "revision": revision}
         result["collapsed"] = data.get("collapsed", [])
         result["drafts"] = self._drafts()
+        event = self._undoable()
+        result["undo"] = {"id": event["id"], "label": event["label"]} if event and event["label"] else None
         if data.get("suggestions"):
             result["suggestions"] = data["suggestions"]
             result["suggestions"]["stale"] = (
@@ -215,6 +226,12 @@ class Organization:
             result.update({"format": "paperdig-organization-v1", "project": self.project,
                            "organization": data})
         return result
+
+    def _undoable(self):
+        """Latest live event the owner would recognise; later layout events ride along."""
+        return self.conn.execute("""SELECT * FROM org_events WHERE project=? AND undone=0
+            AND (label IS NULL OR label NOT IN (?,?)) ORDER BY id DESC LIMIT 1""",
+                                 (self.project,) + LAYOUT_LABELS).fetchone()
 
     def _corpus(self):
         return [dict(row) for row in self.conn.execute("""SELECT p.* FROM papers p
@@ -261,7 +278,34 @@ class Organization:
             before = _dump(data)
             note_key = note_before = None
             apply_result = None
-            if op == "undo":
+            label = None
+            if op == "undo" and "event" in body:
+                # Named undo: exactly the change the button showed. Layout saved after
+                # it is kept for nodes that still exist instead of jumping back.
+                event = self._undoable()
+                if type(body["event"]) is not int:
+                    raise ValueError("event must be an integer")
+                if not event or not event["label"] or body["event"] != event["id"]:
+                    raise Conflict("可撤销的操作已变化，请刷新后再试")
+                current = data
+                data = json.loads(event["before_data"])
+                if event["note_key"] is not None:
+                    self._write_note(event["note_key"], event["note_before"])
+                self.conn.execute("UPDATE org_events SET undone=1 WHERE project=? AND id>=?",
+                                  (self.project, event["id"]))
+                if event["label"] != "重新排列":
+                    # Current layout wins; a restored (e.g. undeleted) category gets its old layout back.
+                    live = {d["id"] for d in data["directions"]} | {None, ""}
+                    had = {d["id"] for d in current["directions"]} | {""}  # "" is the unclassified group
+                    merged = dict(data["positions"])
+                    merged.update(current["positions"])
+                    data["positions"] = {node: point for node, point in merged.items()
+                                         if self._node_parts(node)[1] in live}
+                    collapsed = [i for i in current.get("collapsed", []) if i in live]
+                    data["collapsed"] = collapsed + [i for i in data.get("collapsed", [])
+                                                     if i in live and i not in had and i not in collapsed]
+                data.pop("suggestions", None)
+            elif op == "undo":
                 event = self.conn.execute("""SELECT * FROM org_events WHERE project=? AND undone=0
                     ORDER BY id DESC LIMIT 1""", (self.project,)).fetchone()
                 if not event:
@@ -281,6 +325,7 @@ class Organization:
                 if not isinstance(text, str) or len(text) > 1000000:
                     raise ValueError("Note text must be a string of at most 1000000 characters")
                 self._write_note(note_key, text)
+                label = "编辑笔记"
             elif op == "direction-save":
                 name = _text(body.get("name"), "name").strip()
                 color = body.get("color")
@@ -291,8 +336,13 @@ class Organization:
                     direction_id = uuid.uuid4().hex
                     direction = {"id": direction_id, "rank": len(data["directions"])}
                     data["directions"].append(direction)
+                    label = "新建类别"
                 else:
                     direction = self._direction(data, direction_id)
+                    label = ("编辑类别" if (direction.get("name"), direction.get("color", "").lower())
+                             != (name, color.lower()) else
+                             "移动类别" if body.get("parent_id", direction.get("parent_id")) != direction.get("parent_id")
+                             else "调整类别顺序" if "rank" in body else "编辑类别")
                 parent = body.get("parent_id", direction.get("parent_id"))
                 if parent is not None:
                     _text(parent, "parent_id")
@@ -312,6 +362,7 @@ class Organization:
                     for index, other in enumerate(data["directions"]):
                         other["rank"] = index
             elif op == "direction-delete":
+                label = "删除类别"
                 direction = self._direction(data, body.get("id"))
                 data["directions"].remove(direction)
                 for child in data["directions"]:
@@ -330,6 +381,7 @@ class Organization:
                     if self._node_parts(node)[1] == direction["id"]:
                         data["positions"].pop(node)
             elif op == "membership":
+                label = "调整分类"
                 keys = self._list(body.get("keys"), "keys")
                 add = self._list(body.get("add", []), "add")
                 remove = self._list(body.get("remove", []), "remove")
@@ -344,6 +396,7 @@ class Organization:
                         (set(data["memberships"].get(key, [])) | set(add)) - set(remove))
                 data["protected"] = sorted(set(data["protected"]) | set(keys))
             elif op == "collapse":
+                label = LAYOUT_LABELS[1]
                 identifier = body.get("id")
                 if identifier != "":
                     self._direction(data, identifier)
@@ -356,6 +409,8 @@ class Organization:
                     collapsed.discard(identifier)
                 data["collapsed"] = sorted(collapsed)
             elif op == "positions":
+                # An explicit "rearrange all" is a visible action; ordinary drags are layout.
+                label = "重新排列" if body.get("rearrange") is True else LAYOUT_LABELS[0]
                 positions = body.get("positions")
                 if not isinstance(positions, dict) or len(positions) > 10000:
                     raise ValueError("positions must be a mapping of at most 10000 nodes")
@@ -380,6 +435,7 @@ class Organization:
                         raise ValueError("Coordinates must be finite numbers within +/-10000000")
                     data["positions"][node] = dict(point)
             elif op == "suggest-apply":
+                label = "应用建议"
                 preview = data.get("suggestions")
                 if not preview or body.get("fingerprint") != preview["fingerprint"]:
                     raise Conflict("A matching stored suggestion preview is required")
@@ -413,7 +469,9 @@ class Organization:
                         if existing and existing.get("manual"):
                             continue
                         if not existing:
+                            parent = group.get("parent")
                             data["directions"].append({"id": group["id"], "name": group["name"],
+                                "parent_id": parent if any(d["id"] == parent for d in data["directions"]) else None,
                                 "color": group.get("color", "#64748b"),
                                 "rank": len(data["directions"]), "manual": group.get("edited", False)})
                         elif regroup:
@@ -436,8 +494,8 @@ class Organization:
                 data.pop("suggestions", None)
             if op not in {"undo", "suggest"}:
                 self.conn.execute("""INSERT INTO org_events
-                    (project,before_data,note_key,note_before) VALUES (?,?,?,?)""",
-                                  (self.project, before, note_key, note_before))
+                    (project,before_data,note_key,note_before,label) VALUES (?,?,?,?,?)""",
+                                  (self.project, before, note_key, note_before, label))
             self.conn.execute("UPDATE org_projects SET revision=?,data=? WHERE project=?",
                               (revision + 1, _dump(data), self.project))
             result = self._snapshot()
@@ -449,6 +507,7 @@ class Organization:
     def _add_selected_suggestions(data, groups):
         """Explicit user-selected additions: never erase existing memberships or labels."""
         added, already, created, changed = 0, 0, 0, set()
+        placed = {}  # suggestion id -> direction id, so children land under their parent
         for group in groups:
             if not group["keys"]:
                 raise ValueError("所选类别至少需要一篇论文")
@@ -460,12 +519,20 @@ class Organization:
                 identifier = group["id"]
                 if any(d["id"] == identifier for d in data["directions"]):
                     identifier = uuid.uuid4().hex
+                parent = group.get("parent")
+                if parent is not None and parent not in placed:
+                    # An unselected parent may already exist from an earlier application.
+                    parent = next((d["id"] for d in data["directions"]
+                                   if parent in (d["id"], d.get("source_suggestion"))), None)
+                else:
+                    parent = placed.get(parent)
                 target = {"id": identifier, "name": group["name"],
-                          "color": group.get("color", "#64748b"), "parent_id": None,
+                          "color": group.get("color", "#64748b"), "parent_id": parent,
                           "rank": len(data["directions"]), "manual": True,
                           "source_suggestion": group["id"]}
                 data["directions"].append(target)
                 created += 1
+            placed[group["id"]] = target["id"]
             for key in group["keys"]:
                 current = data["memberships"].setdefault(key, [])
                 if target["id"] in current:
@@ -548,8 +615,11 @@ class Organization:
             if not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
                 raise ValueError("color must be #RRGGBB")
             groups.append({"id": group_id, "keys": keys, "name": name, "color": color.lower(),
+                           "parent": original.get("parent"),
                            "edited": name != original["name"] or color.lower() != "#64748b"})
-        return groups
+        # Preview order lists parents first, so a child always finds its new parent.
+        order = {group["id"]: index for index, group in enumerate(preview["groups"])}
+        return sorted(groups, key=lambda group: order[group["id"]])
 
     def _suggest(self, body):
         with self._transaction(write=False):
@@ -557,7 +627,7 @@ class Organization:
             if "revision" in body and _version(body["revision"], "revision") != revision:
                 raise Conflict("Organization revision conflict")
             papers = self._corpus()
-        preview = cluster(papers, broad=True)
+        preview = suggest_groups(papers, profile=body.get("profile"))
         # The expensive computation owns neither a database transaction nor the
         # Store lock. Re-read state so concurrent manual edits are never lost.
         with self._transaction():

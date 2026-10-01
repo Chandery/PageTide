@@ -7,6 +7,10 @@
 scikit-learn/HDBSCAN、本地模型或额外后端。自动分类限已收藏论文，先预览再应用；相似边不是引用边。
 以下保留早期候选调研，不代表全部已接入或通过验收。
 
+2026-10-01 修订：整理建议不再用 Louvain 社区或 OpenAlex topic。建议改由
+`app/organization_facets.py` 生成：一级类别是画像固定关键词，子类是多篇标题共有的短语（见
+[PRODUCT](PRODUCT.md) 同日一节）。NetworkX/Louvain 现在只用于图谱的相似边与布局分组。
+
 2026-09-14 交互修订：采用 Cytoscape 内置 [CoSE 布局](https://js.cytoscape.org/#layouts/cose)
 展示单论文节点、多方向连线与相似边。空方向不显示。`graph` 后台操作复用本地聚类结果的
 相似边，但不写分类建议、不更改手工分类或笔记。已放置节点保留坐标，仅新节点补位；

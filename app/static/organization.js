@@ -10,7 +10,7 @@
     catch { return fallback; }
   };
   const $ = selector => S.root.querySelector(selector);
-  const icons = { undo: 'undo-2', refresh: 'refresh-cw', export: 'download', fit: 'maximize', rearrange: 'grid-2x2', 'zoom-in': 'plus', 'zoom-out': 'minus', 'direction-new': 'plus', collapse: 'chevron-down', 'direction-edit': 'pencil', 'category-child': 'plus', 'direction-delete': 'x', 'direction-up': 'arrow-up', 'direction-down': 'arrow-down', 'detail-close': 'x', 'dialog-close': 'x', history: 'history', 'note-save': 'check' };
+  const icons = { undo: 'undo-2', export: 'download', fit: 'maximize', rearrange: 'grid-2x2', 'zoom-in': 'plus', 'zoom-out': 'minus', 'direction-new': 'plus', collapse: 'chevron-down', 'direction-edit': 'pencil', 'category-child': 'plus', 'direction-delete': 'x', 'direction-up': 'arrow-up', 'direction-down': 'arrow-down', 'detail-close': 'x', 'dialog-close': 'x', history: 'history', 'note-save': 'check' };
   const button = (action, label, symbol, extra = '') => `<button type="button" data-action="${action}" title="${h(label)}" aria-label="${h(label)}" ${extra}><img class="org-icon" src="/icons/org/${icons[action] || 'pencil'}.svg" width="16" height="16" alt=""></button>`;
   const directions = () => [...S.snapshot.directions].sort((a, b) => (a.rank || 0) - (b.rank || 0));
   function treeRows(snapshot = S.snapshot) {
@@ -158,7 +158,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools">${button('undo', '撤销上一步', '&#8630;')}${button('refresh', '刷新', '&#8635;')}<button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -181,7 +181,10 @@
     };
     renderData();
   }
-  function renderData() { renderSidebar(); renderList(); renderDetail(); setMode(); status(); }
+  function renderData() { renderSidebar(); renderList(); renderDetail(); setMode(); renderUndo(); status(); }
+  // Only a change the owner made and can recognise is offered, named: never a silent layout save.
+  const undoHTML = undo => undo && undo.label ? `<button type="button" class="org-undo" data-action="undo" data-event="${h(undo.id)}" title="撤销：${h(undo.label)}"><img class="org-icon" src="/icons/org/${icons.undo}.svg" width="16" height="16" alt="">撤销${h(undo.label)}</button>` : '';
+  function renderUndo() { const slot = $('[data-undo-slot]'); if (slot) slot.innerHTML = undoHTML(S.snapshot.undo); }
   function sidebarHTML() {
     const rows = treeRows();
     const count = id => { const ids = categoryIds(id); return S.snapshot.items.filter(p => memberships(p).some(m => ids.has(m))).length; };
@@ -700,11 +703,24 @@
       draft.version = item(key).note_version; draft.dirty = true; draft.error = ''; storeDraft(key, draft); d.close(); renderDetail();
     });
   }
+  // Profile first: pinned terms are the top level, repeated title phrases subdivide them.
+  function suggestionsHTML(preview, lookup = item) {
+    const groups = preview.groups || [], profile = preview.profile || {}, index = new Map(groups.map((g, i) => [g.id, i]));
+    const depth = g => { let n = 0, p = g.parent; while (p != null && index.has(p) && n < 4) { n++; p = groups[index.get(p)].parent; } return n; };
+    const pinned = (profile.pinned || []).map(h).join('、');
+    const basis = pinned ? `<p class="org-paper-meta">依据${profile.project ? `「${h(profile.project)}」` : '当前项目'}画像的固定关键词：${pinned}。一级类别来自这些关键词；类别内部再按标题里反复出现的短语细分。</p>`
+      : `<p class="org-paper-meta">${profile.project ? `「${h(profile.project)}」` : '当前项目'}还没有固定关键词，先按标题里反复出现的短语分组。在“画像”页固定关键词后再生成，会以它们为一级类别。</p>`;
+    const unmatched = (profile.unmatched || []).map(u => u.same_as ? `${h(u.term)}（与「${h(u.same_as)}」基本是同一批论文）` : u.dropped ? `${h(u.term)}（${Number(u.documents) || 0} 篇提到，超出 12 个一级类别上限）` : `${h(u.term)}（${u.documents ? `只有 ${u.documents} 篇提到` : '没有论文提到'}）`);
+    const members = keys => `<details class="org-suggestion-members-wrap"><summary>${keys.length} 篇论文 · 查看或取消</summary><div class="org-suggestion-members">${keys.map(k => `<label><input type="checkbox" data-member="${h(k)}" checked><span>${h(lookup(k)?.title || k)}</span></label>`).join('')}</div></details>`;
+    const cards = groups.map((g, i) => { const level = depth(g), parent = level ? groups[index.get(g.parent)] : null;
+      return `<fieldset class="org-suggestion${level ? ' is-child' : ''}" data-suggestion="${i}" style="--depth:${level}"><div class="org-suggestion-head"><input type="checkbox" data-enabled checked aria-label="采用此类别">${parent ? `<span class="org-suggestion-parent">${h(parent.name)} ›</span>` : ''}<input data-name aria-label="类别名称" value="${h(g.name)}" required maxlength="120"><input type="color" data-color aria-label="类别颜色" value="${color(g.color || DEFAULT_COLOR)}"></div><p class="org-paper-meta">${h(g.reason || '请核对分组内容')}</p>${members(g.keys || [])}</fieldset>`; }).join('');
+    return `${basis}${unmatched.length ? `<p class="org-paper-meta">未单独成类：${unmatched.join('；')}</p>` : ''}<p class="org-paper-meta">${groups.length} 个类别 · ${(preview.pending_keys || []).length} 篇没有共同短语，暂不归类。取消勾选上级类别时，其子类会成为一级类别。应用后只添加类别，已有分类保留，可以撤销。</p>${cards || '<p>没有可应用的建议</p>'}`;
+  }
   async function suggest() {
     const d = dialog('整理建议', '<p role="status">正在生成建议…</p>', null);
     try {
       await S.queue;
-      let result = await window.PDH.api('/api/organization', { action: 'suggest', revision: S.snapshot.revision });
+      let result = await window.PDH.api('/api/organization', { action: 'suggest', revision: S.snapshot.revision, ...(window.PDH.state?.currentProject ? { project_id: window.PDH.state.currentProject } : {}) });
       if (result.job) {
         let job = result.job;
         while (job.state !== 'done') {
@@ -720,9 +736,9 @@
       d.close();
       const preview = result.suggestions || result.snapshot?.suggestions || {};
       const proposals = preview.groups || (Array.isArray(preview) ? preview : []);
-      dialog('审核整理建议', `<p class="org-paper-meta">${proposals.length} 个较宽主题 · ${(preview.pending_keys || []).length} 篇证据不足，暂不另建方向</p><p class="org-paper-meta">建议按共同内容归并，可修改名称、取消论文；原文关键词仅作核对依据。</p><p class="org-paper-meta">应用后为所选论文添加这些类别，已有类别和手动分类均保留。可撤销本次操作。</p>${proposals.map((s, i) => `<fieldset class="org-suggestion" data-suggestion="${i}"><div class="org-suggestion-head"><input type="checkbox" data-enabled checked aria-label="采用此方向"><input data-name aria-label="方向名称" value="${h(s.name)}" required maxlength="120"><input type="color" data-color aria-label="方向颜色" value="${color(s.color || "#64748b")}"></div><p class="org-paper-meta">${(s.keys || []).length} 篇 · ${h(s.reason || "请核对分组内容")}</p>${s.terms?.length ? `<p class="org-paper-meta">原文依据：${s.terms.map(h).join(" · ")}</p>` : ""}<div class="org-suggestion-members">${(s.keys || s.members || []).map(k => typeof k === 'object' ? k.key : k).map(k => `<label><input type="checkbox" data-member="${h(k)}" checked><span>${h(item(k)?.title || k)}</span></label>`).join('')}</div></fieldset>`).join('') || '<p>没有可应用的建议</p>'}`, '应用所选建议', async el => {
+      dialog('审核整理建议', suggestionsHTML(preview), '应用所选建议', async el => {
         const suggestions = [...el.querySelectorAll('[data-suggestion]')].filter(f => f.querySelector('[data-enabled]').checked).map(f => ({ id: proposals[Number(f.dataset.suggestion)].id, name: f.querySelector('[data-name]').value.trim(), color: f.querySelector('[data-color]').value, keys: [...f.querySelectorAll('[data-member]:checked')].map(c => c.dataset.member) }));
-        if (!suggestions.length || suggestions.some(s => !s.name || !s.keys.length)) throw new Error('请选择至少一个有名称和论文的方向');
+        if (!suggestions.length || suggestions.some(s => !s.name || !s.keys.length)) throw new Error('请选择至少一个有名称和论文的类别');
         const result = await mutate({ action:'apply-suggestions', apply_mode:'add', fingerprint:preview.fingerprint, suggestions });
         const applied = result.apply_result;
         if (!applied) throw new Error('当前服务端未返回应用结果，请退出旧版并打开最新应用后重试');
@@ -824,17 +840,21 @@
         $('[data-action=note-edit]').setAttribute('aria-pressed', String(!preview)); $('[data-action=note-preview]').setAttribute('aria-pressed', String(preview)); break;
       }
       case 'history': await history(); break;
-      case 'undo': await mutate({ action: 'undo' }, false); S.positions = {}; S.cy?.destroy(); S.cy = null; renderData(); break;
-      case 'refresh': await refresh(); break;
+      case 'undo': {
+        const undo = S.snapshot.undo;
+        if (!undo) break;
+        await mutate({ action: 'undo', event: undo.id }, false); S.positions = {}; S.cy?.destroy(); S.cy = null; renderData();
+        S.notice = `已撤销：${undo.label}`; status(); break;
+      }
       case 'suggest': await suggest(); break;
       case 'export': await exportData(); break;
       case 'fit': focusGraph(null); break;
       case 'rearrange':
-        dialog('重新排列', '<p>重新排列所有论文卡片？可使用「撤销上一步」恢复布局。</p>', '重新排列', async () => {
+        dialog('重新排列', '<p>重新排列所有论文卡片？之后可点击「撤销重新排列」恢复原布局。</p>', '重新排列', async () => {
           await S.positionQueue;
           const previous = S.snapshot.positions;
           S.snapshot.positions = {}; S.positions = {}; S.cy?.destroy(); S.cy = null; renderGraph(false); capturePositions();
-          try { await mutate({ action: 'positions', positions: { ...Object.fromEntries(Object.keys(previous).map(id => [id, null])), ...S.positions } }, false); renderGraph(false); }
+          try { await mutate({ action: 'positions', rearrange: true, positions: { ...Object.fromEntries(Object.keys(previous).map(id => [id, null])), ...S.positions } }, false); renderGraph(false); }
           catch (error) { S.snapshot.positions = previous; S.positions = {}; S.cy?.destroy(); S.cy = null; renderGraph(); throw error; }
         }); break;
       case 'zoom-in': case 'zoom-out': zoomGraph(action === 'zoom-in' ? 1.2 : 1 / 1.2); break;
@@ -850,5 +870,5 @@
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
 })();

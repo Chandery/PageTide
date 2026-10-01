@@ -76,6 +76,28 @@ class OrganizationHTTPTests(unittest.TestCase):
         self.assertEqual(job["state"], "done", job.get("error"))
         self.assertIn("suggestions", job["result"])
 
+    def test_suggestions_follow_the_project_profile_sent_over_stdin(self):
+        self.seed()
+        app = server.make_app(str(self.root))
+        try:
+            app.pin_terms(["world model", "planning"])
+            project = app.get_default_project_id()
+        finally:
+            app.store.close()
+        status, payload = self.request_org({"action": "suggest", "project_id": project})
+        self.assertEqual(status, 200)
+        job_id = payload["job"]["id"]
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            job = server._job_get(job_id)
+            if job["state"] != "running":
+                break
+            threading.Event().wait(0.05)
+        self.assertEqual(job["state"], "done", job.get("error"))
+        profile = job["result"]["suggestions"]["profile"]
+        self.assertEqual(profile["pinned"], ["world model", "planning"])
+        self.assertEqual(self.request_org({"action": "suggest", "project_id": "no-such-project"})[0], 400)
+
     def test_operation_alias_cannot_bypass_worker(self):
         from unittest.mock import patch
         with patch.object(server, "_job_start", return_value={"id": "bounded", "state": "done"}) as job:

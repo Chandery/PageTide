@@ -257,8 +257,10 @@ class OrganizationTests(unittest.TestCase):
         before = self.org.snapshot()
         with patch.dict("sys.modules", {"networkx": None}):
             with self.assertRaises(ClusteringUnavailable):
-                self.org.action({"action": "suggest"})
-        self.assertEqual(self.org.snapshot(), before)
+                self.org.action({"action": "graph"})
+            self.assertEqual(self.org.snapshot(), before)
+            # Category suggestions are plain lexical matching and need no optional dependency.
+            self.assertTrue(self.org.action({"action": "suggest"})["suggestions"]["groups"])
 
     def test_compound_positions_virtual_anchor_and_direction_delete(self):
         key = "doi:10.1234/paper:part"
@@ -335,7 +337,6 @@ class OrganizationTests(unittest.TestCase):
         self.assertEqual(self.item()["note"], "legacy note")
         self.assertEqual([d["client"] for d in self.org.snapshot()["drafts"]], ["two"])
 
-    @unittest.skipUnless(HAS_NETWORKX, "NetworkX optional dependency not installed")
     def test_selected_suggestion_names_colors_and_members_are_editable(self):
         preview = self.org.action({"action": "suggest"})["suggestions"]
         group = preview["groups"][0]
@@ -347,7 +348,6 @@ class OrganizationTests(unittest.TestCase):
         self.assertEqual(self.item(result)["directions"], [])
         self.assertEqual(self.item(result, "b")["directions"], [group["id"]])
 
-    @unittest.skipUnless(HAS_NETWORKX, "NetworkX optional dependency not installed")
     def test_selected_suggestions_cannot_inject_or_duplicate_keys(self):
         preview = self.org.action({"action": "suggest"})["suggestions"]
         group = preview["groups"][0]
@@ -358,9 +358,8 @@ class OrganizationTests(unittest.TestCase):
                                  "suggestions": [{"id": group["id"], "keys": keys}]})
             self.assertEqual(self.org.snapshot(), before)
 
-    @unittest.skipUnless(HAS_NETWORKX, "NetworkX optional dependency not installed")
     def test_suggest_releases_transaction_and_preserves_concurrent_edits(self):
-        from app.clustering import cluster
+        from app.organization_facets import suggest_groups
         second = Store(self.path)
         self.addCleanup(second.close)
         peer = Organization(second)
@@ -369,37 +368,35 @@ class OrganizationTests(unittest.TestCase):
             self.assertFalse(self.org.conn.in_transaction)
             peer.action({"action": "direction-save", "name": "Concurrent", "color": "#123456"})
             peer.action({"action": "note", "key": "a", "text": "during compute", "version": 0})
-            return cluster(papers)
+            return suggest_groups(papers, **kwargs)
 
-        with patch("app.organization.cluster", side_effect=during_compute):
+        with patch("app.organization.suggest_groups", side_effect=during_compute):
             result = self.org.action({"action": "suggest"})
         self.assertEqual(result["directions"][0]["name"], "Concurrent")
         self.assertEqual(self.item(result)["note"], "during compute")
         self.assertEqual(result["revision"], 3)
 
-    @unittest.skipUnless(HAS_NETWORKX, "NetworkX optional dependency not installed")
     def test_suggest_rechecks_corpus_and_explicit_revision_after_computation(self):
-        from app.clustering import cluster
+        from app.organization_facets import suggest_groups
 
         def corpus_changed(papers, **kwargs):
             self.store.save_to_library("c")
-            return cluster(papers)
+            return suggest_groups(papers, **kwargs)
 
-        with patch("app.organization.cluster", side_effect=corpus_changed), self.assertRaises(Conflict):
+        with patch("app.organization.suggest_groups", side_effect=corpus_changed), self.assertRaises(Conflict):
             self.org.action({"action": "suggest"})
         self.assertNotIn("suggestions", self.org.snapshot())
         self.assertEqual(self.org.snapshot()["revision"], 0)
 
         def revision_changed(papers, **kwargs):
             self.direction()
-            return cluster(papers)
+            return suggest_groups(papers, **kwargs)
 
-        with patch("app.organization.cluster", side_effect=revision_changed), self.assertRaises(Conflict):
+        with patch("app.organization.suggest_groups", side_effect=revision_changed), self.assertRaises(Conflict):
             self.org.action({"action": "suggest", "revision": 0})
         self.assertNotIn("suggestions", self.org.snapshot())
         self.assertEqual(len(self.org.snapshot()["directions"]), 1)
 
-    @unittest.skipUnless(HAS_NETWORKX, "NetworkX optional dependency not installed")
     def test_suggestions_preview_apply_stale_and_manual_protection(self):
         direction = self.direction()
         preview = self.org.action({"action": "suggest"})
@@ -410,7 +407,7 @@ class OrganizationTests(unittest.TestCase):
         applied = self.org.action({"action": "apply-suggestions", "fingerprint": fingerprint})
         self.assertEqual(self.item(applied)["directions"], [direction])
         self.assertEqual(self.item(applied, "b")["note"], "keep note")
-        self.assertTrue(self.item(applied, "b")["directions"][0].startswith("cluster-"))
+        self.assertTrue(self.item(applied, "b")["directions"][0].startswith("facet-"))
         self.org.action({"action": "undo"})
         self.assertEqual(self.item(key="b")["directions"], [])
         self.assertEqual(self.item(key="b")["note"], "keep note")
@@ -420,7 +417,6 @@ class OrganizationTests(unittest.TestCase):
         with self.assertRaises(Conflict):
             self.org.action({"action": "suggest-apply", "fingerprint": fingerprint})
 
-    @unittest.skipUnless(HAS_NETWORKX, "NetworkX optional dependency not installed")
     def test_metadata_changes_stale_and_preview_cannot_be_forged(self):
         preview = self.org.action({"action": "suggest"})["suggestions"]
         self.store.conn.execute("UPDATE papers SET abstract='changed' WHERE key='a'")
@@ -430,7 +426,6 @@ class OrganizationTests(unittest.TestCase):
         with self.assertRaises(Conflict):
             self.org.action({"action": "apply-suggestions", "suggestions": [{"name": "Forged", "keys": ["a"]}]})
 
-    @unittest.skipUnless(HAS_NETWORKX, "NetworkX optional dependency not installed")
     def test_manually_removed_membership_stays_removed_after_reclassification(self):
         preview = self.org.action({"action": "suggest"})["suggestions"]
         self.org.action({"action": "suggest-apply", "fingerprint": preview["fingerprint"]})

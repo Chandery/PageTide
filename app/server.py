@@ -63,8 +63,11 @@ def stop_organization_workers():
             worker.wait()
 
 
-def organization_job(db_path, project, operation="suggest"):
-    """One bounded offline worker; no provider or user text on the command line."""
+def organization_job(db_path, project, operation="suggest", body=None):
+    """One bounded offline worker; no provider or user text on the command line.
+
+    `body` (suggest only) is sent on stdin, e.g. the project's profile terms.
+    """
     from . import organization_worker  # also included by the desktop packager
     if not ORGANIZATION_JOB_LOCK.acquire(blocking=False):
         raise ValueError("已有分类任务正在运行")
@@ -74,12 +77,15 @@ def organization_job(db_path, project, operation="suggest"):
         with ORGANIZATION_PROCESSES_LOCK:
             if ORGANIZATION_STOPPING.is_set():
                 raise ValueError("应用正在退出")
-            process = subprocess.Popen(command + [str(db_path), project, str(os.getpid()), operation],
+            process = subprocess.Popen(command + [str(db_path), project, str(os.getpid()), operation]
+                                       + (["stdin"] if body is not None else []),
+                                       stdin=subprocess.PIPE if body is not None else subprocess.DEVNULL,
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                        cwd=str(Path(__file__).resolve().parents[1]))
             ORGANIZATION_PROCESSES.add(process)
         try:
-            stdout, stderr = process.communicate(timeout=120)
+            stdout, stderr = process.communicate(
+                input=None if body is None else json.dumps(body, ensure_ascii=True), timeout=120)
             if process.returncode:
                 raise ValueError("本地分类失败：" + stderr[-500:])
             return json.loads(stdout)
@@ -91,6 +97,21 @@ def organization_job(db_path, project, operation="suggest"):
                 ORGANIZATION_PROCESSES.discard(process)
     finally:
         ORGANIZATION_JOB_LOCK.release()
+
+
+def suggestion_profile(app, project_id=None):
+    """Local profile terms that steer category suggestions; nothing leaves the machine."""
+    from .profile_insights import context, keywords
+    from .service import PROFILE_STOPWORDS
+    if project_id is not None and (not isinstance(project_id, str) or not app.projects.get_project(project_id)):
+        raise ValueError("未知项目")
+    project_id = project_id or app.get_default_project_id()
+    project = app.projects.get_project(project_id) or {}
+    return {"project": project.get("name") or project_id,
+            "pinned": [term for term in app.profile(project_id)["pinned_terms"]
+                       if isinstance(term, str) and 0 < len(term) <= 100][:40],
+            "interest": [item["term"] for item in keywords(context(app, project_id), PROFILE_STOPWORDS)
+                         if isinstance(item.get("term"), str) and 0 < len(item["term"]) <= 100][:40]}
 
 
 # Keys and budget ceilings are owned by the gateway, not the cosmetic settings file.
@@ -623,7 +644,8 @@ class Handler(BaseHTTPRequestHandler):
             operation = body.get("op", body.get("action")) if body else None
             if operation in {"suggest", "graph"}:
                 path = app.store.path.resolve()
-                job = _job_start("organization", lambda: organization_job(path, "default", operation))
+                request = {"profile": suggestion_profile(app, body.get("project_id"))} if operation == "suggest" else None
+                job = _job_start("organization", lambda: organization_job(path, "default", operation, request))
                 return self._json({"job": job})
             self._json(organization.snapshot() if body is None else organization.action(body))
         except (ValueError, KeyError, TypeError) as exc:

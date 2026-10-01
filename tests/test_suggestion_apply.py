@@ -19,7 +19,7 @@ class SelectedSuggestionTests(unittest.TestCase):
         self.org.action(dict(action='membership',keys=['a','b'],add=[self.original]))
     def preview(self):
         preview=dict(fingerprint=corpus_fingerprint(self.papers),groups=[dict(id='cluster-new',name='机器人',color='#64748b',keys=['a','b'])])
-        with patch('app.organization.cluster',return_value=preview): self.org.action(dict(action='suggest'))
+        with patch('app.organization.suggest_groups',return_value=preview): self.org.action(dict(action='suggest'))
         return preview
     def apply(self,preview):
         return self.org.action(dict(action='apply-suggestions',apply_mode='add',fingerprint=preview['fingerprint'],suggestions=preview['groups']))

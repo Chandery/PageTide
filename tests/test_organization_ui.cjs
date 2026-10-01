@@ -483,3 +483,62 @@ test('categories left at the default slate still get distinct graph hues matchin
   const node=ui.networkElements(ui.S.snapshot,null).find(e=>e.data.key==='p');
   assert.equal(hue(node.data.color),hue(ui.categoryColor('y')));
 });
+
+test('suggestion review nests child categories under their parent and states the profile basis', () => {
+  const ui = fixture();
+  const preview = { fingerprint: 'f', pending_keys: ['p3'],
+    profile: { project: '世界模型<项目>', pinned: ['world models', 'JEPA'], unmatched: [{ term: 'diffusion', documents: 1 }, { term: 'WM', documents: 9, same_as: 'world models' }] },
+    groups: [
+      { id: 'top', name: '世界模型', keys: ['p1', 'p2'], parent: null, reason: '来自画像固定关键词「world models」' },
+      { id: 'kid', name: 'JEPA', keys: ['p1'], parent: 'top', reason: '放在其下' },
+      { id: 'grand', name: '<b>Video</b>', keys: ['p2'], parent: 'kid', reason: 'x' }] };
+  const html = ui.suggestionsHTML(preview, key => ({ title: key === 'p1' ? 'Paper <one>' : key }));
+  assert.match(html, /依据「世界模型&lt;项目&gt;」画像的固定关键词：world models、JEPA/);
+  assert.match(html, /未单独成类：diffusion（只有 1 篇提到）；WM（与「world models」基本是同一批论文）/);
+  assert.match(html, /3 个类别 · 1 篇没有共同短语/);
+  assert.equal((html.match(/class="org-suggestion is-child"/g) || []).length, 2);
+  assert.match(html, /data-suggestion="0" style="--depth:0"/);
+  assert.match(html, /data-suggestion="1" style="--depth:1"><div class="org-suggestion-head"><input type="checkbox" data-enabled checked aria-label="采用此类别"><span class="org-suggestion-parent">世界模型 ›<\/span>/);
+  assert.match(html, /style="--depth:2"/);
+  assert.match(html, /Paper &lt;one&gt;/);
+  assert.doesNotMatch(html, /<b>|<one>/);
+});
+
+test('suggestion review reports pinned terms dropped over the category limit', () => {
+  const ui = fixture();
+  const html = ui.suggestionsHTML({ groups: [], profile: { project: 'P', pinned: ['a'],
+    unmatched: [{ term: '<late>', documents: 4, dropped: true }] } });
+  assert.match(html, /未单独成类：&lt;late&gt;（4 篇提到，超出 12 个一级类别上限）/);
+});
+
+test('suggestion review without pinned terms says the groups are title phrases', () => {
+  const ui = fixture();
+  const html = ui.suggestionsHTML({ groups: [], profile: { project: 'Demo', pinned: [], unmatched: [] } });
+  assert.match(html, /「Demo」还没有固定关键词，先按标题里反复出现的短语分组/);
+  assert.match(html, /没有可应用的建议/);
+});
+
+test('undo button names the change it undoes and is absent when nothing visible can be undone', () => {
+  const ui = fixture();
+  assert.equal(ui.undoHTML(null), '');
+  assert.equal(ui.undoHTML({ id: 3, label: null }), '');
+  const html = ui.undoHTML({ id: 12, label: '应用<建议>' });
+  assert.match(html, /data-action="undo" data-event="12" title="撤销：应用&lt;建议&gt;"/);
+  assert.match(html, />撤销应用&lt;建议&gt;<\/button>$/);
+});
+
+test('toolbar has an undo slot and no refresh button', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/static/organization.js'), 'utf8');
+  assert.match(source, /<span class="org-undo-slot" data-undo-slot><\/span><button data-action="suggest">/);
+  assert.doesNotMatch(source, /button\('refresh'|data-action="refresh"|case 'refresh'/);
+});
+
+test('named undo sends the event id it showed', async () => {
+  const calls = [];
+  const ui = fixture(async (url, body) => { calls.push(body); return snapshot({ revision: 8, undo: null }); });
+  ui.accept(snapshot({ undo: { id: 41, label: '新建类别' } }));
+  ui.S.root = { querySelector: () => null, querySelectorAll: () => [] };
+  try { await ui.handle('undo', { dataset: {} }); } catch (error) { /* rendering needs a DOM */ }
+  assert.equal(calls[0]?.action, 'undo');
+  assert.equal(calls[0]?.event, 41);
+});
