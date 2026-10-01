@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-01-empty-category",
+  "class": "standard",
+  "summary": "A knowledge-base category that a membership edit leaves without papers is now deleted. The owner found that after editing categories so that one held no papers, the empty category stayed. After the membership operation, every category the edit removed papers from is deleted when no saved paper belongs to it and it has no subcategory; an ancestor left empty by that deletion follows. Categories the edit did not touch (for example a newly created, still empty one) stay. Deletion re-ranks the remaining categories, drops their fold state and layout positions, and strips leftover memberships of unsaved papers. The whole edit stays one undoable '调整分类' event. Suggest-apply's existing cleanup now uses the same helper. The membership dialog says that emptied categories are deleted and can be restored with undo.",
+  "tasks": [
+    "GRAPH-01"
+  ],
+  "files": [
+    "app/organization.py",
+    "app/static/organization.js",
+    "changes/2026-10-01-empty-category.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-01-empty-category-tests.txt",
+    "tests/test_organization.py"
+  ],
+  "scope_note": "The worktree is shared with the uncommitted 2026-10-01-reader-vision unit (app/service.py, app/static/index.html, prompts/paper-vision-qa.md, tests/test_app_core.py, figure-intent files, scripts/i18n_extract.py); both add a section to docs/HANDOFF.md. Only this unit's files and HANDOFF section are committed here. The .app build was made from the whole worktree, so it also contains the reader-vision changes. Desktop build (.local/desktop-build-env/bin/python scripts/build_desktop.py, then cargo tauri build --bundles app) finished green; see the evidence file. harness.py review cannot pass in this worktree: the reader-vision files (prompts/, scripts/) raise the path-based class to critical and are outside this record.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Local organization data change only; no provider, prompt, network or gateway call.",
+    "before": "Zero model tokens per membership edit.",
+    "after": "Zero model tokens per membership edit; one extra local query of saved paper keys."
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 1,
+      "evidence": "docs/evidence/2026-10-01-empty-category-tests.txt",
+      "note": "299 of 323 passed; the 24 errors are HTTP tests whose localhost bind the agent sandbox blocks (EPERM). Not re-run outside the sandbox. All tests/test_organization.py tests, including three new regression tests, pass; node tests pass."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-empty-category-tests.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-01-empty-category-tests.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; read the diff and checked that the bundled app contains the new code. Not clicked through in the .app or browser preview.",
+      "evidence": "docs/evidence/2026-10-01-empty-category-tests.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Explicit category deletion (direction-delete) does not cascade to an ancestor it leaves empty; only membership edits do.",
+    "A category holding only unsaved papers is treated as empty and those papers lose that membership if they are saved again; undo restores it.",
+    "The HTTP tests were not run because the sandbox blocks localhost binds."
+  ]
+}

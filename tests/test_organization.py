@@ -435,6 +435,47 @@ class OrganizationTests(unittest.TestCase):
         result = self.org.action({"action": "suggest-apply", "fingerprint": preview["fingerprint"]})
         self.assertEqual(self.item(result)["directions"], [])
 
+    def test_membership_edit_that_empties_a_category_deletes_it(self):
+        kept, emptied, untouched = (self.direction(name=n) for n in ("Kept", "Emptied", "Untouched"))
+        self.org.action({"action": "membership", "keys": ["a", "b"], "add": [kept, emptied]})
+        self.org.action({"action": "positions", "positions": {"direction:" + emptied: {"x": 1, "y": 2}}})
+        self.org.action({"action": "collapse", "id": emptied, "collapsed": True})
+        before = self.org.snapshot()
+        self.org.action({"action": "membership", "keys": ["a"], "remove": [emptied]})
+        self.assertIn(emptied, [d["id"] for d in self.org.snapshot()["directions"]])
+        result = self.org.action({"action": "membership", "keys": ["b"], "remove": [emptied]})
+        ids = [d["id"] for d in result["directions"]]
+        # Only the category this edit emptied goes; a still-empty new category stays.
+        self.assertEqual(ids, [kept, untouched])
+        self.assertEqual([d["rank"] for d in result["directions"]], [0, 1])
+        self.assertEqual(result["positions"], {})
+        self.assertEqual(result["collapsed"], [])
+        self.assertEqual(result["undo"]["label"], "调整分类")
+        self.org.action({"action": "undo"})
+        restored = self.org.action({"action": "undo"})
+        restored["revision"] = before["revision"]
+        self.assertEqual(restored, before)
+
+    def test_emptied_subcategory_is_deleted_and_empty_ancestors_follow(self):
+        parent = self.direction(name="Parent")
+        busy = self.direction(name="Busy")
+        child = self.org.action({"action": "direction-save", "name": "Child", "color": "#123456",
+                                 "parent_id": parent})["directions"][-1]["id"]
+        sibling = self.org.action({"action": "direction-save", "name": "Sibling", "color": "#123456",
+                                   "parent_id": busy})["directions"][-1]["id"]
+        self.org.action({"action": "membership", "keys": ["a"], "add": [child, sibling, busy]})
+        result = self.org.action({"action": "membership", "keys": ["a"], "remove": [child, sibling]})
+        self.assertEqual([d["id"] for d in result["directions"]], [busy])
+
+    def test_category_holding_only_an_unsaved_paper_counts_as_empty(self):
+        direction = self.direction()
+        self.org.action({"action": "membership", "keys": ["a", "b"], "add": [direction]})
+        self.store.remove_from_library("b")
+        result = self.org.action({"action": "membership", "keys": ["a"], "remove": [direction]})
+        self.assertEqual(result["directions"], [])
+        self.store.save_to_library("b")
+        self.assertEqual(self.item(self.org.snapshot(), "b")["directions"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

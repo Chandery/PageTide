@@ -395,6 +395,7 @@ class Organization:
                     data["memberships"][key] = sorted(
                         (set(data["memberships"].get(key, [])) | set(add)) - set(remove))
                 data["protected"] = sorted(set(data["protected"]) | set(keys))
+                self._drop_emptied(data, remove)
             elif op == "collapse":
                 label = LAYOUT_LABELS[1]
                 identifier = body.get("id")
@@ -482,15 +483,7 @@ class Organization:
                             data["memberships"][key] = [group["id"]]
                     occupied = {identifier for memberships in data["memberships"].values() for identifier in memberships}
                     parents = {d.get("parent_id") for d in data["directions"]}
-                    removed = replaced - occupied - parents
-                    if removed:
-                        data["directions"] = [d for d in data["directions"] if d["id"] not in removed]
-                        for rank, direction in enumerate(data["directions"]):
-                            direction["rank"] = rank
-                        data["collapsed"] = [identifier for identifier in data.get("collapsed", []) if identifier not in removed]
-                        for node in list(data["positions"]):
-                            if self._node_parts(node)[1] in removed:
-                                data["positions"].pop(node)
+                    self._remove_directions(data, replaced - occupied - parents)
                 data.pop("suggestions", None)
             if op not in {"undo", "suggest"}:
                 self.conn.execute("""INSERT INTO org_events
@@ -502,6 +495,41 @@ class Organization:
             if apply_result is not None:
                 result["apply_result"] = apply_result
             return result
+
+    def _drop_emptied(self, data, candidates):
+        """Delete categories an edit left without saved papers or subcategories.
+
+        Only categories that lost papers (and ancestors they leave empty) qualify;
+        a category the owner just created and has not filled yet stays."""
+        saved = {row[0] for row in self.conn.execute("SELECT paper_key FROM library")}
+        occupied = {identifier for key, ids in data["memberships"].items() if key in saved
+                    for identifier in ids}
+        parents = {d["id"]: d.get("parent_id") for d in data["directions"]}
+        removed, pending = set(), list(candidates)
+        while pending:
+            identifier = pending.pop()
+            if (identifier in removed or identifier in occupied or identifier not in parents
+                    or any(parent == identifier and child not in removed
+                           for child, parent in parents.items())):
+                continue
+            removed.add(identifier)
+            if parents[identifier] is not None:
+                pending.append(parents[identifier])
+        self._remove_directions(data, removed)
+
+    def _remove_directions(self, data, removed):
+        """Drop childless categories with their memberships, ranks, folds and layout."""
+        if not removed:
+            return
+        data["directions"] = [d for d in data["directions"] if d["id"] not in removed]
+        for rank, direction in enumerate(data["directions"]):
+            direction["rank"] = rank
+        for key, memberships in data["memberships"].items():
+            data["memberships"][key] = [i for i in memberships if i not in removed]
+        data["collapsed"] = [identifier for identifier in data.get("collapsed", []) if identifier not in removed]
+        for node in list(data["positions"]):
+            if self._node_parts(node)[1] in removed:
+                data["positions"].pop(node)
 
     @staticmethod
     def _add_selected_suggestions(data, groups):
