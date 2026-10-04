@@ -80,7 +80,7 @@ def keywords(ctx, stopwords):
     docs = defaultdict(set)
     for key in ctx['evidence']:
         p = ctx['papers'][key]
-        for term in set(ranking.tokenize((p['title'] or '') + ' ' + (p['abstract'] or ''))) - stopwords - STOP:
+        for term in set(ranking.words((p['title'] or '') + ' ' + (p['abstract'] or ''))) - stopwords - STOP:
             docs[term].add(key)
     top = sorted(docs, key=lambda t: (-len(docs[t]), t))[:20]
     maximum = max((len(docs[t]) for t in top), default=1)
@@ -103,7 +103,7 @@ def weekly(ctx):
         counter = Counter()
         for key in keys:
             p = ctx['papers'][key]
-            counter.update(set(ranking.tokenize(f"{p['title'] or ''} {p['abstract'] or ''}"))-PROFILE_STOPWORDS-STOP)
+            counter.update(set(ranking.words(f"{p['title'] or ''} {p['abstract'] or ''}"))-PROFILE_STOPWORDS-STOP)
         return counter
     a, b = terms(current_events), terms(previous_events)
     changes = [dict(term=t, current=a[t], previous=b[t], delta=a[t]-b[t]) for t in a.keys() | b.keys()]
@@ -170,7 +170,7 @@ def evidence(app, project_id, kind, term='', start=None, end=None, offset=0):
             fb = ctx['latest'].get(key, {})
             matched = (kind=='saved' and key in ctx['saved']) or (action and fb.get('action')==action) or (kind=='seed' and key in ctx['profile']['positive_seeds'])
             if kind == 'term':
-                matched = key in ctx['evidence'] and term in ranking.tokenize(f"{p['title'] or ''} {p['abstract'] or ''}")
+                matched = key in ctx['evidence'] and term in ranking.words(f"{p['title'] or ''} {p['abstract'] or ''}")
             if matched:
                 if kind == 'term' and (start or end):
                     a, b = stamp(start), stamp(end)

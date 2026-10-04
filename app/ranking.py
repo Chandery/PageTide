@@ -16,9 +16,26 @@ STOPWORDS = {
 }
 
 
+_CJK_RUN = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]+")
+
+
+def cjk_tokens(text):
+    """Character bigrams of each Chinese run; a lone character is too ambiguous to be a term."""
+    out = []
+    for run in _CJK_RUN.findall(text or ""):
+        out.extend(run[i:i + 2] for i in range(len(run) - 1))
+    return out
+
+
+def words(text):
+    """English/ASCII words only: the terms that may be shown to the user as keywords."""
+    found = re.findall(r"[a-z0-9][a-z0-9\-]+", (text or "").lower())
+    return [w for w in found if len(w) >= 3 and w not in STOPWORDS]
+
+
 def tokenize(text):
-    words = re.findall(r"[a-z0-9][a-z0-9\-]+", (text or "").lower())
-    return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
+    """For similarity: English words as before (unchanged), then Chinese character bigrams."""
+    return words(text) + cjk_tokens(text)
 
 
 def build_idf(token_lists):
@@ -88,6 +105,18 @@ def mmr_select(scored, vectors, k, lambda_=0.8):
         selected.append(best)
         remaining = [(key, relevance) for key, relevance in remaining if key != best]
     return selected
+
+
+def sort_scored(scored, published):
+    """Order (key, score) pairs by score, then newest first, then key, so equal scores are not left to chance.
+
+    A profile that shares no vocabulary with the candidates scores everything 0; without an explicit
+    tie-break the order would be whatever the database returned.
+    """
+    ordered = sorted(scored, key=lambda kv: kv[0])
+    ordered.sort(key=lambda kv: published.get(kv[0]) or "", reverse=True)
+    ordered.sort(key=lambda kv: -kv[1])
+    return ordered
 
 
 def rank_candidates(profile, candidate_vectors):

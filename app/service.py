@@ -79,7 +79,7 @@ class App:
     @staticmethod
     def _guidance_terms(text, limit=20):
         terms = []
-        for token in ranking.tokenize(text or ""):
+        for token in ranking.words(text or ""):
             if token not in terms:
                 terms.append(token)
         return terms[:limit]
@@ -844,13 +844,16 @@ class App:
         if not pool:
             return {"batch_id": None, "cards": [], "reason": "no unseen candidates", "shortfall": shortfall}
 
-        corpus = [f"{p['title']} {p['abstract'] or ''}" for p in pool]
+        # The profile is learned from labelled and seed papers, which the pool by definition excludes
+        # (shown or rated), so IDF and the profile vector use every paper of the project.
+        corpus = [f"{p['title']} {p['abstract'] or ''}" for p in papers]
         idf = ranking.build_idf([ranking.tokenize(doc) for doc in corpus])
         vectors = {p["key"]: ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
             f"{p['title']} {p['abstract'] or ''}"), idf)) for p in pool}
-        profile_vector = self.profile_vector({p["key"]: p for p in pool}, idf, project_id)
-        scored = [(p["key"], ranking.cosine(profile_vector, vectors[p["key"]])) for p in pool]
-        scored.sort(key=lambda kv: -kv[1])
+        profile_vector = self.profile_vector({p["key"]: p for p in papers}, idf, project_id)
+        scored = ranking.sort_scored(
+            [(p["key"], ranking.cosine(profile_vector, vectors[p["key"]])) for p in pool],
+            {p["key"]: p.get("published") for p in pool})
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
         batch_id = self.store.create_batch(run_date, chosen, project_id=project_id)
@@ -887,7 +890,8 @@ class App:
 
         text = f"{paper.get('title') or ''} {paper.get('abstract') or ''}"
         tokens = set(ranking.tokenize(text))
-        pinned = [t for t in self.profile(project_id)["pinned_terms"] if t.lower() in tokens]
+        pinned = [t for t in self.profile(project_id)["pinned_terms"]
+                  if (t in text if ranking.cjk_tokens(t) else t.lower() in tokens)]
         references = self._reference_docs(project_id)
         nearest_label, nearest_score, shared = None, 0.0, []
         if references:
@@ -898,7 +902,10 @@ class App:
                 ref_tokens = set(ranking.tokenize(doc))
                 score = ranking.cosine(doc_vec, ranking.l2_normalize(ranking.vectorize(ranking.tokenize(doc), idf)))
                 if score > nearest_score:
-                    nearest_label, nearest_score, shared = label, score, sorted(tokens & ref_tokens)[:8]
+                    # Shared Chinese bigrams are matching evidence, but as text they are fragments, so only
+                    # ASCII terms are listed; Chinese appears in a reason through whole pinned phrases.
+                    nearest_label, nearest_score = label, score
+                    shared = sorted(t for t in tokens & ref_tokens if t.isascii())[:8]
         parts = []
         if self.english():
             if paper.get("topic"):
