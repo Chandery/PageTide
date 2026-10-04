@@ -1,3 +1,11 @@
+# 当前工作单元：修复迁移编号冲突导致的启动崩溃（2026-10-04，分支 feature/pdf-acquisition）
+
+- 现象：owner 打开新构建的 app，显示“项目加载失败”。
+- 原因（已复现）：owner 的真实数据库 `schema_version` 已有 `5`（2026-10-02，来自 `worktree-channels` 分支的 `migrate_005_channels`）。本分支原先的迁移也编号 005，被当作已完成而跳过，列没加；随后的 006 从不存在的 `pdfs.sha256` 读取，启动时抛 `no such column: sha256`。上一个构建（bbcdf2a）在真实数据库副本上稳定复现；此前的构建没有在启动路径上用到这些列，所以没暴露。我之前的测试都用全新临时数据库，没覆盖“另一个分支的迁移已在真实库里”。
+- 修复（见 [ADR 0011](decisions/0011-pdf-acquisition.md) 第 10 条）：迁移按编号逐个判断是否已记录；本分支迁移改为 006/007，5 留作 channels 的保留位；每个迁移在事务里执行，失败整体回滚。真实库副本验证：2 个项目能读出、channels 的表原样保留、23 条 PDF 记录补进历史表、完整性检查通过。真实数据库本身没有被我改动（只读副本），重新打开新构建时会自动迁移，并沿用已有的 `.pre-v5.bak` 备份。
+- 合并两个分支时：把 `migrate_005_reserved_for_channels` 换成 channels 分支的 `migrate_005_channels`；两边的数据库都不会漏迁移。
+- 见[检查证据](evidence/2026-10-04-migration-fix-checks.txt)、[变更](../changes/2026-10-04-migration-collision-fix.json)。
+
 # 当前工作单元：独立审查的修复与移除无效的 mailto（2026-10-04，分支 feature/pdf-acquisition）
 
 - 独立审查（全新上下文的审查代理，只读）对 `1f5ada9..aba281e` 给出 8 条发现，密钥处理被确认安全。已修：**抓取器每个请求都被重建**（桌面服务每次请求新建 `App`），导致间隔、arXiv 15 秒 Crawl-delay、robots 缓存全部失效，现在是进程内共享并加主机级锁；非 OSError 的异常（`InvalidURL`、`UnicodeError`、`IncompleteRead`…）会逃出 `download_pdf`，现已归类；重定向目标没有 robots/间隔/公网检查，现已加上；替换 PDF 丢失旧来源，新增 `pdf_versions`（迁移 006）；只有两条路由检查 Origin，现在所有写入路由都检查；迁移 005 吞掉所有 `OperationalError`，现只忽略重复列；robots 429 被当成“无限制”，现按不可用。没改并说明理由：robots.txt 请求不计入间隔（否则第一次下载要等 15 秒）；附加本地 PDF 仍是一次性上传。

@@ -1,0 +1,9 @@
+2026-10-04 migration-collision-fix checks (sanitized; no key or personal data appears here)
+Cause reproduced: the previous commit (bbcdf2a) run on a read-only copy of the owner's real database (versions 1-5, version 5 recorded 2026-10-02 by the channels branch) fails at startup: OperationalError "no such column: sha256".
+Fix verified on the same copy: migrations 6 and 7 applied, versions 1-7 recorded, 2 projects readable, the 3 channels tables untouched, 23 of 23 pdf rows copied into pdf_versions, integrity_check ok.
+python3 -m unittest discover -s tests            -> Ran 456 tests, OK (453 before: +3 in tests/test_pdf_fetch.py MigrationNumberingTests)
+  new tests: a database already at a foreign version 5 still gets the PDF migrations; the reserved slot is never recorded or pending; a migration that fails midway after DDL leaves nothing behind.
+python3 scripts/budget.py --check                -> PASS
+The owner's real database was not modified by this work (only a copy under .local/ was migrated).
+Not run: opening the rebuilt app on the real data (owner to do; it migrates 5 -> 7 on first start and keeps the existing .pre-v5.bak).
+Rebuilt app check (owner's Terminal panel): the bundled backend inside the rebuilt .app, started with a throwaway HOME holding only a copy of the real database (no keys), migrated 5 -> 7, desktop auth 303, /api/projects returned both projects, /api/home HTTP 200. The copies were deleted afterwards.

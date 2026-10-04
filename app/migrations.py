@@ -206,7 +206,7 @@ def migrate_004_project_scoped_qa(conn):
     set_schema_version(conn, 4)
 
 
-def migrate_005_pdf_acquisition(conn):
+def migrate_006_pdf_acquisition(conn):
     """Keep OpenAlex open-access facts per paper and provenance per archived PDF."""
     for table, column, kind in (("papers", "oa_json", "TEXT"), ("pdfs", "sha256", "TEXT"),
                                 ("pdfs", "bytes", "INTEGER"), ("pdfs", "source_kind", "TEXT"),
@@ -216,10 +216,10 @@ def migrate_005_pdf_acquisition(conn):
         except sqlite3.OperationalError as exc:
             if "duplicate column" not in str(exc).lower():
                 raise  # a locked or read-only database must not be recorded as migrated
-    set_schema_version(conn, 5)
+    set_schema_version(conn, 6)
 
 
-def migrate_006_pdf_versions(conn):
+def migrate_007_pdf_versions(conn):
     """Append-only history of archived PDFs, so replacing a paper's PDF never loses where the old one came from."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS pdf_versions (
@@ -232,33 +232,70 @@ def migrate_006_pdf_versions(conn):
         INSERT INTO pdf_versions (paper_key, path, source_url, sha256, bytes, source_kind, license, fetched_at)
         SELECT paper_key, path, source_url, sha256, bytes, source_kind, license, fetched_at FROM pdfs
         WHERE NOT EXISTS (SELECT 1 FROM pdf_versions v WHERE v.paper_key = pdfs.paper_key AND v.path = pdfs.path)""")
-    set_schema_version(conn, 6)
+    set_schema_version(conn, 7)
 
+
+def migrate_005_reserved_for_channels(conn):
+    """Number 5 belongs to the channels branch (migrate_005_channels), which has already run on some
+    databases. This slot is deliberately empty here and is never recorded as applied, so that branch's
+    migration still runs on a database that skipped it. When the two branches are merged, replace this
+    function with the real migration 005."""
+    raise RuntimeError("migration 005 is reserved and must never run")
+
+
+migrate_005_reserved_for_channels.reserved = True
 
 MIGRATIONS = [
     migrate_001_multi_project,
     migrate_002_shared_papers,
     migrate_003_project_guidance,
     migrate_004_project_scoped_qa,
-    migrate_005_pdf_acquisition,
-    migrate_006_pdf_versions,
+    migrate_005_reserved_for_channels,
+    migrate_006_pdf_acquisition,
+    migrate_007_pdf_versions,
 ]
 
 
+def _number(migration):
+    return int(migration.__name__.split("_")[1])
+
+
+def applied_versions(conn):
+    """Every migration number recorded as applied (not just the highest: branches can number differently)."""
+    try:
+        return {int(row[0]) for row in conn.execute("SELECT version FROM schema_version")}
+    except sqlite3.OperationalError:
+        return set()
+
+
+def _to_run(conn):
+    applied = applied_versions(conn)
+    return [m for m in MIGRATIONS if not getattr(m, "reserved", False) and _number(m) not in applied]
+
+
 def pending(conn):
-    return len(MIGRATIONS) - get_schema_version(conn)
+    return len(_to_run(conn))
 
 
 def apply_migrations(conn):
-    """Apply all pending migrations in order."""
-    current_version = get_schema_version(conn)
+    """Apply every migration whose number is not recorded yet, each one atomically.
 
-    for i, migration in enumerate(MIGRATIONS, start=1):
-        if i > current_version:
-            _log(f"Applying migration {i}: {migration.__name__}")
+    A migration that fails rolls back completely (DDL included) and the error propagates, so a
+    half-applied schema is never recorded and the next start retries from a clean state.
+    """
+    current_version = get_schema_version(conn)
+    for migration in _to_run(conn):
+        number = _number(migration)
+        _log(f"Applying migration {number}: {migration.__name__}")
+        conn.commit()
+        conn.execute("BEGIN")
+        try:
             migration(conn)
             conn.commit()
-            _log(f"Migration {i} applied successfully")
+        except BaseException:
+            conn.rollback()
+            raise
+        _log(f"Migration {number} applied successfully")
 
     final_version = get_schema_version(conn)
     if final_version == current_version:
