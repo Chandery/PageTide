@@ -5,6 +5,7 @@ recommender service. Responses are cached on disk so a batch can be replayed.
 """
 import hashlib
 import http.client
+import datetime
 import json
 import re
 import time
@@ -37,6 +38,41 @@ def abstract_text(inverted):
             positions.append((index, word))
     positions.sort()
     return " ".join(word for _, word in positions)
+
+
+def pdf_availability(arxiv_id, oa):
+    """Whether a legal PDF is known for a paper: "direct" (arXiv, or an https PDF link OpenAlex reports),
+    "page" (open access but only a landing page) or "none". `oa` is the dict from slim(), its stored JSON, or None."""
+    if isinstance(oa, str):
+        try:
+            oa = json.loads(oa) if oa.strip() else None
+        except ValueError:
+            oa = None
+    oa = oa if isinstance(oa, dict) else {}
+    if arxiv_id or any(isinstance(u, str) and u.startswith("https://") for u in oa.get("pdf_urls") or []):
+        return "direct"
+    page = oa.get("landing_page")
+    return "page" if isinstance(page, str) and page.startswith("https://") else "none"
+
+
+def window_start(years, today=None):
+    """The date `years` years before today as YYYY-MM-DD (29 February becomes 28 February)."""
+    today = today or datetime.date.today()
+    try:
+        return today.replace(year=today.year - years).isoformat()
+    except ValueError:
+        return today.replace(year=today.year - years, day=28).isoformat()
+
+
+def _prefer_direct(papers, block=6):
+    """Within each block of `block` results keep OpenAlex's relevance order but put papers with a direct
+    PDF first. Nothing crosses a block, so a much less relevant paper is never lifted above a relevant one."""
+    out = []
+    for i in range(0, len(papers), block):
+        chunk = papers[i:i + block]
+        chunk.sort(key=lambda p: pdf_availability(p.get("arxiv_id"), p.get("oa")) != "direct")  # stable
+        out.extend(chunk)
+    return out
 
 
 def has_cjk(text):
@@ -214,7 +250,7 @@ class OpenAlex:
         busy = isinstance(last, urllib.error.HTTPError) and last.code in (429, 503)
         raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "unavailable" if busy else "network_error")
 
-    def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance"):
+    def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance", prefer_pdf=True):
         """Candidate papers for a research topic, for project creation and per-project refresh.
 
         English phrases are matched against title AND abstract (every word must appear), in any source
@@ -255,6 +291,8 @@ class OpenAlex:
             if order == "recent" and has_cjk(text):
                 params["sort"] = "publication_date:desc"
             add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "relevance")
+        if prefer_pdf and order == "relevance":
+            papers = _prefer_direct(papers)
         return papers[:per_page]
 
     def discover(self, search=FIELD_QUERY, from_date="2024-01-01", to_date=None, pages=1, per_page=100,

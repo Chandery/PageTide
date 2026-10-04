@@ -526,7 +526,7 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(app.guidance_turn(session_id, body.get("message"), bool(body.get("dry_run")),
                                                  retry=bool(body.get("retry")), draft_edits=body.get("draft")))
                 elif action == "search":
-                    self._json(app.guidance_search(session_id, body.get("query")))
+                    self._json(app.guidance_search(session_id, body.get("query"), all_years=bool(body.get("all_years"))))
                 elif action == "preview":
                     self._json(app.guidance_preview(session_id, body.get("draft")))
                 elif action == "finalize":

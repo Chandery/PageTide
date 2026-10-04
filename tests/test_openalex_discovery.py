@@ -391,7 +391,7 @@ class ServiceWiringTests(unittest.TestCase):
                 mock.patch.object(self.app.source, "discover", side_effect=AssertionError("must not search 'world model'")):
             result = self.app.refresh_candidates(project_id=project)
         self.assertEqual([a[0] for a in asked], ["semiconductor growth", "epitaxy", "crystal defects"])  # at most three
-        self.assertTrue(all(a[1] == "recent" and a[2] == "2024-01-01" for a in asked))
+        self.assertTrue(all(a[1] == "recent" and a[2] == sources.window_start(5) for a in asked))
         self.assertEqual(result["field"], 3)
 
     def test_refresh_bounds_chinese_keywords_by_date_too_so_the_feed_is_not_old_journal_papers(self):
@@ -399,7 +399,7 @@ class ServiceWiringTests(unittest.TestCase):
         asked = []
         with mock.patch.object(self.app.source, "discover_topic", side_effect=lambda q, **kw: asked.append(kw) or []):
             self.app.refresh_candidates(project_id=project)
-        self.assertEqual((asked[0]["order"], asked[0]["from_date"]), ("recent", "2024-01-01"))
+        self.assertEqual((asked[0]["order"], asked[0]["from_date"]), ("recent", sources.window_start(5)))
 
     def test_refresh_for_the_default_project_keeps_the_world_model_recipe(self):
         with mock.patch.object(self.app.source, "discover", return_value=[]) as legacy, \

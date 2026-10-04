@@ -141,6 +141,8 @@
   .badge { font-size:11px; padding:3px 10px; border-radius:999px; box-shadow:var(--sh-in-sm); color:var(--muted); }
   .badge.ai { color:var(--ai-text); }
   .badge.saved { color:var(--good); }
+  .badge.pdf-direct { color:var(--good); }
+  .badge.pdf-page { color:var(--warn); }
   .abs { font-size:13.5px; color:var(--text); opacity:.86;
          display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
   .ai-slot { margin-top:12px; }
@@ -755,6 +757,16 @@ function aiSlot(c) {
   if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
 }
+const PDF_BADGES = {
+  direct: ['直链 PDF', '已知合法的 PDF 下载链接（arXiv 或开放获取）'],
+  page: ['仅原文页', '这篇论文是开放获取的，但只给了原文网页，没有 PDF 直链'],
+  none: ['无 PDF 来源', '没有找到合法的 PDF 来源；可以自己下载后附加'],
+};
+const pdfBadge = (status) => {
+  const [text, tip] = PDF_BADGES[status] || PDF_BADGES.none;
+  return `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}">${text}</span>`;
+};
+
 function cardHTML(c, i) {
   const saved = c.saved || c.feedback === 'useful';
   return `
@@ -764,6 +776,7 @@ function cardHTML(c, i) {
     <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
+      ${pdfBadge(c.pdf_status)}
       ${saved ? '<span class="badge saved">已收藏</span>' : ''}
     </div>
     <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>

@@ -10,7 +10,7 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 
-from .sources import SourceError, fetch_seed_work, slim
+from .sources import SourceError, fetch_seed_work, pdf_availability, slim
 
 PDF_MAX_BYTES = 60 * 1024 * 1024
 IMPORT_TTL_SECONDS = 24 * 3600
@@ -92,7 +92,8 @@ def paper_view(paper, abstract_limit=1200):
             "abstract": (paper.get("abstract") or "")[:abstract_limit],
             "published": paper.get("published"), "source": paper.get("source"),
             "authors": paper.get("authors") or [], "openalex_id": paper.get("openalex_id"),
-            "doi": doi or None, "arxiv_id": arxiv_id, "url": url, "match_mode": paper.get("match_mode")}
+            "doi": doi or None, "arxiv_id": arxiv_id, "url": url, "match_mode": paper.get("match_mode"),
+            "pdf_status": pdf_availability(arxiv_id, paper.get("oa") if "oa" in paper else paper.get("oa_json"))}
 
 
 def source_failure(exc):

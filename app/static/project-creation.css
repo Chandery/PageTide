@@ -19,6 +19,9 @@ h3{margin:0;font-size:14px;font-weight:600;white-space:nowrap}
 .mode-desc{color:var(--muted);font-size:13px}
 .badge{display:inline-block;font-size:11px;font-weight:500;color:var(--muted);border:1px solid var(--line-strong);border-radius:999px;padding:1px 8px;margin-left:6px}
 .badge.ai{color:var(--ai-text);border-color:var(--ai)}
+.badge.pdf-direct{color:var(--good);border-color:var(--good)}
+.badge.pdf-page{color:var(--warn);border-color:var(--warn)}
+.badge.pdf-none{color:var(--muted)}
 
 /* ------------------------------------------------------------ panels & fields */
 .panel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px;box-shadow:var(--sh-1)}
@@ -104,6 +107,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .path-head{display:flex;gap:8px;align-items:center}.path-head input{flex:1}
 .path-item textarea{min-height:48px;margin-top:6px}
 .cand-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.cand-toolbar .years{font-size:12px;color:var(--muted);display:inline-flex;gap:4px;align-items:center;cursor:pointer}
 .cands{margin-top:10px;display:grid;gap:8px}
 .cand{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;border:1px solid var(--line);border-radius:var(--r-md);padding:11px 13px;background:var(--base);cursor:pointer;animation:rise .25s var(--ease-out)}
 .cand:hover{border-color:var(--line-strong)}

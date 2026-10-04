@@ -16,7 +16,7 @@ from .db import Store, now
 from .gateway import Gateway
 from .language import language
 from .project import ProjectManager
-from .sources import OpenAlex, SourceError, fetch_seed_work, resolve_seed, slim
+from .sources import OpenAlex, SourceError, fetch_seed_work, pdf_availability, resolve_seed, slim, window_start
 
 ACTIONS = ("useful", "irrelevant", "too_hard")
 POSITIVE_ACTIONS = {"useful"}
@@ -32,6 +32,10 @@ PROFILE_STOPWORDS = {
     "each", "environment", "environments", "experiments", "furthermore", "increasingly",
     "introduce", "improving", "key", "not", "recent", "single", "states", "through",
 }
+
+
+CREATION_WINDOW_YEARS = 10  # candidates while choosing seeds (a proposal; the page can lift it)
+FEED_WINDOW_YEARS = 5       # the refreshed feed (a proposal)
 
 
 class App:
@@ -343,7 +347,7 @@ class App:
                 "reason": reason,
                 "tokens": tokens, "elapsed_ms": elapsed_ms}
 
-    def guidance_search(self, session_id, query):
+    def guidance_search(self, session_id, query, all_years=False):
         """Candidate papers for ONE search query, merged into the session's candidate list.
 
         The page calls this once per query so results appear as each query returns."""
@@ -356,7 +360,8 @@ class App:
         draft = self._bounded_guidance_draft(session["draft"])
         error = None
         try:
-            found = self.source.discover_topic(query, per_page=12)
+            found = self.source.discover_topic(
+                query, per_page=12, from_date=None if all_years else window_start(CREATION_WINDOW_YEARS))
         except Exception as exc:
             found, error = [], {"kind": getattr(exc, "kind", "error"), "message": str(exc)[-200:]}
         known = {p["key"]: p for p in draft["candidates"] if isinstance(p, dict) and p.get("key")}
@@ -749,13 +754,14 @@ class App:
             values = []
         return [str(v).strip() for v in values if isinstance(v, str) and str(v).strip()]
 
-    def refresh_candidates(self, search=None, from_date="2024-01-01", pages=1, per_page=100,
+    def refresh_candidates(self, search=None, from_date=None, pages=1, per_page=100,
                            include_distractors=False, distractor_per_query=20, project_id=None):
         """Fast by default. A project with keywords searches those (at most three, one request each);
         the default project, or an explicit `search`, keeps the DATA-01 arXiv "world model" recipe.
         Distractors are opt-in (five more calls)."""
         if not project_id:
             project_id = self.get_default_project_id()
+        from_date = from_date or window_start(FEED_WINDOW_YEARS)
 
         errors = []
         keywords = [] if search else self._project_keywords(project_id)[:3]
@@ -958,6 +964,7 @@ class App:
                 "matched_terms": explanation["matched_terms"],
                 "shared_terms": explanation["shared_terms"],
                 "mode": "sparse",
+                "pdf_status": pdf_availability(row["arxiv_id"], row["oa_json"]),
                 "saved": self.store.in_library(row["key"], project_id),
                 "feedback": (feedback.get(row["key"]) or {}).get("action"),
                 "summary": summaries.get(row["key"]),

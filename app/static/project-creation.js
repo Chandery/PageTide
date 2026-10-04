@@ -98,6 +98,16 @@ const meta = (p) => {
   return [names, p.published, p.source].filter(Boolean).join(' · ');
 };
 
+const PDF_BADGES = {
+  direct: ['直链 PDF', '已知合法的 PDF 下载链接（arXiv 或开放获取）'],
+  page: ['仅原文页', '这篇论文是开放获取的，但只给了原文网页，没有 PDF 直链'],
+  none: ['无 PDF 来源', '没有找到合法的 PDF 来源；可以自己下载后附加'],
+};
+const pdfBadge = (status) => {
+  const [text, tip] = PDF_BADGES[status] || PDF_BADGES.none;
+  return `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}">${text}</span>`;
+};
+
 function candidateCard(paper, selected, onToggle) {
   const el = document.createElement('div');
   el.className = 'cand' + (selected ? ' selected' : '');
@@ -111,6 +121,7 @@ function candidateCard(paper, selected, onToggle) {
       <div class="more">
         ${hasAbstract ? '<button type="button" class="toggle">展开摘要</button>' : '<span>没有摘要</span>'}
         ${paper.url ? `<a href="${esc(paper.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
+        ${pdfBadge(paper.pdf_status)}
         <span class="tags"></span>
       </div>
     </div>`;
@@ -230,7 +241,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇候选，继续查找…` : '查找中…';
       let result;
       try {
-        result = await post(`/api/project-guidance/sessions/${sessionId()}/search`, {query: queries[i]});
+        result = await post(`/api/project-guidance/sessions/${sessionId()}/search`, {query: queries[i], all_years: part('allYears').checked});
       } catch (error) { problem = {kind: 'request', message: error.message}; break; }
       addCandidates(result.items);
       if (result.error) {

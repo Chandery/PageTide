@@ -833,6 +833,14 @@
   "附加本地 PDF": "Attach a local PDF",
   "正在附加…": "Attaching…",
   "附加失败：{0}": "Attach failed: {0}",
-  "OpenAlex 额度剩余 {0} / {1}": "OpenAlex allowance left: {0} / {1}"
+  "OpenAlex 额度剩余 {0} / {1}": "OpenAlex allowance left: {0} / {1}",
+  "直链 PDF": "Direct PDF",
+  "仅原文页": "Paper page only",
+  "无 PDF 来源": "No PDF source",
+  "已知合法的 PDF 下载链接（arXiv 或开放获取）": "A legal PDF download link is known (arXiv or open access)",
+  "这篇论文是开放获取的，但只给了原文网页，没有 PDF 直链": "This paper is open access, but only its web page is known, not a direct PDF link",
+  "没有找到合法的 PDF 来源；可以自己下载后附加": "No legal PDF source was found; you can download it yourself and attach it",
+  "不限年份": "Any year",
+  "默认只看近 10 年的论文；勾选后不限年份": "Only the last 10 years by default; tick to search any year"
  }
 }
