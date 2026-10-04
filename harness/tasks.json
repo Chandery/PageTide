@@ -328,7 +328,7 @@
       "id": "PDF-01",
       "stage": "reading",
       "title": "首版：下载并本地归档 PDF，可离线打开，不绕过付费墙",
-      "status": "in_progress",
+      "status": "review",
       "depends_on": [
         "CORE-01"
       ],

@@ -607,6 +607,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(app.download_pdf(body["key"]))
         elif route == "/api/pdf":
             self._json(app.download_pdf(body["key"]))
+        elif route == "/api/pdf/attach":
+            try:
+                self._json(app.attach_pdf(body.get("key") or "", body.get("pdf_id")))
+            except ValueError as exc:
+                self._json({"error": str(exc)}, 400)
         elif route == "/api/weekly_report/analysis":
             # The local report is the source of truth.  Keep this endpoint
             # deterministic until the separately proposed weekly_digest

@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-04-pdf-attach-and-landing",
+  "class": "critical",
+  "summary": "Completes the PDF-acquisition plan. Adds manual attach of a user PDF to an existing paper (POST /api/pdf/attach on top of the existing upload and take_imported_pdf; source_kind user_import; earlier files kept), a landing_page_only reason with an 'open the paper page' link for open-access papers that have no direct PDF link, and an 'attach a local PDF' action on every reader failure. Records live and browser evidence; sets E-PDF-ARCHIVE to passed (self-run) and PDF-01 to review.",
+  "tasks": [
+    "PDF-01"
+  ],
+  "requirements": [
+    "R-PDF",
+    "R-LOCAL",
+    "R-DURABILITY"
+  ],
+  "files": [
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "changes/2026-10-04-pdf-acquisition.json",
+    "changes/2026-10-04-pdf-attach-and-landing.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0011-pdf-acquisition.md",
+    "docs/evidence/2026-10-04-pdf-acquisition-checks.txt",
+    "docs/evidence/2026-10-04-pdf-attach-checks.txt",
+    "docs/evidence/2026-10-04-pdf-attach-self-review.md",
+    "harness/evaluations.json",
+    "harness/sources.json",
+    "harness/tasks.json",
+    "tests/test_pdf_fetch.py"
+  ],
+  "scope_note": "On top of 7937230. The untracked .claude/settings.json and .claude/worktrees/ are the owner's and not part of this unit.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No model call, no model operation or ceiling changed, and no new outbound request: attach uses the existing local upload; the landing page is opened by the user's browser.",
+    "before": "Papers without a downloadable source showed a reason only; the reader could not attach a user PDF to an existing paper.",
+    "after": "Every failure offers attaching a local PDF; open-access landing pages are linked.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-04-pdf-attach-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-04-pdf-attach-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-04-pdf-attach-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app built; not launched"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; attach route and reader behaviour only",
+      "evidence": "docs/evidence/2026-10-04-pdf-attach-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "E-PDF-ARCHIVE is passed on self-run evidence; an independent review has not been done and byte-range resume is not implemented.",
+    "The Tauri window itself was not exercised; the same static pages were checked in a browser preview.",
+    "Whether Unpaywall is needed rests on one non-arXiv sample (DreamerV3, landing page only).",
+    "Whether mailto still matters when an OpenAlex key is set is undetermined."
+  ]
+}

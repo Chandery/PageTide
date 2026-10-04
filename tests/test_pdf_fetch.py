@@ -306,7 +306,7 @@ class StoreMigrationTests(unittest.TestCase):
                              ("ab", 5, "openalex_oa", "cc-by"))
 
 
-class DownloadPdfTests(unittest.TestCase):
+class AppCase(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -329,6 +329,8 @@ class DownloadPdfTests(unittest.TestCase):
         with mock.patch.object(pdf_fetch, "_open", net):
             return self.app.download_pdf(key, **kw)
 
+
+class DownloadPdfTests(AppCase):
     def test_arxiv_paper_downloads_and_records_provenance(self):
         key = self.add(arxiv_id="2603.19312")
         result = self.download(Net({"https://arxiv.org/pdf/2603.19312": PDF}))
@@ -402,6 +404,119 @@ class DownloadPdfTests(unittest.TestCase):
         self.assertNotEqual(first["path"], second["path"])
         self.assertTrue(Path(first["path"]).exists())
         self.assertEqual(self.app.pdf_path(key), Path(second["path"]))
+
+
+class AttachAndLandingTests(AppCase):
+    """Manual attach for papers with no downloadable source, and the landing page shown instead."""
+
+    DREAMER_OA = {"is_oa": True, "oa_status": "hybrid", "pdf_urls": [],
+                  "landing_page": "https://doi.org/10.1038/s41586-025-08744-2", "license": "cc-by",
+                  "version": "publishedVersion"}
+
+    def upload(self, data=PDF, name="paper.pdf"):
+        from app import creation
+        return creation.import_pdf(self.app.data, data, name)["pdf_id"]
+
+    def test_open_access_paper_without_pdf_link_reports_landing_page(self):
+        self.add(oa=self.DREAMER_OA)
+        result = self.download(Net({}))
+        self.assertEqual((result["ok"], result["reason"]), (False, "landing_page_only"))
+        self.assertEqual(result["landing_page"], self.DREAMER_OA["landing_page"])
+
+    def test_not_open_access_without_source_is_still_no_oa_source(self):
+        self.add(oa=dict(self.DREAMER_OA, is_oa=False, license=None))
+        self.assertEqual(self.download(Net({}))["reason"], "no_oa_source")
+
+    def test_failed_download_still_offers_the_landing_page(self):
+        self.add(oa=dict(sources.slim(WORK)["oa"], landing_page="https://repo.example.org/p"))
+        url = "https://repo.example.org/p.pdf"
+        result = self.download(Net({url: http_error(url, 403),
+                                    "https://other.example.org/q.pdf": http_error("https://other.example.org/q.pdf", 403)}))
+        self.assertEqual(result["reason"], "paywalled_or_blocked")
+        self.assertEqual(result["landing_page"], "https://repo.example.org/p")
+
+    def test_attach_records_user_import_and_makes_later_downloads_cached(self):
+        key = self.add()
+        result = self.app.attach_pdf(key, self.upload())
+        self.assertTrue(result["ok"])
+        row = dict(self.app.store.conn.execute("SELECT * FROM pdfs WHERE paper_key=?", (key,)).fetchone())
+        self.assertEqual((row["source_kind"], row["sha256"], row["bytes"]),
+                         ("user_import", hashlib.sha256(PDF).hexdigest(), len(PDF)))
+        self.assertEqual(Path(row["path"]).read_bytes(), PDF)
+        net = Net({})
+        self.assertTrue(self.download(net)["cached"])
+        self.assertEqual(net.calls, [])
+
+    def test_attach_keeps_a_previously_downloaded_original(self):
+        key = self.add(arxiv_id="2603.19312")
+        first = self.download(Net({"https://arxiv.org/pdf/2603.19312": PDF}))
+        self.app.attach_pdf(key, self.upload(PDF_B))
+        self.assertTrue(Path(first["path"]).exists())
+        self.assertNotEqual(self.app.pdf_path(key), Path(first["path"]))
+
+    def test_attach_refuses_unknown_paper_and_keeps_the_upload(self):
+        pdf_id = self.upload()
+        with self.assertRaises(ValueError):
+            self.app.attach_pdf("nope", pdf_id)
+        self.assertTrue((self.app.data / "imports" / f"{pdf_id}.pdf").exists())
+
+    def test_attach_refuses_unknown_or_malformed_upload_id(self):
+        key = self.add()
+        for bad in ("0" * 64, "../etc/passwd", "", None):
+            with self.assertRaises(ValueError):
+                self.app.attach_pdf(key, bad)
+        self.assertIsNone(self.app.pdf_path(key))
+
+    def test_upload_that_is_not_a_pdf_is_rejected_before_attaching(self):
+        from app import creation
+        with self.assertRaises(ValueError):
+            creation.import_pdf(self.app.data, b"<html>not a pdf</html>", "x.pdf")
+
+
+class AttachRouteTests(unittest.TestCase):
+    def setUp(self):
+        import threading
+        from app import server
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        (self.root / "harness").mkdir()
+        (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
+        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        httpd = server.build_server(port=0, root=str(self.root))
+        self.port = httpd.server_address[1]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        self.app = server.make_app(str(self.root))
+        self.app.store.upsert_papers([{"key": "k", "title": "T"}])
+
+    def call(self, path, body=None, raw=None):
+        import urllib.request
+        data = raw if raw is not None else json.dumps(body).encode()
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", data=data, method="POST",
+                                         headers={"Content-Type": "application/octet-stream" if raw is not None else "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read())
+
+    def test_upload_then_attach_then_reader_can_view_it(self):
+        import urllib.request
+        status, uploaded = self.call("/api/seeds/pdf", raw=PDF)
+        self.assertEqual(status, 200)
+        status, attached = self.call("/api/pdf/attach", {"key": "k", "pdf_id": uploaded["pdf_id"]})
+        self.assertEqual((status, attached["ok"]), (200, True))
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/pdf/view?key=k", timeout=5) as response:
+            self.assertEqual(response.read(), PDF)
+
+    def test_attach_errors_are_400_with_a_message(self):
+        status, body = self.call("/api/pdf/attach", {"key": "k", "pdf_id": "0" * 64})
+        self.assertEqual(status, 400)
+        self.assertIn("error", body)
+        status, _ = self.call("/api/pdf/attach", {"key": "missing", "pdf_id": "0" * 64})
+        self.assertEqual(status, 400)
 
 
 class ContactEmailTests(unittest.TestCase):

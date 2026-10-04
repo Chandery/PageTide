@@ -2,7 +2,7 @@
 
 ## 状态
 
-已实现（2026-10-04），待独立审查。真实下载（arXiv、非 arXiv 开放获取、付费论文各一篇）尚未实测，E-PDF-ARCHIVE 仍是 `not_run`。
+已实现（2026-10-04），待独立审查。真实下载、离线打开、付费拒绝和手动附加已在 owner 机器上实测（自测，见 `docs/evidence/2026-10-04-pdf-acquisition-checks.txt`），E-PDF-ARCHIVE 为 `passed`；PDF-01 为 `review`。
 
 ## 背景
 
@@ -15,7 +15,7 @@
 3. **守规矩。** 每个主机先读 robots.txt（4xx 视为没有限制；5xx 或不可达按不可用处理，不当作允许）；被禁止就报告 `robots_disallowed`，不绕过。请求间隔取我们的下限（arXiv 3 秒，其他 1 秒）与 robots 的 Crawl-delay 中较大者（上限 60 秒）；arXiv 当前 Crawl-delay 为 15 秒。403/401 报告 `paywalled_or_blocked` 且不重试，不使用凭证；429/5xx 只重试一次并遵守 Retry-After（等待上限 10 秒）。
 4. **安全限制。** 只接受 https（含重定向）；流式读取并限制 60 MB；开头必须有 `%PDF-`；先写临时文件再原子改名，失败不留半截文件。
 5. **归档语义。** 文件名为 `<规范ID>-<sha256 前 12 位>.pdf`。相同内容幂等复用；内容变化时旧文件保留（保留原件），`pdfs` 表指向最新。`pdfs` 新增 `sha256`、`bytes`、`source_kind`（`arxiv|openalex_oa|user_import`）和 `license`（许可线索）；`papers.oa_json` 保存最近一次开放获取信息。迁移 005，迁移前自动备份沿用 `.pre-vN.bak`。
-6. **失败可见。** 返回 `{ok:false, reason, attempts[]}`，原因为 `no_oa_source`、`not_found`、`paywalled_or_blocked`、`robots_disallowed`、`rate_limited`、`not_pdf`、`too_large`、`network_error`、`invalid_url`；阅读器显示对应说明。下载失败不影响推荐和反馈。
+6. **失败可见，并给出出路。** 返回 `{ok:false, reason, attempts[]}`，原因为 `no_oa_source`、`not_found`、`paywalled_or_blocked`、`robots_disallowed`、`rate_limited`、`not_pdf`、`too_large`、`network_error`、`invalid_url`；阅读器显示对应说明；论文是开放获取但 OpenAlex 只给了落地页时，原因为 `landing_page_only`，并显示“打开原文页面”链接。每次失败都提供“附加本地 PDF”：先走原有的 `/api/seeds/pdf` 上传（原样存入 `imports/`），再由 `POST /api/pdf/attach` 通过 `take_imported_pdf` 移入 `pdfs/` 并以 `source_kind=user_import` 记录；已有的下载文件不会被删除。下载失败不影响推荐和反馈。
 7. **联系邮箱。** 设置页新增 `contactEmail`，只作为 OpenAlex 的 `mailto` 发送，不进入 PDF 来源站点的请求或 User-Agent。未设置时沿用占位地址。OpenAlex 缓存键按占位地址计算，设置真实邮箱不会让现有缓存失效。
 
 8. **OpenAlex API 密钥（可选）。** 免费密钥可提高 OpenAlex 每日额度。单独存放在数据目录的 `openalex.key`（0600），环境变量 `OPENALEX_API_KEY` 优先；不进 `settings.json`、不回显。密钥只以 `Authorization: Bearer` 请求头发给 `https://api.openalex.org`（用 unredirected header，重定向不会带到别处），不放进 URL，因此不会进入缓存键、错误信息或日志；PDF 来源站点的请求永远不带它。`tools/data_probe.py` 同样只从环境变量读取。
@@ -28,8 +28,8 @@
 
 ## 已知限制
 
-- 没有为已有论文手动附加 PDF 的入口（目前只有创建项目时拖入）；付费论文只能显示原因。
+- 不支持断点续传：失败的下载不留半截文件，重试是受限的第二次请求；文件上限 60 MB，普通论文足够。
 - 全文提取仍在浏览器 pdf.js 中、打开阅读器后才发生。
 - arXiv 的批量/自动访问帮助页没有读到（请求超时），除 robots.txt 外的访问政策未核实。
 - 开放获取链接在真实记录上的命中率未测量；`tools/data_probe.py` 现在会输出该数字（候选池偏向 arXiv，不能代表非 arXiv 论文）。
-- 实测（2026-10-04）：Nature 的 DreamerV3 论文在 OpenAlex 中是 `is_oa=true`、`cc-by`，但只有 DOI 落地页、没有 `pdf_url`，应用因此报 `no_oa_source`，阅读器文案“没有找到可合法下载的来源”对开放获取论文有误导。后续可显示落地页链接，或在第二阶段评估 Unpaywall。
+- 实测（2026-10-04）：Nature 的 DreamerV3 论文在 OpenAlex 中是 `is_oa=true`、`cc-by`，但只有 DOI 落地页、没有 `pdf_url`，应用因此报 `no_oa_source`，阅读器因此改为说明“开放获取但没有直链”并给出落地页链接。这类论文能否自动下载，留给第二阶段评估 Unpaywall（样本只有 1 个）。

@@ -829,6 +829,11 @@
   "清除 OpenAlex 密钥": "Clear OpenAlex key",
   "已配置（来自环境变量，不回显）": "Configured (from an environment variable; not shown)",
   "未配置：使用匿名额度。密钥只写入本地密钥文件（0600），只发送给 OpenAlex 接口，不会发给 PDF 来源站点。": "Not configured: the anonymous allowance applies. The key is written only to a local key file (0600) and sent only to the OpenAlex API, never to PDF source sites.",
-  "清除失败，请重试。": "Could not clear the key. Please try again."
+  "清除失败，请重试。": "Could not clear the key. Please try again.",
+  "这篇论文是开放获取的，但 OpenAlex 没有给出 PDF 直链。可以打开原文页面下载，再用“附加本地 PDF”放进来。": "This paper is open access, but OpenAlex gives no direct PDF link. Open the paper page to download it, then add it with \"Attach a local PDF\".",
+  "打开原文页面": "Open the paper page",
+  "附加本地 PDF": "Attach a local PDF",
+  "正在附加…": "Attaching…",
+  "附加失败：{0}": "Attach failed: {0}"
  }
 }

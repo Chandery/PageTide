@@ -114,10 +114,12 @@
     },
     {
       "id": "E-PDF-ARCHIVE",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
-      "method": "Owner-confirmed v1 feature. Download only licence-permitted/open-access sources; never bypass paywalls or reuse credentials; honour rate limits and robots. Store by canonical ID with idempotent re-download, visible failure, bounded retry/resume; files open offline and a network outage does not block recommendation or feedback. Record source URL, fetch time and licence clue; no automatic re-upload or redistribution. Offline mocked coverage exists in tests/test_pdf_fetch.py (source order, robots and Crawl-delay, rate limit, size cap, not-a-PDF, idempotent and changed-content archive, failure does not block the app); it is not a product measurement. Still to run live: one arXiv paper, one non-arXiv open-access paper and one paywalled paper, each offline-openable or showing its reason. Live partial run 2026-10-04 (owner's machine): an arXiv paper and an OpenAlex-fallback paper downloaded and were valid PDFs, the repeat was served from the archive, the 15 s arXiv Crawl-delay was waited out, and a CC-BY Nature paper with only a DOI landing page reported no_oa_source. Not yet run: a 403 paywalled paper, offline opening in the app reader, the reader's failure message.",
-      "evidence": []
+      "method": "Owner-confirmed v1 feature. Download only licence-permitted/open-access sources; never bypass paywalls or reuse credentials; honour rate limits and robots. Store by canonical ID with idempotent re-download, visible failure, bounded retry/resume; files open offline and a network outage does not block recommendation or feedback. Record source URL, fetch time and licence clue; no automatic re-upload or redistribution. Run 2026-10-04 on the owner's machine (self-run, not independent): an arXiv paper and an OpenAlex-fallback paper downloaded as valid PDFs, the repeat was served from the archive without a request, the 15 s arXiv Crawl-delay was waited out, archived files were served and verified by hash with no network, two paywalled hosts returned 403 and were reported without retry or bypass, an open-access paper with only a landing page showed its page link, and attaching a user PDF worked in the reader. Interpretation: 'retry/resume' is met by one bounded retry; byte-range resume is not implemented. Offline mocked coverage is in tests/test_pdf_fetch.py.",
+      "evidence": [
+        "docs/evidence/2026-10-04-pdf-acquisition-checks.txt"
+      ]
     },
     {
       "id": "E-CAPTURE",

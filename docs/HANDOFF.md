@@ -1,3 +1,11 @@
+# 当前工作单元：PDF 获取收尾——手动附加、落地页、实测（2026-10-04，分支 feature/pdf-acquisition）
+
+- 把 plan 里剩下的做完：为已有论文手动附加 PDF（`POST /api/pdf/attach`，复用 `/api/seeds/pdf` 上传和 `take_imported_pdf`，以 `source_kind=user_import` 记录，已有下载文件不删）；开放获取但只有落地页的论文报 `landing_page_only` 并显示“打开原文页面”；所有失败都提供“附加本地 PDF”。
+- 实测（详见[检查证据](evidence/2026-10-04-pdf-acquisition-checks.txt)）：浏览器里验证了失败框、落地页链接、附加合法 PDF 后阅读器渲染、附加非 PDF 被拒；无网络环境下已归档的 arXiv PDF 哈希一致且经本地 HTTP 原样提供；dl.acm.org 与 sciencedirect.com 返回 403，如实报告、不重试、不绕过。
+- E-PDF-ARCHIVE 改为 `passed`（自测，不是独立审查；断点续传没做，按“一次受限重试”解释）；PDF-01 改为 `review`。
+- 仍然没做：独立审查；Unpaywall（第二阶段，需要 owner 批准，是否需要取决于更多非 arXiv 样本）；`mailto` 在有密钥时是否仍有作用；Tauri 窗口本身的点验（同一批静态页面在浏览器预览里验证过）。
+- 变更见[变更](../changes/2026-10-04-pdf-attach-and-landing.json)。
+
 # 当前工作单元：OpenAlex API 密钥（2026-10-04，分支 feature/pdf-acquisition）
 
 - 起因：owner 申请了 OpenAlex 免费密钥以获得更高额度，并已在设置里填联系邮箱。此前代码没有任何密钥支持。

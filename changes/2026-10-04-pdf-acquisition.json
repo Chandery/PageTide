@@ -82,12 +82,9 @@
   ],
   "owner_approved": false,
   "open_risks": [
-    "Live downloads done for an arXiv paper and an OpenAlex-fallback paper (both valid PDFs; repeat cached; Crawl-delay waited). Still not run: a 403 paywalled paper, offline opening in the app reader, the reader's failure message; E-PDF-ARCHIVE stays not_run.",
     "Live OA coverage (owner run 2026-10-04): 9/10 seeds and 200/200 pool entries have a PDF candidate link, but the pool is arXiv-biased and the only non-arXiv seed (Nature DOI) had none; this counts links, not successful downloads. Whether Unpaywall is needed is still open.",
     "arXiv's Crawl-delay is 15 s per robots.txt (read 2026-10-04); its bulk-access and robots help pages timed out and were not read.",
-    "No way to attach a PDF to an existing paper; paywalled papers only show the reason.",
-    "Reader and settings UI changes were not exercised in a running app.",
     "Behaviour change: any existing pdfs row with a file on disk now counts as cached without a request.",
-    "A CC-BY Nature paper (DreamerV3) is open access but OpenAlex gives only its DOI landing page, so the app reports no_oa_source and the reader text says no legal source was found, which is misleading for an open-access paper. Unpaywall or showing the landing page would address it."
+    "Superseded by 2026-10-04-pdf-attach-and-landing: attach, landing-page link, browser check, offline and paywall runs are recorded there."
   ]
 }

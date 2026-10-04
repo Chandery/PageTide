@@ -255,6 +255,8 @@
   .reader .textLayer br::selection { background:transparent; }
   .reader .textLayer .endOfContent { display:block; position:absolute; inset:100% 0 0; z-index:0; cursor:default; user-select:none; }
   .reader .rload { margin:auto; color:var(--muted); font-size:13px; display:flex; gap:10px; align-items:center; }
+  .reader .rload.pdf-fail { flex-direction:column; text-align:center; max-width:480px; line-height:1.6; }
+  .reader .pdf-fail-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   .reader .rbody { flex:1; display:flex; min-height:0; }
   .reader .rside { width:158px; overflow:auto; padding:12px 10px; box-shadow:var(--sh-in-sm); display:none;
                    flex-direction:column; gap:12px; align-items:center; }
@@ -1254,6 +1256,7 @@ const R = { doc:null, pages:[], scale:null, fit:true, side:false, observer:null,
 
 const PDF_REASONS = {
   no_oa_source: '没有找到可合法下载的开放获取 PDF 来源。',
+  landing_page_only: '这篇论文是开放获取的，但 OpenAlex 没有给出 PDF 直链。可以打开原文页面下载，再用“附加本地 PDF”放进来。',
   not_found: '来源站点上找不到这个文件。',
   paywalled_or_blocked: '来源站点拒绝访问（可能需要订阅或登录）。本应用不会绕过付费墙。',
   robots_disallowed: '来源站点的 robots.txt 不允许自动下载。',
@@ -1264,6 +1267,29 @@ const PDF_REASONS = {
   invalid_url: '来源链接不是 https，已拒绝。',
 };
 const pdfReason = (code) => PDF_REASONS[code] || '无法获取 PDF。';
+
+// No PDF could be fetched: say why, link the paper's page when known, and let the user attach their own copy.
+function showPdfFailure(box, key, title, result) {
+  const link = result.landing_page
+    ? `<a class="btn tiny" href="${esc(result.landing_page)}" target="_blank" rel="noreferrer">打开原文页面</a>` : '';
+  box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
+    <div class="pdf-fail-actions">${link}<label class="btn tiny">附加本地 PDF<input type="file" accept="application/pdf,.pdf" hidden></label></div>
+    <div class="pdf-fail-note"></div></div>`;
+  const input = box.querySelector('input[type=file]'), note = box.querySelector('.pdf-fail-note');
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    note.textContent = '正在附加…';
+    try {
+      const response = await fetch('/api/seeds/pdf', { method: 'POST', body: file,
+        headers: { 'Content-Type': 'application/pdf', 'X-Filename': encodeURIComponent(file.name) } });
+      const uploaded = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(uploaded.error || `HTTP ${response.status}`);
+      await api('/api/pdf/attach', { key, pdf_id: uploaded.pdf_id });
+      openReader(key, title);
+    } catch (e) { note.textContent = `附加失败：${e.message}`; }
+  };
+}
 
 async function openReader(key, title) {
   window.PDHSetContext(key, title);
@@ -1286,7 +1312,7 @@ async function openReader(key, title) {
   let prepared = null;
   try { prepared = await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
   if (prepared && prepared.ok === false) {
-    box.innerHTML = `<div class="rload">${esc(pdfReason(prepared.reason))}</div>`;
+    showPdfFailure(box, key, title, prepared);
     $('#readerInfo').textContent = '没有可用的 PDF';
     return;
   }

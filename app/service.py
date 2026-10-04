@@ -1324,8 +1324,25 @@ class App:
                 done = run(pdf_fetch.candidates(paper))
                 if done:
                     return done
-        reason = attempts[0]["reason"] if attempts else "no_oa_source"
-        return {"ok": False, "reason": reason, "attempts": attempts}
+        try:
+            oa = json.loads(paper.get("oa_json") or "null") or {}
+        except ValueError:
+            oa = {}
+        landing = oa.get("landing_page") if isinstance(oa.get("landing_page"), str) and oa["landing_page"].startswith("https://") else None
+        reason = attempts[0]["reason"] if attempts else ("landing_page_only" if oa.get("is_oa") and landing else "no_oa_source")
+        return {"ok": False, "reason": reason, "attempts": attempts, "landing_page": landing}
+
+    def attach_pdf(self, paper_key, pdf_id):
+        """Attach a PDF the user supplied (uploaded to imports/ first) to an existing paper.
+
+        The original bytes are kept untouched; an earlier downloaded file is never deleted.
+        """
+        if not self.store.paper(paper_key):
+            raise ValueError(f"unknown paper: {paper_key}")
+        path = creation.take_imported_pdf(self.data, pdf_id)
+        self.store.record_pdf(paper_key, path, "user-import", sha256=pdf_id,
+                              size=Path(path).stat().st_size, source_kind="user_import")
+        return {"ok": True, "path": str(path), "source_kind": "user_import"}
 
     # ---------------------------------------------------------------- triage
     def triage(self, cards, dry_run=False, project_id=None):

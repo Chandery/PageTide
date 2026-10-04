@@ -87,7 +87,7 @@
       "verified_on": "2026-10-04",
       "recheck_after_days": 30,
       "claim": "arxiv.org/robots.txt, generic user-agent group: /pdf is explicitly allowed, Crawl-delay is 15 seconds, /e-print, /src, /api and /search are disallowed; the file header says indiscriminate automated downloads are not permitted. The app fetches one PDF only when the user asks and waits at least the Crawl-delay between requests to the same host.",
-      "verification": "robots.txt fetched 2026-10-04 (summary via WebFetch). arXiv's help pages on bulk data and robots timed out and were NOT read, so any further access policy for automated PDF fetching is unverified. PDF licence differs per paper; metadata permission does not relicense the PDF."
+      "verification": "robots.txt fetched 2026-10-04 (summary via WebFetch). arXiv's help pages on bulk data and robots timed out and were NOT read, so any further access policy for automated PDF fetching is unverified. PDF licence differs per paper; metadata permission does not relicense the PDF. Live 2026-10-04: an arXiv PDF and an arxiv.org/pdf link from OpenAlex downloaded as valid PDFs under these rules, waiting out the 15 s Crawl-delay."
     },
     {
       "id": "S2",

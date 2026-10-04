@@ -22,3 +22,13 @@ Live downloads (this session, owner's Terminal panel, 2026-10-04): .local/openal
   DreamerV3 (Nature, DOI)           -> not downloaded, reason no_oa_source. OpenAlex says is_oa=true, oa_status=hybrid, license=cc-by,
                                        version=publishedVersion, but pdf_urls is empty and only the DOI landing page is given.
 Not run: a paywalled paper returning 403; opening the downloaded files in the app reader offline; the reader's failure message in the UI.
+
+Completion run (this session, 2026-10-04)
+Browser check of the reader (preview server on .local/ui-redesign-data, backed up and restored afterwards; two seeded test papers):
+  open-access paper with only a landing page -> box shows "open access but no direct PDF link", an "open the paper page" link (https://doi.org/..., target _blank) and "attach a local PDF".
+  attaching a small valid PDF through the file input -> uploaded, attached, reader reloaded: "1 页", 1 canvas, /api/pdf/view served the 591 bytes.
+  paper with no source -> "no legal open-access source found"; attaching a non-PDF -> "附加失败：这不是 PDF 文件" and no PDF recorded (view 404).
+  settings page: contact email, OpenAlex key field and clear button are present; /api/settings reports openalex.configured without any key text.
+Offline check (shell with no network: DNS lookup fails): the archived arXiv PDF (5,661,568 bytes) row sha256 equals the file's hash, /api/pdf/view served identical bytes, /api/pdf/prepare returned cached without any request.
+Paywall refusal (owner's Terminal panel, real requests): dl.acm.org pdf and sciencedirect.com pdf -> HTTP 403 each, reason paywalled_or_blocked, one attempt each (no retry), reported in 1.5 s and 1.8 s. Nothing was bypassed.
+Not run: the Tauri .app window itself (the same static pages were checked in the browser preview); byte-range resume of an interrupted download (not implemented: a failed attempt leaves no partial file and the retry is a bounded second request).
