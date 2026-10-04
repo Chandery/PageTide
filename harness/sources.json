@@ -62,8 +62,8 @@
       "url": "https://developers.openalex.org/api-reference/authentication",
       "verified_on": "2026-09-11",
       "recheck_after_days": 30,
-      "claim": "OpenAlex works API: metered. Observed 2026-09-11: each search costs $0.001 / 10 credits, daily allowance 1000 credits and $0.10 (reset ~22h); bursts of ~0.3s trigger HTTP 429 and need >=2s pacing plus Retry-After. Keyword search is NOT a field filter (3.28M hits for 'world model'); references are largely absent for arXiv preprints (only 1/8 resolved seeds had any).",
-      "verification": "Live read-only probe tools/data_probe.py: 8/10 seeds resolved to DOI/OpenAlex IDs, abstracts present, citations sparse, future-dated records found without a date ceiling; raw snapshots kept in .local/, report in docs/evidence/2026-09-11-data01-openalex-report.md"
+      "claim": "OpenAlex works API: metered. Observed 2026-09-11: each search costs $0.001 / 10 credits, daily allowance 1000 credits and $0.10 (reset ~22h); bursts of ~0.3s trigger HTTP 429 and need >=2s pacing plus Retry-After. Keyword search is NOT a field filter (3.28M hits for 'world model'); references are largely absent for arXiv preprints (only 1/8 resolved seeds had any). 2026-10-04: filter title.search requires every word in the title; filter title_and_abstract.search matches title and abstract; combining it with the search parameter ranks the matches by relevance; search alone is full-text relevance. A Chinese phrase finds Chinese-language works (mostly older journal articles), an English-titled arXiv-only query finds almost nothing. With a free key the allowance is 10000 credits / $1 per day.",
+      "verification": "Live read-only probe tools/data_probe.py: 8/10 seeds resolved to DOI/OpenAlex IDs, abstracts present, citations sparse, future-dated records found without a date ceiling; raw snapshots kept in .local/, report in docs/evidence/2026-09-11-data01-openalex-report.md Live diagnostic 2026-10-04 with counts per query form: docs/evidence/2026-10-04-openalex-discovery-checks.txt."
     },
     {
       "id": "OPENALEX-OA",

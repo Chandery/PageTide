@@ -92,7 +92,7 @@ def paper_view(paper, abstract_limit=1200):
             "abstract": (paper.get("abstract") or "")[:abstract_limit],
             "published": paper.get("published"), "source": paper.get("source"),
             "authors": paper.get("authors") or [], "openalex_id": paper.get("openalex_id"),
-            "doi": doi or None, "arxiv_id": arxiv_id, "url": url}
+            "doi": doi or None, "arxiv_id": arxiv_id, "url": url, "match_mode": paper.get("match_mode")}
 
 
 def source_failure(exc):

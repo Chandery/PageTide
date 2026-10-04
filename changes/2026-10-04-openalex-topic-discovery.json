@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-04-openalex-topic-discovery",
+  "class": "critical",
+  "summary": "Fixes project creation finding no candidates for non-arXiv or Chinese topics (半导体生长, 古典文学发展史). Creation used OpenAlex.discover(): arXiv-only, title-only with every word required, from 2024, Chinese text sent unchanged. New OpenAlex.discover_topic (title+abstract, any source, relevance order for creation or newest-first for refresh, relevance top-up, Chinese straight to relevance), query sanitising, per-project refresh from project keywords, seed picker ranked by title match with Unicode-aware de-duplication, cache TTL with stale fallback, rate-limit note shown in Settings, shorter pauses with an API key, and one added sentence in the guidance prompt asking for English plus Chinese search phrases. ADR 0012.",
+  "tasks": [
+    "PDF-01"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-LOWCOMPUTE"
+  ],
+  "files": [
+    "app/creation.py",
+    "app/service.py",
+    "app/sources.py",
+    "app/static/i18n/en-US.json",
+    "app/static/settings.html",
+    "changes/2026-10-04-openalex-topic-discovery.json",
+    "docs/ARCHITECTURE.md",
+    "docs/HANDOFF.md",
+    "docs/decisions/0012-openalex-topic-discovery.md",
+    "docs/evidence/2026-10-04-openalex-discovery-checks.txt",
+    "docs/evidence/2026-10-04-openalex-discovery-review.md",
+    "docs/evidence/2026-10-04-openalex-discovery-self-review.md",
+    "harness/sources.json",
+    "prompts/project-guidance.md",
+    "tests/test_gateway_budget.py",
+    "tests/test_openalex_discovery.py",
+    "tests/test_project_chain.py",
+    "tests/test_project_workflow.py"
+  ],
+  "scope_note": "On top of e384cbf. Narrow OpenAlex-adapter fix on this branch; the full multi-discipline design is on worktree-channels (ADR 0010) and will conflict at merge in app/sources.py and app/service.py. The owner's .claude files are excluded locally.",
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "The project_guidance prompt gains one sentence (estimated 40-60 tokens, unmeasured, inside the registered instructions component of 350; caps unchanged, scripts/budget.py --check passes). No new operation and no ceiling raised. OpenAlex requests: up to two per creation query, up to three keywords per project refresh; the allowance is shown in Settings.",
+    "quantified": {
+      "period": "per project_guidance turn (registered reference turn; the after figure adds the estimated upper 60 tokens, unmeasured)",
+      "before": {
+        "input_tokens": 800,
+        "output_tokens": 300,
+        "usd": "0.0006"
+      },
+      "after": {
+        "input_tokens": 860,
+        "output_tokens": 300,
+        "usd": "0.000618"
+      }
+    },
+    "before": "project_guidance system instruction without a language rule for search_queries; daily refresh always searched 'world model'.",
+    "after": "One extra sentence (about 40-60 tokens, estimate); refresh searches the project's own keywords. Caps unchanged.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-04-openalex-discovery-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-04-openalex-discovery-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-04-openalex-discovery-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; creation page not exercised in the window"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; adapter, refresh and prompt only",
+      "evidence": "docs/evidence/2026-10-04-openalex-discovery-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "One separate read-only code-review agent (same model family, not a human); its five findings were fixed afterwards and the fixes were not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-04-openalex-discovery-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "NEW OUTBOUND DATA to confirm: every project refresh now sends up to three project keywords (including pinned profile terms) to OpenAlex; before it sent only 'world model'.",
+    "The prompt sentence has not been tried with a real DeepSeek call; the model may not return English and Chinese queries as asked. Its token cost is an estimate.",
+    "Chinese-language coverage in OpenAlex is old and uneven; a Chinese-only project may get no new papers in the daily feed until a Chinese source is available.",
+    "Papers topped up in relevance mode are stored without match_mode, so the daily feed cannot label weak matches.",
+    "Merging worktree-channels will conflict with this change (app/sources.py, app/service.py); both sides moved to title_and_abstract.search.",
+    "Not exercised: the creation page in the app window, and a real AI-guided session."
+  ]
+}

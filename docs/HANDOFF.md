@@ -1,3 +1,11 @@
+# 当前工作单元：OpenAlex 主题检索——修复创建页搜不到候选（2026-10-04，分支 feature/pdf-acquisition）
+
+- owner 新建“半导体生长”项目，创建页没有候选论文；“古典文学发展史”同样一篇都没有。**不是没接 OpenAlex**：创建页走的是 DATA-01 的配方（只查 arXiv、只匹配标题且每个词都要出现、2024 年起，中文原样发给英文标题索引），实测中文词 0 篇、三个英文词 0 篇。
+- 修复（[ADR 0012](decisions/0012-openalex-topic-discovery.md)）：`OpenAlex.discover_topic`（标题+摘要、不限来源、相关度排序、严格匹配不足时用相关度补足、含中文直接走相关度）；检索短语清洗防止改变过滤器；AI 引导提示词加一句要求同时给英文和中文检索式；项目刷新改为搜项目自己的关键词（默认项目仍用 world model 配方）；种子选择器把标题吻合的排前面并去重；缓存加新鲜度和离线兜底；记录并在设置页显示 OpenAlex 剩余额度；有 key 时请求后停顿 0.3 秒。
+- 实测（owner 终端）：四种检索式都有 11–12 个候选，每次约 2 秒（之前约 3.7 秒）。见[检查证据](evidence/2026-10-04-openalex-discovery-checks.txt)。
+- 还没解决：中文文献在 OpenAlex 里偏旧、质量参差，要覆盖知网等需要 `worktree-channels` 的渠道方案；OpenAlex 对预印本缺引用关系；合并 channels 分支时本改动会与它的 `app/channels/openalex.py`、`app/sources.py` 冲突，需要人工处理。
+- 见[变更](../changes/2026-10-04-openalex-topic-discovery.json)。
+
 # 当前工作单元：Unpaywall 评估——结论是这一版不接（2026-10-04，分支 feature/pdf-acquisition）
 
 - owner 要求先量再定。用私有脚本（`.local/unpaywall_compare.py`，不提交）对两个主题各 50 篇非 arXiv 期刊论文，比较 OpenAlex 与 Unpaywall 的 PDF 直链：Unpaywall 独有 0/77，两边都有 41，23 个 DOI 在 Unpaywall 查不到。Unpaywall 没有增量，不接；缺口是“开放获取但只有落地页”（20/100），现有的落地页链接和手动附加就是对应办法。

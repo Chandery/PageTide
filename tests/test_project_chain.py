@@ -74,7 +74,7 @@ class GuidedCreationTests(unittest.TestCase):
         self.assertEqual(resumed["status"], "draft")
         self.assertEqual(resumed["turn_count"], 1)
         self.assertIn("robot manipulation", json.dumps(resumed["transcript"], ensure_ascii=False))
-        with mock.patch.object(restarted.source, "discover", return_value=[candidate("c1")]):
+        with mock.patch.object(restarted.source, "discover_topic", return_value=[candidate("c1")]):
             restarted.guidance_preview(session["id"])
         result = restarted.finalize_guidance(session["id"], selected_keys=["c1"])
         self.assertEqual(result["selected"], 1)
@@ -144,9 +144,9 @@ class GuidedCreationTests(unittest.TestCase):
 
     def test_search_streams_per_query_and_merges_candidates(self):
         session = self.app.create_guidance_session("流式", "world models")
-        with mock.patch.object(self.app.source, "discover", return_value=[candidate("a"), candidate("b")]):
+        with mock.patch.object(self.app.source, "discover_topic", return_value=[candidate("a"), candidate("b")]):
             first = self.app.guidance_search(session["id"], "world models")
-        with mock.patch.object(self.app.source, "discover", return_value=[candidate("b"), candidate("c")]):
+        with mock.patch.object(self.app.source, "discover_topic", return_value=[candidate("b"), candidate("c")]):
             second = self.app.guidance_search(session["id"], "latent planning")
         self.assertEqual([i["new"] for i in first["items"]], [True, True])
         self.assertEqual([(i["key"], i["new"]) for i in second["items"]], [("b", False), ("c", True)])
@@ -159,9 +159,9 @@ class GuidedCreationTests(unittest.TestCase):
     def test_a_failed_query_reports_why_and_keeps_earlier_results(self):
         from app.sources import SourceError
         session = self.app.create_guidance_session("限流", "world models")
-        with mock.patch.object(self.app.source, "discover", return_value=[candidate("a")]):
+        with mock.patch.object(self.app.source, "discover_topic", return_value=[candidate("a")]):
             self.app.guidance_search(session["id"], "q1")
-        with mock.patch.object(self.app.source, "discover", side_effect=SourceError("503", "unavailable")):
+        with mock.patch.object(self.app.source, "discover_topic", side_effect=SourceError("503", "unavailable")):
             result = self.app.guidance_search(session["id"], "q2")
         self.assertEqual((result["items"], result["error"]["kind"], result["total"]), ([], "unavailable", 1))
 
@@ -174,7 +174,7 @@ class GuidedCreationTests(unittest.TestCase):
             self.app.guidance_turn(session["id"], "第七轮")
         self.assertEqual(self.urlopen.call_count, GUIDANCE_MAX_TURNS)  # no retry, nothing after the cap
         edited = {"keywords": ["edited term"], "search_queries": ["edited query"]}
-        with mock.patch.object(self.app.source, "discover", return_value=[candidate("c1"), candidate("c2")]):
+        with mock.patch.object(self.app.source, "discover_topic", return_value=[candidate("c1"), candidate("c2")]):
             preview = self.app.guidance_preview(session["id"], edited)
         self.assertEqual(len(preview["items"]), 2)
         result = self.app.finalize_guidance(session["id"], edited, ["c2", "not-previewed"])
@@ -185,7 +185,7 @@ class GuidedCreationTests(unittest.TestCase):
 
     def test_no_candidate_is_added_without_explicit_selection(self):
         session = self.app.create_guidance_session("未勾选", "x")
-        with mock.patch.object(self.app.source, "discover", return_value=[candidate("c1")]):
+        with mock.patch.object(self.app.source, "discover_topic", return_value=[candidate("c1")]):
             self.app.guidance_preview(session["id"])
         result = self.app.finalize_guidance(session["id"])
         self.assertEqual(result["selected"], 0)
@@ -204,7 +204,7 @@ class GuidedCreationTests(unittest.TestCase):
                 patch_env = mock.patch.dict(os.environ, env or {})
                 with patch_env, mock.patch.object(app.gateway, "_key_candidates", return_value=iter(())), \
                         mock.patch("app.gateway.urllib.request.urlopen") as urlopen, \
-                        mock.patch.object(app.source, "discover",
+                        mock.patch.object(app.source, "discover_topic",
                                           side_effect=urllib.error.URLError("offline")):
                     session = app.create_guidance_session("离线", "world model planning")
                     turn = app.guidance_turn(session["id"], "robotics")

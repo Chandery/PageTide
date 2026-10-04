@@ -47,7 +47,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(turn["mode"], "ai")
         self.assertEqual(turn["session"]["turn_count"], 1)
         candidate = self.paper("candidate-1")
-        with patch.object(self.app.source, "discover", return_value=[candidate]):
+        with patch.object(self.app.source, "discover_topic", return_value=[candidate]):
             preview = self.app.guidance_preview(session["id"], turn["session"]["draft"])
         self.assertEqual(preview["items"][0]["key"], "candidate-1")
         result = self.app.finalize_guidance(session["id"], preview["session"]["draft"], ["candidate-1"])
@@ -127,7 +127,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         from app.sources import SourceError
         session = self.app.create_guidance_session("限流", "world model")
         draft = {**session["draft"], "search_queries": ["a", "b", "c"]}
-        with patch.object(self.app.source, "discover", side_effect=SourceError("503", "unavailable")) as discover:
+        with patch.object(self.app.source, "discover_topic", side_effect=SourceError("503", "unavailable")) as discover:
             preview = self.app.guidance_preview(session["id"], draft)
         self.assertEqual(discover.call_count, 1)
         self.assertEqual(preview["items"], [])

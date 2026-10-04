@@ -287,9 +287,12 @@
         data.dev_mode ? '测试模式独立账本' : '',
       ].filter(Boolean).join(' · ');
       const oa = data.openalex || {};
-      $('#openalexKeyStatus').textContent = oa.configured
+      const rl = oa.rate_limit || {};
+      const allowance = rl.remaining != null && rl.limit ? `OpenAlex 额度剩余 ${rl.remaining} / ${rl.limit}` : '';
+      const keyText = oa.configured
         ? (oa.source === 'environment' ? '已配置（来自环境变量，不回显）' : '已配置密钥（不回显）；留空保存则保持不变')
         : '未配置：使用匿名额度。密钥只写入本地密钥文件（0600），只发送给 OpenAlex 接口，不会发给 PDF 来源站点。';
+      $('#openalexKeyStatus').textContent = [keyText, allowance].filter(Boolean).join(' · ');
       const p = data.provider || {};
       $('#apiKeyStatus').textContent = p.configured
         ? '已配置密钥（不回显）；留空保存则保持不变'

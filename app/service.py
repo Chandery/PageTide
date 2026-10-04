@@ -47,7 +47,8 @@ class App:
         self.projects = ProjectManager(self.store)
 
     def openalex_status(self):
-        return openalex_key.status(self.data)
+        """Key state plus the allowance OpenAlex reported on its last response (no secret)."""
+        return {**openalex_key.status(self.data), "rate_limit": self.source.rate_limit()}
 
     def save_openalex_key(self, value):
         status = openalex_key.save(self.data, value)
@@ -293,6 +294,7 @@ class App:
             "只输出 JSON：{\"reply\":\"...\",\"draft\":{\"keywords\":[],"
             "\"search_queries\":[],\"learning_path\":[{\"title\":\"\",\"purpose\":\"\"}],"
             "\"next_question\":\"\"}}。不要选择或声称确认种子论文。"
+            "search_queries 给出英文检索式（OpenAlex 的标题和摘要多为英文）；用户用中文描述时再加中文检索式。keywords 用用户的语言。"
             + (self.ENGLISH_OUTPUT if self.english() else ""))},
                     {"role": "user", "content": json.dumps({
                         "current_draft": model_draft, "conversation": bounded_conversation}, ensure_ascii=False)}]
@@ -354,7 +356,7 @@ class App:
         draft = self._bounded_guidance_draft(session["draft"])
         error = None
         try:
-            found = self.source.discover(search=query, pages=1, per_page=12)
+            found = self.source.discover_topic(query, per_page=12)
         except Exception as exc:
             found, error = [], {"kind": getattr(exc, "kind", "error"), "message": str(exc)[-200:]}
         known = {p["key"]: p for p in draft["candidates"] if isinstance(p, dict) and p.get("key")}
@@ -739,17 +741,41 @@ class App:
             "has_pdf": self.pdf_path(key) is not None,
         }
 
-    def refresh_candidates(self, search="world model", from_date="2024-01-01", pages=1, per_page=100,
+    def _project_keywords(self, project_id):
+        row = self.store.conn.execute("SELECT keywords FROM projects WHERE id=?", (project_id,)).fetchone()
+        try:
+            values = json.loads(row["keywords"] or "[]") if row else []
+        except ValueError:
+            values = []
+        return [str(v).strip() for v in values if isinstance(v, str) and str(v).strip()]
+
+    def refresh_candidates(self, search=None, from_date="2024-01-01", pages=1, per_page=100,
                            include_distractors=False, distractor_per_query=20, project_id=None):
-        """Fast by default: one field query; distractors are opt-in (five more calls)."""
+        """Fast by default. A project with keywords searches those (at most three, one request each);
+        the default project, or an explicit `search`, keeps the DATA-01 arXiv "world model" recipe.
+        Distractors are opt-in (five more calls)."""
         if not project_id:
             project_id = self.get_default_project_id()
 
         errors = []
-        try:
-            field = self.source.discover(search=search, from_date=from_date, pages=pages, per_page=per_page)
-        except RuntimeError as exc:
-            field, errors = [], errors + [{"query": search, "error": str(exc)[-120:]}]
+        keywords = [] if search else self._project_keywords(project_id)[:3]
+        field = []
+        if keywords:
+            seen = set()
+            for keyword in keywords:
+                try:
+                    found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="recent",
+                                                       from_date=from_date)
+                except SourceError as exc:
+                    errors.append({"query": keyword, "kind": exc.kind, "error": str(exc)[-120:]})
+                    continue
+                field += [paper for paper in found if paper["key"] not in seen and not seen.add(paper["key"])]
+        else:
+            search = search or "world model"
+            try:
+                field = self.source.discover(search=search, from_date=from_date, pages=pages, per_page=per_page)
+            except RuntimeError as exc:
+                field, errors = [], errors + [{"query": search, "error": str(exc)[-120:]}]
         papers = list(field)
         if include_distractors:
             extra, distractor_errors = self.source.distractors(from_date=from_date, per_query=distractor_per_query)

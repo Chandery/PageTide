@@ -832,6 +832,7 @@
   "打开原文页面": "Open the paper page",
   "附加本地 PDF": "Attach a local PDF",
   "正在附加…": "Attaching…",
-  "附加失败：{0}": "Attach failed: {0}"
+  "附加失败：{0}": "Attach failed: {0}",
+  "OpenAlex 额度剩余 {0} / {1}": "OpenAlex allowance left: {0} / {1}"
  }
 }

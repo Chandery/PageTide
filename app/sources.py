@@ -18,6 +18,11 @@ ARXIV_SOURCE_ID = "S4306400194"  # OpenAlex source: arXiv (Cornell University)
 UA = "PaperDigHelper/0.1 (local research; read-only metadata)"
 MAILTO = "owner@example.invalid"  # OpenAlex ignores mailto since 2026-02 (API keys replaced the polite pool); kept so cached URLs stay valid
 GAP_SECONDS = 2.0
+KEYED_GAP_SECONDS = 0.3  # with an API key the allowance is 10x and the limit is 100 requests/second
+STRICT_MIN_RESULTS = 3          # fewer strict matches than this are topped up by a relevance search
+SEARCH_TTL_SECONDS = 24 * 3600  # search results older than this are refetched (the old copy is used if offline)
+WORK_TTL_SECONDS = 7 * 24 * 3600  # open-access status changes over time
+_CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")
 FIELD_QUERY = "world model"
 DISTRACTOR_QUERIES = ["diffusion model", "large language model", "reinforcement learning",
                       "video generation", "image segmentation"]
@@ -32,6 +37,20 @@ def abstract_text(inverted):
             positions.append((index, word))
     positions.sort()
     return " ".join(word for _, word in positions)
+
+
+def has_cjk(text):
+    return _CJK.search(str(text or "")) is not None
+
+
+def clean_query(text, limit=180):
+    """A search phrase that cannot change the structure of an OpenAlex filter (',' '|' ':' and quotes)."""
+    return re.sub(r"\s+", " ", re.sub(r"[,|:!\"\\]", " ", str(text or ""))).strip()[:limit]
+
+
+def title_key(text):
+    """Duplicate key that keeps non-ASCII text (normalize_title would reduce 中文 to nothing)."""
+    return re.sub(r"[\W_]+", " ", str(text or "").lower(), flags=re.UNICODE).strip()
 
 
 def normalize_title(text):
@@ -116,12 +135,45 @@ class OpenAlex:
             request.add_unredirected_header("Authorization", f"Bearer {self.api_key}")
         return request
 
-    def _fetch(self, url, retries=2):
+    def _note_rate_limit(self, headers):
+        """Remember OpenAlex's allowance headers; the HTTP server builds a new client per request."""
+        try:
+            h = {str(k).lower(): v for k, v in headers.items()}
+        except (AttributeError, TypeError):
+            return
+        note = {"observed_at": time.time()}
+        for name, key, cast in (("x-ratelimit-limit", "limit", int), ("x-ratelimit-remaining", "remaining", int),
+                                ("x-ratelimit-limit-usd", "limit_usd", float), ("x-ratelimit-remaining-usd", "remaining_usd", float),
+                                ("x-ratelimit-reset", "reset_seconds", int)):
+            try:
+                if name in h:
+                    note[key] = cast(h[name])
+            except (TypeError, ValueError):
+                pass  # one unusable header must not discard the others
+        if len(note) > 1:
+            try:
+                (self.cache / "ratelimit.json").write_text(json.dumps(note))
+            except OSError:
+                pass  # a note about the allowance must never break a lookup
+
+    def rate_limit(self):
+        """The allowance seen on the last response ({limit, remaining, ..., observed_at}) or None."""
+        try:
+            note = json.loads((self.cache / "ratelimit.json").read_text())
+            return note if isinstance(note, dict) and "observed_at" in note else None
+        except (OSError, ValueError):
+            return None
+
+    def _fetch(self, url, retries=2, ttl=None):
         digest = hashlib.sha256(url.encode()).hexdigest()[:16]
         cached = self.cache / f"{digest}.json"
+        stale = None
         if cached.exists():
             try:
-                return json.loads(cached.read_text())
+                payload = json.loads(cached.read_text())
+                if ttl is None or 0 <= time.time() - cached.stat().st_mtime <= ttl:  # a future date (clock moved back) is stale
+                    return payload
+                stale = payload  # expired: refetch, but keep it in case OpenAlex cannot be reached
             except ValueError:
                 cached.unlink()  # a corrupt cache entry is refetched, not trusted
         last = None
@@ -129,12 +181,15 @@ class OpenAlex:
             try:
                 with urllib.request.urlopen(self._request(url), timeout=30) as response:
                     body = response.read().decode("utf-8", "replace")
+                    self._note_rate_limit(getattr(response, "headers", None) or {})
                 try:
                     payload = json.loads(body)
                 except ValueError as exc:
+                    if stale is not None:
+                        return stale  # e.g. a captive-portal page: the expired copy is still the better answer
                     raise SourceError(f"OpenAlex returned a non-JSON body: {url}", "bad_response") from exc
                 cached.write_text(body)
-                time.sleep(GAP_SECONDS)
+                time.sleep(KEYED_GAP_SECONDS if self.api_key else GAP_SECONDS)
                 return payload
             except http.client.InvalidURL as exc:
                 raise SourceError(f"Invalid OpenAlex identifier: {url}", "invalid_input") from exc
@@ -153,9 +208,54 @@ class OpenAlex:
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 last = exc
                 time.sleep(min(GAP_SECONDS * (attempt + 1), 10))
+        if stale is not None:
+            return stale  # offline or rate limited: an expired answer beats none
         # 429/503 mean OpenAlex is shedding load (e.g. anonymous search paused), not a local network fault.
         busy = isinstance(last, urllib.error.HTTPError) and last.code in (429, 503)
         raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "unavailable" if busy else "network_error")
+
+    def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance"):
+        """Candidate papers for a research topic, for project creation and per-project refresh.
+
+        English phrases are matched against title AND abstract (every word must appear), in any source
+        (journals as well as arXiv). order="relevance" ranks those matches by OpenAlex relevance (project
+        creation: the user is choosing); order="recent" sorts them newest first (the daily feed). When fewer
+        than STRICT_MIN_RESULTS match, OpenAlex's relevance search tops them up. A phrase containing Chinese
+        goes straight to relevance search, since title matching on an English-titled index finds nothing.
+        Each paper carries match_mode ("strict" or "relevance"). No date bound unless asked.
+        """
+        text = clean_query(query)
+        if not text:
+            return []
+        base = ["type:article|preprint"]
+        if from_date:
+            base.append(f"from_publication_date:{from_date}")
+        if to_date:
+            base.append(f"to_publication_date:{to_date}")
+        papers, seen = [], set()
+
+        def add(works, mode):
+            for work in works:
+                paper = slim(work, group="field")
+                title = title_key(work.get("title")) or paper["key"]
+                if not work.get("title") or paper["key"] in seen or title in seen:
+                    continue
+                seen.update({paper["key"], title})
+                papers.append({**paper, "match_mode": mode})
+
+        if not has_cjk(text):
+            params = {"filter": ",".join([f"title_and_abstract.search:{text}", *base]), "per-page": per_page, "mailto": MAILTO}
+            if order == "recent":
+                params["sort"] = "publication_date:desc"
+            else:
+                params["search"] = text
+            add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "strict")
+        if len(papers) < min(STRICT_MIN_RESULTS, per_page):
+            params = {"search": text, "filter": ",".join(base), "per-page": per_page, "mailto": MAILTO}
+            if order == "recent" and has_cjk(text):
+                params["sort"] = "publication_date:desc"
+            add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "relevance")
+        return papers[:per_page]
 
     def discover(self, search=FIELD_QUERY, from_date="2024-01-01", to_date=None, pages=1, per_page=100,
                  source_id=ARXIV_SOURCE_ID):
@@ -172,7 +272,7 @@ class OpenAlex:
                            f"from_publication_date:{from_date},to_publication_date:{to_date}"),
                 "sort": "publication_date:desc", "per-page": per_page, "page": page, "mailto": MAILTO,
             }
-            payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
+            payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS)
             for work in payload.get("results", []):
                 title = normalize_title(work.get("title"))
                 if title in seen:
@@ -192,7 +292,7 @@ class OpenAlex:
                 "sort": "publication_date:desc", "per-page": per_query, "page": 1, "mailto": MAILTO,
             }
             try:
-                payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
+                payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS)
             except RuntimeError as exc:
                 errors.append({"query": query, "error": str(exc)[-120:]})
                 break  # hot API: stop instead of stacking retries
@@ -203,17 +303,49 @@ class OpenAlex:
     def work(self, identifier):
         """Fetch one work by DOI URL, OpenAlex ID or W-id. Used for seed resolution."""
         # Quote so a stray "?", "#" or space cannot change which request is made.
-        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}")
+        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}",
+                           ttl=WORK_TTL_SECONDS)
 
     def search_works(self, query, per_page=8):
-        """Relevance search by paper name for the manual seed picker (an explicit user query).
+        """Papers by name for the manual seed picker (an explicit user query).
 
-        No source or date restriction: a seed may be older or outside arXiv. Only the typed
+        Two requests: a title match (fetched wider than shown, because the real paper may not be first) and
+        OpenAlex's relevance search. The union is ranked by how well each title matches what was typed, so the
+        paper itself comes before "Fast ..." variants (a bare relevance search ranked "Fast LeWorldModel" above
+        LeWorldModel). No source or date restriction: a seed may be older or outside arXiv. Only the typed
         text is sent, as a public metadata query.
         """
-        params = {"search": query, "per-page": per_page, "mailto": MAILTO}
-        payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
-        return [slim(work, group="seed") for work in payload.get("results", []) if work.get("title")]
+        text = clean_query(query)
+        if not text:
+            return []
+        found, seen = [], set()
+
+        def add(works):
+            for work in works:
+                paper = slim(work, group="seed")
+                title = title_key(work.get("title"))
+                if work.get("title") and paper["key"] not in seen and title not in seen:  # one line per distinct title
+                    seen.update({paper["key"], title})
+                    found.append(paper)
+
+        try:
+            exact = {"filter": f"title.search:{text}", "per-page": max(int(per_page), 25), "mailto": MAILTO}
+            add(self._fetch(f"{API}?{urllib.parse.urlencode(exact)}", ttl=SEARCH_TTL_SECONDS).get("results", []))
+        except SourceError:
+            pass  # the relevance search below still answers (and reports a real outage)
+        relevance = {"search": text, "per-page": per_page, "mailto": MAILTO}
+        add(self._fetch(f"{API}?{urllib.parse.urlencode(relevance)}", ttl=SEARCH_TTL_SECONDS).get("results", []))
+        wanted = normalize_title(text)
+
+        def rank(paper):
+            title = normalize_title(paper["title"])
+            if title == wanted:
+                return 3
+            if wanted and title.startswith(wanted):
+                return 2
+            return 1 if wanted and wanted in title else 0
+        found.sort(key=rank, reverse=True)  # stable: equal ranks keep OpenAlex's order
+        return found[:per_page]
 
     def find_arxiv(self, arxiv_id):
         """Find an arXiv paper by its landing page when OpenAlex lacks the arXiv DOI (common before 2022).

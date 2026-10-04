@@ -212,7 +212,7 @@ class ServiceDegradeTests(unittest.TestCase):
             triage = self.app.triage(cards, project_id=self.project)
             session = self.app.create_guidance_session("Q", "world model planning")
             turn = self.app.guidance_turn(session["id"], "robotics")
-            with mock.patch.object(self.app.source, "discover", return_value=[]):
+            with mock.patch.object(self.app.source, "discover_topic", return_value=[]):
                 self.app.guidance_preview(session["id"])
             created = self.app.finalize_guidance(session["id"])
         urlopen.assert_not_called()
