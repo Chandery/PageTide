@@ -19,6 +19,7 @@ Usage:
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 import time
@@ -39,6 +40,15 @@ UA = "PaperDigHelper-DATA01-probe/0.1 (local read-only research)"
 ARXIV_GAP_SECONDS = 3.1
 OPENALEX_GAP_SECONDS = 2.0
 MAILTO = "owner@example.invalid"  # OpenAlex polite pool; replace with owner contact before heavier use
+
+
+def openalex_auth_headers(url):
+    """Authorization for api.openalex.org only, from the OPENALEX_API_KEY environment variable."""
+    key = (os.environ.get("OPENALEX_API_KEY") or "").strip()
+    parts = urllib.parse.urlsplit(url)
+    if key and parts.scheme == "https" and parts.hostname == "api.openalex.org":
+        return {"Authorization": f"Bearer {key}"}
+    return {}
 
 
 def normalize_title(text):
@@ -100,6 +110,8 @@ def fetch(url, snapshot_path=None, retries=3, gap=ARXIV_GAP_SECONDS):
     for attempt in range(retries):
         try:
             request = urllib.request.Request(url, headers={"User-Agent": UA})
+            for name, value in openalex_auth_headers(url).items():
+                request.add_unredirected_header(name, value)
             with urllib.request.urlopen(request, timeout=45) as response:
                 body = response.read().decode("utf-8", "replace")
                 headers = dict(response.headers)

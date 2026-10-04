@@ -1,3 +1,12 @@
+# 当前工作单元：OpenAlex API 密钥（2026-10-04，分支 feature/pdf-acquisition）
+
+- 起因：owner 申请了 OpenAlex 免费密钥以获得更高额度，并已在设置里填联系邮箱。此前代码没有任何密钥支持。
+- 做了什么（见 [ADR 0011](decisions/0011-pdf-acquisition.md) 第 8 条）：新增 `app/openalex_key.py`（独立文件 `openalex.key`、0600、环境变量优先、不回显）；`OpenAlex._request` 只把密钥作为 `Authorization` 请求头发给 `https://api.openalex.org`；设置页新增“OpenAlex API 密钥（可选）”与清除按钮；`/api/settings` 增加 `openalex_key`、`clear_openalex_key` 与状态字段；`tools/data_probe.py` 读环境变量。登记了 `OPENALEX-AUTH` 来源。
+- 注意：owner 在对话里贴出了密钥原文，它已出现在会话记录里。密钥没有写入任何仓库文件、测试或命令。免费密钥风险有限，若在意可在 OpenAlex 账号页轮换。
+- 实测（2026-10-04，owner 机器上、密钥不外显）：Bearer 请求头被识别（错误密钥返回 401）；额度从无密钥的 1000 credits / $0.10 每天提高到 10000 credits / $1 每天。真实下载：arXiv 论文与 OpenAlex 回退论文都得到有效 PDF，重复请求走缓存，并等待了 arXiv 的 15 秒 Crawl-delay；Nature 的 DreamerV3 只有落地页，报 `no_oa_source`。
+- 未验证：`mailto` 在有密钥时是否仍有作用；403 付费论文；在应用阅读器里离线打开下载的文件和失败文案；设置页在运行的应用里的表现。
+- 自审与变更见[自审](evidence/2026-10-04-openalex-key-self-review.md)、[变更](../changes/2026-10-04-openalex-api-key.json)。
+
 # 当前工作单元：PDF 获取与开放获取来源（2026-10-04，分支 feature/pdf-acquisition）
 
 - 起因：owner 询问 OpenAlex 能否下载 PDF，并给出“OpenAlex + arXiv + Unpaywall”的建议。现状是 `download_pdf` 只会抓 arXiv，失败原因被吞掉。决定：Unpaywall 留到第二阶段；owner 提供真实联系邮箱并写入设置；不用 embedding（违反 AGENTS 边界 2）。

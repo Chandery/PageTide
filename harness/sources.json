@@ -74,6 +74,14 @@
       "verification": "Official OpenAlex help pages (work object and locations) fetched 2026-10-04: field names match app/sources.py oa_of(). Live probe 2026-10-04 (owner run): 9/10 seeds and 200/200 arXiv-source pool works had a PDF candidate; the one non-arXiv seed (Nature DOI) had none. Download success and licence permission are NOT measured."
     },
     {
+      "id": "OPENALEX-AUTH",
+      "url": "https://help.openalex.org/api-reference/authentication",
+      "verified_on": "2026-10-04",
+      "recheck_after_days": 30,
+      "claim": "A free OpenAlex API key (account sign-up, copied from API settings) is sent as the api_key query parameter or as an Authorization bearer token; the two behave the same. The page says a free key raises the daily budget about 10x over keyless use but gives no numbers; requests are metered in credits against a budget that resets at midnight UTC; exceeding it or 100 requests per second gives HTTP 429. The page does not mention the mailto parameter, so whether mailto still has any effect is unverified.",
+      "verification": "Official authentication help page fetched 2026-10-04. Measured live 2026-10-04 with the owner's free key: the Authorization bearer header is recognised (a wrong key gives HTTP 401, the real key gives HTTP 200); allowance without a key 1000 credits / $0.10 per day, with the key 10000 credits / $1 per day; each search cost $0.001. Whether mailto still has any effect with a key is NOT determined."
+    },
+    {
       "id": "ARXIV-PDF",
       "url": "https://arxiv.org/robots.txt",
       "verified_on": "2026-10-04",

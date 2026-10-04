@@ -457,6 +457,12 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 return self._json({"error": "request must be an object"}, 400)
             app = self._app()
+            if "openalex_key" in body or body.get("clear_openalex_key"):
+                try:
+                    app.clear_openalex_key() if body.get("clear_openalex_key") else app.save_openalex_key(body["openalex_key"])
+                except ValueError as exc:
+                    return self._json({"error": str(exc)}, 400)
+                return self._json(self._settings_payload(app))
             if "ai_enabled" in body:
                 if not isinstance(body["ai_enabled"], bool):
                     return self._json({"error": "ai_enabled must be boolean"}, 400)
@@ -701,7 +707,7 @@ class Handler(BaseHTTPRequestHandler):
     def _settings_payload(app):
         """Provider state, AI switch and the enforced ceilings; never the key itself."""
         limits = app.gateway.limits()
-        return {"provider": app.provider_status(), "dev_mode": app.gateway.dev,
+        return {"provider": app.provider_status(), "openalex": app.openalex_status(), "dev_mode": app.gateway.dev,
                 "ai_enabled": app.gateway.enabled(), "usage": app.usage(),
                 "limits": {k: limits[k] for k in ("daily_total_tokens", "monthly_total_tokens",
                                                    "daily_usd", "monthly_usd")}}

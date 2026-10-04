@@ -14,3 +14,11 @@ Live coverage run (owner terminal, 2026-10-04): python3 tools/data_probe.py --so
   candidate pool (arXiv source, so arXiv-biased): 200 checked, 195 with arxiv_id, 200 with an OA pdf_url, 0 without a candidate.
   The 5 pool entries without an arxiv_id still had an arxiv.org/pdf/... OA link, so the OpenAlex fallback reaches papers the old arXiv-only code could not.
   This measures candidate links only, not downloads, and not licence permission.
+Live downloads (this session, owner's Terminal panel, 2026-10-04): .local/openalex_live_check.py, fresh temp data dir
+  arXiv paper 2603.19312            -> ok, source_kind=arxiv, 5,661,568 bytes, starts with %PDF-, 3.5 s
+  same paper again                  -> ok, cached, 0 s, no request
+  "Semantic Bayesian World Models"  -> ok, source_kind=openalex_oa (OpenAlex arxiv.org/pdf link, no arxiv_id stored), 366,462 bytes, 14.2 s
+                                       (waited for arXiv's Crawl-delay of 15 s after the previous arXiv request)
+  DreamerV3 (Nature, DOI)           -> not downloaded, reason no_oa_source. OpenAlex says is_oa=true, oa_status=hybrid, license=cc-by,
+                                       version=publishedVersion, but pdf_urls is empty and only the DOI landing page is given.
+Not run: a paywalled paper returning 403; opening the downloaded files in the app reader offline; the reader's failure message in the UI.

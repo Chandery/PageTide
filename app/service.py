@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, pdf_fetch, ranking
+from . import creation, openalex_key, pdf_fetch, ranking
 from .db import Store, now
 from .gateway import Gateway
 from .language import language
@@ -41,7 +41,8 @@ class App:
         self.data.mkdir(parents=True, exist_ok=True)
         self.store = Store(self.data / "paperdighelper.sqlite")
         self.store.init()
-        self.source = OpenAlex(self.data / "cache", mailto=self.contact_email())
+        self.source = OpenAlex(self.data / "cache", mailto=self.contact_email(),
+                               api_key=openalex_key.load(self.data))
         self.pdf_fetcher = pdf_fetch.Fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
@@ -53,6 +54,19 @@ class App:
         except (OSError, ValueError, AttributeError):
             return None
         return value if valid_email(value) else None
+
+    def openalex_status(self):
+        return openalex_key.status(self.data)
+
+    def save_openalex_key(self, value):
+        status = openalex_key.save(self.data, value)
+        self.source.api_key = openalex_key.load(self.data)
+        return status
+
+    def clear_openalex_key(self):
+        status = openalex_key.clear(self.data)
+        self.source.api_key = openalex_key.load(self.data)  # an environment key, if any, stays in force
+        return status
 
     def apply_contact_email(self):
         self.source.mailto = self.contact_email() or MAILTO

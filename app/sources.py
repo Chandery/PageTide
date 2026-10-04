@@ -107,10 +107,20 @@ class SourceError(RuntimeError):
 
 
 class OpenAlex:
-    def __init__(self, cache_dir, mailto=None):
+    def __init__(self, cache_dir, mailto=None, api_key=None):
         self.cache = Path(cache_dir)
         self.cache.mkdir(parents=True, exist_ok=True)
         self.mailto = mailto if valid_email(mailto) else MAILTO
+        self.api_key = api_key
+
+    def _request(self, url):
+        """The key goes in a header, only to the OpenAlex API host over https. It is an unredirected
+        header, so a redirect cannot carry it elsewhere, and it never appears in a URL, cache key or error."""
+        request = urllib.request.Request(url, headers={"User-Agent": UA})
+        parts = urllib.parse.urlsplit(url)
+        if self.api_key and parts.scheme == "https" and parts.hostname == "api.openalex.org":
+            request.add_unredirected_header("Authorization", f"Bearer {self.api_key}")
+        return request
 
     def _cache_key(self, url):
         """Cache entries are keyed as if the placeholder contact were used, so setting the real
@@ -130,8 +140,7 @@ class OpenAlex:
         last = None
         for attempt in range(retries):
             try:
-                request = urllib.request.Request(url, headers={"User-Agent": UA})
-                with urllib.request.urlopen(request, timeout=30) as response:
+                with urllib.request.urlopen(self._request(url), timeout=30) as response:
                     body = response.read().decode("utf-8", "replace")
                 try:
                     payload = json.loads(body)
