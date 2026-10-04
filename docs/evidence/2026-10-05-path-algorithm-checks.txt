@@ -1,0 +1,9 @@
+2026-10-05 path-algorithm checks (Route Mode slice 3; sanitized)
+python3 -m unittest discover -s tests            -> Ran 661 tests, OK (552 before; +109: tests/test_pathgraph.py 59 and tests/test_pathgrowth.py 50)
+python3 scripts/budget.py --check                -> PASS
+python3 scripts/harness.py check                 -> PASS
+Mutation checks (each made at least one test fail): no cycle breaking, no shortcut removal, too_hard not lowering mastery, no sources gate, novelty rule removed, input-order dependence, recency ignored, support margin removed.
+Random-input tests (seeded, deterministic): 400 random graphs and 300 random inputs with missing ids and odd types always normalise to valid graphs; 60 random corpora respect every branch rule and every proposed term matches a member paper.
+Performance (this machine, offline): branch_candidates 500 papers 0.02 s, 1500 papers 0.21 s, 3000 papers 0.42 s (was 5.5 s before the review fix).
+Independent review: docs/evidence/2026-10-05-path-algorithm-review.md (11 findings, all fixed; fixes not re-read by a reviewer).
+Not run: any of this on real project data; nothing is wired into the app yet.

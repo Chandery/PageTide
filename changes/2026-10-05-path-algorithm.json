@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-05-path-algorithm",
+  "class": "standard",
+  "summary": "Route Mode slice 3. The algorithm core of the prerequisite map, as two pure modules that are not wired into the app yet: app/pathgraph.py (validate and repair an AI-proposed concept graph, layers, per-branch progress from explicit feedback, smooth deterministic exploration share) and app/pathgrowth.py (assign papers to concepts, corpus support for edges, gap terms, and proposals of new branches with evidence gates and a strength score; merging only ever adds a proposed concept). An independent review found 11 defects, all fixed with tests.",
+  "tasks": [
+    "PROJECT-01",
+    "CORE-01"
+  ],
+  "requirements": [
+    "R-PROFILE",
+    "R-NODEBT",
+    "R-DISCOVERY"
+  ],
+  "files": [
+    "app/pathgraph.py",
+    "app/pathgrowth.py",
+    "changes/2026-10-05-path-algorithm.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-05-path-algorithm-checks.txt",
+    "docs/evidence/2026-10-05-path-algorithm-review.md",
+    "docs/evidence/2026-10-05-path-algorithm-self-review.md",
+    "tests/test_pathgraph.py",
+    "tests/test_pathgrowth.py"
+  ],
+  "scope_note": "Branch feature/route-mode, on top of b88fe11. Nothing is wired into the app, so no user-visible behaviour changes. The owner's .claude files are excluded locally.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Pure local functions: no model call, no network, no clock, no randomness.",
+    "before": "No prerequisite graph, no per-branch progress, no branch growth.",
+    "after": "Tested algorithm core, unused by the app until slices 4-6.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-path-algorithm-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-path-algorithm-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-path-algorithm-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-05-path-algorithm-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "One separate read-only code-review agent (same model family, not a human); 11 findings fixed afterwards, fixes not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-05-path-algorithm-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "All thresholds (0.6 mastery, 0.35 gain/low interest, 0.10-0.50 exploration, 0.25 strength, 3/2/2 gates, +-0.15 support) are unvalidated proposals; the evaluation baselines are saturated, so no improvement can be claimed.",
+    "The independent review was by an agent of the same model family; its 11 findings were fixed and the fixes were not re-read by a reviewer.",
+    "Cluster names are a heuristic (leading title phrase); the specialisation rule (cluster inside a concept 1.5x larger) is a judgement call.",
+    "Not exercised on real project data; edge support uses only title and abstract text.",
+    "Slices 4-8 (project-scoped map storage, AI plan operation needing owner approval, runtime use, growth UI, governance) are not done."
+  ]
+}
