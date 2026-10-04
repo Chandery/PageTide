@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, openalex_key, pdf_fetch, ranking
+from . import creation, maintenance, openalex_key, pdf_fetch, ranking
 from .db import Store, now
 from .gateway import Gateway
 from .language import language
@@ -49,6 +49,10 @@ class App:
         self.pdf_fetcher = pdf_fetch.shared_fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
+
+    def home_maintenance(self, project_id=None):
+        """Refresh times for the page (no counts of anything unread or pending)."""
+        return {"maintenance": maintenance.status(self, project_id or self.get_default_project_id())}
 
     def openalex_status(self):
         """Key state plus the allowance OpenAlex reported on its last response (no secret)."""

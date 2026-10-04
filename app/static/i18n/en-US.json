@@ -841,6 +841,12 @@
   "这篇论文是开放获取的，但只给了原文网页，没有 PDF 直链": "This paper is open access, but only its web page is known, not a direct PDF link",
   "没有找到合法的 PDF 来源；可以自己下载后附加": "No legal PDF source was found; you can download it yourself and attach it",
   "不限年份": "Any year",
-  "默认只看近 10 年的论文；勾选后不限年份": "Only the last 10 years by default; tick to search any year"
+  "默认只看近 10 年的论文；勾选后不限年份": "Only the last 10 years by default; tick to search any year",
+  "更新频率：{0}": "Update frequency: {0}",
+  "上次刷新 {0}": "Last refreshed {0}",
+  "上次刷新失败：{0}（已有内容不受影响）": "Last refresh failed: {0} (existing content is unaffected)",
+  "正在更新候选论文…": "Updating candidate papers…",
+  "自动更新失败：{0}": "Automatic update failed: {0}",
+  "打开应用时按此频率自动刷新候选论文，并在当天还没有一批时生成一批；不补发漏掉的日子，也不会自动调用 AI。选“手动”则什么都不会自动做。": "When the app opens, candidate papers are refreshed at this frequency and today's batch is built if there is none yet. Missed days are not made up and no AI is called automatically. Choose Manual and nothing runs by itself."
  }
 }

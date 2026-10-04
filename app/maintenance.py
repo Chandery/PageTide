@@ -1,0 +1,141 @@
+"""Opening-time upkeep: refresh the candidate pool and build today's batch.
+
+Zero model tokens. Written to keep the no-debt rules (R-NODEBT, E-NO-DEBT, E-OFFLINE):
+- at most one refresh per interval and one batch per calendar day, never a catch-up for days that were skipped;
+- nothing is counted as unread or pending, and a failure is shown, bounded and does not block the batch;
+- it never triggers an AI summary: the batch is only the five papers, summaries stay the user's choice.
+"""
+import datetime
+import json
+import threading
+from pathlib import Path
+
+FREQUENCIES = ("daily", "weekly", "manual")
+RETRY_AFTER_SECONDS = 1800   # a failed refresh is retried at most every 30 minutes
+BATCH_LIMIT = 5
+LOCAL_TZ = None              # None means the machine's time zone; tests pin it
+_RUNNING = set()
+_LOCK = threading.Lock()
+
+
+def normalize_frequency(value):
+    return value if value in FREQUENCIES else "daily"
+
+
+def frequency(data_dir):
+    """The 更新频率 chosen on the settings page (settings.json); daily when unset or unreadable."""
+    try:
+        value = json.loads((Path(data_dir) / "settings.json").read_text(encoding="utf-8")).get("updateFrequency")
+    except (OSError, ValueError, AttributeError):
+        return "daily"
+    return normalize_frequency(value)
+
+
+def _now(now):
+    return now or datetime.datetime.now(datetime.timezone.utc)
+
+
+def _zone(now, tz=None):
+    return tz or LOCAL_TZ or now.astimezone().tzinfo
+
+
+def _parse(iso):
+    try:
+        moment = datetime.datetime.fromisoformat(str(iso))
+    except (TypeError, ValueError):
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=datetime.timezone.utc)
+
+
+def refresh_due(last_iso, freq, now, tz=None):
+    """daily = once per local calendar day, weekly = seven days; a bad or future timestamp counts as due."""
+    if freq == "manual":
+        return False
+    last = _parse(last_iso)
+    if last is None or last > now:
+        return True
+    if freq == "weekly":
+        return now - last >= datetime.timedelta(days=7)
+    zone = _zone(now, tz)
+    return last.astimezone(zone).date() != now.astimezone(zone).date()
+
+
+def _key(name, project_id):
+    return f"{name}_{project_id}"
+
+
+def _recently_attempted(app, project_id, now):
+    attempt = _parse(app.store.get_setting(_key("last_attempt", project_id)))
+    return attempt is not None and attempt <= now and (now - attempt).total_seconds() < RETRY_AFTER_SECONDS
+
+
+def _has_batch_today(app, project_id, now):
+    row = app.store.conn.execute("SELECT run_date FROM batches WHERE project_id=? ORDER BY id DESC LIMIT 1", (project_id,)).fetchone()
+    return bool(row) and row["run_date"] == _today(now)
+
+
+def _today(now):
+    return now.astimezone(_zone(now)).date().isoformat()
+
+
+def _has_unseen(app, project_id):
+    return app.store.conn.execute(
+        """SELECT 1 FROM project_papers pp WHERE pp.project_id=?
+             AND pp.paper_key NOT IN (SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?)
+             AND pp.paper_key NOT IN (SELECT f.paper_key FROM feedback f WHERE f.project_id=? AND f.undone=0)
+             LIMIT 1""", (project_id, project_id, project_id)).fetchone() is not None
+
+
+def plan(app, project_id, now=None):
+    """What would run now. Local only: no network, no model."""
+    now = _now(now)
+    freq = frequency(app.data)
+    if freq == "manual":
+        return {"frequency": freq, "refresh": False, "batch": False}
+    refresh = (refresh_due(app.store.get_setting(_key("last_refresh", project_id)), freq, now)
+               and not _recently_attempted(app, project_id, now))
+    batch = not _has_batch_today(app, project_id, now) and (_has_unseen(app, project_id) or refresh)
+    return {"frequency": freq, "refresh": refresh, "batch": batch}
+
+
+def status(app, project_id, now=None):
+    """Times and the chosen frequency only: no unread, backlog or pool counts by design."""
+    return {"frequency": frequency(app.data),
+            "last_refresh": app.store.get_setting(_key("last_refresh", project_id)),
+            "last_attempt": app.store.get_setting(_key("last_attempt", project_id)),
+            "last_error": app.store.get_setting(_key("last_error", project_id)) or None}
+
+
+def run(app, project_id, now=None):
+    """Refresh if due, then build today's batch if there is none. Blocking; call it from a job."""
+    now = _now(now)
+    with _LOCK:
+        if project_id in _RUNNING:
+            return {"skipped": "already running", "refreshed": False, "batch": False}
+        _RUNNING.add(project_id)
+    try:
+        wanted = plan(app, project_id, now)
+        out = {"frequency": wanted["frequency"], "refreshed": False, "added": 0, "batch": False, "errors": []}
+        if wanted["refresh"]:
+            app.store.set_setting(_key("last_attempt", project_id), now.isoformat())
+            try:
+                result = app.refresh_candidates(project_id=project_id)
+                errors = result.get("errors") or []
+                ok = not errors or result.get("fetched", 0) > 0
+                detail = (errors[0].get("error") or errors[0].get("kind") or "refresh failed") if errors else ""
+            except Exception as exc:  # the batch and the app must not depend on the network being up
+                result, ok, errors, detail = {}, False, [], f"{type(exc).__name__}: {exc}"
+            if ok:
+                app.store.set_setting(_key("last_refresh", project_id), now.isoformat())
+                app.store.set_setting(_key("last_error", project_id), "")
+                out.update(refreshed=True, added=result.get("added", 0), errors=errors)
+            else:
+                app.store.set_setting(_key("last_error", project_id), str(detail)[:200])
+                out["errors"] = errors or [{"error": detail}]
+        if wanted["frequency"] != "manual" and not _has_batch_today(app, project_id, now) and _has_unseen(app, project_id):
+            built = app.build_batch(limit=BATCH_LIMIT, run_date=_today(now), project_id=project_id)
+            out["batch"] = bool(built.get("batch_id"))
+        return out
+    finally:
+        with _LOCK:
+            _RUNNING.discard(project_id)

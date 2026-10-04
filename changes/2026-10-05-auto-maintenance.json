@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-05-auto-maintenance",
+  "class": "feature",
+  "summary": "Route Mode slice 2. New papers only arrived after pressing 抓取. Opening the app (and switching project) now calls POST /api/maintain, which, according to the existing 更新频率 setting (daily / weekly / manual), refreshes the candidate pool when due and builds today's batch when there is none. At most one refresh per interval and one batch per day, no catch-up for skipped days, no unread count, failures visible and bounded, and no AI call. Logic in app/maintenance.py; the page shows the frequency and the last refresh time.",
+  "tasks": [
+    "PROJECT-01",
+    "CORE-01"
+  ],
+  "requirements": [
+    "R-NODEBT",
+    "R-DISCOVERY",
+    "R-BUDGET"
+  ],
+  "files": [
+    "app/maintenance.py",
+    "app/project.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/settings.html",
+    "changes/2026-10-05-auto-maintenance.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-05-auto-maintenance-checks.txt",
+    "docs/evidence/2026-10-05-auto-maintenance-self-review.md",
+    "tests/test_maintenance.py"
+  ],
+  "scope_note": "Branch feature/route-mode, on top of 76b2eb3. The owner's .claude files are excluded locally.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Zero model tokens (tests make any gateway call raise). It adds public OpenAlex metadata requests with the project's keywords at most once per interval, the same kind of outbound data as ADR 0012.",
+    "before": "Candidates were fetched only when the user pressed 抓取; the 更新频率 setting was stored and ignored.",
+    "after": "At most one refresh per interval and one batch per day, started on open; 更新频率 is honoured, manual means nothing runs.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-auto-maintenance-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-auto-maintenance-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-auto-maintenance-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-05-auto-maintenance-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "E-NO-DEBT and E-OFFLINE are still not_run: the rules are covered by unit tests, but the evaluations themselves have not been executed.",
+    "Every automatic refresh sends project keywords (including pinned profile terms) to OpenAlex; this extends the disclosure that already awaits the owner's confirmation from ADR 0012.",
+    "'Today' for the batch is the run_date label; a manual batch made near midnight UTC may be counted on either day.",
+    "A persistently failing network is retried every 30 minutes whenever the app is opened.",
+    "The app window itself was not clicked through; the page was exercised in a browser preview of the real server.",
+    "Settings timePreference, recommendCount, decayWindow and newPaperBoost remain stored and unused."
+  ]
+}

@@ -149,9 +149,9 @@ class ProjectManager:
             (SELECT paper_key FROM project_library)
         """)
         self.store.conn.execute("DELETE FROM projects WHERE id=?", (project_id,))
+        names = ("seed_keys", "profile_freeze", "project_default_terms", "last_refresh", "last_attempt", "last_error")
         self.store.conn.execute(
-            "DELETE FROM settings WHERE key IN (?,?,?)",
-            (f"seed_keys_{project_id}", f"profile_freeze_{project_id}", f"project_default_terms_{project_id}"))
+            f"DELETE FROM settings WHERE key IN ({','.join('?' * len(names))})", tuple(f"{n}_{project_id}" for n in names))
         self.store.conn.commit()
 
     def get_project_stats(self, project_id):

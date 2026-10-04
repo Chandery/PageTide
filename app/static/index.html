@@ -620,6 +620,7 @@
         <button id="btnRefresh">抓取新论文</button>
         <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label><span class="sub" id="autoAiHint"></span>
       </div>
+      <div class="sub" id="maintainNote" style="margin-top:8px"></div>
     </section>
     <section id="cards" class="grid"></section>
   </section>
@@ -690,7 +691,7 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
-                currentProject:null, projects:[] };
+                currentProject:null, projects:[], maintained:new Set() };
 
 // ------------------------------------------------------------ appearance
 function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m);
@@ -859,6 +860,7 @@ async function switchProject(projectId) {
   renderProjectSelector();
   await load();
   if (state.view === 'library') await loadLibrary();
+  autoMaintain();
 }
 
 const projectSwitcher = window.ProjectSwitcher.mount({
@@ -905,10 +907,38 @@ async function load() {
     console.warn('Failed to load profile insights', e);
   }
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
-  renderStats(); renderCards(); renderProfile();
+  state.maintenance = data.maintenance; renderStats(); renderCards(); renderProfile(); renderMaintenance(data.maintenance);
   const u = state.usage;
   $('#foot').replaceChildren(`本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`,   // two phrases, two pack entries
     u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
+}
+// Opening-time upkeep: the server refreshes the candidate pool and builds today's batch when they are due.
+// It never starts an AI summary, never counts what was missed, and a failure leaves the page as it was.
+function renderMaintenance(m) {
+  const note = $('#maintainNote');
+  if (!note || !m) return;
+  const frequency = { daily: '每天', weekly: '每周', manual: '手动' }[m.frequency] || '每天';
+  const parts = [`更新频率：${frequency}`];
+  if (m.last_refresh) parts.push(`上次刷新 ${new Date(m.last_refresh).toLocaleString()}`);
+  if (m.last_error) parts.push(`上次刷新失败：${m.last_error}（已有内容不受影响）`);
+  note.textContent = parts.join(' · ');
+}
+async function autoMaintain() {
+  const key = state.currentProject || 'default';
+  if (state.maintained.has(key)) return;   // once per project per page session; the server enforces the interval
+  state.maintained.add(key);
+  try {
+    const r = await api('/api/maintain', state.currentProject ? { project_id: state.currentProject } : {});
+    if (!r.due) {   // a job started by another window may have finished after this page loaded
+      if (r.status && r.status.last_refresh !== (state.maintenance || {}).last_refresh) await load();
+      return;
+    }
+    $('#maintainNote').textContent = '正在更新候选论文…';
+    let job;
+    for (let i = 0; i < 120; i++) { job = await api(`/api/jobs/${r.job.id}`); if (job.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
+    if (job.state === 'failed') toast(`自动更新失败：${job.error}`, 'warn');
+    await load();
+  } catch (e) { renderMaintenance(state.maintenance); }
 }
 async function loadLibrary() {
   const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
@@ -1197,6 +1227,7 @@ document.addEventListener('scroll', hidePreview, { passive: true });
     if (!requested && saved) state.currentProject = saved;
     await loadProjects();
     await load();
+    autoMaintain();
   } catch (e) {
     toast(`加载失败：${e.message}`, 'err');
   }

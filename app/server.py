@@ -22,7 +22,7 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import creation
+from . import creation, maintenance
 from .language import language
 from .service import App
 
@@ -312,7 +312,7 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app()
             # Extract project_id from query if provided
             project_id = query.get("project_id", [None])[0]
-            self._json({"server_version": VERSION, "stats": app.stats(project_id),
+            self._json({**app.home_maintenance(project_id), "server_version": VERSION, "stats": app.stats(project_id),
                         "profile": app.profile(project_id),
                         "cards": app.cards(project_id=project_id), "summaries": app.store.summaries(),
                         "usage": app.usage(), "dev_mode": app.gateway.dev,
@@ -542,6 +542,15 @@ class Handler(BaseHTTPRequestHandler):
             job = _job_start("refresh", lambda: make_app(getattr(self.server, "root", ".")).refresh_candidates(
                 pages=pages, include_distractors=include_distractors, project_id=project_id))
             self._json(job)
+        elif route == "/api/maintain":
+            project_id = body.get("project_id") or app.get_default_project_id()
+            wanted = maintenance.plan(app, project_id)
+            if not (wanted["refresh"] or wanted["batch"]):
+                self._json({"due": False, "status": maintenance.status(app, project_id)})
+            else:
+                root = getattr(self.server, "root", ".")
+                self._json({"due": True, "plan": wanted,
+                            "job": _job_start("maintain", lambda: maintenance.run(make_app(root), project_id))})
         elif route == "/api/daily":
             project_id = body.get("project_id")
             self._json(app.build_batch(limit=int(body.get("limit", 5)), project_id=project_id))
