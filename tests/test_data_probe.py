@@ -1,6 +1,11 @@
+import io
+import json
 import sys
+import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 import data_probe
@@ -72,6 +77,39 @@ class DataProbeTests(unittest.TestCase):
     def test_parser_rejects_malformed_xml(self):
         with self.assertRaises(Exception):
             data_probe.parse_arxiv_entries("<feed><entry>")
+
+
+class MissingSeedTests(unittest.TestCase):
+    """A seed OpenAlex no longer knows (404) is reported, not fatal, and is not retried."""
+
+    SEEDS = [
+        {"title": "Gone Paper", "ids": {"openalex_id": "W1"}},
+        {"title": "Present Paper", "ids": {"openalex_id": "W2"}},
+    ]
+
+    def _urlopen(self, calls):
+        def fake(request, timeout=None):
+            url = request.full_url
+            calls.append(url)
+            if "/W1?" in url:
+                raise urllib.error.HTTPError(url, 404, "Not Found", {}, io.BytesIO(b""))
+            body = json.dumps({"id": "https://openalex.org/W2", "title": "Present Paper"}).encode()
+            response = mock.MagicMock()
+            response.__enter__.return_value = response
+            response.read.return_value = body
+            response.headers = {}
+            return response
+        return fake
+
+    def test_404_seed_is_not_found_and_does_not_stop_other_seeds(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(data_probe.urllib.request, "urlopen", self._urlopen(calls)), \
+                mock.patch.object(data_probe.time, "sleep"):
+            results = data_probe.resolve_seeds_openalex(self.SEEDS, tmp, refresh=True)
+        self.assertEqual([r["status"] for r in results], ["not_found", "resolved"])
+        self.assertEqual(results[0]["resolution"], "openalex_id+http_404")
+        self.assertEqual(sum("/W1?" in url for url in calls), 1)  # a missing ID does not appear on retry
 
 
 if __name__ == "__main__":

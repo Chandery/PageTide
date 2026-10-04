@@ -32,7 +32,7 @@
 
 **反例**：暂无。按规则记为未知，**不自动制造负标签**；之后可由你补充 3–5 篇「看起来相关但不想看」及原因。
 
-**规范 ID（DATA-01 已解析 10/10）**：完整机器可读版在 `harness/seeds.json`。其中 A Definition and Roadmap for World Models = arXiv `2607.06401`，Wonder: Video World Model Done Better = arXiv `2607.26037`（owner 提供）；DreamerV3 为 Nature DOI，LeWorldModel 只有 OpenAlex ID。
+**规范 ID（DATA-01 已解析 10/10）**：完整机器可读版在 `harness/seeds.json`。其中 A Definition and Roadmap for World Models = arXiv `2607.06401`，Wonder: Video World Model Done Better = arXiv `2607.26037`（owner 提供）；DreamerV3 为 Nature DOI，LeWorldModel = arXiv `2603.19312`（原用 OpenAlex ID `W7140238461`，2026-10-02 起该 ID 返回 404，记录疑被合并为 `W7140141371`，故改用 arXiv ID）。
 
 ## 隐私与外发边界
 

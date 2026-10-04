@@ -88,6 +88,10 @@ def parse_arxiv_entries(xml_text):
     return entries
 
 
+class NotFound(RuntimeError):
+    """HTTP 404: the identifier is unknown to the source. Retrying cannot change that."""
+
+
 def fetch(url, snapshot_path=None, retries=3, gap=ARXIV_GAP_SECONDS):
     last_error = None
     for attempt in range(retries):
@@ -102,6 +106,8 @@ def fetch(url, snapshot_path=None, retries=3, gap=ARXIV_GAP_SECONDS):
                 path.write_text(body)
             return body, headers
         except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                raise NotFound(f"not found: {url}") from exc
             last_error = exc
             retry_after = exc.headers.get("Retry-After") if exc.headers else None
             try:
@@ -186,7 +192,12 @@ def resolve_seeds_openalex(seeds, snapshot_dir, min_score=0.6, refresh=False):
     for seed in seeds:
         identifier, resolution = seed_identifier(seed)
         if identifier:
-            entry = fetch_work(identifier, snapshot_dir, refresh=refresh)
+            try:
+                entry = fetch_work(identifier, snapshot_dir, refresh=refresh)
+            except NotFound:
+                # A stale ID (e.g. a merged OpenAlex record) must not abort the other seeds.
+                results.append(seed_result(seed, None, 0.0, resolution + "+http_404"))
+                continue
             score = title_overlap(seed["title"], entry.get("title")) if entry.get("title") else 0.0
             # An explicit ID is authoritative: keep status resolved even on a title mismatch,
             # but expose the mismatch instead of hiding it.
