@@ -1252,6 +1252,19 @@ async function lib() {
 }
 const R = { doc:null, pages:[], scale:null, fit:true, side:false, observer:null, jobs:new Map(), url:null, current:1 };
 
+const PDF_REASONS = {
+  no_oa_source: '没有找到可合法下载的开放获取 PDF 来源。',
+  not_found: '来源站点上找不到这个文件。',
+  paywalled_or_blocked: '来源站点拒绝访问（可能需要订阅或登录）。本应用不会绕过付费墙。',
+  robots_disallowed: '来源站点的 robots.txt 不允许自动下载。',
+  rate_limited: '来源站点暂时限流，请稍后重试。',
+  not_pdf: '来源返回的不是 PDF（可能是登录页或落地页）。',
+  too_large: '文件超过大小上限，未下载。',
+  network_error: '网络不可用或来源站点无响应，请稍后重试。',
+  invalid_url: '来源链接不是 https，已拒绝。',
+};
+const pdfReason = (code) => PDF_REASONS[code] || '无法获取 PDF。';
+
 async function openReader(key, title) {
   window.PDHSetContext(key, title);
   setAttachPage(false);   // a pending 附本页图 belongs to the paper it was pressed on
@@ -1270,7 +1283,13 @@ async function openReader(key, title) {
   R.pendingZoom = null; R.renderedScale = null; R.zoomBase = null;
   const url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
   R.url = url; R.key = key;
-  try { await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
+  let prepared = null;
+  try { prepared = await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
+  if (prepared && prepared.ok === false) {
+    box.innerHTML = `<div class="rload">${esc(pdfReason(prepared.reason))}</div>`;
+    $('#readerInfo').textContent = '没有可用的 PDF';
+    return;
+  }
   try {
     const L = await lib();
     R.doc = await L.getDocument({ url, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' }).promise;

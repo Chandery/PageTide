@@ -811,6 +811,19 @@
   "正在创建项目并导入 {0} 篇种子论文…": "Creating the project and importing {0} seed papers…",
   "项目已创建，但有 {0} 个种子没有完全导入：": "The project was created, but {0} seeds were not fully imported:",
   "已添加": "Added",
-  "再点一次撤销": "Click again to undo"
+  "再点一次撤销": "Click again to undo",
+  "没有找到可合法下载的开放获取 PDF 来源。": "No legally downloadable open-access PDF source was found.",
+  "来源站点上找不到这个文件。": "The source site has no such file.",
+  "来源站点拒绝访问（可能需要订阅或登录）。本应用不会绕过付费墙。": "The source site refused access (a subscription or login may be required). This app does not bypass paywalls.",
+  "来源站点的 robots.txt 不允许自动下载。": "The source site's robots.txt does not allow automated downloads.",
+  "来源站点暂时限流，请稍后重试。": "The source site is rate limiting requests. Try again later.",
+  "来源返回的不是 PDF（可能是登录页或落地页）。": "The source did not return a PDF (it may be a login or landing page).",
+  "文件超过大小上限，未下载。": "The file exceeds the size limit and was not downloaded.",
+  "网络不可用或来源站点无响应，请稍后重试。": "The network is unavailable or the source site did not respond. Try again later.",
+  "来源链接不是 https，已拒绝。": "The source link is not https and was refused.",
+  "无法获取 PDF。": "Could not get the PDF.",
+  "没有可用的 PDF": "No PDF available",
+  "联系邮箱（OpenAlex）": "Contact email (OpenAlex)",
+  "只发送给 OpenAlex，用于其公开接口的礼貌访问通道；不写入 PDF 来源站点的请求。留空则使用占位地址，可能更容易被限流。": "Sent only to OpenAlex, for the polite pool of its public API; never included in requests to PDF source sites. If empty, a placeholder address is used and you may be rate limited sooner."
  }
 }

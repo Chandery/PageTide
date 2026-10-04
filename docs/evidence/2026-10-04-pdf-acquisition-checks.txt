@@ -1,0 +1,16 @@
+2026-10-04 pdf-acquisition checks (sanitized)
+python3 -m unittest discover -s tests            -> Ran 409 tests, OK (368 before; +39 in tests/test_pdf_fetch.py, +2 in tests/test_data_probe.py)
+python3 scripts/budget.py --check                -> PASS
+python3 scripts/harness.py check                 -> PASS (repository checks only)
+git diff --check                                 -> clean
+.local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app
+                                                 -> PaperDigHelper.app built (launch and reader not exercised)
+Official docs read 2026-10-04 (WebFetch): help.openalex.org work object + locations (field names match app/sources.py oa_of);
+  arxiv.org/robots.txt (generic group: /pdf allowed, Crawl-delay 15). arXiv bulk-data and robots help pages timed out: not read.
+Not run: real downloads (arXiv / non-arXiv OA / paywalled), live OA coverage via tools/data_probe.py, reader and settings page in the app.
+All fetcher tests use a patched network seam; they are not product measurements.
+Live coverage run (owner terminal, 2026-10-04): python3 tools/data_probe.py --source openalex --out-dir .local/data01 --refresh
+  seeds with a PDF candidate: 9/10; the one without is the Nature DOI seed (DreamerV3) - OpenAlex reported no https pdf_url for it.
+  candidate pool (arXiv source, so arXiv-biased): 200 checked, 195 with arxiv_id, 200 with an OA pdf_url, 0 without a candidate.
+  The 5 pool entries without an arxiv_id still had an arxiv.org/pdf/... OA link, so the OpenAlex fallback reaches papers the old arXiv-only code could not.
+  This measures candidate links only, not downloads, and not licence permission.

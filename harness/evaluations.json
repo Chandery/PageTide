@@ -116,7 +116,7 @@
       "id": "E-PDF-ARCHIVE",
       "status": "not_run",
       "blocks_release": true,
-      "method": "Owner-confirmed v1 feature. Download only licence-permitted/open-access sources; never bypass paywalls or reuse credentials; honour rate limits and robots. Store by canonical ID with idempotent re-download, visible failure, bounded retry/resume; files open offline and a network outage does not block recommendation or feedback. Record source URL, fetch time and licence clue; no automatic re-upload or redistribution.",
+      "method": "Owner-confirmed v1 feature. Download only licence-permitted/open-access sources; never bypass paywalls or reuse credentials; honour rate limits and robots. Store by canonical ID with idempotent re-download, visible failure, bounded retry/resume; files open offline and a network outage does not block recommendation or feedback. Record source URL, fetch time and licence clue; no automatic re-upload or redistribution. Offline mocked coverage exists in tests/test_pdf_fetch.py (source order, robots and Crawl-delay, rate limit, size cap, not-a-PDF, idempotent and changed-content archive, failure does not block the app); it is not a product measurement. Still to run live: one arXiv paper, one non-arXiv open-access paper and one paywalled paper, each offline-openable or showing its reason.",
       "evidence": []
     },
     {

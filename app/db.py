@@ -136,6 +136,10 @@ class Store:
                  paper["title"], paper.get("abstract"), paper.get("published"),
                  paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now()))
             added += cur.rowcount
+            if paper.get("oa") is not None:
+                # Open-access status changes over time, so the newest report replaces the old one.
+                self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
+                                  (json.dumps(paper["oa"], ensure_ascii=False), paper["key"]))
             if paper_project_id:
                 self.add_project_paper(paper_project_id, paper["key"],
                                        paper.get("relation_kind") or
@@ -278,12 +282,20 @@ class Store:
         return json.loads(row["data"]) if row else None
 
     # -------------------------------------------------------------------- pdf
-    def record_pdf(self, paper_key, path, source_url=None):
+    def record_pdf(self, paper_key, path, source_url=None, sha256=None, size=None,
+                   source_kind=None, license=None):
         self.conn.execute(
-            """INSERT INTO pdfs (paper_key, path, source_url, fetched_at) VALUES (?,?,?,?)
+            """INSERT INTO pdfs (paper_key, path, source_url, fetched_at, sha256, bytes, source_kind, license)
+               VALUES (?,?,?,?,?,?,?,?)
                ON CONFLICT(paper_key) DO UPDATE SET path=excluded.path, source_url=excluded.source_url,
-               fetched_at=excluded.fetched_at""",
-            (paper_key, str(path), source_url, now()))
+               fetched_at=excluded.fetched_at, sha256=excluded.sha256, bytes=excluded.bytes,
+               source_kind=excluded.source_kind, license=excluded.license""",
+            (paper_key, str(path), source_url, now(), sha256, size, source_kind, license))
+        self.conn.commit()
+
+    def set_paper_oa(self, paper_key, oa):
+        self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
+                          (json.dumps(oa, ensure_ascii=False) if oa is not None else None, paper_key))
         self.conn.commit()
 
     # --------------------------------------------------------------- settings

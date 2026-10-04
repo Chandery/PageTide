@@ -341,12 +341,16 @@
         "只对开放获取/许可允许的来源下载；不绕过付费墙、不使用他人凭证、遵守速率与 robots",
         "按规范 ID 命名归档，重复下载幂等、失败可见、可重试/续传",
         "离线可打开已下载文件；断网不阻塞推荐与反馈",
-        "记录来源、抓取时间与许可线索；不自动上传或重分发"
+        "记录来源、抓取时间与许可线索；不自动上传或重分发",
+        "下载失败时阅读器显示具体原因（无来源、拒绝访问、robots 禁止、限流、非 PDF、超限、断网），不吞掉错误",
+        "来源按顺序尝试：arXiv PDF，然后 OpenAlex 开放获取 https 链接；每个来源都遵守 robots（含 Crawl-delay）与速率"
       ],
       "evidence": [
         "docs/decisions/0005-implementation-start-tauri-python.md",
         "app/service.py",
-        "app/gateway.py"
+        "app/gateway.py",
+        "docs/decisions/0011-pdf-acquisition.md",
+        "app/pdf_fetch.py"
       ]
     },
     {

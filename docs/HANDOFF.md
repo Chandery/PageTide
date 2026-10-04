@@ -1,3 +1,16 @@
+# 当前工作单元：PDF 获取与开放获取来源（2026-10-04，分支 feature/pdf-acquisition）
+
+- 起因：owner 询问 OpenAlex 能否下载 PDF，并给出“OpenAlex + arXiv + Unpaywall”的建议。现状是 `download_pdf` 只会抓 arXiv，失败原因被吞掉。决定：Unpaywall 留到第二阶段；owner 提供真实联系邮箱并写入设置；不用 embedding（违反 AGENTS 边界 2）。
+- 做了什么（详见 [ADR 0011](decisions/0011-pdf-acquisition.md)）：
+  - `slim()` 保留 OpenAlex 的开放获取信息（只留 https PDF 链接）；迁移 005 增加 `papers.oa_json` 与 `pdfs` 的 `sha256/bytes/source_kind/license`。
+  - 新增 `app/pdf_fetch.py`：来源顺序（arXiv，再 OpenAlex 链接）、robots（含 Crawl-delay）、速率、重试一次、https 限制、60 MB 上限、`%PDF-` 检查、原子写入、sha256。`App.download_pdf` 改用它，失败返回具体原因。
+  - 阅读器显示失败原因；设置页新增“联系邮箱（OpenAlex）”。`tools/data_probe.py` 输出 PDF 候选覆盖率。
+  - 登记了 `OPENALEX-OA`、`ARXIV-PDF` 两个来源；官方文档页核对了字段名，arXiv robots.txt 当前 Crawl-delay 为 15 秒、允许 /pdf。
+- 没有新增模型操作，零 token，不改预算。
+- 未验证：真实下载（arXiv、非 arXiv 开放获取、付费论文各一篇）；OpenAlex 开放获取链接在真实记录上的命中率（请运行 `tools/data_probe.py`）；arXiv 批量/自动访问帮助页没读到（超时）；桌面包里实际打开阅读器。E-PDF-ARCHIVE 仍是 `not_run`。
+- 缺口：没有为已有论文手动附加 PDF 的入口（计划里提到，本单元未做）。
+- 独立审查未做；见[自审](evidence/2026-10-04-pdf-acquisition-self-review.md)和[变更](../changes/2026-10-04-pdf-acquisition.json)。
+
 # 当前工作单元：创建项目流程重做（2026-10-02，分支 feature/project-creation-redesign）
 
 - owner 反馈：AI 参与时没有状态反馈、不知道有没有在请求；候选论文空白后整批突然出现且只有题目；快速创建和 AI 引导几乎一样；手动种子只认标识符，应能拖 PDF 或按名称检索。

@@ -28,6 +28,9 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.sources import oa_of  # noqa: E402  (shared open-access extraction)
+
 ARXIV = "https://export.arxiv.org/api/query"
 OPENALEX = "https://api.openalex.org/works"
 ARXIV_SOURCE_ID = "S4306400194"  # OpenAlex source: "arXiv (Cornell University)"
@@ -146,6 +149,23 @@ def fetch_work(identifier, snapshot_dir, refresh=False):
     return payload
 
 
+def pdf_coverage(works):
+    """How many works have a PDF source the app could try: an arXiv ID or an https OA link.
+
+    Zero model tokens; reads fields already in the fetched works. The arXiv-source pool is
+    biased toward arXiv, so a high share there says nothing about non-arXiv papers.
+    """
+    with_arxiv = with_oa = with_any = 0
+    for work in works:
+        has_arxiv = bool(openalex_ids(work)["arxiv_id"])
+        has_oa = bool((oa_of(work) or {}).get("pdf_urls"))
+        with_arxiv += has_arxiv
+        with_oa += has_oa
+        with_any += has_arxiv or has_oa
+    return {"checked": len(works), "with_arxiv_id": with_arxiv, "with_oa_pdf_url": with_oa,
+            "with_any_pdf_candidate": with_any, "without_candidate": len(works) - with_any}
+
+
 def openalex_ids(work):
     ids = work.get("ids") or {}
     doi = work.get("doi") or ""
@@ -184,6 +204,7 @@ def seed_result(seed, entry, score, resolution):
         "cited_by_count": entry.get("cited_by_count"),
         "referenced_works": len(entry.get("referenced_works") or []),
         "related_works": len(entry.get("related_works") or []),
+        "pdf_candidate": bool(entry) and bool(pdf_coverage([entry])["with_any_pdf_candidate"]),
     }
 
 
@@ -290,6 +311,7 @@ def openalex_pool(snapshot_dir, search="world model", from_date="2024-01-01", to
         "duplicate_doi_groups": sum(1 for v in by_doi.values() if len(v) > 1),
         "duplicate_title_groups": sum(1 for v in by_title.values() if len(v) > 1),
         "rate_limit": {k: v for k, v in headers.items() if k.lower().startswith("x-ratelimit")},
+        "pdf_coverage": pdf_coverage(entries),
         "entries": entries,
     }
 
@@ -335,12 +357,15 @@ def main(argv=None):
     print(f"source={args.source}  seeds resolved: {ok}/{len(resolved)}  title_mismatch={mismatch}")
     for r in resolved:
         print(f"  [{r['status']:9}] {r['resolution']:16} {(r.get('arxiv_id') or r.get('openalex_id') or '-'):<20} {r['seed_title'][:55]}")
+    print(f"seeds with a PDF candidate (arXiv ID or https OA link): "
+          f"{sum(1 for r in resolved if r.get('pdf_candidate'))}/{len(resolved)}")
     print(f"candidate pool: returned={pool['returned']} reported={pool.get('reported_count')} "
           f"dates={pool.get('date_min')}..{pool.get('date_max')}")
     print(f"missing: abstract={pool.get('abstract_missing')} refs={pool.get('references_missing')} "
           f"related={pool.get('related_works_missing')}")
     print(f"duplicates: doi={pool.get('duplicate_doi_groups')} title={pool.get('duplicate_title_groups')}")
     print(f"top sources: {pool.get('top_sources')}")
+    print(f"pdf coverage (candidate pool, arXiv-biased): {pool.get('pdf_coverage')}")
     print(f"rate_limit: {pool.get('rate_limit')}")
     print(f"raw snapshots: {snapshots}")
     return 0 if ok == len(resolved) else 1

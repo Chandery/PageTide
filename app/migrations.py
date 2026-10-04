@@ -206,11 +206,24 @@ def migrate_004_project_scoped_qa(conn):
     set_schema_version(conn, 4)
 
 
+def migrate_005_pdf_acquisition(conn):
+    """Keep OpenAlex open-access facts per paper and provenance per archived PDF."""
+    for table, column, kind in (("papers", "oa_json", "TEXT"), ("pdfs", "sha256", "TEXT"),
+                                ("pdfs", "bytes", "INTEGER"), ("pdfs", "source_kind", "TEXT"),
+                                ("pdfs", "license", "TEXT")):
+        try:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+        except sqlite3.OperationalError:
+            pass  # column already exists
+    set_schema_version(conn, 5)
+
+
 MIGRATIONS = [
     migrate_001_multi_project,
     migrate_002_shared_papers,
     migrate_003_project_guidance,
     migrate_004_project_scoped_qa,
+    migrate_005_pdf_acquisition,
 ]
 
 

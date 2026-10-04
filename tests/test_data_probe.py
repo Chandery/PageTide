@@ -79,6 +79,22 @@ class DataProbeTests(unittest.TestCase):
             data_probe.parse_arxiv_entries("<feed><entry>")
 
 
+class PdfCoverageTests(unittest.TestCase):
+    ARXIV = {"id": "W1", "ids": {"arxiv": "2603.19312"}}
+    OA_ONLY = {"id": "W2", "doi": "https://doi.org/10.1/x",
+               "best_oa_location": {"pdf_url": "https://repo.example.org/p.pdf"}}
+    NONE = {"id": "W3", "doi": "https://doi.org/10.1/y"}
+    HTTP_ONLY = {"id": "W4", "best_oa_location": {"pdf_url": "http://insecure.example.org/p.pdf"}}
+
+    def test_counts_arxiv_and_oa_and_any_candidate(self):
+        stats = data_probe.pdf_coverage([self.ARXIV, self.OA_ONLY, self.NONE, self.HTTP_ONLY])
+        self.assertEqual(stats, {"checked": 4, "with_arxiv_id": 1, "with_oa_pdf_url": 1,
+                                 "with_any_pdf_candidate": 2, "without_candidate": 2})
+
+    def test_empty_input(self):
+        self.assertEqual(data_probe.pdf_coverage([])["checked"], 0)
+
+
 class MissingSeedTests(unittest.TestCase):
     """A seed OpenAlex no longer knows (404) is reported, not fatal, and is not retried."""
 

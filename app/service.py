@@ -11,12 +11,12 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, ranking
+from . import creation, pdf_fetch, ranking
 from .db import Store, now
 from .gateway import Gateway
 from .language import language
 from .project import ProjectManager
-from .sources import OpenAlex, SourceError, fetch_seed_work, resolve_seed, slim
+from .sources import MAILTO, OpenAlex, SourceError, fetch_seed_work, resolve_seed, slim, valid_email
 
 ACTIONS = ("useful", "irrelevant", "too_hard")
 POSITIVE_ACTIONS = {"useful"}
@@ -41,9 +41,21 @@ class App:
         self.data.mkdir(parents=True, exist_ok=True)
         self.store = Store(self.data / "paperdighelper.sqlite")
         self.store.init()
-        self.source = OpenAlex(self.data / "cache")
+        self.source = OpenAlex(self.data / "cache", mailto=self.contact_email())
+        self.pdf_fetcher = pdf_fetch.Fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
+
+    def contact_email(self):
+        """Contact address for OpenAlex's polite pool, from settings.json; None when unset or invalid."""
+        try:
+            value = json.loads((self.data / "settings.json").read_text(encoding="utf-8")).get("contactEmail")
+        except (OSError, ValueError, AttributeError):
+            return None
+        return value if valid_email(value) else None
+
+    def apply_contact_email(self):
+        self.source.mailto = self.contact_email() or MAILTO
 
     def language(self):
         """Interface language from the settings page; "zh-CN" unless "en-US" is chosen."""
@@ -176,7 +188,7 @@ class App:
                 if pdf_id:
                     try:
                         path = creation.take_imported_pdf(self.data, pdf_id)
-                        self.store.record_pdf(paper["key"], path, "user-import")
+                        self.store.record_pdf(paper["key"], path, "user-import", source_kind="user_import")
                         outcome["pdf_attached"] = True
                     except (ValueError, OSError) as exc:
                         outcome.update(pdf_attached=False, pdf_error=str(exc)[:200])
@@ -1251,28 +1263,55 @@ class App:
         path = Path(row["path"])
         return str(path) if path.exists() else None
 
-    def download_pdf(self, paper_key, timeout=60):
-        import urllib.request
+    def download_pdf(self, paper_key, refresh=False):
+        """Archive one paper's PDF from an open-access source, on the user's request.
+
+        Zero model tokens. Never raises for a source problem: failures come back as
+        {"ok": False, "reason": <kind>, "attempts": [...]} so the reader can say why.
+        """
         paper = self.store.paper(paper_key)
         if not paper:
             raise ValueError(f"unknown paper: {paper_key}")
-        if not paper.get("arxiv_id"):
-            return {"ok": False, "reason": "no open-access PDF known for this paper"}
-        url = f"https://arxiv.org/pdf/{paper['arxiv_id']}"
-        target = self.data / "pdfs"
-        target.mkdir(parents=True, exist_ok=True)
-        path = target / f"{paper['arxiv_id']}.pdf"
-        if path.exists():
-            self.store.record_pdf(paper_key, path, url)
-            return {"ok": True, "path": str(path), "cached": True}
-        request = urllib.request.Request(url, headers={"User-Agent": "PaperDigHelper/0.1 (local app)"})
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            data = response.read()
-        if not data.startswith(b"%PDF"):
-            return {"ok": False, "reason": "response was not a PDF"}
-        path.write_bytes(data)
-        self.store.record_pdf(paper_key, path, url)
-        return {"ok": True, "path": str(path), "bytes": len(data)}
+        if not refresh:
+            cached = self.conn_pdf(paper_key)
+            if cached:
+                return {"ok": True, "path": cached, "cached": True}
+        attempts, tried = [], set()
+
+        def run(found):
+            for candidate in found:
+                if candidate["url"] in tried:
+                    continue
+                tried.add(candidate["url"])
+                try:
+                    got = self.pdf_fetcher.fetch(candidate["url"], pdf_fetch.stem_of(paper))
+                except pdf_fetch.PdfFetchError as exc:
+                    attempts.append({"url": candidate["url"], "source_kind": candidate["kind"],
+                                     "reason": exc.kind, "detail": str(exc)[:200]})
+                    continue
+                self.store.record_pdf(paper_key, got["path"], got["url"], sha256=got["sha256"],
+                                      size=got["bytes"], source_kind=candidate["kind"], license=candidate["license"])
+                return {"ok": True, "path": got["path"], "bytes": got["bytes"], "sha256": got["sha256"],
+                        "source_kind": candidate["kind"], "cached": False}
+            return None
+
+        done = run(pdf_fetch.candidates(paper))
+        if done:
+            return done
+        if not paper.get("oa_json") and paper.get("openalex_id"):
+            # Papers stored before open-access data was kept: ask OpenAlex once (public metadata).
+            try:
+                oa = slim(self.source.work(paper["openalex_id"]))["oa"]
+            except SourceError:
+                oa = None
+            if oa is not None:
+                self.store.set_paper_oa(paper_key, oa)
+                paper["oa_json"] = json.dumps(oa)
+                done = run(pdf_fetch.candidates(paper))
+                if done:
+                    return done
+        reason = attempts[0]["reason"] if attempts else "no_oa_source"
+        return {"ok": False, "reason": reason, "attempts": attempts}
 
     # ---------------------------------------------------------------- triage
     def triage(self, cards, dry_run=False, project_id=None):

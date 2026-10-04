@@ -197,6 +197,11 @@
         </label>
       </div>
       <div class="field">
+        <label for="contactEmail">联系邮箱（OpenAlex）</label>
+        <input type="email" id="contactEmail" placeholder="you@example.org" autocomplete="off">
+        <small>只发送给 OpenAlex，用于其公开接口的礼貌访问通道；不写入 PDF 来源站点的请求。留空则使用占位地址，可能更容易被限流。</small>
+      </div>
+      <div class="field">
         <label for="updateFrequency">更新频率</label>
         <select id="updateFrequency">
           <option value="daily">每天</option>
@@ -263,6 +268,7 @@
       $('#newPaperBoost').value  = settings.newPaperBoost  ?? 0.2;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
+      $('#contactEmail').value   = settings.contactEmail || '';
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
       $('#timePreference').value  = settings.timePreference  || 'recent';
 
@@ -316,6 +322,7 @@
         newPaperBoost:  parseFloat($('#newPaperBoost').value) || 0.2,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
+        contactEmail:   $('#contactEmail').value.trim(),
         updateFrequency: $('#updateFrequency').value,
         timePreference:  $('#timePreference').value,
       };
@@ -323,18 +330,19 @@
         await postGateway({ai_enabled: $('#aiEnabled').checked});
         const key = $('#apiKey').value.trim();
         if (key) await postGateway({api_key: key});
-        await fetch('/api/user_settings', {
+        const saved = await fetch('/api/user_settings', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({settings: newSettings})
         });
+        if (!saved.ok) throw new Error((await saved.json()).error || '保存失败');
         if (newSettings.theme === 'auto') localStorage.removeItem('pdh-mode');
         else localStorage.setItem('pdh-mode', newSettings.theme);
         window.location.href = '/';
-      } catch {
+      } catch (e) {
         btn.disabled = false;
         btn.textContent = '保存设置';
-        alert('保存失败，请重试。');
+        alert(e && e.message && e.message !== '保存失败' ? e.message : '保存失败，请重试。');
       }
     }
 

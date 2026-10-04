@@ -66,6 +66,22 @@
       "verification": "Live read-only probe tools/data_probe.py: 8/10 seeds resolved to DOI/OpenAlex IDs, abstracts present, citations sparse, future-dated records found without a date ceiling; raw snapshots kept in .local/, report in docs/evidence/2026-09-11-data01-openalex-report.md"
     },
     {
+      "id": "OPENALEX-OA",
+      "url": "https://help.openalex.org/data/locations",
+      "verified_on": "2026-10-04",
+      "recheck_after_days": 30,
+      "claim": "A work has open_access {is_oa, oa_status (diamond|gold|green|hybrid|bronze|closed), oa_url, any_repository_has_fulltext}, best_oa_location (null when no open copy) and locations[]. A location object has is_oa, landing_page_url, pdf_url (null when only a landing page is known), license (short code such as cc-by, null if unknown), version (publishedVersion|acceptedVersion|submittedVersion) and source. These are candidate links, not proof that automated download is permitted.",
+      "verification": "Official OpenAlex help pages (work object and locations) fetched 2026-10-04: field names match app/sources.py oa_of(). Live probe 2026-10-04 (owner run): 9/10 seeds and 200/200 arXiv-source pool works had a PDF candidate; the one non-arXiv seed (Nature DOI) had none. Download success and licence permission are NOT measured."
+    },
+    {
+      "id": "ARXIV-PDF",
+      "url": "https://arxiv.org/robots.txt",
+      "verified_on": "2026-10-04",
+      "recheck_after_days": 30,
+      "claim": "arxiv.org/robots.txt, generic user-agent group: /pdf is explicitly allowed, Crawl-delay is 15 seconds, /e-print, /src, /api and /search are disallowed; the file header says indiscriminate automated downloads are not permitted. The app fetches one PDF only when the user asks and waits at least the Crawl-delay between requests to the same host.",
+      "verification": "robots.txt fetched 2026-10-04 (summary via WebFetch). arXiv's help pages on bulk data and robots timed out and were NOT read, so any further access policy for automated PDF fetching is unverified. PDF licence differs per paper; metadata permission does not relicense the PDF."
+    },
+    {
       "id": "S2",
       "url": "https://www.semanticscholar.org/product/api",
       "verified_on": "2026-09-10",

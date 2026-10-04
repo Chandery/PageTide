@@ -6,6 +6,7 @@ recommender service. Responses are cached on disk so a batch can be replayed.
 import hashlib
 import http.client
 import json
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -55,6 +56,30 @@ def key_of(work):
     return ids["doi"] or ids["openalex_id"] or normalize_title(work.get("title"))
 
 
+def valid_email(value):
+    """Loose syntax check for the contact address sent to OpenAlex's polite pool."""
+    return isinstance(value, str) and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value) is not None
+
+
+def oa_of(work):
+    """Open-access facts OpenAlex reports for a work, or None when it reports none.
+
+    Only https PDF links are kept; they are candidates, never proof a download is permitted.
+    """
+    access = work.get("open_access") or {}
+    best = work.get("best_oa_location") or {}
+    urls = []
+    for url in [best.get("pdf_url"), (work.get("primary_location") or {}).get("pdf_url"),
+                *(loc.get("pdf_url") for loc in (work.get("locations") or []) if isinstance(loc, dict))]:
+        if isinstance(url, str) and url.startswith("https://") and url not in urls:
+            urls.append(url)
+    if not (access or best or urls):
+        return None
+    return {"is_oa": bool(access.get("is_oa")), "oa_status": access.get("oa_status"),
+            "pdf_urls": urls, "landing_page": best.get("landing_page_url") or access.get("oa_url"),
+            "license": best.get("license"), "version": best.get("version")}
+
+
 def slim(work, group="field"):
     ids = ids_of(work)
     abstract = abstract_text(work.get("abstract_inverted_index"))
@@ -69,6 +94,7 @@ def slim(work, group="field"):
         "authors": [name for name in ((a.get("author") or {}).get("display_name")
                                       for a in (work.get("authorships") or [])[:6]) if name],
         "group_name": group,
+        "oa": oa_of(work),
     }
 
 
@@ -81,12 +107,20 @@ class SourceError(RuntimeError):
 
 
 class OpenAlex:
-    def __init__(self, cache_dir):
+    def __init__(self, cache_dir, mailto=None):
         self.cache = Path(cache_dir)
         self.cache.mkdir(parents=True, exist_ok=True)
+        self.mailto = mailto if valid_email(mailto) else MAILTO
+
+    def _cache_key(self, url):
+        """Cache entries are keyed as if the placeholder contact were used, so setting the real
+        address does not orphan the existing cache (and spend rate limit refetching it)."""
+        if self.mailto == MAILTO:
+            return url
+        return url.replace(urllib.parse.quote(self.mailto), urllib.parse.quote(MAILTO))
 
     def _fetch(self, url, retries=2):
-        digest = hashlib.sha256(url.encode()).hexdigest()[:16]
+        digest = hashlib.sha256(self._cache_key(url).encode()).hexdigest()[:16]
         cached = self.cache / f"{digest}.json"
         if cached.exists():
             try:
@@ -140,7 +174,7 @@ class OpenAlex:
             params = {
                 "filter": (f"primary_location.source.id:{source_id},title.search:{search},"
                            f"from_publication_date:{from_date},to_publication_date:{to_date}"),
-                "sort": "publication_date:desc", "per-page": per_page, "page": page, "mailto": MAILTO,
+                "sort": "publication_date:desc", "per-page": per_page, "page": page, "mailto": self.mailto,
             }
             payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
             for work in payload.get("results", []):
@@ -159,7 +193,7 @@ class OpenAlex:
             params = {
                 "filter": (f"primary_location.source.id:{source_id},title.search:{query},"
                            f"from_publication_date:{from_date},to_publication_date:{to_date}"),
-                "sort": "publication_date:desc", "per-page": per_query, "page": 1, "mailto": MAILTO,
+                "sort": "publication_date:desc", "per-page": per_query, "page": 1, "mailto": self.mailto,
             }
             try:
                 payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
@@ -173,7 +207,7 @@ class OpenAlex:
     def work(self, identifier):
         """Fetch one work by DOI URL, OpenAlex ID or W-id. Used for seed resolution."""
         # Quote so a stray "?", "#" or space cannot change which request is made.
-        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}")
+        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(self.mailto)}")
 
     def search_works(self, query, per_page=8):
         """Relevance search by paper name for the manual seed picker (an explicit user query).
@@ -181,7 +215,7 @@ class OpenAlex:
         No source or date restriction: a seed may be older or outside arXiv. Only the typed
         text is sent, as a public metadata query.
         """
-        params = {"search": query, "per-page": per_page, "mailto": MAILTO}
+        params = {"search": query, "per-page": per_page, "mailto": self.mailto}
         payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
         return [slim(work, group="seed") for work in payload.get("results", []) if work.get("title")]
 
@@ -191,7 +225,7 @@ class OpenAlex:
         Only the http:// form is indexed; the https:// form times out on OpenAlex.
         """
         params = {"filter": f"locations.landing_page_url:http://arxiv.org/abs/{arxiv_id}",
-                  "per-page": 1, "mailto": MAILTO}
+                  "per-page": 1, "mailto": self.mailto}
         results = self._fetch(f"{API}?{urllib.parse.urlencode(params)}").get("results") or []
         if not results:
             raise SourceError(f"OpenAlex has no arXiv record: {arxiv_id}", "not_found")

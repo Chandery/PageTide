@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from . import creation
 from .language import language
 from .service import App
+from .sources import valid_email
 
 STATIC = Path(__file__).resolve().parent / "static"
 VERSION = "0.12"
@@ -646,7 +647,11 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(settings, dict):
                 return self._json({"error": "settings must be an object"}, 400)
             settings = {k: v for k, v in settings.items() if k not in USER_SETTINGS_EXCLUDED}
+            email = settings.get("contactEmail")
+            if email and not valid_email(email):
+                return self._json({"error": "联系邮箱格式不正确"}, 400)
             settings_file.write_text(json.dumps(settings, indent=2))
+            self._app().apply_contact_email()
             self._json({"status": "saved"})
         elif route == "/api/cache":
             # DELETE cache (via POST with _method: DELETE)
