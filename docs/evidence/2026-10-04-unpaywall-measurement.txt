@@ -1,0 +1,11 @@
+2026-10-04 Unpaywall vs OpenAlex PDF-link coverage (sanitized; run by the owner in their own terminal; no personal data)
+Method: a private script (.local/unpaywall_compare.py, not committed) drew 50 works per topic from OpenAlex (search term, has_doi, type article, from 2023-01-01, not arXiv)
+  and queried Unpaywall v2 once per DOI. "PDF link" = an https direct PDF URL (OpenAlex: best_oa_location / primary_location / locations[].pdf_url; Unpaywall: best_oa_location / oa_locations[].url_for_pdf).
+  The owner passed a placeholder address as the Unpaywall email; Unpaywall answered normally (it does not verify the address).
+Results (works with a DOI):
+  world model (non-arXiv journals): checked 50, not in Unpaywall 19, both have a PDF link 18, only OpenAlex 0, only Unpaywall 0, neither 13 (7 flagged open access)
+  classical Chinese poetry:         checked 50, not in Unpaywall 4,  both have a PDF link 23, only OpenAlex 0, only Unpaywall 0, neither 23 (13 flagged open access)
+  all:                              checked 100, not in Unpaywall 23, both 41, only OpenAlex 0, only Unpaywall 0, neither 36 (20 flagged open access but no PDF link anywhere)
+Real downloads of Unpaywall-only links: none possible (there were 0).
+Reading: on this sample Unpaywall adds no PDF link beyond what OpenAlex already reports. The remaining gap is open-access papers with only a landing page (20/100), which Unpaywall does not fix; the app shows the landing-page link and lets the user attach their own PDF.
+Limits: two topics, 100 works, 2023 onwards, abstracts/titles chosen by search relevance; not the owner's library; field names of the Unpaywall response were not verified against its (script-rendered) documentation page, but the script read url_for_pdf from every location and found links for 41 works.

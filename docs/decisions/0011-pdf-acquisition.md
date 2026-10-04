@@ -27,7 +27,7 @@
 
 - 不新增模型操作，零模型 token，不改 `harness/budget.json`。
 - 外发请求：OpenAlex 按已存在论文的编号补查（公开元数据）；PDF 来源站点的 robots.txt 与 PDF 本身。私人种子、画像、笔记、全文不外发。
-- 不接 Unpaywall：它需要把 DOI 和真实邮箱发给第三方，留作第二阶段，须先量出覆盖率并经 owner 批准。
+- 不接 Unpaywall：它需要把 DOI 和真实邮箱发给第三方。2026-10-04 实测（两个主题各 50 篇非 arXiv 期刊论文，见 `docs/evidence/2026-10-04-unpaywall-measurement.txt`）：Unpaywall 独有的 PDF 直链为 0/77（两边都有 41，只有 OpenAlex 0），没有增量；真正的缺口是“标为开放获取但只有落地页”的论文（20/100），Unpaywall 解决不了，现有的“打开原文页面”加“附加本地 PDF”就是对应办法。**重新评估的条件：** 出现新的实测证据显示某类 DOI 论文 OpenAlex 没有直链而 Unpaywall 有，且 owner 批准发送邮箱。
 
 ## 已知限制
 

@@ -1,3 +1,8 @@
+# 当前工作单元：Unpaywall 评估——结论是这一版不接（2026-10-04，分支 feature/pdf-acquisition）
+
+- owner 要求先量再定。用私有脚本（`.local/unpaywall_compare.py`，不提交）对两个主题各 50 篇非 arXiv 期刊论文，比较 OpenAlex 与 Unpaywall 的 PDF 直链：Unpaywall 独有 0/77，两边都有 41，23 个 DOI 在 Unpaywall 查不到。Unpaywall 没有增量，不接；缺口是“开放获取但只有落地页”（20/100），现有的落地页链接和手动附加就是对应办法。
+- 样本只有两个主题、100 篇、2023 年以后，不是 owner 的库；邮箱用的是占位地址，真实邮箱没有外发。证据见[测量记录](evidence/2026-10-04-unpaywall-measurement.txt)，决定写进 [ADR 0011](decisions/0011-pdf-acquisition.md)，变更见[记录](../changes/2026-10-04-unpaywall-decision.json)。
+
 # 当前工作单元：修复迁移编号冲突导致的启动崩溃（2026-10-04，分支 feature/pdf-acquisition）
 
 - 现象：owner 打开新构建的 app，显示“项目加载失败”。

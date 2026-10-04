@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-04-unpaywall-decision",
+  "class": "docs",
+  "summary": "Records the measured decision not to integrate Unpaywall in this version: on a 100-work sample Unpaywall added no PDF link beyond OpenAlex's (only-Unpaywall 0 of 77 comparable). No code changed.",
+  "tasks": [
+    "PDF-01"
+  ],
+  "files": [
+    "changes/2026-10-04-unpaywall-decision.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0011-pdf-acquisition.md",
+    "docs/evidence/2026-10-04-unpaywall-decision-self-review.md",
+    "docs/evidence/2026-10-04-unpaywall-measurement.txt"
+  ],
+  "scope_note": "Docs only. The measurement script lives in the git-ignored .local/ and is not part of the repository.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Docs only; no code, model call or setting changed. The measurement made about 100 Unpaywall requests and 2 OpenAlex requests from the owner's terminal.",
+    "before": "Unpaywall was an undecided second stage.",
+    "after": "Decided: not needed for this version, with a stated reopening condition.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-04-unpaywall-measurement.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; docs only",
+      "evidence": "docs/evidence/2026-10-04-unpaywall-decision-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "The sample is two topics and 100 works, not the owner's library; the conclusion is 'not needed for this version', not 'never useful'."
+  ]
+}
