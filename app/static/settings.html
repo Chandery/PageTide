@@ -197,11 +197,6 @@
         </label>
       </div>
       <div class="field">
-        <label for="contactEmail">联系邮箱（OpenAlex）</label>
-        <input type="email" id="contactEmail" placeholder="you@example.org" autocomplete="off">
-        <small>只发送给 OpenAlex，用于其公开接口的礼貌访问通道；不写入 PDF 来源站点的请求。留空则使用占位地址，可能更容易被限流。</small>
-      </div>
-      <div class="field">
         <label for="openalexKey">OpenAlex API 密钥（可选）</label>
         <input type="password" id="openalexKey" placeholder="" autocomplete="off">
         <small id="openalexKeyStatus">读取中…</small>
@@ -275,7 +270,6 @@
       $('#newPaperBoost').value  = settings.newPaperBoost  ?? 0.2;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
-      $('#contactEmail').value   = settings.contactEmail || '';
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
       $('#timePreference').value  = settings.timePreference  || 'recent';
 
@@ -333,7 +327,6 @@
         newPaperBoost:  parseFloat($('#newPaperBoost').value) || 0.2,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
-        contactEmail:   $('#contactEmail').value.trim(),
         updateFrequency: $('#updateFrequency').value,
         timePreference:  $('#timePreference').value,
       };

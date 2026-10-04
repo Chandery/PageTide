@@ -16,7 +16,7 @@ from .db import Store, now
 from .gateway import Gateway
 from .language import language
 from .project import ProjectManager
-from .sources import MAILTO, OpenAlex, SourceError, fetch_seed_work, resolve_seed, slim, valid_email
+from .sources import OpenAlex, SourceError, fetch_seed_work, resolve_seed, slim
 
 ACTIONS = ("useful", "irrelevant", "too_hard")
 POSITIVE_ACTIONS = {"useful"}
@@ -41,19 +41,10 @@ class App:
         self.data.mkdir(parents=True, exist_ok=True)
         self.store = Store(self.data / "paperdighelper.sqlite")
         self.store.init()
-        self.source = OpenAlex(self.data / "cache", mailto=self.contact_email(),
-                               api_key=openalex_key.load(self.data))
-        self.pdf_fetcher = pdf_fetch.Fetcher(self.data / "pdfs")
+        self.source = OpenAlex(self.data / "cache", api_key=openalex_key.load(self.data))
+        self.pdf_fetcher = pdf_fetch.shared_fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
-
-    def contact_email(self):
-        """Contact address for OpenAlex's polite pool, from settings.json; None when unset or invalid."""
-        try:
-            value = json.loads((self.data / "settings.json").read_text(encoding="utf-8")).get("contactEmail")
-        except (OSError, ValueError, AttributeError):
-            return None
-        return value if valid_email(value) else None
 
     def openalex_status(self):
         return openalex_key.status(self.data)
@@ -67,9 +58,6 @@ class App:
         status = openalex_key.clear(self.data)
         self.source.api_key = openalex_key.load(self.data)  # an environment key, if any, stays in force
         return status
-
-    def apply_contact_email(self):
-        self.source.mailto = self.contact_email() or MAILTO
 
     def language(self):
         """Interface language from the settings page; "zh-CN" unless "en-US" is chosen."""

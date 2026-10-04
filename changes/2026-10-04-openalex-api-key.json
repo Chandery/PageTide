@@ -71,6 +71,12 @@
       "result": "passed",
       "reviewer": "Implementing agent; secret handling and request construction only",
       "evidence": "docs/evidence/2026-10-04-openalex-key-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Two separate read-only code-review agents with fresh contexts (same model family as the author, not a human). Pass 1 found 8 issues in 1f5ada9..aba281e; pass 2 verified the fixes and found 5 residual items, which the author then fixed with tests; those last fixes were not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-04-independent-review.md"
     }
   ],
   "owner_approved": false,
@@ -78,6 +84,7 @@
     "The key was pasted in chat and sits in the session transcript; rotate it in the OpenAlex account if that matters.",
     "The settings page change was not exercised in a running app.",
     "The key file is plain text under the data directory (0600), the same trust level as the existing DeepSeek key file.",
-    "Measured live: Bearer header accepted, wrong key rejected with 401, allowance 10000 credits / $1 per day with the key versus 1000 / $0.10 without. Whether mailto still matters with a key is undetermined."
+    "Measured live: Bearer header accepted, wrong key rejected with 401, allowance 10000 credits / $1 per day with the key versus 1000 / $0.10 without. Whether mailto still matters with a key is undetermined.",
+    "Reviewed by independent agents after this unit; the fixes are in 2026-10-04-review-fixes-and-mailto. A human review has not been done."
   ]
 }

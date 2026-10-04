@@ -291,7 +291,18 @@ class Store:
                fetched_at=excluded.fetched_at, sha256=excluded.sha256, bytes=excluded.bytes,
                source_kind=excluded.source_kind, license=excluded.license""",
             (paper_key, str(path), source_url, now(), sha256, size, source_kind, license))
+        self.conn.execute(
+            """INSERT INTO pdf_versions (paper_key, path, source_url, sha256, bytes, source_kind, license, fetched_at)
+               SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS
+               (SELECT 1 FROM (SELECT path FROM pdf_versions WHERE paper_key=? ORDER BY id DESC LIMIT 1) WHERE path=?)""",
+            (paper_key, str(path), source_url, sha256, size, source_kind, license, now(), paper_key, str(path)))
         self.conn.commit()
+
+    def pdf_history(self, paper_key):
+        """Every archived copy of a paper's PDF, oldest first, with where each one came from. The last entry is the current one."""
+        return [dict(r) for r in self.conn.execute(
+            "SELECT path, source_url, sha256, bytes, source_kind, license, fetched_at FROM pdf_versions "
+            "WHERE paper_key=? ORDER BY id", (paper_key,))]
 
     def set_paper_oa(self, paper_key, oa):
         self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",

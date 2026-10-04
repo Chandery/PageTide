@@ -213,9 +213,26 @@ def migrate_005_pdf_acquisition(conn):
                                 ("pdfs", "license", "TEXT")):
         try:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        except sqlite3.OperationalError as exc:
+            if "duplicate column" not in str(exc).lower():
+                raise  # a locked or read-only database must not be recorded as migrated
     set_schema_version(conn, 5)
+
+
+def migrate_006_pdf_versions(conn):
+    """Append-only history of archived PDFs, so replacing a paper's PDF never loses where the old one came from."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS pdf_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            paper_key TEXT NOT NULL, path TEXT NOT NULL, source_url TEXT, sha256 TEXT, bytes INTEGER,
+            source_kind TEXT, license TEXT, fetched_at TEXT NOT NULL
+        )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_pdf_versions_paper ON pdf_versions(paper_key, id)")
+    conn.execute("""
+        INSERT INTO pdf_versions (paper_key, path, source_url, sha256, bytes, source_kind, license, fetched_at)
+        SELECT paper_key, path, source_url, sha256, bytes, source_kind, license, fetched_at FROM pdfs
+        WHERE NOT EXISTS (SELECT 1 FROM pdf_versions v WHERE v.paper_key = pdfs.paper_key AND v.path = pdfs.path)""")
+    set_schema_version(conn, 6)
 
 
 MIGRATIONS = [
@@ -224,6 +241,7 @@ MIGRATIONS = [
     migrate_003_project_guidance,
     migrate_004_project_scoped_qa,
     migrate_005_pdf_acquisition,
+    migrate_006_pdf_versions,
 ]
 
 

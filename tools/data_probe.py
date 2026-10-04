@@ -39,7 +39,7 @@ NS = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/ato
 UA = "PaperDigHelper-DATA01-probe/0.1 (local read-only research)"
 ARXIV_GAP_SECONDS = 3.1
 OPENALEX_GAP_SECONDS = 2.0
-MAILTO = "owner@example.invalid"  # OpenAlex polite pool; replace with owner contact before heavier use
+MAILTO = "owner@example.invalid"  # OpenAlex ignores mailto since 2026-02; kept so cached snapshot URLs stay valid
 
 
 def openalex_auth_headers(url):

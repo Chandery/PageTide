@@ -823,8 +823,6 @@
   "来源链接不是 https，已拒绝。": "The source link is not https and was refused.",
   "无法获取 PDF。": "Could not get the PDF.",
   "没有可用的 PDF": "No PDF available",
-  "联系邮箱（OpenAlex）": "Contact email (OpenAlex)",
-  "只发送给 OpenAlex，用于其公开接口的礼貌访问通道；不写入 PDF 来源站点的请求。留空则使用占位地址，可能更容易被限流。": "Sent only to OpenAlex, for the polite pool of its public API; never included in requests to PDF source sites. If empty, a placeholder address is used and you may be rate limited sooner.",
   "OpenAlex API 密钥（可选）": "OpenAlex API key (optional)",
   "清除 OpenAlex 密钥": "Clear OpenAlex key",
   "已配置（来自环境变量，不回显）": "Configured (from an environment variable; not shown)",

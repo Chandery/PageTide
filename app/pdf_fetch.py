@@ -5,10 +5,13 @@ opened or asked for that paper. Nothing here bypasses a paywall or uses credenti
 (403, robots.txt) is reported, not worked around.
 """
 import hashlib
+import http.client
+import ipaddress
 import json
 import os
 import re
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -25,6 +28,7 @@ DEFAULT_GAP_SECONDS = 1.0
 MAX_WAIT_SECONDS = 10.0
 MAX_CRAWL_DELAY_SECONDS = 60.0  # a robots.txt Crawl-delay is honoured up to this
 MAX_REDIRECTS = 5
+ROBOTS_TTL_SECONDS = 24 * 3600  # a long-running desktop session must not trust a robots answer forever
 CHUNK = 64 * 1024
 ARXIV_PDF = "https://arxiv.org/pdf/{}"
 
@@ -38,18 +42,66 @@ class PdfFetchError(RuntimeError):
         self.kind = kind
 
 
-class _HttpsOnly(urllib.request.HTTPRedirectHandler):
+_DNS_NAME = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+")
+_LOCAL_SUFFIXES = (".localhost", ".local", ".internal", ".lan", ".home.arpa", ".localdomain")
+
+
+def _host_of(parts):
+    """Lower-case host without userinfo and without a trailing dot (arxiv.org. is arxiv.org)."""
+    host = (parts.hostname or "").rstrip(".")
+    return host
+
+
+def _authority(parts):
+    """host[:port] without userinfo, the key for robots.txt, pacing and locks (IPv6 in brackets)."""
+    host = _host_of(parts)
+    port = parts.port  # ValueError for a malformed port; callers map it to invalid_url
+    shown = f"[{host}]" if ":" in host else host
+    return shown if port in (None, 443) else f"{shown}:{port}"
+
+
+def _require_public_https(url):
+    """Only https URLs on public hosts. A host must be a public IP literal or a dotted DNS name:
+    private/loopback addresses, alternate IPv4 spellings (2130706433, 0x7f.1, 127.1), single-label
+    names and local suffixes are refused."""
+    try:
+        parts = urllib.parse.urlsplit(url)
+        host = _host_of(parts)
+        _authority(parts)
+    except ValueError as exc:
+        raise PdfFetchError(f"malformed URL: {url}", "invalid_url") from exc
+    if parts.scheme != "https" or not host:
+        raise PdfFetchError(f"only https PDF links are fetched: {url}", "invalid_url")
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        if not literal.is_global:
+            raise PdfFetchError(f"refusing a non-public address: {host}", "invalid_url")
+        return parts
+    if (not _DNS_NAME.fullmatch(host) or host.rsplit(".", 1)[-1].isdigit() or host.endswith(_LOCAL_SUFFIXES)):
+        raise PdfFetchError(f"refusing a host that is not a public DNS name: {host}", "invalid_url")
+    return parts
+
+
+class _Redirects(urllib.request.HTTPRedirectHandler):
+    """Every hop must be https on a public host; `gate` also applies robots.txt and pacing to it."""
     max_redirections = MAX_REDIRECTS
 
+    def __init__(self, gate=None):
+        self.gate = gate
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        if not newurl.lower().startswith("https://"):
-            raise PdfFetchError(f"redirect to a non-https URL: {newurl}", "invalid_url")
+        _require_public_https(newurl)
+        if self.gate:
+            self.gate(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def _open(request, timeout=60):
+def _open(request, timeout=60, gate=None):
     """The single network seam (tests replace it)."""
-    return urllib.request.build_opener(_HttpsOnly).open(request, timeout=timeout)
+    return urllib.request.build_opener(_Redirects(gate)).open(request, timeout=timeout)
 
 
 def candidates(paper):
@@ -76,85 +128,104 @@ def stem_of(paper):
 
 
 class Fetcher:
+    """One per data directory and shared by every request (see shared_fetcher): robots.txt answers and
+    the time of the last request to each host must outlive a single HTTP request to be of any use."""
+
     def __init__(self, dest_dir):
         self.dest = Path(dest_dir)
         self._last_request = {}
         self._robots = {}
+        self._locks = {}
+        self._guard = threading.Lock()
+
+    def _host_lock(self, authority):
+        with self._guard:
+            return self._locks.setdefault(authority, threading.RLock())
 
     # ----------------------------------------------------------------- robots
     def _robots_allow(self, url):
         parts = urllib.parse.urlsplit(url)
-        host = parts.netloc.lower()
-        if host not in self._robots:
-            robots_url = f"https://{host}/robots.txt"
-            parser = urllib.robotparser.RobotFileParser()
-            try:
-                with _open(urllib.request.Request(robots_url, headers={"User-Agent": UA}), timeout=20) as response:
-                    parser.parse(response.read(512 * 1024).decode("utf-8", "replace").splitlines())
-            except urllib.error.HTTPError as exc:
-                if 400 <= exc.code < 500:
-                    parser.parse([])  # no robots.txt: nothing is disallowed
-                else:
-                    raise PdfFetchError(f"robots.txt unavailable for {host} (HTTP {exc.code})", "network_error") from exc
-            except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                raise PdfFetchError(f"robots.txt unreachable for {host}: {exc}", "network_error") from exc
-            self._robots[host] = parser
-        return self._robots[host].can_fetch(ROBOTS_AGENT, url)
+        authority = _authority(parts)
+        with self._host_lock(authority):
+            cached = self._robots.get(authority)
+            if cached is None or time.monotonic() - cached[1] > ROBOTS_TTL_SECONDS:
+                robots_url = f"https://{authority}/robots.txt"
+                parser = urllib.robotparser.RobotFileParser()
+                try:
+                    with _open(urllib.request.Request(robots_url, headers={"User-Agent": UA}), timeout=20) as response:
+                        parser.parse(response.read(512 * 1024).decode("utf-8", "replace").splitlines())
+                except urllib.error.HTTPError as exc:
+                    if exc.code == 429 or exc.code >= 500 or 300 <= exc.code < 400:
+                        raise PdfFetchError(f"robots.txt unavailable for {authority} (HTTP {exc.code})", "network_error") from exc
+                    parser.parse([])  # other 4xx: no robots.txt, so nothing is disallowed
+                except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException, ValueError) as exc:
+                    raise PdfFetchError(f"robots.txt unreachable for {authority}: {exc}", "network_error") from exc
+                cached = self._robots[authority] = (parser, time.monotonic())
+            return cached[0].can_fetch(ROBOTS_AGENT, url)
 
     # ---------------------------------------------------------------- pacing
-    def _gap(self, host):
+    def _gap(self, authority):
         """Seconds between requests to a host: our floor, or the site's robots Crawl-delay if longer."""
+        host = authority.split(":")[0]
         gap = GAP_SECONDS.get(host, DEFAULT_GAP_SECONDS)
-        parser = self._robots.get(host)
-        delay = parser.crawl_delay(ROBOTS_AGENT) if parser else None
+        cached = self._robots.get(authority)
+        delay = cached[0].crawl_delay(ROBOTS_AGENT) if cached else None
         try:
             delay = float(delay) if delay is not None else 0.0
         except (TypeError, ValueError):
             delay = 0.0
         return max(gap, min(delay, MAX_CRAWL_DELAY_SECONDS))
 
-    def _pace(self, host):
-        gap = self._gap(host)
-        last = self._last_request.get(host)
-        if last is not None:
-            wait = gap - (time.monotonic() - last)
-            if wait > 0:
-                time.sleep(wait)
-        self._last_request[host] = time.monotonic()
+    def _pace(self, authority):
+        """Wait out the gap since the last request to this host. The robots.txt fetch itself is not
+        counted (usual crawler practice), so a first download is not delayed by it."""
+        with self._host_lock(authority):
+            last = self._last_request.get(authority)
+            if last is not None:
+                wait = self._gap(authority) - (time.monotonic() - last)
+                if wait > 0:
+                    time.sleep(wait)
+            self._last_request[authority] = time.monotonic()
+
+    def _redirect_gate(self, url):
+        """robots.txt and pacing for a redirect target, which may be a different host."""
+        if not self._robots_allow(url):
+            raise PdfFetchError(f"robots.txt disallows {url}", "robots_disallowed")
+        self._pace(_authority(urllib.parse.urlsplit(url)))
 
     # ------------------------------------------------------------------ fetch
     def fetch(self, url, stem):
         """Download one PDF; returns {path, sha256, bytes, url} or raises PdfFetchError."""
-        parts = urllib.parse.urlsplit(url)
-        if parts.scheme != "https" or not parts.netloc:
-            raise PdfFetchError(f"only https PDF links are fetched: {url}", "invalid_url")
-        host = parts.netloc.lower()
+        parts = _require_public_https(url)
+        authority = _authority(parts)
         if not self._robots_allow(url):
             raise PdfFetchError(f"robots.txt disallows {url}", "robots_disallowed")
         last_error = None
         for attempt in range(2):  # one retry, only for rate limiting and server errors
-            self._pace(host)
+            self._pace(authority)
             try:
                 request = urllib.request.Request(url, headers={"User-Agent": UA})
-                with _open(request, timeout=60) as response:
+                with _open(request, timeout=60, gate=self._redirect_gate) as response:
                     return self._save(response, url, stem)
             except urllib.error.HTTPError as exc:
                 if exc.code in (401, 403):
-                    raise PdfFetchError(f"HTTP {exc.code} from {host}", "paywalled_or_blocked") from exc
+                    raise PdfFetchError(f"HTTP {exc.code} from {authority}", "paywalled_or_blocked") from exc
                 if exc.code in (404, 410):
                     raise PdfFetchError(f"HTTP {exc.code}: no file at {url}", "not_found") from exc
-                last_error = PdfFetchError(f"HTTP {exc.code} from {host}",
+                last_error = PdfFetchError(f"HTTP {exc.code} from {authority}",
                                            "rate_limited" if exc.code == 429 else "network_error")
                 if attempt == 0:
-                    time.sleep(self._retry_delay(exc, host))
-            except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                last_error = PdfFetchError(f"{host} unreachable: {exc}", "network_error")
+                    time.sleep(self._retry_delay(exc, authority))
+            except (http.client.InvalidURL, ValueError) as exc:  # includes UnicodeError; retrying cannot help
+                raise PdfFetchError(f"malformed URL: {url}", "invalid_url") from exc
+            except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+                last_error = PdfFetchError(f"{authority} unreachable: {exc}", "network_error")
                 if attempt == 0:
                     time.sleep(min(DEFAULT_GAP_SECONDS * 2, MAX_WAIT_SECONDS))
         raise last_error
 
-    def _retry_delay(self, exc, host):
-        gap = self._gap(host)
+    def _retry_delay(self, exc, authority):
+        gap = self._gap(authority)
         try:
             asked = float(exc.headers.get("Retry-After")) if exc.headers and exc.headers.get("Retry-After") else gap
         except (TypeError, ValueError):
@@ -203,3 +274,14 @@ class Fetcher:
             if os.path.exists(temp):
                 os.unlink(temp)
             raise
+
+
+_SHARED = {}
+_SHARED_LOCK = threading.Lock()
+
+
+def shared_fetcher(dest_dir):
+    """The process-wide Fetcher for a data directory (the HTTP server builds a new App per request)."""
+    key = str(Path(dest_dir).resolve())
+    with _SHARED_LOCK:
+        return _SHARED.setdefault(key, Fetcher(dest_dir))

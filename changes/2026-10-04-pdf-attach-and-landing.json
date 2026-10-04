@@ -73,13 +73,19 @@
       "result": "passed",
       "reviewer": "Implementing agent; attach route and reader behaviour only",
       "evidence": "docs/evidence/2026-10-04-pdf-attach-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Two separate read-only code-review agents with fresh contexts (same model family as the author, not a human). Pass 1 found 8 issues in 1f5ada9..aba281e; pass 2 verified the fixes and found 5 residual items, which the author then fixed with tests; those last fixes were not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-04-independent-review.md"
     }
   ],
   "owner_approved": false,
   "open_risks": [
-    "E-PDF-ARCHIVE is passed on self-run evidence; an independent review has not been done and byte-range resume is not implemented.",
     "The Tauri window itself was not exercised; the same static pages were checked in a browser preview.",
     "Whether Unpaywall is needed rests on one non-arXiv sample (DreamerV3, landing page only).",
-    "Whether mailto still matters when an OpenAlex key is set is undetermined."
+    "Whether mailto still matters when an OpenAlex key is set is undetermined.",
+    "Reviewed by independent agents after this unit; the fixes are in 2026-10-04-review-fixes-and-mailto. A human review has not been done."
   ]
 }

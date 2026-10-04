@@ -16,7 +16,7 @@ from pathlib import Path
 API = "https://api.openalex.org/works"
 ARXIV_SOURCE_ID = "S4306400194"  # OpenAlex source: arXiv (Cornell University)
 UA = "PaperDigHelper/0.1 (local research; read-only metadata)"
-MAILTO = "owner@example.invalid"  # replace with the owner's contact for heavier use
+MAILTO = "owner@example.invalid"  # OpenAlex ignores mailto since 2026-02 (API keys replaced the polite pool); kept so cached URLs stay valid
 GAP_SECONDS = 2.0
 FIELD_QUERY = "world model"
 DISTRACTOR_QUERIES = ["diffusion model", "large language model", "reinforcement learning",
@@ -54,11 +54,6 @@ def ids_of(work):
 def key_of(work):
     ids = ids_of(work)
     return ids["doi"] or ids["openalex_id"] or normalize_title(work.get("title"))
-
-
-def valid_email(value):
-    """Loose syntax check for the contact address sent to OpenAlex's polite pool."""
-    return isinstance(value, str) and re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value) is not None
 
 
 def oa_of(work):
@@ -107,10 +102,9 @@ class SourceError(RuntimeError):
 
 
 class OpenAlex:
-    def __init__(self, cache_dir, mailto=None, api_key=None):
+    def __init__(self, cache_dir, api_key=None):
         self.cache = Path(cache_dir)
         self.cache.mkdir(parents=True, exist_ok=True)
-        self.mailto = mailto if valid_email(mailto) else MAILTO
         self.api_key = api_key
 
     def _request(self, url):
@@ -122,15 +116,8 @@ class OpenAlex:
             request.add_unredirected_header("Authorization", f"Bearer {self.api_key}")
         return request
 
-    def _cache_key(self, url):
-        """Cache entries are keyed as if the placeholder contact were used, so setting the real
-        address does not orphan the existing cache (and spend rate limit refetching it)."""
-        if self.mailto == MAILTO:
-            return url
-        return url.replace(urllib.parse.quote(self.mailto), urllib.parse.quote(MAILTO))
-
     def _fetch(self, url, retries=2):
-        digest = hashlib.sha256(self._cache_key(url).encode()).hexdigest()[:16]
+        digest = hashlib.sha256(url.encode()).hexdigest()[:16]
         cached = self.cache / f"{digest}.json"
         if cached.exists():
             try:
@@ -183,7 +170,7 @@ class OpenAlex:
             params = {
                 "filter": (f"primary_location.source.id:{source_id},title.search:{search},"
                            f"from_publication_date:{from_date},to_publication_date:{to_date}"),
-                "sort": "publication_date:desc", "per-page": per_page, "page": page, "mailto": self.mailto,
+                "sort": "publication_date:desc", "per-page": per_page, "page": page, "mailto": MAILTO,
             }
             payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
             for work in payload.get("results", []):
@@ -202,7 +189,7 @@ class OpenAlex:
             params = {
                 "filter": (f"primary_location.source.id:{source_id},title.search:{query},"
                            f"from_publication_date:{from_date},to_publication_date:{to_date}"),
-                "sort": "publication_date:desc", "per-page": per_query, "page": 1, "mailto": self.mailto,
+                "sort": "publication_date:desc", "per-page": per_query, "page": 1, "mailto": MAILTO,
             }
             try:
                 payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
@@ -216,7 +203,7 @@ class OpenAlex:
     def work(self, identifier):
         """Fetch one work by DOI URL, OpenAlex ID or W-id. Used for seed resolution."""
         # Quote so a stray "?", "#" or space cannot change which request is made.
-        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(self.mailto)}")
+        return self._fetch(f"{API}/{urllib.parse.quote(identifier, safe=':/')}?mailto={urllib.parse.quote(MAILTO)}")
 
     def search_works(self, query, per_page=8):
         """Relevance search by paper name for the manual seed picker (an explicit user query).
@@ -224,7 +211,7 @@ class OpenAlex:
         No source or date restriction: a seed may be older or outside arXiv. Only the typed
         text is sent, as a public metadata query.
         """
-        params = {"search": query, "per-page": per_page, "mailto": self.mailto}
+        params = {"search": query, "per-page": per_page, "mailto": MAILTO}
         payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}")
         return [slim(work, group="seed") for work in payload.get("results", []) if work.get("title")]
 
@@ -234,7 +221,7 @@ class OpenAlex:
         Only the http:// form is indexed; the https:// form times out on OpenAlex.
         """
         params = {"filter": f"locations.landing_page_url:http://arxiv.org/abs/{arxiv_id}",
-                  "per-page": 1, "mailto": self.mailto}
+                  "per-page": 1, "mailto": MAILTO}
         results = self._fetch(f"{API}?{urllib.parse.urlencode(params)}").get("results") or []
         if not results:
             raise SourceError(f"OpenAlex has no arXiv record: {arxiv_id}", "not_found")

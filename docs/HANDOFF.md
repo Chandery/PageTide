@@ -1,3 +1,10 @@
+# 当前工作单元：独立审查的修复与移除无效的 mailto（2026-10-04，分支 feature/pdf-acquisition）
+
+- 独立审查（全新上下文的审查代理，只读）对 `1f5ada9..aba281e` 给出 8 条发现，密钥处理被确认安全。已修：**抓取器每个请求都被重建**（桌面服务每次请求新建 `App`），导致间隔、arXiv 15 秒 Crawl-delay、robots 缓存全部失效，现在是进程内共享并加主机级锁；非 OSError 的异常（`InvalidURL`、`UnicodeError`、`IncompleteRead`…）会逃出 `download_pdf`，现已归类；重定向目标没有 robots/间隔/公网检查，现已加上；替换 PDF 丢失旧来源，新增 `pdf_versions`（迁移 006）；只有两条路由检查 Origin，现在所有写入路由都检查；迁移 005 吞掉所有 `OperationalError`，现只忽略重复列；robots 429 被当成“无限制”，现按不可用。没改并说明理由：robots.txt 请求不计入间隔（否则第一次下载要等 15 秒）；附加本地 PDF 仍是一次性上传。
+- 实测并移除 `mailto`：OpenAlex 官方弃用页说礼貌通道已被 API 密钥取代，“`mailto` 被忽略”；四种组合实测额度与耗时一致。设置页的“联系邮箱”已删除，不再向 OpenAlex 发送用户邮箱（`settings.json` 里已有的 `contactEmail` 无害，下次保存设置时会被丢掉）。
+- 打包版检查：`.app` 内的服务能启动，从零迁移到最新版本，新页面和路由可用，无会话 cookie 返回 403；Tauri 壳能启动并加载页面，但 macOS 权限不允许我截图或点击窗口，所以窗口里的点击没有做过。
+- 见[独立审查记录](evidence/2026-10-04-independent-review.md)、[变更](../changes/2026-10-04-review-fixes-and-mailto.json)。
+
 # 当前工作单元：PDF 获取收尾——手动附加、落地页、实测（2026-10-04，分支 feature/pdf-acquisition）
 
 - 把 plan 里剩下的做完：为已有论文手动附加 PDF（`POST /api/pdf/attach`，复用 `/api/seeds/pdf` 上传和 `take_imported_pdf`，以 `source_kind=user_import` 记录，已有下载文件不删）；开放获取但只有落地页的论文报 `landing_page_only` 并显示“打开原文页面”；所有失败都提供“附加本地 PDF”。

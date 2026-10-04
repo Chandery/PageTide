@@ -86,16 +86,31 @@ class RequestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertIsNone(sources.OpenAlex(tmp)._request("https://api.openalex.org/works").get_header("Authorization"))
 
-    def test_cache_key_and_error_text_do_not_contain_the_key(self):
+    def test_a_cached_response_is_shared_with_and_without_a_key_and_errors_do_not_contain_it(self):
         with tempfile.TemporaryDirectory() as tmp:
-            keyed, plain = sources.OpenAlex(tmp, api_key=DUMMY), sources.OpenAlex(tmp)
             url = "https://api.openalex.org/works?search=x"
-            self.assertEqual(keyed._cache_key(url), plain._cache_key(url))  # adding a key keeps the cache valid
+            body = json.dumps({"results": []}).encode()
+
+            class Reply:
+                def __init__(self):
+                    self.headers = {}
+
+                def read(self):
+                    return body
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *exc):
+                    return False
+            with mock.patch.object(sources.urllib.request, "urlopen", return_value=Reply()), mock.patch.object(sources.time, "sleep"):
+                sources.OpenAlex(tmp)._fetch(url)  # filled without a key
+            with mock.patch.object(sources.urllib.request, "urlopen", side_effect=AssertionError("must be a cache hit")):
+                self.assertEqual(sources.OpenAlex(tmp, api_key=DUMMY)._fetch(url), {"results": []})  # a key keeps the cache valid
             error = urllib.error.HTTPError(url, 500, "boom", {}, None)
-            with mock.patch.object(sources.urllib.request, "urlopen", side_effect=error), \
-                    mock.patch.object(sources.time, "sleep"):
+            with mock.patch.object(sources.urllib.request, "urlopen", side_effect=error), mock.patch.object(sources.time, "sleep"):
                 with self.assertRaises(sources.SourceError) as caught:
-                    keyed._fetch(url)
+                    sources.OpenAlex(tmp, api_key=DUMMY)._fetch("https://api.openalex.org/works?search=other")
             self.assertNotIn(DUMMY, str(caught.exception))
 
     def test_probe_sends_the_key_only_to_openalex(self):
@@ -164,7 +179,7 @@ class ServiceAndServerTests(unittest.TestCase):
     def test_key_never_lands_in_the_user_settings_file(self):
         port = self._serve()
         self._call(port, "/api/settings", {"openalex_key": DUMMY})
-        self._call(port, "/api/user_settings", {"settings": {"contactEmail": "me@lab.example"}})
+        self._call(port, "/api/user_settings", {"settings": {"theme": "dark"}})
         for path in self.root.rglob("settings.json"):
             self.assertNotIn(DUMMY, path.read_text())
 

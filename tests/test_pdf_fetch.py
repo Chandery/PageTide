@@ -9,8 +9,10 @@ import json
 import sqlite3
 import sys
 import tempfile
+import time
 import unittest
 import urllib.error
+import urllib.request
 from pathlib import Path
 from unittest import mock
 
@@ -62,11 +64,12 @@ class Net:
     """Routes URLs to responses and records every request; robots.txt is absent (404) unless given."""
 
     def __init__(self, routes=None, robots=None):
-        self.routes, self.robots, self.calls = routes or {}, robots, []
+        self.routes, self.robots, self.calls, self.gates = routes or {}, robots, [], []
 
-    def __call__(self, request, timeout=None):
+    def __call__(self, request, timeout=None, gate=None):
         url = request.full_url
         self.calls.append(url)
+        self.gates.append(gate)
         if url.endswith("/robots.txt"):
             if self.robots is None:
                 raise http_error(url, 404)
@@ -207,7 +210,7 @@ class FetchTests(unittest.TestCase):
         net = Net({"https://arxiv.org/pdf/x": PDF})
         original = net.__call__
 
-        def robots_500(request, timeout=None):
+        def robots_500(request, timeout=None, gate=None):
             if request.full_url.endswith("/robots.txt"):
                 raise http_error(request.full_url, 503)
             return original(request, timeout)
@@ -273,13 +276,13 @@ class StoreMigrationTests(unittest.TestCase):
             store.record_pdf("k", "/tmp/a.pdf", "https://arxiv.org/pdf/1")
             store.close()
             conn = sqlite3.connect(str(path))
-            conn.execute("DELETE FROM schema_version WHERE version=5")
+            conn.execute("DELETE FROM schema_version WHERE version>=5")
             conn.commit()
             conn.close()
             store = Store(path)
             store.init()  # re-applies 005 on an already-migrated file without failing
             self.assertEqual(migrations.get_schema_version(store.conn), len(migrations.MIGRATIONS))
-            self.assertGreaterEqual(len(migrations.MIGRATIONS), 5)
+            self.assertGreaterEqual(len(migrations.MIGRATIONS), 6)
             columns = {r[1] for r in store.conn.execute("PRAGMA table_info(pdfs)")}
             self.assertTrue({"sha256", "bytes", "source_kind", "license"} <= columns)
             self.assertIn("oa_json", {r[1] for r in store.conn.execute("PRAGMA table_info(papers)")})
@@ -310,7 +313,7 @@ class AppCase(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        root = Path(tmp.name)
+        root = self.root = Path(tmp.name)
         (root / "harness").mkdir()
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
         (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
@@ -491,11 +494,13 @@ class AttachRouteTests(unittest.TestCase):
         self.app = server.make_app(str(self.root))
         self.app.store.upsert_papers([{"key": "k", "title": "T"}])
 
-    def call(self, path, body=None, raw=None):
+    def call(self, path, body=None, raw=None, origin=None):
         import urllib.request
         data = raw if raw is not None else json.dumps(body).encode()
-        request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", data=data, method="POST",
-                                         headers={"Content-Type": "application/octet-stream" if raw is not None else "application/json"})
+        headers = {"Content-Type": "application/octet-stream" if raw is not None else "application/json"}
+        if origin:
+            headers["Origin"] = origin
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", data=data, method="POST", headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=5) as response:
                 return response.status, json.loads(response.read())
@@ -511,6 +516,20 @@ class AttachRouteTests(unittest.TestCase):
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/pdf/view?key=k", timeout=5) as response:
             self.assertEqual(response.read(), PDF)
 
+    def test_every_write_route_refuses_a_foreign_origin(self):
+        for path, body in (("/api/pdf/attach", {"key": "k", "pdf_id": "0" * 64}), ("/api/pdf/prepare", {"key": "k"}),
+                           ("/api/pdf", {"key": "k"}), ("/api/user_settings", {"settings": {"theme": "dark"}}),
+                           ("/api/settings", {"openalex_key": "dummy-openalex-key-0000"})):
+            status, payload = self.call(path, body, origin="http://evil.example")
+            self.assertEqual((status, payload.get("error")), (403, "cross-origin request denied"), path)
+        status, _ = self.call("/api/seeds/pdf", raw=PDF, origin="http://evil.example")
+        self.assertEqual(status, 403)
+        self.assertEqual(self.app.pdf_path("k"), None)
+
+    def test_same_origin_requests_still_work(self):
+        status, payload = self.call("/api/pdf/attach", {"key": "k", "pdf_id": "0" * 64}, origin=f"http://127.0.0.1:{self.port}")
+        self.assertEqual(status, 400)  # reached the handler (the upload id is unknown), not the origin check
+
     def test_attach_errors_are_400_with_a_message(self):
         status, body = self.call("/api/pdf/attach", {"key": "k", "pdf_id": "0" * 64})
         self.assertEqual(status, 400)
@@ -519,31 +538,227 @@ class AttachRouteTests(unittest.TestCase):
         self.assertEqual(status, 400)
 
 
-class ContactEmailTests(unittest.TestCase):
-    def test_mailto_uses_configured_email_and_cache_key_is_unchanged(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            client = sources.OpenAlex(tmp)
-            seen = []
-            real = sources.urllib.request.urlopen
+class ReviewFixTests(AppCase):
+    """Findings of the independent review (2026-10-04)."""
 
-            def fake(request, timeout=None):
-                seen.append(request.full_url)
-                return FakeResponse(json.dumps({"results": []}).encode())
-            client.mailto = "me@lab.example"
-            with mock.patch.object(sources.urllib.request, "urlopen", fake), \
-                    mock.patch.object(sources.time, "sleep"):
-                client.search_works("x")
-            self.assertIn("mailto=me%40lab.example", seen[0])
-            client2 = sources.OpenAlex(tmp)  # placeholder email, same query: served from the cache
-            with mock.patch.object(sources.urllib.request, "urlopen", fake):
-                client2.search_works("x")
-            self.assertEqual(len(seen), 1)
-            self.assertIsNotNone(real)
+    def fake_clock(self):
+        clock = [100.0]
+        sleep = mock.patch.object(pdf_fetch.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)).start()
+        mock.patch.object(pdf_fetch.time, "monotonic", lambda: clock[0]).start()
+        return sleep
 
-    def test_email_validation(self):
-        self.assertTrue(sources.valid_email("me@lab.example"))
-        for bad in ("", "no-at", "a b@c.d", "x@y", None):
-            self.assertFalse(sources.valid_email(bad))
+    def test_every_request_gets_the_same_fetcher_so_pacing_and_robots_persist(self):
+        # The HTTP server builds a new App per request; a per-App fetcher would forget everything.
+        other = App(root=str(self.root), data_dir=str(self.app.data))
+        self.addCleanup(other.store.close)
+        self.assertIs(other.pdf_fetcher, self.app.pdf_fetcher)
+        sleep = self.fake_clock()
+        self.add(key="a", arxiv_id="2603.00001")
+        self.add(key="b", arxiv_id="2603.00002")
+        net = Net({"https://arxiv.org/pdf/2603.00001": PDF, "https://arxiv.org/pdf/2603.00002": PDF_B})
+        with mock.patch.object(pdf_fetch, "_open", net):
+            self.assertTrue(self.app.download_pdf("a")["ok"])
+            self.assertTrue(other.download_pdf("b")["ok"])
+        self.assertEqual([c.args[0] for c in sleep.call_args_list], [3.0])  # spaced across two App objects
+        self.assertEqual(sum(u.endswith("/robots.txt") for u in net.calls), 1)  # robots read once, not per request
+
+    def test_parallel_downloads_from_one_host_are_spaced(self):
+        import threading
+        mock.patch.stopall()  # this test needs the real clock and the real sleep
+        starts = []
+        real_monotonic = time.monotonic
+
+        def net(request, timeout=None, gate=None):
+            if request.full_url.endswith("/robots.txt"):
+                raise http_error(request.full_url, 404)
+            starts.append(real_monotonic())
+            return FakeResponse(PDF, url=request.full_url)
+        fetcher = pdf_fetch.Fetcher(self.root / "pp")
+        real_monotonic, real_sleep = time.monotonic, time.sleep
+
+        def slow_monotonic():  # widens the window between "read the last request time" and "record this one"
+            real_sleep(0.05)
+            return real_monotonic()
+        with mock.patch.object(pdf_fetch, "DEFAULT_GAP_SECONDS", 0.3), mock.patch.object(pdf_fetch, "_open", net), \
+                mock.patch.object(pdf_fetch.time, "monotonic", slow_monotonic):
+            threads = [threading.Thread(target=fetcher.fetch, args=(f"https://pub.example.org/{n}.pdf", n)) for n in "ab"]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(10)
+        self.assertEqual(len(starts), 2)
+        self.assertGreaterEqual(abs(starts[1] - starts[0]), 0.27)
+
+    def test_malformed_and_odd_failures_are_reported_not_raised(self):
+        import http.client
+        cases = [(http.client.InvalidURL("bad"), "invalid_url"), (UnicodeEncodeError("ascii", "é", 0, 1, "x"), "invalid_url"),
+                 (http.client.IncompleteRead(b"ab"), "network_error"), (http.client.BadStatusLine("x"), "network_error")]
+        for error, kind in cases:
+            fetcher = pdf_fetch.Fetcher(self.root / "x")
+            url = "https://pub.example.org/a.pdf"
+            with mock.patch.object(pdf_fetch, "_open", Net({url: error})):
+                with self.assertRaises(pdf_fetch.PdfFetchError) as caught:
+                    fetcher.fetch(url, "a")
+            self.assertEqual(caught.exception.kind, kind, repr(error))
+
+    def test_a_malformed_first_candidate_does_not_stop_the_next_one(self):
+        import http.client
+        self.add(oa={"is_oa": True, "pdf_urls": ["https://bad.example.org/a b.pdf", "https://good.example.org/p.pdf"]})
+        net = Net({"https://bad.example.org/a b.pdf": http.client.InvalidURL("space"), "https://good.example.org/p.pdf": PDF})
+        result = self.download(net)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["source_kind"], "openalex_oa")
+
+    def test_private_and_local_hosts_are_refused_before_any_request(self):
+        for url in ("https://127.0.0.1/p.pdf", "https://192.168.1.5/p.pdf", "https://10.0.0.2/p.pdf",
+                    "https://[::1]/p.pdf", "https://localhost/p.pdf", "https://printer.local/p.pdf"):
+            net = Net({})
+            with mock.patch.object(pdf_fetch, "_open", net):
+                with self.assertRaises(pdf_fetch.PdfFetchError) as caught:
+                    pdf_fetch.Fetcher(self.root / "x").fetch(url, "a")
+            self.assertEqual((caught.exception.kind, net.calls), ("invalid_url", []), url)
+
+    def test_userinfo_and_default_port_do_not_create_a_second_host_identity(self):
+        net = Net({"https://user@arxiv.org:443/pdf/x": PDF})
+        with mock.patch.object(pdf_fetch, "_open", net):
+            pdf_fetch.Fetcher(self.root / "x").fetch("https://user@arxiv.org:443/pdf/x", "x")
+        self.assertIn("https://arxiv.org/robots.txt", net.calls)
+
+    def test_redirect_hops_must_be_https_and_public_and_pass_the_gate(self):
+        seen = []
+        handler = pdf_fetch._Redirects(gate=seen.append)
+        request = urllib.request.Request("https://pub.example.org/a.pdf")
+        for bad in ("http://cdn.example.org/p.pdf", "https://127.0.0.1/secret", "https://localhost/x", "https://10.1.1.1/x"):
+            with self.assertRaises(pdf_fetch.PdfFetchError, msg=bad):
+                handler.redirect_request(request, None, 302, "Found", {}, bad)
+        self.assertEqual(seen, [])
+        redirected = handler.redirect_request(request, None, 302, "Found", {}, "https://cdn.example.org/p.pdf")
+        self.assertEqual(redirected.full_url, "https://cdn.example.org/p.pdf")
+        self.assertEqual(seen, ["https://cdn.example.org/p.pdf"])
+
+    def test_redirect_target_host_gets_robots_and_pacing(self):
+        sleep = self.fake_clock()
+        fetcher = pdf_fetch.Fetcher(self.root / "x")
+        with mock.patch.object(pdf_fetch, "_open", Net({}, robots="User-agent: *\nDisallow: /private/\n")):
+            fetcher._redirect_gate("https://cdn.example.org/public/p.pdf")
+            fetcher._redirect_gate("https://cdn.example.org/public/q.pdf")
+            self.assertEqual([c.args[0] for c in sleep.call_args_list], [1.0])  # second hop to the same host is paced
+            with self.assertRaises(pdf_fetch.PdfFetchError) as caught:
+                fetcher._redirect_gate("https://cdn.example.org/private/p.pdf")
+        self.assertEqual(caught.exception.kind, "robots_disallowed")
+
+    def test_robots_429_is_unavailable_not_permission(self):
+        url = "https://pub.example.org/a.pdf"
+
+        def too_many(request, timeout=None, gate=None):
+            if request.full_url.endswith("/robots.txt"):
+                raise http_error(request.full_url, 429)
+            raise AssertionError("the PDF must not be requested")
+        with mock.patch.object(pdf_fetch, "_open", too_many):
+            with self.assertRaises(pdf_fetch.PdfFetchError) as caught:
+                pdf_fetch.Fetcher(self.root / "x").fetch(url, "a")
+        self.assertEqual(caught.exception.kind, "network_error")
+
+
+    def test_fetch_hands_the_redirect_gate_to_the_opener(self):
+        net = Net({"https://arxiv.org/pdf/x": PDF})
+        with mock.patch.object(pdf_fetch, "_open", net):
+            pdf_fetch.Fetcher(self.root / 'f').fetch("https://arxiv.org/pdf/x", "x")
+        self.assertEqual(net.gates[-1].__func__, pdf_fetch.Fetcher._redirect_gate)  # the PDF request, not robots.txt
+
+    def test_alternate_ip_spellings_trailing_dots_and_single_label_hosts_are_refused(self):
+        for url in ("https://2130706433/p.pdf", "https://0x7f.1/p.pdf", "https://127.1/p.pdf", "https://017700000001/p.pdf",
+                    "https://0/p.pdf", "https://localhost./p.pdf", "https://foo.local./p.pdf", "https://a.localhost./p.pdf",
+                    "https://nas/p.pdf", "https://[::ffff:127.0.0.1]/p.pdf", "https://169.254.169.254/p.pdf",
+                    "https://100.64.0.1/p.pdf", "https://example.123/p.pdf"):
+            net = Net({})
+            with mock.patch.object(pdf_fetch, "_open", net):
+                with self.assertRaises(pdf_fetch.PdfFetchError, msg=url) as caught:
+                    pdf_fetch.Fetcher(self.root / "x").fetch(url, "a")
+            self.assertEqual((caught.exception.kind, net.calls), ("invalid_url", []), url)
+
+    def test_trailing_dot_host_shares_identity_with_the_plain_name(self):
+        net = Net({"https://arxiv.org./pdf/x": PDF})
+        with mock.patch.object(pdf_fetch, "_open", net):
+            pdf_fetch.Fetcher(self.root / "x").fetch("https://arxiv.org./pdf/x", "x")
+        self.assertIn("https://arxiv.org/robots.txt", net.calls)
+
+    def test_public_ipv6_literal_is_bracketed_in_the_robots_url(self):
+        net = Net({"https://[2606:4700::1]/p.pdf": PDF})
+        with mock.patch.object(pdf_fetch, "_open", net):
+            pdf_fetch.Fetcher(self.root / "x").fetch("https://[2606:4700::1]/p.pdf", "x")
+        self.assertIn("https://[2606:4700::1]/robots.txt", net.calls)
+
+    def test_robots_answers_expire_and_are_refetched(self):
+        clock = [100.0]
+        mock.patch.object(pdf_fetch.time, "monotonic", lambda: clock[0]).start()
+        net = Net({"https://arxiv.org/pdf/a": PDF, "https://arxiv.org/pdf/b": PDF_B})
+        with mock.patch.object(pdf_fetch, "_open", net):
+            pdf_fetch.Fetcher(self.root / 'f').fetch("https://arxiv.org/pdf/a", "a")
+            clock[0] += pdf_fetch.ROBOTS_TTL_SECONDS + 1
+            pdf_fetch.Fetcher(self.root / 'f').fetch("https://arxiv.org/pdf/b", "b")
+        self.assertEqual(sum(u.endswith("/robots.txt") for u in net.calls), 2)
+
+    def test_robots_redirect_loop_is_unavailable_not_permission(self):
+        url = "https://pub.example.org/a.pdf"
+
+        def redirecting(request, timeout=None, gate=None):
+            if request.full_url.endswith("/robots.txt"):
+                raise http_error(request.full_url, 302)
+            raise AssertionError("the PDF must not be requested")
+        with mock.patch.object(pdf_fetch, "_open", redirecting):
+            with self.assertRaises(pdf_fetch.PdfFetchError) as caught:
+                pdf_fetch.Fetcher(self.root / "x").fetch(url, "a")
+        self.assertEqual(caught.exception.kind, "network_error")
+
+    def test_replacing_a_pdf_keeps_where_the_old_one_came_from(self):
+        key = self.add(arxiv_id="2603.19312")
+        first = self.download(Net({"https://arxiv.org/pdf/2603.19312": PDF}))
+        self.app.attach_pdf(key, creation_upload(self.app, PDF_B))
+        history = self.app.store.pdf_history(key)
+        self.assertEqual([h["source_kind"] for h in history], ["arxiv", "user_import"])
+        self.assertEqual(history[0]["sha256"], hashlib.sha256(PDF).hexdigest())
+        self.assertEqual(history[0]["source_url"], "https://arxiv.org/pdf/2603.19312")
+        self.assertEqual(history[0]["path"], first["path"])
+
+    def test_recording_the_same_file_twice_adds_one_history_row(self):
+        self.add()
+        for _ in range(2):
+            self.app.store.record_pdf("k", "/x/a.pdf", "u", sha256="ab", size=1, source_kind="arxiv")
+        self.assertEqual(len(self.app.store.pdf_history("k")), 1)
+
+    def test_a_copy_that_comes_back_after_another_is_a_new_last_entry(self):
+        self.add()
+        for path in ("/x/a.pdf", "/x/b.pdf", "/x/a.pdf"):
+            self.app.store.record_pdf("k", path, "u", sha256=path, size=1, source_kind="arxiv")
+        self.assertEqual([h["path"] for h in self.app.store.pdf_history("k")], ["/x/a.pdf", "/x/b.pdf", "/x/a.pdf"])
+
+    def test_migration_006_backfills_history_from_existing_rows(self):
+        self.add()
+        self.app.store.record_pdf("k", "/x/a.pdf", "u", sha256="ab", size=1, source_kind="arxiv")
+        conn = self.app.store.conn
+        conn.execute("DROP TABLE pdf_versions")
+        conn.execute("DELETE FROM schema_version WHERE version>=6")
+        conn.commit()
+        migrations.apply_migrations(conn)
+        self.assertEqual([h["sha256"] for h in self.app.store.pdf_history("k")], ["ab"])
+
+    def test_migration_does_not_swallow_a_locked_database(self):
+        class Locked:
+            def __init__(self):
+                self.versions = []
+
+            def execute(self, sql, *args):
+                if sql.startswith("ALTER TABLE"):
+                    raise sqlite3.OperationalError("database is locked")
+
+        with self.assertRaises(sqlite3.OperationalError):
+            migrations.migrate_005_pdf_acquisition(Locked())
+
+
+def creation_upload(app, data):
+    from app import creation
+    return creation.import_pdf(app.data, data, "p.pdf")["pdf_id"]
 
 
 if __name__ == "__main__":

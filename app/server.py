@@ -25,7 +25,6 @@ from urllib.parse import parse_qs, unquote, urlparse
 from . import creation
 from .language import language
 from .service import App
-from .sources import valid_email
 
 STATIC = Path(__file__).resolve().parent / "static"
 VERSION = "0.12"
@@ -258,6 +257,11 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
+    def _same_origin(self):
+        """A browser page on another site always sends its own Origin; refuse it for every write."""
+        origin = self.headers.get("Origin")
+        return not origin or origin == "http://" + self.headers.get("Host", "")
+
     def _import_pdf(self):
         """A dropped PDF as raw bytes; kept untouched until a project creation attaches it to a seed."""
         origin = self.headers.get("Origin")
@@ -426,13 +430,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self._desktop_access():
             return
+        if not self._same_origin():
+            return self._json({"error": "cross-origin request denied"}, 403)
         route = urlparse(self.path).path
         if route in ("/api/organization", "/api/settings"):
-            # Same-origin only: these routes mutate the local library or store a credential.
-            origin = self.headers.get("Origin")
-            expected = "http://" + self.headers.get("Host", "")
-            if origin and origin != expected:
-                return self._json({"error": "cross-origin request denied"}, 403)
+            # These routes mutate the local library or store a credential: also cap the body.
             limit = 2_000_000 if route == "/api/organization" else 8_000
             try:
                 length = int(self.headers.get("Content-Length") or 0)
@@ -658,11 +660,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(settings, dict):
                 return self._json({"error": "settings must be an object"}, 400)
             settings = {k: v for k, v in settings.items() if k not in USER_SETTINGS_EXCLUDED}
-            email = settings.get("contactEmail")
-            if email and not valid_email(email):
-                return self._json({"error": "联系邮箱格式不正确"}, 400)
             settings_file.write_text(json.dumps(settings, indent=2))
-            self._app().apply_contact_email()
             self._json({"status": "saved"})
         elif route == "/api/cache":
             # DELETE cache (via POST with _method: DELETE)
@@ -681,6 +679,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         if not self._desktop_access():
             return
+        if not self._same_origin():
+            return self._json({"error": "cross-origin request denied"}, 403)
         parsed = urlparse(self.path)
         route, query = parsed.path, parse_qs(parsed.query)
         try:
