@@ -222,22 +222,15 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   function editConcept(card, g, concept) {
     card.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
       <input class="edit" data-role="t" maxlength="130" placeholder="两个英文检索词，用 / 分隔" aria-label="英文检索词">
-      <input class="edit" data-role="p" placeholder="前置概念（名称，用 / 分隔）" aria-label="前置概念">
+      ${R.needsEditorHTML(g, concept.id)}
       <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>`;
     $('[data-role=n]', card).value = concept.name;
     $('[data-role=t]', card).value = (concept.terms || []).join(' / ');
-    $('[data-role=p]', card).value = R.needsOf(g, concept.id).map((n) => n.name).join(' / ');
     $('[data-act=no]', card).onclick = renderMap;
     $('[data-act=ok]', card).onclick = () => {
       try {
-        const names = $('[data-role=p]', card).value.split('/').map((x) => x.trim()).filter(Boolean);
-        const ids = names.map((n) => {
-          const hit = g.concepts.find((c) => c.name.toLowerCase() === n.toLowerCase() && c.id !== concept.id);
-          if (!hit) throw new Error(`找不到前置概念“${n}”`);
-          return hit.id;
-        });
         let next = R.rename(g, concept.id, $('[data-role=n]', card).value, $('[data-role=t]', card).value.split('/'));
-        next = R.setNeeds(next, concept.id, ids);
+        next = R.setNeeds(next, concept.id, R.readNeeds(card));
         map.graph = next; mapNotice(''); renderMap();
       } catch (error) { mapNotice(error.message); }
     };

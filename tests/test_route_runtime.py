@@ -524,6 +524,51 @@ class DiscoverPageTests(unittest.TestCase):
             self.assertNotEqual(urls[0], urls[-1])
 
 
+class HomeOffTests(Fixture):
+    def test_a_map_that_is_switched_off_is_reported_as_off_not_as_missing(self):
+        self.assertIsNone(self.app.home_route(self.pid))                  # no map at all
+        self.enable()
+        self.app.route_mode(self.pid, "off")
+        summary = self.app.home_route(self.pid)
+        self.assertEqual((summary["enabled"], summary["mode"], summary["total"]), (False, "off", 4))
+        self.assertEqual(summary["frontier"], [])                          # nothing is being recommended from it
+
+    def test_an_off_map_costs_no_paper_matching(self):
+        self.enable()
+        self.app.route_mode(self.pid, "off")
+        with mock.patch("app.pathgrowth.assign", side_effect=AssertionError("an off map must not match papers")):
+            self.assertFalse(self.app.home_route(self.pid)["enabled"])
+
+    def test_an_unchanged_map_is_not_recomputed_on_every_home_load(self):
+        self.enable()
+        self.fill()
+        calls = []
+        real = __import__("app.pathgrowth", fromlist=["assign"]).assign
+        with mock.patch("app.pathgrowth.assign", side_effect=lambda *a, **k: calls.append(1) or real(*a, **k)):
+            first = self.app.home_route(self.pid)
+            for _ in range(3):
+                self.assertEqual(self.app.home_route(self.pid), first)
+        self.assertEqual(len(calls), 1)
+
+    def test_any_change_that_can_move_progress_recomputes(self):
+        self.enable()
+        self.fill()
+        before = self.app.home_route(self.pid)
+        self.app.record_feedback("lat0", "useful", project_id=self.pid)
+        self.app.record_feedback("lat1", "useful", project_id=self.pid)
+        self.assertGreater(self.app.home_route(self.pid)["done"], before["done"])
+        done = self.app.home_route(self.pid)["done"]
+        self.app.route_manual(self.pid, self.cid["Epitaxy"], "mastered")
+        self.assertGreater(self.app.home_route(self.pid)["done"], done)
+        self.paper("newpaper", "Crystal lattice extra", "lattice")
+        self.assertEqual(self.app.home_route(self.pid)["total"], 4)
+
+    def test_the_page_tells_off_apart_from_missing(self):
+        index = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
+        self.assertIn("route.enabled === false", index)
+        self.assertIn("学习图已关闭", index)
+
+
 class HomeTests(Fixture):
     def test_the_home_payload_carries_a_short_route_summary_only_when_there_is_a_route(self):
         self.assertIsNone(self.app.home_route(self.pid))

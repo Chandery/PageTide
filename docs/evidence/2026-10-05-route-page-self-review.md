@@ -1,0 +1,9 @@
+# Self-review: 2026-10-05-route-page (Route Mode slice 6b)
+
+Implementing agent's own review; not independent (see 2026-10-05-route-page-review.md).
+
+- What the user can now see: on Today a panel with the map's progress (understood n / total, exploration share, the concepts being read) and a source badge on each card (route / basics / explore, the concept and layer); a separate page for the map with status per concept, explicit counts only (saved, not interested, too hard, shown), marks that all have a way back (already known, unlock by hand, not a priority), editing of the map saved with a revision check, a literature check, and a mode switch. A switched-off map is reported as off, not as missing.
+- Wording rules: statuses are "understood / readable now / locked / suggested / archived"; the low-interest tooltip says it is only an ordering; there is no unread, backlog, behind or debt wording (tested over the page, helpers, Today panel and the English pack).
+- No model call from the page. The creation flow still has the only AI entry (learning_path_plan, approved for the creation session only). Existing projects therefore can only get a map by building it by hand until the owner decides whether AI generation may be used for them.
+- Browser verification was done against the real server in a preview with the preview data backed up and restored; the final state after the review fixes was re-checked for the conflict, slash-name, duplicate-name and no-map flows. Not done: the Tauri window, a screenshot comparison in dark mode, keyboard-only use, and a narrow-width layout check beyond the default.
+- Weak spots: route-page.js has no automated DOM test (the node tests cover helpers only); the home summary cache is per process; the knowledge-base page (Cytoscape) does not show the map yet (the plan's "path layer" is not done); profile page has no Route Mode block, only the Today panel and the map page.

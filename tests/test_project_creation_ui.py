@@ -96,3 +96,57 @@ class ProjectCreationUITests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RoutePageTests(unittest.TestCase):
+    def setUp(self):
+        self.html = (STATIC / "route.html").read_text()
+        self.js = (STATIC / "route-page.js").read_text()
+        self.index = (STATIC / "index.html").read_text()
+        self.css = (STATIC / "project-creation.css").read_text()
+
+    def test_the_page_loads_the_editor_helpers_and_its_own_script(self):
+        for asset in ("/route-editor.js", "/route-page.js"):
+            self.assertIn(asset, self.html)
+        self.assertNotIn("<style>", self.html)
+
+    def test_the_page_reads_and_writes_only_the_route_api_and_never_the_ai(self):
+        self.assertIn("/api/route", self.js)
+        for forbidden in ("/route`", "learning_path_plan", "/api/qa", "triage", "/api/daily"):
+            self.assertNotIn(forbidden, self.js)
+
+    def test_the_page_offers_the_marks_the_server_accepts_and_a_way_back(self):
+        for token in ("action: 'manual'", "action: 'mode'", "action: 'save'", "action: 'ground'", "R.actionsFor", "revision"):
+            self.assertIn(token, self.js)
+
+    def test_today_links_to_the_map_and_labels_cards_by_route(self):
+        self.assertIn("/route.html", self.index)
+        for token in ("routePanel", "renderRoute", "c.route", "补基础", "探索", "状态：来自学习图"):
+            self.assertIn(token, self.index)
+
+    def test_the_page_never_describes_disinterest_lateness_or_debt(self):
+        helpers = (STATIC / "route-editor.js").read_text()
+        today = self.index[self.index.index("function renderRoute"):self.index.index("const PDF_BADGES")]
+        import json
+        pack = json.loads((STATIC / "i18n" / "en-US.json").read_text())["messages"]
+        for text in (self.html, self.js, helpers, today):
+            for word in ("落后", "欠", "逾期", "错过", "未完成", "未读", "积压", "没读"):
+                self.assertNotIn(word, text)
+        for key, value in pack.items():
+            if "学习图" in key or "概念" in key:
+                for word in ("behind", "overdue", "unread", "backlog", "missed", "late "):
+                    self.assertNotIn(word, value.lower(), key)
+
+    def test_the_page_guards_requests_and_keeps_unsaved_edits_on_errors(self):
+        for token in ("state.busy", "state.checking", "async function refreshRoute", "needsEditorHTML", "readNeeds"):
+            self.assertIn(token, self.js)
+        # a failed request refreshes the revision only; load() (which replaces the draft) is not called from a catch
+        for name in ("async function mark", "part('modeSwitch').onchange"):
+            body = self.js[self.js.index(name):self.js.index(name) + 700]
+            self.assertNotIn("await load()", body)
+        self.assertIn("revision: state.route.revision ?? 0", self.js)   # a first save is guarded too
+
+    def test_the_card_badge_is_translatable_in_parts(self):
+        today = self.index[self.index.index("function routeBadge"):self.index.index("const PDF_BADGES")]
+        self.assertNotIn("data-no-i18n>${esc(where)}", today)
+        self.assertIn("ROUTE_TITLES", self.index)

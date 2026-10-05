@@ -48,7 +48,9 @@ class Fixture(unittest.TestCase):
 
 class StoreTests(Fixture):
     def test_a_project_has_no_route_until_one_is_saved(self):
-        self.assertEqual(self.app.route_get(self.pid), {"enabled": False, "mode": "off", "graph": None})
+        empty = self.app.route_get(self.pid)
+        self.assertEqual((empty["enabled"], empty["mode"], empty["graph"]), (False, "off", None))
+        self.assertEqual(empty["revision"], 0)   # a first save can be guarded against another window saving first
 
     def test_saving_a_plan_normalises_stores_and_survives_a_restart(self):
         saved = self.app.route_save(self.pid, plan=PLAN)
@@ -121,6 +123,19 @@ class StoreTests(Fixture):
         unrelated = self.app.route_save(self.pid, plan={"concepts": [{"id": "x", "name": "Poetry forms", "terms": ["poetry"], "needs": []}]})
         self.assertEqual((unrelated["manual"], unrelated["start"]), ({}, []))
 
+    def test_a_structured_save_drops_a_mark_when_the_concept_behind_its_id_changed(self):
+        route = self.app.route_save(self.pid, plan=PLAN)
+        mbe = self.ids(route)["MBE"]
+        self.app.route_manual(self.pid, mbe, "mastered")
+        self.app.route_start(self.pid, [mbe])
+        graph = json.loads(json.dumps(route["graph"]))
+        graph["concepts"] = [c for c in graph["concepts"] if c["id"] != mbe]
+        graph["prereqs"] = [e for e in graph["prereqs"] if mbe not in (e["from"], e["to"])]
+        graph["targets"] = [graph["concepts"][-1]["id"]]
+        graph["concepts"].append({"id": mbe, "name": "A brand new topic", "terms": ["brand new"], "hint": 3, "origin": "user", "state": "active", "side": False})
+        saved = self.app.route_save(self.pid, graph=graph)
+        self.assertEqual((saved["manual"], saved["start"]), ({}, []))   # the id was reused by a different concept
+
     def test_a_structured_save_keeps_marks_by_id(self):
         route = self.app.route_save(self.pid, plan=PLAN)
         cid = self.ids(route)["Epitaxy"]
@@ -171,6 +186,13 @@ class StoreTests(Fixture):
         prog = self.app.route_get(self.pid)["progress"]
         self.assertEqual([v["useful"] for v in prog.values() if v["status"] != "proposed"], [1])
         self.assertEqual([v["useful"] for v in prog.values() if v["status"] == "proposed"], [0])
+
+    def test_two_concepts_cannot_share_a_name(self):
+        route = self.app.route_save(self.pid, plan=PLAN)
+        graph = json.loads(json.dumps(route["graph"]))
+        graph["concepts"][1]["name"] = graph["concepts"][0]["name"].upper()
+        with self.assertRaises(ValueError):
+            self.app.route_save(self.pid, graph=graph)
 
     def test_the_knowledge_base_snapshot_includes_the_map_only_when_there_is_one(self):
         org = Organization(self.app.store, project=self.pid)

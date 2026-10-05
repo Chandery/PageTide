@@ -290,6 +290,14 @@ class ValidateTests(unittest.TestCase):
         broken(lambda g: g["prereqs"].append(dict(g["prereqs"][0])))                             # duplicate edge
         broken(lambda g: g.update(concepts=[dict(g["concepts"][0], id=f"c{i}") for i in range(pg.MAX_MAP_NODES + 1)], prereqs=[], targets=[]))
 
+    def test_duplicate_names_are_refused_by_validate_and_add_concept(self):
+        graph = self.good()
+        graph["concepts"][1]["name"] = "a"
+        with self.assertRaises(ValueError):
+            pg.validate(graph)
+        with self.assertRaises(ValueError):
+            pg.add_concept(self.good(), {"name": "  b ", "terms": ["b"], "hint": 2})
+
     def test_non_graphs_are_refused(self):
         for bad in (None, 5, "x", [], {}, {"concepts": "x", "prereqs": []}, {"concepts": [], "prereqs": "x"}):
             with self.assertRaises(ValueError):

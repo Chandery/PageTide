@@ -347,6 +347,8 @@ def add_concept(graph, concept, needs=(), dependents=()):
         raise ValueError("a concept needs a name")
     if len(graph["concepts"]) >= MAX_MAP_NODES:
         raise ValueError("the map is full")
+    if any(_key(c["name"]) == _key(name) for c in graph["concepts"]):
+        raise ValueError("two concepts cannot share a name")
     hint = _hint(concept.get("hint"))
     if any(hints[i] > hint for i in needs) or any(hint > hints[i] for i in dependents):
         raise ValueError("a prerequisite cannot be harder than the concept that needs it")
@@ -399,7 +401,7 @@ def _validate(graph):
         raise ValueError("not a map")
     if len(graph["concepts"]) > MAX_MAP_NODES or len(graph["prereqs"]) > MAX_MAP_NODES * MAX_FAN_IN:
         raise ValueError("the map is too big")
-    concepts, ids = [], set()
+    concepts, ids, names = [], set(), set()
     for item in graph["concepts"]:
         if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"] or item["id"] in ids:
             raise ValueError("every concept needs its own id")
@@ -410,6 +412,9 @@ def _validate(graph):
         origin, state = item.get("origin", "plan"), item.get("state", "active")
         if origin not in _ORIGINS or state not in _STATES:
             raise ValueError("unknown origin or state")
+        if _key(name) in names:
+            raise ValueError("two concepts cannot share a name")
+        names.add(_key(name))
         ids.add(item["id"])
         clean = {"id": item["id"], "name": name, "terms": _terms(item.get("terms"), name), "hint": _hint(item.get("hint")),
                  "origin": origin, "state": state, "side": False}

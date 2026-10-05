@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-05-route-page",
+  "class": "critical",
+  "summary": "Route Mode slice 6b. The user-facing side of the learning map: a Today panel (progress, exploration share, concepts being read) and a source badge on every recommendation card (route / basics / explore with concept and layer); a learning-map page (route.html) with per-concept status and explicit counts, undoable marks, map editing with a revision check, a literature check and a mode switch; the creation page's prerequisite editing now uses id-keyed checkboxes. Server: marks follow a concept only when its id and name are unchanged, duplicate names are refused, the empty route carries a revision, and the home summary is cheap (off map: no matching; enabled map: cached by a signature). No model call from these pages.",
+  "tasks": [
+    "PROJECT-01",
+    "PROFILE-02"
+  ],
+  "requirements": [
+    "R-PROFILE",
+    "R-NODEBT"
+  ],
+  "files": [
+    "app/organization.py",
+    "app/pathgraph.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/project-creation.css",
+    "app/static/project-creation.js",
+    "app/static/route-editor.js",
+    "app/static/route-page.js",
+    "app/static/route.html",
+    "changes/2026-10-05-route-page.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-05-route-page-checks.txt",
+    "docs/evidence/2026-10-05-route-page-review.md",
+    "docs/evidence/2026-10-05-route-page-self-review.md",
+    "scripts/i18n_extract.py",
+    "tests/test_pathgraph.py",
+    "tests/test_project_creation_ui.py",
+    "tests/test_route_editor.cjs",
+    "tests/test_route_runtime.py",
+    "tests/test_route_store.py"
+  ],
+  "scope_note": "Branch feature/route-mode, on top of e863bb3. The owner's .claude files are excluded locally.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No model call and no new outbound data: the literature check (an explicit click) sends only each concept's first search term to OpenAlex, as before.",
+    "before": "The learning map could be created and drive recommendations but was invisible after creation.",
+    "after": "Visible, editable, undoable; every card says how it was chosen.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-page-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-page-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-page-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-05-route-page-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "One separate read-only code-review agent (same model family, not a human); findings fixed afterwards, fixes not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-05-route-page-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "route-page.js has no automated DOM test; its behaviour was verified by hand in a browser preview and its helpers by node tests.",
+    "The independent review was by an agent of the same model family; its findings were fixed and the fixes were not re-read by a reviewer.",
+    "Existing projects have no map and can only get one by hand until the owner decides whether AI generation may be used outside the creation session.",
+    "The knowledge-base (Cytoscape) page does not show the map, the profile page has no Route Mode block, and there is no UI for growing the map (slice 7).",
+    "Not exercised: the Tauri window, dark mode, narrow layouts, keyboard-only use.",
+    "The home summary cache is per process and keyed by a signature; a change it does not track (for example a paper edited in place) would not refresh it until a tracked value changes."
+  ]
+}

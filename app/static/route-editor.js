@@ -14,8 +14,14 @@
     unknown: '语料不足，没有判断',
   };
 
+  const STATUS = { satisfied: '已满足', unlocked: '可以读', locked: '未解锁', proposed: '建议中', archived: '已归档' };
+  const LOW_INTEREST_TITLE = '这个概念暂时排在后面：来自你的“暂不优先”设置，或你对它的评价里不感兴趣明显多于收藏。这只表示优先顺序，不等于不喜欢；取消“暂不优先”或改变相关评价后会自动恢复。';
+  const LOCKED_TITLE = '还在等前置概念被读懂；读懂后会自动解锁，也可以手动解锁。';
+
   const clean = (text, limit) => String(text || '').replace(/[,|:!"\\\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit);
   const copy = (g) => JSON.parse(JSON.stringify(g));
+  const nameKey = (text) => String(text || '').toLowerCase().replace(/[\s\-_]+/g, ' ').trim();
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const hasLetter = (text) => /[\p{L}\p{N}]/u.test(text);
   const unique = (list) => [...new Set(list || [])];
   const needsMap = (g) => {
@@ -93,6 +99,7 @@
     if (g.concepts.length >= MAX_NODES) throw new Error('图太大了');
     const name = clean(item.name, 60);
     if (!name || !hasLetter(name)) throw new Error('概念需要名称');
+    if (g.concepts.some(c => nameKey(c.name) === nameKey(name))) throw new Error('已经有同名的概念');
     const next = copy(g), id = nextId(g), hint = Math.max(1, Math.min(4, Number(item.hint) || 2));
     const known = Object.fromEntries(g.concepts.map(c => [c.id, c]));
     needs = unique(needs);
@@ -127,6 +134,7 @@
   function rename(g, id, name, termList) {
     const cleaned = clean(name, 60);
     if (!cleaned || !hasLetter(cleaned)) throw new Error('概念需要名称');
+    if (g.concepts.some(c => c.id !== id && nameKey(c.name) === nameKey(cleaned))) throw new Error('已经有同名的概念');
     const next = copy(g), target = next.concepts.find(c => c.id === id);
     if (!target) throw new Error('概念不存在');
     target.name = cleaned;
@@ -147,5 +155,38 @@
     return { graph: g, mastered: (mastered || []).filter(i => ids.has(i)) };
   }
 
-  return { MAX_NODES, LABELS, layers, columns, needsOf, check, addConcept, removeConcept, setNeeds, rename, toggleMastered, payload, label };
+  /* Prerequisites are chosen from a list keyed by id, so a name may contain any character (a slash, a comma). */
+  function needsEditorHTML(g, id) {
+    const chosen = new Set(g.prereqs.filter(e => e.to === id).map(e => e.from));
+    const rows = g.concepts.filter(c => c.id !== id).map(c =>
+      `<label class="need-option"><input type="checkbox" value="${esc(c.id)}"${chosen.has(c.id) ? ' checked' : ''}> <span data-no-i18n>${esc(c.name)}</span></label>`);
+    return `<fieldset class="need-list"><legend>前置概念</legend>${rows.join('') || '<span class="hint">还没有别的概念</span>'}</fieldset>`;
+  }
+
+  function readNeeds(container) {
+    return [...container.querySelectorAll('.need-list input[type=checkbox]:checked')].map(box => box.value);
+  }
+
+  function countsText(state) {
+    const n = (v) => Number(v) || 0;
+    return `收藏 ${n(state.useful)} · 不感兴趣 ${n(state.irrelevant)} · 太难 ${n(state.too_hard)} · 已展示 ${n(state.shown)}`;
+  }
+
+  /* Marks a person may set on a concept. Each has a way back (clear), none is inferred from silence. */
+  function actionsFor(state) {
+    if (state.status === 'proposed' || state.status === 'archived') return [];
+    const out = [];
+    if (state.status === 'locked') out.push({ value: 'unlocked', clear: state.manual === 'unlocked', label: '手动解锁' });
+    out.push({ value: 'mastered', clear: state.manual === 'mastered', label: state.manual === 'mastered' ? '取消已掌握' : '标记已掌握' });
+    out.push({ value: 'demoted', clear: state.manual === 'demoted', label: state.manual === 'demoted' ? '恢复优先' : '暂不优先' });
+    return out;
+  }
+
+  function summaryText(route) {
+    const total = Number(route.total) || 0, done = Number(route.done) || 0;
+    const share = Math.round((Number(route.exploration_share) || 0) * 100);
+    return `已读懂 ${done} / ${total} 个概念 · 探索约占 ${share}%`;
+  }
+
+  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, actionsFor, summaryText, LABELS, layers, columns, needsOf, check, addConcept, removeConcept, setNeeds, rename, toggleMastered, payload, label };
 });

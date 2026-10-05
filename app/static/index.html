@@ -141,6 +141,10 @@
   .badge { font-size:11px; padding:3px 10px; border-radius:999px; box-shadow:var(--sh-in-sm); color:var(--muted); }
   .badge.ai { color:var(--ai-text); }
   .badge.saved { color:var(--good); }
+  .badge.route-route, .badge.route-remedial { color:var(--ai-text); }
+  .badge.route-remedial { color:var(--warn); }
+  .route-panel { margin-top:10px; padding:10px 12px; border-radius:var(--r-md); background:var(--surface-2); font-size:13px; line-height:1.6; }
+  .route-panel a { color:var(--accent-text); }
   .badge.pdf-direct { color:var(--good); }
   .badge.pdf-page { color:var(--warn); }
   .abs { font-size:13.5px; color:var(--text); opacity:.86;
@@ -621,6 +625,7 @@
         <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label><span class="sub" id="autoAiHint"></span>
       </div>
       <div class="sub" id="maintainNote" style="margin-top:8px"></div>
+      <div class="route-panel" id="routePanel" hidden></div>
     </section>
     <section id="cards" class="grid"></section>
   </section>
@@ -758,6 +763,33 @@ function aiSlot(c) {
   if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
 }
+// The learning map: where the reader stands and why each card was chosen. Plain words, no counts of what was missed.
+function renderRoute(route) {
+  const panel = $('#routePanel');
+  if (!panel) return;
+  const link = state.currentProject ? `/route.html?project_id=${encodeURIComponent(state.currentProject)}` : '/route.html';
+  if (!route) { panel.hidden = !state.currentProject; panel.innerHTML = state.currentProject ? `<span class="sub">这个项目还没有学习图。</span> <a href="${link}">搭一张学习图</a>` : ''; return; }
+  if (route.enabled === false) { panel.hidden = false; panel.innerHTML = `<span class="sub">学习图已关闭，推荐按普通排序。</span> <a href="${link}">打开学习图</a>`; return; }
+  const share = Math.round((route.exploration_share || 0) * 100);
+  const names = (route.frontier || []).map((f) => `<span class="chip" data-no-i18n>${esc(f.name)}</span>`).join(' ');
+  panel.hidden = false;
+  panel.innerHTML = `<div><strong>学习图（路径模式）</strong> <span class="sub">已读懂 ${route.done} / ${route.total} 个概念 · 探索约占 ${share}%</span></div>
+    <div class="sub">${names ? `现在在读：${names}` : '所有概念都已读懂，推荐回到普通排序。'}</div>
+    <a href="${link}">查看和调整学习图</a>`;
+}
+const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索' };
+const ROUTE_TITLES = {
+  route: '状态：来自学习图。它属于你现在能读的概念。',
+  remedial: '状态：来自学习图。你把相关论文标为“太难”，所以先补一篇基础。',
+  explore: '状态：来自学习图。这篇是探索位，不在你现在能读的概念里。',
+};
+function routeBadge(c) {
+  if (!c.route) return '';
+  const kind = ROUTE_KINDS[c.route.kind];
+  if (!kind) return '';
+  return `<span class="badge route-${esc(c.route.kind)}" title="${esc(ROUTE_TITLES[c.route.kind])}"><span>${kind}</span>${c.route.name ? ` <span data-no-i18n>${esc(c.route.name)}</span>` : ''}${c.route.layer ? ` <span>· 第 ${esc(c.route.layer)} 层</span>` : ''}</span>`;
+}
+
 const PDF_BADGES = {
   direct: ['直链 PDF', '已知合法的 PDF 下载链接（arXiv 或开放获取）'],
   page: ['仅原文页', '这篇论文是开放获取的，但只给了原文网页，没有 PDF 直链'],
@@ -778,6 +810,7 @@ function cardHTML(c, i) {
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
       ${pdfBadge(c.pdf_status)}
+      ${routeBadge(c)}
       ${saved ? '<span class="badge saved">已收藏</span>' : ''}
     </div>
     <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
@@ -907,7 +940,7 @@ async function load() {
     console.warn('Failed to load profile insights', e);
   }
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
-  state.maintenance = data.maintenance; renderStats(); renderCards(); renderProfile(); renderMaintenance(data.maintenance);
+  state.maintenance = data.maintenance; state.route = data.route; renderStats(); renderCards(); renderProfile(); renderMaintenance(data.maintenance); renderRoute(data.route);
   const u = state.usage;
   $('#foot').replaceChildren(`本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`,   // two phrases, two pack entries
     u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');

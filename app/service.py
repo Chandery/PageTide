@@ -86,7 +86,7 @@ class App:
         project_id = self._require_project(project_id)
         revision, route = read_route(self.store.conn, project_id)
         if not route:
-            return {"enabled": False, "mode": "off", "graph": None}
+            return {"enabled": False, "mode": "off", "graph": None, "revision": revision}
         graph, manual = route["graph"], route.get("manual") or {}
         events, shown = self._route_inputs(project_id, graph)
         start = route.get("start") or None
@@ -289,15 +289,43 @@ class App:
             counts[ids[0]] = counts.get(ids[0], 0) + 1
         return {term: 1 + counts.get(by_term.get(term), 0) // page_size for term in terms}
 
+    _HOME_ROUTE_CACHE = {}
+
+    def _route_signature(self, project_id, revision):
+        """Everything route_get's result depends on, so an unchanged map is not recomputed on every home load."""
+        conn = self.store.conn
+        return (project_id, revision,
+                conn.execute("SELECT COALESCE(MAX(id),0) FROM feedback WHERE project_id=?", (project_id,)).fetchone()[0],
+                conn.execute("SELECT COUNT(*) FROM project_papers WHERE project_id=?", (project_id,)).fetchone()[0],
+                conn.execute("SELECT COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?", (project_id,)).fetchone()[0],
+                json.dumps(self.store.get_setting(f"seed_keys_{project_id}"), sort_keys=True),
+                json.dumps(self.store.get_setting(f"profile_freeze_{project_id}"), sort_keys=True))
+
     def home_route(self, project_id=None):
-        """A short summary of the learning map for the Today page, or None when the project has none."""
-        route = self._route_state(self._require_project(project_id))
-        if not route:
+        """A short summary of the learning map for the Today page: None when the project has no map, and
+        enabled=False (no frontier, no progress, no paper matching) when the map exists but is switched off."""
+        project_id = self._require_project(project_id)
+        revision, stored = read_route(self.store.conn, project_id)
+        if not stored:
             return None
-        by_id = {c["id"]: c for c in route["graph"]["concepts"]}
-        return {"enabled": True, "mode": route["mode"], "total": route["total"], "done": route["done"],
-                "exploration_share": route["exploration_share"],
-                "frontier": [{"id": i, "name": by_id[i]["name"], "layer": route["layers"][i]} for i in route["frontier"]]}
+        graph = stored["graph"]
+        if stored.get("mode", "route") != "route":
+            live = [c for c in graph["concepts"] if c.get("state", "active") == "active"]
+            return {"enabled": False, "mode": stored.get("mode", "off"), "total": len(live), "done": None,
+                    "exploration_share": None, "frontier": []}
+        signature = self._route_signature(project_id, revision)
+        cached = self._HOME_ROUTE_CACHE.get(project_id)
+        if cached and cached[0] == signature:
+            return json.loads(json.dumps(cached[1]))
+        route = self.route_get(project_id)
+        by_id = {c["id"]: c for c in graph["concepts"]}
+        summary = {"enabled": True, "mode": route["mode"], "total": route["total"], "done": route["done"],
+                   "exploration_share": route["exploration_share"],
+                   "frontier": [{"id": i, "name": by_id[i]["name"], "layer": route["layers"][i]} for i in route["frontier"]]}
+        if len(self._HOME_ROUTE_CACHE) > 64:
+            self._HOME_ROUTE_CACHE.clear()
+        self._HOME_ROUTE_CACHE[project_id] = (signature, summary)
+        return json.loads(json.dumps(summary))
 
     def _route_pick(self, route, pool, scored, vectors, limit, batch_index):
         """Choose a batch from a learning map: [(paper_key, concept_id | None, kind)].

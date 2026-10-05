@@ -542,8 +542,10 @@ class Organization:
                 follow = lambda i: fresh.get(names.get(i))
             else:
                 graph = pathgraph.validate(graph)
-                known = {c["id"] for c in graph["concepts"]}
-                follow = lambda i: i if i in known else None
+                before = {c["id"]: pathgraph._key(c["name"]) for c in (old.get("graph") or {}).get("concepts", [])}
+                now_ = {c["id"]: pathgraph._key(c["name"]) for c in graph["concepts"]}
+                # an id can be reused by a different concept (delete the last one, add another); a mark belongs to the concept
+                follow = lambda i: i if i in now_ and before.get(i) == now_[i] else None
             manual = {follow(k): v for k, v in (old.get("manual") or {}).items() if follow(k)}
             start = [follow(i) for i in (old.get("start") or []) if follow(i)]
             updated = {"graph": graph, "mode": old.get("mode", "route"), "manual": manual, "start": start}

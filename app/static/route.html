@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script>document.documentElement.dataset.mode=localStorage.getItem('pdh-mode')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')</script>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/project-creation.css">
+<title>学习图 · PaperDigHelper</title>
+</head>
+<body>
+<div class="container">
+<a class="back" href="/" data-role="back">← 返回今日推荐</a>
+<h1>学习图</h1>
+<p class="lead" data-role="project"></p>
+<div class="notice" data-role="notice" hidden></div>
+
+<section data-role="empty" hidden>
+  <p class="hint">这个项目还没有学习图。学习图把你想学的内容拆成概念和先后顺序，推荐会先从你现在能读的概念里选论文，各条分支按各自的进度推进。</p>
+  <p class="hint">新建项目时可以让 AI 先起草一张；也可以在这里自己搭。</p>
+  <button type="button" class="primary" data-role="startEmpty">自己搭一张</button>
+</section>
+
+<section data-role="main" hidden>
+  <div class="map-summary">
+    <span data-role="summary"></span>
+    <label class="years"><input type="checkbox" data-role="modeSwitch"> 按学习图推荐（路径模式 Route Mode）</label>
+  </div>
+  <div class="map-note" data-role="legend">越靠左越基础。“可以读”的概念正在被推荐；“未解锁”在等前置概念被读懂。沉默不会改变任何状态，“太难”只会让推荐先补基础，也不代表不感兴趣。</div>
+  <div class="map" data-role="map"></div>
+  <div class="map-actions">
+    <button type="button" class="ghost small" data-role="add">+ 添加概念</button>
+    <button type="button" class="ghost small" data-role="check">用公开文献核对</button>
+    <button type="button" class="primary small" data-role="save" hidden>保存对学习图的修改</button>
+    <button type="button" class="ghost small" data-role="discard" hidden>放弃修改</button>
+  </div>
+</section>
+</div>
+<script src="/route-editor.js"></script>
+<script src="/route-page.js"></script>
+</body>
+</html>
