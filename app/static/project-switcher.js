@@ -233,7 +233,7 @@
         win.appendChild(scaler);
         const label = document.createElement('div');
         label.className = 'mc-label';
-        label.innerHTML = `${p.id === current ? '<span class="mc-dot" title="当前项目"></span>' : ''}<span>${esc(p.name)}</span>`;
+        label.innerHTML = `${p.id === current ? '<span class="mc-dot" title="当前项目"></span>' : ''}<span class="mc-name">${esc(p.name)}</span>${opts.onEdit ? `<button type="button" class="mc-edit" aria-label="管理项目：${esc(p.name)}" title="改名或删除">管理</button>` : ''}`;
         card.append(win, label);
         stage.appendChild(card);
         return card;
@@ -337,6 +337,8 @@
         return;
       }
       if (!state.open && e.type === 'key' && editable(document.activeElement)) return;
+      // Enter or Space on the focused "manage" button activates that button, not the highlighted card.
+      if (state.open && e.type === 'key' && (e.key === 'Enter' || e.key === ' ') && document.activeElement?.classList?.contains('mc-edit')) return;
       const r = reduce(state, e);
       if (!r.handled) return;
       if (native) { native.preventDefault(); native.stopImmediatePropagation(); }
@@ -378,6 +380,14 @@
       if (!state.open || busy) return;
       if (ev.target.closest('.mc-add')) { state = { ...state, open: false }; close(); opts.onCreate(); return; }
       if (ev.target.closest('.mc-bar')) return;
+      const edit = ev.target.closest('.mc-edit');
+      if (edit && opts.onEdit) {
+        const chosen = list[Number(edit.closest('.mc-card').dataset.index)];
+        state = { ...state, open: false };
+        close();
+        if (chosen) opts.onEdit(chosen);
+        return;
+      }
       const card = ev.target.closest('.mc-card');
       state = { ...state, open: false };
       select(card ? Number(card.dataset.index) : 0);

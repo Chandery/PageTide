@@ -283,6 +283,21 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN):
 
 
 # ----------------------------------------------------------------- structure
+def shape(graph):
+    """How branched the map is, for telling the person the truth about a generated draft: the number of
+    concepts, entry points (no prerequisite), levels, the widest level and whether it is one single line."""
+    live = [c for c in graph["concepts"] if c.get("state", "active") == "active"]
+    ids = {c["id"] for c in live}
+    needed = {e["to"] for e in graph["prereqs"] if e["from"] in ids and e["to"] in ids}
+    level = layers({"concepts": live, "prereqs": [e for e in graph["prereqs"] if e["from"] in ids and e["to"] in ids]})
+    per_level = {}
+    for value in level.values():
+        per_level[value] = per_level.get(value, 0) + 1
+    width = max(per_level.values(), default=0)
+    return {"concepts": len(live), "roots": sum(1 for c in live if c["id"] not in needed), "levels": len(per_level),
+            "width": width, "chain": len(live) >= 4 and width == 1}
+
+
 def layers(graph):
     """Topological level of every concept: 1 for entry points, 1 + the deepest prerequisite otherwise."""
     needs = {c["id"]: [] for c in graph["concepts"]}

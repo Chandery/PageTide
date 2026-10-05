@@ -125,7 +125,11 @@
     <div class="activity" data-role="mapActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
     <div class="notice" data-role="mapNotice" hidden></div>
     <div class="map-note" data-role="mapNote" hidden></div>
-    <div class="map" data-role="map"></div>
+    <div class="map-shape" data-role="mapShape" hidden></div>
+    <div class="map-layout stack" data-role="mapLayout" hidden>
+      <div data-role="map"></div>
+      <aside class="map-detail" data-role="mapDetail" aria-live="polite"></aside>
+    </div>
     <div class="map-actions" data-role="mapActions" hidden>
       <button type="button" class="ghost small" data-role="mapAdd">+ 添加概念</button>
       <button type="button" class="ghost small" data-role="mapCheck">用公开文献核对</button>
@@ -162,6 +166,7 @@
 
 <script src="/creation-pdf.js"></script>
 <script src="/route-editor.js"></script>
+<script src="/route-graph.js"></script>
 <script src="/project-creation.js"></script>
 </body>
 </html>

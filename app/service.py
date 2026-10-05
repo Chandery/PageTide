@@ -3,6 +3,7 @@
 The daily loop is zero-token: discover -> dedupe -> rank -> diversify -> 5 cards.
 Feedback updates a transparent profile. AI triage is optional and budgeted.
 """
+import glob
 import json
 import re
 import threading
@@ -156,6 +157,7 @@ class App:
             raise ValueError("引导会话不存在或已结束")
         draft = self._bounded_guidance_draft(session["draft"])
         english = self.english()
+        messages = routeplan.messages(draft["goal"], draft["keywords"], english)   # built before an attempt is reserved
         limit = 1 + routeplan.MAX_REGENERATIONS
         key = f"route_plan_{session_id}"
         with self._ROUTE_LOCK:
@@ -172,34 +174,84 @@ class App:
             if not dry_run:
                 self.store.set_setting(key, {"plan": plan, "attempts": attempts + 1})   # reserved before the call
         try:
-            started = time.monotonic()
-            try:
-                result = self.gateway.call("learning_path_plan", routeplan.messages(draft["goal"], draft["keywords"], english), dry_run=dry_run) or {}
-            except Exception as exc:
-                result = {"ok": False, "degraded": True, "reason": str(exc)}
-            elapsed_ms = int((time.monotonic() - started) * 1000)
-            base = {"elapsed_ms": elapsed_ms, "tokens": None, "graph": None, "report": None}
-            if dry_run or not result.get("ok"):
-                code, text = creation.degrade_reason(result, english)
-                if code in self._ROUTE_UNPAID:
+            response, stored = self._route_ask("learning_path_plan", messages, english, dry_run)
+            if stored is None:
+                if response.get("reason_code") in self._ROUTE_UNPAID:
                     with self._ROUTE_LOCK:
                         current = self.store.get_setting(key) or {}
                         if not dry_run:
                             self.store.set_setting(key, {"plan": current.get("plan"), "attempts": max(0, int(current.get("attempts") or 1) - 1)})
-                return {"ok": False, "mode": "local", "reason_code": code, "reason": text, **base}
-            found = routeplan.parse(result.get("content"))
-            graph, report = pathgraph.normalize(found) if found is not None else (None, None)
-            if not graph or not graph["concepts"]:
-                return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), **base}
-            tokens = (result.get("usage") or {}).get("total_tokens")
-            stored = {"graph": graph, "report": report, "tokens": tokens, "elapsed_ms": elapsed_ms}
+                return response
             with self._ROUTE_LOCK:
                 current = self.store.get_setting(key) or {}
                 self.store.set_setting(key, {"plan": stored, "attempts": int(current.get("attempts") or 1)})
-            return {"ok": True, "mode": "ai", **stored}
+            return response
         finally:
             with self._ROUTE_LOCK:
                 self._ROUTE_BUSY.discard(session_id)
+
+    def _route_ask(self, operation, messages, english, dry_run=False):
+        """One concept-graph call, shared by the creation session (learning_path_plan) and an existing project
+        (learning_path_plan_project). Returns (response, stored): `stored` is the plan to keep, or None when
+        nothing usable came back. It writes no state; the caller counts the attempt."""
+        started = time.monotonic()
+        try:
+            result = self.gateway.call(operation, messages, dry_run=dry_run) or {}
+        except Exception as exc:
+            result = {"ok": False, "degraded": True, "reason": str(exc)}
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        base = {"elapsed_ms": elapsed_ms, "tokens": None, "graph": None, "report": None}
+        if dry_run or not result.get("ok"):
+            code, text = creation.degrade_reason(result, english)
+            return {"ok": False, "mode": "local", "reason_code": code, "reason": text, **base}, None
+        found = routeplan.parse(result.get("content"))
+        graph, report = pathgraph.normalize(found) if found is not None else (None, None)
+        if not graph or not graph["concepts"]:
+            return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), **base}, None
+        report = {**report, "shape": pathgraph.shape(graph)}
+        tokens = (result.get("usage") or {}).get("total_tokens")
+        stored = {"graph": graph, "report": report, "tokens": tokens, "elapsed_ms": elapsed_ms}
+        return {"ok": True, "mode": "ai", **stored}, stored
+
+    PROJECT_PLANS_PER_DAY = 3
+
+    def route_plan_project(self, project_id, goal, dry_run=False):
+        """Ask for a concept graph for an existing project (operation learning_path_plan_project, which the owner
+        approves separately), one explicit call per click. The model sees the goal the person typed and the project's first five keywords, nothing else. The
+        reply is a proposal: it is returned for the page to show and edit, and nothing is saved until the person
+        saves it. At most PROJECT_PLANS_PER_DAY paid attempts per project per local day, reserved before the call
+        (and given back when the gateway refused before sending); one call at a time per project."""
+        project_id = self._require_project_id(project_id)
+        goal = str(goal or "").strip()
+        if not goal:
+            raise ValueError("请先写下你想学什么")
+        if len(goal) > routeplan.MAX_GOAL_CHARS:
+            raise ValueError(f"目标最多 {routeplan.MAX_GOAL_CHARS} 个字符")
+        keywords = (self.projects.get_project(project_id).get("keywords") or [])[:routeplan.MAX_DRAFT_TERMS]
+        english = self.english()
+        messages = routeplan.messages(goal, keywords, english)   # built before an attempt is reserved
+        key, busy, today = f"route_plan_project_{project_id}", f"project:{project_id}", time.strftime("%Y-%m-%d")
+        with self._ROUTE_LOCK:
+            state = self.store.get_setting(key) or {}
+            attempts = int(state.get("attempts") or 0) if state.get("day") == today else 0
+            if busy in self._ROUTE_BUSY:
+                raise ValueError("正在生成学习图，请稍候")
+            if attempts >= self.PROJECT_PLANS_PER_DAY and not dry_run:
+                raise ValueError(f"这个项目今天已经生成过 {self.PROJECT_PLANS_PER_DAY} 次，请直接编辑学习图，或明天再试")
+            self._ROUTE_BUSY.add(busy)
+            if not dry_run:
+                self.store.set_setting(key, {"day": today, "attempts": attempts + 1})
+        try:
+            response, stored = self._route_ask("learning_path_plan_project", messages, english, dry_run)
+            refunded = stored is None and response.get("reason_code") in self._ROUTE_UNPAID   # refused before anything was sent
+            used = attempts + (0 if dry_run or refunded else 1)
+            if refunded and not dry_run:
+                with self._ROUTE_LOCK:
+                    self.store.set_setting(key, {"day": today, "attempts": attempts})
+            return {**response, "attempts_left": max(0, self.PROJECT_PLANS_PER_DAY - used)}
+        finally:
+            with self._ROUTE_LOCK:
+                self._ROUTE_BUSY.discard(busy)
 
     GROUND_DEADLINE_SECONDS = 20.0
 
@@ -972,6 +1024,52 @@ class App:
         self.projects.update_project(project_id, keywords=terms)
         self.save_profile(data, note="pin")
         return {"profile": self.profile(project_id), "stats": self.stats(project_id)}
+
+    def _require_project_id(self, project_id):
+        """The project named by an explicit, non-empty id. Unlike _require_project it never falls back to the default
+        project, so a missing or empty id cannot make a destructive or paid action land on the wrong project."""
+        if not isinstance(project_id, str) or not project_id.strip():
+            raise ValueError("项目不存在")
+        if not self.projects.get_project(project_id):
+            raise ValueError("项目不存在")
+        return project_id
+
+    def rename_project(self, project_id, name):
+        """Change a project's display name. Keywords are the profile's pinned terms and are edited there."""
+        project_id = self._require_project_id(project_id)
+        if not isinstance(name, str):
+            raise ValueError("项目名称必须是文本")
+        name = name.strip()
+        if not name or len(name) > 120:
+            raise ValueError("项目名称不能为空且不能超过 120 个字符")
+        self.projects.update_project(project_id, name=name)
+        return self.projects.get_project(project_id)
+
+    KEEP_DELETE_BACKUPS = 3
+
+    def delete_project(self, project_id):
+        """Delete one project's own state (feedback, batches, library, learning map, settings). Paper metadata,
+        PDFs and full text stay. A consistent copy of the database is written next to it first (the newest
+        KEEP_DELETE_BACKUPS are kept, the one just written always among them; a failed or partial copy is removed
+        and nothing is deleted), so a mistaken delete can be undone by hand. Deleting the last project is allowed;
+        an empty default one appears on next use."""
+        project_id = self._require_project_id(project_id)
+        name = self.projects.get_project(project_id)["name"]
+        path = self.store.path
+        backup = path.with_name(f"{path.name}.pre-delete-{time.strftime('%Y%m%d-%H%M%S')}-{project_id[:8]}.bak")
+        existed = backup.exists()
+        try:
+            self.store.backup(backup)
+        except BaseException:
+            if not existed and backup.exists():
+                backup.unlink()   # a partial copy must never count as a backup
+            raise
+        older = sorted((f for f in path.parent.glob(f"{glob.escape(path.name)}.pre-delete-*.bak") if f != backup), key=lambda f: f.name)
+        for stale in older[:max(0, len(older) - (self.KEEP_DELETE_BACKUPS - 1))]:
+            stale.unlink()
+        self.projects.delete_project(project_id)
+        return {"deleted": project_id, "name": name, "backup": backup.name,
+                "remaining": [p["id"] for p in self.projects.list_projects()]}
 
     def _require_project(self, project_id):
         if project_id is not None and not isinstance(project_id, str):

@@ -170,7 +170,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
 
   /* ---- learning map: AI proposes concepts and their order, the page lets you edit, check and confirm */
   const R = window.PDHRoute;
-  const map = {graph: null, mastered: [], regenerated: 0, checking: false};
+  const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null};
   const mapAct = makeActivity(part('mapActivity'));
   const mapNotice = (message, isError = true) => {
     const el = part('mapNotice');
@@ -179,68 +179,92 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   const GROUNDING = {ok: '', none: '（公开文献里没找到）', no_terms: '（没有英文检索词）', unavailable: '（这次没能核对）', skipped: '（被限流，未核对）'};
 
   function renderMap() {
-    const holder = part('map');
-    holder.replaceChildren();
     const g = map.graph;
     part('mapActions').hidden = !g;
     part('mapRegen').hidden = !g || !sessionId();
     part('mapGenerate').hidden = !!g;
+    part('mapLayout').hidden = !g;
+    part('mapShape').hidden = !g;
+    const keep = map.view ? map.view.view() : undefined;   // a re-draw keeps the zoom, the scroll position and the focus
+    const focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.rg-node') : null;
+    if (map.view) { map.view.destroy(); map.view = null; }
+    part('map').replaceChildren();
     if (!g) { part('mapNote').hidden = true; refresh(); return; }
     const verdict = R.check(g);
     part('mapNote').hidden = false;
     part('mapNote').textContent = verdict.ok
-      ? `${g.concepts.length} 个概念，${R.columns(g).length} 层。越靠左越基础；勾选“已掌握”的概念作为起点，它后面的概念会先解锁。虚线框是与目标无关的旁支。`
+      ? '箭头从“要先读懂的概念”指向“依赖它的概念”，每个概念只等它自己的前置，不同分支互不等待。点一个概念可以标记“已掌握”（作为起点，它后面的概念会先解锁）、编辑或删除。虚线框是与目标无关的旁支。'
       : `现在的学习图有问题：${verdict.reason}`;
-    R.columns(g).forEach((col, index) => {
-      const column = document.createElement('div');
-      column.className = 'map-col';
-      column.innerHTML = `<h4>第 ${index + 1} 层</h4>`;
-      col.forEach((concept) => column.appendChild(conceptCard(g, concept)));
-      holder.appendChild(column);
+    const shape = R.shape(g);
+    part('mapShape').textContent = R.shapeText(shape);
+    part('mapShape').classList.toggle('single', shape.chain);
+    if (map.selected && !g.concepts.some((c) => c.id === map.selected)) map.selected = map.editing = null;
+    map.view = window.PDHGraph.mount(part('map'), g, {
+      selected: map.selected,
+      view: keep,
+      maxHeight: '60vh',
+      canSelect: () => {
+        if (map.editing) { mapNotice('先点“确定”或“取消”，再选别的概念。'); return false; }
+        return true;
+      },
+      statusOf: (concept) => (map.mastered.includes(concept.id) ? {key: 'satisfied', label: '起点（已掌握）', title: concept.name} : {key: 'plain', label: '', title: concept.name}),
+      extraClass: (concept) => (map.mastered.includes(concept.id) ? 'mastered' : ''),
+      onSelect: (id) => { map.selected = id; map.editing = null; renderDetail(); },
     });
+    if (focused && focused.dataset.id) map.view.focusNode(focused.dataset.id);
+    renderDetail();
     refresh();
   }
 
-  function conceptCard(g, concept) {
-    const card = document.createElement('div');
+  function renderDetail() {
+    const g = map.graph, holder = part('mapDetail');
+    const concept = g && g.concepts.find((c) => c.id === map.selected);
+    if (!concept) { holder.innerHTML = '<div class="map-note">点一个概念，查看它需要先读懂什么，也可以在这里标记、编辑或删除它。</div>'; return; }
+    if (map.editing === concept.id) { editConcept(holder, g, concept); return; }
     const mastered = map.mastered.includes(concept.id);
-    card.className = 'map-card' + (concept.side ? ' side' : '') + (mastered ? ' mastered' : '');
-    const needs = R.needsOf(g, concept.id);
     const grounding = GROUNDING[concept.grounding] || '';
-    card.innerHTML = `<span class="name" data-no-i18n>${esc(concept.name)}</span>
-      <div class="terms" data-no-i18n>${esc((concept.terms || []).join(' · ') || '（没有检索词）')}</div>
-      ${needs.length ? `<div class="needs">前置：${needs.map((n) => `<span class="need ${n.label}" title="${esc(R.LABELS[n.label])}" data-no-i18n>${esc(n.name)}</span>`).join('、')}</div>` : ''}
-      ${concept.papers !== undefined ? `<div class="counts ${concept.grounding === 'ok' ? '' : 'none'}">公开文献里约 ${concept.papers} 篇${grounding}</div>` : ''}
-      <div class="row"><label><input type="checkbox"${mastered ? ' checked' : ''}> 已掌握</label>
+    holder.innerHTML = `${R.detailHTML(g, concept, {mastered})}${grounding ? `<div class="counts none">${esc(grounding)}</div>` : ''}
+      <div class="row"><label><input type="checkbox"${mastered ? ' checked' : ''}> 已掌握（作为起点）</label>
         <button type="button" class="ghost small" data-act="edit">编辑</button><button type="button" class="ghost small" data-act="del">删除</button></div>`;
-    $('input[type=checkbox]', card).onchange = () => { map.mastered = R.toggleMastered(map.mastered, concept.id, g); renderMap(); };
-    $('[data-act=del]', card).onclick = () => { map.graph = R.removeConcept(g, concept.id); map.mastered = map.mastered.filter((i) => i !== concept.id); renderMap(); };
-    $('[data-act=edit]', card).onclick = () => editConcept(card, g, concept);
-    return card;
+    $('input[type=checkbox]', holder).onchange = () => {
+      map.mastered = R.toggleMastered(map.mastered, concept.id, g); renderMap();
+      const again = $('input[type=checkbox]', part('mapDetail'));
+      if (again) again.focus();   // the re-draw replaced the checkbox the person was on
+    };
+    $('[data-act=del]', holder).onclick = () => {
+      map.graph = R.removeConcept(g, concept.id); map.mastered = map.mastered.filter((i) => i !== concept.id);
+      map.selected = map.editing = null; renderMap();
+    };
+    $('[data-act=edit]', holder).onclick = () => { map.editing = concept.id; renderDetail(); };
   }
 
-  function editConcept(card, g, concept) {
-    card.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
+  function editConcept(holder, g, concept) {
+    holder.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
       <input class="edit" data-role="t" maxlength="130" placeholder="两个英文检索词，用 / 分隔" aria-label="英文检索词">
       ${R.needsEditorHTML(g, concept.id)}
       <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>`;
-    $('[data-role=n]', card).value = concept.name;
-    $('[data-role=t]', card).value = (concept.terms || []).join(' / ');
-    $('[data-act=no]', card).onclick = renderMap;
-    $('[data-act=ok]', card).onclick = () => {
+    $('[data-role=n]', holder).value = concept.name;
+    $('[data-role=t]', holder).value = (concept.terms || []).join(' / ');
+    $('[data-act=no]', holder).onclick = () => { map.editing = null; renderDetail(); };
+    $('[data-act=ok]', holder).onclick = () => {
       try {
-        let next = R.rename(g, concept.id, $('[data-role=n]', card).value, $('[data-role=t]', card).value.split('/'));
-        next = R.setNeeds(next, concept.id, R.readNeeds(card));
-        map.graph = next; mapNotice(''); renderMap();
+        let next = R.rename(g, concept.id, $('[data-role=n]', holder).value, $('[data-role=t]', holder).value.split('/'));
+        next = R.setNeeds(next, concept.id, R.readNeeds(holder));
+        map.graph = next; map.editing = null; mapNotice(''); renderMap();
       } catch (error) { mapNotice(error.message); }
     };
   }
 
   part('mapAdd').onclick = () => {
-    try { map.graph = R.addConcept(map.graph, {name: '新概念', terms: [], hint: 2}, []); mapNotice(''); renderMap(); }
-    catch (error) { mapNotice(error.message); }
+    try {
+      let name = '新概念', n = 1;
+      while (map.graph.concepts.some((c) => c.name === name)) name = `新概念 ${++n}`;
+      map.graph = R.addConcept(map.graph, {name, terms: [], hint: 2}, []);
+      map.selected = map.editing = map.graph.concepts[map.graph.concepts.length - 1].id;
+      mapNotice(''); renderMap();
+    } catch (error) { mapNotice(error.message); }
   };
-  part('mapDrop').onclick = () => { map.graph = null; map.mastered = []; mapNotice(''); renderMap(); };
+  part('mapDrop').onclick = () => { map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice(''); renderMap(); };
 
   async function generateMap(regenerate) {
     if (!sessionId()) { mapNotice('请先开始创建会话。'); return; }
@@ -249,7 +273,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     try {
       const out = await post(`/api/project-guidance/sessions/${sessionId()}/route`, {regenerate});
       if (!out.ok) { mapNotice(`没有使用 AI：${out.reason || 'AI 没有给出学习图'}。可以点“添加概念”自己搭学习图，或不使用学习图。`); return; }
-      map.graph = out.graph; map.mastered = [];
+      map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
       const fixed = out.report ? out.report.dropped_edges.length + out.report.merged.length + out.report.dropped_concepts.length : 0;
       mapNotice(`AI 已回复${out.tokens ? ` · 约 ${out.tokens} token` : ''}${fixed ? ` · 已自动修复 ${fixed} 处（重复概念、成环或多余的边）` : ''}。请检查后再创建。`, false);
       renderMap();

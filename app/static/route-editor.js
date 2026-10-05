@@ -43,12 +43,6 @@
     return memo;
   }
 
-  function columns(g) {
-    const level = layers(g), cols = [];
-    g.concepts.forEach(c => { (cols[level[c.id] - 1] = cols[level[c.id] - 1] || []).push(c); });
-    return cols.filter(Boolean);
-  }
-
   function label(value) {
     if (value === null || value === undefined) return 'unknown';
     if (value >= 0.15) return 'supported';
@@ -58,7 +52,7 @@
 
   function needsOf(g, id) {
     const byId = Object.fromEntries(g.concepts.map(c => [c.id, c]));
-    return g.prereqs.filter(e => e.to === id && byId[e.from]).map(e => ({ id: e.from, name: byId[e.from].name, support: e.support, label: label(e.support) }));
+    return g.prereqs.filter(e => e.to === id && byId[e.from] && (e.state || 'active') === 'active').map(e => ({ id: e.from, name: byId[e.from].name, support: e.support, label: label(e.support) }));
   }
 
   function acyclic(g) {
@@ -142,6 +136,28 @@
     return next;
   }
 
+  /* A map from the AI numbers its concepts c1..cN again. Marks on the saved map (already known, unlocked by hand,
+     start) are kept only for the same id and the same name, so a draft that is going to replace the saved map
+     reuses the saved id of every concept whose name is the same; the others get ids no saved concept has. */
+  function reuseIds(draft, saved) {
+    const next = copy(draft);
+    if (!saved || !Array.isArray(saved.concepts) || !saved.concepts.length) return next;
+    const savedByName = new Map();
+    saved.concepts.forEach(c => { if (!savedByName.has(nameKey(c.name))) savedByName.set(nameKey(c.name), c.id); });
+    const number = (id) => { const m = /^c(\d+)$/.exec(id); return m ? Number(m[1]) : 0; };
+    let top = Math.max(0, ...saved.concepts.map(c => number(c.id)), ...next.concepts.map(c => number(c.id)));
+    const taken = new Set(), rename = new Map();
+    next.concepts.forEach(c => {
+      const wanted = savedByName.get(nameKey(c.name));
+      if (wanted && !taken.has(wanted)) { rename.set(c.id, wanted); taken.add(wanted); }
+    });
+    next.concepts.forEach(c => { if (!rename.has(c.id)) rename.set(c.id, `c${++top}`); });
+    next.concepts.forEach(c => { c.id = rename.get(c.id); });
+    next.prereqs.forEach(e => { e.from = rename.get(e.from); e.to = rename.get(e.to); });
+    next.targets = (next.targets || []).map(t => rename.get(t)).filter(Boolean);
+    return next;
+  }
+
   function toggleMastered(list, id, g) {
     const set = new Set(list || []);
     if (!g.concepts.some(c => c.id === id)) return [...set];
@@ -167,6 +183,74 @@
     return [...container.querySelectorAll('.need-list input[type=checkbox]:checked')].map(box => box.value);
   }
 
+  /* How branched the map is: concepts, entry points (nothing needed first), levels, the widest level and whether it
+     is a single line. Same meaning as pathgraph.shape on the server. */
+  function shape(g) {
+    const live = (g.concepts || []).filter(c => (c.state || 'active') === 'active');
+    const ids = new Set(live.map(c => c.id));
+    const edges = (g.prereqs || []).filter(e => ids.has(e.from) && ids.has(e.to));
+    const level = layers({ concepts: live, prereqs: edges });
+    const needed = new Set(edges.map(e => e.to)), per = {};
+    Object.values(level).forEach(v => { per[v] = (per[v] || 0) + 1; });
+    const width = Math.max(0, ...Object.values(per));
+    return { concepts: live.length, roots: live.filter(c => !needed.has(c.id)).length, levels: Object.keys(per).length, width, chain: live.length >= 4 && width === 1 };
+  }
+
+  function shapeText(s) {
+    if (!s || !s.concepts) return '';
+    if (s.chain) return `这张图现在是一条单线：${s.concepts} 个概念，每个只依赖上一个，没有并行的分支。真实的领域通常有几个互相独立的基础方向；可以在概念里改前置，或重新让 AI 起草。`;
+    if (s.concepts < 2) return `${s.concepts} 个概念`;
+    return `${s.concepts} 个概念 · ${s.roots} 个入口，可以同时开始 · 最多 ${s.width} 个概念并行`;
+  }
+
+  /* The prerequisites of a concept that are not understood yet, and the concepts that need it. */
+  function waitingOn(g, progress, id) {
+    return needsOf(g, id).filter(n => !progress || !progress[n.id] || progress[n.id].status !== 'satisfied');
+  }
+
+  function dependents(g, id) {
+    const byId = Object.fromEntries(g.concepts.map(c => [c.id, c]));
+    return g.prereqs.filter(e => e.from === id && byId[e.to] && (e.state || 'active') === 'active').map(e => ({ id: e.to, name: byId[e.to].name }));
+  }
+
+  /* What a node says about itself on the graph: {key, label, title}. `known` is false for a draft with unsaved
+     structural edits (progress belongs to the saved map). */
+  function nodeStatus(concept, progress, known) {
+    const p = known && progress ? progress[concept.id] : null;
+    if (!p) return { key: 'proposed', label: known ? '' : '未保存', title: concept.name };
+    const title = p.status === 'locked' ? LOCKED_TITLE : (p.low_interest ? LOW_INTEREST_TITLE : concept.name);
+    return { key: p.status, label: STATUS[p.status] || '', title };
+  }
+
+  /* The information half of the detail panel (the pages add their own buttons). `ctx.progress` is the saved map's
+     progress or null; `ctx.mastered` is the creation page's "I already know this" mark. */
+  function detailHTML(g, concept, ctx) {
+    const c = ctx || {}, p = c.progress ? c.progress[concept.id] : null;
+    const needs = needsOf(g, concept.id), waiting = new Set(waitingOn(g, c.progress, concept.id).map(n => n.id));
+    const unlocks = dependents(g, concept.id);
+    const chip = (n) => `<span class="need ${n.label}${c.progress ? (waiting.has(n.id) ? ' wait' : ' done') : ''}" title="${esc(LABELS[n.label])}" data-no-i18n>${esc(n.name)}</span>`;
+    const lines = [];
+    lines.push(`<h3 data-no-i18n>${esc(concept.name)}</h3>`);
+    lines.push((concept.terms || []).length ? `<div class="terms" data-no-i18n>${esc(concept.terms.join(' · '))}</div>` : '<div class="terms">（没有检索词）</div>');
+    if (p) {
+      lines.push(`<div class="badges"><span class="badge st-${esc(p.status)}" title="${esc(p.status === 'locked' ? LOCKED_TITLE : '')}">${esc(STATUS[p.status] || '')}</span>`
+        + `${p.low_interest ? `<span class="badge" title="${esc(LOW_INTEREST_TITLE)}">暂不优先</span>` : ''}`
+        + `${p.manual === 'mastered' ? '<span class="badge">你标为已掌握</span>' : ''}</div>`);
+    } else if (c.mastered) {
+      lines.push('<div class="badges"><span class="badge st-satisfied">你标为已掌握（起点）</span></div>');
+    }
+    lines.push(needs.length
+      ? `<div class="needs">需要先读懂：${needs.map(chip).join('、')}</div>`
+      : '<div class="needs">没有前置，这是一个入口，可以直接开始。</div>');
+    if (p && p.status === 'locked' && waiting.size) {
+      lines.push(`<div class="map-note">它只在等 ${[...waiting].map(id => `<span data-no-i18n>${esc(needs.find(n => n.id === id).name)}</span>`).join('、')}；其他分支的进度不影响它。</div>`);
+    }
+    if (unlocks.length) lines.push(`<div class="needs">读懂它之后可以读：${unlocks.map(n => `<span class="need" data-no-i18n>${esc(n.name)}</span>`).join('、')}</div>`);
+    if (p) lines.push(`<div class="counts">${esc(countsText(p))}</div>`);
+    if (concept.papers !== undefined) lines.push(`<div class="counts ${concept.grounding === 'ok' ? '' : 'none'}">公开文献里约 ${esc(concept.papers)} 篇</div>`);
+    return lines.join('');
+  }
+
   function countsText(state) {
     const n = (v) => Number(v) || 0;
     return `收藏 ${n(state.useful)} · 不感兴趣 ${n(state.irrelevant)} · 太难 ${n(state.too_hard)} · 已展示 ${n(state.shown)}`;
@@ -188,5 +272,5 @@
     return `已读懂 ${done} / ${total} 个概念 · 探索约占 ${share}%`;
   }
 
-  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, actionsFor, summaryText, LABELS, layers, columns, needsOf, check, addConcept, removeConcept, setNeeds, rename, toggleMastered, payload, label };
+  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

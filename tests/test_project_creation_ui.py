@@ -110,10 +110,11 @@ class RoutePageTests(unittest.TestCase):
             self.assertIn(asset, self.html)
         self.assertNotIn("<style>", self.html)
 
-    def test_the_page_reads_and_writes_only_the_route_api_and_never_the_ai(self):
+    def test_the_page_reads_and_writes_only_the_route_api_and_reaches_the_ai_only_through_the_draft_button(self):
         self.assertIn("/api/route", self.js)
-        for forbidden in ("/route`", "learning_path_plan", "/api/qa", "triage", "/api/daily"):
+        for forbidden in ("/route`", "/api/qa", "triage", "/api/daily", "/api/project-guidance", "/api/refresh"):
             self.assertNotIn(forbidden, self.js)
+        self.assertEqual(self.js.count("action: 'plan'"), 1)   # the one model-backed action; see test_route_graph_page for when it may run
 
     def test_the_page_offers_the_marks_the_server_accepts_and_a_way_back(self):
         for token in ("action: 'manual'", "action: 'mode'", "action: 'save'", "action: 'ground'", "R.actionsFor", "revision"):

@@ -495,6 +495,14 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, TypeError, sqlite3.IntegrityError) as exc:
                 return self._json({"error": str(exc)}, 400)
             self._json(result)
+        elif route.startswith("/api/projects/"):
+            project_id = unquote(route[len("/api/projects/"):])
+            try:
+                if body.get("action") != "rename":
+                    return self._json({"error": "unknown project action"}, 400)
+                self._json({"project": app.rename_project(project_id, body.get("name"))})
+            except ValueError as exc:
+                self._json({"error": str(exc)}, 404 if str(exc) == "项目不存在" else 400)
         elif route == "/api/project-papers":
             try:
                 project_id, paper_key = body.get("project_id"), body.get("paper_key") or body.get("key")
@@ -564,6 +572,8 @@ class Handler(BaseHTTPRequestHandler):
                     result = app.route_mode(project_id, body.get("mode"), revision=revision)
                 elif action == "ground":
                     return self._json({"graph": app.route_ground(body.get("graph"))})
+                elif action == "plan":
+                    return self._json(app.route_plan_project(project_id, body.get("goal")))
                 else:
                     return self._json({"error": "unknown route action"}, 400)
                 self._json(result)
@@ -737,6 +747,13 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 return self._json({"error": str(exc)}, 400)
             return self._json({"project_id": project_id, "paper_key": paper_key, "removed": True})
+        if route.startswith("/api/projects/"):
+            try:
+                return self._json(self._app().delete_project(unquote(route[len("/api/projects/"):])))
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 404 if str(exc) == "项目不存在" else 400)
+            except (OSError, sqlite3.Error) as exc:   # the backup came first, so nothing was deleted
+                return self._json({"error": f"没能先备份数据库，所以没有删除：{exc}"}, 500)
         if route.startswith("/api/project-guidance/sessions/"):
             try:
                 return self._json(self._app().cancel_guidance(route.split("/")[-1]))

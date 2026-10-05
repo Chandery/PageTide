@@ -15,10 +15,21 @@
 <p class="lead" data-role="project"></p>
 <div class="notice" data-role="notice" hidden></div>
 
+<div class="ai-draft" data-role="aiBox" hidden>
+  <b>让 AI 起草学习图</b>
+  <label class="hint" for="aiGoal">你想学什么、学到什么程度？</label>
+  <textarea id="aiGoal" data-role="goal" maxlength="250" placeholder="例如：想系统了解半导体晶体生长，能读懂 MBE 方向的论文"></textarea>
+  <div class="map-note" data-role="aiWarn"></div>
+  <div class="map-note">只会发送上面这段目标和这个项目的前 5 个关键词，不发送论文、笔记、画像或别的项目。一次调用约 10–30 秒；每个项目每天最多 3 次。AI 给的只是草稿：你点保存之前，现在的学习图不会改变。</div>
+  <div class="row"><button type="button" class="primary small" data-role="aiGo">让 AI 起草（1 次调用）</button><button type="button" class="ghost small" data-role="aiCancel">取消</button><span class="map-note" data-role="aiActivity" role="status" aria-live="polite"></span></div>
+</div>
+
 <section data-role="empty" hidden>
-  <p class="hint">这个项目还没有学习图。学习图把你想学的内容拆成概念和先后顺序，推荐会先从你现在能读的概念里选论文，各条分支按各自的进度推进。</p>
-  <p class="hint">新建项目时可以让 AI 先起草一张；也可以在这里自己搭。</p>
-  <button type="button" class="primary" data-role="startEmpty">自己搭一张</button>
+  <p class="hint">这个项目还没有学习图。学习图把你想学的内容拆成概念，并画出“读懂 A 才能读 B”的关系；推荐会先从你现在能读的概念里选论文，各条分支按各自的进度推进，互不等待。</p>
+  <div class="map-actions">
+    <button type="button" class="primary" data-role="aiOpen">让 AI 起草一张</button>
+    <button type="button" class="ghost" data-role="startEmpty">自己搭一张</button>
+  </div>
 </section>
 
 <section data-role="main" hidden>
@@ -26,10 +37,15 @@
     <span data-role="summary"></span>
     <label class="years"><input type="checkbox" data-role="modeSwitch"> 按学习图推荐（路径模式 Route Mode）</label>
   </div>
-  <div class="map-note" data-role="legend">越靠左越基础。“可以读”的概念正在被推荐；“未解锁”在等前置概念被读懂。沉默不会改变任何状态，“太难”只会让推荐先补基础，也不代表不感兴趣。</div>
-  <div class="map" data-role="map"></div>
+  <div class="map-note" data-role="legend">箭头从“要先读懂的概念”指向“依赖它的概念”。每个概念只等它自己的前置，不同分支互不等待；上下位置只表示要先读懂几层前置，不是必须读完一整层。“可以读”的概念正在被推荐，“未解锁”在等它的前置被读懂。沉默不会改变任何状态，“太难”只会让推荐先补基础，也不代表不感兴趣。</div>
+  <div class="map-shape" data-role="shape"></div>
+  <div class="map-layout">
+    <div data-role="graph"></div>
+    <aside class="map-detail" data-role="detail" aria-live="polite"></aside>
+  </div>
   <div class="map-actions">
     <button type="button" class="ghost small" data-role="add">+ 添加概念</button>
+    <button type="button" class="ghost small" data-role="aiOpen2">让 AI 重新起草</button>
     <button type="button" class="ghost small" data-role="check">用公开文献核对</button>
     <button type="button" class="primary small" data-role="save" hidden>保存对学习图的修改</button>
     <button type="button" class="ghost small" data-role="discard" hidden>放弃修改</button>
@@ -37,6 +53,7 @@
 </section>
 </div>
 <script src="/route-editor.js"></script>
+<script src="/route-graph.js"></script>
 <script src="/route-page.js"></script>
 </body>
 </html>

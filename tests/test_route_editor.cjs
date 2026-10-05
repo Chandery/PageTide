@@ -24,10 +24,57 @@ test('layers are the longest path from the entry points', () => {
   assert.deepEqual({ ...R.layers(graph()) }, { c1: 1, c2: 2, c3: 2, c4: 3 });
 });
 
-test('columns group concepts by layer in a stable order', () => {
+test('shape tells a branched map from a single line and counts entry points', () => {
   const R = load();
-  const cols = R.columns(graph());
-  assert.deepEqual(JSON.parse(JSON.stringify(cols.map(col => col.map(c => c.id)))), [['c1'], ['c2', 'c3'], ['c4']]);
+  const g = graph();
+  assert.deepEqual(JSON.parse(JSON.stringify(R.shape(g))), { concepts: 4, roots: 1, levels: 3, width: 2, chain: false });
+  const chain = { concepts: ['a', 'b', 'c', 'd'].map((id, i) => ({ id, name: id, hint: i + 1, state: 'active' })),
+                  prereqs: [['a', 'b'], ['b', 'c'], ['c', 'd']].map(([from, to]) => ({ from, to, state: 'active' })) };
+  assert.equal(R.shape(chain).chain, true);
+  assert.match(R.shapeText(R.shape(chain)), /一条单线/);
+  assert.match(R.shapeText(R.shape(g)), /1 个入口.*最多 2 个概念并行/);
+  assert.equal(R.shapeText(R.shape({ concepts: [], prereqs: [] })), '');
+  const two = { concepts: chain.concepts.slice(0, 2), prereqs: chain.prereqs.slice(0, 1) };
+  assert.equal(R.shape(two).chain, false);   // two concepts in a row is not "a line", it is a small map
+  const archived = { concepts: chain.concepts.map((c, i) => (i === 3 ? { ...c, state: 'archived' } : c)), prereqs: chain.prereqs };
+  assert.equal(R.shape(archived).concepts, 3);
+});
+
+test('a locked concept waits only for its own unmet prerequisites', () => {
+  const R = load();
+  const g = { concepts: ['a', 'b', 'c'].map((id) => ({ id, name: id.toUpperCase(), hint: 1, state: 'active' })),
+              prereqs: [{ from: 'a', to: 'c', state: 'active' }, { from: 'b', to: 'c', state: 'active' }] };
+  const progress = { a: { status: 'satisfied' }, b: { status: 'unlocked' }, c: { status: 'locked' } };
+  assert.deepEqual(JSON.parse(JSON.stringify(R.waitingOn(g, progress, 'c').map((n) => n.id))), ['b']);
+  assert.deepEqual(JSON.parse(JSON.stringify(R.dependents(g, 'a').map((n) => n.id))), ['c']);
+  assert.deepEqual(R.waitingOn(g, progress, 'a'), []);
+});
+
+test('a node says unsaved for a draft with structural edits, and its saved status otherwise', () => {
+  const R = load();
+  const c = { id: 'x', name: 'X' };
+  assert.deepEqual(JSON.parse(JSON.stringify(R.nodeStatus(c, {}, false))), { key: 'proposed', label: '未保存', title: 'X' });
+  assert.equal(R.nodeStatus(c, { x: { status: 'locked' } }, true).label, '未解锁');
+  assert.equal(R.nodeStatus(c, { x: { status: 'locked' } }, true).title, R.LOCKED_TITLE);
+  assert.equal(R.nodeStatus(c, { x: { status: 'unlocked', low_interest: true } }, true).title, R.LOW_INTEREST_TITLE);
+  assert.equal(R.nodeStatus(c, {}, true).key, 'proposed');   // no progress row yet
+});
+
+test('the detail text names what a concept needs and what it opens, escapes names, and never says late or behind', () => {
+  const R = load();
+  const g = graph();
+  g.concepts[1].name = '<img src=x onerror=alert(1)>';
+  const html = R.detailHTML(g, g.concepts[1], { progress: { c1: { status: 'satisfied' }, c2: { status: 'unlocked', useful: 1, irrelevant: 0, too_hard: 0, shown: 3 } } });
+  assert.ok(!html.includes('<img'), html);
+  assert.match(html, /需要先读懂/);
+  assert.match(html, /读懂它之后可以读/);
+  assert.match(html, /need[^"]* done/);
+  const entry = R.detailHTML(g, g.concepts[0], {});
+  assert.match(entry, /这是一个入口/);
+  assert.doesNotMatch(html + entry, /落后|拖延|逾期|未读|欠/);
+  const locked = R.detailHTML(g, g.concepts[3], { progress: { c1: { status: 'satisfied' }, c2: { status: 'unlocked' }, c3: { status: 'unlocked' }, c4: { status: 'locked' } } });
+  assert.match(locked, /只在等/);
+  assert.match(locked, /其他分支的进度不影响它/);
 });
 
 test('a concept knows its prerequisites by name and the corpus label of each edge', () => {
@@ -184,4 +231,41 @@ test('the low-interest tooltip names its real causes and the way back', () => {
   assert.match(R.LOW_INTEREST_TITLE, /不感兴趣/);
   assert.match(R.LOW_INTEREST_TITLE, /不等于不喜欢/);
   assert.match(R.LOW_INTEREST_TITLE, /恢复/);
+});
+
+test('a draft that replaces the saved map reuses the saved id of every concept with the same name', () => {
+  const R = load();
+  const saved = { concepts: [concept('c1', 'Crystal basics', 1), concept('c2', 'Epitaxy', 2)], prereqs: [{ from: 'c1', to: 'c2' }], targets: ['c2'] };
+  const draft = { concepts: [concept('c1', 'epitaxy', 1), concept('c2', 'CRYSTAL  basics', 1), concept('c3', 'Doping', 2), concept('c4', 'MBE', 3)],
+                  prereqs: [{ from: 'c2', to: 'c1' }, { from: 'c1', to: 'c4' }, { from: 'c2', to: 'c3' }], targets: ['c4'] };
+  const out = R.reuseIds(draft, saved);
+  const byName = Object.fromEntries(out.concepts.map((c) => [c.name, c.id]));
+  assert.equal(byName['CRYSTAL  basics'], 'c1');
+  assert.equal(byName.epitaxy, 'c2');
+  assert.equal(new Set(out.concepts.map((c) => c.id)).size, 4);
+  assert.ok(out.concepts.filter((c) => !['CRYSTAL  basics', 'epitaxy'].includes(c.name)).every((c) => !['c1', 'c2'].includes(c.id)), 'new concepts never take a reused id');
+  assert.deepEqual(JSON.parse(JSON.stringify(out.prereqs.map((e) => [e.from, e.to]))), [['c1', 'c2'], ['c2', byName.MBE], ['c1', byName.Doping]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(out.targets)), [byName.MBE]);
+  assert.equal(R.check(out).ok, true);
+  assert.equal(draft.concepts[0].id, 'c1');   // the input is not touched
+  assert.equal(draft.concepts[0].name, 'epitaxy');
+});
+
+test('reuseIds with nothing saved, or with no name in common, only keeps the draft valid', () => {
+  const R = load();
+  const draft = { concepts: [concept('c1', 'A', 1), concept('c2', 'B', 2)], prereqs: [{ from: 'c1', to: 'c2' }], targets: ['c2'] };
+  assert.deepEqual(JSON.parse(JSON.stringify(R.reuseIds(draft, null))), draft);
+  const saved = { concepts: [concept('c1', 'X', 1), concept('c7', 'Y', 2)], prereqs: [], targets: [] };
+  const out = R.reuseIds(draft, saved);
+  assert.ok(out.concepts.every((c) => !['c1', 'c7'].includes(c.id)), 'no draft concept may take the id of a saved concept it does not match by name');
+  assert.equal(R.check(out).ok, true);
+});
+
+test('only active arrows count as what a concept needs or opens', () => {
+  const R = load();
+  const g = graph();
+  g.prereqs.push({ from: 'c3', to: 'c4', state: 'proposed' }, { from: 'c1', to: 'c4', state: 'archived' });
+  assert.deepEqual(JSON.parse(JSON.stringify(R.needsOf(g, 'c4').map((n) => n.id))), ['c2']);
+  assert.deepEqual(JSON.parse(JSON.stringify(R.dependents(g, 'c3').map((n) => n.id))), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(R.waitingOn(g, { c2: { status: 'unlocked' } }, 'c4').map((n) => n.id))), ['c2']);
 });

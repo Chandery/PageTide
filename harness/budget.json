@@ -231,11 +231,32 @@
         "output": 900
       },
       "input_cap_components": {
-        "instructions_and_schema": 500,
+        "instructions_and_schema": 560,
         "goal_and_draft": 550,
-        "framing_and_margin": 150
+        "framing_and_margin": 90
       },
       "scope": "one explicit generation per click inside a project-creation session (1 + 2 paid attempts at most): the research goal (250 characters) and up to five draft keywords (30 characters each) only; no other project data, no papers; the reply is a concept graph that is repaired locally and confirmed by the user"
+    },
+    "learning_path_plan_project": {
+      "owner_approved": false,
+      "approval_note": "待 owner 批准（agent 不能代为批准）。2026-10-05 owner 在会话中把“已经生成的项目没有办法用 AI 搭建学习图”列为要解决的问题，同时说明不需要现在替已有项目生成。这个操作与 learning_path_plan 的提示词、输入输出上限完全相同，只是触发点不同：在已有项目的学习图页面显式点击。owner 把本条的 owner_approved 改为 true 之前，网关会拒绝这个操作，页面会显示“等待你批准”。",
+      "prompt": "prompts/learning-path-plan-project.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 900,
+        "output": 700
+      },
+      "cap": {
+        "input": 1200,
+        "output": 900
+      },
+      "input_cap_components": {
+        "instructions_and_schema": 560,
+        "goal_and_draft": 550,
+        "framing_and_margin": 90
+      },
+      "scope": "one explicit generation per click on the learning-map page of an existing project, at most 3 paid attempts per project per local day: the research goal the person types (250 characters) and the project's first five keywords (30 characters each) only; no other project data, no papers; the reply is a concept graph that is repaired locally and only saved when the person clicks save"
     }
   },
   "scenarios": [

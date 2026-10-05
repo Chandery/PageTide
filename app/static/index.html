@@ -42,6 +42,8 @@
                  background:var(--base); box-shadow:var(--sh-out-sm); display:flex; align-items:center; gap:8px;
                  transition:box-shadow .16s ease, transform .16s ease; user-select:none; }
   .project-btn:hover { transform:translateY(-1px); }
+  .project-edit { font-size:12px; color:var(--muted); padding:6px 10px; border-radius:999px; text-decoration:none; white-space:nowrap; }
+  .project-edit:hover, .project-edit:focus-visible { color:var(--text); box-shadow:var(--sh-out-sm); }
   .project-btn .icon { font-size:14px; }
   .project-btn kbd { font:11px/1 -apple-system,BlinkMacSystemFont,sans-serif; color:var(--muted);
                      padding:3px 5px; border-radius:5px; box-shadow:inset 0 0 0 1px var(--line-strong); }
@@ -74,7 +76,11 @@
   .mc-page, .mc-page * { animation:none !important; transition:none !important; }
   .mc-label { display:flex; align-items:center; justify-content:center; gap:7px; height:30px; padding-top:8px;
               font-size:12.5px; color:rgba(243,238,230,.78); white-space:nowrap; overflow:hidden; }
-  .mc-label span:last-child { overflow:hidden; text-overflow:ellipsis; }
+  .mc-label .mc-name { overflow:hidden; text-overflow:ellipsis; }
+  .mc-edit { flex:0 0 auto; font-size:11px; padding:2px 8px; border-radius:999px; color:rgba(243,238,230,.8); background:rgba(255,255,255,.1);
+             border:1px solid rgba(255,255,255,.16); box-shadow:none; opacity:0; transition:opacity .14s ease; cursor:pointer; }
+  .mc-card:hover .mc-edit, .mc-card[aria-selected="true"] .mc-edit, .mc-edit:focus-visible { opacity:1; }
+  .mc-edit:hover { background:rgba(255,255,255,.2); transform:none; }
   .mc-card[aria-selected="true"] .mc-label { color:#fff; font-weight:600; }
   .mc-dot { flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--mark); }
   /* placeholder page for projects not opened in this session */
@@ -589,6 +595,7 @@
     <span id="currentProjectName">加载中...</span>
     <kbd aria-hidden="true">⌥↑</kbd>
   </button>
+  <a class="project-edit" id="projectEdit" href="/project.html" title="管理这个项目：改名、删除">管理项目</a>
   <nav class="tabs" aria-label="主导航">
     <button class="tab active" data-view="today" aria-current="page"><i class="icon sparkles" aria-hidden="true"></i>今日</button>
     <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>
@@ -787,7 +794,7 @@ function routeBadge(c) {
   if (!c.route) return '';
   const kind = ROUTE_KINDS[c.route.kind];
   if (!kind) return '';
-  return `<span class="badge route-${esc(c.route.kind)}" title="${esc(ROUTE_TITLES[c.route.kind])}"><span>${kind}</span>${c.route.name ? ` <span data-no-i18n>${esc(c.route.name)}</span>` : ''}${c.route.layer ? ` <span>· 第 ${esc(c.route.layer)} 层</span>` : ''}</span>`;
+  return `<span class="badge route-${esc(c.route.kind)}" title="${esc(ROUTE_TITLES[c.route.kind])}"><span>${kind}</span>${c.route.name ? ` <span data-no-i18n>${esc(c.route.name)}</span>` : ''}</span>`;
 }
 
 const PDF_BADGES = {
@@ -884,6 +891,7 @@ async function loadProjects() {
 function renderProjectSelector() {
   const current = state.projects.find(p => p.id === state.currentProject);
   $('#currentProjectName').textContent = current?.name || '选择项目';
+  $('#projectEdit').href = current ? `/project.html?project_id=${encodeURIComponent(current.id)}` : '/project.html';
 }
 
 async function switchProject(projectId) {
@@ -903,6 +911,7 @@ const projectSwitcher = window.ProjectSwitcher.mount({
   getCurrent: () => state.currentProject,
   onSelect: id => switchProject(id),
   onCreate: () => { window.location.href = '/project_creation.html'; },
+  onEdit: p => { window.location.href = `/project.html?project_id=${encodeURIComponent(p.id)}`; },
   // The PDF reader zooms with the same pinch, so it never opens the overview.
   pinchIgnore: '.org-graph, #reader, .pdfbox',
   pinchBlocked: () => document.body.classList.contains('reader-open'),
@@ -1259,6 +1268,8 @@ document.addEventListener('scroll', hidePreview, { passive: true });
     const saved = localStorage.getItem('pdh-current-project');
     if (!requested && saved) state.currentProject = saved;
     await loadProjects();
+    const note = sessionStorage.getItem('pdh-notice');
+    if (note) { sessionStorage.removeItem('pdh-notice'); toast(note, 'ok', 8000); }
     await load();
     autoMaintain();
   } catch (e) {

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script>document.documentElement.dataset.mode=localStorage.getItem('pdh-mode')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')</script>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/project-creation.css">
+<title>项目设置 · PaperDigHelper</title>
+</head>
+<body>
+<div class="container">
+<a class="back" href="/" data-role="back">← 返回今日推荐</a>
+<h1>项目设置</h1>
+<div class="notice" data-role="notice" hidden></div>
+
+<section class="settings-card" data-role="main" hidden>
+  <h2>名称</h2>
+  <form data-role="renameForm" class="row-form">
+    <label class="hint" for="projectName">项目名称（最多 120 个字符）</label>
+    <input id="projectName" data-role="name" maxlength="120" autocomplete="off">
+    <div class="map-actions"><button type="submit" class="primary small" data-role="rename">保存名称</button></div>
+  </form>
+
+  <h2>这个项目</h2>
+  <dl class="facts" data-role="facts"></dl>
+  <div class="map-actions"><a class="ghost-link" data-role="routeLink" href="/route.html">打开学习图</a></div>
+
+  <h2>删除项目</h2>
+  <div class="danger">
+    <p class="hint">删除会移除这个项目自己的内容：推荐记录、你的评价和收藏归属、学习图、画像和问答记录。论文本身的元数据、已下载的 PDF 和全文不会被删除，别的项目也不受影响。</p>
+    <p class="hint">删除前会先在本地数据目录里留一份数据库备份（只保留最近 3 份），误删时可以手动找回。</p>
+    <label class="hint" for="confirmName">请输入下面这个项目名称来确认：</label>
+    <div class="confirm-name" data-role="nameEcho" data-no-i18n></div>
+    <input id="confirmName" data-role="confirm" autocomplete="off" placeholder="项目名称">
+    <div class="map-actions"><button type="button" class="danger-button small" data-role="delete" disabled>删除这个项目</button></div>
+  </div>
+</section>
+</div>
+<script src="/project-page.js"></script>
+</body>
+</html>
