@@ -422,6 +422,13 @@
       }
     }
   }
+  // The node the camera starts from: the paper being read when it is drawn, otherwise the first node. The paper may
+  // be missing (its category is collapsed, it was removed, or it was chosen under another project); a node that
+  // does not exist must never be the origin.
+  function graphOrigin(nodes, key) {
+    const present = new Set(nodes.map(n => n.data.id));
+    return key && present.has(paperNodeId(key)) ? paperNodeId(key) : nodes[0]?.data.id;
+  }
   function renderGraph(persistInitial = true) {
     capturePositions();
     S.relationsPending=false;
@@ -455,7 +462,7 @@
       layout: { name: 'preset' },
       minZoom: 0.08, maxZoom: 3, wheelSensitivity: 0.18, boxSelectionEnabled: true,
       style: graphStyle(transition) });
-    const originId = S.key ? paperNodeId(S.key) : nodes[0]?.data.id;
+    const originId = graphOrigin(nodes, S.key);
     if (!allPlaced) {
       const radial = radialPositions(S.cy.nodes().toArray(), originId);
       S.cy.nodes().forEach(n => { if (radial[n.id()]) n.position(radial[n.id()]); });
@@ -465,7 +472,7 @@
     if (forceRadial) S.graphRadialPending = false;
     if (prior && allPlaced) { S.cy.zoom(prior.zoom); S.cy.pan(prior.pan); }
     else if (forceRadial && originId) {
-      const origin = S.cy.getElementById(originId), p = origin.position(), zoom = Math.min(0.84, S.cy.maxZoom());
+      const origin = S.cy.getElementById(originId), p = origin.length ? origin.position() : { x: 0, y: 0 }, zoom = Math.min(0.84, S.cy.maxZoom());
       S.cy.viewport({ zoom, pan: { x: S.cy.width()/2 - p.x*zoom, y: S.cy.height()/2 - p.y*zoom } });
     } else {
       const keys = new Set(visible().map(p => p.key));
@@ -575,7 +582,7 @@
     if (!overview && fit < 0.9) {
       let closest, distance = Infinity;
       nodes.forEach(n => { const p = n.position(), d = (p.x-center.x)**2 + (p.y-center.y)**2; if (d < distance) { closest = p; distance = d; } });
-      center = closest;
+      if (closest) center = closest;
     }
     return { zoom, pan: { x: cy.width()/2-center.x*zoom, y: cy.height()/2-center.y*zoom } };
   }
@@ -870,5 +877,5 @@
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
 })();

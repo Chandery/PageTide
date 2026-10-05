@@ -542,3 +542,17 @@ test('named undo sends the event id it showed', async () => {
   assert.equal(calls[0]?.action, 'undo');
   assert.equal(calls[0]?.event, 41);
 });
+
+test('the camera never starts from a paper that is not drawn (collapsed category, removed paper)', () => {
+  const ui = fixture();
+  const data = { directions: [{ id: 'd1', name: 'Models', rank: 0 }, { id: 'd2', name: 'Other', rank: 1 }],
+    items: [{ key: 'hidden', title: 'Hidden', directions: ['d1'] }, { key: 'shown', title: 'Shown', directions: ['d2'] }],
+    collapsed: ['d1'], positions: {}, revision: 1, drafts: [] };
+  const nodes = ui.networkElements(data, null).filter(e => !e.data.source);
+  assert.deepEqual([...nodes.map(n => n.data.key)], ['shown']);                // the paper being read is under a collapsed category
+  assert.equal(ui.graphOrigin(nodes, 'hidden'), 'paper:shown');             // fall back to a node that exists
+  assert.equal(ui.graphOrigin(nodes, 'shown'), 'paper:shown');
+  assert.equal(ui.graphOrigin(nodes, 'removed-from-library'), 'paper:shown');
+  assert.equal(ui.graphOrigin(nodes, null), 'paper:shown');
+  assert.equal(ui.graphOrigin([], 'hidden'), undefined);                    // an empty graph has no origin, and the caller guards it
+});

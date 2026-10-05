@@ -137,6 +137,14 @@ class LargeScreenTests(unittest.TestCase):
             self.assertIn(f"@media(min-width:{width}px)", css)
 
 
+class KnowledgeGraphOriginTests(unittest.TestCase):
+    def test_the_graph_is_never_centred_on_a_node_that_does_not_exist(self):
+        js = read("organization.js")
+        self.assertIn("const originId = graphOrigin(nodes, S.key);", js)
+        self.assertIn("origin.length ? origin.position()", js)
+        self.assertIn("if (closest) center = closest;", js)
+
+
 class ProjectPageTests(unittest.TestCase):
     def test_delete_needs_the_exact_name_and_only_the_confirmed_click_deletes(self):
         js = read("project-page.js")
