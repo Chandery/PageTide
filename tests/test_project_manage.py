@@ -258,10 +258,12 @@ class ProjectPlanTests(Fixture):
             worker.join(5)
         self.assertEqual(self.app.store.get_setting(f"route_plan_project_{self.pid}")["attempts"], 1)
 
-    def test_until_the_owner_approves_the_project_operation_the_real_gateway_refuses_and_costs_nothing(self):
+    def test_if_the_project_operation_is_not_approved_the_real_gateway_refuses_and_costs_nothing(self):
         ops = json.loads((ROOT / "harness" / "budget.json").read_text())["operations"]
         self.assertIs(ops["learning_path_plan"]["owner_approved"], True)
-        self.assertIs(ops["learning_path_plan_project"]["owner_approved"], False)   # only the owner flips this
+        self.assertIs(ops["learning_path_plan_project"]["owner_approved"], True)
+        self.assertIn("owner", ops["learning_path_plan_project"]["approval_note"])
+        self.assertIn("2026-10-05", ops["learning_path_plan_project"]["approval_note"])
         self.app.gateway.config["operations"]["learning_path_plan_project"]["owner_approved"] = False
         with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
             out = self.app.route_plan_project(self.pid, self.GOAL)
