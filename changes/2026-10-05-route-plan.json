@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-05-route-plan",
+  "class": "critical",
+  "summary": "Route Mode slice 5. New budget operation learning_path_plan (approved by the owner on 2026-10-05): the research goal and draft keywords go to the model through the single gateway and come back as a concept graph, which is repaired locally (normalize), checked against OpenAlex concept by concept (route_ground, only search terms are sent) and confirmed by the user in a layered editor on the creation page; create_project and finalize_guidance carry the confirmed map and the concepts the user already knows. Each creation session allows 1 + 2 paid attempts, reserved before the call and counted whenever the provider was reached. Includes prompts/learning-path-plan.md, the registry entry, the editor and 12 node tests.",
+  "tasks": [
+    "PROJECT-01",
+    "AI-01"
+  ],
+  "requirements": [
+    "R-BUDGET",
+    "R-PROFILE",
+    "R-LOCAL"
+  ],
+  "files": [
+    "app/routeplan.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/project-creation.css",
+    "app/static/project-creation.js",
+    "app/static/project_creation.html",
+    "app/static/route-editor.js",
+    "changes/2026-10-05-route-plan.json",
+    "docs/BUDGET.generated.md",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-05-route-plan-checks.txt",
+    "docs/evidence/2026-10-05-route-plan-review.md",
+    "docs/evidence/2026-10-05-route-plan-self-review.md",
+    "harness/budget.json",
+    "prompts/learning-path-plan.md",
+    "scripts/i18n_extract.py",
+    "tests/test_gateway_budget.py",
+    "tests/test_project_creation_ui.py",
+    "tests/test_route_editor.cjs",
+    "tests/test_route_plan.py"
+  ],
+  "scope_note": "Branch feature/route-mode, on top of fcb14b8. New prompt and budget operation (critical). The owner approved the operation in the session; the agent did not set approval itself. The owner's .claude files are excluded locally.",
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "One new explicit operation, only on a click inside project creation: reference 900 input / 700 output tokens, cap 1200 / 900, 1 + 2 paid attempts per creation session at most, under the existing daily/monthly ceilings and the AI master switch. Everything else in this slice (repair, grounding against OpenAlex, editing, progress) is zero model tokens. Token figures are registry reference/cap values, not measurements.",
+    "quantified": {
+      "period": "per generation (registry reference; cap in the registry is 1200 in / 900 out = $0.001440)",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 900,
+        "output_tokens": 700,
+        "usd": "0.00111"
+      }
+    },
+    "before": "No operation produced a learning path; the saved path was free text, never read.",
+    "after": "learning_path_plan, approved, bounded, ledgered; at most three paid attempts per creation session.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-plan-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-plan-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-plan-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-05-route-plan-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "One separate read-only code-review agent (same model family, not a human); findings fixed afterwards, fixes not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-05-route-plan-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "No real DeepSeek call was made by the agent: whether a real reply follows the requested JSON structure and how many concepts and tokens it uses is unmeasured; the 900-token output cap could truncate a long reply (it would then be a counted bad reply).",
+    "The instruction-size claim is a pessimistic heuristic (1.5 tokens per Chinese character), not a tokenizer measurement.",
+    "Concept search terms are sent to OpenAlex when the user clicks the literature check; this extends the public-metadata disclosure of ADR 0012.",
+    "The independent review was by an agent of the same model family; its findings were fixed and the fixes were not re-read by a reviewer.",
+    "The editor cannot set a concept's difficulty hint (new concepts default to 2); the 20 s grounding deadline and per-concept eight-paper sample are proposals.",
+    "If Organization.action fails after the project row exists (a disk failure), the project is left without its map.",
+    "Slices 6 (runtime use of the map in batches, profile and Today page, knowledge-base layer), 7 (growth UI) and 8 (R-ROUTE/ROUTE-01/E-ROUTE, ADR 0013, PRODUCT/ARCHITECTURE) are not done."
+  ]
+}

@@ -168,6 +168,120 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     part('search').disabled = searching || busy;
   }
 
+  /* ---- learning map: AI proposes concepts and their order, the page lets you edit, check and confirm */
+  const R = window.PDHRoute;
+  const map = {graph: null, mastered: [], regenerated: 0, checking: false};
+  const mapAct = makeActivity(part('mapActivity'));
+  const mapNotice = (message, isError = true) => {
+    const el = part('mapNotice');
+    el.hidden = !message; el.textContent = message || ''; el.classList.toggle('error', isError);
+  };
+  const GROUNDING = {ok: '', none: '（公开文献里没找到）', no_terms: '（没有英文检索词）', unavailable: '（这次没能核对）', skipped: '（被限流，未核对）'};
+
+  function renderMap() {
+    const holder = part('map');
+    holder.replaceChildren();
+    const g = map.graph;
+    part('mapActions').hidden = !g;
+    part('mapRegen').hidden = !g || !sessionId();
+    part('mapGenerate').hidden = !!g;
+    if (!g) { part('mapNote').hidden = true; refresh(); return; }
+    const verdict = R.check(g);
+    part('mapNote').hidden = false;
+    part('mapNote').textContent = verdict.ok
+      ? `${g.concepts.length} 个概念，${R.columns(g).length} 层。越靠左越基础；勾选“已掌握”的概念作为起点，它后面的概念会先解锁。虚线框是与目标无关的旁支。`
+      : `现在的学习图有问题：${verdict.reason}`;
+    R.columns(g).forEach((col, index) => {
+      const column = document.createElement('div');
+      column.className = 'map-col';
+      column.innerHTML = `<h4>第 ${index + 1} 层</h4>`;
+      col.forEach((concept) => column.appendChild(conceptCard(g, concept)));
+      holder.appendChild(column);
+    });
+    refresh();
+  }
+
+  function conceptCard(g, concept) {
+    const card = document.createElement('div');
+    const mastered = map.mastered.includes(concept.id);
+    card.className = 'map-card' + (concept.side ? ' side' : '') + (mastered ? ' mastered' : '');
+    const needs = R.needsOf(g, concept.id);
+    const grounding = GROUNDING[concept.grounding] || '';
+    card.innerHTML = `<span class="name" data-no-i18n>${esc(concept.name)}</span>
+      <div class="terms" data-no-i18n>${esc((concept.terms || []).join(' · ') || '（没有检索词）')}</div>
+      ${needs.length ? `<div class="needs">前置：${needs.map((n) => `<span class="need ${n.label}" title="${esc(R.LABELS[n.label])}" data-no-i18n>${esc(n.name)}</span>`).join('、')}</div>` : ''}
+      ${concept.papers !== undefined ? `<div class="counts ${concept.grounding === 'ok' ? '' : 'none'}">公开文献里约 ${concept.papers} 篇${grounding}</div>` : ''}
+      <div class="row"><label><input type="checkbox"${mastered ? ' checked' : ''}> 已掌握</label>
+        <button type="button" class="ghost small" data-act="edit">编辑</button><button type="button" class="ghost small" data-act="del">删除</button></div>`;
+    $('input[type=checkbox]', card).onchange = () => { map.mastered = R.toggleMastered(map.mastered, concept.id, g); renderMap(); };
+    $('[data-act=del]', card).onclick = () => { map.graph = R.removeConcept(g, concept.id); map.mastered = map.mastered.filter((i) => i !== concept.id); renderMap(); };
+    $('[data-act=edit]', card).onclick = () => editConcept(card, g, concept);
+    return card;
+  }
+
+  function editConcept(card, g, concept) {
+    card.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
+      <input class="edit" data-role="t" maxlength="130" placeholder="两个英文检索词，用 / 分隔" aria-label="英文检索词">
+      <input class="edit" data-role="p" placeholder="前置概念（名称，用 / 分隔）" aria-label="前置概念">
+      <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>`;
+    $('[data-role=n]', card).value = concept.name;
+    $('[data-role=t]', card).value = (concept.terms || []).join(' / ');
+    $('[data-role=p]', card).value = R.needsOf(g, concept.id).map((n) => n.name).join(' / ');
+    $('[data-act=no]', card).onclick = renderMap;
+    $('[data-act=ok]', card).onclick = () => {
+      try {
+        const names = $('[data-role=p]', card).value.split('/').map((x) => x.trim()).filter(Boolean);
+        const ids = names.map((n) => {
+          const hit = g.concepts.find((c) => c.name.toLowerCase() === n.toLowerCase() && c.id !== concept.id);
+          if (!hit) throw new Error(`找不到前置概念“${n}”`);
+          return hit.id;
+        });
+        let next = R.rename(g, concept.id, $('[data-role=n]', card).value, $('[data-role=t]', card).value.split('/'));
+        next = R.setNeeds(next, concept.id, ids);
+        map.graph = next; mapNotice(''); renderMap();
+      } catch (error) { mapNotice(error.message); }
+    };
+  }
+
+  part('mapAdd').onclick = () => {
+    try { map.graph = R.addConcept(map.graph, {name: '新概念', terms: [], hint: 2}, []); mapNotice(''); renderMap(); }
+    catch (error) { mapNotice(error.message); }
+  };
+  part('mapDrop').onclick = () => { map.graph = null; map.mastered = []; mapNotice(''); renderMap(); };
+
+  async function generateMap(regenerate) {
+    if (!sessionId()) { mapNotice('请先开始创建会话。'); return; }
+    mapNotice(''); mapAct.start('正在请 AI 规划学习路径（约 10–30 秒）…');
+    part('mapGenerate').disabled = true; part('mapRegen').disabled = true;
+    try {
+      const out = await post(`/api/project-guidance/sessions/${sessionId()}/route`, {regenerate});
+      if (!out.ok) { mapNotice(`没有使用 AI：${out.reason || 'AI 没有给出学习图'}。可以点“添加概念”自己搭学习图，或不使用学习图。`); return; }
+      map.graph = out.graph; map.mastered = [];
+      const fixed = out.report ? out.report.dropped_edges.length + out.report.merged.length + out.report.dropped_concepts.length : 0;
+      mapNotice(`AI 已回复${out.tokens ? ` · 约 ${out.tokens} token` : ''}${fixed ? ` · 已自动修复 ${fixed} 处（重复概念、成环或多余的边）` : ''}。请检查后再创建。`, false);
+      renderMap();
+    } catch (error) { mapNotice(error.message); }
+    finally { mapAct.stop(); part('mapGenerate').disabled = false; part('mapRegen').disabled = false; }
+  }
+  part('mapGenerate').onclick = () => generateMap(false);
+  part('mapRegen').onclick = () => {
+    if (confirm('重新生成会覆盖你对学习图的修改，并用掉 1 次重新生成机会。继续？')) generateMap(true);
+  };
+
+  part('mapCheck').onclick = async () => {
+    if (!map.graph || map.checking) return;
+    map.checking = true; mapNotice(''); mapAct.start('正在用公开文献核对每个概念（OpenAlex，只发送检索词）…');
+    part('mapCheck').disabled = true;
+    try {
+      const out = await post('/api/route', {action: 'ground', graph: map.graph});
+      map.graph = out.graph; renderMap();
+      const missing = map.graph.concepts.filter((c) => c.grounding === 'none').length;
+      mapNotice(missing ? `有 ${missing} 个概念在公开文献里没找到，可以改检索词或删除。` : '核对完成。', !!missing);
+    } catch (error) { mapNotice(error.message); }
+    finally { mapAct.stop(); map.checking = false; part('mapCheck').disabled = false; }
+  };
+  const mapPayload = () => (map.graph && R.check(map.graph).ok ? R.payload(map.graph, map.mastered) : null);
+
   function addPathItem(item = {}) {
     const holder = part('path');
     if ($$('.path-item', holder).length >= MAX_PATH) return;
@@ -183,6 +297,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   }
   const syncPath = () => { part('addPath').disabled = $$('.path-item', part('path')).length >= MAX_PATH; };
   part('addPath').onclick = () => addPathItem({});
+  renderMap();
 
   function draft() {
     keywords.commit();
@@ -200,6 +315,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     part('path').innerHTML = '';
     (d.learning_path || []).forEach(addPathItem);
     syncPath();
+    if (d.route_plan && d.route_plan.graph && !map.graph) { map.graph = d.route_plan.graph; renderMap(); }
     if (d.candidates && d.candidates.length && !candidates.size) addCandidates(d.candidates.map((p) => ({...p, url: p.url || (p.arxiv_id ? `https://arxiv.org/abs/${p.arxiv_id}` : null)})));
     refresh();
   }
@@ -277,7 +393,8 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     busy = true; refresh();
     createAct.start('正在创建项目…');
     try {
-      await onCreate({draft: draft(), selectedKeys: [...selected]});
+      if (map.graph && !R.check(map.graph).ok) { mapNotice(`学习图还不能保存：${R.check(map.graph).reason}`); createAct.stop(); busy = false; refresh(); return; }
+      await onCreate({draft: draft(), selectedKeys: [...selected], route: mapPayload()});
     } catch (error) {
       createAct.fail(error.message);
       busy = false; refresh();
@@ -329,8 +446,8 @@ document.addEventListener('click', (event) => {
   if (event.target.closest('[data-act="cancel"]')) resetAll();
 });
 
-async function finalize({draft, selectedKeys}) {
-  const result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys});
+async function finalize({draft, selectedKeys, route}) {
+  const result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route});
   localStorage.removeItem(SESSION_KEY);
   location.href = `/?project_id=${encodeURIComponent(result.project_id)}`;
 }

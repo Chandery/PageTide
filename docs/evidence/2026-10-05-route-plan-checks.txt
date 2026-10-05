@@ -1,0 +1,10 @@
+2026-10-05 route-plan checks (Route Mode slice 5; sanitized)
+python3 -m unittest discover -s tests            -> Ran 755 tests, OK (705 before; +50: tests/test_route_plan.py 46, gateway and creation UI additions)
+node --test tests/*.cjs                          -> 94 pass, 0 fail (tests/test_route_editor.cjs adds 12)
+python3 scripts/budget.py --check                -> PASS (learning_path_plan: reference 900/700 = $0.001110, cap 1200/900 = $0.001440 at the registry's peak cache-miss prices)
+python3 scripts/harness.py check                 -> PASS
+Gateway (mocked transport, real registry): approved operation sends once with max_tokens 900 and writes two ledger rows; refused when owner_approved is false; blocked when the AI switch is off, including dry run.
+Mutation checks: plan state back in the draft (5 failures), no in-flight check, no limit, reserve-after-call, bad replies not counted, each fail tests.
+Browser (preview of the real server): layered map with side branch, mark known, rejected edit, rename, add, delete, create project; the saved map had the mastered concept satisfied and its dependents unlocked.
+Independent review: docs/evidence/2026-10-05-route-plan-review.md (1 critical, 4 important, several low; all fixed; fixes not re-read by a reviewer).
+Not run: any real DeepSeek call; the creation page in the Tauri window.

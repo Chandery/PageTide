@@ -5,13 +5,14 @@ Feedback updates a transparent profile. AI triage is optional and budgeted.
 """
 import json
 import re
+import threading
 import time
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking
+from . import creation, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan
 from .db import Store, now
 from .gateway import Gateway
 from .language import language
@@ -121,6 +122,118 @@ class App:
     def route_mode(self, project_id, mode, revision=None):
         return self._route_apply(project_id, {"action": "route-mode", "mode": mode}, revision)
 
+    # A plan and its attempt counter live in their own setting, not in the session draft: every later
+    # guidance write (a search, a turn, a preview) rewrites the draft from a fixed set of keys and would
+    # otherwise wipe them, which re-bills a "kept" plan and resets the limit.
+    _ROUTE_LOCK = threading.Lock()
+    _ROUTE_BUSY = set()
+    _ROUTE_UNPAID = {"dry_run", "ai_off", "no_key", "not_approved", "budget", "http"}   # refused or rejected before generating
+
+    def route_plan_state(self, session_id):
+        state = self.store.get_setting(f"route_plan_{session_id}") or {}
+        return {"plan": state.get("plan"), "attempts": int(state.get("attempts") or 0)}
+
+    def guidance_session_view(self, session_id):
+        """The session for the page, with the kept learning-map plan attached to the draft at read time."""
+        session = self.store.guidance_session(session_id)
+        if session and self.route_plan_state(session_id)["plan"]:
+            session["draft"] = {**session["draft"], "route_plan": self.route_plan_state(session_id)["plan"]}
+        return session
+
+    def route_plan(self, session_id, regenerate=False, dry_run=False):
+        """Ask the model for a concept graph for this creation session (operation learning_path_plan).
+
+        One explicit call per click. A plan already made is returned without a call. `regenerate` asks again;
+        the session allows 1 + routeplan.MAX_REGENERATIONS paid attempts in total, counted whenever the provider
+        was reached (a reply that cannot be read or a timeout of unknown cost still counts), and not when the
+        gateway refused before sending (AI off, no key, not approved, budget, dry run, a rejected request). The
+        attempt is reserved before the call under a lock, so concurrent requests cannot exceed the limit, and a
+        second request for a session that is generating is refused. The model sees the goal and the draft
+        keywords only; the reply is repaired locally (pathgraph.normalize) and nothing is saved to a project.
+        """
+        session = self.store.guidance_session(session_id)
+        if not session or session["status"] != "draft":
+            raise ValueError("引导会话不存在或已结束")
+        draft = self._bounded_guidance_draft(session["draft"])
+        english = self.english()
+        limit = 1 + routeplan.MAX_REGENERATIONS
+        key = f"route_plan_{session_id}"
+        with self._ROUTE_LOCK:
+            state = self.store.get_setting(key) or {}
+            plan, attempts = state.get("plan"), int(state.get("attempts") or 0)
+            if plan and not regenerate:
+                return {"ok": True, "mode": "kept", "graph": plan["graph"], "report": plan.get("report"), "tokens": None,
+                        "elapsed_ms": plan.get("elapsed_ms")}
+            if session_id in self._ROUTE_BUSY:
+                raise ValueError("正在生成学习路径，请稍候")
+            if attempts >= limit and not dry_run:
+                raise ValueError("这个会话已经生成过足够多次，请直接编辑路径")
+            self._ROUTE_BUSY.add(session_id)
+            if not dry_run:
+                self.store.set_setting(key, {"plan": plan, "attempts": attempts + 1})   # reserved before the call
+        try:
+            started = time.monotonic()
+            try:
+                result = self.gateway.call("learning_path_plan", routeplan.messages(draft["goal"], draft["keywords"], english), dry_run=dry_run) or {}
+            except Exception as exc:
+                result = {"ok": False, "degraded": True, "reason": str(exc)}
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            base = {"elapsed_ms": elapsed_ms, "tokens": None, "graph": None, "report": None}
+            if dry_run or not result.get("ok"):
+                code, text = creation.degrade_reason(result, english)
+                if code in self._ROUTE_UNPAID:
+                    with self._ROUTE_LOCK:
+                        current = self.store.get_setting(key) or {}
+                        if not dry_run:
+                            self.store.set_setting(key, {"plan": current.get("plan"), "attempts": max(0, int(current.get("attempts") or 1) - 1)})
+                return {"ok": False, "mode": "local", "reason_code": code, "reason": text, **base}
+            found = routeplan.parse(result.get("content"))
+            graph, report = pathgraph.normalize(found) if found is not None else (None, None)
+            if not graph or not graph["concepts"]:
+                return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), **base}
+            tokens = (result.get("usage") or {}).get("total_tokens")
+            stored = {"graph": graph, "report": report, "tokens": tokens, "elapsed_ms": elapsed_ms}
+            with self._ROUTE_LOCK:
+                current = self.store.get_setting(key) or {}
+                self.store.set_setting(key, {"plan": stored, "attempts": int(current.get("attempts") or 1)})
+            return {"ok": True, "mode": "ai", **stored}
+        finally:
+            with self._ROUTE_LOCK:
+                self._ROUTE_BUSY.discard(session_id)
+
+    GROUND_DEADLINE_SECONDS = 20.0
+
+    def route_ground(self, graph, per_concept=8):
+        """Check each concept against the public literature: how many papers its search terms find, and how well
+        the corpus agrees with each prerequisite direction. Public metadata queries only (the concept's own
+        first search term); at most one search per concept; the first outage or rate limit, or the overall
+        deadline, stops the rest (they come back as "skipped"). Returns a copy."""
+        graph = pathgraph.validate(graph)
+        docs, stop = {}, False
+        deadline = time.monotonic() + self.GROUND_DEADLINE_SECONDS
+        for concept in graph["concepts"]:
+            concept["papers"], concept["grounding"] = 0, "no_terms"
+            if not concept["terms"]:
+                continue
+            if stop or time.monotonic() >= deadline:
+                concept["grounding"] = "skipped"
+                stop = True
+                continue
+            try:
+                found = self.source.discover_topic(" ".join(concept["terms"][:1]), per_page=per_concept, prefer_pdf=False)
+            except SourceError as exc:
+                concept["grounding"] = "unavailable"
+                stop = stop or exc.kind in ("unavailable", "network_error")
+                continue
+            docs[concept["id"]] = [f"{p.get('title') or ''} {p.get('abstract') or ''}" for p in found]
+            concept["papers"] = len(found)
+            concept["grounding"] = "ok" if found else "none"
+        terms = {c["id"]: c["terms"] for c in graph["concepts"]}
+        for edge in graph["prereqs"]:
+            edge["support"] = pathgrowth.edge_support(docs.get(edge["from"], []), docs.get(edge["to"], []), terms[edge["from"]], terms[edge["to"]])
+            edge["support_label"] = pathgrowth.support_label(edge["support"])
+        return graph
+
     def home_maintenance(self, project_id=None):
         """Refresh times for the page (no counts of anything unread or pending)."""
         return {"maintenance": maintenance.status(self, project_id or self.get_default_project_id())}
@@ -194,7 +307,7 @@ class App:
         }
 
     def create_project(self, name, creation_mode="manual", keywords=None, seeds=None,
-                       guidance_transcript=None, learning_path=None):
+                       guidance_transcript=None, learning_path=None, route=None):
         """Create a project and optionally resolve explicit public seed identifiers."""
         if creation_mode not in {"quick", "manual", "ai_guided"}:
             raise ValueError("invalid creation mode")
@@ -208,6 +321,16 @@ class App:
         if not name or len(name) > 120:
             raise ValueError("项目名称不能为空且不能超过 120 个字符")
         keywords = [str(k).strip()[:120] for k in (keywords or []) if str(k).strip()][:40]
+        route_graph, route_marks = None, {}
+        if route is not None:   # validated before anything is created: a bad map must not leave a half-made project
+            if not isinstance(route, dict):
+                raise ValueError("学习图格式无效")
+            route_graph = pathgraph.validate(route.get("graph"))
+            known = {c["id"] for c in route_graph["concepts"]}
+            mastered = route.get("mastered") or []
+            if not isinstance(mastered, list) or any(not isinstance(i, str) or i not in known for i in mastered):
+                raise ValueError("已掌握的概念不在图里")
+            route_marks = {i: "mastered" for i in dict.fromkeys(mastered)}
         project_id = self.projects.create_project(name, creation_mode, keywords,
                                                    guidance_transcript=guidance_transcript,
                                                    learning_path=learning_path)
@@ -277,6 +400,11 @@ class App:
                 results.append(outcome)
             except Exception as exc:
                 results.append({"input": seed, "status": "failed", "error": str(exc)[:200]})
+        if route_graph is not None:
+            org = Organization(self.store, project=project_id)
+            org.action({"action": "route-save", "graph": route_graph})
+            for concept in route_marks:
+                org.action({"action": "route-manual", "concept": concept, "value": "mastered"})
         return {"project_id": project_id, "name": name, "seed_results": results}
 
     def create_guidance_session(self, name, goal, creation_mode="ai_guided"):
@@ -497,9 +625,14 @@ class App:
         if session["status"] != "draft":
             raise ValueError("只有未确认的草稿可以取消")
         self.store.update_guidance_session(session_id, status="cancelled")
+        self._forget_route_plan(session_id)
         return {"cancelled": True, "session_id": session_id}
 
-    def finalize_guidance(self, session_id, draft=None, selected_keys=None):
+    def _forget_route_plan(self, session_id):
+        self.store.conn.execute("DELETE FROM settings WHERE key=?", (f"route_plan_{session_id}",))
+        self.store.conn.commit()
+
+    def finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None):
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
             raise ValueError("引导会话不存在或已结束")
@@ -516,7 +649,7 @@ class App:
                   for key in selected if key in candidates]
         result = self.create_project(session["name"], draft.get("creation_mode") or "ai_guided", draft["keywords"],
                                      guidance_transcript=session["transcript"],
-                                     learning_path=draft["learning_path"])
+                                     learning_path=draft["learning_path"], route=route)
         project_id = result["project_id"]
         for paper in chosen:
             paper["project_id"] = project_id
@@ -525,6 +658,7 @@ class App:
         draft["candidates"] = draft.get("candidates") or []
         draft["project_id"] = project_id  # lets project deletion remove its creation transcript
         self.store.update_guidance_session(session_id, status="confirmed", draft=draft)
+        self._forget_route_plan(session_id)
         result["selected"] = len(chosen)
         return result
 

@@ -178,10 +178,29 @@ class GatewayBudgetTests(unittest.TestCase):
                          self.gateway.config["operations"]["project_guidance"]["cap"]["output"])
         self.assertEqual([r["operation"] for r in self._rows()], ["project_guidance", "project_guidance"])
 
+    def test_approved_learning_path_plan_sends_once_with_its_own_cap_and_is_ledgered(self):
+        payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],
+                   "usage": {"prompt_tokens": 500, "completion_tokens": 600, "total_tokens": 1100}}
+        with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
+            result = self.gateway.call("learning_path_plan", [{"role": "user", "content": "x"}])
+        self.assertTrue(result["ok"])
+        self.assertEqual(urlopen.call_count, 1)
+        self.assertEqual(json.loads(urlopen.call_args[0][0].data)["max_tokens"], 900)
+        self.assertEqual([r["operation"] for r in self._rows()], ["learning_path_plan", "learning_path_plan"])
+
+    def test_learning_path_plan_is_refused_when_unapproved(self):
+        ops = self.gateway.config["operations"]
+        ops["learning_path_plan"] = {**ops["learning_path_plan"], "owner_approved": False}
+        with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
+            result = self.gateway.call("learning_path_plan", [])
+        urlopen.assert_not_called()
+        self.assertIn("owner approval", result["reason"])
+        self.assertEqual(self._rows(), [])
+
     def test_ai_off_blocks_every_request_including_dry_run(self):
         self.gateway.set_enabled(False)
         with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
-            for operation in ("daily_triage", "paper_qa", "selection_translate", "project_guidance"):
+            for operation in ("daily_triage", "paper_qa", "selection_translate", "project_guidance", "learning_path_plan"):
                 result = self.gateway.call(operation, [])
                 self.assertTrue(result["disabled"])
             dry = self.gateway.call("daily_triage", [], dry_run=True)

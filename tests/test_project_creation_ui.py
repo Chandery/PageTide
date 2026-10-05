@@ -13,6 +13,19 @@ class ProjectCreationUITests(unittest.TestCase):
         self.css = (STATIC / "project-creation.css").read_text()
         self.index = (STATIC / "index.html").read_text()
 
+    def test_the_learning_map_editor_is_wired_into_creation(self):
+        self.assertIn('data-role="mapBlock"', self.html)
+        self.assertIn("/route-editor.js", self.html)
+        self.assertTrue((STATIC / "route-editor.js").is_file())
+        for token in ("/route`", "route: mapPayload()", "action: 'ground'", "R.check(map.graph)", "已掌握", "不使用学习图"):
+            self.assertIn(token, self.js)
+        self.assertIn("route", self.js[self.js.index("async function finalize"):self.js.index("async function createSession")])
+
+    def test_the_editor_never_calls_a_model_on_its_own(self):
+        # generation is behind an explicit button; opening or editing the map sends nothing to the AI
+        self.assertEqual(self.js.count("/route`"), 1)
+        self.assertIn("part('mapGenerate').onclick = () => generateMap(false)", self.js)
+
     def test_page_is_split_into_markup_style_and_script(self):
         for asset in ("/project-creation.css", "/creation-pdf.js", "/project-creation.js"):
             self.assertIn(asset, self.html)

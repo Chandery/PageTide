@@ -332,7 +332,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"profile": app.profile(project_id), "cards": app.cards(project_id=project_id)})
         elif route.startswith("/api/project-guidance/sessions/"):
             session_id = route.split("/")[-1]
-            session = self._app().store.guidance_session(session_id)
+            session = self._app().guidance_session_view(session_id)
             if not session:
                 return self._json({"error": "引导会话不存在"}, 404)
             self._json({"session": session})
@@ -490,7 +490,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "name required"}, 400)
             try:
                 result = app.create_project(name, creation_mode, keywords, body.get("seeds") or [],
-                                            body.get("guidance_transcript"), body.get("learning_path"))
+                                            body.get("guidance_transcript"), body.get("learning_path"), route=body.get("route"))
             except (ValueError, TypeError, sqlite3.IntegrityError) as exc:
                 return self._json({"error": str(exc)}, 400)
             self._json(result)
@@ -534,8 +534,10 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(app.guidance_search(session_id, body.get("query"), all_years=bool(body.get("all_years"))))
                 elif action == "preview":
                     self._json(app.guidance_preview(session_id, body.get("draft")))
+                elif action == "route":
+                    self._json(app.route_plan(session_id, regenerate=bool(body.get("regenerate")), dry_run=bool(body.get("dry_run"))))
                 elif action == "finalize":
-                    self._json(app.finalize_guidance(session_id, body.get("draft"), body.get("selected_keys")))
+                    self._json(app.finalize_guidance(session_id, body.get("draft"), body.get("selected_keys"), route=body.get("route")))
                 else:
                     return self._json({"error": "unknown guidance action"}, 404)
             except (ValueError, TypeError) as exc:
@@ -559,6 +561,8 @@ class Handler(BaseHTTPRequestHandler):
                     result = app.route_start(project_id, body.get("start"), revision=revision)
                 elif action == "mode":
                     result = app.route_mode(project_id, body.get("mode"), revision=revision)
+                elif action == "ground":
+                    return self._json({"graph": app.route_ground(body.get("graph"))})
                 else:
                     return self._json({"error": "unknown route action"}, 400)
                 self._json(result)

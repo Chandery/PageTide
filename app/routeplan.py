@@ -1,0 +1,52 @@
+"""Generating the learning map from a research goal (operation learning_path_plan).
+
+The model is only asked for a concept graph: names, two English search terms, a difficulty hint and the direct
+prerequisites. It never picks papers. Everything after the reply is local and deterministic (pathgraph.normalize
+repairs it; the app checks every concept against OpenAlex), and a person confirms before anything is saved.
+"""
+import json
+import re
+
+SYSTEM = ("你是论文学习路径规划助手。只根据用户给的研究目标，列出入门到目标所需的概念，最多 12 个，只输出 JSON："
+          "{\"concepts\":[{\"id\":\"\",\"name\":\"\",\"terms\":[\"\",\"\"],\"hint\":1,\"needs\":[]}],\"targets\":[]}。"
+          "name 是论文标题或摘要里会出现的技术名词，不是技能或动词；terms 是 2 个英文检索词；hint 为 1 到 4（越大越进阶）；"
+          "needs 只写直接前置概念的 id，且前置必须更基础；targets 是用户最终想达到的概念。不要选择或虚构论文，不要调用工具。")
+MAX_GOAL_CHARS = 250    # sized so the worst case (all Chinese, 1.5 tokens a character) fits the registered 1200-token input cap
+MAX_DRAFT_TERMS = 5
+MAX_TERM_CHARS = 30
+MAX_REGENERATIONS = 2   # explicit regenerations per session after the first generation
+
+
+ENGLISH_OUTPUT = "界面语言为英文：所有自然语言内容（包括追问和说明）都用英文（English）书写，JSON 键名不变。"   # the app-wide sentence (App.ENGLISH_OUTPUT)
+
+
+def messages(goal, keywords, english):
+    """The whole input of the call: the goal and the draft's keywords, nothing else."""
+    system = SYSTEM + (ENGLISH_OUTPUT if english else "")
+    body = {"goal": str(goal or "")[:MAX_GOAL_CHARS], "keywords": [str(k)[:MAX_TERM_CHARS] for k in (keywords or [])[:MAX_DRAFT_TERMS]]}
+    return [{"role": "system", "content": system}, {"role": "user", "content": json.dumps(body, ensure_ascii=False)}]
+
+
+def parse(text):
+    """The concept-graph dict inside a model reply (bare JSON, a code fence, or wrapped in other keys), or None."""
+    raw = str(text or "")
+    for match in re.finditer(r"\{", raw):
+        try:
+            value, _ = json.JSONDecoder().raw_decode(raw[match.start():])
+            found = _find(value)
+        except (ValueError, RecursionError):   # a reply nested thousands deep is a bad reply, not a crash
+            continue
+        if found is not None:
+            return found
+    return None
+
+
+def _find(value):
+    if isinstance(value, dict):
+        if isinstance(value.get("concepts"), list):
+            return value
+        for inner in value.values():
+            found = _find(inner)
+            if found is not None:
+                return found
+    return None
