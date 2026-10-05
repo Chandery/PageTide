@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-icns-1x-slots",
+  "class": "standard",
+  "summary": "Fix the app icon on non-Retina external displays. (1) icon.icns stored the 1x 16/32 px slots as PNG under icp4/icp5, which macOS decodes as noise; build_icons.py now writes ic04/ic05 ARGB entries (the layout Apple's iconutil produces). (2) The 16/32 px slots used the generic SMALL master (1.4 px bookmark blending to pink, 20% grid margin); they now use hand-tuned paperdig-icon-16/32.svg masters (tighter margin, larger seal, solid wider bookmark, larger eye). Regression test added.",
+  "tasks": [
+    "REL-01"
+  ],
+  "files": [
+    "changes/2026-10-06-icns-1x-slots.json",
+    "docs/design/logo/build_icons.py",
+    "docs/design/logo/export_icons.js",
+    "docs/design/logo/final/paperdig-icon-16.svg",
+    "docs/design/logo/final/paperdig-icon-32.svg",
+    "docs/evidence/2026-10-06-icns-1x-slots-checks.txt",
+    "docs/evidence/2026-10-06-icns-1x-slots-self-review.md",
+    "src-tauri/icons/icon.icns",
+    "tests/test_app_icon.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Static icon asset and its generator script; no gateway operation, prompt, provider call or ceiling touched.",
+    "before": "icon.icns 1x 16/32 px slots unreadable by macOS; runtime model tokens and USD zero.",
+    "after": "Classic RLE 1x slots; runtime model tokens and USD remain zero.",
+    "developer_usage": "unknown"
+  },
+  "checks": [
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 1,
+      "evidence": "docs/evidence/2026-10-06-icns-1x-slots-checks.txt",
+      "note": "882 run, 1 failure: test_i18n missing English entries for strings in app/static/organization.js, which belongs to other uncommitted work in the worktree, not this change. tests/test_app_icon.py (5 tests) passes on its own; evidence file has the details."
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-icns-1x-slots-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-icns-1x-slots-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; decoded the old and new icon.icns with iconutil and inspected the 16/32 px slots.",
+      "evidence": "docs/evidence/2026-10-06-icns-1x-slots-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "After the tuned masters, the ic04/ic05 switch and an icon-cache wipe the external display still shows a small icon with a grey rim; the owner's screenshot shows many other apps rendered the same way, so it is treated as macOS-wide behaviour and the owner chose to stop. Root cause not established by the agent (sandbox cannot render real icons).",
+    "Appearance on the owner's external display not verified by the agent; macOS caches app icons, so relaunch or re-copy the app before judging.",
+    "Full test suite has one unrelated failure: test_i18n missing English entries for strings in app/static/organization.js."
+  ],
+  "scope_note": "Covers only the icon files listed. The worktree also holds other uncommitted work (app/organization.py, app/static/organization.*, tests/test_organization*) that this record does not cover; harness review of the whole worktree will not pass until that work has its own record or is committed."
+}
