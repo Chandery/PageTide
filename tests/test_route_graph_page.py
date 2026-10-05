@@ -145,6 +145,14 @@ class KnowledgeGraphOriginTests(unittest.TestCase):
         self.assertIn("if (closest) center = closest;", js)
 
 
+class OverviewPlaceholderTests(unittest.TestCase):
+    def test_the_placeholder_page_is_centred_by_padding_alone(self):
+        css = read("index.html")
+        rule = re.search(r"\.mc-ph-body \{([^}]*)\}", css).group(1)
+        self.assertNotIn("max-width", rule)   # max-width plus a (100% - 1200px)/2 padding left the content 0 px wide on wide windows
+        self.assertIn("calc((100% - 1200px)/2)", rule)
+
+
 class ProjectPageTests(unittest.TestCase):
     def test_delete_needs_the_exact_name_and_only_the_confirmed_click_deletes(self):
         js = read("project-page.js")

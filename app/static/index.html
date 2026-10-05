@@ -90,7 +90,8 @@
   .mc-ph-top b { font:600 20px/1 var(--serif); }
   .mc-ph-top b em { color:var(--accent-text); }
   .mc-ph-pill { padding:8px 16px; border-radius:999px; font-size:14px; box-shadow:var(--sh-out-sm); }
-  .mc-ph-body { max-width:1200px; margin:0 auto; padding:40px max(28px,calc((100% - 1200px)/2)); }
+  /* Centred by its side padding only: a max-width on top of that padding left the content 0 px wide on wide windows. */
+  .mc-ph-body { margin:0; padding:40px max(28px,calc((100% - 1200px)/2)); }
   .mc-ph-edition { color:var(--muted); font-size:14px; letter-spacing:.08em; }
   .mc-ph-body h1 { margin:10px 0 18px; font:600 44px/1.15 var(--serif); }
   .mc-ph-chips { display:flex; flex-wrap:wrap; gap:10px; }
