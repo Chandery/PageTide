@@ -1007,6 +1007,22 @@
   "详情": "Details",
   "完整详情": "Full details",
   "打开完整详情：摘要、AI 速览、收藏、所属项目": "Open the full details: abstract, AI summary, save, projects",
-  "打开完整详情：AI 速览、收藏、所属项目": "Open the full details: AI summary, save, projects"
+  "打开完整详情：AI 速览、收藏、所属项目": "Open the full details: AI summary, save, projects",
+  "推荐方式": "Recommendation mode",
+  "按学习图推荐": "Recommend by learning map",
+  "普通排序": "Plain ranking",
+  "这个项目还没有学习图": "This project has no learning map yet",
+  "学习图把你想学的内容拆成概念，并画出“读懂 A 才能读 B”；推荐会先从你现在能读的概念里选论文。可以自己搭，也可以让 AI 起草。": "A learning map splits what you want to learn into concepts and draws \"understand A before reading B\"; recommendations pick papers from the concepts you can read now. Build it yourself or let the AI draft one.",
+  "路径模式已关闭": "Route mode is off",
+  "现在推荐按普通排序。打开后，推荐会先从你现在能读的概念里选论文。": "Recommendations use plain ranking now. When it is on, they pick papers from the concepts you can read now first.",
+  "查看学习图": "View learning map",
+  "现在在读：": "Reading now:",
+  "已读懂 {0} / {1} 个概念": "Understood {0} / {1} concepts",
+  "路径模式": "Route mode",
+  "开启后推荐先从你现在能读的概念里选论文，各条分支各走各的，互不等待。": "When on, recommendations pick papers from the concepts you can read now; each branch advances on its own and none waits for another.",
+  "没能切换推荐方式：{0}": "Could not switch the recommendation mode: {0}",
+  "先保存一次学习图，才能切换推荐方式。": "Save the learning map once before switching the recommendation mode.",
+  "推荐先从你现在能读的概念里选论文。": "Recommendations pick papers from the concepts you can read now first.",
+  "现在推荐按普通排序。": "Recommendations use plain ranking now."
  }
 }

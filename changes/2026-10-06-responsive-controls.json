@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-responsive-controls",
+  "class": "feature",
+  "summary": "Make the low-density pages follow the screen size and unify controls: the steps (--s, --wrap) are defined once in theme.css; Today, the detail drawer, the profile view, the learning-map page and drawing, project settings, project creation, settings and the weekly report scale text, controls, spacing and width; the library and knowledge-base workspace keep their current size. The detail drawer gets two control sizes (main 40, small 34, select equal), one filled primary and a visible project hint; a .btn.tiny cascade bug is fixed. The Today route panel becomes a card with a segmented 按学习图推荐 | 普通排序 switch, progress bar and a real button; the map page uses the same switch with a stated reason when it is disabled.",
+  "tasks": [
+    "PROJECT-01",
+    "PROFILE-02"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/profile.css",
+    "app/static/project-creation.css",
+    "app/static/project-creation.js",
+    "app/static/route-graph.js",
+    "app/static/route-page.js",
+    "app/static/route.html",
+    "app/static/settings.html",
+    "app/static/theme.css",
+    "app/static/weekly_report.html",
+    "changes/2026-10-06-responsive-controls.json",
+    "docs/evidence/2026-10-06-responsive-controls-checks.txt",
+    "docs/evidence/2026-10-06-responsive-controls-self-review.md",
+    "tests/test_project_creation_ui.py",
+    "tests/test_route_graph.cjs",
+    "tests/test_route_graph_page.py",
+    "tests/test_route_runtime.py"
+  ],
+  "scope_note": "Branch feature/route-mode on top of 0941099. Front-end only; stage 2 of 4.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Stylesheet and page changes only; no model call, data or network.",
+    "before": "Fixed pixel sizes on most pages, scaling only on part of the main page, inconsistent detail-drawer controls, checkbox and bare link for the learning map.",
+    "after": "One scale shared by the low-density pages, unchanged below 1700 px (checked element by element at 1440 px), consistent controls.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-responsive-controls-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-responsive-controls-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-responsive-controls-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-06-responsive-controls-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not checked on a real large display, at 3440 px, in dark mode or in the Tauri window.",
+    "The mode switch click and the Today panel switch were not exercised in a browser; they are covered by static tests.",
+    "Pixel sizes of icons, borders, radii, the reader chrome and the project overview were deliberately not converted."
+  ]
+}

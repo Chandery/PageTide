@@ -207,3 +207,14 @@ test('related() returns every prerequisite and every dependent, nothing else', (
   assert.deepEqual([...r.down].sort(), ['c', 'd']);
   assert.equal(r.up.has('x') || r.down.has('x'), false);
 });
+
+test('the drawing can be laid out at a larger scale and keeps every invariant', () => {
+  const g = graph(['a', 'b', 'c', 'd', 'e'], [['a', 'c'], ['b', 'd'], ['c', 'e'], ['d', 'e'], ['a', 'e']]);
+  const big = G.scaled(1.45);
+  assert.equal(big.nodeW, Math.round(G.DEFAULTS.nodeW * 1.45 * 10) / 10);
+  const small = G.layout(g), large = G.layout(g, big);
+  checkInvariants(g, large);
+  assert.ok(large.width > small.width * 1.3 && large.height > small.height * 1.3);
+  assert.equal(large.crossings, small.crossings);
+  assert.deepEqual(G.scaled(1), { ...G.DEFAULTS });
+});

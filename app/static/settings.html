@@ -12,50 +12,50 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--base);
       color: var(--text);
-      font-size: 14px;
+      font-size: calc(14px * var(--s));
       line-height: 1.6;
       min-height: 100vh;
-      padding: 40px 20px 80px;
+      padding: calc(40px * var(--s)) calc(20px * var(--s)) calc(80px * var(--s));
     }
     /* — layout — */
-    .container { max-width: 680px; margin: 0 auto; }
+    .container { max-width: calc(680px * var(--s)); margin: 0 auto; }
     .back-link {
-      display: inline-flex; align-items: center; gap: 6px;
-      color: var(--muted); text-decoration: none; font-size: 13px;
-      margin-bottom: 28px; transition: color .16s ease;
+      display: inline-flex; align-items: center; gap: calc(6px * var(--s));
+      color: var(--muted); text-decoration: none; font-size: calc(13px * var(--s));
+      margin-bottom: calc(28px * var(--s)); transition: color .16s ease;
     }
     .back-link:hover { color: var(--text); }
-    h1 { font-family: var(--serif); font-size: 26px; font-weight: 600; margin-bottom: 28px; }
+    h1 { font-family: var(--serif); font-size: calc(26px * var(--s)); font-weight: 600; margin-bottom: calc(28px * var(--s)); }
     /* — section cards — */
     .section {
       background: var(--surface-1); border: 1px solid var(--line);
-      border-radius: var(--r-lg); padding: 22px 24px; margin-bottom: 16px;
+      border-radius: var(--r-lg); padding: calc(22px * var(--s)) calc(24px * var(--s)); margin-bottom: calc(16px * var(--s));
       box-shadow: var(--sh-1);
     }
     .section h2 {
-      font-size: 13px; font-weight: 600; color: var(--muted);
+      font-size: calc(13px * var(--s)); font-weight: 600; color: var(--muted);
       text-transform: uppercase; letter-spacing: .06em;
-      margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+      margin-bottom: calc(18px * var(--s)); padding-bottom: calc(12px * var(--s)); border-bottom: 1px solid var(--line);
     }
     /* — fields — */
-    .field { margin-bottom: 16px; }
+    .field { margin-bottom: calc(16px * var(--s)); }
     .field:last-child { margin-bottom: 0; }
     .field label {
-      display: block; font-size: 13px; font-weight: 500;
-      color: var(--text); margin-bottom: 6px;
+      display: block; font-size: calc(13px * var(--s)); font-weight: 500;
+      color: var(--text); margin-bottom: calc(6px * var(--s));
     }
     .field label.inline {
-      display: flex; align-items: center; gap: 10px;
+      display: flex; align-items: center; gap: calc(10px * var(--s));
       font-weight: 400; cursor: pointer; user-select: none;
     }
-    .field small { display: block; margin-top: 5px; font-size: 12px; color: var(--muted); }
-    .readonly-note { font-size: 13px; color: var(--text, inherit); padding: 8px 10px; border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 8px; }
+    .field small { display: block; margin-top: calc(5px * var(--s)); font-size: calc(12px * var(--s)); color: var(--muted); }
+    .readonly-note { font-size: calc(13px * var(--s)); color: var(--text, inherit); padding: calc(8px * var(--s)) calc(10px * var(--s)); border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 8px; }
     /* — inputs — */
     .field input[type="text"],
     .field input[type="password"],
     .field input[type="number"],
     .field select {
-      width: 100%; padding: 8px 11px; font-size: 13px;
+      width: 100%; padding: calc(8px * var(--s)) calc(11px * var(--s)); font-size: calc(13px * var(--s));
       border: 1px solid var(--line); border-radius: var(--r-sm);
       background: var(--base); color: var(--text); outline: none;
       transition: border-color .16s ease, box-shadow .16s ease;
@@ -72,7 +72,7 @@
     }
     /* — buttons — */
     button {
-      padding: 8px 18px; font-size: 13px; font-weight: 500;
+      padding: calc(8px * var(--s)) calc(18px * var(--s)); font-size: calc(13px * var(--s)); font-weight: 500;
       border: 1px solid var(--line); border-radius: var(--r-sm);
       cursor: pointer; background: var(--surface-1); color: var(--text);
       transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
@@ -91,8 +91,8 @@
     button.ghost:hover { background: var(--surface-2); }
     /* — actions bar — */
     .actions {
-      display: flex; gap: 10px; justify-content: flex-end;
-      margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line);
+      display: flex; gap: calc(10px * var(--s)); justify-content: flex-end;
+      margin-top: calc(28px * var(--s)); padding-top: calc(20px * var(--s)); border-top: 1px solid var(--line);
     }
     /* motion */
     @media (prefers-reduced-motion: no-preference) {
@@ -104,9 +104,9 @@
     }
     @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
     @media (max-width:600px) {
-      body { padding: 24px 16px 60px; }
-      .section { padding: 18px 16px; }
-      h1 { font-size: 20px; }
+      body { padding: calc(24px * var(--s)) calc(16px * var(--s)) calc(60px * var(--s)); }
+      .section { padding: calc(18px * var(--s)) calc(16px * var(--s)); }
+      h1 { font-size: calc(20px * var(--s)); }
       .actions { flex-direction: column-reverse; }
       .actions button { width: 100%; justify-content: center; }
     }

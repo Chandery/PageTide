@@ -10,6 +10,19 @@
   const DEFAULTS = { nodeW: 176, nodeH: 66, gapX: 28, gapY: 54, dummyW: 10, pad: 16 };
   const SWEEPS = 12;
 
+  /* The page's text scale (--s in theme.css): the drawing is laid out in real pixels, so on a large screen the nodes,
+     gaps and text all grow together instead of the whole picture being capped at 100%. */
+  function cssScale() {
+    if (typeof document === 'undefined' || typeof getComputedStyle !== 'function') return 1;
+    const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--s'));
+    return value > 0 ? value : 1;
+  }
+  function scaled(unit) {
+    const out = {};
+    Object.keys(DEFAULTS).forEach((key) => { out[key] = Math.round(DEFAULTS[key] * unit * 10) / 10; });
+    return out;
+  }
+
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /* Longest-path layer of every concept; an edge that would close a cycle is ignored (the server rejects cycles,
@@ -236,7 +249,8 @@
   function mount(host, graph, options) {
     const opts = options || {};
     const doc = host.ownerDocument;
-    const geo = layout(graph, opts.layout);
+    const unit = cssScale();
+    const geo = layout(graph, { ...scaled(unit), ...(opts.layout || {}) });
     const data = usable(graph);
     host.replaceChildren();
     host.classList.add('rg');
@@ -345,7 +359,10 @@
     if (view) { viewport.scrollLeft = view.left || 0; viewport.scrollTop = view.top || 0; }
     select(state.selected, false);
     let resizing = null;
-    const onResize = () => { cancelAnimationFrame(resizing); resizing = requestAnimationFrame(() => { if (!state.manual) { state.scale = fitWidth(); apply(); } }); };
+    const onResize = () => { cancelAnimationFrame(resizing); resizing = requestAnimationFrame(() => {
+      if (cssScale() !== unit && opts.onRescale) { opts.onRescale(); return; }   // crossed a screen-size step: draw again at the new size
+      if (!state.manual) { state.scale = fitWidth(); apply(); }
+    }); };
     if (typeof window !== 'undefined') window.addEventListener('resize', onResize);
     return {
       geo, select: (id) => select(id, false), selected: () => state.selected, scale: () => state.scale,
@@ -356,5 +373,5 @@
     };
   }
 
-  return { layout, mount, levels, crossings, related, DEFAULTS };
+  return { layout, mount, levels, crossings, related, scaled, DEFAULTS };
 });

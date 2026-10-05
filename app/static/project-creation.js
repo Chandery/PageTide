@@ -203,6 +203,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       selected: map.selected,
       view: keep,
       maxHeight: '60vh',
+      onRescale: () => renderMap(),
       canSelect: () => {
         if (map.editing) { mapNotice('先点“确定”或“取消”，再选别的概念。'); return false; }
         return true;

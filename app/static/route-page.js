@@ -56,8 +56,12 @@ function render() {
   part('main').hidden = !graph;
   if (!graph) return;
   part('summary').textContent = R.summaryText(route);
-  part('modeSwitch').checked = !!route.enabled;
-  part('modeSwitch').disabled = !(state.route && state.route.graph);   // nothing to switch before the first save
+  const saved = !!(state.route && state.route.graph);   // nothing to switch before the first save
+  part('modeSeg').querySelectorAll('button').forEach((b) => {
+    b.setAttribute('aria-checked', String((b.dataset.mode === 'route') === !!route.enabled));
+    b.disabled = !saved;
+  });
+  part('modeNote').textContent = !saved ? '先保存一次学习图，才能切换推荐方式。' : route.enabled ? '推荐先从你现在能读的概念里选论文。' : '现在推荐按普通排序。'
   part('save').hidden = part('discard').hidden = !state.dirty;
   const shape = R.shape(graph);
   part('shape').textContent = R.shapeText(shape);
@@ -72,6 +76,7 @@ function render() {
     selected: state.selected,
     view: keep,
     maxHeight: '68vh',
+    onRescale: () => render(),
     canSelect: () => {
       if (state.editing) { notice('先点“确定”或“取消”，再选别的概念。'); return false; }
       return true;
@@ -168,11 +173,15 @@ part('save').onclick = () => guarded(async () => {
   state.draft = JSON.parse(JSON.stringify(state.route.graph)); state.dirty = false; state.annotated = false;
   notice('已保存。', false); render();
 });
-part('modeSwitch').onchange = () => guarded(async () => {
-  if (!state.route || !state.route.graph) return;
-  state.route = await api({action: 'mode', mode: part('modeSwitch').checked ? 'route' : 'off', revision: state.route.revision});
-  notice(''); render();
-});
+part('modeSeg').onclick = (event) => {
+  const choice = event.target.closest('button[data-mode]');
+  if (!choice || choice.disabled || choice.getAttribute('aria-checked') === 'true') return;
+  guarded(async () => {
+    if (!state.route || !state.route.graph) return;
+    state.route = await api({action: 'mode', mode: choice.dataset.mode, revision: state.route.revision});
+    notice(''); render();
+  });
+};
 part('check').onclick = async () => {
   if (state.checking || state.busy) return;
   const verdict = R.check(state.draft);

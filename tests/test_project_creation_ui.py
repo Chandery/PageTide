@@ -142,7 +142,7 @@ class RoutePageTests(unittest.TestCase):
         for token in ("state.busy", "state.checking", "async function refreshRoute", "needsEditorHTML", "readNeeds"):
             self.assertIn(token, self.js)
         # a failed request refreshes the revision only; load() (which replaces the draft) is not called from a catch
-        for name in ("async function mark", "part('modeSwitch').onchange"):
+        for name in ("async function mark", "part('modeSeg').onclick"):
             body = self.js[self.js.index(name):self.js.index(name) + 700]
             self.assertNotIn("await load()", body)
         self.assertIn("revision: state.route.revision ?? 0", self.js)   # a first save is guarded too

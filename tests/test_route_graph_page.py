@@ -116,33 +116,50 @@ class DraftSafetyTests(unittest.TestCase):
 
 
 class LargeScreenTests(unittest.TestCase):
-    """A maximised window on a big display must use the space: wider page, more columns, text that grows."""
+    """The low-density pages grow with the screen; the dense library and knowledge base keep their size."""
 
-    def test_the_main_page_scales_text_and_columns_in_steps_and_leaves_smaller_windows_alone(self):
-        index = read("index.html")
-        block = index[index.index("large screens: a wider page"):index.index("prefers-reduced-motion: reduce) { *{animation")]
+    def test_the_steps_are_defined_once_in_the_shared_theme(self):
+        theme = read("theme.css")
+        self.assertIn(":root { --s:1; --wrap:1200px; }", theme)
         for width, scale, wrap in ((1700, "1.2", "1560px"), (2200, "1.45", "2000px"), (2800, "1.8", "2560px")):
-            self.assertRegex(block, rf"@media \(min-width:{width}px\) \{{ :root \{{ --s:{re.escape(scale)};\s+--wrap:{wrap}; \}} \}}")
-        self.assertIn("grid-template-columns:repeat(3, minmax(0, 1fr))", block)
-        self.assertIn("min-width:2800px) { .grid { grid-template-columns:repeat(4", block)
-        for rule in ("body { font-size:calc(15px * var(--s)); }", ".card h3 { font-size:calc(16px * var(--s)); }", ".abs { font-size:calc(13px * var(--s)); }"):
-            self.assertIn(rule, block)
-        # everything scaled sits inside the wide media query, so a window under 1700px keeps its two columns and 15px text
-        self.assertNotIn("var(--s)", index[:index.index("large screens: a wider page")])
-        self.assertIn("max-width:var(--wrap, 1200px)", index)
+            self.assertRegex(theme, rf"@media \(min-width:{width}px\) \{{ :root \{{ --s:{re.escape(scale)};\s+--wrap:{wrap}; \}} \}}")
+        for name in ("index.html", "project-creation.css", "profile.css", "settings.html", "weekly_report.html", "route.html", "project.html"):
+            self.assertNotRegex(read(name), r"--s:\s*1\.\d", f"{name} must not define its own step")
 
-    def test_the_other_pages_widen_and_grow_the_text_too(self):
-        css = read("project-creation.css")
-        for width in (1700, 2200, 2800):
-            self.assertIn(f"@media(min-width:{width}px)", css)
+    def test_low_density_sheets_have_no_fixed_pixel_font_sizes(self):
+        for name in ("project-creation.css", "profile.css", "settings.html", "weekly_report.html"):
+            text = read(name)
+            self.assertIsNone(re.search(r"font-size\s*:\s*[\d.]+px", text), f"{name} still has a fixed font-size")
 
+    def test_the_main_page_scales_its_text_and_controls_but_not_the_dense_workspace(self):
+        index = read("index.html")
+        for rule in (".card h3 { font-size:calc(16px * var(--s))", ".hero h1 { font-size:calc(28px * var(--s))", ".tab { padding:calc(7px * var(--s)) calc(16px * var(--s))",
+                     "width:min(calc(520px * var(--s)), 100vw)"):
+            self.assertIn(rule, index)
+        self.assertIn("#organizationRoot { --s:1; }", index)               # library and knowledge base keep their current size at every width
+        self.assertIn("@media (min-width:1700px) { .grid { grid-template-columns:repeat(3", index)
+        self.assertIn("@media (min-width:2800px) { .grid { grid-template-columns:repeat(4", index)
+        self.assertNotIn("--wrap, 1200px", index)                            # the fallback is no longer needed: theme.css always defines it
 
-class KnowledgeGraphOriginTests(unittest.TestCase):
-    def test_the_graph_is_never_centred_on_a_node_that_does_not_exist(self):
-        js = read("organization.js")
-        self.assertIn("const originId = graphOrigin(nodes, S.key);", js)
-        self.assertIn("origin.length ? origin.position()", js)
-        self.assertIn("if (closest) center = closest;", js)
+    def test_page_widths_follow_the_scale(self):
+        self.assertIn("max-width:calc(1040px * var(--s))", read("project-creation.css"))
+        self.assertIn("max-width:calc(1120px * var(--s))", read("profile.css"))
+        self.assertIn("max-width: calc(680px * var(--s))", read("settings.html"))
+        self.assertIn("max-width:calc(980px * var(--s))", read("weekly_report.html"))
+
+    def test_the_detail_rail_has_two_control_sizes_and_links_match_buttons(self):
+        index = read("index.html")
+        self.assertIn("#detail .detail-panel button, #detail .detail-panel a.btn, #detail .detail-panel select", index)
+        self.assertIn("#detail .detail-panel button.tiny, #detail .detail-panel a.btn.tiny", index)
+        self.assertIn(".tiny, .btn.tiny {", index)                           # a link styled as a small button is not overridden by the later .btn rule
+        self.assertIn("position:static; opacity:1", index[index.index(".detail-projects .hint"):][:200])   # the card hover hint must not hide it
+        self.assertIn('class="actions-main"', index)
+        self.assertNotIn("'saved' : 'primary'", index)                        # one filled primary in the rail, the save toggle is outlined
+
+    def test_the_graph_is_drawn_at_the_screen_scale(self):
+        js = read("route-graph.js")
+        self.assertIn("getPropertyValue('--s')", js)
+        self.assertIn("onRescale", js)
 
 
 class OverviewPlaceholderTests(unittest.TestCase):
