@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-library-detail",
+  "class": "standard",
+  "summary": "Give the library an entry to the full paper detail: a labelled 详情 button on every row and a 完整详情 button in the paper pane, both calling the existing openDetail. The title still opens the PDF reader.",
+  "tasks": [
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/static/i18n/en-US.json",
+    "app/static/organization.js",
+    "changes/2026-10-06-library-detail.json",
+    "docs/evidence/2026-10-06-library-detail-checks.txt",
+    "docs/evidence/2026-10-06-library-detail-self-review.md",
+    "tests/test_organization_ui.cjs"
+  ],
+  "scope_note": "Branch feature/route-mode on top of 5cb23af. Front-end only; stage 1 of 4.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Front-end change; no model call, data or network.",
+    "before": "The full paper detail was reachable only from Today cards.",
+    "after": "Also from every library row and the paper pane.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-library-detail-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-library-detail-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-library-detail-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-06-library-detail-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not checked in the Tauri window."
+  ]
+}

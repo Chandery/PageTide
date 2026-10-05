@@ -1003,6 +1003,10 @@
   "目标最多 {0} 个字符": "The goal can be at most {0} characters",
   "正在生成学习图，请稍候": "A learning map is being drafted; please wait",
   "这个项目今天已经生成过 {0} 次，请直接编辑学习图，或明天再试": "This project has already drafted {0} times today; edit the map directly or try again tomorrow",
-  "没能先备份数据库，所以没有删除：{0}": "The database could not be backed up first, so nothing was deleted: {0}"
+  "没能先备份数据库，所以没有删除：{0}": "The database could not be backed up first, so nothing was deleted: {0}",
+  "详情": "Details",
+  "完整详情": "Full details",
+  "打开完整详情：摘要、AI 速览、收藏、所属项目": "Open the full details: abstract, AI summary, save, projects",
+  "打开完整详情：AI 速览、收藏、所属项目": "Open the full details: AI summary, save, projects"
  }
 }

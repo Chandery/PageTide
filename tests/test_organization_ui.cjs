@@ -16,6 +16,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../app/static/organization.js'), 'utf8'), context);
   const ui = context.module.exports;
   ui.setReader = reader => { context.window.PDH.openReader = reader; };
+  ui.setDetail = open => { context.window.PDH.openDetail = open; };
   ui.reduceMotion = enabled => { context.window.matchMedia = () => ({matches: enabled}); };
   ui.createGraph = elements => {
     context.elements=elements;
@@ -555,4 +556,24 @@ test('the camera never starts from a paper that is not drawn (collapsed category
   assert.equal(ui.graphOrigin(nodes, 'removed-from-library'), 'paper:shown');
   assert.equal(ui.graphOrigin(nodes, null), 'paper:shown');
   assert.equal(ui.graphOrigin([], 'hidden'), undefined);                    // an empty graph has no origin, and the caller guards it
+});
+
+test('every library row has a labelled button that opens the full paper detail, and the title still opens the reader', async () => {
+  const ui = fixture(); ui.accept(snapshot());
+  let listHtml = '';
+  ui.S.root = { querySelector: (selector) => ({ set innerHTML(v) { if (selector === '.org-list') listHtml = v; }, get innerHTML() { return ''; }, indeterminate: false }) };
+  ui.renderList();
+  assert.match(listHtml, /data-action="open-detail" data-key="paper:one"[^>]*>详情<\/button>/);
+  assert.match(listHtml, /data-action="read" data-key="paper:one"/);
+  const opened = [];
+  ui.setDetail(async (key) => { opened.push(key); });
+  await ui.handle('open-detail', { dataset: { key: 'paper:one' } });
+  await ui.handle('open-detail', { dataset: { key: 'paper:one' } });   // closing and opening again always works: nothing is latched
+  assert.deepEqual([...opened], ['paper:one', 'paper:one']);
+  assert.equal(ui.S.key, null);
+});
+
+test('without the full-detail function the button does nothing and does not throw', async () => {
+  const ui = fixture(); ui.accept(snapshot());
+  await ui.handle('open-detail', { dataset: { key: 'paper:one' } });
 });

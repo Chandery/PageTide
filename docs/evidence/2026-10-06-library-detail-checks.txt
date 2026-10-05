@@ -1,0 +1,7 @@
+2026-10-06 library detail entry checks (sanitized)
+Cause: the visible 论文库 is the organization UI; none of its rows called the full paper detail (PDH.openDetail), the legacy list that did lives in a hidden <main>.
+Fix: a labelled "详情" button on every row and "完整详情" in the paper pane; the title still opens the reader.
+Browser preview (real server, preview data): library tab, 11 rows, each with the button; click -> detail drawer open with the paper title and the usual actions; close; click again -> opens again (twice, no latched state).
+node --test tests/test_organization_ui.cjs -> 41 pass; the new test fails when the button is removed (mutation-checked).
+Full suites: see the end-of-stage run recorded in the commit.
+Not run: the Tauri window.
