@@ -339,7 +339,7 @@ class MigrationNumberingTests(unittest.TestCase):
             store = Store(path)
             store.init()  # used to crash: "no such column: sha256"
             applied = {r[0] for r in store.conn.execute("SELECT version FROM schema_version")}
-            self.assertTrue({1, 2, 3, 4, 5, 6, 7} <= applied)
+            self.assertTrue({1, 2, 3, 4, 5, 6, 7, 8} <= applied)
             self.assertTrue({"sha256", "bytes", "source_kind", "license"} <= {r[1] for r in store.conn.execute("PRAGMA table_info(pdfs)")})
             self.assertIn("oa_json", {r[1] for r in store.conn.execute("PRAGMA table_info(papers)")})
             self.assertEqual([h["path"] for h in store.pdf_history("k")], ["/x/a.pdf"])  # backfilled
@@ -351,7 +351,7 @@ class MigrationNumberingTests(unittest.TestCase):
             store = Store(Path(tmp) / "db.sqlite")
             store.init()
             applied = {r[0] for r in store.conn.execute("SELECT version FROM schema_version")}
-            self.assertEqual(applied, {1, 2, 3, 4, 6, 7})
+            self.assertEqual(applied, {1, 2, 3, 4, 6, 7, 8})
             self.assertEqual(migrations.pending(store.conn), 0)
             store.close()
 

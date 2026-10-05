@@ -312,7 +312,8 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app()
             # Extract project_id from query if provided
             project_id = query.get("project_id", [None])[0]
-            self._json({**app.home_maintenance(project_id), "server_version": VERSION, "stats": app.stats(project_id),
+            self._json({**app.home_maintenance(project_id), "route": app.home_route(project_id),
+                        "server_version": VERSION, "stats": app.stats(project_id),
                         "profile": app.profile(project_id),
                         "cards": app.cards(project_id=project_id), "summaries": app.store.summaries(),
                         "usage": app.usage(), "dev_mode": app.gateway.dev,

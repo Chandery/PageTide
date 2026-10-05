@@ -208,20 +208,23 @@ class Store:
         return [dict(r) for r in self.conn.execute(sql)]
 
     # ---------------------------------------------------------------- batches
-    def create_batch(self, run_date, keys, source="openalex", project_id=None):
+    def create_batch(self, run_date, keys, source="openalex", project_id=None, route=None):
+        """route: optional {paper_key: (concept_id, kind, concept_name, layer)} for batches built from a learning map."""
         cur = self.conn.execute("INSERT INTO batches (run_date, created_at, source, project_id) VALUES (?,?,?,?)",
                                 (run_date, now(), source, project_id))
         batch_id = cur.lastrowid
         stamp = now()
+        route = route or {}
         for rank, key in enumerate(keys, 1):
-            self.conn.execute("INSERT INTO exposures (batch_id, paper_key, rank, shown_at) VALUES (?,?,?,?)",
-                              (batch_id, key, rank, stamp))
+            node, kind, name, layer = (tuple(route.get(key, ())) + (None, None, None, None))[:4]
+            self.conn.execute("""INSERT INTO exposures (batch_id, paper_key, rank, shown_at, route_node, route_kind, route_name, route_layer)
+                                 VALUES (?,?,?,?,?,?,?,?)""", (batch_id, key, rank, stamp, node, kind, name, layer))
         self.conn.commit()
         return batch_id
 
     def batch(self, batch_id):
         rows = self.conn.execute(
-            """SELECT e.rank, p.* FROM exposures e JOIN papers p ON p.key=e.paper_key
+            """SELECT e.rank, e.route_node, e.route_kind, e.route_name, e.route_layer, p.* FROM exposures e JOIN papers p ON p.key=e.paper_key
                WHERE e.batch_id=? ORDER BY e.rank""", (batch_id,)).fetchall()
         return [dict(r) for r in rows]
 

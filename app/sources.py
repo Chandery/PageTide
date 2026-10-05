@@ -250,7 +250,7 @@ class OpenAlex:
         busy = isinstance(last, urllib.error.HTTPError) and last.code in (429, 503)
         raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "unavailable" if busy else "network_error")
 
-    def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance", prefer_pdf=True):
+    def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance", prefer_pdf=True, page=1):
         """Candidate papers for a research topic, for project creation and per-project refresh.
 
         English phrases are matched against title AND abstract (every word must appear), in any source
@@ -281,6 +281,8 @@ class OpenAlex:
 
         if not has_cjk(text):
             params = {"filter": ",".join([f"title_and_abstract.search:{text}", *base]), "per-page": per_page, "mailto": MAILTO}
+            if page > 1:
+                params["page"] = int(page)
             if order == "recent":
                 params["sort"] = "publication_date:desc"
             else:
@@ -288,6 +290,8 @@ class OpenAlex:
             add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "strict")
         if len(papers) < min(STRICT_MIN_RESULTS, per_page):
             params = {"search": text, "filter": ",".join(base), "per-page": per_page, "mailto": MAILTO}
+            if page > 1:
+                params["page"] = int(page)
             if order == "recent" and has_cjk(text):
                 params["sort"] = "publication_date:desc"
             add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "relevance")

@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-05-route-runtime",
+  "class": "critical",
+  "summary": "Route Mode slice 6a. The per-project learning map now drives the candidate refresh and the daily batch: refresh searches the first term of up to three concepts the reader can read now (next result page when one is used up); build_batch takes papers from those concepts by weight (introductions first), one remedial introduction per too-hard paper, a smooth deterministic exploration share, no padding from locked concepts and an ordinary batch only when the map has no unshown papers (said so). Cards carry the concept, layer and kind, stored at batch time by migration 008. A project without a map is unchanged. Zero model tokens.",
+  "tasks": [
+    "CORE-01",
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-PROFILE",
+    "R-NODEBT",
+    "R-DISCOVERY"
+  ],
+  "files": [
+    "app/db.py",
+    "app/migrations.py",
+    "app/pathgraph.py",
+    "app/server.py",
+    "app/service.py",
+    "app/sources.py",
+    "changes/2026-10-05-route-runtime.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-05-route-runtime-checks.txt",
+    "docs/evidence/2026-10-05-route-runtime-review.md",
+    "docs/evidence/2026-10-05-route-runtime-self-review.md",
+    "tests/test_pdf_fetch.py",
+    "tests/test_route_runtime.py"
+  ],
+  "scope_note": "Branch feature/route-mode, on top of 22439c2. Recommendation ranking and a migration (critical). The real database was not touched; migration 008 was checked on a copy.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "No model call (tests make the gateway raise). Outbound requests are the same kind as before: public OpenAlex searches with concept search terms instead of project keywords, at most three per refresh.",
+    "before": "Recommendations ignored the learning path; the refresh used project keywords.",
+    "after": "Route-driven refresh and batches with per-card provenance; unchanged for projects without a map.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-runtime-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-runtime-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-route-runtime-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-05-route-runtime-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "One separate read-only code-review agent (same model family, not a human); findings fixed afterwards, fixes not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-05-route-runtime-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "All weights and rules (1/(1+shown), half share for low interest, one remedial per too-hard paper, page size 50, exploration 10-50%) are unvalidated proposals; the evaluation baselines are saturated, so no benefit can be claimed.",
+    "The independent review was by an agent of the same model family; its findings were fixed and the fixes were not re-read by a reviewer.",
+    "When the readable concepts run out of unshown papers and the reader rates nothing, batches get shorter and then ordinary; this follows the no-debt rules but may feel stalled (the reason is shown).",
+    "route_get and _route_pick both assign papers to concepts: about 0.2-0.6 s at 5000 papers per batch/home call.",
+    "Migration 008 will run on the real database at first start of the new build; the channels branch may also claim migration 8.",
+    "Existing projects have no learning map; the page to add one is slice 6b. E-ROUTE, R-ROUTE and ROUTE-01 are not registered yet (slice 8)."
+  ]
+}

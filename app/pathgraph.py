@@ -541,7 +541,7 @@ def frontier(graph, prog):
 
 
 def remedial(graph, prog, concept_id):
-    """The unmet prerequisites to read first when a concept proved too hard, most basic first."""
+    """The unmet prerequisites of a concept, nearest the basics first (the order to read them in)."""
     return list(prog.get(concept_id, {}).get("unmet", []))
 
 

@@ -93,7 +93,7 @@ class App:
         prog = pathgraph.progress(graph, events, manual, shown, start=start)
         live = [i for i, s in prog.items() if s["status"] in ("locked", "unlocked", "satisfied")]
         done = sum(1 for i in live if prog[i]["status"] == "satisfied")
-        return {"enabled": route.get("mode", "route") == "route", "mode": route.get("mode", "route"), "graph": graph, "manual": manual,
+        return {"project_id": project_id, "enabled": route.get("mode", "route") == "route", "mode": route.get("mode", "route"), "graph": graph, "manual": manual,
                 "start": route.get("start") or [], "revision": revision, "layers": pathgraph.layers(graph), "progress": prog,
                 "frontier": pathgraph.frontier(graph, prog), "done": done, "total": len(live),
                 "exploration_share": pathgraph.exploration_share(done, len(live))}
@@ -233,6 +233,157 @@ class App:
             edge["support"] = pathgrowth.edge_support(docs.get(edge["from"], []), docs.get(edge["to"], []), terms[edge["from"]], terms[edge["to"]])
             edge["support_label"] = pathgrowth.support_label(edge["support"])
         return graph
+
+    ROUTE_QUERIES = 3
+
+    def _route_names(self, project_id):
+        """{concept_id: (name, layer)} for labelling cards; empty when the project has no map."""
+        try:
+            revision, route = read_route(self.store.conn, self._require_project(project_id))
+        except ValueError:
+            return {}
+        if not route:
+            return {}
+        graph = route["graph"]
+        level = pathgraph.layers(graph)
+        return {c["id"]: (c["name"], level[c["id"]]) for c in graph["concepts"]}
+
+    @staticmethod
+    def _card_route(row, names):
+        """Why a card was chosen: the concept, its layer and the kind (route / remedial / explore), or None. The
+        name and layer are the ones stored when the batch was made, so replacing the map later cannot relabel it."""
+        if not row.get("route_kind"):
+            return None
+        name, layer = row.get("route_name"), row.get("route_layer")
+        if name is None:
+            name, layer = names.get(row.get("route_node"), (None, None))
+        return {"node": row.get("route_node"), "name": name, "layer": layer, "kind": row["route_kind"]}
+
+    def _route_state(self, project_id):
+        """route_get() for a project whose map is switched on, else None."""
+        try:
+            state = self.route_get(project_id)
+        except ValueError:
+            return None
+        return state if state.get("enabled") and state.get("graph") else None
+
+    def _route_search_terms(self, route):
+        """The first search term of up to three concepts the reader can read now (the frontier)."""
+        by_id = {c["id"]: c for c in route["graph"]["concepts"]}
+        terms = []
+        for cid in route["frontier"]:
+            if by_id[cid].get("terms"):
+                terms.append(by_id[cid]["terms"][0])
+            if len(terms) >= self.ROUTE_QUERIES:
+                break
+        return terms
+
+    def _route_pages(self, project_id, route, terms, page_size=50):
+        """Which result page to ask OpenAlex for, per search term: once all the papers of a concept's current page are in
+        the project the next page is wanted, otherwise a refresh would return the same results forever."""
+        by_term = {c["terms"][0]: c["id"] for c in route["graph"]["concepts"] if c.get("terms")}
+        papers = [dict(r) for r in self.store.conn.execute(
+            "SELECT p.key, p.title, p.abstract FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
+        counts = {}
+        for ids in pathgrowth.assign(route["graph"], papers).values():
+            counts[ids[0]] = counts.get(ids[0], 0) + 1
+        return {term: 1 + counts.get(by_term.get(term), 0) // page_size for term in terms}
+
+    def home_route(self, project_id=None):
+        """A short summary of the learning map for the Today page, or None when the project has none."""
+        route = self._route_state(self._require_project(project_id))
+        if not route:
+            return None
+        by_id = {c["id"]: c for c in route["graph"]["concepts"]}
+        return {"enabled": True, "mode": route["mode"], "total": route["total"], "done": route["done"],
+                "exploration_share": route["exploration_share"],
+                "frontier": [{"id": i, "name": by_id[i]["name"], "layer": route["layers"][i]} for i in route["frontier"]]}
+
+    def _route_pick(self, route, pool, scored, vectors, limit, batch_index):
+        """Choose a batch from a learning map: [(paper_key, concept_id | None, kind)].
+
+        Route slots go to the concepts the reader can read now (unlocked, not yet understood), shared by weight
+        (concepts shown less get more; a concept the reader rated low gets half), best paper of a concept first:
+        introductions before the rest, then similarity to the profile, then newest. When a concept was marked
+        "too hard" one slot goes to an introduction of its prerequisite ("remedial"). A smooth, replayable
+        share of the batch is exploration: the best profile matches outside the frontier. Nothing here looks at
+        silence, and nothing reads the clock.
+        """
+        graph, prog = route["graph"], route["progress"]
+        active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}
+        assigned = {key: ids[0] for key, ids in pathgrowth.assign(active, pool).items()}
+        score = dict(scored)
+        published = {p["key"]: str(p.get("published") or "") for p in pool}
+        role = {p["key"]: pathgrowth.paper_role(p) for p in pool}
+        by_concept = {}
+        for key, cid in assigned.items():
+            by_concept.setdefault(cid, []).append(key)
+        def ordered(keys):
+            """Introductions first, then profile similarity, then newest, then key; undated papers last. Four
+            stable passes, so every tie falls through to the next rule."""
+            keys = sorted(keys)
+            keys.sort(key=lambda k: published[k], reverse=True)
+            keys.sort(key=lambda k: -score.get(k, 0.0))
+            keys.sort(key=lambda k: role[k] != "intro")
+            return keys
+        for cid in by_concept:
+            by_concept[cid] = ordered(by_concept[cid])
+        frontier = [c for c in route["frontier"] if by_concept.get(c)]
+        explore_slots = pathgraph.exploration_slots(limit, route["done"], route["total"], batch_index)
+        chosen, used = [], set()
+
+        def take(key, node, kind):
+            if key not in used and len(chosen) < limit:
+                used.add(key)
+                chosen.append((key, node, kind))
+
+        # One remedial slot: an introduction to the nearest prerequisite of a concept marked too hard. It needs room
+        # (a batch of one stays on the route), it is not offered for a prerequisite the reader marked as known, and
+        # there is one introduction per too-hard paper, not one in every batch for ever.
+        done_remedial = {r[0]: r[1] for r in self.store.conn.execute(
+            """SELECT e.route_node, COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id
+               WHERE b.project_id=? AND e.route_kind='remedial' GROUP BY e.route_node""", (route["project_id"],))}
+        if limit >= 2:
+            for cid in route["frontier"]:
+                if not prog[cid]["too_hard"] or len(chosen) >= limit - explore_slots:
+                    continue
+                needs = [e["from"] for e in graph["prereqs"] if e["to"] == cid and e.get("state", "active") == "active"]
+                for need in sorted(needs, key=lambda n: (route["layers"][n], n), reverse=True):
+                    wanted = sum(prog[c]["too_hard"] for c in route["frontier"]
+                                 if any(e["from"] == need and e["to"] == c for e in graph["prereqs"]))
+                    if prog[need].get("manual") == "mastered" or done_remedial.get(need, 0) >= wanted:
+                        continue
+                    pick = next((k for k in by_concept.get(need, []) if role[k] == "intro" and k not in used), None)
+                    if pick:
+                        take(pick, need, "remedial")
+                        break
+                if chosen:
+                    break
+        slots = max(0, limit - explore_slots - len(chosen))
+        weights = [(1.0 / (1 + prog[c]["shown"])) * (0.5 if prog[c]["low_interest"] else 1.0) for c in frontier]
+        quotas = pathgraph.allocate(slots, weights)
+        for cid, quota in zip(frontier, quotas):
+            for key in [k for k in by_concept[cid] if k not in used][:quota]:
+                take(key, cid, "route")
+        for cid in frontier:                      # a concept with too few papers leaves its slots to the others
+            for key in [k for k in by_concept[cid] if k not in used]:
+                if len(chosen) >= limit - explore_slots:
+                    break
+                take(key, cid, "route")
+        # Exploration is the only way a paper outside the frontier gets in, and only up to its share: a batch
+        # whose route papers ran out is shorter rather than padded with papers from concepts that are still locked.
+        on_frontier = set().union(*[set(by_concept[c]) for c in frontier]) if frontier else set()
+        rest = ordered_rest = [k for k in ordered([k for k, _ in scored]) if k not in used]
+        explored = 0
+        for key in [k for k in rest if k not in on_frontier]:
+            if explored >= explore_slots or len(chosen) >= limit:
+                break
+            take(key, assigned.get(key), "explore")
+            explored += 1
+        for cid in frontier:   # an exploration slot with nothing to explore goes back to the route
+            for key in [k for k in by_concept[cid] if k not in used]:
+                take(key, cid, "route")
+        return chosen
 
     def home_maintenance(self, project_id=None):
         """Refresh times for the page (no counts of anything unread or pending)."""
@@ -975,14 +1126,21 @@ class App:
         from_date = from_date or window_start(FEED_WINDOW_YEARS)
 
         errors = []
-        keywords = [] if search else self._project_keywords(project_id)[:3]
+        route = None if search else self._route_state(project_id)
+        route_terms = [] if not route else self._route_search_terms(route)
+        route_pages = self._route_pages(project_id, route, route_terms) if route_terms else {}
+        keywords = [] if search else (route_terms or self._project_keywords(project_id)[:3])
         field = []
         if keywords:
             seen = set()
             for keyword in keywords:
                 try:
-                    found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="recent",
-                                                       from_date=from_date)
+                    if route_terms:   # concepts of a learning map: the basics matter more than the newest paper
+                        found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="relevance",
+                                                           from_date=window_start(CREATION_WINDOW_YEARS), page=route_pages.get(keyword, 1))
+                    else:
+                        found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="recent",
+                                                           from_date=from_date)
                 except SourceError as exc:
                     errors.append({"query": keyword, "kind": exc.kind, "error": str(exc)[-120:]})
                     continue
@@ -1071,6 +1229,22 @@ class App:
         scored = ranking.sort_scored(
             [(p["key"], ranking.cosine(profile_vector, vectors[p["key"]])) for p in pool],
             {p["key"]: p.get("published") for p in pool})
+        route = self._route_state(project_id)
+        if route and route["frontier"]:
+            batch_index = self.store.conn.execute("SELECT COUNT(*) FROM batches WHERE project_id=?", (project_id,)).fetchone()[0]
+            picks = self._route_pick(route, pool, scored, vectors, limit, batch_index)
+            if any(kind in ("route", "remedial") for _, _, kind in picks):
+                if len(picks) < limit:
+                    shortfall = {**(shortfall or {}), "requested": limit, "available": len(picks), "candidates": len(papers),
+                                 "reason": ("The concepts you can read now have no papers you have not been shown; rate the ones you saw, fetch new papers, or mark concepts as known"
+                                            if self.english() else "路径上你现在能读的概念暂时没有未展示的论文；可以给已展示的评价、抓取新论文，或把已掌握的概念标出来")}
+                names = {c["id"]: (c["name"], route["layers"][c["id"]]) for c in route["graph"]["concepts"]}
+                batch_id = self.store.create_batch(run_date, [k for k, _, _ in picks], project_id=project_id,
+                                                   route={k: (node, kind) + names.get(node, (None, None)) for k, node, kind in picks})
+                return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
+            shortfall = {**(shortfall or {}), "requested": limit, "available": 0, "candidates": len(papers),
+                         "reason": ("There are no unshown papers for the concepts you can read now, so this is an ordinary batch"
+                                    if self.english() else "路径上你现在能读的概念没有未展示的论文，这一批是普通推荐")}
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
         batch_id = self.store.create_batch(run_date, chosen, project_id=project_id)
@@ -1160,6 +1334,7 @@ class App:
         rows = self.store.batch(batch_id) if batch_id is not None else self.store.latest_batch(project_id)
         summaries = self.store.summaries()
         feedback = self.latest_feedback(project_id) if project_id else self.latest_feedback()
+        route_names = self._route_names(project_id) if any(r.get("route_kind") for r in rows) else {}
         cards = []
         for row in rows:
             explanation = self.explain(row, project_id)
@@ -1174,7 +1349,8 @@ class App:
                 "nearest_score": explanation["nearest_score"],
                 "matched_terms": explanation["matched_terms"],
                 "shared_terms": explanation["shared_terms"],
-                "mode": "sparse",
+                "mode": "route" if row.get("route_kind") else "sparse",
+                "route": self._card_route(row, route_names),
                 "pdf_status": pdf_availability(row["arxiv_id"], row["oa_json"]),
                 "saved": self.store.in_library(row["key"], project_id),
                 "feedback": (feedback.get(row["key"]) or {}).get("action"),

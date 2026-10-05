@@ -235,6 +235,18 @@ def migrate_007_pdf_versions(conn):
     set_schema_version(conn, 7)
 
 
+def migrate_008_exposure_route(conn):
+    """Remember, for each paper a batch showed, which concept of the learning map it was shown for (id, name and layer at that
+    time, because ids are reused when a map is replaced) and why (route / remedial / explore)."""
+    for column, kind in (("route_node", "TEXT"), ("route_kind", "TEXT"), ("route_name", "TEXT"), ("route_layer", "INTEGER")):
+        try:
+            conn.execute(f"ALTER TABLE exposures ADD COLUMN {column} {kind}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column" not in str(exc).lower():
+                raise
+    set_schema_version(conn, 8)
+
+
 def migrate_005_reserved_for_channels(conn):
     """Number 5 belongs to the channels branch (migrate_005_channels), which has already run on some
     databases. This slot is deliberately empty here and is never recorded as applied, so that branch's
@@ -253,6 +265,7 @@ MIGRATIONS = [
     migrate_005_reserved_for_channels,
     migrate_006_pdf_acquisition,
     migrate_007_pdf_versions,
+    migrate_008_exposure_route,
 ]
 
 
