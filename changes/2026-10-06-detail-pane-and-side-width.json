@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-detail-pane-and-side-width",
+  "class": "standard",
+  "summary": "Correct stage 1: the library's 详情 button opens the shared right-hand detail pane (the one the knowledge base shows) instead of the large Today drawer; the duplicate icon-only pencil and the 完整详情 link are removed. Fix the project-tabs panel changing width: one directory width variable (--org-side) for every state instead of per-state grid columns.",
+  "tasks": [
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/static/i18n/en-US.json",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "changes/2026-10-06-detail-pane-and-side-width.json",
+    "docs/evidence/2026-10-06-detail-pane-and-side-width-checks.txt",
+    "docs/evidence/2026-10-06-detail-pane-and-side-width-self-review.md",
+    "tests/test_organization_ui.cjs"
+  ],
+  "scope_note": "Branch feature/route-mode on top of b0c4801. Front-end only. Committed with only these hunks; another session's unfinished suggestion-review edits in the same tree are not included.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Front-end change; no model call, data or network.",
+    "before": "Row detail opened a second, larger detail; directory width jumped between 200 and 300 px.",
+    "after": "Row detail opens the shared pane; directory width constant (280 px).",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-detail-pane-and-side-width-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-detail-pane-and-side-width-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-detail-pane-and-side-width-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-06-detail-pane-and-side-width-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not checked in the Tauri window or at other window widths.",
+    "The shared pane lacks the AI summary, save toggle and add-to-project controls that the Today drawer has."
+  ]
+}

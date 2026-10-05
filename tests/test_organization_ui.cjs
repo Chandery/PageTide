@@ -558,24 +558,20 @@ test('the camera never starts from a paper that is not drawn (collapsed category
   assert.equal(ui.graphOrigin([], 'hidden'), undefined);                    // an empty graph has no origin, and the caller guards it
 });
 
-test('every library row has a labelled button that opens the full paper detail, and the title still opens the reader', async () => {
+test('every library row has a labelled detail button that opens the shared detail pane, again after it was closed', async () => {
   const ui = fixture(); ui.accept(snapshot());
   let listHtml = '';
-  ui.S.root = { querySelector: (selector) => ({ set innerHTML(v) { if (selector === '.org-list') listHtml = v; }, get innerHTML() { return ''; }, indeterminate: false }) };
+  ui.S.root = { querySelector: (selector) => ({ set innerHTML(v) { if (selector === '.org-list') listHtml = v; }, get innerHTML() { return ''; }, indeterminate: false, hidden: false, classList: { toggle() {} } }) };
   ui.renderList();
-  assert.match(listHtml, /data-action="open-detail" data-key="paper:one"[^>]*>详情<\/button>/);
-  assert.match(listHtml, /data-action="read" data-key="paper:one"/);
-  const opened = [];
-  ui.setDetail(async (key) => { opened.push(key); });
-  await ui.handle('open-detail', { dataset: { key: 'paper:one' } });
-  await ui.handle('open-detail', { dataset: { key: 'paper:one' } });   // closing and opening again always works: nothing is latched
-  assert.deepEqual([...opened], ['paper:one', 'paper:one']);
-  assert.equal(ui.S.key, null);
-});
-
-test('without the full-detail function the button does nothing and does not throw', async () => {
-  const ui = fixture(); ui.accept(snapshot());
-  await ui.handle('open-detail', { dataset: { key: 'paper:one' } });
+  assert.match(listHtml, /data-action="detail" data-key="paper:one"[^>]*>详情<\/button>/);
+  assert.match(listHtml, /data-action="read" data-key="paper:one"/);       // the title still opens the PDF
+  assert.ok(!/open-detail/.test(listHtml));                                  // there is one detail, not a second bigger one
+  assert.ok(!/org-icon[^>]*pencil/.test(listHtml));                          // and no icon-only duplicate of the same button
+  // the click handlers (no DOM here): the row button selects the paper for the shared pane, and the pane's × only clears the selection
+  const source = fs.readFileSync(path.join(__dirname, '../app/static/organization.js'), 'utf8');
+  assert.match(source, /case 'detail': S\.key = b\.dataset\.key; renderDetail\(\);/);
+  assert.match(source, /case 'detail-close': S\.key = null;/);
+  assert.ok(!/openDetail/.test(source));                                      // the library never calls the Today drawer
 });
 
 // ---- view scope (project tabs) and graph isolation (the shared tree stays one; only what is shown changes)

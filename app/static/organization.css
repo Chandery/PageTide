@@ -26,7 +26,7 @@
 html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-tools img { filter:invert(1); }
 .org-statusbar { padding:7px 0; min-height:34px; color:var(--org-muted); overflow-wrap:anywhere; }
 .pdh-organization .org-error, .pdh-organization .org-danger, .org-dialog-error { color:var(--org-red); }
-.org-workspace { display:grid; grid-template-columns:200px minmax(260px,1fr) 320px; border-top:1px solid var(--org-border); border-bottom:1px solid var(--org-border); min-height:320px; height:calc(100dvh - 260px); max-height:1100px; }
+.org-workspace { display:grid; grid-template-columns:var(--org-side) minmax(260px,1fr) 320px; border-top:1px solid var(--org-border); border-bottom:1px solid var(--org-border); min-height:320px; height:calc(100dvh - 260px); max-height:1100px; }
 .org-sidebar, .org-detail, .org-main { min-width:0; min-height:0; }
 .org-sidebar { border-right:1px solid var(--org-border); padding:12px 10px 12px 0; overflow:auto; }
 .org-section-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
@@ -53,7 +53,7 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .org-tags > span { display:inline-flex; align-items:center; gap:4px; }
 .org-empty { padding:28px 16px; color:var(--org-muted); text-align:center; }
 .org-detail { border-left:1px solid var(--org-border); padding:12px 14px; overflow:auto; }
-.org-workspace:not(:has(.org-detail.has-paper)) { grid-template-columns:200px minmax(0,1fr); }
+.org-workspace:not(:has(.org-detail.has-paper)) { grid-template-columns:var(--org-side) minmax(0,1fr); }
 .org-detail:not(.has-paper) { display:none; }
 .org-detail-title { overflow-wrap:anywhere; line-height:1.6; margin-bottom:8px !important; }
 .org-detail > button { margin-top:10px; }
@@ -93,8 +93,8 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .org-suggestion-members label { display:flex; align-items:flex-start; gap:8px; }
 .org-suggestion-members input { margin-top:3px !important; }
 .org-suggestion-members span { overflow-wrap:anywhere; }
-@media (max-width:1150px) { .org-workspace { grid-template-columns:170px minmax(240px,1fr) 280px; } .org-toolbar { gap:8px; } }
-@media (max-width:900px) { .org-workspace { grid-template-columns:155px minmax(0,1fr); height:auto; max-height:none; } .org-main { min-height:520px; max-height:75dvh; } .org-detail { grid-column:1/-1; border-left:0; border-top:1px solid var(--org-border); } .org-detail:not(.has-paper) { display:none; } .org-detail textarea { min-height:200px; } }
+@media (max-width:1150px) { .org-workspace { grid-template-columns:var(--org-side) minmax(240px,1fr) 280px; } .org-toolbar { gap:8px; } }
+@media (max-width:900px) { .org-workspace { grid-template-columns:var(--org-side) minmax(0,1fr); height:auto; max-height:none; } .org-main { min-height:520px; max-height:75dvh; } .org-detail { grid-column:1/-1; border-left:0; border-top:1px solid var(--org-border); } .org-detail:not(.has-paper) { display:none; } .org-detail textarea { min-height:200px; } }
 @media (max-width:560px) { .org-toolbar h2 { width:100%; } .org-search { order:3; flex-basis:100%; width:100%; } .org-toolbar > .org-tools { margin-left:auto; } .org-tools button { padding:5px 7px; } .org-workspace { display:flex; flex-direction:column; } .org-sidebar { border-right:0; border-bottom:1px solid var(--org-border); max-height:220px; padding:10px 0; } .org-directions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 8px; } .org-main { min-height:480px; max-height:70dvh; } .org-detail { padding:14px 8px; } .org-bulk { gap:6px; padding:8px; } .org-paper { padding:12px 8px; } }
 
 /* Compact folder directory; commands live in each row's more menu. */
@@ -149,10 +149,10 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-graph-paper.is-active { background:var(--surface-2); box-shadow:inset 2px 0 var(--mark); }
 .org-graph-paper strong { display:block; font-size:13px; line-height:1.35; font-weight:600; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .org-graph-paper span { display:block; margin-top:3px; color:var(--org-muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.org-workspace:has(.org-graph-wrap:not([hidden])) { grid-template-columns:300px minmax(320px,1fr) 320px; }
-.org-workspace:has(.org-graph-wrap:not([hidden])):not(:has(.org-detail.has-paper)) { grid-template-columns:300px minmax(0,1fr); }
-@media (max-width:1150px) { .org-workspace:has(.org-graph-wrap:not([hidden])) { grid-template-columns:250px minmax(240px,1fr) 280px; } }
-@media (max-width:900px) { .org-workspace:has(.org-graph-wrap:not([hidden])) { grid-template-columns:155px minmax(0,1fr); } }
+.org-workspace:has(.org-graph-wrap:not([hidden])) { grid-template-columns:var(--org-side) minmax(320px,1fr) 320px; }
+.org-workspace:has(.org-graph-wrap:not([hidden])):not(:has(.org-detail.has-paper)) { grid-template-columns:var(--org-side) minmax(0,1fr); }
+@media (max-width:1150px) { .org-workspace:has(.org-graph-wrap:not([hidden])) { grid-template-columns:var(--org-side) minmax(240px,1fr) 280px; } }
+@media (max-width:900px) { .org-workspace:has(.org-graph-wrap:not([hidden])) { grid-template-columns:var(--org-side) minmax(0,1fr); } }
 
 /* In graph mode papers live under their category, so the directory is the only paper index. */
 .org-directory-group { min-width:0; }
@@ -169,7 +169,7 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 
 /* Paper detail rail: keep the graph/list in view while the selected paper reads
    like a focused side panel, with the same quiet hierarchy as Connected Papers. */
-.org-workspace:has(.org-detail.has-paper) { grid-template-columns:300px minmax(0,1fr) minmax(390px,480px); }
+.org-workspace:has(.org-detail.has-paper) { grid-template-columns:var(--org-side) minmax(0,1fr) minmax(390px,480px); }
 .org-detail.has-paper { padding:22px 24px 30px; background:var(--org-bg); box-shadow:-14px 0 34px rgba(28,34,48,.08); animation:org-detail-in .24s cubic-bezier(.22,.8,.28,1) both; }
 .org-detail.has-paper > .org-section-head:first-child { position:sticky; top:-22px; z-index:2; margin:0 -24px 22px; padding:16px 24px 13px; background:color-mix(in srgb, var(--org-bg) 94%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--org-border); }
 .org-detail.has-paper > .org-section-head:first-child h3 { font-size:13px; color:var(--org-muted); font-weight:600; letter-spacing:.02em; }
@@ -206,7 +206,7 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-detail .org-notes textarea { min-height:220px; border-radius:9px; background:var(--org-subtle); border-color:var(--org-border); font-size:13.5px; line-height:1.7; }
 @keyframes org-detail-in { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce) { .org-detail.has-paper { animation:none; } }
-@media (max-width:1150px) { .org-workspace:has(.org-detail.has-paper) { grid-template-columns:250px minmax(240px,1fr) minmax(320px,360px); } }
+@media (max-width:1150px) { .org-workspace:has(.org-detail.has-paper) { grid-template-columns:var(--org-side) minmax(240px,1fr) minmax(320px,360px); } }
 
 /* view scope, project tags, cross-project mark, graph focus */
 .org-focus button { font-size:12px; padding:5px 12px; }
@@ -231,3 +231,10 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-ptab small { font-size:11.5px; opacity:.75; font-variant-numeric:tabular-nums; }
 .org-ptab-now { width:6px; height:6px; border-radius:50%; background:var(--mark); flex:none; }
 .org-ptab.is-active .org-ptab-now { background:var(--accent-ink); }
+
+/* One directory width in every state. It used to be written per state (library 200px, graph 300px, detail open 300px,
+   and narrower per breakpoint), so opening or closing a paper, switching tabs or switching project made the project
+   tabs panel jump between widths. Only the window size may change it. */
+.pdh-organization { --org-side:280px; }
+@media (max-width:1150px) { .pdh-organization { --org-side:240px; } }
+@media (max-width:900px) { .pdh-organization { --org-side:155px; } }

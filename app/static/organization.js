@@ -296,7 +296,7 @@
   }
   function renderList() {
     renderBulk();
-    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="open-detail" data-key="${h(p.key)}" title="打开完整详情：摘要、AI 速览、收藏、所属项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${button('detail', '备注与分类', '', `data-key="${h(p.key)}"`)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
+    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="detail" data-key="${h(p.key)}" title="打开右侧论文详情：摘要、笔记、所属类别和项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
   }
   // Which categories the open paper belongs to; each chip locates that category, and an
   // uncategorized paper says so instead of showing nothing.
@@ -319,8 +319,6 @@
     read.disabled = typeof window.PDH.openReader !== 'function';
     read.title = read.disabled ? '阅读器尚未加载，请刷新' : '阅读 PDF';
     read.onclick = () => window.PDH.openReader(p.key, p.title); reading.append(read);
-    const full = document.createElement('button'); full.type = 'button'; full.dataset.action = 'open-detail'; full.dataset.key = p.key; full.textContent = '完整详情';
-    full.title = '打开完整详情：AI 速览、收藏、所属项目'; reading.append(full);
     const url = paperURL(p);
     if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开论文'; reading.append(link); }
     panel.querySelector('.org-detail-categories').after(reading);
@@ -929,7 +927,6 @@
       }
       case 'show-all-graph': S.showAll = true; renderGraph(false); break;
       case 'read': { const p = item(b.dataset.key); if (p) await window.PDH.openReader(p.key, p.title); break; }
-      case 'open-detail': { const key = b.dataset.key || S.key; if (key && typeof window.PDH.openDetail === 'function') await window.PDH.openDetail(key); break; }
       case 'detail': S.key = b.dataset.key; renderDetail(); renderList(); filterGraph(); break;
       case 'detail-close': S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); if (S.focus.startsWith('paper')) { S.focus = 'all'; if (S.mode === 'graph') renderGraph(false); else renderFocus(); } break;
       case 'direction-new': editDirection(); break;
