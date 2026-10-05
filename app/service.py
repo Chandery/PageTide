@@ -11,10 +11,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, maintenance, openalex_key, pdf_fetch, ranking
+from . import creation, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking
 from .db import Store, now
 from .gateway import Gateway
 from .language import language
+from .organization import Organization, read_route
 from .project import ProjectManager
 from .sources import OpenAlex, SourceError, fetch_seed_work, pdf_availability, resolve_seed, slim, window_start
 
@@ -49,6 +50,76 @@ class App:
         self.pdf_fetcher = pdf_fetch.shared_fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
+
+    # ------------------------------------------------------------ learning map
+    def _route_org(self, project_id):
+        return Organization(self.store, project=self._require_project(project_id))
+
+    def _route_inputs(self, project_id, graph):
+        """Explicit events and shown counts per concept. A paper counts for the one concept it fits best, so
+        a single paper cannot raise two concepts at once. Seeds are explicit positives chosen at creation.
+        A frozen profile replays feedback only up to the freeze, and undone feedback is gone."""
+        papers = [dict(r) for r in self.store.conn.execute(
+            "SELECT p.key, p.title, p.abstract FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
+        active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}   # a suggestion collects no evidence
+        best = {key: ids[0] for key, ids in pathgrowth.assign(active, papers).items()}
+        freeze = self.store.get_setting(f"profile_freeze_{project_id}")
+        through = freeze.get("through_feedback_id") if freeze else None
+        feedback = self.latest_feedback(project_id, through)
+        events = {}
+        for key in self.seed_keys(project_id):
+            if key in best and key not in feedback:
+                events.setdefault(best[key], []).append("useful")
+        for key, item in sorted(feedback.items(), key=lambda kv: kv[1]["id"]):
+            if key in best and item["action"] in pathgraph.EVENTS:
+                events.setdefault(best[key], []).append(item["action"])
+        shown = {}
+        for row in self.store.conn.execute(
+                """SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?""", (project_id,)):
+            if row[0] in best:
+                shown[best[row[0]]] = shown.get(best[row[0]], 0) + 1
+        return events, shown
+
+    def route_get(self, project_id=None):
+        """The project's learning map with per-concept progress, derived from explicit feedback only."""
+        project_id = self._require_project(project_id)
+        revision, route = read_route(self.store.conn, project_id)
+        if not route:
+            return {"enabled": False, "mode": "off", "graph": None}
+        graph, manual = route["graph"], route.get("manual") or {}
+        events, shown = self._route_inputs(project_id, graph)
+        start = route.get("start") or None
+        prog = pathgraph.progress(graph, events, manual, shown, start=start)
+        live = [i for i, s in prog.items() if s["status"] in ("locked", "unlocked", "satisfied")]
+        done = sum(1 for i in live if prog[i]["status"] == "satisfied")
+        return {"enabled": route.get("mode", "route") == "route", "mode": route.get("mode", "route"), "graph": graph, "manual": manual,
+                "start": route.get("start") or [], "revision": revision, "layers": pathgraph.layers(graph), "progress": prog,
+                "frontier": pathgraph.frontier(graph, prog), "done": done, "total": len(live),
+                "exploration_share": pathgraph.exploration_share(done, len(live))}
+
+    def _route_apply(self, project_id, body, revision=None):
+        org = self._route_org(project_id)
+        if revision is not None:
+            body = {**body, "revision": revision}
+        org.action(body)
+        return self.route_get(project_id)
+
+    def route_save(self, project_id, plan=None, graph=None, revision=None):
+        body = {"action": "route-save"}
+        if plan is not None:
+            body["plan"] = plan
+        if graph is not None:
+            body["graph"] = graph
+        return self._route_apply(project_id, body, revision)
+
+    def route_manual(self, project_id, concept, value, revision=None):
+        return self._route_apply(project_id, {"action": "route-manual", "concept": concept, "value": value}, revision)
+
+    def route_start(self, project_id, start, revision=None):
+        return self._route_apply(project_id, {"action": "route-start", "start": start}, revision)
+
+    def route_mode(self, project_id, mode, revision=None):
+        return self._route_apply(project_id, {"action": "route-mode", "mode": mode}, revision)
 
     def home_maintenance(self, project_id=None):
         """Refresh times for the page (no counts of anything unread or pending)."""
@@ -590,6 +661,8 @@ class App:
         return {"profile": self.profile(project_id), "stats": self.stats(project_id)}
 
     def _require_project(self, project_id):
+        if project_id is not None and not isinstance(project_id, str):
+            raise ValueError("项目不存在")
         project_id = project_id or self.get_default_project_id()
         if not self.projects.get_project(project_id):
             raise ValueError("项目不存在")

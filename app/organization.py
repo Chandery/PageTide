@@ -37,9 +37,18 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import unquote
 
+from . import pathgraph
 from .clustering import cluster, corpus_fingerprint
 from .organization_facets import suggest_groups
 from .db import now
+
+
+def read_route(conn, project):
+    """(revision, the project's route block or None) by a plain read: it creates no tables, rows or backups."""
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_projects'").fetchone():
+        return 0, None
+    row = conn.execute("SELECT revision,data FROM org_projects WHERE project=?", (project,)).fetchone()
+    return (row[0], json.loads(row[1]).get("route")) if row else (0, None)
 
 
 class Conflict(ValueError):
@@ -92,6 +101,11 @@ def _version(value, label):
     if type(value) is not int or value < 0:
         raise ValueError(label + " must be a nonnegative integer")
     return value
+
+
+ROUTE_OPS = {"route-save", "route-manual", "route-start", "route-mode"}
+ROUTE_MARKS = {"mastered", "unlocked", "demoted"}
+MAX_PLAN_CONCEPTS = 200   # a plan from an AI or a person is a dozen concepts; this only bounds hostile input
 
 
 class Organization:
@@ -218,6 +232,8 @@ class Organization:
         result["drafts"] = self._drafts()
         event = self._undoable()
         result["undo"] = {"id": event["id"], "label": event["label"]} if event and event["label"] else None
+        if data.get("route"):
+            result["route"] = data["route"]
         if data.get("suggestions"):
             result["suggestions"] = data["suggestions"]
             result["suggestions"]["stale"] = (
@@ -257,7 +273,7 @@ class Organization:
             op = "suggest-apply"
         if op not in {"direction-save", "direction-delete", "membership", "note", "history",
                       "positions", "collapse", "undo", "export", "suggest", "suggest-apply",
-                      "drafts", "draft-save", "draft-clear"}:
+                      "drafts", "draft-save", "draft-clear"} | ROUTE_OPS:
             raise ValueError("Unknown organization operation")
         if op == "suggest":
             return self._suggest(body)
@@ -315,6 +331,10 @@ class Organization:
                     self._write_note(event["note_key"], event["note_before"])
                 self.conn.execute("UPDATE org_events SET undone=1 WHERE id=?", (event["id"],))
                 data.pop("suggestions", None)
+            elif op in ROUTE_OPS:
+                label = self._route_op(op, body, data)
+                if label is None:
+                    return self._snapshot()   # nothing changed: no revision bump, no undo step
             elif op == "note":
                 note_key = self._paper_key(body.get("key"))
                 version = _version(body.get("version"), "version")
@@ -495,6 +515,73 @@ class Organization:
             if apply_result is not None:
                 result["apply_result"] = apply_result
             return result
+
+    def _route_op(self, op, body, data):
+        """Edit the project's learning map (data["route"]) and return the label shown by the undo button,
+        or None when nothing would change (then nothing is written and no undo step is added).
+
+        route-save takes `plan` (an AI or hand-written concept list, normalised) or `graph` (a structured map,
+        validated), not both. Manual marks and start nodes follow their concept: by name when a new plan is
+        normalised (its ids are renumbered), by id when a structured map is saved; marks of concepts that no
+        longer exist are dropped. Everything is explicit user input; nothing is inferred from silence.
+        """
+        route = data.get("route")
+        if op == "route-save":
+            plan, graph = body.get("plan"), body.get("graph")
+            if plan is not None and graph is not None:
+                raise ValueError("Give either a plan or a graph, not both")
+            old = route or {}
+            if plan is not None:
+                if not isinstance(plan, dict) or not isinstance(plan.get("concepts"), list) or len(plan["concepts"]) > MAX_PLAN_CONCEPTS:
+                    raise ValueError("The plan is missing or too big")
+                graph, _ = pathgraph.normalize(plan)
+                if not graph["concepts"]:
+                    raise ValueError("The plan has no usable concepts")
+                names = {c["id"]: pathgraph._key(c["name"]) for c in (old.get("graph") or {}).get("concepts", [])}
+                fresh = {pathgraph._key(c["name"]): c["id"] for c in graph["concepts"]}
+                follow = lambda i: fresh.get(names.get(i))
+            else:
+                graph = pathgraph.validate(graph)
+                known = {c["id"] for c in graph["concepts"]}
+                follow = lambda i: i if i in known else None
+            manual = {follow(k): v for k, v in (old.get("manual") or {}).items() if follow(k)}
+            start = [follow(i) for i in (old.get("start") or []) if follow(i)]
+            updated = {"graph": graph, "mode": old.get("mode", "route"), "manual": manual, "start": start}
+            if updated == route:
+                return None
+            data["route"] = updated
+            return "保存学习路径"
+        if not route:
+            raise ValueError("There is no learning path yet")
+        known = {c["id"] for c in route["graph"]["concepts"]}
+        if op == "route-manual":
+            concept, value = body.get("concept"), body.get("value")
+            if not isinstance(concept, str) or concept not in known:
+                raise ValueError("Unknown concept")
+            if value is not None and value not in ROUTE_MARKS:
+                raise ValueError("Unknown mark")
+            if route["manual"].get(concept) == value:
+                return None
+            if value is None:
+                route["manual"].pop(concept)
+            else:
+                route["manual"][concept] = value
+            return "标记概念状态"
+        if op == "route-start":
+            start = body.get("start")
+            if not isinstance(start, list) or len(start) > pathgraph.MAX_NODES or any(not isinstance(i, str) or i not in known for i in start):
+                raise ValueError("Unknown start concept")
+            start = list(dict.fromkeys(start))
+            if start == route["start"]:
+                return None
+            route["start"] = start
+            return "设置路径起点"
+        if body.get("mode") not in ("route", "off"):
+            raise ValueError("Unknown route mode")
+        if route["mode"] == body["mode"]:
+            return None
+        route["mode"] = body["mode"]
+        return "切换路径模式"
 
     def _drop_emptied(self, data, candidates):
         """Delete categories an edit left without saved papers or subcategories.

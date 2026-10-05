@@ -255,6 +255,114 @@ class InvariantTests(unittest.TestCase):
             self.assertEqual(again_report["dropped_edges"], [], round_)
 
 
+class ValidateTests(unittest.TestCase):
+    def good(self):
+        graph, _ = pg.normalize(raw(concept("a", "A", hint=1), concept("b", "B", ["a"]), concept("c", "C", ["b"], hint=3), targets=["c"]))
+        return graph
+
+    def test_a_graph_that_normalize_produced_is_accepted_unchanged(self):
+        graph = self.good()
+        self.assertEqual(pg.validate(graph), graph)
+
+    def test_validate_returns_a_clean_copy_and_keeps_growth_fields(self):
+        graph = self.good()
+        graph["concepts"][0]["unknown"] = "dropped"
+        graph["concepts"][1].update(origin="grown", state="proposed", parent="c1", evidence=["p1"], candidate="g-1")
+        clean = pg.validate(graph)
+        self.assertNotIn("unknown", clean["concepts"][0])
+        self.assertEqual((clean["concepts"][1]["origin"], clean["concepts"][1]["state"], clean["concepts"][1]["parent"]), ("grown", "proposed", "c1"))
+        clean["concepts"][0]["name"] = "changed"
+        self.assertEqual(graph["concepts"][0]["name"], "A")
+
+    def test_each_broken_rule_is_refused(self):
+        def broken(change):
+            graph = self.good()
+            change(graph)
+            with self.assertRaises(ValueError):
+                pg.validate(graph)
+        broken(lambda g: g["prereqs"].append({"from": "c3", "to": "c1"}))                       # cycle
+        broken(lambda g: g["prereqs"].append({"from": "c1", "to": "zzz"}))                       # dangling
+        broken(lambda g: g["prereqs"].append({"from": "c1", "to": "c1"}))                        # self edge
+        broken(lambda g: g["concepts"].append(dict(g["concepts"][0])))                           # duplicate id
+        broken(lambda g: g["concepts"][0].update(hint=4))                                        # prerequisite harder than its dependent
+        broken(lambda g: g["targets"].append("zzz"))                                             # unknown target
+        broken(lambda g: g["concepts"][0].update(name="  "))                                     # no name
+        broken(lambda g: g["prereqs"].append(dict(g["prereqs"][0])))                             # duplicate edge
+        broken(lambda g: g.update(concepts=[dict(g["concepts"][0], id=f"c{i}") for i in range(pg.MAX_MAP_NODES + 1)], prereqs=[], targets=[]))
+
+    def test_non_graphs_are_refused(self):
+        for bad in (None, 5, "x", [], {}, {"concepts": "x", "prereqs": []}, {"concepts": [], "prereqs": "x"}):
+            with self.assertRaises(ValueError):
+                pg.validate(bad)
+
+    def test_proposed_or_archived_paths_never_remove_an_active_prerequisite(self):
+        def graph_with(middle_state):
+            return {"concepts": [{"id": "a", "name": "A", "terms": ["a"], "hint": 1}, {"id": "b", "name": "B", "terms": ["b"], "hint": 2, "state": middle_state},
+                                 {"id": "c", "name": "C", "terms": ["c"], "hint": 3}],
+                    "prereqs": [{"from": "a", "to": "c"}, {"from": "a", "to": "b", "state": "proposed" if middle_state == "proposed" else "active"},
+                                {"from": "b", "to": "c"}], "targets": ["c"]}
+        for state in ("proposed", "archived"):
+            clean = pg.validate(graph_with(state))
+            self.assertIn(("a", "c"), [(e["from"], e["to"]) for e in clean["prereqs"]], state)
+            prog = pg.progress(clean, {}, {}, {})
+            self.assertEqual(prog["c"]["status"], "locked", state)   # still waits for a
+
+    def test_a_proposed_edge_between_active_concepts_never_removes_an_active_prerequisite(self):
+        graph = {"concepts": [{"id": i, "name": i.upper(), "terms": [i], "hint": h} for i, h in (("a", 1), ("b", 2), ("c", 3))],
+                 "prereqs": [{"from": "a", "to": "c"}, {"from": "a", "to": "b", "state": "proposed"}, {"from": "b", "to": "c"}], "targets": ["c"]}
+        clean = pg.validate(graph)
+        self.assertIn(("a", "c"), [(e["from"], e["to"]) for e in clean["prereqs"]])
+        self.assertEqual(pg.progress(clean, {}, {}, {})["c"]["status"], "locked")
+
+    def test_adding_beside_a_proposed_concept_keeps_the_active_edges(self):
+        graph = pg.validate(self.good())
+        graph = pg.add_concept(graph, {"name": "Maybe", "terms": ["maybe"], "hint": 2, "origin": "grown", "state": "proposed"}, needs=["c1"], dependents=["c3"])
+        self.assertIn(("c2", "c3"), [(e["from"], e["to"]) for e in graph["prereqs"]])
+        self.assertIn(("c1", "c2"), [(e["from"], e["to"]) for e in graph["prereqs"]])
+
+    def test_extras_are_bounded_and_numbers_must_be_finite(self):
+        graph = self.good()
+        graph["concepts"][0]["evidence"] = ["p" * 5000] * 3
+        with self.assertRaises(ValueError):
+            pg.validate(graph)
+        graph = self.good()
+        graph["concepts"][0]["parent"] = "x" * 500
+        with self.assertRaises(ValueError):
+            pg.validate(graph)
+        graph = self.good()
+        graph["prereqs"][0]["support"] = float("inf")
+        self.assertIsNone(pg.validate(graph)["prereqs"][0]["support"])
+        graph["prereqs"][0]["support"] = float("nan")
+        self.assertIsNone(pg.validate(graph)["prereqs"][0]["support"])
+
+    def test_unhashable_ids_and_targets_are_value_errors_not_type_errors(self):
+        for change in (lambda g: g["targets"].append(["a"]), lambda g: g["prereqs"].append({"from": ["a"], "to": "c1"}),
+                       lambda g: g["concepts"].append({"id": ["x"], "name": "X"}), lambda g: g["prereqs"].append({"from": {}, "to": {}})):
+            graph = self.good()
+            change(graph)
+            with self.assertRaises(ValueError):
+                pg.validate(graph)
+
+    def test_an_empty_or_fully_archived_map_is_refused_and_missing_targets_become_the_sinks(self):
+        for graph in ({"concepts": [], "prereqs": [], "targets": []},):
+            with self.assertRaises(ValueError):
+                pg.validate(graph)
+        graph = self.good()
+        graph["targets"] = []
+        clean = pg.validate(graph)
+        self.assertEqual(clean["targets"], ["c3"])
+        self.assertFalse(any(c["side"] for c in clean["concepts"]))
+        for c in graph["concepts"]:
+            c["state"] = "archived"
+        with self.assertRaises(ValueError):
+            pg.validate(graph)
+
+    def test_a_redundant_edge_is_dropped_rather_than_refused(self):
+        graph = self.good()
+        graph["prereqs"].append({"from": "c1", "to": "c3", "support": None, "origin": "user", "state": "active"})
+        self.assertEqual(len(pg.validate(graph)["prereqs"]), 2)
+
+
 class StructureTests(unittest.TestCase):
     def build(self):
         graph, _ = pg.normalize(raw(concept("a", "A", hint=1), concept("b", "B", ["a"]), concept("c", "C", ["a"]),

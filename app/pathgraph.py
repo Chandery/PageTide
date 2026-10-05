@@ -138,11 +138,15 @@ def _id_text(value):
     return str(value) if isinstance(value, (str, int)) and not isinstance(value, bool) and str(value).strip() else None
 
 
-def _reduce(edges):
-    """Drop every edge that a longer path already implies (a Hasse diagram). Returns the dropped edges."""
+def _reduce(edges, live=None):
+    """Drop every active edge that a longer active path already implies (a Hasse diagram). Only active edges
+    between live concepts count as paths: a proposed or archived detour must never remove an active
+    prerequisite, because progress() ignores those detours when it unlocks concepts. Returns the dropped edges."""
+    def eligible(edge):
+        return edge.get("state", "active") == "active" and (live is None or (edge["from"] in live and edge["to"] in live))
     dropped = []
-    for edge in list(edges):
-        if _reachable(edges, edge["from"], edge["to"], skip=edge):
+    for edge in [e for e in edges if eligible(e)]:
+        if _reachable([e for e in edges if eligible(e)], edge["from"], edge["to"], skip=edge):
             edges.remove(edge)
             dropped.append(edge)
     return dropped
@@ -357,11 +361,105 @@ def add_concept(graph, concept, needs=(), dependents=()):
         grown["prereqs"].append({"from": new_id, "to": target, "support": None, "origin": origin, "state": state})
     if not is_acyclic(grown):
         raise ValueError("that would make a cycle")
-    _reduce(grown["prereqs"])
+    _reduce(grown["prereqs"], live={c["id"] for c in grown["concepts"] if c.get("state", "active") == "active"})
     for node in [new_id] + dependents:
         if sum(1 for e in grown["prereqs"] if e["to"] == node) > MAX_FAN_IN:
             raise ValueError("too many prerequisites for one concept")
     return grown
+
+
+_CONCEPT_EXTRAS = ("parent", "evidence", "candidate", "direction_id")
+_ORIGINS, _STATES = ("plan", "user", "grown"), ("active", "proposed", "archived")
+
+
+def _short(value, name):
+    if not isinstance(value, str) or len(value) > 200:
+        raise ValueError(f"{name} must be a short string")
+    return value
+
+
+def validate(graph):
+    """A clean deep copy of a structured graph, or ValueError naming the broken rule.
+
+    This is the gate for graphs that were not just made by normalize(): a graph a person edited on the page or
+    one grown by merge_candidate(). Rules: unique string ids, a name on every concept, at least one active
+    concept, edges between known concepts with no self edge or duplicate, no cycle, no prerequisite harder than
+    its dependent, at most MAX_FAN_IN prerequisites, at most MAX_MAP_NODES concepts, targets that exist (the
+    sinks when none are given), bounded extra fields. Active edges implied by a longer active path are dropped
+    quietly (reachability is unchanged). Unknown fields are dropped.
+    """
+    try:
+        return _validate(graph)
+    except (TypeError, AttributeError, KeyError) as exc:
+        raise ValueError("not a valid map") from exc
+
+
+def _validate(graph):
+    if not isinstance(graph, dict) or not isinstance(graph.get("concepts"), list) or not isinstance(graph.get("prereqs"), list):
+        raise ValueError("not a map")
+    if len(graph["concepts"]) > MAX_MAP_NODES or len(graph["prereqs"]) > MAX_MAP_NODES * MAX_FAN_IN:
+        raise ValueError("the map is too big")
+    concepts, ids = [], set()
+    for item in graph["concepts"]:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not item["id"] or item["id"] in ids:
+            raise ValueError("every concept needs its own id")
+        _short(item["id"], "id")
+        name = _text(item.get("name"), 60)
+        if not name or not _key(name):
+            raise ValueError("a concept needs a name")
+        origin, state = item.get("origin", "plan"), item.get("state", "active")
+        if origin not in _ORIGINS or state not in _STATES:
+            raise ValueError("unknown origin or state")
+        ids.add(item["id"])
+        clean = {"id": item["id"], "name": name, "terms": _terms(item.get("terms"), name), "hint": _hint(item.get("hint")),
+                 "origin": origin, "state": state, "side": False}
+        for extra in ("parent", "candidate", "direction_id"):
+            if item.get(extra) is not None:
+                clean[extra] = _short(item[extra], extra)
+        if item.get("evidence") is not None:
+            evidence = item["evidence"]
+            if not isinstance(evidence, list) or len(evidence) > 12:
+                raise ValueError("evidence must be a short list")
+            clean["evidence"] = [_short(e, "evidence") for e in evidence]
+        concepts.append(clean)
+    if not any(c["state"] == "active" for c in concepts):
+        raise ValueError("The map has no active concepts")
+    hints = {c["id"]: c["hint"] for c in concepts}
+    edges, seen = [], set()
+    for item in graph["prereqs"]:
+        if not isinstance(item, dict) or not isinstance(item.get("from"), str) or not isinstance(item.get("to"), str) \
+                or item["from"] not in ids or item["to"] not in ids:
+            raise ValueError("an edge joins unknown concepts")
+        pair = (item["from"], item["to"])
+        if pair[0] == pair[1] or pair in seen:
+            raise ValueError("an edge points at itself or is repeated")
+        if hints[pair[0]] > hints[pair[1]]:
+            raise ValueError("a prerequisite cannot be harder than the concept that needs it")
+        origin, state = item.get("origin", "plan"), item.get("state", "active")
+        if origin not in _ORIGINS or state not in ("active", "proposed"):
+            raise ValueError("unknown origin or state")
+        support = item.get("support")
+        seen.add(pair)
+        edges.append({"from": pair[0], "to": pair[1],
+                      "support": support if isinstance(support, (int, float)) and not isinstance(support, bool) and math.isfinite(support) else None,
+                      "origin": origin, "state": state})
+    targets = graph.get("targets", [])
+    if not isinstance(targets, list) or any(not isinstance(t, str) or t not in ids for t in targets):
+        raise ValueError("a target is not on the map")
+    clean_graph = {"concepts": concepts, "prereqs": edges, "targets": list(dict.fromkeys(targets))}
+    if not is_acyclic(clean_graph):
+        raise ValueError("that would make a cycle")
+    _reduce(edges, live={c["id"] for c in concepts if c["state"] == "active"})
+    for node in ids:
+        if sum(1 for e in edges if e["to"] == node) > MAX_FAN_IN:
+            raise ValueError("too many prerequisites for one concept")
+    if not clean_graph["targets"]:
+        feeding = {e["from"] for e in edges}
+        clean_graph["targets"] = [c["id"] for c in concepts if c["state"] == "active" and c["id"] not in feeding]
+    reach = ancestors(clean_graph, clean_graph["targets"]) | set(clean_graph["targets"])
+    for c in concepts:
+        c["side"] = c["id"] not in reach
+    return clean_graph
 
 
 def remove_concept(graph, concept_id):

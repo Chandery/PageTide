@@ -1,0 +1,7 @@
+2026-10-05 route-store checks (Route Mode slice 4; sanitized)
+python3 -m unittest discover -s tests            -> Ran 705 tests, OK (661 before; +44: tests/test_route_store.py 32, ValidateTests in tests/test_pathgraph.py 12 ... plus tightened pathgrowth merge test)
+python3 scripts/budget.py --check                -> PASS
+python3 scripts/harness.py check                 -> PASS
+Mutation checks (each made at least one test fail): freeze cutoff ignored, a paper counted for every assigned concept, no cleanup on project delete, route missing from the snapshot, proposed concepts collecting evidence, shortcut removal counting proposed edges, marks following ids after a plan save, no-op still writing.
+Independent review: docs/evidence/2026-10-05-route-store-review.md (6 findings + low items, all fixed; fixes not re-read by a reviewer).
+Not run: the map in the app window (no UI yet); real project data.

@@ -149,6 +149,11 @@ class ProjectManager:
             (SELECT paper_key FROM project_library)
         """)
         self.store.conn.execute("DELETE FROM projects WHERE id=?", (project_id,))
+        # The learning map and its undo history live in the knowledge-base tables under the project's own key.
+        existing = {r[0] for r in self.store.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in ("org_projects", "org_notes", "org_events", "org_drafts"):
+            if table in existing:
+                self.store.conn.execute(f"DELETE FROM {table} WHERE project=?", (project_id,))
         names = ("seed_keys", "profile_freeze", "project_default_terms", "last_refresh", "last_attempt", "last_error")
         self.store.conn.execute(
             f"DELETE FROM settings WHERE key IN ({','.join('?' * len(names))})", tuple(f"{n}_{project_id}" for n in names))

@@ -318,6 +318,11 @@ class Handler(BaseHTTPRequestHandler):
                         "usage": app.usage(), "dev_mode": app.gateway.dev,
                         "provider": app.provider_status(),
                         "latest_jobs": list(JOBS.values())[-3:]})
+        elif route == "/api/route":
+            try:
+                self._json(self._app().route_get(query.get("project_id", [None])[0]))
+            except ValueError as exc:
+                self._json({"error": str(exc)}, 400)
         elif route == "/api/settings":
             app = self._app()
             self._json(self._settings_payload(app))
@@ -433,9 +438,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self._same_origin():
             return self._json({"error": "cross-origin request denied"}, 403)
         route = urlparse(self.path).path
-        if route in ("/api/organization", "/api/settings"):
-            # These routes mutate the local library or store a credential: also cap the body.
-            limit = 2_000_000 if route == "/api/organization" else 8_000
+        if route in ("/api/organization", "/api/settings", "/api/route"):
+            # These routes mutate the local library, the learning map or store a credential: also cap the body.
+            limit = {"/api/organization": 2_000_000, "/api/route": 1_000_000}.get(route, 8_000)
             try:
                 length = int(self.headers.get("Content-Length") or 0)
             except ValueError:
@@ -542,6 +547,25 @@ class Handler(BaseHTTPRequestHandler):
             job = _job_start("refresh", lambda: make_app(getattr(self.server, "root", ".")).refresh_candidates(
                 pages=pages, include_distractors=include_distractors, project_id=project_id))
             self._json(job)
+        elif route == "/api/route":
+            from .organization import Conflict
+            action, project_id, revision = body.get("action"), body.get("project_id"), body.get("revision")
+            try:
+                if action == "save":
+                    result = app.route_save(project_id, plan=body.get("plan"), graph=body.get("graph"), revision=revision)
+                elif action == "manual":
+                    result = app.route_manual(project_id, body.get("concept"), body.get("value"), revision=revision)
+                elif action == "start":
+                    result = app.route_start(project_id, body.get("start"), revision=revision)
+                elif action == "mode":
+                    result = app.route_mode(project_id, body.get("mode"), revision=revision)
+                else:
+                    return self._json({"error": "unknown route action"}, 400)
+                self._json(result)
+            except Conflict as exc:
+                self._json({"error": str(exc)}, 409)
+            except (ValueError, TypeError) as exc:
+                self._json({"error": str(exc)}, 400)
         elif route == "/api/maintain":
             project_id = body.get("project_id") or app.get_default_project_id()
             wanted = maintenance.plan(app, project_id)

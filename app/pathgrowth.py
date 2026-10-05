@@ -298,6 +298,8 @@ def merge_candidate(graph, candidate):
         return pathgraph.copy.deepcopy(graph)
     hints = {c["id"]: c["hint"] for c in graph["concepts"]}
     needs = [p["from"] for p in candidate.get("prereqs", []) if p["from"] in hints]
+    # A prerequisite that is already an ancestor of another proposed one is implied by it: propose only the nearer one.
+    needs = [n for n in needs if not any(n in pathgraph.ancestors(graph, [m]) for m in needs if m != n)]
     merged = pathgraph.add_concept(
         graph, {"name": candidate["name"], "terms": candidate["terms"], "hint": max([hints[n] for n in needs], default=2),
                 "origin": "grown", "state": "proposed"}, needs=needs)
