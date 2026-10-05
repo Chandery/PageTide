@@ -115,6 +115,28 @@ class DraftSafetyTests(unittest.TestCase):
         self.assertNotIn("aria-live", read("route-graph.js"))
 
 
+class LargeScreenTests(unittest.TestCase):
+    """A maximised window on a big display must use the space: wider page, more columns, text that grows."""
+
+    def test_the_main_page_scales_text_and_columns_in_steps_and_leaves_smaller_windows_alone(self):
+        index = read("index.html")
+        block = index[index.index("large screens: a wider page"):index.index("prefers-reduced-motion: reduce) { *{animation")]
+        for width, scale, wrap in ((1700, "1.2", "1560px"), (2200, "1.45", "2000px"), (2800, "1.8", "2560px")):
+            self.assertRegex(block, rf"@media \(min-width:{width}px\) \{{ :root \{{ --s:{re.escape(scale)};\s+--wrap:{wrap}; \}} \}}")
+        self.assertIn("grid-template-columns:repeat(3, minmax(0, 1fr))", block)
+        self.assertIn("min-width:2800px) { .grid { grid-template-columns:repeat(4", block)
+        for rule in ("body { font-size:calc(15px * var(--s)); }", ".card h3 { font-size:calc(16px * var(--s)); }", ".abs { font-size:calc(13px * var(--s)); }"):
+            self.assertIn(rule, block)
+        # everything scaled sits inside the wide media query, so a window under 1700px keeps its two columns and 15px text
+        self.assertNotIn("var(--s)", index[:index.index("large screens: a wider page")])
+        self.assertIn("max-width:var(--wrap, 1200px)", index)
+
+    def test_the_other_pages_widen_and_grow_the_text_too(self):
+        css = read("project-creation.css")
+        for width in (1700, 2200, 2800):
+            self.assertIn(f"@media(min-width:{width}px)", css)
+
+
 class ProjectPageTests(unittest.TestCase):
     def test_delete_needs_the_exact_name_and_only_the_confirmed_click_deletes(self):
         js = read("project-page.js")

@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-05-large-screen",
+  "class": "standard",
+  "summary": "Large screens: from 1700 px wide the main page gets a wider layout (1560/2000/2560 px), step-scaled text (x1.2/1.45/1.8) and 3 recommendation columns (4 from 2800 px); the other pages widen and enlarge their base text in the same steps. Windows under 1700 px are unchanged.",
+  "tasks": [
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/static/index.html",
+    "app/static/project-creation.css",
+    "changes/2026-10-05-large-screen.json",
+    "docs/evidence/2026-10-05-large-screen-checks.txt",
+    "docs/evidence/2026-10-05-large-screen-self-review.md",
+    "tests/test_route_graph_page.py"
+  ],
+  "scope_note": "Branch feature/route-mode on top of 2fb048c. CSS only.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Stylesheet change only; no model call, no data, no network.",
+    "before": "Page fixed at 1200 px, 2 columns, fixed pixel text.",
+    "after": "Wider page, more columns and larger text on large displays.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-large-screen-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-large-screen-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-05-large-screen-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-05-large-screen-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not checked on a real external display or in the Tauri window; the scale steps are a guess.",
+    "Smaller text (reader chrome, knowledge-base and profile page controls) keeps its fixed size."
+  ]
+}

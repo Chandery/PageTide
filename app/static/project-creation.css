@@ -242,3 +242,8 @@ body.busy .map-detail button,body.busy .map-actions button{opacity:.6;pointer-ev
 .ghost-link{font-size:13px;color:var(--accent-text);text-decoration:none}
 .ghost-link:hover{text-decoration:underline}
 .confirm-name{font-weight:600;margin:2px 0;overflow-wrap:anywhere}
+
+/* large screens: a wider page and text that grows with the screen (same steps as the main page) */
+@media(min-width:1700px){body{font-size:calc(15px * 1.2)}.container{max-width:1280px}}
+@media(min-width:2200px){body{font-size:calc(15px * 1.45)}.container{max-width:1560px}}
+@media(min-width:2800px){body{font-size:calc(15px * 1.8)}.container{max-width:2000px}}

@@ -380,7 +380,7 @@
   body { background:var(--base); font-size:15px; line-height:1.58; }
 
   /* — header — */
-  header.top { top:0; max-width:none; margin:0; padding:12px max(24px,calc((100vw - 1200px)/2));
+  header.top { top:0; max-width:none; margin:0; padding:12px max(24px,calc((100vw - var(--wrap, 1200px))/2));
     border-radius:0; border:0; border-bottom:1px solid var(--line);
     box-shadow:0 1px 0 var(--line); gap:12px;
     background:color-mix(in srgb, var(--surface-1) 92%, transparent);
@@ -399,7 +399,7 @@
     border-radius:2px; background:var(--mark); }
 
   /* — main layout — */
-  main { max-width:1200px; margin:0 auto 48px; padding:28px max(28px,calc((100vw - 1200px)/2)); }
+  main { max-width:var(--wrap, 1200px); margin:0 auto 48px; padding:28px max(28px,calc((100vw - var(--wrap, 1200px))/2)); }
 
   /* — hero — */
   .hero { padding:24px 0 28px; margin-bottom:24px; background:transparent;
@@ -503,7 +503,7 @@
   .toast.warn { border-left-color:var(--warn); }
   .toast.err { border-left-color:var(--bad); }
   .empty { background:var(--surface-2); border:1px dashed var(--line-strong); box-shadow:none; }
-  .devbanner { max-width:1200px; }
+  .devbanner { max-width:var(--wrap, 1200px); }
   #preview { background:var(--surface-1); border:1px solid var(--line); box-shadow:var(--sh-3); }
   .reader .rbar { background:var(--surface-1); border-bottom:1px solid var(--line); box-shadow:none; }
   .reader .rside { border-right:1px solid var(--line); box-shadow:none; }
@@ -582,6 +582,37 @@
     #toasts { left:16px; right:16px; bottom:76px; }
     .toast { max-width:100%; }
   }
+
+  /* — large screens: a wider page, more columns and text that grows with the screen —
+     --s is the text scale, --wrap the page width. Below 1700px nothing changes. */
+  @media (min-width:1700px) { :root { --s:1.2;  --wrap:1560px; } }
+  @media (min-width:2200px) { :root { --s:1.45; --wrap:2000px; } }
+  @media (min-width:2800px) { :root { --s:1.8;  --wrap:2560px; } }
+  @media (min-width:1700px) {
+    body { font-size:calc(15px * var(--s)); }
+    .brand { font-size:calc(15.5px * var(--s)); } .wordmark { font-size:calc(19px * var(--s)); }
+    .brand-mark { width:calc(30px * var(--s)); height:calc(30px * var(--s)); }
+    .tab { font-size:calc(13px * var(--s)); padding:calc(6px * var(--s)) calc(13px * var(--s)); }
+    .tab.active::after { left:calc(13px * var(--s)); right:calc(13px * var(--s)); }
+    .project-btn { font-size:calc(13px * var(--s)); } .project-edit { font-size:calc(12px * var(--s)); }
+    .sub { font-size:calc(13px * var(--s)); }
+    .hero h1 { font-size:calc(28px * var(--s)); } .hero .sub { font-size:calc(13.5px * var(--s)); }
+    .edition { font-size:calc(12px * var(--s)); } .view-heading .count { font-size:calc(12.5px * var(--s)); }
+    button, .btn { font-size:calc(13.5px * var(--s)); padding:calc(9px * var(--s)) calc(16px * var(--s)); }
+    .card { padding:calc(20px * var(--s)) calc(22px * var(--s)); }
+    .card h3 { font-size:calc(16px * var(--s)); }
+    .card .actions button { font-size:calc(12px * var(--s)); padding:calc(7px * var(--s)) calc(12px * var(--s)); }
+    .abs { font-size:calc(13px * var(--s)); }
+    .badge, .chip { font-size:calc(11px * var(--s)); }
+    .whyline { font-size:calc(12px * var(--s)); } .ai-line { font-size:calc(12.5px * var(--s)); }
+    .meta, .paper-number { font-size:calc(11.5px * var(--s)); }
+    .lib-item h4 { font-size:calc(14px * var(--s)); }
+    .grid, #library { gap:calc(14px * var(--s)); }
+    .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+    #library { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .stat, #stats { font-size:calc(13px * var(--s)); }
+  }
+  @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } #library { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
 </style>
 <link rel="stylesheet" href="/organization.css">
