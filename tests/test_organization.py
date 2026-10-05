@@ -16,6 +16,40 @@ HAS_NETWORKX = importlib.util.find_spec("networkx") is not None
 
 
 class OrganizationTests(unittest.TestCase):
+    def test_the_snapshot_says_which_projects_saved_each_paper_and_names_the_projects(self):
+        from app.project import ProjectManager
+        manager = ProjectManager(self.store)
+        one, two = manager.create_project("One"), manager.create_project("Two")
+        for pid, key in ((one, "a"), (two, "a"), (two, "b")):
+            self.store.add_project_paper(pid, key)
+            self.store.save_to_library(key, project_id=pid)
+        snapshot = self.org.snapshot()
+        owners = {item["key"]: item["projects"] for item in snapshot["items"]}
+        self.assertTrue({one, two} <= set(owners["a"]))                 # (setUp also saved "a" and "b" to the default project)
+        self.assertIn(two, owners["b"])
+        self.assertNotIn(one, owners["b"])
+        names = {p["id"]: p["name"] for p in snapshot["projects"]}
+        self.assertEqual((names[one], names[two]), ("One", "Two"))
+        self.assertTrue(all(isinstance(item["projects"], list) for item in snapshot["items"]))
+
+    def test_building_the_snapshot_with_project_data_writes_nothing_and_adds_no_undo_step(self):
+        from app.project import ProjectManager
+        pid = ProjectManager(self.store).create_project("One")
+        self.store.add_project_paper(pid, "a")
+        self.store.save_to_library("a", project_id=pid)
+        self.org.snapshot()                                   # the first read may create the project's row
+        events = self.conn_count("org_events"), self.conn_count("org_projects"), self.conn_count("org_notes")
+        changes = self.store.conn.total_changes
+        before = self.org.snapshot()
+        for _ in range(3):
+            self.org.snapshot()
+        self.assertEqual(self.store.conn.total_changes, changes)   # not a single row written
+        self.assertEqual((self.conn_count("org_events"), self.conn_count("org_projects"), self.conn_count("org_notes")), events)
+        self.assertEqual((before["revision"], before["undo"]), (self.org.snapshot()["revision"], self.org.snapshot()["undo"]))
+
+    def conn_count(self, table):
+        return self.store.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
     def test_graph_is_read_only_and_uses_only_saved_metadata(self):
         before = self.org.snapshot()
         result = self.org.action({"action": "graph"})["relations"]

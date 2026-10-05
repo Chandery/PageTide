@@ -151,3 +151,17 @@ test('the shipped pack translates its own keys', () => {
   assert.equal(i18n.translate('每日 $0.15'), '$0.15 per day');
   assert.deepEqual([...i18n.misses()], []);
 });
+
+const COUNTED = ['已选择 3 篇', '今日 5 篇', '没有符合的 2 篇', '共 4 篇论文已读'];
+const noUnitEaten = (pack) => {
+  const { i18n } = load('en-US', pack);
+  return COUNTED.filter((text) => { const out = i18n.translate(text); return /[㐀-鿿]/.test(out) && !out.includes('篇'); });   // Chinese left, its unit gone
+};
+
+test('no pack entry may rewrite a sentence it does not own: text with a count and no entry keeps its unit', () => {
+  assert.deepEqual(noUnitEaten(PACK), []);
+});
+
+test('the guard above does catch a pack entry that eats the unit', () => {
+  assert.ok(noUnitEaten({ ...PACK, '{0} {1} 篇': '{0} {1}' }).length > 0);
+});

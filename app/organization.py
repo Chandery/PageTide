@@ -218,8 +218,10 @@ class Organization:
                 row = self.conn.execute("SELECT * FROM papers WHERE key=?", (key,)).fetchone()
                 if row:
                     papers.append(dict(row, saved_at=None))
+        owners = self._owners()
         for paper in papers:
             key = paper["key"]
+            paper["projects"] = owners.get(key, [])
             paper["directions"] = data["memberships"].get(key, [])
             paper["note"], paper["note_version"] = self._note(key)
             if archived:
@@ -228,6 +230,7 @@ class Organization:
                                    "parent_id": d.get("parent_id")}
                                   for d in data["directions"]],
                   "items": papers, "positions": data["positions"], "revision": revision}
+        result["projects"] = self._project_names()
         result["collapsed"] = data.get("collapsed", [])
         result["drafts"] = self._drafts()
         event = self._undoable()
@@ -242,6 +245,24 @@ class Organization:
             result.update({"format": "paperdig-organization-v1", "project": self.project,
                            "organization": data})
         return result
+
+    def _owners(self):
+        """{paper_key: [project ids that saved it]}, from project_library (the per-project saved set). The
+        organization itself stays one shared tree; this only says whose papers are whose, for the view scope."""
+        try:
+            rows = self.conn.execute("SELECT paper_key, project_id FROM project_library ORDER BY project_id").fetchall()
+        except sqlite3.OperationalError:   # a database that predates project_library
+            return {}
+        owners = {}
+        for key, project in rows:
+            owners.setdefault(key, []).append(project)
+        return owners
+
+    def _project_names(self):
+        try:
+            return [{"id": r[0], "name": r[1]} for r in self.conn.execute("SELECT id, name FROM projects ORDER BY creation_timestamp, id")]
+        except sqlite3.OperationalError:
+            return []
 
     def _undoable(self):
         """Latest live event the owner would recognise; later layout events ride along."""

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-project-tabs",
+  "class": "critical",
+  "summary": "Project isolation of the library and knowledge base at view level, as project tabs: a panel at the top of the left directory with 全部项目 and one tab per project (the current project first, with counts), the category tree inside. A project tab shows only that project's papers (rows carry project tags), folds categories that hold only other projects' papers behind a note, marks categories shared by projects 跨项目 with per-project counts; the knowledge graph has focus modes (全貌 / 当前类别 / 论文·1 跳 / 论文·2 跳) that remove the other nodes and an overview guard for more than 60 papers; the snapshot carries which projects saved each paper; switching project resets the view. A partial view never overrides or saves the shared layout, 重新排列 touches only drawn nodes. No migration, no schema change.",
+  "tasks": [
+    "PROJECT-01",
+    "PROFILE-02"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/organization.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "changes/2026-10-06-project-tabs.json",
+    "docs/evidence/2026-10-06-project-tabs-checks.txt",
+    "docs/evidence/2026-10-06-project-tabs-review.md",
+    "docs/evidence/2026-10-06-project-tabs-self-review.md",
+    "tests/test_i18n.cjs",
+    "tests/test_organization.py",
+    "tests/test_organization_ui.cjs"
+  ],
+  "scope_note": "Branch feature/route-mode on top of 1e8dcb1. organization.py snapshot (additive fields) and organization.js; stage 3 of 4.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "View logic and read-only snapshot fields; no model call, no stored-data change, no network.",
+    "before": "The library and the knowledge base showed every saved paper of every project together.",
+    "after": "One project at a time by tab, or all.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-project-tabs-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-project-tabs-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-project-tabs-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-06-project-tabs-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "One separate read-only code-review agent (same model family, not a human) on the first design; findings fixed afterwards, final design and fixes not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-06-project-tabs-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "The independent review covered the first design (a toolbar switch), not the final tab design; its fixes were not re-read by a reviewer.",
+    "renderGraph and PDHOrganization.reset() reopening the view are not covered by DOM tests; checked by hand in a preview with a copy of the real database.",
+    "Notes and the category tree stay shared across projects; the page does not say so yet.",
+    "Not checked in the Tauri window, in dark mode or on a 1700+ px window."
+  ]
+}

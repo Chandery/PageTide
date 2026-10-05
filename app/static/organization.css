@@ -207,3 +207,27 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 @keyframes org-detail-in { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce) { .org-detail.has-paper { animation:none; } }
 @media (max-width:1150px) { .org-workspace:has(.org-detail.has-paper) { grid-template-columns:250px minmax(240px,1fr) minmax(320px,360px); } }
+
+/* view scope, project tags, cross-project mark, graph focus */
+.org-focus button { font-size:12px; padding:5px 12px; }
+.org-paper-open .org-projects, .org-detail-projects .org-projects { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.org-proj { font-size:11.5px; padding:1px 8px; border-radius:999px; border:1px solid var(--org-border); color:var(--org-muted); }
+.org-proj.is-current { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.org-proj.is-also, .org-proj.is-none { border-style:dashed; }
+.org-detail-projects { margin:10px 0 14px; font-size:12.5px; color:var(--org-muted); }
+.org-cross { font-style:normal; font-size:10.5px; padding:0 6px; margin-left:6px; border-radius:999px; border:1px solid var(--org-border); color:var(--org-muted); white-space:nowrap; }
+.org-other-cats { display:block; margin:10px 8px 0; padding:4px 0; font-size:12px; background:transparent; border:0; color:var(--org-muted); text-decoration:underline; cursor:pointer; text-align:left; }
+.org-focus { position:absolute; top:10px; left:10px; z-index:2; background:var(--org-bg); }
+.org-overview { display:grid; gap:12px; justify-items:center; align-content:center; min-height:240px; padding:24px; text-align:center; }
+
+/* project tabs: the outermost level of the directory */
+.org-projects-panel { display:grid; gap:4px; margin:0 0 16px; padding:8px; border:1px solid var(--org-border); border-radius:12px; background:var(--surface-2); }
+.org-projects-panel .org-section-head { margin:2px 4px 6px; }
+.org-projects-panel h3 { font-size:12px; font-weight:600; color:var(--org-muted); letter-spacing:.04em; }
+.pdh-organization .org-ptab { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:8px 10px; border:1px solid transparent; border-radius:9px; background:transparent; color:var(--text); font-size:13px; line-height:1.3; }
+.pdh-organization .org-ptab:hover { background:var(--surface-3); transform:none; border-color:transparent; }
+.pdh-organization .org-ptab.is-active { background:var(--accent); color:var(--accent-ink); font-weight:600; }
+.org-ptab-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.org-ptab small { font-size:11.5px; opacity:.75; font-variant-numeric:tabular-nums; }
+.org-ptab-now { width:6px; height:6px; border-radius:50%; background:var(--mark); flex:none; }
+.org-ptab.is-active .org-ptab-now { background:var(--accent-ink); }

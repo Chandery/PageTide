@@ -1,0 +1,8 @@
+2026-10-06 project tabs checks (sanitized)
+Data used: a consistent copy of the real database (read-only source) in the preview data dir, restored afterwards.
+Library tab: tabs 全部项目 19 / 具身智能 7 (current, dot) / 默认项目 12 / three empty projects; the current project's tab is selected on open; 7 rows, each with the project tag; the left directory shows only that project's categories plus "另有 7 个类别只在其他项目"; the 机器人 category shared by two projects carries a 跨项目 mark; the all tab shows 19 rows and the whole tree.
+Knowledge base: the same tabs; graph 7 nodes (具身智能), 11 (默认项目), 18 (all; one category is collapsed), an empty project shows a pointer to the all tab; category focus 4 nodes; paper focus 1 hop 5 nodes, 2 hops 6 nodes; the selected tab stays when moving between library and knowledge base.
+Nothing stored changed by hopping across tabs and views: revision 146 -> 146 and 19 saved positions -> 19.
+node --test tests/test_organization_ui.cjs -> 55 pass (mutation-checked: transient positions, hidden descendants, filter reset, current project first).
+python3 -m unittest tests.test_organization -> 31 OK. Full suites: see the stage gate.
+Not run: the Tauri window; a 1700+ px window for the new panel; dark mode; renderGraph under a DOM test.

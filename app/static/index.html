@@ -943,6 +943,7 @@ async function switchProject(projectId) {
   state.currentProject = projectId;
   localStorage.setItem('pdh-current-project', projectId);
   renderProjectSelector();
+  window.PDHOrganization?.reset?.().catch?.(() => {});   // the knowledge base follows the project
   await load();
   if (state.view === 'library') await loadLibrary();
   autoMaintain();

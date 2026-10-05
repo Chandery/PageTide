@@ -577,3 +577,162 @@ test('without the full-detail function the button does nothing and does not thro
   const ui = fixture(); ui.accept(snapshot());
   await ui.handle('open-detail', { dataset: { key: 'paper:one' } });
 });
+
+// ---- view scope (project tabs) and graph isolation (the shared tree stays one; only what is shown changes)
+const scopedSnapshot = () => ({
+  directions: [{ id: 'd1', name: 'Models', rank: 0 }, { id: 'd2', name: 'Robots', rank: 1 }, { id: 'd3', name: 'Empty', rank: 2 }, { id: 'd4', name: 'Child', rank: 3, parent_id: 'd1' }],
+  projects: [{ id: 'p1', name: 'World' }, { id: 'p2', name: 'Embodied' }],
+  items: [
+    { key: 'a', title: 'A', directions: ['d1'], projects: ['p1'] },
+    { key: 'b', title: 'B', directions: ['d1', 'd2'], projects: ['p1', 'p2'] },
+    { key: 'c', title: 'C', directions: ['d2'], projects: ['p2'] },
+    { key: 'd', title: 'D', directions: [], projects: ['p2'] },
+    { key: 'e', title: 'E', directions: [], projects: [] }],
+  positions: {}, revision: 1, drafts: [] });
+
+test('a project tab shows that project\'s papers, the all tab shows everything, and a paper nobody saved shows in all only', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  assert.deepEqual([...ui.scopeItems(snap, 'p1').map(p => p.key)], ['a', 'b']);
+  assert.deepEqual([...ui.scopeItems(snap, 'p2').map(p => p.key)], ['b', 'c', 'd']);
+  assert.deepEqual([...ui.scopeItems(snap, 'all').map(p => p.key)], ['a', 'b', 'c', 'd', 'e']);
+});
+
+test('the tabs are all-projects plus one per project, the current project first, each with its paper count', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  const tabs = JSON.parse(JSON.stringify(ui.projectTabs(snap, 'p2', 'p2').map(t => [t.id, t.count, t.active, !!t.current])));
+  assert.deepEqual(tabs, [['all', 5, false, false], ['p2', 3, true, true], ['p1', 2, false, false]]);
+});
+
+test('category stats count papers in scope and anywhere, include sub-categories, and mark a category shared by projects', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  const models = ui.categoryStats('d1', snap, 'p1');
+  assert.deepEqual([models.all, models.inScope, models.cross], [2, 2, true]);
+  assert.deepEqual({ ...models.perProject }, { p1: 2, p2: 1 });
+  const robots = ui.categoryStats('d2', snap, 'p1');
+  assert.deepEqual([robots.all, robots.inScope], [2, 1]);
+  const empty = ui.categoryStats('d3', snap, 'p1');
+  assert.deepEqual([empty.all, empty.inScope, empty.cross], [0, 0, false]);
+});
+
+test('categories holding only other projects\' papers are hidden in a project tab, with their sub-categories; empty and selected ones stay', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  snap.items = snap.items.filter(p => p.key !== 'b');                       // now Robots holds only p2's paper
+  assert.deepEqual([...ui.otherProjectCategories(snap, 'p1', '*')], ['d2']);
+  assert.deepEqual([...ui.otherProjectCategories(snap, 'p1', 'd2')], []);   // the selected category stays
+  assert.deepEqual([...ui.otherProjectCategories(snap, 'all', '*')], []);
+  assert.ok(![...ui.otherProjectCategories(snap, 'p1', '*')].includes('d3'));   // a category nobody uses yet is not "other"
+  // a child of a hidden category is hidden with it, an empty child included, so no child floats without its parent
+  snap.directions.push({ id: 'd5', name: 'Grandchild', rank: 4, parent_id: 'd2' });
+  assert.deepEqual([...ui.otherProjectCategories(snap, 'p1', '*')].sort(), ['d2', 'd5']);
+});
+
+test('project tags: the tab\'s project solid and the others as "also in"; in all, every project; an unowned paper says so', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  const b = snap.items[1];
+  const inProject = ui.projectTags(b, snap, 'p1', 'p1');
+  assert.match(inProject, /is-current[^>]*><span data-no-i18n>World</);
+  assert.match(inProject, /也在：<span data-no-i18n>Embodied</);
+  const all = ui.projectTags(b, snap, 'all', 'p1');
+  assert.match(all, /is-current[^>]*><span data-no-i18n>World</); assert.match(all, /is-other[^>]*><span data-no-i18n>Embodied</);
+  assert.match(ui.projectTags(snap.items[4], snap, 'all', 'p1'), /未归项目/);
+});
+
+test('project names and categories are escaped everywhere the new view writes them', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  snap.projects[0].name = '"><img src=x onerror=alert(1)>';
+  const tags = ui.projectTags(snap.items[1], snap, 'all', 'p1');
+  assert.ok(!tags.includes('<img src=x'), tags);
+  ui.accept(snap); ui.S.scope = 'p1';
+  const sidebar = ui.sidebarHTML();
+  assert.ok(!sidebar.includes('<img src=x'), 'sidebar');
+  assert.match(sidebar, /role="tab"[^>]*data-scope="p1"/);
+  assert.match(sidebar, /data-scope="all"/);
+});
+
+test('the sidebar has the project panel above the directory, counts follow the tab, and a note counts the hidden categories', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  snap.items = snap.items.filter(p => p.key !== 'b');
+  ui.accept(snap); ui.S.scope = 'p1';
+  const html = ui.sidebarHTML();
+  assert.ok(html.indexOf('org-projects-panel') < html.indexOf('org-directory-title'));
+  assert.match(html, /aria-selected="true"[^>]*data-scope="p1"/);
+  assert.match(html, /另有 1 个类别只在其他项目/);
+  assert.doesNotMatch(html, /data-id="d2"/);                                // Robots only holds p2's paper
+  ui.S.scope = 'all';
+  const all = ui.sidebarHTML();
+  assert.match(all, /data-id="d2"/);
+  assert.doesNotMatch(all, /只在其他项目/);
+});
+
+test('picking a project tab changes the view only: no request, no saved layout, no change to the shared state', async () => {
+  const calls = [];
+  const ui = fixture(async (...args) => { calls.push(args); return {}; });
+  ui.accept(scopedSnapshot());
+  const before = JSON.stringify(ui.S.snapshot);
+  ui.S.scope = 'all'; ui.S.filter = 'd2'; ui.S.focus = 'category'; ui.S.key = 'c';
+  ui.S.root = { querySelector: () => ({ set innerHTML(v) {}, get innerHTML() { return ''; }, indeterminate: false, classList: { toggle() {} }, setAttribute() {} }) };
+  await ui.handle('project-tab', { dataset: { scope: 'p1' } });
+  assert.deepEqual(calls, []);                                               // nothing was sent to the server
+  assert.equal(JSON.stringify(ui.S.snapshot), before);
+  assert.deepEqual([ui.S.scope, ui.S.filter, ui.S.focus, ui.S.key], ['p1', '*', 'all', null]);   // c is not p1's paper
+  assert.equal(ui.S.selected.size, 0);
+});
+
+test('graph isolation removes papers outside the choice (it does not dim them)', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  const rel = { edges: [{ source: 'a', target: 'b' }, { source: 'b', target: 'c' }] };
+  const keys = o => [...ui.graphItems(snap, rel, { scope: 'all', ...o }).map(p => p.key)];
+  assert.deepEqual(keys({ mode: 'all', filter: '*' }), ['a', 'b', 'c', 'd', 'e']);
+  assert.deepEqual(keys({ mode: 'category', filter: 'd1' }), ['a', 'b']);
+  assert.deepEqual(keys({ mode: 'category', filter: 'd2' }), ['b', 'c']);
+  assert.deepEqual(keys({ mode: 'category', filter: '' }), ['d', 'e']);
+  assert.deepEqual(keys({ mode: 'paper', key: 'a', hops: 1 }), ['a', 'b']);
+  assert.deepEqual(keys({ mode: 'paper', key: 'a', hops: 2 }), ['a', 'b', 'c']);
+  assert.deepEqual(keys({ mode: 'paper', key: 'd', hops: 2 }), ['d']);
+  assert.deepEqual([...ui.graphItems(snap, rel, { scope: 'p1', mode: 'paper', key: 'c', hops: 2 }).map(p => p.key)], ['a', 'b']);   // c is not p1's: the tab wins
+});
+
+test('a shared category links papers that have no similarity edge, and a category selection includes its sub-categories', () => {
+  const ui = fixture(), snap = scopedSnapshot();
+  snap.items.push({ key: 'f', title: 'F', directions: ['d4'], projects: ['p1'] }, { key: 'g', title: 'G', directions: ['d2'], projects: ['p1'] });
+  const keys = o => [...ui.graphItems(snap, { edges: [] }, { scope: 'all', ...o }).map(p => p.key)];
+  assert.deepEqual(keys({ mode: 'category', filter: 'd1' }), ['a', 'b', 'f']);
+  assert.deepEqual(keys({ mode: 'paper', key: 'c', hops: 1 }), ['b', 'c', 'g']);
+  assert.deepEqual(keys({ mode: 'paper', key: 'a', hops: 1 }), ['a', 'b']);
+});
+
+test('switching project forgets selection, filter, focus and relations, and starts on the new current project\'s tab', () => {
+  const ui = fixture();
+  ui.S.snapshot = scopedSnapshot(); ui.S.filter = 'd1'; ui.S.key = 'a'; ui.S.focus = 'paper2'; ui.S.relations = { edges: [] }; ui.S.selected.add('a'); ui.S.scope = 'all'; ui.S.query = 'x';
+  ui.reset();
+  assert.deepEqual([ui.S.filter, ui.S.key, ui.S.focus, ui.S.relations, ui.S.selected.size, ui.S.query, ui.S.snapshot.items.length], ['*', null, 'all', null, 0, '', 0]);
+  assert.equal(ui.S.scope, 'all');   // no current project in this fixture: all
+});
+
+test('a project that was deleted falls back to the all tab when the data arrives', () => {
+  const ui = fixture(); ui.S.scope = 'gone';
+  ui.accept(scopedSnapshot());
+  assert.equal(ui.S.scope, 'all');
+});
+
+test('positions placed only to draw a partial view are not saved or captured; positions the person set are kept', () => {
+  const ui = fixture();
+  ui.accept(scopedSnapshot());
+  ui.S.transient = new Set(['paper:a']);
+  const node = (id, x) => ({ id: () => id, isParent: () => false, position: () => ({ x, y: 0 }) });
+  ui.S.cy = { nodes: () => ({ forEach: fn => [node('paper:a', 1), node('paper:b', 2)].forEach(fn) }) };
+  ui.S.validNodes = new Set(['paper:a', 'paper:b']); ui.S.renderedSignature = ui.graphSignature(ui.S.snapshot); ui.S.positions = {};
+  ui.capturePositions();
+  assert.deepEqual(Object.keys(ui.S.positions), ['paper:b']);
+});
+
+test('switching between library and graph only restyles the two view tabs, never the project tabs', () => {
+  const ui = fixture();
+  const seen = [];
+  const make = (cls) => ({ dataset: { action: cls }, setAttribute: (k, v) => seen.push([cls, k, v]), classList: { toggle() {} } });
+  ui.S.mode = 'graph';
+  ui.S.cy = null;
+  ui.S.root = { querySelector: () => ({ hidden: false }), querySelectorAll: (selector) => selector === '.org-tabs [role=tab]' ? [make('library'), make('graph')] : [make('project-tab')] };
+  ui.setMode();
+  assert.deepEqual(seen.map(x => x[0]), ['library', 'graph']);
+});

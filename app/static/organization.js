@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false };
+  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', showOther: false, showAll: false, transient: new Set() };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const DEFAULT_COLOR = '#64748b';
   const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
@@ -52,11 +52,94 @@
   const groupId = id => `direction:${id}`;
   const cardId = (key, id) => `paper:${encodeURIComponent(key)}:${encodeURIComponent(id)}`;
   const matches = p => `${p.title || ''} ${p.abstract || ''} ${p.note || ''}`.toLocaleLowerCase().includes(S.query.toLocaleLowerCase());
-  const visible = () => { const ids = categoryIds(S.filter); return S.snapshot.items.filter(p => matches(p) && (S.filter === '*' || (S.filter === '' ? !memberships(p).length : memberships(p).some(id => ids.has(id))))); };
+  /* ---- view scope. The category tree and the notes stay one shared set; the scope only chooses which papers are shown.
+     S.scope is a project id (that project's saved papers) or 'all'. The project tabs at the top of the directory pick it.
+     A paper saved by no project (only the legacy global list) shows under 'all' only. */
+  const currentProject = () => window.PDH?.state?.currentProject || null;
+  const projectName = (id, snapshot = S.snapshot) => (snapshot.projects || []).find(x => x.id === id)?.name || id;
+  const owners = p => p.projects || [];
+  function scopeItems(snapshot = S.snapshot, scope = S.scope) {
+    const items = snapshot.items || [];
+    return scope === 'all' || !scope ? items : items.filter(p => owners(p).includes(scope));
+  }
+  const scoped = () => scopeItems();
+  /* Per category (with its sub-categories): papers in scope, papers anywhere, papers per project, and whether projects share it. */
+  function categoryStats(id, snapshot = S.snapshot, scope = S.scope) {
+    const ids = categoryIds(id, snapshot), inScope = new Set(scopeItems(snapshot, scope).map(p => p.key)), perProject = {};
+    let all = 0, here = 0;
+    for (const p of snapshot.items || []) {
+      if (!(p.directions || []).map(String).some(m => ids.has(m))) continue;
+      all++; if (inScope.has(p.key)) here++;
+      for (const o of owners(p)) perProject[o] = (perProject[o] || 0) + 1;
+    }
+    return { all, inScope: here, perProject, cross: Object.keys(perProject).length > 1 };
+  }
+  /* Categories not shown in a project tab: they hold papers, but none of this project's, and neither does any
+     sub-category. An empty category (nothing anywhere) stays so a category you just made does not vanish, and so does
+     the selected one. A category under a hidden one is hidden with it, so no child floats without its parent. */
+  function otherProjectCategories(snapshot = S.snapshot, scope = S.scope, selected = S.filter) {
+    const hidden = new Set();
+    if (scope === 'all' || !scope) return hidden;
+    for (const d of snapshot.directions || []) {
+      const st = categoryStats(d.id, snapshot, scope);
+      if (st.all > 0 && st.inScope === 0 && String(d.id) !== String(selected)) hidden.add(String(d.id));
+    }
+    const parent = new Map((snapshot.directions || []).map(d => [String(d.id), d.parent_id == null ? null : String(d.parent_id)]));
+    for (const d of snapshot.directions || []) {
+      for (let up = parent.get(String(d.id)), guard = 0; up != null && guard < 64; up = parent.get(up), guard++) {
+        if (hidden.has(up) && String(d.id) !== String(selected)) { hidden.add(String(d.id)); break; }
+      }
+    }
+    return hidden;
+  }
+  function projectTags(p, snapshot = S.snapshot, scope = S.scope, current = currentProject()) {
+    const list = owners(p);
+    if (!list.length) return '<span class="org-proj is-none" title="只在旧的全局收藏里，没有归到任何项目">未归项目</span>';
+    const tag = (id, cls) => `<span class="org-proj ${cls}" title="${h(`收藏于项目：${projectName(id, snapshot)}`)}"><span data-no-i18n>${h(projectName(id, snapshot))}</span></span>`;
+    if (scope === 'all' || !scope) return list.map(id => tag(id, id === current ? 'is-current' : 'is-other')).join('');
+    const others = list.filter(id => id !== scope);
+    return (list.includes(scope) ? tag(scope, 'is-current') : '') + (others.length ? `<span class="org-proj is-also" title="${h(others.map(id => projectName(id, snapshot)).join('、'))}">也在：<span data-no-i18n>${h(others.map(id => projectName(id, snapshot)).join('、'))}</span></span>` : '');
+  }
+  /* The tabs: 全部 and one per project, with how many saved papers each has. */
+  function projectTabs(snapshot = S.snapshot, scope = S.scope, current = currentProject()) {
+    const tabs = [{ id: 'all', name: '全部项目', count: (snapshot.items || []).length }];
+    const list = [...(snapshot.projects || [])].sort((a, b) => (a.id === current ? -1 : 0) - (b.id === current ? -1 : 0));
+    for (const pr of list) tabs.push({ id: pr.id, name: pr.name, count: (snapshot.items || []).filter(p => owners(p).includes(pr.id)).length, current: pr.id === current });
+    return tabs.map(t => ({ ...t, active: t.id === scope }));
+  }
+  /* ---- graph isolation: which papers the graph draws. mode 'all' (the scope), 'category' (the selected category's
+     subtree) or 'paper' (the selected paper and what is within `hops` links of it, by similarity or a shared category). */
+  function graphItems(snapshot, relations, o) {
+    const base = scopeItems(snapshot, o.scope);
+    if (o.mode === 'category' && o.filter === '') return base.filter(p => !(p.directions || []).length);   // uncategorised
+    if (o.mode === 'category' && o.filter && o.filter !== '*') {
+      const ids = categoryIds(o.filter, snapshot);
+      return base.filter(p => (p.directions || []).map(String).some(m => ids.has(m)));
+    }
+    if (o.mode === 'paper' && o.key) {
+      const keys = new Set(base.map(p => p.key));
+      if (!keys.has(o.key)) return base;
+      const adj = new Map(base.map(p => [p.key, new Set()]));
+      const link = (a, b) => { if (a !== b && adj.has(a) && adj.has(b)) { adj.get(a).add(b); adj.get(b).add(a); } };
+      (relations?.edges || []).forEach(e => link(e.source, e.target));
+      const byDirection = new Map();
+      base.forEach(p => (p.directions || []).forEach(d => { if (!byDirection.has(String(d))) byDirection.set(String(d), []); byDirection.get(String(d)).push(p.key); }));
+      byDirection.forEach(list => { for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) link(list[i], list[j]); });   // papers sharing a category are linked, as the graph draws them
+      const seen = new Set([o.key]); let frontier = [o.key];
+      for (let hop = 0; hop < (o.hops || 1); hop++) {
+        const next = [];
+        for (const k of frontier) adj.get(k).forEach(n => { if (!seen.has(n)) { seen.add(n); next.push(n); } });
+        frontier = next;
+      }
+      return base.filter(p => seen.has(p.key));
+    }
+    return base;
+  }
+  const visible = () => { const ids = categoryIds(S.filter); return scoped().filter(p => matches(p) && (S.filter === '*' || (S.filter === '' ? !memberships(p).length : memberships(p).some(id => ids.has(id))))); };
   function report(error) { S.error = error.message || String(error); status(); window.PDH.toast(S.error, 'error'); }
   function status() {
     const node = $('[data-status]');
-    if (node) { node.classList.toggle('org-error', !!S.error); node.textContent = S.error || (S.pending ? '正在保存…' : S.notice || `${S.snapshot.items.length} 篇论文 · ${S.snapshot.directions.length} 个方向`); }
+    if (node) { node.classList.toggle('org-error', !!S.error); node.textContent = S.error || (S.pending ? '正在保存…' : S.notice || `${scoped().length} 篇论文 · ${S.snapshot.directions.length} 个方向${S.scope !== 'all' ? ` · ${projectName(S.scope)}` : ''}`); }
   }
   function accept(data) {
     const snap = data.snapshot || data;
@@ -65,6 +148,7 @@
     if (graphSignature(S.snapshot) !== graphSignature(snap)) S.positions = {};
     S.snapshot = snap;
     S.collapsed = new Set((snap.collapsed || []).map(String));
+    if (S.scope !== 'all' && Array.isArray(snap.projects) && !snap.projects.some(x => x.id === S.scope)) S.scope = 'all';   // that project was deleted
     S.snapshot.positions ||= {};
     const validDirections = new Set(S.snapshot.directions.map(d => String(d.id)));
     const validNodes = new Set(['direction::anchor']);
@@ -158,7 +242,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -186,19 +270,23 @@
   const undoHTML = undo => undo && undo.label ? `<button type="button" class="org-undo" data-action="undo" data-event="${h(undo.id)}" title="撤销：${h(undo.label)}"><img class="org-icon" src="/icons/org/${icons.undo}.svg" width="16" height="16" alt="">撤销${h(undo.label)}</button>` : '';
   function renderUndo() { const slot = $('[data-undo-slot]'); if (slot) slot.innerHTML = undoHTML(S.snapshot.undo); }
   function sidebarHTML() {
-    const rows = treeRows();
-    const count = id => { const ids = categoryIds(id); return S.snapshot.items.filter(p => memberships(p).some(m => ids.has(m))).length; };
+    const hiddenOther = otherProjectCategories(), rows = treeRows().filter(d => S.showOther || !hiddenOther.has(String(d.id)));
+    const items = scoped();
+    const count = id => { const ids = categoryIds(id); return items.filter(p => memberships(p).some(m => ids.has(m))).length; };
+    const crossBadge = id => { const st = categoryStats(id); return st.cross ? `<em class="org-cross" title="${h('这个类别里有多个项目的论文：' + Object.entries(st.perProject).map(([pid, n]) => `${projectName(pid)} ${n}`).join('、'))}">跨项目</em>` : ''; };
+    const tabs = `<div class="org-projects-panel" role="tablist" aria-label="项目"><div class="org-section-head"><h3>项目</h3></div>${projectTabs().map(t => `<button type="button" role="tab" class="org-ptab ${t.active ? 'is-active' : ''}" aria-selected="${t.active}" data-action="project-tab" data-scope="${h(t.id)}" title="${h(t.id === 'all' ? '所有项目收藏的论文' : '只看这个项目收藏的论文')}"><span class="org-ptab-name" ${t.id === 'all' ? '' : 'data-no-i18n'}>${h(t.name)}</span>${t.current ? '<i class="org-ptab-now" title="当前项目"></i>' : ''}<small>${t.count}</small></button>`).join('')}</div>`;
+    const otherNote = hiddenOther.size ? `<button type="button" class="org-other-cats" data-action="toggle-other-cats">${S.showOther ? '收起只在其他项目的类别' : `另有 ${hiddenOther.size} 个类别只在其他项目`}</button>` : '';
     const graphPaperButton = p => `<button class="org-directory-paper ${S.key === p.key ? 'is-active' : ''}" data-action="graph-paper-focus" data-key="${h(p.key)}" title="${h(p.title || p.key)}"><strong>${h(p.title || p.key)}</strong><span>${h(p.authors?.[0] || p.author || '')}${p.published ? ` · ${h(String(p.published).slice(0,4))}` : ''}</span></button>`;
     const graphPapersUnder = (id, folded) => {
       if (S.mode !== 'graph' || folded) return '';
-      const papers = S.snapshot.items.filter(p => id === '' ? !memberships(p).length : memberships(p).includes(String(id))).sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+      const papers = items.filter(p => id === '' ? !memberships(p).length : memberships(p).includes(String(id))).sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
       return papers.length ? `<div class="org-directory-papers" aria-label="${h(id === '' ? '未分类论文' : `${categoryPath(id)} 下的论文`)}">${papers.map(graphPaperButton).join('')}</div>` : '';
     };
-    return `<div class="org-section-head org-directory-title"><h3>目录</h3>${button('direction-new','新建类别','')}</div><button class="org-filter ${S.filter === '*' ? 'is-active' : ''}" data-action="filter" data-id="*"><img class="org-folder-icon" src="/icons/org/book-open.svg" alt=""><span>全部论文</span><small>${S.snapshot.items.length}</small></button><div class="org-directory-group org-uncategorized-group"><button class="org-filter ${S.filter === '' ? 'is-active' : ''}" data-action="filter" data-id=""><img class="org-folder-icon" src="/icons/org/folder.svg" alt=""><span>未分类</span><small>${S.snapshot.items.filter(p => !memberships(p).length).length}</small></button>${graphPapersUnder('', false)}</div><div class="org-directions" role="list" aria-label="类别目录">${rows.filter(d => !d.hidden).map(d => {
+    return `${tabs}<div class="org-section-head org-directory-title"><h3>目录</h3>${button('direction-new','新建类别','')}</div><button class="org-filter ${S.filter === '*' ? 'is-active' : ''}" data-action="filter" data-id="*"><img class="org-folder-icon" src="/icons/org/book-open.svg" alt=""><span>全部论文</span><small>${items.length}</small></button><div class="org-directory-group org-uncategorized-group"><button class="org-filter ${S.filter === '' ? 'is-active' : ''}" data-action="filter" data-id=""><img class="org-folder-icon" src="/icons/org/folder.svg" alt=""><span>未分类</span><small>${items.filter(p => !memberships(p).length).length}</small></button>${graphPapersUnder('', false)}</div><div class="org-directions" role="list" aria-label="类别目录">${rows.filter(d => !d.hidden).map(d => {
       const siblings = directions().filter(other => (other.parent_id || null) === (d.parent_id || null)), i = siblings.findIndex(other => other.id === d.id);
       const folded = S.collapsed.has(String(d.id)), selected = S.filter === String(d.id);
-      return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',(folded ? '展开 ' : '折叠 ')+d.name,'',`data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><i class="org-category-dot" style="background:${categoryColor(d.id)}" aria-hidden="true"></i><span>${h(d.name)}</span><small>${count(d.id)}</small></button><details class="org-category-menu"><summary aria-label="更多操作 ${h(d.path)}" title="更多操作"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title">${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
-    }).join('') || '<p class="org-directory-empty">还没有类别<br>点击上方 + 建立目录</p>'}</div>`;
+      return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',(folded ? '展开 ' : '折叠 ')+d.name,'',`data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><i class="org-category-dot" style="background:${categoryColor(d.id)}" aria-hidden="true"></i><span>${h(d.name)}</span>${crossBadge(d.id)}<small>${count(d.id)}</small></button><details class="org-category-menu"><summary aria-label="更多操作 ${h(d.path)}" title="更多操作"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title">${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
+    }).join('') || '<p class="org-directory-empty">还没有类别<br>点击上方 + 建立目录</p>'}</div>${otherNote}`;
   }
   function renderSidebar() { $('.org-sidebar').innerHTML = sidebarHTML(); }
   function renderBulk() {
@@ -208,7 +296,7 @@
   }
   function renderList() {
     renderBulk();
-    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="open-detail" data-key="${h(p.key)}" title="打开完整详情：摘要、AI 速览、收藏、所属项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${button('detail', '备注与分类', '', `data-key="${h(p.key)}"`)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
+    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="open-detail" data-key="${h(p.key)}" title="打开完整详情：摘要、AI 速览、收藏、所属项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${button('detail', '备注与分类', '', `data-key="${h(p.key)}"`)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
   }
   // Which categories the open paper belongs to; each chip locates that category, and an
   // uncategorized paper says so instead of showing nothing.
@@ -225,7 +313,7 @@
     const editor = $('[data-note-editor]');
     const focused = editor && document.activeElement === editor;
     const selection = focused ? [editor.selectionStart, editor.selectionEnd] : null;
-    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${sourceMeta.map(h).map(v => `<span>${v}</span>`).join('')}</div>${detailCategoriesHTML(p)}<details class="org-abstract" open><summary>摘要</summary><p>${h(p.abstract || '暂无摘要')}</p></details><section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
+    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${sourceMeta.map(h).map(v => `<span>${v}</span>`).join('')}</div>${detailCategoriesHTML(p)}<section class="org-detail-projects" aria-label="所属项目"><span>所属项目</span><div class="org-projects">${projectTags(p, S.snapshot, 'all')}</div></section><details class="org-abstract" open><summary>摘要</summary><p>${h(p.abstract || '暂无摘要')}</p></details><section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
     const reading = document.createElement('div'); reading.className = 'org-reading-tools';
     const read = document.createElement('button'); read.type = 'button'; read.innerHTML = '<img class="org-icon" src="/icons/org/book-open.svg" width="16" height="16" alt="">阅读 PDF';
     read.disabled = typeof window.PDH.openReader !== 'function';
@@ -242,12 +330,12 @@
   function setMode() {
     const graph = S.mode === 'graph';
     $('.org-list').hidden = graph; $('.org-graph-wrap').hidden = !graph;
-    for (const el of S.root.querySelectorAll('[role=tab]')) { el.setAttribute('aria-selected', String(el.dataset.action === S.mode)); el.classList.toggle('is-active', el.dataset.action === S.mode); }
+    for (const el of S.root.querySelectorAll('.org-tabs [role=tab]')) { el.setAttribute('aria-selected', String(el.dataset.action === S.mode)); el.classList.toggle('is-active', el.dataset.action === S.mode); }
     if (graph && !S.loading) renderGraph(); else { S.cy?.destroy(); S.cy = null; }
   }
   function capturePositions() {
     if (S.renderedSignature !== graphSignature(S.snapshot)) return;
-    S.cy?.nodes().forEach(n => { if (!n.isParent() && S.validNodes?.has(n.id())) S.positions[n.id()] = graphPosition(n); });
+    S.cy?.nodes().forEach(n => { if (!n.isParent() && S.validNodes?.has(n.id()) && !S.transient.has(n.id())) S.positions[n.id()] = graphPosition(n); });
   }
   function graphPosition(node) { return S.motion?.position(node) || {...node.position()}; }
   const paperNodeId = key => `paper:${key}`;
@@ -431,6 +519,15 @@
     const present = new Set(nodes.map(n => n.data.id));
     return key && present.has(paperNodeId(key)) ? paperNodeId(key) : nodes[0]?.data.id;
   }
+  const OVERVIEW_LIMIT = 60;   // more papers than this are not drawn all at once unless asked
+  function renderFocus() {
+    const box = $('[data-focus-seg]'); if (!box) return;
+    const canCat = S.filter !== '*', canPaper = !!S.key && scoped().some(p => p.key === S.key);
+    if (S.focus === 'category' && !canCat) S.focus = 'all';
+    if (S.focus.startsWith('paper') && !canPaper) S.focus = 'all';
+    const b = (mode, label, enabled, title) => `<button type="button" role="radio" aria-checked="${S.focus === mode}" data-action="focus-mode" data-mode="${mode}" ${enabled ? '' : 'disabled'} title="${h(title)}">${label}</button>`;
+    box.innerHTML = b('all', '全貌', true, '显示当前范围内的全部论文') + b('category', '当前类别', canCat, canCat ? '只画当前所选类别（含子类别）里的论文' : '先在左侧选一个类别') + b('paper1', '论文·1 跳', canPaper, canPaper ? '只画所选论文和与它直接相连的论文' : '先选一篇论文') + b('paper2', '论文·2 跳', canPaper, canPaper ? '再多画一层相连的论文' : '先选一篇论文');
+  }
   function renderGraph(persistInitial = true) {
     capturePositions();
     S.relationsPending=false;
@@ -439,13 +536,24 @@
     S.cy?.destroy(); S.cy = null;
     const container = $('.org-graph'); container.innerHTML = '';
     if (!window.cytoscape) { container.innerHTML = '<p class="org-empty org-error">图谱组件未加载，请刷新重试</p>'; return; }
-    if (!S.snapshot.items.length) { container.innerHTML = '<p class="org-empty">暂无已收藏论文</p>'; return; }
-    const forceRadial = S.graphRadialPending && !!S.relations;
+    const view = { ...S.snapshot, items: graphItems(S.snapshot, S.relations, { scope: S.scope, mode: S.focus.startsWith('paper') ? 'paper' : S.focus, hops: S.focus === 'paper2' ? 2 : 1, filter: S.filter, key: S.key }) };
+    renderFocus();
+    if (!scoped().length) { container.innerHTML = `<p class="org-empty">${S.scope !== 'all' ? '这个项目还没有收藏论文。可以点上方的“全部项目”标签查看其他项目的论文。' : '暂无已收藏论文'}</p>`; return; }
+    if (S.focus === 'all' && S.filter === '*' && !S.showAll && view.items.length > OVERVIEW_LIMIT) {
+      container.innerHTML = `<div class="org-empty org-overview"><p>${view.items.length} 篇论文一起画出来会看不清。先选一个类别（左侧目录），或在列表里选一篇论文看它周围的关系。</p><button type="button" data-action="show-all-graph">仍然显示全部 ${view.items.length} 篇</button></div>`;
+      return;
+    }
+    if (!view.items.length) { container.innerHTML = '<p class="org-empty">当前选择下没有可画的论文</p>'; return; }
+    // A partial view (one project, a category, a paper's neighbours) is laid out in memory only: it never overrides saved
+    // positions of the shared layout and never saves positions the person did not set.
+    const subset = S.scope !== 'all' || S.focus !== 'all';
+    const forceRadial = S.graphRadialPending && !!S.relations && !subset;
     const positions = forceRadial ? {} : { ...S.snapshot.positions, ...S.positions };
-    const revealed = S.filter !== '*' ? new Set(visible().map(p => p.key)) : new Set();
-    const elements = networkElements(S.snapshot, S.relations, positions, revealed);
+    const revealed = S.focus !== 'all' ? new Set(view.items.map(p => p.key)) : S.filter !== '*' ? new Set(visible().map(p => p.key)) : new Set();
+    const elements = networkElements(view, S.relations, positions, revealed);
     const nodes = elements.filter(e => !e.data.source), allPlaced = !forceRadial && nodes.every(n => n.position);
     const hasPlaced = nodes.some(n => n.position);
+    S.transient = subset ? new Set(nodes.filter(n => !n.position).map(n => n.data.id)) : new Set();
     if (hasPlaced) {
       nodes.filter(n => !n.position).forEach((n, i) => {
         const link = elements.find(e => e.data.target === n.data.id && nodes.some(a => a.data.id === e.data.source && a.position));
@@ -465,7 +573,7 @@
       minZoom: 0.08, maxZoom: 3, wheelSensitivity: 0.18, boxSelectionEnabled: true,
       style: graphStyle(transition) });
     const originId = graphOrigin(nodes, S.key);
-    if (!allPlaced) {
+    if (!allPlaced && !(subset && hasPlaced)) {
       const radial = radialPositions(S.cy.nodes().toArray(), originId);
       S.cy.nodes().forEach(n => { if (radial[n.id()]) n.position(radial[n.id()]); });
     }
@@ -506,7 +614,8 @@
       e => S.motion?.drag(e.target), e => {
       S.graphDragging=false;
       S.motion?.end(e.target);
-      const after = {}; cy.nodes().forEach(n => { after[n.id()] = graphPosition(n); });
+      const after = {}; cy.nodes().forEach(n => { if (!S.transient.has(n.id()) || n.id() === e.target.id()) after[n.id()] = graphPosition(n); });   // only what the person moved, never nodes placed just for this view
+      S.transient.delete(e.target.id());
       savePositions(changedPositions(before || {}, after)).then(()=>{
         if(S.cy===cy && S.relationsPending && !S.graphDragging) renderGraph();
       });
@@ -519,7 +628,7 @@
         if(S.cy===cy && S.relationsPending && !S.graphDragging) renderGraph();
       });
     });
-    if (persistInitial && !allPlaced && S.relations) {
+    if (persistInitial && !allPlaced && S.relations && !subset) {
       const initial = {};
       S.cy.nodes().forEach(n => { initial[n.id()] = graphPosition(n); });
       savePositions(initial);
@@ -554,7 +663,7 @@
   function persistPositions(before, revision) {
     capturePositions();
     const positions = Object.fromEntries(Object.entries(S.positions).filter(([id]) => S.validNodes?.has(id)));
-    S.cy?.nodes().forEach(n => { if (!n.isParent()) positions[n.id()] = graphPosition(n); });
+    S.cy?.nodes().forEach(n => { if (!n.isParent() && !S.transient.has(n.id())) positions[n.id()] = graphPosition(n); });
     const changed = changedPositions(before || {}, positions);
     return Object.keys(changed).length ? mutate({ action: 'positions', positions: changed, revision }) : Promise.resolve();
   }
@@ -681,8 +790,9 @@
     const d = directions().find(row => String(row.id) === id); if (!d) throw new Error('类别不存在，请刷新');
     const revision = S.snapshot.revision;
     const children = directions().filter(row => row.parent_id === d.id).length;
-    const count = S.snapshot.items.filter(p => memberships(p).includes(id)).length;
-    dialog('删除类别', `<p>删除「${h(categoryPath(id))}」？</p><p>只解除 ${count} 篇已收藏论文与此类别的直接归属，论文、PDF、笔记和其他类别归属均保留。</p><p>${children ? `${children} 个直接子类别会移到${d.parent_id ? '「'+h(categoryPath(d.parent_id))+'」下' : '顶层目录'}。` : '此类别没有子类别。'}可以使用「撤销上一步」恢复。</p>`, '删除类别并保留论文', async () => {
+    const holders = S.snapshot.items.filter(p => memberships(p).includes(id)), count = holders.length;
+    const elsewhere = holders.filter(p => S.scope !== 'all' && !owners(p).includes(S.scope)).length;   // papers of other projects lose this category too
+    dialog('删除类别', `<p>删除「${h(categoryPath(id))}」？</p>${elsewhere ? `<p>这个类别由所有项目共用：其中 ${elsewhere} 篇属于其他项目，它们也会失去这个类别。</p>` : ''}<p>只解除 ${count} 篇已收藏论文与此类别的直接归属，论文、PDF、笔记和其他类别归属均保留。</p><p>${children ? `${children} 个直接子类别会移到${d.parent_id ? '「'+h(categoryPath(d.parent_id))+'」下' : '顶层目录'}。` : '此类别没有子类别。'}可以使用「撤销上一步」恢复。</p>`, '删除类别并保留论文', async () => {
       await mutate({ action:'direction-delete', id, revision });
     });
   }
@@ -773,14 +883,16 @@
     if (!Array.isArray(snap.items)) throw new Error('导出数据缺少论文列表');
     return '# PaperDigHelper\n\n' + snap.items.map(p => `## ${String(p.title || p.key).replace(/\n/g, ' ')}\n\n${p.published || ''}\n\n${(snap.directions || []).filter(d => memberships(p).includes(String(d.id))).map(d => categoryPath(d.id, snap)).join(', ')}\n\n${p.abstract || ''}\n\n### Note\n\n${p.note || ''}\n`).join('\n');
   }
-  async function refresh() { await S.positionQueue; await S.queue; accept(await window.PDH.api('/api/organization')); S.loading = false; S.error = ''; S.positions = {}; S.cy?.destroy(); S.cy = null; if (S.mode === 'graph' && !item(S.key)) S.key = S.snapshot.items[0]?.key || null; renderData(); if (S.mode === 'graph') await loadRelations(); }
+  async function refresh() { await S.positionQueue; await S.queue; accept(await window.PDH.api('/api/organization')); S.loading = false; S.error = ''; S.positions = {}; S.cy?.destroy(); S.cy = null; if (S.mode === 'graph' && !scoped().some(p => p.key === S.key)) S.key = scoped()[0]?.key || null; renderData(); if (S.mode === 'graph') await loadRelations(); }
   async function handle(action, b) {
     switch (action) {
       case 'library': case 'graph': await S.positionQueue; capturePositions(); S.mode = action; renderSidebar(); setMode(); if (action === 'graph') await loadRelations(); break;
       case 'filter': {
         S.filter = b.dataset.id; S.graphFocus = null;
-        renderSidebar(); renderList();
-        if (S.cy) {
+        if (S.mode === 'graph' && S.focus === 'all' && S.filter !== '*' && scoped().length > OVERVIEW_LIMIT) S.focus = 'category';   // a big overview is narrowed by picking a category
+        renderSidebar(); renderList(); renderFocus();
+        if (S.mode === 'graph' && (S.focus === 'category' || !S.cy)) { renderGraph(false); if (S.cy) focusCategory(); }
+        else if (S.cy) {
           // Folded directory rows must not make a selected category impossible to locate.
           const missing = visible().some(p => !S.cy.getElementById(paperNodeId(p.key)).length);
           if (missing) renderGraph(false);
@@ -789,21 +901,45 @@
         break;
       }
       case 'graph-paper-focus': {
-        const p = item(b.dataset.key); if (!p || !S.cy) break;
+        const p = item(b.dataset.key); if (!p) break;
+        if (!S.cy) {   // nothing is drawn yet (the overview): picking a paper draws it with its neighbours
+          S.key = p.key; S.focus = 'paper1'; S.graphFocus = paperNodeId(p.key);
+          renderSidebar(); renderDetail(); renderList(); renderGraph(false); break;
+        }
         S.key = p.key; S.graphFocus = paperNodeId(p.key); renderSidebar(); renderDetail(); renderList();
+        if (S.focus.startsWith('paper')) { renderGraph(false); }
         S.notice = `${p.title || p.key} · 已定位`; status(); focusGraph(S.graphFocus); break;
       }
+      case 'project-tab': {
+        const next = b.dataset.scope || 'all';
+        if (next === S.scope) break;
+        // Only the view changes: nothing is saved, no layout is touched, the shared tree is not edited.
+        S.scope = next; S.selected.clear(); S.showOther = false; S.filter = '*'; S.focus = 'all'; S.showAll = false; S.graphFocus = null;
+        if (S.key && !scoped().some(p => p.key === S.key)) S.key = null;
+        renderSidebar(); renderList(); renderDetail(); renderFocus(); status();
+        if (S.mode === 'graph') renderGraph(false);
+        break;
+      }
+      case 'toggle-other-cats': S.showOther = !S.showOther; renderSidebar(); break;
+      case 'focus-mode': {
+        if (b.disabled) break;
+        S.focus = b.dataset.mode; S.graphFocus = null; S.showAll = false;
+        if (S.mode === 'graph') renderGraph(false); else renderFocus();
+        break;
+      }
+      case 'show-all-graph': S.showAll = true; renderGraph(false); break;
       case 'read': { const p = item(b.dataset.key); if (p) await window.PDH.openReader(p.key, p.title); break; }
       case 'open-detail': { const key = b.dataset.key || S.key; if (key && typeof window.PDH.openDetail === 'function') await window.PDH.openDetail(key); break; }
       case 'detail': S.key = b.dataset.key; renderDetail(); renderList(); filterGraph(); break;
-      case 'detail-close': S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); break;
+      case 'detail-close': S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); if (S.focus.startsWith('paper')) { S.focus = 'all'; if (S.mode === 'graph') renderGraph(false); else renderFocus(); } break;
       case 'direction-new': editDirection(); break;
       case 'category-child': editDirection(undefined, b.dataset.id); break;
       case 'direction-edit': editDirection(b.dataset.id); break;
       case 'direction-delete': deleteDirection(b.dataset.id); break;
       case 'direction-up': case 'direction-down': {
         const moved = directions().find(d => String(d.id) === b.dataset.id);
-        const siblings = directions().filter(d => (d.parent_id || null) === (moved.parent_id || null));
+        const hiddenNow = otherProjectCategories();   // a move swaps with the next category you can see, not with a hidden one
+        const siblings = directions().filter(d => (d.parent_id || null) === (moved.parent_id || null) && (!hiddenNow.has(String(d.id)) || S.showOther));
         const i = siblings.findIndex(d => d.id === moved.id), j = i + (action === 'direction-up' ? -1 : 1);
         if (!siblings[j]) break;
         await mutate({ action:'direction-save', id:moved.id, name:moved.name, color:moved.color, rank:siblings[j].rank });
@@ -860,11 +996,12 @@
       case 'export': await exportData(); break;
       case 'fit': focusGraph(null); break;
       case 'rearrange':
-        dialog('重新排列', '<p>重新排列所有论文卡片？之后可点击「撤销重新排列」恢复原布局。</p>', '重新排列', async () => {
+        dialog('重新排列', '<p>重新排列当前显示的论文卡片？没有显示的论文不受影响。之后可点击「撤销重新排列」恢复原布局。</p>', '重新排列', async () => {
           await S.positionQueue;
-          const previous = S.snapshot.positions;
-          S.snapshot.positions = {}; S.positions = {}; S.cy?.destroy(); S.cy = null; renderGraph(false); capturePositions();
-          try { await mutate({ action: 'positions', rearrange: true, positions: { ...Object.fromEntries(Object.keys(previous).map(id => [id, null])), ...S.positions } }, false); renderGraph(false); }
+          const previous = S.snapshot.positions, drawn = new Set(S.cy ? S.cy.nodes().map(n => n.id()) : []);   // only what is drawn is re-arranged; hidden papers keep their place
+          if (!drawn.size) { S.notice = '当前没有显示论文，无法重新排列'; status(); return; }
+          S.snapshot.positions = Object.fromEntries(Object.entries(previous).filter(([id]) => !drawn.has(id))); S.positions = {}; S.transient = new Set(); S.cy?.destroy(); S.cy = null; renderGraph(false); S.transient = new Set(); capturePositions();
+          try { await mutate({ action: 'positions', rearrange: true, positions: { ...Object.fromEntries([...drawn].filter(id => id in previous).map(id => [id, null])), ...S.positions } }, false); renderGraph(false); }
           catch (error) { S.snapshot.positions = previous; S.positions = {}; S.cy?.destroy(); S.cy = null; renderGraph(); throw error; }
         }); break;
       case 'zoom-in': case 'zoom-out': zoomGraph(action === 'zoom-in' ? 1.2 : 1 / 1.2); break;
@@ -872,13 +1009,24 @@
     }
   }
   window.addEventListener('beforeunload', event => { if ([...S.drafts.values()].some(d => d.dirty)) { event.preventDefault(); event.returnValue = ''; } });
-  window.PDHOrganization = { async open(mode = 'library') {
+  // Switching project: forget what was shown for the previous one (selection, focus, similarity relations) and reload.
+  function reset() {
+    S.snapshot = { directions: [], items: [], positions: {} }; S.relations = null; S.relationsCorpus = null;
+    S.filter = '*'; S.key = null; S.graphFocus = null; S.selected.clear(); S.query = '';
+    S.focus = 'all'; S.showAll = false; S.showOther = false; S.scope = currentProject() || 'all'; S.scopeSet = true; S.notice = ''; S.transient = new Set();
+    S.cy?.destroy(); S.cy = null;
+  }
+  window.PDHOrganization = { reset() {
+    reset();
+    return S.root && !S.root.classList.contains('hidden') ? this.open(S.mode) : Promise.resolve();
+  }, async open(mode = 'library') {
     S.root = document.getElementById('organizationRoot');
     if (!S.root) throw new Error('Missing #organizationRoot');
+    if (!S.scopeSet) { S.scope = currentProject() || 'all'; S.scopeSet = true; }   // the tab starts on the current project and then stays where the person put it
     S.loading = true; S.mode = mode === 'graph' || mode === 'knowledge' ? 'graph' : 'library';
     if (S.mode === 'graph' && !localStorage.getItem('pdh-graph-layout-v3')) S.graphRadialPending = true;
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
 })();
