@@ -626,7 +626,6 @@
   <nav class="tabs" aria-label="主导航">
     <button class="tab active" data-view="today" aria-current="page"><i class="icon sparkles" aria-hidden="true"></i>今日</button>
     <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>
-    <button class="tab" data-view="knowledge"><i class="icon book" aria-hidden="true"></i>知识库</button>
     <button class="tab" data-view="profile"><i class="icon profile" aria-hidden="true"></i>画像</button>
   </nav>
   <div class="right">
@@ -1116,7 +1115,7 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   clearTimeout(hoverTimer);
   hidePreview();
   state.view = t.dataset.view;
-  const organized = state.view === 'library' || state.view === 'knowledge';
+  const organized = state.view === 'library';   // the library page: its list and its graph
   document.querySelector('main').classList.toggle('hidden', organized);
   $('#organizationRoot').classList.toggle('hidden', !organized);
   $('#view-today').classList.toggle('hidden', state.view !== 'today');

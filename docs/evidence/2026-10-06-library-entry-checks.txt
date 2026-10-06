@@ -1,0 +1,7 @@
+Checks for changes/2026-10-06-library-entry.json (2026-10-06)
+python3 -m unittest discover -s tests: Ran 1040 tests, OK
+node --test (each tests/*.cjs): fail 0 in all 10 files
+python3 scripts/budget.py --check: PASS; python3 scripts/harness.py check: PASS; i18n_extract: 0 missing
+Browser preview (seeded copy, real server): top bar 今日 / 论文库 / 画像; title 论文库; tabs 列表 / 图谱; after 图谱 -> 画像 -> 论文库 the graph is shown again.
+Desktop build: exit 0; app not launched.
+Self-review only (names and entry points).

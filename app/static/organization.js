@@ -244,7 +244,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">${PAPER_HINT}</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文库</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">列表</button><button role="tab" data-action="graph">图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理分类</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">${PAPER_HINT}</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -352,6 +352,7 @@
   function setMode() {
     const graph = S.mode === 'graph';
     $('.org-list').hidden = graph; $('.org-graph-wrap').hidden = !graph;
+    S.modeKept = S.mode;
     for (const el of S.root.querySelectorAll('.org-tabs [role=tab]')) { el.setAttribute('aria-selected', String(el.dataset.action === S.mode)); el.classList.toggle('is-active', el.dataset.action === S.mode); }
     if (graph && !S.loading) renderGraph(); else { S.cy?.destroy(); S.cy = null; }
   }
@@ -551,7 +552,7 @@
     if (!on && S.graphView === 'route') S.graphView = 'papers';
     box.hidden = !on;
     wrap.classList?.toggle('has-view', on); wrap.classList?.toggle('is-route', S.graphView === 'route');
-    box.innerHTML = on ? [['papers', '论文关系', '论文之间的相似关系和类别'], ['route', '学习图 + 论文', '这个项目的学习单元，以及每篇论文对应哪个单元']].map(([view, label, tip]) =>
+    box.innerHTML = on ? [['papers', '论文关系', '论文之间的相似关系和类别'], ['route', '学习图', '这个项目的学习单元，以及每篇论文对应哪个单元']].map(([view, label, tip]) =>
       `<button type="button" role="radio" aria-checked="${S.graphView === view}" data-action="graph-view" data-view="${view}" title="${h(tip)}">${label}</button>`).join('') : '';
   }
   function renderFocus() {
@@ -996,7 +997,7 @@
       + '<p class="org-paper-meta">没勾选的新增分类、归入和合并，下次检查时还会再出现；只有勾选“保持现状，不再提示”的调整建议，才会在论文和类别不变时不再出现。应用后可以撤销。</p>';
   }
   async function suggest() {
-    const d = dialog('整理建议', '<p role="status">正在生成建议…</p>', null);
+    const d = dialog('整理分类', '<p role="status">正在生成建议…</p>', null);
     try {
       await S.queue;
       const asked = S.scope !== 'all' ? S.scope : window.PDH.state?.currentProject;   // the project tab's papers and profile; on the all tab, every paper with the current project's profile
@@ -1005,7 +1006,7 @@
         let job = result.job;
         while (job.state !== 'done') {
           if (!d.isConnected) return;
-          if (job.state === 'failed') throw new Error(job.error || '整理建议生成失败');
+          if (job.state === 'failed') throw new Error(job.error || '整理分类生成失败');
           await new Promise(resolve => setTimeout(resolve, 1200));
           job = await window.PDH.api(`/api/jobs/${encodeURIComponent(job.id)}`);
         }
@@ -1015,10 +1016,10 @@
       if (Array.isArray(result.items) && result.revision >= S.snapshot.revision) { accept(result); renderData(); }
       d.close();
       const preview = result.suggestions || result.snapshot?.suggestions;
-      if (!preview || !Array.isArray(preview.groups)) throw new Error('服务端没有返回整理建议，请重试');
+      if (!preview || !Array.isArray(preview.groups)) throw new Error('服务端没有返回整理分类的结果，请重试');
       const proposals = preview.groups || (Array.isArray(preview) ? preview : []);
       const nothing = !(preview.groups || []).length && !(preview.merges || []).length && !(preview.moves || []).length;
-      dialog('整理建议', suggestionsHTML(preview), nothing ? null : '应用所选', async el => {
+      dialog('整理分类', suggestionsHTML(preview), nothing ? null : '应用所选', async el => {
         const suggestions = [...el.querySelectorAll('[data-suggestion]')].filter(f => f.querySelector('[data-enabled]').checked).map(f => ({ id: proposals[Number(f.dataset.suggestion)].id, name: f.querySelector('[data-name]').value.trim(), color: f.querySelector('[data-color]')?.value || DEFAULT_COLOR, keys: [...f.querySelectorAll('[data-member]:checked')].map(c => c.dataset.member) }));
         if (suggestions.some(s => !s.name || !s.keys.length)) throw new Error('每个所选类别都需要名称和至少一篇论文');
         const merges = [...el.querySelectorAll('[data-merge]')].filter(f => f.querySelector('[data-merge-enabled]').checked).map(f => f.dataset.merge);
@@ -1039,7 +1040,7 @@
     const result = await window.PDH.api('/api/organization', { action: 'export' });
     const data = result.export || result;
     if (data == null) throw new Error('导出数据缺失');
-    dialog('导出论文整理', '<label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
+    dialog('导出论文库', '<label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
       const format = el.querySelector('select').value;
       const payload = format === 'json' ? JSON.stringify(data, null, 2) : (data.markdown || markdownExport(data));
       const blob = new Blob([payload], { type: format === 'json' ? 'application/json;charset=utf-8' : 'text/markdown;charset=utf-8' });
@@ -1204,7 +1205,7 @@
     S.root = document.getElementById('organizationRoot');
     if (!S.root) throw new Error('Missing #organizationRoot');
     if (!S.scopeSet) { S.scope = currentProject() || 'all'; S.scopeSet = true; }   // the tab starts on the current project and then stays where the person put it
-    S.loading = true; S.mode = mode === 'graph' || mode === 'knowledge' ? 'graph' : 'library';
+    S.loading = true; S.mode = mode === 'graph' ? 'graph' : (S.modeKept || 'library');   // the top bar has one entry; the page remembers whether the person was on the list or the graph
     if (S.mode === 'graph' && !localStorage.getItem('pdh-graph-layout-v3')) S.graphRadialPending = true;
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
