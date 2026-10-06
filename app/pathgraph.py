@@ -27,7 +27,7 @@ HARD_FACTOR = 0.6       # a "too hard" paper multiplies mastery by this
 SATISFIED_AT = 0.6      # a concept counts as understood from here
 LOW_INTEREST_RATINGS = 3
 LOW_INTEREST_AT = 0.35
-EXPLORE_BASE = 0.10     # share of a batch that is exploration at the start
+EXPLORE_BASE = 0.20     # share of a batch that is exploration at the start (one paper in five: seen from the first batch)
 EXPLORE_SPAN = 0.40     # ... rising by this much as the map fills
 EVENTS = ("useful", "irrelevant", "understood", "too_hard")
 INTEREST_EVENTS = ("useful", "irrelevant")   # what the reader likes
@@ -38,6 +38,16 @@ DIFFICULTY_EVENTS = ("too_hard",)            # what was beyond the reader for no
 # ------------------------------------------------------------------ cleaning
 def _text(value, limit):
     return re.sub(r"\s+", " ", re.sub(r"[,|:!\"\\\r\n\t]", " ", str(value or ""))).strip()[:limit]
+
+
+INTRO_LIMIT = 90         # characters in the one-sentence "what this concept is"
+INTRO_AUTHORS = ("user", "ai")   # who wrote an intro; kept apart so the page can say which is which
+
+
+def _prose(value, limit):
+    """Plain one-line text: control characters gone, runs of space collapsed, cut to `limit`. Unlike _text it keeps
+    commas, colons and quotes, because a sentence needs them. Markup stays text; the page escapes it."""
+    return re.sub(r"\s+", " ", re.sub(r"[\x00-\x1f\x7f]", " ", str(value or ""))).strip()[:limit].strip()
 
 
 def _key(text):
@@ -176,7 +186,7 @@ def _reduce(edges, live=None):
     return dropped
 
 
-def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN, allow_foundation=True):
+def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN, allow_foundation=True, intro_by=None):
     """Make an AI-proposed (or hand-edited) concept graph safe and return (graph, report).
 
     Never raises on bad input. Steps: clean fields, merge duplicate concepts (same name, or identical
@@ -188,7 +198,9 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN, allow_foundation=
     A concept may carry a `type` (topic, method, problem or foundation; anything else is left out). A paper-shaped
     concept is dropped, and a paper list beside the concepts is ignored and reported (`papers_ignored`): the
     graph holds units to learn only. A foundation needs a one-line `why`, and is dropped without one, and
-    dropped altogether when `allow_foundation` is False (the reader did not say they lack the basics).
+    dropped altogether when `allow_foundation` is False (the reader did not say they lack the basics). An `intro`
+    (one sentence saying what the concept is) is kept only when the caller says who wrote it (`intro_by`: the model
+    path passes "ai"); without that, a sentence cannot claim an author and is dropped.
     """
     report = _blank_report()
     if not isinstance(raw, dict) or not isinstance(raw.get("concepts"), list):
@@ -232,7 +244,8 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN, allow_foundation=
             name_map.setdefault(name_key, twin["pos"])
             continue
         record = {"pos": f"#{position}", "name": name, "terms": terms, "hint": _hint(item.get("hint")), "needs": needs,
-                  "type": kind, "why": why, "name_key": name_key, "term_keys": term_keys}
+                  "type": kind, "why": why, "intro": _prose(item.get("intro"), INTRO_LIMIT) if intro_by in INTRO_AUTHORS else "",
+                  "name_key": name_key, "term_keys": term_keys}
         kept.append(record)
         if user_id and user_id not in id_map:
             id_map[user_id] = record["pos"]
@@ -312,7 +325,8 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN, allow_foundation=
 
     concepts = [{"id": new_id[c["pos"]], "name": c["name"], "terms": c["terms"], "hint": c["hint"],
                  "origin": "plan", "state": "active", "side": False,
-                 **({"type": c["type"]} if c["type"] else {}), **({"why": c["why"]} if c["why"] else {})} for c in kept]
+                 **({"type": c["type"]} if c["type"] else {}), **({"why": c["why"]} if c["why"] else {}),
+                 **({"intro": c["intro"], "intro_by": intro_by} if c["intro"] else {})} for c in kept]
     targets = [new_id[t] for t in raw_targets if t in new_id]
     graph = {"concepts": concepts, "prereqs": edges, "targets": targets}
     if not targets:
@@ -412,6 +426,9 @@ def add_concept(graph, concept, needs=(), dependents=()):
         raise ValueError("a concept is something to learn, not a paper")
     if kind == "foundation" and not why:
         raise ValueError("a foundation concept needs a reason")
+    intro, intro_by = _prose(concept.get("intro"), INTRO_LIMIT), concept.get("intro_by", "user")
+    if intro and intro_by not in INTRO_AUTHORS:
+        raise ValueError("unknown intro author")
     hint = _hint(concept.get("hint"))
     if any(hints[i] > hint for i in needs) or any(hint > hints[i] for i in dependents):
         raise ValueError("a prerequisite cannot be harder than the concept that needs it")
@@ -420,7 +437,8 @@ def add_concept(graph, concept, needs=(), dependents=()):
     origin, state = concept.get("origin", "user"), concept.get("state", "active")
     grown["concepts"].append({"id": new_id, "name": name, "terms": _terms(concept.get("terms"), name), "hint": hint,
                               "origin": origin, "state": state, "side": False,
-                              **({"type": kind} if kind else {}), **({"why": why} if why else {})})
+                              **({"type": kind} if kind else {}), **({"why": why} if why else {}),
+                              **({"intro": intro, "intro_by": intro_by} if intro else {})})
     for source in needs:
         grown["prereqs"].append({"from": source, "to": new_id, "support": concept.get("support"), "origin": origin, "state": state})
     for target in dependents:
@@ -489,9 +507,14 @@ def _validate(graph, tolerate=frozenset()):
             raise ValueError("a foundation concept needs a reason")
         names.add(_key(name))
         ids.add(item["id"])
+        intro = _prose(item.get("intro"), INTRO_LIMIT)
+        intro_by = item.get("intro_by", "user")   # a sentence saved before authors were recorded is the person's own
+        if intro and intro_by not in INTRO_AUTHORS:
+            raise ValueError("unknown intro author")
         clean = {"id": item["id"], "name": name, "terms": _terms(item.get("terms"), name), "hint": _hint(item.get("hint")),
                  "origin": origin, "state": state, "side": False,
-                 **({"type": kind} if kind else {}), **({"why": why} if why else {})}
+                 **({"type": kind} if kind else {}), **({"why": why} if why else {}),
+                 **({"intro": intro, "intro_by": intro_by} if intro else {})}
         for extra in ("parent", "candidate", "direction_id"):
             if item.get(extra) is not None:
                 clean[extra] = _short(item[extra], extra)

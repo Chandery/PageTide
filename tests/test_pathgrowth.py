@@ -292,6 +292,20 @@ class BranchTests(unittest.TestCase):
         pos = positives(*[p["key"] for p in many])
         self.assertLessEqual(len(pgr.branch_candidates(self.graph, many, pos)), pgr.MAX_CANDIDATES)
 
+    def test_a_display_threshold_of_two_cannot_crowd_a_ready_direction_out_of_the_phrase_cap(self):
+        papers = []
+        for i in range(pgr.MAX_PHRASES + 10):    # many two-paper phrases that sort before the real one
+            for j in range(2):
+                papers.append(paper(f"pair{i}_{j}", f"alpha{i:02d} beta{i:02d} note {j}", f"alpha{i:02d} beta{i:02d} detail", source=("S1", "S2")[j]))
+        for j in range(3):
+            papers.append(paper(f"real{j}", f"zzzz yyyy method {j}", "zzzz yyyy yyyy method material", source=("Nature", "Joule", "Nature")[j]))
+        pos = positives(*[p["key"] for p in papers if p["key"].startswith("pair")], "real0", "real1")
+        strict = pgr.branch_candidates(self.graph, papers, pos, limit=200)
+        loose = pgr.branch_candidates(self.graph, papers, pos, min_members=2, limit=200)
+        is_real = lambda c: all(k.startswith("real") for k in c["papers"])
+        self.assertEqual([c["status"] for c in strict if is_real(c)], ["ready"])
+        self.assertEqual([c["status"] for c in loose if is_real(c)], ["ready"])
+
     def test_a_large_corpus_is_handled(self):
         many = [paper(f"k{i}", f"Paper {i} about topic{i % 40} widgets", f"topic{i % 40} widgets analysis", source=f"S{i % 5}") for i in range(600)]
         found = pgr.branch_candidates(self.graph, many, positives(*[p["key"] for p in many[:120]]))

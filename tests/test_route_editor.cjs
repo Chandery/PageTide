@@ -252,6 +252,21 @@ test('a draft that replaces the saved map reuses the saved id of every concept w
   assert.equal(draft.concepts[0].name, 'epitaxy');
 });
 
+test('a model draft never replaces an introduction the person wrote; a model-written one is replaced', () => {
+  const R = load();
+  const saved = { concepts: [{ ...concept('c1', 'Epitaxy', 1), intro: 'Mine.', intro_by: 'user' }, { ...concept('c2', 'Doping', 2), intro: 'Old AI line.', intro_by: 'ai' }],
+                  prereqs: [], targets: [] };
+  const draft = { concepts: [{ ...concept('c1', 'Doping', 1), intro: 'New AI line.', intro_by: 'ai' }, { ...concept('c2', 'epitaxy', 1), intro: 'AI says this.', intro_by: 'ai' }],
+                  prereqs: [], targets: [] };
+  const out = R.reuseIds(draft, saved);
+  const byName = Object.fromEntries(out.concepts.map((c) => [c.name, c]));
+  assert.equal(byName.epitaxy.intro, 'Mine.');
+  assert.equal(byName.epitaxy.intro_by, 'user');
+  assert.equal(byName.Doping.intro, 'New AI line.');
+  assert.equal(byName.Doping.intro_by, 'ai');
+  assert.equal(draft.concepts[1].intro, 'AI says this.');   // the input is not touched
+});
+
 test('reuseIds with nothing saved, or with no name in common, only keeps the draft valid', () => {
   const R = load();
   const draft = { concepts: [concept('c1', 'A', 1), concept('c2', 'B', 2)], prereqs: [{ from: 'c1', to: 'c2' }], targets: ['c2'] };
@@ -302,43 +317,204 @@ test('a concept panel says what kind of unit it is and why a basic one is there'
 });
 
 
-const growth = () => ({ id: 'g-0123456789', name: 'strain relaxation', terms: ['strain relaxation'], status: 'ready', positive: 2, paper_count: 4, sources: 2, overlap: 0.15,
-  papers: [{ key: 's1', title: 'Strain <b>relaxation</b>' }, { key: 's2', title: 'Second' }], parent: { id: 'c2', name: 'Epitaxy' }, prereqs: [{ id: 'c1', name: 'Crystal basics', support: 0.4 }] });
+const gates = (o = {}) => ({ papers: { have: 4, need: 3, ok: true }, positive: { have: 2, need: 2, ok: true }, sources: { have: 2, need: 2, ok: true }, strength: { have: 0.29, need: 0.25, ok: true }, ...o });
+const growth = (o = {}) => ({ id: 'g-0123456789', name: 'strain relaxation', terms: ['strain relaxation'], status: 'ready', positive: 2, paper_count: 4, sources: 2, source_names: ['journal-a', 'journal-b'], overlap: 0.15,
+  progress: 1, gates: gates(), missing: [], parts: [{ key: 'S', label: '证据量', hint: '你明确点过的论文越多越高', value: 0.49 }, { key: 'C', label: '集中度', hint: '这些论文的文字越接近越高', value: 0.6 }],
+  papers: [{ key: 's1', title: 'Strain <b>relaxation</b>', source: 'journal-a', explicit: true }, { key: 's2', title: 'Second', source: 'journal-b', explicit: false }],
+  parent: { id: 'c2', name: 'Epitaxy' }, prereqs: [{ id: 'c1', name: 'Crystal basics', support: 0.4 }],
+  topology: { needs: [{ id: 'c1', name: 'Crystal basics', support: 0.4 }], parent: { id: 'c2', name: 'Epitaxy' }, note: '加入后：Crystal basics → 「strain relaxation」；它比「Epitaxy」更细' }, ...o });
+const forming = () => growth({ status: 'watch', progress: 0.62, gates: gates({ papers: { have: 2, need: 3, ok: false }, sources: { have: 1, need: 2, ok: false }, strength: { have: 0.12, need: 0.25, ok: false } }),
+  missing: ['还差 1 篇含这个短语的论文', '还差 1 个不同来源'], prereqs: [], parent: null, topology: { needs: [], parent: null, note: '加入后「strain relaxation」会是一个新的入口（没有前置）' } });
 
-test('a proposed direction shows its evidence as counts and titles, all escaped', () => {
+test('a direction card shows how far it is, what it has and what it lacks, all escaped', () => {
   const R = load();
-  const html = R.candidateHTML(growth());
+  const html = R.candidateHTML(forming());
   assert.match(html, /strain relaxation/);
-  assert.match(html, /4 篇论文/);
-  assert.match(html, /你明确点过 2 篇/);
-  assert.match(html, /2 个来源/);
-  assert.match(html, /重叠 15%/);
-  assert.match(html, /建议放在：.*Epitaxy/);
-  assert.match(html, /建议的前置：.*Crystal basics/);
-  assert.ok(!html.includes('<b>relaxation</b>') && html.includes('&lt;b&gt;relaxation&lt;/b&gt;'));
+  assert.match(html, /证据 62%/);
+  assert.match(html, /论文 2\/3/);
+  assert.match(html, /你明确点过 2\/2/);
+  assert.match(html, /来源 1\/2/);
+  assert.match(html, /还差 1 篇含这个短语的论文/);
+  assert.match(html, /还在形成/);
+  const ready = R.candidateHTML(growth());
+  assert.match(ready, /可以加入/);
+  assert.ok(!ready.includes('<b>relaxation</b>') && ready.includes('&lt;b&gt;relaxation&lt;/b&gt;'));
 });
 
-test('a proposal has exactly two buttons, each carrying the id, and they are off while edits are unsaved', () => {
+test('only a ready direction can be added; every one can be turned down; edits that are unsaved lock both', () => {
   const R = load();
-  const html = R.candidateHTML(growth());
-  assert.equal((html.match(/data-growth="accept"/g) || []).length, 1);
-  assert.equal((html.match(/data-growth="reject"/g) || []).length, 1);
-  assert.equal((html.match(/data-id="g-0123456789"/g) || []).length, 2);
-  assert.ok(!/disabled/.test(html));
-  assert.equal((R.candidateHTML(growth(), { locked: true }).match(/disabled/g) || []).length, 2);
+  const button = (html, kind) => (html.match(new RegExp(`<button[^>]*data-growth="${kind}"[^>]*>`)) || [''])[0];
+  assert.ok(!/disabled/.test(button(R.candidateHTML(growth()), 'accept')));
+  assert.ok(/disabled/.test(button(R.candidateHTML(forming()), 'accept')));
+  assert.ok(!/disabled/.test(button(R.candidateHTML(forming()), 'reject')));
+  assert.equal((R.candidateHTML(growth()).match(/data-id="g-0123456789"/g) || []).length, 3);   // accept, reject and the card itself
+  const locked = R.candidateHTML(growth(), { locked: true });
+  assert.ok(/disabled/.test(button(locked, 'accept')) && /disabled/.test(button(locked, 'reject')));
 });
 
-test('a proposal without a parent or prerequisites says nothing about them', () => {
+test('the card says where the direction would sit', () => {
   const R = load();
-  const bare = { ...growth(), parent: null, prereqs: [] };
-  const html = R.candidateHTML(bare);
-  assert.ok(!/建议放在|建议的前置/.test(html));
+  assert.match(R.candidateHTML(growth()), /加入后：Crystal basics/);
+  assert.match(R.candidateHTML(forming()), /新的入口/);
 });
 
-test('the list says how many are only being watched and never calls silence a reason', () => {
+test('the detail of a direction explains every gate, lists the papers with the ones you marked, and the parts in words', () => {
   const R = load();
-  assert.match(R.growthNote({ candidates: [], watching: 2 }), /还有 2 个方向证据不够/);
-  assert.match(R.growthNote({ candidates: [], watching: 0 }), /没有新的建议/);
-  assert.equal(R.growthNote({ candidates: [growth()], watching: 0 }), '');
-  assert.doesNotMatch(R.growthNote({ candidates: [], watching: 0 }), /落后|没读|不喜欢/);
+  const html = R.ghostDetailHTML(forming());
+  assert.equal((html.match(/class="gate[ "]/g) || []).length, 4);
+  assert.match(html, /还差 1 个不同来源/);
+  assert.match(html, /你明确点过的论文/);
+  assert.match(html, /证据量/);
+  assert.match(html, /0\.12\/0\.25/);              // strength is shown with decimals, the counts without
+  assert.match(html, /2\/3/);
+  assert.match(html, /你点过/);                    // the paper marker
+  assert.match(html, /journal-a/);
+  assert.match(html, /加入后/);
+  assert.ok(!html.includes('<b>relaxation</b>'));
+});
+
+test('the list says how many are still forming and never calls silence a reason', () => {
+  const R = load();
+  assert.match(R.growthNote({ candidates: [] }), /还没有出现潜在方向/);
+  assert.match(R.growthNote({ candidates: [] }), /点“有用”或“已读懂”/);
+  assert.equal(R.growthNote({ candidates: [growth(), forming()] }), '');
+  assert.doesNotMatch(R.growthNote({ candidates: [] }), /落后|没读|不喜欢/);
+});
+
+test('the display graph has a ghost node per direction, with dashed arrows from what it would need, and leaves the real graph alone', () => {
+  const R = load();
+  const graph = { concepts: [{ id: 'c1', name: 'Crystal basics', terms: ['x'], hint: 1, state: 'active' }, { id: 'c2', name: 'Epitaxy', terms: ['y'], hint: 2, state: 'active' }],
+    prereqs: [{ from: 'c1', to: 'c2', state: 'active' }], targets: ['c2'] };
+  const before = JSON.stringify(graph);
+  const shown = R.ghostGraph(graph, [growth(), forming()]);
+  assert.equal(JSON.stringify(graph), before);
+  assert.equal(shown.concepts.length, 4);
+  const ghosts = shown.concepts.filter((c) => c.ghost);
+  assert.deepEqual(JSON.parse(JSON.stringify(ghosts.map((c) => c.id))), ['ghost:g-0123456789', 'ghost:g-0123456789']);   // the two samples share an id here; real ones differ
+  assert.ok(shown.prereqs.some((e) => e.from === 'c1' && e.to === 'ghost:g-0123456789' && e.ghost));
+  assert.equal(shown.prereqs.filter((e) => e.ghost).length, 1);   // the forming one has no prerequisite: it is an entry
+  assert.deepEqual(JSON.parse(JSON.stringify(shown.targets)), ['c2']);
+});
+
+test('a prerequisite the map no longer has is not drawn, and a ghost never reuses a real id', () => {
+  const R = load();
+  const graph = { concepts: [{ id: 'c9', name: 'Other', terms: ['y'], hint: 2, state: 'active' }], prereqs: [], targets: ['c9'] };
+  const shown = R.ghostGraph(graph, [growth()]);
+  assert.equal(shown.prereqs.length, 0);
+  assert.ok(shown.concepts.every((c) => c.id === 'c9' || c.id.startsWith('ghost:')));
+});
+
+test('the border is a track plus a filled part of the same outline, and a full solid line only when it can be added', () => {
+  const R = load();
+  const part = R.ringSVG(0.62, false, 176, 72);
+  assert.match(part, /<svg/);
+  assert.equal((part.match(/<rect/g) || []).length, 2);
+  assert.match(part, /pathLength="100"/);
+  assert.match(part, /stroke-dasharray="62 38"/);
+  const full = R.ringSVG(1, true, 176, 72);
+  assert.match(full, /class="rg-ring is-ready"/);
+  assert.doesNotMatch(full, /stroke-dasharray="[0-9. ]+ [0-9. ]+" class="rg-ring-fill"/);
+  const empty = R.ringSVG(NaN, false, 176, 72);                                  // no number: an empty ring, never NaN, and no dot
+  assert.doesNotMatch(empty, /NaN|rg-ring-fill/);
+  assert.equal((empty.match(/<rect/g) || []).length, 1);
+  assert.match(R.ringSVG(5, false, 176, 72), /stroke-dasharray="97 3"/);          // not ready never shows as full
+});
+
+test('the status of a ghost node says it is a direction in the making and how far', () => {
+  const R = load();
+  assert.deepEqual(JSON.parse(JSON.stringify(R.ghostStatus(forming()))), { key: 'ghost', label: '潜在方向 · 62%', title: R.ghostStatus(forming()).title });
+  assert.match(R.ghostStatus(growth()).label, /可以加入/);
+  assert.match(R.ghostStatus(forming()).title, /还差 1 篇含这个短语的论文/);
+});
+
+// ---- what a concept is: intro, role, difficulty, the project's papers and a few public ones
+const mapOf = () => ({ concepts: [
+  { id: 'c1', name: 'Crystal basics', terms: ['crystal growth'], hint: 1, state: 'active', intro: '晶体怎样长出来。', intro_by: 'ai' },
+  { id: 'c2', name: 'Epitaxy', terms: ['epitaxy'], hint: 2, state: 'active' },
+  { id: 'c3', name: 'MBE', terms: ['mbe'], hint: 3, state: 'active', intro: 'My own words <b>here</b>.', intro_by: 'user' },
+  { id: 'c4', name: 'Side branch', terms: ['side'], hint: 2, state: 'active', side: true }],
+  prereqs: [{ from: 'c1', to: 'c2', state: 'active' }, { from: 'c2', to: 'c3', state: 'active' }], targets: ['c3'] });
+
+test('every concept has a role and a difficulty in words', () => {
+  const R = load(), g = mapOf();
+  const role = (id) => R.roleOf(g, g.concepts.find((c) => c.id === id));
+  assert.deepEqual(['c1', 'c2', 'c3', 'c4'].map(role), ['entry', 'middle', 'target', 'side']);
+  assert.match(R.ROLE_TEXT.entry, /入口/);
+  assert.deepEqual([1, 2, 3, 4].map((h) => R.HINT_TEXT[h]), ['入门', '基础', '进阶', '前沿']);
+});
+
+test('the detail says what the concept is, who wrote that, its role and its difficulty', () => {
+  const R = load(), g = mapOf();
+  const ai = R.detailHTML(g, g.concepts[0], {});
+  assert.match(ai, /晶体怎样长出来。/);
+  assert.match(ai, /AI 写的/);
+  assert.match(ai, /角色：入口/);
+  assert.match(ai, /难度 1：入门/);
+  const mine = R.detailHTML(g, g.concepts[2], {});
+  assert.match(mine, /你写的/);
+  assert.ok(!mine.includes('<b>here</b>') && mine.includes('&lt;b&gt;here&lt;/b&gt;'));
+  assert.match(mine, /角色：目标/);
+});
+
+test('a concept without an intro says so and offers the two ways to get one', () => {
+  const R = load(), g = mapOf();
+  const html = R.detailHTML(g, g.concepts[1], {});
+  assert.match(html, /还没有简介/);
+  assert.doesNotMatch(html, /AI 写的|你写的/);
+  assert.match(html, /data-concept-papers/);      // where the project's own papers go
+  assert.match(html, /data-concept-examples/);    // where the public ones go
+});
+
+test('the papers of the project that fit a concept are listed with the matched words and only what the reader did', () => {
+  const R = load();
+  const html = R.matchedPapersHTML({ papers: [
+    { key: 'a', title: 'Epitaxial <i>layers</i>', terms: ['epitaxy', 'epitaxial'], feedback: 'useful', familiarity: 'understood' },
+    { key: 'b', title: 'Plain', terms: ['epitaxy'], feedback: null, familiarity: null }], total: 7 });
+  assert.match(html, /你的项目里有 7 篇用到了它的检索词/);
+  assert.match(html, /epitaxy · epitaxial/);
+  assert.match(html, /你点过有用/);
+  assert.match(html, /你点过已读懂/);
+  assert.ok(!html.includes('<i>layers</i>') && html.includes('&lt;i&gt;layers&lt;/i&gt;'));
+  assert.match(html, /另有 5 篇/);
+  assert.equal((html.match(/你点过/g) || []).length, 2);   // the paper nobody marked says nothing about the reader
+});
+
+test('no matching paper is said plainly', () => {
+  const R = load();
+  assert.match(R.matchedPapersHTML({ papers: [], total: 0 }), /还没有论文用到它的检索词/);
+  assert.doesNotMatch(R.matchedPapersHTML({ papers: [], total: 0 }), /落后|没读|不喜欢/);
+});
+
+test('public examples show title, year and a snippet, and an outage is a sentence, not an error', () => {
+  const R = load();
+  const html = R.examplesHTML({ ok: true, examples: [{ title: 'Paper <b>x</b>', year: '2024', source: 'Nature', snippet: 'We show <script>' }] });
+  assert.match(html, /2024/);
+  assert.ok(!html.includes('<b>x</b>') && !html.includes('<script>'));
+  assert.match(R.examplesHTML({ ok: true, examples: [], reason_code: 'none' }), /没有找到/);
+  assert.match(R.examplesHTML({ ok: false, examples: [], reason_code: 'unavailable' }), /暂时连不上/);
+  assert.match(R.examplesHTML({ ok: true, examples: [], reason_code: 'no_terms' }), /没有检索词/);
+});
+
+test('setting an intro marks who wrote it, keeps the author when nothing changed, and clearing removes both', () => {
+  const R = load(), g = mapOf();
+  const ai = R.setIntro(g, 'c2', '这是 AI 的句子', 'ai');
+  assert.deepEqual(JSON.parse(JSON.stringify(ai.concepts[1])), { ...g.concepts[1], intro: '这是 AI 的句子', intro_by: 'ai' });
+  const same = R.setIntro(ai, 'c2', '这是 AI 的句子', 'user');
+  assert.equal(same.concepts[1].intro_by, 'ai');                         // the person saved without touching it: still the model's
+  const edited = R.setIntro(ai, 'c2', '我改了一下', 'user');
+  assert.equal(edited.concepts[1].intro_by, 'user');
+  const cleared = R.setIntro(edited, 'c2', '   ', 'user');
+  assert.ok(!('intro' in cleared.concepts[1]) && !('intro_by' in cleared.concepts[1]));
+  assert.equal(R.setIntro(g, 'c2', 'x'.repeat(300), 'user').concepts[1].intro.length, 90);
+  assert.equal(JSON.stringify(g), JSON.stringify(mapOf()));               // the original is left alone
+});
+
+test('a new concept can carry an intro and keeps it through a rename and a re-draft', () => {
+  const R = load(), g = mapOf();
+  const grown = R.addConcept(g, { name: 'Dreamer', terms: ['dreamer'], hint: 3, intro: 'A method.', intro_by: 'user' }, ['c2']);
+  assert.equal(grown.concepts[grown.concepts.length - 1].intro, 'A method.');
+  const renamed = R.rename(grown, 'c2', 'Epitaxy basics', ['epitaxy']);
+  assert.equal(renamed.concepts[1].name, 'Epitaxy basics');
+  const reused = R.reuseIds(grown, g);
+  assert.equal(reused.concepts.find((c) => c.name === 'Dreamer').intro, 'A method.');
 });

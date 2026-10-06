@@ -106,16 +106,19 @@ class App:
                 "exploration_share": pathgraph.exploration_share(done, len(live))}
 
     def _route_candidates(self, project_id):
-        """(route, ready candidates, how many are only being watched) from what the reader explicitly responded to.
+        """(project_id, revision, route, candidates, explicit): the directions that are forming, from what the reader
+        explicitly responded to, ready ones first.
 
         Evidence for a direction: a paper marked useful, a paper marked understood, a chosen seed. Not interested
         never creates a branch, too hard is difficulty and not direction, and silence is nothing. A frozen
-        profile replays feedback only up to the freeze; undone feedback is gone. Directions already on the map
-        (proposed or active) and the ones the person turned down are left out. Local and deterministic."""
+        profile replays feedback only up to the freeze; undone feedback is gone. A direction is listed from the
+        moment two explicit papers share a phrase the map does not cover (status "watch" until it has enough to
+        be added, "ready" after). Directions already on the map (proposed or active) and the ones the person
+        turned down are left out. `explicit` is the set of papers that count as evidence. Local and deterministic."""
         project_id = self._require_project(project_id)
         revision, route = read_route(self.store.conn, project_id)
         if not route or not route.get("graph"):
-            return project_id, revision, route, [], 0
+            return project_id, revision, route, [], set()
         graph = route["graph"]
         papers = [dict(r) for r in self.store.conn.execute(
             "SELECT p.key, p.title, p.abstract, p.source, p.doi FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
@@ -138,42 +141,92 @@ class App:
         known = {pathgraph._key(c["name"]) for c in graph["concepts"]} | {pathgraph._key(t) for c in graph["concepts"] for t in c.get("terms", [])}
         known |= set(route.get("rejected") or [])
         known.discard("")
-        found = [c for c in pathgrowth.branch_candidates(graph, papers, positive)
+        found = [c for c in pathgrowth.branch_candidates(graph, papers, positive, min_members=2, limit=12)
                  if not ({pathgraph._key(c["name"])} | {pathgraph._key(t) for t in c["terms"]}) & known]
-        return project_id, revision, route, [c for c in found if c["status"] == "ready"], sum(1 for c in found if c["status"] != "ready")
+        found.sort(key=lambda c: (c["status"] != "ready", -c["strength"], c["name"]))   # what can be added comes first
+        return project_id, revision, route, found[:pathgrowth.MAX_CANDIDATES], set(positive)
+
+    def _batch_directions(self, project_id, revision):
+        """The forming directions for the exploration slots, recomputed only when something they depend on changed
+        (the map's revision, the project's papers, any feedback or the freeze); paging through batches reuses it."""
+        conn = self.store.conn
+        freeze = self.store.get_setting(f"profile_freeze_{project_id}") or {}
+        signature = (revision, conn.execute("SELECT COUNT(*) FROM project_papers WHERE project_id=?", (project_id,)).fetchone()[0],
+                     conn.execute("SELECT COALESCE(MAX(id), 0) FROM feedback").fetchone()[0], freeze.get("through_feedback_id"))
+        cache = self.__dict__.setdefault("_direction_cache", {})
+        if cache.get(project_id, (None, None))[0] != signature:
+            try:
+                cache[project_id] = (signature, self._route_candidates(project_id)[3])
+            except (KeyError, TypeError, ValueError):
+                return []
+        return cache[project_id][1]
+
+    CANDIDATE_PARTS = (("S", ("证据量", "Amount of evidence"), ("你明确点过的论文越多越高", "Higher with more papers you marked")),
+                       ("C", ("集中度", "Focus"), ("这些论文的文字越接近越高", "Higher when these papers read alike")),
+                       ("R", ("近期", "Recency"), ("最近有明确反馈的越多越高", "Higher with more recent explicit feedback")),
+                       ("N", ("新颖度", "Novelty"), ("学习图里还没覆盖的部分越多越高", "Higher the less the map already covers")))
 
     def route_candidates(self, project_id=None):
-        """New directions to propose to the person, with the evidence behind each. Nothing is changed or saved."""
-        project_id, revision, route, ready, watching = self._route_candidates(project_id)
+        """The directions that are forming, each with what it has, what it lacks, the papers behind it and where it
+        would sit on the map. Nothing is changed or saved."""
+        project_id, revision, route, found, explicit = self._route_candidates(project_id)
         if not route or not route.get("graph"):
             return {"project_id": project_id, "available": False, "candidates": [], "watching": 0, "revision": revision}
+        en = self.english()
+        say = lambda zh, eng: eng if en else zh
         graph = route["graph"]
         names = {c["id"]: c["name"] for c in graph["concepts"]}
-        titles = {r["key"]: r["title"] for r in self.store.conn.execute(
-            "SELECT p.key, p.title FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))}
-        sources = {r["key"]: str(r["source"] or "").strip().lower() for r in self.store.conn.execute(
-            "SELECT p.key, p.source FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))}
+        rows = {r["key"]: r for r in self.store.conn.execute(
+            "SELECT p.key, p.title, p.source FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))}
+        need = {"papers": pathgrowth.MIN_MEMBERS, "positive": pathgrowth.MIN_POSITIVE, "sources": pathgrowth.MIN_SOURCES, "strength": pathgrowth.MIN_STRENGTH}
         out = []
-        for c in ready:
+        for c in found:
+            have = dict(c["counts"], strength=c["strength"])
+            gates = {k: {"have": have[k], "need": need[k], "ok": have[k] >= need[k]} for k in need}
+            ratios = [min(1.0, have[k] / need[k]) for k in need]
+            progress = 1.0 if c["status"] == "ready" else min(0.97, round(sum(ratios) / len(ratios), 3))
+            missing = []
+            if not gates["papers"]["ok"]:
+                n = need["papers"] - have["papers"]
+                missing.append(say(f"还差 {n} 篇含这个短语的论文", f"{n} more paper{'s' if n != 1 else ''} containing this phrase needed"))
+            if not gates["positive"]["ok"]:
+                n = need["positive"] - have["positive"]
+                missing.append(say(f"还差 {n} 篇你明确点过（有用或已读懂）的论文", f"{n} more paper{'s' if n != 1 else ''} you mark Useful or Understood needed"))
+            if not gates["sources"]["ok"]:
+                n = need["sources"] - have["sources"]
+                missing.append(say(f"还差 {n} 个不同来源", f"{n} more different source{'s' if n != 1 else ''} needed"))
+            if not gates["strength"]["ok"] and all(gates[k]["ok"] for k in ("papers", "positive", "sources")):
+                missing.append(say(f"这些论文的文字还不够集中、证据还不够多（强度 {have['strength']:.2f} / 需要 {need['strength']:.2f}）",
+                                   f"The papers do not read alike enough or the evidence is still thin (strength {have['strength']:.2f} / needs {need['strength']:.2f})"))
             shown = c["positive"] + [k for k in c["papers"] if k not in c["positive"]]
+            needs = [{"id": p["from"], "name": names[p["from"]], "support": p["support"]} for p in c["prereqs"] if p["from"] in names]
+            parent = {"id": c["parent"], "name": names[c["parent"]]} if c.get("parent") in names else None
+            joined = "、".join(n["name"] for n in needs) if not en else ", ".join(n["name"] for n in needs)
+            note = (say(f"加入后：{joined} → 「{c['name']}」", f"If added: {joined} → \"{c['name']}\"") if needs
+                    else say(f"加入后「{c['name']}」会是一个新的入口（没有前置）", f"If added, \"{c['name']}\" would be a new entry point (no prerequisite)"))
+            if parent:
+                note += say(f"；它比「{parent['name']}」更细", f"; it is narrower than \"{parent['name']}\"")
             out.append({"id": c["id"], "name": c["name"], "terms": c["terms"], "status": c["status"], "strength": c["strength"],
-                        "positive": len(c["positive"]), "paper_count": len(c["papers"]),
-                        "sources": len({sources[k] for k in c["papers"] if sources.get(k)}),
-                        "overlap": round(1.0 - c["parts"]["N"], 2),
-                        "papers": [{"key": k, "title": titles.get(k, k)} for k in shown[:8]],
-                        "parent": {"id": c["parent"], "name": names[c["parent"]]} if c.get("parent") in names else None,
-                        "prereqs": [{"id": p["from"], "name": names[p["from"]], "support": p["support"]} for p in c["prereqs"] if p["from"] in names]})
-        return {"project_id": project_id, "available": True, "candidates": out, "watching": watching, "revision": revision}
+                        "positive": len(c["positive"]), "paper_count": len(c["papers"]), "sources": c["counts"]["sources"],
+                        "source_names": c["source_names"], "overlap": round(1.0 - c["parts"]["N"], 2),
+                        "gates": gates, "progress": progress, "missing": missing,
+                        "parts": [{"key": k, "label": say(*label), "hint": say(*hint), "value": c["parts"][k]} for k, label, hint in self.CANDIDATE_PARTS],
+                        "papers": [{"key": k, "title": (rows.get(k) or {"title": k})["title"] or k, "source": (rows.get(k) or {"source": None})["source"],
+                                    "explicit": k in explicit} for k in shown[:8]],
+                        "parent": parent, "prereqs": needs, "topology": {"needs": needs, "parent": parent, "note": note}})
+        return {"project_id": project_id, "available": True, "candidates": out, "watching": sum(1 for c in out if c["status"] != "ready"), "revision": revision}
 
     def route_candidate_accept(self, project_id, candidate_id, revision=None):
         """Add a proposed direction to the map: the person's click is the confirmation. The candidate is looked up
         again now, so one that changed since it was shown is refused instead of added from stale evidence."""
-        project_id, current, route, ready, _ = self._route_candidates(project_id)
+        project_id, current, route, listed, _ = self._route_candidates(project_id)
         if revision is not None and revision != current:
             raise Conflict("Organization revision conflict")   # the map moved on since it was shown: say so before anything else
-        found = next((c for c in ready if c["id"] == candidate_id), None)
+        found = next((c for c in listed if c["id"] == candidate_id), None)
         if not found:
             raise ValueError("这个新方向已经变了或不存在，请重新查找")
+        if found["status"] != "ready":
+            raise ValueError("这个方向的证据还不够，还不能加入")
         merged = pathgrowth.merge_candidate(route["graph"], found)
         for concept in merged["concepts"]:
             if concept.get("candidate") == candidate_id:
@@ -185,12 +238,12 @@ class App:
 
     def route_candidate_reject(self, project_id, candidate_id, revision=None):
         """Turn a proposed direction down for good (undoable); it is not proposed again."""
-        project_id, current, _, ready, _ = self._route_candidates(project_id)
+        project_id, current, _, listed, _ = self._route_candidates(project_id)
         if revision is not None and revision != current:
             raise Conflict("Organization revision conflict")
-        if not any(c["id"] == candidate_id for c in ready):
+        found = next((c for c in listed if c["id"] == candidate_id), None)
+        if not found:
             raise ValueError("这个新方向已经变了或不存在，请重新查找")
-        found = next(c for c in ready if c["id"] == candidate_id)
         terms = [found["name"], *found["terms"]]
         return self._with_undo(project_id, self._route_apply(project_id, {"action": "route-reject", "terms": terms}, revision))
 
@@ -330,7 +383,7 @@ class App:
             code, text = creation.degrade_reason(result, english)
             return {"ok": False, "mode": "local", "reason_code": code, "reason": text, **base}, None
         found = routeplan.parse(result.get("content"))
-        graph, report = pathgraph.normalize(found, allow_foundation=routeplan.allows_foundation(boundary)) if found is not None else (None, None)
+        graph, report = pathgraph.normalize(found, allow_foundation=routeplan.allows_foundation(boundary), intro_by="ai") if found is not None else (None, None)
         if not graph or not graph["concepts"]:
             return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), **base}, None
         report = {**report, "shape": pathgraph.shape(graph)}
@@ -339,6 +392,106 @@ class App:
         return {"ok": True, "mode": "ai", **stored}, stored
 
     PROJECT_PLANS_PER_DAY = 3
+    CONCEPT_INTROS_PER_DAY = 20   # paid attempts at "write this concept's intro" per project per local day
+
+    def _route_concept(self, project_id, concept_id):
+        """(project_id, concept) of a concept that is on the project's stored map, or ValueError. Archived ones are gone."""
+        project_id = self._require_project_id(project_id)
+        _, route = read_route(self.store.conn, project_id)
+        found = next((c for c in ((route or {}).get("graph") or {}).get("concepts", []) if c.get("id") == concept_id and c.get("state", "active") != "archived"), None) \
+            if isinstance(concept_id, str) else None
+        if not found:
+            raise ValueError("概念不存在")
+        return project_id, found
+
+    def route_concept_intro(self, project_id, concept_id, dry_run=False):
+        """Ask the model for one sentence saying what one concept is (operation concept_intro), one explicit click.
+
+        The model sees the concept's name, up to two of its search terms and the start of the project goal, nothing
+        else. The sentence is returned for the page to put in the edit box: nothing is saved, and when the person
+        saves it, it is recorded as the model's (`intro_by` "ai"), apart from sentences they wrote. At most
+        CONCEPT_INTROS_PER_DAY paid attempts per project per local day, reserved before the call and given back
+        when the gateway refused before sending; one call at a time per project."""
+        project_id, concept = self._route_concept(project_id, concept_id)
+        project = self.projects.get_project(project_id)
+        goal = " ".join([project["name"], *(project.get("keywords") or [])[:3]])
+        english = self.english()
+        messages = routeplan.intro_messages(concept["name"], concept.get("terms"), goal, english)   # built before an attempt is reserved
+        key, busy, today = f"concept_intro_{project_id}", f"intro:{project_id}", time.strftime("%Y-%m-%d")
+        with self._ROUTE_LOCK:
+            state = self.store.get_setting(key) or {}
+            attempts = int(state.get("attempts") or 0) if state.get("day") == today else 0
+            if busy in self._ROUTE_BUSY:
+                raise ValueError("正在写简介，请稍候")
+            if attempts >= self.CONCEPT_INTROS_PER_DAY and not dry_run:
+                raise ValueError(f"这个项目今天已经让 AI 写过 {self.CONCEPT_INTROS_PER_DAY} 次简介，请自己写，或明天再试")
+            self._ROUTE_BUSY.add(busy)
+            if not dry_run:
+                self.store.set_setting(key, {"day": today, "attempts": attempts + 1})
+        try:
+            started = time.monotonic()
+            try:
+                result = self.gateway.call("concept_intro", messages, dry_run=dry_run) or {}
+            except Exception as exc:
+                result = {"ok": False, "degraded": True, "reason": str(exc)}
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            if dry_run or not result.get("ok"):
+                code, text = creation.degrade_reason(result, english)
+                refunded = code in self._ROUTE_UNPAID   # refused before anything was sent
+                if refunded and not dry_run:
+                    with self._ROUTE_LOCK:
+                        self.store.set_setting(key, {"day": today, "attempts": attempts})
+                used = attempts + (0 if dry_run or refunded else 1)
+                return {"ok": False, "mode": "local", "reason_code": code, "reason": text, "intro": None, "elapsed_ms": elapsed_ms,
+                        "attempts_left": max(0, self.CONCEPT_INTROS_PER_DAY - used)}
+            used = attempts + 1
+            intro = pathgraph._prose(routeplan.parse_intro(result.get("content")), pathgraph.INTRO_LIMIT)
+            if not intro:
+                return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), "intro": None,
+                        "elapsed_ms": elapsed_ms, "attempts_left": max(0, self.CONCEPT_INTROS_PER_DAY - used)}
+            return {"ok": True, "mode": "ai", "intro": intro, "intro_by": "ai", "tokens": (result.get("usage") or {}).get("total_tokens"),
+                    "elapsed_ms": elapsed_ms, "attempts_left": max(0, self.CONCEPT_INTROS_PER_DAY - used)}
+        finally:
+            with self._ROUTE_LOCK:
+                self._ROUTE_BUSY.discard(busy)
+
+    def route_concept_papers(self, project_id, concept_id, limit=5):
+        """The project's own papers that use this concept's search terms (title hits count double), best first, with
+        the words that matched and what the reader did with each (their explicit label only; no label is not a label).
+        Derived and read-only: nothing is stored."""
+        project_id, concept = self._route_concept(project_id, concept_id)
+        terms = [t for t in concept.get("terms", []) if t]
+        feedback = self.latest_feedback(project_id)
+        scored = []
+        for r in self.store.conn.execute(
+                "SELECT p.key, p.title, p.abstract, p.published FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,)):
+            text, title = f"{r['title'] or ''} {r['abstract'] or ''}", r["title"] or ""
+            hits = [t for t in terms if pathgrowth.term_in_text(text, t)]
+            if hits:
+                scored.append((-(len(hits) + sum(pathgrowth.term_in_text(title, t) for t in hits)), r["key"], dict(r), hits))
+        scored.sort(key=lambda row: (row[0], row[1]))
+        out = []
+        for _, key, row, hits in scored[:limit]:
+            entry = feedback.get(key) or {}
+            out.append({"key": key, "title": row["title"] or key, "published": row["published"], "terms": hits,
+                        "feedback": entry.get("action") if entry.get("action") in INTEREST_ACTIONS else None,
+                        "familiarity": (entry.get("familiar") or {}).get("action")})
+        return {"project_id": project_id, "concept": concept_id, "papers": out, "total": len(scored)}
+
+    def route_concept_examples(self, project_id, concept_id, count=3):
+        """A few public papers about this concept, for someone who does not know what it is: one search with the
+        concept's first search term (public metadata only), shown and not stored."""
+        project_id, concept = self._route_concept(project_id, concept_id)
+        terms = [t for t in concept.get("terms", []) if t]
+        if not terms:
+            return {"ok": True, "examples": [], "reason_code": "no_terms", "concept": concept_id}
+        try:
+            found = self.source.discover_topic(terms[0], per_page=count + 3, prefer_pdf=False)
+        except SourceError as exc:
+            return {"ok": False, "examples": [], "reason_code": exc.kind or "error", "concept": concept_id}
+        examples = [{"title": p.get("title") or "", "year": str(p.get("published") or "")[:4], "source": p.get("source"),
+                     "snippet": " ".join(str(p.get("abstract") or "").split())[:160]} for p in found[:count]]
+        return {"ok": True, "examples": examples, "reason_code": None if examples else "none", "concept": concept_id}
 
     def route_plan_project(self, project_id, goal, dry_run=False, boundary=None):
         """Ask for a concept graph for an existing project (operation learning_path_plan_project, which the owner
@@ -505,15 +658,17 @@ class App:
         self._HOME_ROUTE_CACHE[project_id] = (signature, summary)
         return json.loads(json.dumps(summary))
 
-    def _route_pick(self, route, pool, scored, vectors, limit, batch_index):
+    def _route_pick(self, route, pool, scored, vectors, limit, batch_index, directions=()):
         """Choose a batch from a learning map: [(paper_key, concept_id | None, kind)].
 
         Route slots go to the concepts the reader can read now (unlocked, not yet understood), shared by weight
         (concepts shown less get more; a concept the reader rated low gets half), best paper of a concept first:
         introductions before the rest, then similarity to the profile, then newest. When a concept was marked
         "too hard" one slot goes to an introduction of its prerequisite ("remedial"). A smooth, replayable
-        share of the batch is exploration: the best profile matches outside the frontier. Nothing here looks at
-        silence, and nothing reads the clock.
+        share of the batch is exploration: papers outside the frontier, those of a direction that is forming
+        (`directions`, from _route_candidates) first, then the best profile matches. Every pick is
+        (paper_key, concept_id | None, kind, label | None); an "explore_new" pick carries the direction's phrase as its
+        label. Nothing here looks at silence, and nothing reads the clock.
         """
         graph, prog = route["graph"], route["progress"]
         active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}
@@ -538,10 +693,10 @@ class App:
         explore_slots = pathgraph.exploration_slots(limit, route["done"], route["total"], batch_index)
         chosen, used = [], set()
 
-        def take(key, node, kind):
+        def take(key, node, kind, label=None):
             if key not in used and len(chosen) < limit:
                 used.add(key)
-                chosen.append((key, node, kind))
+                chosen.append((key, node, kind, label))
 
         # One remedial slot: an introduction to the nearest prerequisite of a concept marked too hard. It needs room
         # (a batch of one stays on the route), it is not offered for a prerequisite the reader marked as known, and
@@ -580,11 +735,19 @@ class App:
         # whose route papers ran out is shorter rather than padded with papers from concepts that are still locked.
         on_frontier = set().union(*[set(by_concept[c]) for c in frontier]) if frontier else set()
         rest = ordered_rest = [k for k in ordered([k for k, _ in scored]) if k not in used]
+        toward = {}   # paper -> the direction it belongs to (the first, strongest one)
+        for direction in directions:
+            for key in direction["papers"]:
+                toward.setdefault(key, direction["name"])
+        outside = [k for k in rest if k not in on_frontier]
         explored = 0
-        for key in [k for k in rest if k not in on_frontier]:
+        for key in [k for k in outside if k in toward] + [k for k in outside if k not in toward]:
             if explored >= explore_slots or len(chosen) >= limit:
                 break
-            take(key, assigned.get(key), "explore")
+            if key in toward:
+                take(key, None, "explore_new", toward[key])
+            else:
+                take(key, assigned.get(key), "explore")
             explored += 1
         for cid in frontier:   # an exploration slot with nothing to explore goes back to the route
             for key in [k for k in by_concept[cid] if k not in used]:
@@ -1484,15 +1647,16 @@ class App:
         route = self._route_state(project_id)
         if route and route["frontier"]:
             batch_index = self.store.conn.execute("SELECT COUNT(*) FROM batches WHERE project_id=?", (project_id,)).fetchone()[0]
-            picks = self._route_pick(route, pool, scored, vectors, limit, batch_index)
-            if any(kind in ("route", "remedial") for _, _, kind in picks):
+            directions = self._batch_directions(project_id, route["revision"])   # forming directions: their papers get the exploration slots first
+            picks = self._route_pick(route, pool, scored, vectors, limit, batch_index, directions)
+            if any(kind in ("route", "remedial") for _, _, kind, _ in picks):
                 if len(picks) < limit:
                     shortfall = {**(shortfall or {}), "requested": limit, "available": len(picks), "candidates": len(papers),
                                  "reason": ("The concepts you can read now have no papers you have not been shown; rate the ones you saw, fetch new papers, or mark concepts as known"
                                             if self.english() else "路径上你现在能读的概念暂时没有未展示的论文；可以给已展示的评价、抓取新论文，或把已掌握的概念标出来")}
                 names = {c["id"]: (c["name"], route["layers"][c["id"]]) for c in route["graph"]["concepts"]}
-                batch_id = self.store.create_batch(run_date, [k for k, _, _ in picks], project_id=project_id,
-                                                   route={k: (node, kind) + names.get(node, (None, None)) for k, node, kind in picks})
+                batch_id = self.store.create_batch(run_date, [k for k, _, _, _ in picks], project_id=project_id,
+                                                   route={k: (node, kind) + (names.get(node, (None, None)) if label is None else (label, None)) for k, node, kind, label in picks})
                 return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
             shortfall = {**(shortfall or {}), "requested": limit, "available": 0, "candidates": len(papers),
                          "reason": ("There are no unshown papers for the concepts you can read now, so this is an ordinary batch"

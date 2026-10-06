@@ -580,6 +580,12 @@ class Handler(BaseHTTPRequestHandler):
                     result = app.route_candidate_reject(project_id, body.get("candidate"), revision=revision)
                 elif action == "ground":
                     return self._json({"graph": app.route_ground(body.get("graph"))})
+                elif action == "concept-intro":
+                    return self._json(app.route_concept_intro(project_id, body.get("concept"), dry_run=bool(body.get("dry_run"))))
+                elif action == "concept-papers":
+                    return self._json(app.route_concept_papers(project_id, body.get("concept")))
+                elif action == "concept-examples":
+                    return self._json(app.route_concept_examples(project_id, body.get("concept")))
                 elif action == "plan":
                     return self._json(app.route_plan_project(project_id, body.get("goal"), boundary=body.get("boundary")))
                 else:

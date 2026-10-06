@@ -218,45 +218,66 @@
     },
     "learning_path_plan": {
       "owner_approved": true,
-      "approval_note": "owner 于 2026-10-06 在会话中明确批准把输入上限从 1200 提高到 1400（输出上限不变 900；原话：“AI 起草的输入上限我批准了”）。agent 此前为加入概念类型（type）和可选边界（boundary）登记了这次提高，并在批准前标为未批准，没有自行批准；上限仍是保守字符估算（全中文每字 1.5 token），未用分词器实测。此前的批准记录（上限 1200/900）：owner 于 2026-10-05 在会话中明确批准新增 learning_path_plan 真实调用（显式点“生成学习路径”才发送，每个创建会话首次生成后最多再重新生成 2 次，沿用全局日/月上限与 AI 总开关）；无 key、AI 关闭或超预算时降级为手填路径。",
+      "approval_note": "owner 于 2026-10-06 在会话中明确批准（回答“AI 写简介需要改预算，你要批准哪些？”选择“起草学习图时一起写简介,新增“写这个节点的简介”操作”）：起草时让每个概念带一句简介（intro），输入上限 1400→1460（指令分项 700→760）、输出上限 900→1500（参考输出 700→1100）；上限仍是保守字符估算，未用分词器实测，真实输出长度未测。此前的批准记录：owner 于 2026-10-06 在会话中明确批准把输入上限从 1200 提高到 1400（输出上限不变 900；原话：“AI 起草的输入上限我批准了”）。agent 此前为加入概念类型（type）和可选边界（boundary）登记了这次提高，并在批准前标为未批准，没有自行批准；上限仍是保守字符估算（全中文每字 1.5 token），未用分词器实测。此前的批准记录（上限 1200/900）：owner 于 2026-10-05 在会话中明确批准新增 learning_path_plan 真实调用（显式点“生成学习路径”才发送，每个创建会话首次生成后最多再重新生成 2 次，沿用全局日/月上限与 AI 总开关）；无 key、AI 关闭或超预算时降级为手填路径。",
       "prompt": "prompts/learning-path-plan.md",
       "trigger": "interactive",
       "enabled_by_default": false,
       "reference": {
         "input": 900,
-        "output": 700
+        "output": 1100
       },
       "cap": {
-        "input": 1400,
-        "output": 900
+        "input": 1460,
+        "output": 1500
       },
       "input_cap_components": {
-        "instructions_and_schema": 700,
+        "instructions_and_schema": 760,
         "goal_and_draft": 600,
         "framing_and_margin": 100
       },
-      "scope": "one explicit generation per click inside a project-creation session (1 + 2 paid attempts at most): the research goal (250 characters) and up to five draft keywords (30 characters each) and, only when the person chose them, two enum values (background, depth) only; no other project data, no papers; the reply is a concept graph that is repaired locally and confirmed by the user"
+      "scope": "one explicit generation per click inside a project-creation session (1 + 2 paid attempts at most): the research goal (250 characters) and up to five draft keywords (30 characters each) and, only when the person chose them, two enum values (background, depth) only; no other project data, no papers; the reply is a concept graph (each concept with a one-sentence intro, kept as the model's) that is repaired locally and confirmed by the user"
     },
     "learning_path_plan_project": {
       "owner_approved": true,
-      "approval_note": "owner 于 2026-10-06 在会话中明确批准把输入上限从 1200 提高到 1400（输出上限不变 900；原话：“AI 起草的输入上限我批准了”）。agent 此前为加入概念类型（type）和可选边界（boundary）登记了这次提高，并在批准前标为未批准，没有自行批准；上限仍是保守字符估算（全中文每字 1.5 token），未用分词器实测。此前的批准记录（上限 1200/900）：owner 于 2026-10-05 在会话中明确批准（回答“要批准‘为已有项目起草学习图’这项 AI 调用吗？”选择“批准”）：已有项目的学习图页面显式点“让 AI 起草”时调用一次，只发送用户写的目标（≤250 字）和项目前 5 个关键词，每个项目每个本地日最多 3 次，输入上限 1200、输出上限 900，沿用全局日/月上限与 AI 总开关；结果只是草稿，保存前不改变现有学习图。批准在此之前由 agent 登记为未批准，agent 没有自行批准。",
+      "approval_note": "owner 于 2026-10-06 在会话中明确批准（回答“AI 写简介需要改预算，你要批准哪些？”选择“起草学习图时一起写简介,新增“写这个节点的简介”操作”）：起草时让每个概念带一句简介（intro），输入上限 1400→1460（指令分项 700→760）、输出上限 900→1500（参考输出 700→1100）；上限仍是保守字符估算，未用分词器实测，真实输出长度未测。此前的批准记录：owner 于 2026-10-06 在会话中明确批准把输入上限从 1200 提高到 1400（输出上限不变 900；原话：“AI 起草的输入上限我批准了”）。agent 此前为加入概念类型（type）和可选边界（boundary）登记了这次提高，并在批准前标为未批准，没有自行批准；上限仍是保守字符估算（全中文每字 1.5 token），未用分词器实测。此前的批准记录（上限 1200/900）：owner 于 2026-10-05 在会话中明确批准（回答“要批准‘为已有项目起草学习图’这项 AI 调用吗？”选择“批准”）：已有项目的学习图页面显式点“让 AI 起草”时调用一次，只发送用户写的目标（≤250 字）和项目前 5 个关键词，每个项目每个本地日最多 3 次，输入上限 1200、输出上限 900，沿用全局日/月上限与 AI 总开关；结果只是草稿，保存前不改变现有学习图。批准在此之前由 agent 登记为未批准，agent 没有自行批准。",
       "prompt": "prompts/learning-path-plan-project.md",
       "trigger": "interactive",
       "enabled_by_default": false,
       "reference": {
         "input": 900,
-        "output": 700
+        "output": 1100
       },
       "cap": {
-        "input": 1400,
-        "output": 900
+        "input": 1460,
+        "output": 1500
       },
       "input_cap_components": {
-        "instructions_and_schema": 700,
+        "instructions_and_schema": 760,
         "goal_and_draft": 600,
         "framing_and_margin": 100
       },
-      "scope": "one explicit generation per click on the learning-map page of an existing project, at most 3 paid attempts per project per local day: the research goal the person types (250 characters), the project's first five keywords (30 characters each) and, only when the person chose them, two enum values (background, depth) only; no other project data, no papers; the reply is a concept graph that is repaired locally and only saved when the person clicks save"
+      "scope": "one explicit generation per click on the learning-map page of an existing project, at most 3 paid attempts per project per local day: the research goal the person types (250 characters), the project's first five keywords (30 characters each) and, only when the person chose them, two enum values (background, depth) only; no other project data, no papers; the reply is a concept graph (each concept with a one-sentence intro, kept as the model's) that is repaired locally and only saved when the person clicks save"
+    },
+    "concept_intro": {
+      "owner_approved": true,
+      "approval_note": "owner 于 2026-10-06 在会话中明确批准（回答“AI 写简介需要改预算，你要批准哪些？”选择“起草学习图时一起写简介,新增“写这个节点的简介”操作”）：新增 concept_intro，学习图页选中一个概念后显式点“让 AI 写这个节点的简介”才调用一次，只发送概念名、检索词（至多 2 个）和项目目标的前 100 字，输入上限 500、输出上限 250，每个项目每个本地日最多 20 次，沿用全局日/月上限与 AI 总开关；结果只是提议，填进编辑框，保存前不改变学习图，保存后标明是 AI 写的。上限是保守字符估算，未用分词器实测；真实调用还没有做过。",
+      "prompt": "prompts/concept-intro.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 300,
+        "output": 120
+      },
+      "cap": {
+        "input": 500,
+        "output": 250
+      },
+      "input_cap_components": {
+        "instructions_and_schema": 200,
+        "concept_and_goal": 240,
+        "framing_and_margin": 60
+      },
+      "scope": "one explicit click on one concept of an existing learning map, at most 20 paid attempts per project per local day: the concept's name, up to two search terms and the project name and its first three keywords joined (first 80 characters together; a project has no separate goal field) only; no papers, notes, profile or other concepts; the reply is one sentence that fills the edit box and is saved (marked as the model's) only when the person saves the map"
     }
   },
   "scenarios": [

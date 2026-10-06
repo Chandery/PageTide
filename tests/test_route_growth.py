@@ -239,6 +239,114 @@ class ProposalTests(Fixture):
         self.assertEqual((out["candidates"], out["available"]), ([], False))
 
 
+EARLY = [("t1", "Tactile sensing with gel sensors", "tactile sensing with gel sensors for in-hand slip detection", "arXiv cs.RO"),
+         ("t2", "Gel sensors for tactile sensing", "tactile sensing with gel sensors for in-hand slip detection", "arXiv cs.RO")]
+
+
+class PotentialDirectionTests(Fixture):
+    """A direction that is still forming is shown with what it has and what it lacks, not hidden until it is ready."""
+
+    def add_early(self):
+        for key, title, abstract, source in EARLY:
+            self.app.store.upsert_papers([{"key": key, "title": title, "abstract": abstract, "source": source, "published": "2026-03-01"}], project_id=self.pid)
+        self.say(("t1", "useful"), ("t2", "useful"))
+
+    def find(self, name):
+        # two phrases that cover the same papers are one direction named by either; match on any of its phrases
+        return next((c for c in self.app.route_candidates(self.pid)["candidates"] if name == c["name"] or name in c["terms"]), None)
+
+    def test_a_direction_with_two_explicit_papers_shows_up_early_as_forming(self):
+        self.add_early()
+        c = self.find("tactile sensing")
+        self.assertEqual(c["status"], "watch")
+        self.assertEqual(c["gates"]["papers"], {"have": 2, "need": 3, "ok": False})
+        self.assertEqual(c["gates"]["positive"], {"have": 2, "need": 2, "ok": True})
+        self.assertEqual(c["gates"]["sources"]["have"], 1)
+        self.assertFalse(all(g["ok"] for g in c["gates"].values()))     # a forming direction really lacks something
+        self.assertTrue(c["missing"])
+
+    def test_ready_means_every_shown_gate_is_met_so_the_page_never_says_enough_beside_a_disabled_button(self):
+        self.add_early()
+        self.say(("s1", "useful"), ("s2", "understood"))
+        found = self.app.route_candidates(self.pid)["candidates"]
+        self.assertTrue(found)
+        for c in found:
+            self.assertEqual(c["status"] == "ready", all(g["ok"] for g in c["gates"].values()), c["name"])
+            self.assertEqual(c["status"] == "ready", not c["missing"], c["name"])
+
+    def test_it_says_what_is_missing_in_plain_words(self):
+        self.add_early()
+        missing = " ".join(self.find("tactile sensing")["missing"])
+        self.assertIn("还差 1 篇含这个短语的论文", missing)
+        self.assertIn("还差 1 个不同来源", missing)
+        self.assertNotIn("明确点过", missing)   # that gate is met
+
+    def test_progress_grows_with_evidence_and_is_full_only_when_it_can_be_added(self):
+        self.add_early()
+        early = self.find("tactile sensing")["progress"]
+        self.assertTrue(0 < early < 1)
+        self.say(("s1", "useful"), ("s2", "understood"))
+        ready = self.find("strain relaxation")
+        self.assertEqual((ready["status"], ready["progress"], ready["missing"]), ("ready", 1.0, []))
+        self.assertTrue(all(g["ok"] for g in ready["gates"].values()))
+
+    def test_a_not_ready_direction_never_shows_a_full_bar(self):
+        self.add_early()
+        self.assertLess(self.find("tactile sensing")["progress"], 1.0)
+
+    def test_the_papers_say_which_ones_you_marked(self):
+        self.add_early()
+        self.app.store.upsert_papers([{"key": "t3", "title": "Unrated tactile sensing paper", "abstract": "tactile sensing with gel sensors for in-hand slip detection", "source": "Science Robotics", "published": "2026-03-01"}], project_id=self.pid)
+        c = self.find("tactile sensing")
+        by = {p["key"]: p for p in c["papers"]}
+        self.assertEqual((by["t1"]["explicit"], by["t3"]["explicit"]), (True, False))
+        self.assertTrue(all(p["title"] and "source" in p for p in c["papers"]))
+
+    def test_the_topology_says_where_it_would_sit(self):
+        self.add_early()
+        c = self.find("tactile sensing")
+        self.assertIn("新的入口", c["topology"]["note"])
+        self.assertEqual(c["topology"]["needs"], [])
+        self.say(("s1", "useful"), ("s2", "useful"))
+        self.assertIn("topology", self.find("strain relaxation"))
+
+    def test_a_forming_direction_cannot_be_added_yet(self):
+        self.add_early()
+        c = self.find("tactile sensing")
+        before = self.app.route_get(self.pid)["graph"]
+        with self.assertRaisesRegex(ValueError, "证据还不够"):
+            self.app.route_candidate_accept(self.pid, c["id"])
+        self.assertEqual(self.app.route_get(self.pid)["graph"], before)
+
+    def test_a_forming_direction_can_be_turned_down_like_any_other(self):
+        self.add_early()
+        self.app.route_candidate_reject(self.pid, self.find("tactile sensing")["id"])
+        self.assertIsNone(self.find("tactile sensing"))
+
+    def test_one_explicit_paper_is_still_not_a_direction(self):
+        self.app.store.upsert_papers([{"key": "t1", "title": "Tactile sensing with gel sensors", "abstract": "tactile sensing with gel sensors", "source": "x", "published": "2026-03-01"}], project_id=self.pid)
+        self.say(("t1", "useful"))
+        self.assertIsNone(self.find("tactile sensing"))
+
+    def test_the_parts_are_explained_not_just_numbered(self):
+        self.add_early()
+        parts = {p["key"]: p for p in self.find("tactile sensing")["parts"]}
+        self.assertEqual(set(parts), {"S", "C", "R", "N"})
+        self.assertTrue(all(p["label"] and p["hint"] and 0 <= p["value"] <= 1 for p in parts.values()))
+
+    def test_the_explanations_follow_the_interface_language(self):
+        self.add_early()
+        (self.app.data / "settings.json").write_text(json.dumps({"language": "en-US"}))
+        c = self.find("tactile sensing")
+        self.assertTrue(all(not any("\u4e00" <= ch <= "\u9fff" for ch in text) for text in c["missing"] + [c["topology"]["note"]]))
+        self.assertIn("more paper", " ".join(c["missing"]))
+        self.assertTrue(all(p["label"].isascii() and p["hint"].isascii() for p in c["parts"]))
+
+    def test_at_most_five_are_shown(self):
+        self.add_early()
+        self.assertLessEqual(len(self.app.route_candidates(self.pid)["candidates"]), 5)
+
+
 class HttpTests(Fixture):
     def post(self, port, body):
         request = urllib.request.Request(f"http://127.0.0.1:{port}/api/route", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})

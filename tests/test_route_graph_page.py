@@ -252,3 +252,20 @@ class MapPageStructureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GhostHooksTests(unittest.TestCase):
+    """The map can draw a direction that is only forming: a hook to decorate a node and a dashed arrow state."""
+
+    def test_mount_offers_a_decorate_hook_called_for_every_node(self):
+        js = read("route-graph.js")
+        self.assertIn("decorate(element, concept, node)", js)
+        self.assertIn("if (opts.decorate) opts.decorate(el, concept, n);", js)
+
+    def test_the_ghost_node_and_arrow_have_their_own_look(self):
+        css = read("project-creation.css")
+        self.assertRegex(css, r"\.rg-node\.ghost\s*\{")
+        self.assertRegex(css, r"\.rg-edge\.ghost\s*\{")
+        self.assertRegex(css, r"\.rg-ring-track\s*\{")
+        self.assertRegex(css, r"\.rg-ring-fill\s*\{")
+        self.assertRegex(css, r"\.rg-ring\.is-ready\s+\.rg-ring-fill\s*\{")

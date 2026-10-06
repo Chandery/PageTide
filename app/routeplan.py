@@ -9,8 +9,8 @@ import json
 import re
 
 SYSTEM = ("你是论文学习路径规划助手。列出读懂研究目标所需的概念（最多 12 个），这是依赖图不是课程表，只输出 JSON："
-          "{\"concepts\":[{\"id\":\"\",\"name\":\"\",\"terms\":[\"\",\"\"],\"hint\":1,\"type\":\"\",\"needs\":[]}],\"targets\":[]}。"
-          "name 是技术名词；terms 是 2 个英文检索词；hint 1–4，越大越进阶；type 取 topic/method/problem/foundation；"
+          "{\"concepts\":[{\"id\":\"\",\"name\":\"\",\"terms\":[\"\",\"\"],\"hint\":1,\"type\":\"\",\"intro\":\"\",\"needs\":[]}],\"targets\":[]}。"
+          "name 是技术名词；terms 是 2 个英文检索词；hint 1–4，越大越进阶；type 取 topic/method/problem/foundation；intro 用一句话（≤30 字）说清它是什么；"
           "needs 只写直接前置的 id，须更基础，仅当“不懂 A 就读不懂 B”。互不依赖的方向各自成入口，可有 2–3 个前置，勿串成一线。"
           "targets 是最终目标。从目标领域起步，只列最少前置；boundary 缺省论文阅读；"
           "仅 background=unknown 才可列 foundation（附 why）。不选论文，不调用工具。")
@@ -82,3 +82,38 @@ def _find(value):
             if found is not None:
                 return found
     return None
+
+
+# ---------------------------------------------------------------- one concept's intro (operation concept_intro)
+INTRO_SYSTEM = "你是学习路径助手。用不超过 30 字的一句话，向刚入门的读者说清这个概念是什么。只输出这句话。"
+INTRO_NAME_CHARS = 30      # sized so the worst case (1.5 tokens per character, a heuristic) stays under the registered 500-token input cap
+INTRO_TERM_CHARS = 30
+INTRO_GOAL_CHARS = 80
+
+
+def intro_messages(name, terms, goal, english):
+    """The whole input of the call: the concept's name, up to two of its search terms and the project name and its first
+    keywords (called goal in the message), nothing else (no other concept, no paper, no note)."""
+    body = {"concept": str(name or "")[:INTRO_NAME_CHARS], "terms": [str(t)[:INTRO_TERM_CHARS] for t in (terms or [])[:2]],
+            "goal": str(goal or "")[:INTRO_GOAL_CHARS]}
+    system = INTRO_SYSTEM + (ENGLISH_OUTPUT if english else "")
+    return [{"role": "system", "content": system}, {"role": "user", "content": json.dumps(body, ensure_ascii=False)}]
+
+
+def parse_intro(text):
+    """The sentence in a reply: `{"intro": "..."}`, or the plain sentence (quotes and a leading label removed); '' when
+    there is none."""
+    raw = str(text or "").strip()
+    for match in re.finditer(r"\{", raw):
+        try:
+            value, _ = json.JSONDecoder().raw_decode(raw[match.start():])
+        except (ValueError, RecursionError):
+            continue
+        if isinstance(value, dict):
+            if not isinstance(value.get("intro"), str):
+                return ""      # JSON without an intro is not a sentence to offer
+            raw = value["intro"]
+            break
+    raw = next((line for line in raw.strip().strip("`").strip().splitlines() if line.strip()), "")
+    raw = re.sub(r"^(简介|intro)\s*[:：]\s*", "", raw, flags=re.IGNORECASE).strip().strip("\"'“”‘’「」").strip()
+    return raw

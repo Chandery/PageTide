@@ -154,7 +154,7 @@ def _jaccard(a, b):
     return len(a & b) / len(a | b) if a | b else 0.0
 
 
-def branch_candidates(graph, papers, positive, recent_days=RECENT_ACTIVE_DAYS):
+def branch_candidates(graph, papers, positive, recent_days=RECENT_ACTIVE_DAYS, min_members=MIN_MEMBERS, limit=MAX_CANDIDATES):
     """Proposed new branches from the papers the reader responded to.
 
     papers: every paper of the project [{key, title, abstract, source}].
@@ -164,6 +164,11 @@ def branch_candidates(graph, papers, positive, recent_days=RECENT_ACTIVE_DAYS):
     it. It is `ready` when the gates pass (>= 3 papers, >= 2 positive, >= 2 sources) and
     strength = S * C * (0.5 + 0.5 * R) * N reaches MIN_STRENGTH; otherwise `watch`. Clusters already covered
     by the map (N < MIN_NOVELTY) are not listed. Nothing is merged here.
+
+    `min_members` is how many papers a phrase must be in to be listed at all. It stays MIN_MEMBERS for deciding
+    what can be added; a page that wants to show a direction while it is still forming passes 2, and such a
+    candidate is always "watch" (the papers gate asks for MIN_MEMBERS). `counts` and `source_names` say what
+    each gate has so far.
     """
     by_key = {p["key"]: p for p in papers if p.get("key")}
     pos = sorted(k for k in positive if k in by_key)
@@ -199,8 +204,11 @@ def branch_candidates(graph, papers, positive, recent_days=RECENT_ACTIVE_DAYS):
         for gram in grams[k] & wanted:
             index.setdefault(gram, []).append(k)
     members = {}
-    for gram in phrases:
-        if distinct(index.get(gram, [])) >= MIN_MEMBERS:
+    size = {gram: distinct(index.get(gram, [])) for gram in phrases}
+    # Phrases that already meet the member gate come first, so a looser display threshold (2) cannot crowd a ready
+    # direction out of the MAX_PHRASES cap with alphabetically earlier two-paper phrases.
+    for gram in sorted(phrases, key=lambda g: (size[g] < MIN_MEMBERS, -counts[g], g)):
+        if size[gram] >= min_members:
             members[gram] = index[gram]
         if len(members) >= MAX_PHRASES:
             break
@@ -271,7 +279,8 @@ def branch_candidates(graph, papers, positive, recent_days=RECENT_ACTIVE_DAYS):
         found.append({"id": "g-" + hashlib.sha1("|".join(cluster).encode()).hexdigest()[:10], "name": phrase, "terms": terms,
                       "papers": cluster, "positive": positives_in, "strength": round(strength, 4),
                       "parts": {"S": round(support, 4), "C": round(coherence, 4), "R": round(recency, 4), "N": round(novelty, 4)},
-                      "gates": gates, "status": "ready" if all(gates.values()) and strength >= MIN_STRENGTH else "watch",
+                      "counts": {"papers": n_cluster, "positive": n_positive, "sources": len(sources)}, "source_names": sorted(sources),
+                      "gates": gates, "status": "ready" if all(gates.values()) and round(strength, 4) >= MIN_STRENGTH else "watch",
                       "parent": parent, "prereqs": prereqs, "layer": layer, "_rank": (-len(in_titles), lead)})
 
     # One candidate per set of papers. Phrases whose papers overlap by >= 0.8 describe the same branch: keep the
@@ -287,7 +296,7 @@ def branch_candidates(graph, papers, positive, recent_days=RECENT_ACTIVE_DAYS):
             twin["terms"].append(cand["name"])
     for cand in kept:
         cand.pop("_rank", None)
-    return sorted(kept, key=lambda c: (-c["strength"], c["name"]))[:MAX_CANDIDATES]
+    return sorted(kept, key=lambda c: (-c["strength"], c["name"]))[:limit]
 
 
 def merge_candidate(graph, candidate):

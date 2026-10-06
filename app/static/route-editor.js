@@ -6,6 +6,7 @@
   else root.PDHRoute = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const MAX_NODES = 40;
+  const INTRO_LIMIT = 90;   // the same bound as pathgraph.INTRO_LIMIT
   const MAX_FAN_IN = 3;
   const LABELS = {
     supported: '语料支持这个先后顺序',
@@ -101,7 +102,8 @@
       if (!known[n]) throw new Error('前置概念不存在');
       if (known[n].hint > hint) throw new Error('前置概念必须比依赖它的概念更基础');
     });
-    next.concepts.push({ id, name, terms: terms(item.terms), hint, origin: 'user', state: 'active', side: false });
+    const intro = String(item.intro || '').replace(/\s+/g, ' ').trim().slice(0, INTRO_LIMIT);
+    next.concepts.push({ id, name, terms: terms(item.terms), hint, origin: 'user', state: 'active', side: false, ...(intro ? { intro, intro_by: item.intro_by === 'ai' ? 'ai' : 'user' } : {}) });
     needs.forEach(n => next.prereqs.push({ from: n, to: id, support: null, origin: 'user', state: 'active' }));
     const verdict = check(next);
     if (!verdict.ok) throw new Error(verdict.reason);
@@ -142,14 +144,19 @@
   function reuseIds(draft, saved) {
     const next = copy(draft);
     if (!saved || !Array.isArray(saved.concepts) || !saved.concepts.length) return next;
-    const savedByName = new Map();
-    saved.concepts.forEach(c => { if (!savedByName.has(nameKey(c.name))) savedByName.set(nameKey(c.name), c.id); });
+    const savedByName = new Map(), savedConcept = new Map();
+    saved.concepts.forEach(c => { if (!savedByName.has(nameKey(c.name))) { savedByName.set(nameKey(c.name), c.id); savedConcept.set(c.id, c); } });
     const number = (id) => { const m = /^c(\d+)$/.exec(id); return m ? Number(m[1]) : 0; };
     let top = Math.max(0, ...saved.concepts.map(c => number(c.id)), ...next.concepts.map(c => number(c.id)));
     const taken = new Set(), rename = new Map();
     next.concepts.forEach(c => {
       const wanted = savedByName.get(nameKey(c.name));
-      if (wanted && !taken.has(wanted)) { rename.set(c.id, wanted); taken.add(wanted); }
+      if (wanted && !taken.has(wanted)) {
+        rename.set(c.id, wanted); taken.add(wanted);
+        // A sentence the person wrote about a concept is theirs: a model draft of the same-named concept never replaces it.
+        const old = savedConcept.get(wanted);
+        if (old && old.intro && old.intro_by !== 'ai') { c.intro = old.intro; c.intro_by = old.intro_by || 'user'; }
+      }
     });
     next.concepts.forEach(c => { if (!rename.has(c.id)) rename.set(c.id, `c${++top}`); });
     next.concepts.forEach(c => { c.id = rename.get(c.id); });
@@ -222,6 +229,54 @@
     return { key: p.status, label: STATUS[p.status] || '', title };
   }
 
+  /* What a concept IS, in plain words: its role on the map, how hard it is, one sentence about it (and who wrote it),
+     the project's own papers that use its search terms, a few public papers. Everything from data goes through esc(). */
+  const ROLE_TEXT = { entry: '入口：没有前置，可以直接开始。', middle: '中间概念：要先读懂它的前置，读懂后会解锁后面的概念。', target: '目标：你想学的最终概念。', side: '旁支：和你的目标没有前置关系的一条支线。' };
+  const ROLE_LABEL = { entry: '入口', middle: '中间概念', target: '目标', side: '旁支' };
+  const HINT_TEXT = { 1: '入门', 2: '基础', 3: '进阶', 4: '前沿' };
+
+  function roleOf(g, concept) {
+    if ((g.targets || []).includes(concept.id)) return 'target';
+    if (concept.side) return 'side';
+    const needed = (g.prereqs || []).some((e) => e.to === concept.id && (e.state || 'active') === 'active');
+    return needed ? 'middle' : 'entry';
+  }
+
+  function introHTML(concept, canEdit) {
+    if (!concept.intro) return `<p class="map-note concept-intro is-empty">${canEdit ? '这个概念还没有简介。可以点“编辑”自己写，或让 AI 写一句。' : '这个概念还没有简介。'}</p>`;
+    return `<p class="concept-intro" data-no-i18n>${esc(concept.intro)}</p><div class="badges"><span class="badge">${concept.intro_by === 'ai' ? 'AI 写的' : '你写的'}</span></div>`;
+  }
+
+  const FEEDBACK_TEXT = { useful: '你点过有用', irrelevant: '你点过不相关' };
+  const FAMILIAR_TEXT = { understood: '你点过已读懂', too_hard: '你点过太难' };
+  function matchedPapersHTML(result) {
+    const papers = (result && result.papers) || [], total = Number(result && result.total) || 0;
+    if (!papers.length) return '<h4>你的项目里的论文</h4><p class="map-note">你的项目里还没有论文用到它的检索词。</p>';
+    const rows = papers.map((p) => `<li><span data-no-i18n>${esc(p.title)}</span> <small data-no-i18n>${esc((p.terms || []).join(' · '))}</small>`
+      + [FEEDBACK_TEXT[p.feedback], FAMILIAR_TEXT[p.familiarity]].filter(Boolean).map((t) => ` <em class="mark">${t}</em>`).join('') + '</li>').join('');
+    return `<h4>你的项目里的论文</h4><p class="map-note">你的项目里有 ${total} 篇用到了它的检索词：</p><ul class="concept-list">${rows}</ul>${total > papers.length ? `<p class="map-note">另有 ${total - papers.length} 篇</p>` : ''}`;
+  }
+
+  function examplesHTML(result) {
+    const list = (result && result.examples) || [];
+    if (result && result.ok === false) return `<p class="map-note">${result.reason_code === 'unavailable' || result.reason_code === 'network_error' ? '暂时连不上公开文献库，稍后再试。' : '这次没能读到公开文献。'}</p>`;
+    if (!list.length) return `<p class="map-note">${result && result.reason_code === 'no_terms' ? '这个概念还没有检索词，没法去公开文献里找。' : '公开文献里没有找到。'}</p>`;
+    return '<ul class="concept-list">' + list.map((e) => `<li><span data-no-i18n>${esc(e.title)}</span> <small data-no-i18n>${esc([e.year, e.source].filter(Boolean).join(' · '))}</small>`
+      + (e.snippet ? `<div class="map-note" data-no-i18n>${esc(e.snippet)}</div>` : '') + '</li>').join('') + '</ul>';
+  }
+
+  /* A copy of the map with the concept's intro set. A sentence left as it was keeps its author; a changed one is the
+     person's (or the model's when they put the model's sentence in); an empty one removes the intro and its author. */
+  function setIntro(g, id, text, by) {
+    const next = copy(g), target = next.concepts.find((c) => c.id === id);
+    if (!target) throw new Error('概念不存在');
+    const value = String(text || '').replace(/\s+/g, ' ').trim().slice(0, INTRO_LIMIT);
+    if (!value) { delete target.intro; delete target.intro_by; return next; }
+    if (target.intro !== value) target.intro_by = by === 'ai' ? 'ai' : 'user';
+    target.intro = value;
+    return next;
+  }
+
   /* The information half of the detail panel (the pages add their own buttons). `ctx.progress` is the saved map's
      progress or null; `ctx.mastered` is the creation page's "I already know this" mark. */
   function detailHTML(g, concept, ctx) {
@@ -232,6 +287,9 @@
     const lines = [];
     lines.push(`<h3 data-no-i18n>${esc(concept.name)}</h3>`);
     lines.push((concept.terms || []).length ? `<div class="terms" data-no-i18n>${esc(concept.terms.join(' · '))}</div>` : '<div class="terms">（没有检索词）</div>');
+    lines.push(introHTML(concept, Boolean(ctx && ctx.canEdit)));
+    const level = Math.max(1, Math.min(4, Number(concept.hint) || 2));
+    lines.push(`<div class="terms"><span>角色：${esc(ROLE_LABEL[roleOf(g, concept)])}</span> · <span>难度 ${level}：${esc(HINT_TEXT[level])}</span></div>`);
     if (typeText(concept)) lines.push(`<div class="terms"><span>类型：</span><span>${esc(TYPES[concept.type])}</span>${concept.why ? ` · <span>为什么在这里：</span><span data-no-i18n>${esc(concept.why)}</span>` : ''}</div>`);
     if (p) {
       lines.push(`<div class="badges"><span class="badge st-${esc(p.status)}" title="${esc(p.status === 'locked' ? LOCKED_TITLE : '')}">${esc(STATUS[p.status] || '')}</span>`
@@ -249,6 +307,7 @@
     if (unlocks.length) lines.push(`<div class="needs">读懂它之后可以读：${unlocks.map(n => `<span class="need" data-no-i18n>${esc(n.name)}</span>`).join('、')}</div>`);
     if (p) lines.push(`<div class="counts">${esc(countsText(p))}</div>`);
     if (concept.papers !== undefined) lines.push(`<div class="counts ${concept.grounding === 'ok' ? '' : 'none'}">公开文献里约 ${esc(concept.papers)} 篇</div>`);
+    lines.push('<section class="concept-papers" data-concept-papers></section><section class="concept-examples" data-concept-examples></section>');
     return lines.join('');
   }
 
@@ -282,26 +341,85 @@
     return TYPES[concept.type] + (concept.why ? ' · ' + concept.why : '');
   }
 
-  /* One proposed new direction: what it is called, the evidence behind it (counts and titles), where it would sit.
-     Everything is data from the server and goes through esc(); the two buttons carry the id and nothing else. */
+  /* ---- directions that are forming: shown from the moment two papers you marked share a phrase, with how far they
+     are from being addable. Everything is data from the server and goes through esc(); the buttons carry the id only. */
+  const pct = (v) => Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 100);
+  const GATE_LABEL = { papers: '含这个短语的论文', positive: '你明确点过的论文', sources: '不同来源', strength: '证据强度' };
+  const ready = (c) => c.status === 'ready';
+  const gateText = (g, decimals) => (decimals ? `${(Number(g.have) || 0).toFixed(2)}/${(Number(g.need) || 0).toFixed(2)}` : `${Number(g.have) || 0}/${Number(g.need) || 0}`);
+
   function candidateHTML(c, options) {
     const locked = options && options.locked ? ' disabled title="先保存或放弃对学习图的修改"' : '';
-    const titles = (c.papers || []).slice(0, 5).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('');
-    const where = [];
-    if (c.parent) where.push(`<div class="needs">建议放在：<span class="need" data-no-i18n>${esc(c.parent.name)}</span></div>`);
-    if ((c.prereqs || []).length) where.push(`<div class="needs">建议的前置：${c.prereqs.map((p) => `<span class="need" data-no-i18n>${esc(p.name)}</span>`).join('、')}</div>`);
-    return `<article class="growth-card"><h4 data-no-i18n>${esc(c.name)}</h4>`
-      + `<div class="counts">${esc(c.paper_count)} 篇论文（其中你明确点过 ${esc(c.positive)} 篇）· ${esc(c.sources)} 个来源 · 与现有概念重叠 ${Math.round((Number(c.overlap) || 0) * 100)}%</div>`
-      + `<ul class="growth-papers">${titles}</ul>${where.join('')}`
-      + `<div class="row"><button type="button" class="primary small" data-growth="accept" data-id="${esc(c.id)}"${locked}>加入学习图</button>`
+    const g = c.gates || {};
+    const counts = `论文 ${gateText(g.papers || {})} · 你明确点过 ${gateText(g.positive || {})} · 来源 ${gateText(g.sources || {})}`;
+    const missing = (c.missing || []).length ? `<p class="growth-missing">${c.missing.map((m) => esc(m)).join('；')}</p>` : '';
+    const titles = (c.papers || []).slice(0, 4).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('');
+    const where = c.topology && c.topology.note ? `<p class="growth-where" data-no-i18n>${esc(c.topology.note)}</p>` : '';
+    const accept = ready(c) ? '' : ' disabled title="证据还不够，还不能加入"';
+    return `<article class="growth-card${ready(c) ? ' is-ready' : ''}" data-id="${esc(c.id)}"><header><h4 data-no-i18n>${esc(c.name)}</h4><span class="growth-pill">${ready(c) ? '可以加入' : '还在形成'}</span></header>`
+      + `<div class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></div>`
+      + `<div class="counts">证据 ${pct(c.progress)}% · ${counts}</div>${missing}`
+      + `<ul class="growth-papers">${titles}</ul>${where}`
+      + `<div class="row"><button type="button" class="primary small" data-growth="accept" data-id="${esc(c.id)}"${locked || accept}>加入学习图</button>`
       + `<button type="button" class="ghost small" data-growth="reject" data-id="${esc(c.id)}"${locked}>不再提示</button></div></article>`;
   }
 
-  /* What to say when there is nothing to propose: the truth, never a reason to feel behind. */
+  /* The side panel for one direction: each gate with how far it is, the papers behind it (the ones you marked
+     first), where it would sit, and what the strength is made of in plain words. */
+  function ghostDetailHTML(c, options) {
+    const locked = options && options.locked ? ' disabled title="先保存或放弃对学习图的修改"' : '';
+    const g = c.gates || {};
+    const gates = ['papers', 'positive', 'sources', 'strength'].filter((k) => g[k]).map((k) => {
+      const have = Number(g[k].have) || 0, need = Number(g[k].need) || 1;
+      return `<div class="gate${g[k].ok ? ' is-ok' : ''}"><span>${GATE_LABEL[k]}</span><span class="growth-meter"><i style="width:${pct(have / need)}%"></i></span><b>${gateText(g[k], k === 'strength')}</b></div>`;
+    }).join('');
+    const missing = (c.missing || []).length ? `<ul class="growth-missing">${c.missing.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : '<p class="growth-missing">四项都够了，可以加入。</p>';
+    const papers = (c.papers || []).map((p) => `<li><span data-no-i18n>${esc(p.title)}</span>${p.explicit ? ' <em class="mark">你点过</em>' : ''}${p.source ? ` <small data-no-i18n>${esc(p.source)}</small>` : ''}</li>`).join('');
+    const parts = (c.parts || []).map((p) => `<li><span>${esc(p.label)}</span> <b>${pct(p.value)}%</b> <small>${esc(p.hint)}</small></li>`).join('');
+    const where = c.topology && c.topology.note ? `<p class="growth-where" data-no-i18n>${esc(c.topology.note)}</p>` : '';
+    const accept = ready(c) ? '' : ' disabled title="证据还不够，还不能加入"';
+    return `<h3 data-no-i18n>${esc(c.name)}</h3><div class="badges"><span class="badge">${ready(c) ? '可以加入' : '还在形成'}</span></div>`
+      + `<div class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></div>`
+      + `<div class="gates">${gates}</div>${missing}${where}`
+      + `<h4>哪几篇论文</h4><ul class="growth-papers">${papers}</ul>`
+      + `<h4>强度是怎么来的</h4><ul class="growth-parts">${parts}</ul>`
+      + `<div class="row"><button type="button" class="primary small" data-growth="accept" data-id="${esc(c.id)}"${locked || accept}>加入学习图</button>`
+      + `<button type="button" class="ghost small" data-growth="reject" data-id="${esc(c.id)}"${locked}>不再提示</button></div>`;
+  }
+
+  /* A copy of the map for drawing only: each direction is a ghost node, with dashed arrows from what it would need.
+     The real graph is never touched and a ghost never reuses a real id, so nothing here can be saved by accident. */
+  function ghostGraph(graph, candidates) {
+    const known = new Set((graph.concepts || []).map((c) => c.id));
+    const concepts = [...(graph.concepts || [])], prereqs = [...(graph.prereqs || [])];
+    (candidates || []).forEach((c) => {
+      const id = `ghost:${c.id}`;
+      concepts.push({ id, name: c.name, terms: c.terms || [], hint: 2, state: 'active', side: false, ghost: true, candidate: c });
+      ((c.topology && c.topology.needs) || []).forEach((need) => {
+        if (known.has(need.id)) prereqs.push({ from: need.id, to: id, state: 'active', ghost: true });
+      });
+    });
+    return { ...graph, concepts, prereqs };
+  }
+
+  /* The outline of a ghost node: a dashed track, and over it the share of evidence collected, drawn along the same
+     outline (pathLength 100, so the share is the dash length). Not ready never shows as full; ready is one solid line. */
+  function ringSVG(progress, isReady, w, h) {
+    const share = isReady ? 100 : Math.min(97, Math.round(Math.max(0, Math.min(1, Number(progress) || 0)) * 100));
+    const inset = 1.5, rx = 9, ww = Math.max(1, (Number(w) || 0) - 2 * inset), hh = Math.max(1, (Number(h) || 0) - 2 * inset);
+    const rect = (cls, dash) => `<rect class="${cls}" x="${inset}" y="${inset}" width="${ww}" height="${hh}" rx="${rx}" pathLength="100"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+    return `<svg class="rg-ring${isReady ? ' is-ready' : ''}" viewBox="0 0 ${Number(w) || 0} ${Number(h) || 0}" aria-hidden="true">${rect('rg-ring-track', '2 1.4')}${share > 0 ? rect('rg-ring-fill', isReady ? '' : `${share} ${100 - share}`) : ''}</svg>`;
+  }
+
+  function ghostStatus(c) {
+    return { key: 'ghost', label: ready(c) ? '潜在方向 · 可以加入' : `潜在方向 · ${pct(c.progress)}%`,
+      title: ready(c) ? '一个正在形成的方向，证据够了，可以加入学习图。' : `一个正在形成的方向：${(c.missing || []).join('；') || '证据还不够'}` };
+  }
+
+  /* What to say when no direction has formed yet: the truth, never a reason to feel behind. */
   function growthNote(result) {
     if ((result.candidates || []).length) return '';
-    const watching = Number(result.watching) || 0;
-    return watching ? `暂时没有可以加入的方向；还有 ${watching} 个方向证据不够，继续点“有用”或“已读懂”后再来看。` : '现在没有新的建议。继续读、点“有用”或“已读懂”后再来看。';
+    return '还没有出现潜在方向。当你对论文点“有用”或“已读懂”，并且至少两篇共享一个学习图里没有的短语时，它会出现在这里。';
   }
 
   function countsText(state) {
@@ -325,5 +443,5 @@
     return `已读懂 ${done} / ${total} 个概念 · 探索约占 ${share}%`;
   }
 
-  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, candidateHTML, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateHTML, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });
