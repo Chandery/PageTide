@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-connected-papers-link",
+  "class": "standard",
+  "summary": "Instead of citation edges (decided against by the owner on 2026-10-06), every paper detail pane (Today detail and the library/knowledge-base detail) shows a plain 'Connected Papers' link: the site's search page filled with the paper's arXiv address, else its DOI, else its title. Nothing is requested by the app; the link only opens when clicked, and the label says the app cannot promise the site finds the paper (Connected Papers has no public API, so 'found' cannot be checked without scraping or a new egress).",
+  "tasks": [
+    "GRAPH-01"
+  ],
+  "requirements": [
+    "R-GRAPH",
+    "R-LOCAL",
+    "R-NODEBT"
+  ],
+  "files": [
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/organization.js",
+    "app/static/paper-links.js",
+    "changes/2026-10-06-connected-papers-link.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-06-connected-papers-link-checks.txt",
+    "tests/test_paper_links.cjs",
+    "tests/test_paper_links_ui.py"
+  ],
+  "scope_note": "Branch feature/route-layers, after 2081cd6.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "A link built from the paper's own ids. No model call, no network request from the app, no stored data; the paper's id or title reaches the third-party site only when the person clicks the link.",
+    "before": "no link to a related-papers graph",
+    "after": "a Connected Papers link in the two detail panes",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-connected-papers-link-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-connected-papers-link-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-connected-papers-link-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "browser preview on a seeded copy",
+      "exit_code": 0,
+      "scope": "link present in both detail panes, new tab, query encoded (a markup title stayed text)"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; not launched"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-06-connected-papers-link-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "The link is a search page: whether Connected Papers finds a given paper is not known to the app and not shown. A check through Semantic Scholar (which Connected Papers searches) would be a new network egress and was not built.",
+    "Connected Papers' search address format is from public descriptions, not from its documentation; it was not opened in a real browser tab.",
+    "The paper's arXiv address, DOI or title (public metadata) reaches the third-party site when the person clicks."
+  ]
+}

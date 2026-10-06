@@ -115,6 +115,7 @@
   "已取消收藏": "Unsaved",
   "已收藏到论文库（卡片保留）": "Saved to the library (card kept)",
   "已记录：{0}": "Recorded: {0}",
+  "在 Connected Papers 查看相关论文图（点开后在它的网站上搜索；本应用不会替你访问，也不能保证它找得到）": "See the related-papers graph on Connected Papers (opens its website, where you search; this app does not visit it for you and cannot promise it finds the paper)",
   "先保存或放弃对学习图的修改": "Save or discard your edits to the learning map first",
   "建议放在：": "Suggested under: ",
   "建议的前置：{0}": "Suggested prerequisites: {0}",

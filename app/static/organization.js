@@ -342,6 +342,8 @@
     read.onclick = () => window.PDH.openReader(p.key, p.title); reading.append(read);
     const url = paperURL(p);
     if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开论文'; reading.append(link); }
+    const related = window.PDHLinks?.connectedPapersURL(p);   // a plain link: nothing is requested until the person clicks it
+    if (related) { const link = document.createElement('a'); link.href = related; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'Connected Papers'; link.title = '在 Connected Papers 查看相关论文图（点开后在它的网站上搜索；本应用不会替你访问，也不能保证它找得到）'; reading.append(link); }
     panel.querySelector('.org-detail-categories').after(reading);
     const ai = aiSummaryHTML(summaryFor(p.key));
     if (ai) reading.insertAdjacentHTML('afterend', ai);

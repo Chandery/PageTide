@@ -1235,6 +1235,7 @@ async function openDetail(key) {
           </div>
           <div class="actions-more">
             ${d.url ? `<a class="btn tiny" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
+            ${window.PDHLinks?.connectedPapersURL(d) ? `<a class="btn tiny" href="${esc(window.PDHLinks?.connectedPapersURL(d))}" target="_blank" rel="noreferrer" title="在 Connected Papers 查看相关论文图（点开后在它的网站上搜索；本应用不会替你访问，也不能保证它找得到）">Connected Papers</a>` : ''}
             <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
             <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
             <button class="tiny ${d.feedback?.familiar?.action === 'understood' ? 'saved' : ''}" data-fb="understood" data-key="${esc(d.key)}" title="读懂了：只推进学习进度，不改变兴趣画像">${d.feedback?.familiar?.action === 'understood' ? '✓ 已读懂' : '已读懂'}</button>
@@ -2169,6 +2170,7 @@ document.addEventListener('keydown', (e) => {
 </script>
 <script src="/vendor/cytoscape/cytoscape.min.js"></script>
 <script src="/graph-motion.js"></script>
+<script src="/paper-links.js"></script>
 <script src="/route-detail.js"></script>
 <script src="/organization.js"></script>
 </body>

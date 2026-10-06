@@ -1,0 +1,10 @@
+Checks for changes/2026-10-06-connected-papers-link.json (2026-10-06)
+python3 scripts/budget.py --check: PASS
+python3 scripts/harness.py check: PASS
+python3 -m unittest discover -s tests: Ran 1039 tests, OK
+node --test (each tests/*.cjs): fail 0 in all 11 files
+python3 scripts/i18n_extract.py: 0 of 923 missing
+Browser preview (seeded copy, real server): link in the Today detail pane and the knowledge-base detail pane, target _blank; a title containing markup produced an encoded query and stayed text.
+Desktop build: exit 0, bundle holds paper-links.js; app not launched.
+NOT checked: that connectedpapers.com resolves these search links in a real browser tab.
+Self-review only (small, no model, no storage); no independent review.
