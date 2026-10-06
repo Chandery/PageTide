@@ -4,7 +4,7 @@
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels = {positive:'有用',negative:'不相关',too_hard:'太难',understood:'已读懂',saved:'收藏',exposed:'曝光',seed:'种子',other:'历史状态'};
 const sources = {seed:'种子',useful_feedback:'有用反馈',saved:'收藏'};
-const colors = {positive:'var(--p-positive)',negative:'var(--p-negative)',too_hard:'var(--p-hard)',saved:'var(--p-saved)',exposed:'var(--p-exposed)'};
+const colors = {understood:'var(--p-understood)',positive:'var(--p-positive)',negative:'var(--p-negative)',too_hard:'var(--p-hard)',saved:'var(--p-saved)',exposed:'var(--p-exposed)'};
 const date = t => t ? String(t).slice(0,10) : '暂无记录';
 const empty = text => `<div class="profile-empty">${esc(text)}</div>`;
 const button = (text, attrs='') => `<button type="button" ${attrs}>${text}</button>`;
@@ -65,13 +65,6 @@ function trendHTML(wc) {
   const terms=!wc.comparable ? `<p class="pd-foot">${wc.has_activity ? '上周没有记录' : '本周还没有记录'}，暂不比较词项；这不表示兴趣下降。</p>`
     : `<div class="pd-chips">${(changes.rising||[]).map(t=>chip(t,'up')).join('')}${(changes.falling||[]).map(t=>chip(t,'down')).join('')}</div>${!(changes.rising||[]).length&&!(changes.falling||[]).length?'<p class="pd-foot">词项与上周持平。</p>':''}`;
   return `<div class="pd-pairs"><div class="pd-pair pd-pair-head"><span></span><span class="profile-note">淡色 上周 · 实色 本周（${date(wc.week_start)} 起）</span><span></span></div>${bars}</div>${terms}`;
-}
-function weeklyHTML(report) {
-  if (!report) return empty('暂未加载周报');
-  const cols = ['saved','positive','negative','too_hard','exposed'];
-  const rows = cols.map(k=>`<tr><th scope="row">${labels[k]}</th><td>${button(report.previous_stats[k],evidenceAttrs(k,`data-start="${esc(report.previous_start)}" data-end="${esc(report.week_start)}"`))}</td><td>${button(report.stats[k],evidenceAttrs(k,`data-start="${esc(report.week_start)}" data-end="${esc(report.week_end)}"`))}</td></tr>`).join('');
-  const terms = Object.values(report.keyword_changes).flat();
-  return `<p class="profile-note">按 UTC 自然日统计，右端日期不含当日。上期 ${date(report.previous_start)} 至 ${date(report.week_start)}；本期 ${date(report.week_start)} 至 ${date(report.week_end)}。</p><div class="profile-table-wrap"><table class="profile-table"><thead><tr><th>已记录操作（次）</th><th>上期 7 天</th><th>本期 7 天</th></tr></thead><tbody>${rows}</tbody></table></div>${!report.comparable ? empty('暂无可比较数据：需要两个周期均有活动。没有记录不表示兴趣下降。') : `<h3>相关论文中的词项变化</h3><p class="profile-note">数字为两个周期内收藏或标记有用的去重论文数，不代表兴趣强度。</p>${terms.map(t=>`<div class="profile-feedback-row"><span>${esc(t.term)}</span><span>${button(`${t.previous} → ${t.current}`,evidenceAttrs('term',`data-term="${esc(t.term)}" data-start="${esc(report.week_start)}" data-end="${esc(report.week_end)}"`))}</span></div>`).join('') || empty('暂无词项证据')}`}`;
 }
 function create(root, options) {
   let data, profile, project, pins=[], allTerms=false, history=false, generation=0, request=0, evidenceQuery=null, items=[], dialog=null;
@@ -148,8 +141,8 @@ function create(root, options) {
       else if(b.hasAttribute('data-paper')) {if(dialog)dialog.close();options.openPaper(b.dataset.paper);}
     } catch(error) {b.disabled=false;options.notify(error.message);}
   });
-  return {render, invalidate(){generation++;request++;if(dialog){dialog.close();dialog.remove();dialog=null;}root.innerHTML=empty('正在读取当前项目画像…');}, weekly:weeklyHTML};
+  return {render, invalidate(){generation++;request++;if(dialog){dialog.close();dialog.remove();dialog=null;}root.innerHTML=empty('正在读取当前项目画像…');}};
 }
-global.PDHProfile={create,weeklyHTML,esc,dashboard,kpiHTML,feedbackHTML,activityHTML,trendHTML};
+global.PDHProfile={create,esc,dashboard,kpiHTML,feedbackHTML,activityHTML,trendHTML};
 if (typeof module !== 'undefined') module.exports=global.PDHProfile;
 })(typeof window !== 'undefined' ? window : globalThis);

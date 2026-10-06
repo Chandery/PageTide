@@ -1,0 +1,7 @@
+Checks for changes/2026-10-06-weekly-report.json (2026-10-06)
+python3 -m unittest discover -s tests: Ran 1068 tests, OK
+node --test (each tests/*.cjs): fail 0 in all 11 files
+python3 scripts/budget.py --check: PASS; python3 scripts/harness.py check: PASS; python3 scripts/i18n_extract.py: 0 of 953 missing
+Browser preview (seeded copy, real server): the weekly report draws the headline, five tiles, the day chart, direction cards (new / more, with last-week and this-week bars and the papers behind them), the learning-map section and the picks; the profile page opens and links to the report.
+Mutation check: putting the dangling `weekly: weeklyHTML` reference back into PDHProfile.create makes tests/test_profile_dashboard.cjs fail.
+Desktop build: exit 0, bundle holds weekly-ui.js; app not launched.

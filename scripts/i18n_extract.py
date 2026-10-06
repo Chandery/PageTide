@@ -20,7 +20,7 @@ STATIC = ROOT / "app" / "static"
 PACK = STATIC / "i18n" / "en-US.json"
 # Not UI text: figure-intent.js holds Chinese only inside question-matching regexes.
 FILES = ["index.html", "settings.html", "project_creation.html", "weekly_report.html",
-         "organization.js", "profile-ui.js", "project-switcher.js", "project-creation.js", "route-editor.js", "route-detail.js", "route-graph.js", "route.html", "route-page.js", "project.html", "project-page.js"]
+         "organization.js", "profile-ui.js", "project-switcher.js", "project-creation.js", "route-editor.js", "route-detail.js", "weekly-ui.js", "route-graph.js", "route.html", "route-page.js", "project.html", "project-page.js"]
 CJK = re.compile(r"[㐀-鿿！-～　-〿]")
 HAN = re.compile(r"[㐀-鿿]")
 TAG = re.compile(r"<[^<>]*>")

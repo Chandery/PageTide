@@ -102,3 +102,11 @@ test('KPI markup escapes nothing unsafe and keeps the evidence action', () => {
   const hostile = P.trendHTML({ ...insights().weekly_change, comparable: true, keyword_changes: { rising: [{ term: '<img src=x>', delta: 2 }], falling: [] } });
   assert.doesNotMatch(hostile, /<img/);
 });
+
+test('the profile page object can be created: nothing it returns refers to a removed helper', () => {
+  const P = load();
+  const root = { innerHTML: '', querySelectorAll: () => [], addEventListener() {}, querySelector: () => null };
+  const page = P.create(root, { api: async () => ({}), refresh() {}, openPaper() {}, notify() {} });
+  assert.equal(typeof page.render, 'function');
+  assert.equal(typeof page.invalidate, 'function');
+});
