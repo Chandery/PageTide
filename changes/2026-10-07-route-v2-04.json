@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-04",
+  "class": "critical",
+  "summary": "Bound three-purpose Route queries, persistent rotation/paging and temporary provenance; prevent strategy/layout/interest/capacity stalls and cross-process overwrite, retain seed identities and truthful refresh status.",
+  "tasks": [
+    "ROUTE-V2-04"
+  ],
+  "files": [
+    "app/cli.py",
+    "app/db.py",
+    "app/project.py",
+    "app/route_recall.py",
+    "app/service.py",
+    "app/sources.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "changes/2026-10-07-route-v2-04.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0016-bounded-route-recall.md",
+    "docs/evidence/2026-10-07-route-v2-04-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-04-review.md",
+    "harness/evaluations.json",
+    "harness/tasks.json",
+    "scripts/verify_packaged_route.py",
+    "tests/test_openalex_discovery.py",
+    "tests/test_refresh_status.cjs",
+    "tests/test_route_recall.py",
+    "tests/test_route_runtime.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "No model operation or expanded private-data sharing. Route keeps at most3 logical queries, each existing strict/fallback requests and two-attempt HTTP cap; no application retry. Local deterministic planning/SQLite only. Daily core minimum remains0 model tokens.",
+    "before": "62aa5e6: approved model operations/budgets unchanged; at most3 Route topic queries.",
+    "after": "Same approved model operations/budgets/scope, maximum3 themes. New query roles/rotation/provenance add0 model tokens; live source/resource cost unmeasured.",
+    "developer_usage": "unknown; project ledger does not measure coding-agent consumption"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    },
+    {
+      "command": "PYTHONPATH=tests python3 -m unittest test_route_recall test_route_runtime test_openalex_discovery test_project_chain test_maintenance test_candidate_quality -q",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementing agent",
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic",
+      "evidence": "docs/evidence/2026-10-07-route-v2-04-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Stages05-08 incomplete: batch3+1+1, daily completed cap, growth, structured revisions, two views and native fullflow.",
+    "Offline source/cache fixtures do not establish real recall usefulness, fulltext language accuracy or large-library/8GB resources.",
+    "AI expanded operations/scope remain unapproved; no live models/tokenizer/billing calibration; original release gates unchanged."
+  ]
+}

@@ -127,14 +127,14 @@ class RefreshTests(Fixture):
     def test_without_a_map_the_project_keywords_are_searched_as_before(self):
         self.assertEqual([q[0] for q in self.queries()], ["crystal growth"])
 
-    def test_with_a_map_the_unlocked_concepts_are_searched_not_the_keywords(self):
+    def test_with_a_map_frontier_and_discovery_share_the_three_query_plan(self):
         self.enable()
         asked = self.queries()
-        self.assertEqual([q[0] for q in asked], ["crystal lattice"])   # only the entry concept is unlocked
+        self.assertEqual([q[0] for q in asked], ["crystal lattice", "crystal growth", "dislocation"])
 
     def test_after_a_concept_is_understood_its_dependents_are_searched_in_frontier_order(self):
         self.enable(mastered=["Crystal basics"])
-        self.assertEqual([q[0] for q in self.queries()], ["epitaxy", "dopant"])
+        self.assertEqual([q[0] for q in self.queries()], ["epitaxy", "crystal growth", "dopant"])
 
     def test_at_most_three_concepts_are_searched(self):
         plan = {"concepts": [{"id": f"x{i}", "name": f"Topic {i}", "terms": [f"topic{i}"], "hint": 1, "needs": []} for i in range(6)]}
@@ -147,16 +147,18 @@ class RefreshTests(Fixture):
         self.assertEqual(order, "relevance")
         self.assertEqual(from_date, sources.window_start(10))
 
-    def test_when_everything_is_understood_the_keywords_are_used_again(self):
+    def test_completed_goal_keeps_discovery_queries_instead_of_ordinary_fallback(self):
         self.enable(mastered=["Crystal basics", "Epitaxy", "Doping", "Defects"])
-        self.assertEqual([q[0] for q in self.queries()], ["crystal growth"])
+        asked = self.queries()
+        self.assertEqual([q[0] for q in asked], ["crystal growth", "dislocation", "defects"])
+        self.assertTrue(all(q[1] == 'recent' for q in asked))
 
     def test_a_route_that_is_switched_off_is_ignored(self):
         self.enable()
         self.app.route_mode(self.pid, "off")
         self.assertEqual([q[0] for q in self.queries()], ["crystal growth"])
 
-    def test_a_failed_concept_search_is_reported_and_the_others_continue(self):
+    def test_a_hot_failure_is_reported_and_stops_remaining_queries(self):
         self.enable(mastered=["Crystal basics"])
 
         def fake(query, **k):
@@ -165,8 +167,9 @@ class RefreshTests(Fixture):
             return [sources.slim({"id": "https://openalex.org/W9", "title": "Dopant paper", "doi": "", "ids": {}}, group="field")]
         with mock.patch.object(self.app.source, "discover_topic", side_effect=fake):
             result = self.app.refresh_candidates(project_id=self.pid)
-        self.assertEqual(result["field"], 1)
+        self.assertEqual(result["field"], 0)
         self.assertEqual(result["errors"][0]["query"], "epitaxy")
+        self.assertTrue(all(e['kind']=='skipped' for e in result['errors'][1:]))
 
 
 class BatchTests(Fixture):
@@ -524,7 +527,7 @@ class ReviewFixTests(Fixture):
 
 
 class RefreshPagingTests(Fixture):
-    def test_refresh_asks_for_the_next_page_once_a_concepts_papers_are_all_in_the_project(self):
+    def test_local_matching_paper_count_does_not_skip_unfetched_source_pages(self):
         self.enable()
         for i in range(50):
             self.paper(f"lat{i}", f"Crystal lattice study {i}", "lattice")
@@ -535,14 +538,15 @@ class RefreshPagingTests(Fixture):
             return []
         with mock.patch.object(self.app.source, "discover_topic", side_effect=fake):
             self.app.refresh_candidates(project_id=self.pid)
-        self.assertEqual(seen, [("crystal lattice", 2)])
+        self.assertEqual(seen[0], ("crystal lattice", 1))
+        self.assertLessEqual(len(seen), 3)
 
     def test_the_first_refresh_asks_for_page_one(self):
         self.enable()
         seen = []
         with mock.patch.object(self.app.source, "discover_topic", side_effect=lambda q, **kw: seen.append(kw.get("page")) or []):
             self.app.refresh_candidates(project_id=self.pid)
-        self.assertEqual(seen, [1])
+        self.assertEqual(seen, [1, 1, 1])
 
 
 class DiscoverPageTests(unittest.TestCase):

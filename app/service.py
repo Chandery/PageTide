@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, eligibility, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan
+from . import creation, eligibility, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan, route_recall
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -813,7 +813,7 @@ class App:
             edge["support_label"] = pathgrowth.support_label(edge["support"])
         return graph
 
-    ROUTE_QUERIES = 3
+    ROUTE_QUERIES = route_recall.MAX_THEMES
 
     def _route_names(self, project_id):
         """{concept_id: (name, layer)} for labelling cards; empty when the project has no map."""
@@ -846,27 +846,99 @@ class App:
             return None
         return state if state.get("enabled") and state.get("graph") else None
 
-    def _route_search_terms(self, route):
-        """The first search term of up to three concepts the reader can read now (the frontier)."""
-        by_id = {c["id"]: c for c in route["graph"]["concepts"]}
-        terms = []
-        for cid in route["frontier"]:
-            if by_id[cid].get("terms"):
-                terms.append(by_id[cid]["terms"][0])
-            if len(terms) >= self.ROUTE_QUERIES:
-                break
-        return terms
+    def _route_recall_interest(self, project_id):
+        """Bounded public metadata terms from explicit usefulness/chosen seeds.
 
-    def _route_pages(self, project_id, route, terms, page_size=50):
-        """Which result page to ask OpenAlex for, per search term: once all the papers of a concept's current page are in
-        the project the next page is wanted, otherwise a refresh would return the same results forever."""
-        by_term = {c["terms"][0]: c["id"] for c in route["graph"]["concepts"] if c.get("terms")}
-        papers = [dict(r) for r in self.store.conn.execute(
-            "SELECT p.key, p.title, p.abstract FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
-        counts = {}
-        for ids in pathgrowth.assign(route["graph"], papers).values():
-            counts[ids[0]] = counts.get(ids[0], 0) + 1
-        return {term: 1 + counts.get(by_term.get(term), 0) // page_size for term in terms}
+        Merely imported, saved, understood or exposed papers never declare an
+        interest. Only topic/title terms travel to the public source, no IDs,
+        notes, profile records or local full text.
+        """
+        freeze = self.store.get_setting(f"profile_freeze_{project_id}")
+        feedback = self.latest_feedback(project_id, freeze.get("through_feedback_id") if freeze else None)
+        positive = {k for k, v in feedback.items() if v["action"] == "useful"}
+        positive.update(k for k in self.seed_keys(project_id) if feedback.get(k, {}).get("action") not in INTEREST_ACTIONS)
+        keys = sorted(positive, key=lambda k: (-feedback.get(k, {}).get('id', 0), k))[:32]
+        if not keys: return []
+        rows = list(self.store.conn.execute("SELECT p.key,p.title,p.topic FROM papers p JOIN project_papers pp ON pp.paper_key=p.key WHERE pp.project_id=? AND p.key IN (" + ','.join('?' for _ in keys) + ")", (project_id, *keys)))
+        rows.sort(key=lambda r: keys.index(r['key']))
+        topics, counts = [], defaultdict(int)
+        for row in rows:
+            topic = str(row["topic"] or "").strip()[:80]
+            words = ranking.words(str(row["title"] or "")[:250])
+            cue = topic or ' '.join(words[:2])
+            if cue and cue not in topics: topics.append(cue)
+            terms = [' '.join(words[i:i+2]) for i in range(max(0, len(words)-1))]
+            terms += ranking.cjk_tokens(str(row["title"] or "")[:250])
+            for term in set(terms): counts[term] += 1
+        return list(dict.fromkeys(topics + sorted(counts, key=lambda t: (-counts[t], t))))[:6]
+
+    def _route_recall_plan(self, project_id, route, state=None, from_date=None, per_page=50):
+        project = self.projects.get_project(project_id)
+        return route_recall.plan(route, self._project_keywords(project_id), self._route_recall_interest(project_id), state,
+            language_revision=project['language_policy']['revision'], per_page=per_page,
+            basic_since=window_start(CREATION_WINDOW_YEARS), recent_since=from_date or window_start(FEED_WINDOW_YEARS),
+            to_date=datetime.now().date().isoformat(),
+            window_policy={'basic_years': CREATION_WINDOW_YEARS,
+                           'recent_since': from_date, 'recent_years': None if from_date else FEED_WINDOW_YEARS})
+
+    def route_recall_sources(self, project_id):
+        """Current local explanation only; does not fetch or affect categories."""
+        route = self._route_state(project_id)
+        if not route: return {}
+        state = self.store.get_setting('route_recall_' + project_id) or {}
+        if not isinstance(state, dict): state = {}
+        config = state.get('configuration') if isinstance(state.get('configuration'), dict) else {}
+        planned = self._route_recall_plan(project_id, route, from_date=config.get('from_date'), per_page=config.get('per_page', 50))
+        return route_recall.live_sources(state, planned['signature'], time.time())
+
+    _RECALL_LOCK = threading.Lock()
+    _RECALL_BUSY = set()
+
+    def _refresh_route_candidates(self, project_id, route, from_date, per_page):
+        scope = (str(self.data.resolve()), project_id)
+        with self._RECALL_LOCK:
+            if scope in self._RECALL_BUSY:
+                return {'fetched': 0, 'added': 0, 'field': 0, 'errors': [{'kind': 'busy', 'error': 'Route refresh is already running'}], 'reason_code': 'refresh_running'}
+            self._RECALL_BUSY.add(scope)
+        try:
+            state = self.store.get_setting('route_recall_' + project_id) or {}
+            planned = self._route_recall_plan(project_id, route, state, from_date, per_page)
+            results, papers, errors, stop = [], {}, [], False
+            for query in planned['queries']:
+                if stop:
+                    errors.append({'query': query['query'], 'kind': 'skipped', 'error': 'Stopped after source outage'})
+                    continue
+                try:
+                    found = self.source.discover_topic(query['query'], **{k: query[k] for k in ('order', 'from_date', 'to_date', 'per_page', 'page')})[:query['per_page']]
+                except SourceError as exc:
+                    errors.append({'query': query['query'], 'kind': exc.kind, 'error': str(exc)[-120:]})
+                    stop = exc.kind in ('unavailable', 'network_error')
+                    continue
+                results.append((query, found))
+                for paper in found:
+                    papers.setdefault(paper['key'], {**paper, 'project_id': project_id})
+            with self.store._lock:
+                self.store.conn.execute('BEGIN IMMEDIATE')
+                try:
+                    current = self._route_state(project_id)
+                    stored = self.store.get_setting('route_recall_' + project_id) or {}
+                    if not current or stored != state or self._route_recall_plan(project_id, current, from_date=from_date, per_page=per_page)['signature'] != planned['signature']:
+                        self.store.conn.rollback()
+                        return {'fetched': 0, 'added': 0, 'field': 0, 'errors': [{'kind': 'changed', 'error': 'Route recall inputs changed; refresh again'}], 'reason_code': 'route_recall_changed'}
+                    added = self.store.upsert_papers(list(papers.values()), project_id=project_id, commit=False)
+                    updated = route_recall.record(planned, state, results, time.time())
+                    updated['configuration'] = {'from_date': from_date, 'per_page': max(1, min(50, int(per_page)))}
+                    self.store.conn.execute('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                        ('route_recall_' + project_id, json.dumps(updated, ensure_ascii=False)))
+                    self.store.conn.commit()
+                except Exception:
+                    self.store.conn.rollback()
+                    raise
+            return {'fetched': len(papers), 'added': added, 'field': len(papers), 'errors': errors,
+                    'query_plan': planned['queries'], 'recall_signature': planned['signature']}
+        finally:
+            with self._RECALL_LOCK:
+                self._RECALL_BUSY.discard(scope)
 
     _HOME_ROUTE_CACHE = {}
 
@@ -1801,29 +1873,28 @@ class App:
 
     def refresh_candidates(self, search=None, from_date=None, pages=1, per_page=100,
                            include_distractors=False, distractor_per_query=20, project_id=None):
-        """Fast by default. A project with keywords searches those (at most three, one request each);
+        """Fast by default. A project uses at most three logical topic queries;
+        each keeps the source's bounded strict/fallback requests. Route shares
+        these turns across paths, exploration and explicit watched updates.
         the default project, or an explicit `search`, keeps the DATA-01 arXiv "world model" recipe.
         Distractors are opt-in (five more calls)."""
         if not project_id:
             project_id = self.get_default_project_id()
-        from_date = from_date or window_start(FEED_WINDOW_YEARS)
-
         errors = []
         route = None if search else self._route_state(project_id)
-        route_terms = [] if not route else self._route_search_terms(route)
-        route_pages = self._route_pages(project_id, route, route_terms) if route_terms else {}
-        keywords = [] if search else (route_terms or self._project_keywords(project_id)[:3])
+        if route:
+            if include_distractors:
+                raise ValueError('Route refresh is limited to three themes; turn Route off for distractor experiments')
+            return self._refresh_route_candidates(project_id, route, from_date, per_page)
+        from_date = from_date or window_start(FEED_WINDOW_YEARS)
+        keywords = [] if search else self._project_keywords(project_id)[:3]
         field = []
         if keywords:
             seen = set()
             for keyword in keywords:
                 try:
-                    if route_terms:   # concepts of a learning map: the basics matter more than the newest paper
-                        found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="relevance",
-                                                           from_date=window_start(CREATION_WINDOW_YEARS), page=route_pages.get(keyword, 1))
-                    else:
-                        found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="recent",
-                                                           from_date=from_date)
+                    found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="recent",
+                                                       from_date=from_date)
                 except SourceError as exc:
                     errors.append({"query": keyword, "kind": exc.kind, "error": str(exc)[-120:]})
                     continue

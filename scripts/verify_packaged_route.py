@@ -1,7 +1,8 @@
 """Verify the freshly built backend against disposable language/quality fixtures.
 
 Usage: python3 scripts/verify_packaged_route.py <bundled-backend-executable>
-No provider calls, candidate refresh or real library access. This is a backend
+No provider calls, live source requests or real library access. Cached public
+metadata fixtures exercise candidate refresh. This is a backend
 package check, not a native-window or recommendation-value evaluation.
 """
 import hashlib
@@ -13,16 +14,22 @@ import select
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app.service import App
+from app import route_recall
 
 
 def launch(executable, data, home, check):
-    env = dict(os.environ, HOME=str(home), PAPERDIGHELPER_DATA=str(data), DEEPSEEK_API_KEY='', PDH_DEV='0')
+    env = dict(os.environ, HOME=str(home), PAPERDIGHELPER_DATA=str(data), DEEPSEEK_API_KEY='', PDH_DEV='0',
+               http_proxy='http://127.0.0.1:9', https_proxy='http://127.0.0.1:9',
+               HTTP_PROXY='http://127.0.0.1:9', HTTPS_PROXY='http://127.0.0.1:9',
+               NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
     with tempfile.TemporaryFile(mode='w+') as errors:
         process = subprocess.Popen([str(executable)], cwd=ROOT, env=env, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=errors, text=True)
@@ -66,6 +73,31 @@ def main():
         pid=app.create_project('Quality fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         pending=app.create_project('Legacy pending')['project_id']
         route_pid=app.create_project('Goal fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        recall_pid=app.create_project('Recall fixture',keywords=['recall topic'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        recall=app.route_save(recall_pid,plan={'concepts':[
+            {'id':'a','name':'Recall foundations','terms':['recall foundations'],'hint':1,'needs':[]},
+            {'id':'b','name':'Recall methods','terms':['recall methods'],'hint':2,'needs':['a']},
+            {'id':'c','name':'Recall evaluation','terms':['recall evaluation'],'hint':2,'needs':['a']}], 'targets':['b','c']})
+        recall_ids={c['name']:c['id'] for c in recall['graph']['concepts']}
+        app.route_manual(recall_pid,recall_ids['Recall foundations'],'mastered')
+        app.route_watch(recall_pid,recall_ids['Recall foundations'],True)
+        # Populate every URL required by three future refreshes. The frozen
+        # backend must read these fixtures; its outbound proxy cannot go live.
+        def cached_fixture(url, **kwargs):
+            digest=hashlib.sha256(url.encode()).hexdigest()[:16]
+            number=int(digest[:8],16)
+            payload={'results':[{'id':f'https://openalex.org/W{number}{i:02d}',
+                'title':f'Recall public study {number} {i}', 'publication_date':'2026-01-01',
+                'language':'en','ids':{}} for i in range(50)]}
+            (app.source.cache/(digest+'.json')).write_text(json.dumps(payload))
+            return payload
+        recall_state={}; recall_plans=[]
+        with mock.patch.object(app.source,'_fetch',side_effect=cached_fixture):
+            for _ in range(3):
+                planned=app._route_recall_plan(recall_pid,app.route_get(recall_pid),recall_state)
+                fetched=[(q,app.source.discover_topic(q['query'],**{k:q[k] for k in ('order','from_date','to_date','per_page','page')})) for q in planned['queries']]
+                recall_plans.append(planned['queries'])
+                recall_state=route_recall.record(planned,recall_state,fetched,time.time())
         papers=[{'key':key,'title':'Model study '+key,'abstract':abstract,'language':lang,'published':'2026-01-01'}
                 for key,lang,abstract in [('en','en','Useful model learning abstract'),('zh','zh','有效中文论文摘要'),
                     ('unknown',None,'An English abstract is not a language report'),('link','en',''),('body','en','')]]
@@ -83,7 +115,17 @@ def main():
             version=hashlib.sha256(content).hexdigest();app.store.record_pdf(key,path,sha256=version)
             app.save_fulltext(key,pages,source_pdf_sha256=version)
         app.store.close()
+        def refresh(call, expected):
+            job=call('/api/refresh',{'project_id':recall_pid})
+            deadline=time.monotonic()+15
+            while job['state']=='running' and time.monotonic()<deadline:
+                time.sleep(.05); job=call('/api/jobs/'+job['id'])
+            assert job['state']=='done',job
+            result=job['result']
+            assert result['errors']==[],result
+            assert result['fetched']>0 and result['query_plan']==expected,result
         def first(call):
+            refresh(call,recall_plans[0])
             assert 'const languages' in call('/paper-policy.js',raw=True)
             assert 'getData' in call('/reader-source.js',raw=True)
             blocked=call('/api/daily',{'project_id':pending})
@@ -123,6 +165,8 @@ def main():
             assert 'data-route-watch' in call('/route-editor.js',raw=True)
         launch(executable,data,home,first)
         def restart(call):
+            refresh(call,recall_plans[1])
+            refresh(call,recall_plans[2])
             projects=call('/api/projects')['projects']; project=next(p for p in projects if p['id']==pid)
             assert project['language_policy']['discipline']=='humanities'
             assert project['language_policy']['allowed_languages']==['zh']
@@ -134,7 +178,15 @@ def main():
         launch(executable,data,home,restart)
         assert marker.read_bytes()==b'untouched default library'
         assert not (home/'Library/Application Support/PaperDigHelper').exists()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, assets, isolated HOME')
+        inspected=App(data_dir=data)
+        try:
+            provenance=inspected.route_recall_sources(recall_pid)
+            assert provenance and len(provenance)<=route_recall.MAX_SOURCE_PAPERS
+            assert all(len(v)<=route_recall.MAX_PAPER_SOURCES for v in provenance.values())
+            assert any(e['page']==2 for entries in provenance.values() for e in entries)
+        finally:
+            inspected.store.close()
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, cached three-purpose refresh, rotation/paging/provenance after restart, assets, isolated HOME, outbound network blocked')
 
 
 if __name__=='__main__': main()

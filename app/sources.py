@@ -259,7 +259,7 @@ class OpenAlex:
         English phrases are matched against title AND abstract (every word must appear), in any source
         (journals as well as arXiv). order="relevance" ranks those matches by OpenAlex relevance (project
         creation: the user is choosing); order="recent" sorts them newest first (the daily feed). When fewer
-        than STRICT_MIN_RESULTS match, OpenAlex's relevance search tops them up. A phrase containing Chinese
+        than STRICT_MIN_RESULTS match, a broader search tops them up, still date-sorted for recent order. A phrase containing Chinese
         goes straight to relevance search, since title matching on an English-titled index finds nothing.
         Each paper carries match_mode ("strict" or "relevance"). No date bound unless asked.
         """
@@ -295,9 +295,11 @@ class OpenAlex:
             params = {"search": text, "filter": ",".join(base), "per-page": per_page, "mailto": MAILTO}
             if page > 1:
                 params["page"] = int(page)
-            if order == "recent" and has_cjk(text):
+            if order == "recent":
                 params["sort"] = "publication_date:desc"
             add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "relevance")
+        if order == "recent":
+            papers.sort(key=lambda p: str(p.get('published') or ''), reverse=True)
         if prefer_pdf and order == "relevance":
             papers = _prefer_direct(papers)
         return papers[:per_page]

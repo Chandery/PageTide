@@ -40,8 +40,10 @@ def main(argv=None):
     refresh = sub.add_parser("refresh")
     refresh.add_argument("--pages", type=int, default=1)
     refresh.add_argument("--per-page", type=int, default=100)
-    refresh.add_argument("--from-date", default="2024-01-01")
+    refresh.add_argument("--from-date", default=None)
     refresh.add_argument("--no-distractors", dest="distractors", action="store_false")
+    refresh.add_argument("--distractors", dest="distractors", action="store_true", help="opt-in experiment; turn Route off first")
+    refresh.set_defaults(distractors=False)
 
     daily = sub.add_parser("daily")
     daily.add_argument("--limit", type=int, default=5)

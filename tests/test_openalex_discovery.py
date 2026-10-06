@@ -109,6 +109,14 @@ class DiscoverTopicTests(unittest.TestCase):
         self.assertEqual([p["match_mode"] for p in papers], ["strict", "relevance", "relevance"])
         self.assertEqual(len(router.urls), 2)
 
+    def test_recent_fallback_uses_date_order_and_combines_results_globally(self):
+        router = Router([('title_and_abstract.search:', [work(1, publication_date='2020-01-01')]),
+                         ('search=epitaxy', [work(2, publication_date='2026-01-01'), work(3, publication_date='2025-01-01')])])
+        with mock.patch.object(sources.urllib.request, 'urlopen', router):
+            papers = self.client.discover_topic('epitaxy', order='recent', per_page=2)
+        self.assertTrue(all(p['sort']=='publication_date:desc' for p in router.filters()))
+        self.assertEqual([p['published'] for p in papers], ['2026-01-01','2025-01-01'])
+
     def test_empty_strict_result_still_returns_relevance_results(self):
         router = Router([("title_and_abstract.search:", []), ("search=very specific phrase", [work(7)])])
         papers = self.run_topic(router, "very specific phrase")

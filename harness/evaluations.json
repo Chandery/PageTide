@@ -231,10 +231,13 @@
     },
     {
       "id": "E-ROUTE-V2-04",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-04. 多概念查询轮转、来源记录有界、跨主题去重，来源不改写论文永久归属；请求与重试上限、缓存失效、公共检索词隐私边界由离线夹具验证。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-04-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-04-review.md"
+      ]
     },
     {
       "id": "E-ROUTE-V2-05",

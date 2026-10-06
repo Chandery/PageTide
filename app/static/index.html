@@ -1125,8 +1125,14 @@ $('#btnRefresh').onclick = async () => {
     toast('后台抓取中（OpenAlex 公开元数据）…', 'warn');
     let r;
     for (let i = 0; i < 90; i++) { r = await api(`/api/jobs/${job.id}`); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
-    if (r.state === 'failed') toast(`抓取失败：${r.error}`, 'err');
-    else { const q = r.result || {}; toast(`新增 ${q.added || 0} 条${q.errors?.length ? `（${q.errors.length} 个查询被限流跳过）` : ''}`, q.errors?.length ? 'warn' : 'ok'); }
+    if (r.state === 'running') toast('抓取仍在后台进行，可以稍后查看。', 'warn');
+    else if (r.state === 'failed') toast(`抓取失败：${r.error}`, 'err');
+    else {
+      const q = r.result || {};
+      if (q.reason_code === 'refresh_running') toast('该项目已有抓取任务正在运行。', 'warn');
+      else if (q.reason_code === 'route_recall_changed') toast('路线或抓取状态已变化，请重新抓取。', 'warn');
+      else toast(`新增 ${q.added || 0} 条${q.errors?.length ? `（${q.errors.length} 个查询未完成，请稍后重试）` : ''}`, q.errors?.length ? 'warn' : 'ok');
+    }
     await load();
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
   finally { b.disabled = false; b.textContent = '抓取新论文'; }

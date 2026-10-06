@@ -135,7 +135,7 @@ class Store:
         self.conn.close()
 
     # ---------------------------------------------------------------- papers
-    def upsert_papers(self, papers, project_id=None):
+    def upsert_papers(self, papers, project_id=None, commit=True):
         """Insert papers, assigning to default project if project_id not specified."""
         # Get default project once if needed
         default_project_id = None
@@ -173,7 +173,8 @@ class Store:
                                        paper.get("relation_kind") or
                                        ("seed" if paper.get("group_name") == "seed" else "discovered"),
                                        paper.get("source_project_id"), commit=False)
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return added
 
     def add_project_paper(self, project_id, paper_key, relation_kind="shared",

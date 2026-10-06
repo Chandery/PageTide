@@ -1,0 +1,111 @@
+Route stage04 actual offline evidence (2026-10-07). Baseline62aa5e6, branch codex/route-discovery-rework.
+Final1283 Python and226 Node passed. Target group188 passed. Fresh backend, Tauri .app and actual packaged backend checks all exit0.
+Independent211 backend/HTTP/maintenance and17 UI/translation targeted checks passed; report in review.md.
+No real library, live metadata API or model calls. Packaged refresh uses prepared public metadata cache and outbound proxy blockade.
+Not verified: native window full flow, recommendation usefulness, large-library/8GB costs, fulltext language accuracy, AI quality/tokenizer/billing. Stages05-08 remain incomplete; original release gates unchanged.
+
+Final Python:
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+ok
+
+----------------------------------------------------------------------
+Ran 1283 tests in 293.354s
+
+OK
+
+Final Node:
+  ...
+1..226
+# tests 226
+# suites 0
+# pass 226
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 744.833083
+
+Targeted recall/runtime/metadata/maintenance/eligibility:
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+----------------------------------------------------------------------
+Ran 188 tests in 3.814s
+
+OK
+
+Actual backend build:
+3187 INFO: Fixing EXE headers for code signing
+3189 INFO: Re-signing the EXE
+3200 INFO: Building EXE from EXE-00.toc completed successfully.
+3201 INFO: checking COLLECT
+3202 INFO: Removing dir /Users/chandery/PaperDigHelper/.local/desktop-dist/paperdighelper-server
+3216 INFO: Building COLLECT COLLECT-00.toc
+3534 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+3536 INFO: Build complete! The results are available in: /Users/chandery/PaperDigHelper/.local/desktop-dist
+Prepared /Users/chandery/PaperDigHelper/src-tauri/resources/paperdighelper-server
+
+Actual Tauri build:
+        Info Looking up installed tauri packages to check mismatched versions...
+   Compiling paper-dig-helper v0.1.0 (/Users/chandery/PaperDigHelper/src-tauri)
+    Finished `release` profile [optimized] target(s) in 15.09s
+       Built application at: /Users/chandery/PaperDigHelper/src-tauri/target/release/paper-dig-helper
+    Bundling PaperDigHelper.app (/Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+    Finished 1 bundle at:
+        /Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app
+
+
+Actual fresh packaged backend:
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+Database is up to date (version 9)
+PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, cached three-purpose refresh, rotation/paging/provenance after restart, assets, isolated HOME, outbound network blocked
+
+Review regression before repair:
+Traceback (most recent call last):
+  File "/Users/chandery/PaperDigHelper/tests/test_route_recall.py", line 58, in test_shared_phrase_keeps_distinct_relevance_paged_recent_paged_and_latest
+    queries = [(q["query"], q["order"], q["page_mode"]) for q in p["queries"]]
+  File "/Users/chandery/PaperDigHelper/tests/test_route_recall.py", line 58, in <listcomp>
+    queries = [(q["query"], q["order"], q["page_mode"]) for q in p["queries"]]
+KeyError: 'page_mode'
+
+======================================================================
+FAIL: test_actual_graph_dependency_change_expires_sources_even_if_queries_match (test_route_recall.PlannerTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/PaperDigHelper/tests/test_route_recall.py", line 88, in test_actual_graph_dependency_change_expires_sources_even_if_queries_match
+    self.assertNotEqual(self.plan(changed)['signature'], p['signature'])
+AssertionError: 'fb8d39508b56405361e865b56e2a1d4e56517a2055447ed41bd3309745c1a81f' == 'fb8d39508b56405361e865b56e2a1d4e56517a2055447ed41bd3309745c1a81f'
+
+======================================================================
+FAIL: test_organization_revision_alone_does_not_expire_recall (test_route_recall.PlannerTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/PaperDigHelper/tests/test_route_recall.py", line 82, in test_organization_revision_alone_does_not_expire_recall
+    self.assertEqual(newer['signature'], p['signature'])
+AssertionError: 'a24790a6488a2f5bcd089419d2af20331e6b38576e58dfb380f474f3d25e3b5a' != 'fb8d39508b56405361e865b56e2a1d4e56517a2055447ed41bd3309745c1a81f'
+- a24790a6488a2f5bcd089419d2af20331e6b38576e58dfb380f474f3d25e3b5a
++ fb8d39508b56405361e865b56e2a1d4e56517a2055447ed41bd3309745c1a81f
+
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.004s
+
+FAILED (failures=2, errors=1)
+
+Maximum legal graph capacity regression before repair:
+======================================================================
+FAIL: test_maximum_saved_graph_does_not_evict_exploration_pages_before_next_turn (test_route_recall.PlannerTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/PaperDigHelper/tests/test_route_recall.py", line 162, in test_maximum_saved_graph_does_not_evict_exploration_pages_before_next_turn
+    self.assertGreater(q['page'],previous[key])
+AssertionError: 1 not greater than 1
+
+----------------------------------------------------------------------
+Ran 1 test in 0.051s
+
+FAILED (failures=1)
+
+Fresh bundled backend SHA256: 6dda7d5cf7852d104388fe5a82cbf24b3befd8febdfca8ff7344ec5cba201185
