@@ -1,3 +1,12 @@
+# 当前工作单元：Route Mode 阶段07本地合同基础（2026-10-07）
+
+- 分支 `codex/route-discovery-rework`，本单元基线 `4937ad1`。ROUTE-V2-07 in_progress，E07 not_run；07整项与08仍未完成。实际commit和dirty用git核对。
+- 新 `app/route_revision.py` 固定五字段、完整40/120/3图上下文及本地白名单补丁；旧节点c#、新节点n#，新UUID身份，不截成12节点。保护人工简介，名称/词/类型变化列reset，hint/简介/词顺序不reset；只计算预览cutoff，无服务持久化/AI/API/UI。
+- 显式校验模式保留冗余前置、难度倒置列警告、不猜目标。源图允许已归档/空目标进入显式修复，合并结果必须活动明确目标。最终120目标、1384全量Python、241Node通过；独立184相关+506探针通过，无剩余P1/P2。新backend/Tauri .app与实际新包隔离后端兼容通过，不证明尚未接入的revision功能。
+- 解析有400ops/131072 UTF8bytes限制；重复JSON字段、未知/冲突操作、截断、深层畸形标量、非法UTF8拒绝。旧公共save不接纳客户端cutoff；新cutoff只在explicit模式保留，未来必须服务端计算。
+- 独立审查发现源图目标修复阻断、坏concepts类型、深层copy RecursionError与surrogate响应故障；修复并加回归，独立最终复核通过。无模型/网络/新预算变化，原AI扩展授权保持false。
+- 检查与审查见 [checks](evidence/2026-10-07-route-v2-07-contract-checks.txt) 和 [review](evidence/2026-10-07-route-v2-07-contract-review.md)，[ADR0019](decisions/0019-route-revision-contract.md)。下一单元接service/API/UI：保存五字段；预览冻结新增alias→UUID映射（重算随机UUID不能当CAS）；确认内重算权威feedback cutoff+图revision+有效撤销签名，原子graph+brief+cutoffs/undo；只隔离旧熟悉度，兴趣和冻结兼容/读懂重新确认幂等。然后新提示/网关未批准操作、完整消息预算、前端预览/409保留及创建共享字段。最后08双图/原生全链条。
+
 # 当前工作单元：Route Mode 阶段06完成（2026-10-07）
 
 - 分支 `codex/route-discovery-rework`，基线 `a7abf94`，本单元本地提交哈希以git log核对。唯一任务状态在 `harness/tasks.json`：00–06 done，07–08 planned；完整目标未完成。

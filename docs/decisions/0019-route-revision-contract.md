@@ -1,0 +1,16 @@
+# ADR 0019: local complete-Map revision contract
+
+2026-10-07. Status: accepted for the local contract; service integration unfinished.
+Task [ROUTE-V2-07](../../harness/tasks.json), requirement R-ROUTE-V2-07, gate E-ROUTE-V2-07 remains not_run.
+
+Creation and revision share exactly goal250/known150/include150/exclude150/structure500 characters. Only goal is required; an empty known field says nothing about mastery. Teacher text is data pasted into structure; no generic Markdown parser or tool execution.
+
+`app/route_revision.py` accepts a strict operations object: add/update/remove node, add/remove edge, set_targets. JSON duplicate keys, unknown fields, conflicting/repeated operations, unresolved aliases, cycles, bounds, inactive targets and missing target replacements are refused. The full stored Map (40 nodes/120 edges/3 incoming) is copied before applying. It never passes through the creation12 normalization path. Existing nodes use c# request aliases; new nodes use n# aliases, fresh UUID identity locally. Forward references to added nodes work. Private IDs, feedback/cutoffs, origin and library/profile records are absent from the compact context.
+
+Explicit edges are preserved. Difficulty inversion is an explanatory warning, not rejection. The explicit validation mode requires active explicit targets, with no automatic sink substitution. Legacy creation/save callers currently retain old behavior until integration; this transitional split must not be mistaken for phase completion.
+
+Local normalized name/terms/type changes reset familiarity in the preview; reordered terms and hint/intro-only edits do not. Added nodes always reset. Split/merge are explicit removal/addition, never reuse removed identity. Human intros cannot be overwritten by this AI patch channel. Manual/watch preservation and cutoff enforcement require service integration; this module reports reset/added/removed/updated and warnings only.
+
+A trusted caller provides preview feedback cutoff; it cannot move an existing cutoff backwards. Strict explicit validation preserves a bounded nonnegative int64 cutoff, while legacy public graph saves ignore client-authored cutoff. A later confirmation must regenerate the patch inside an Organization transaction with authoritative feedback, bind full graph revision/effective-feedback snapshot including undo, then persist graph+brief+cutoffs atomically. This ADR does not authorize accepting a client-generated cutoff or implement that persistence yet.
+
+Resource limits:400 operations,131072 UTF8 bytes for a parsed response; the graph caps remain separate. Strict JSON output with finish_reason=length is rejected even if parsable. All brief/node text must encode as UTF8; lone surrogates are refused. Scalar fields are checked before copying, so deeply nested malformed fields cannot escape the ValueError failure path. A legacy Map with archived/empty targets remains visible for repair; the final result still requires explicit active targets. These parser guards do not claim tokenizer parity or define the future8000/4000 model budget. No model calls or new scopes are introduced by this work unit; existing unapproved operations stay unapproved. Full message budget, gateway registration, draft lifecycle, HTTP/UI conflict handling, re-understood idempotency and atomic undo remain next implementation work.

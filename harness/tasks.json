@@ -850,7 +850,7 @@
       "id": "ROUTE-V2-07",
       "stage": "graph",
       "title": "固定五字段创建和原子修改预览",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "ROUTE-V2-06"
       ],

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-07-contract",
+  "class": "critical",
+  "summary": "Local five-field requirements and strict complete-Map revision patch contract; stage07 remains in progress.",
+  "tasks": [
+    "ROUTE-V2-07"
+  ],
+  "files": [
+    "app/pathgraph.py",
+    "app/route_revision.py",
+    "changes/2026-10-07-route-v2-07-contract.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0019-route-revision-contract.md",
+    "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-07-contract-review.md",
+    "harness/tasks.json",
+    "tests/test_route_revision.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Pure local brief/patch/context functions; no provider, prompts, retries, persistence, network, or new data sharing. All recurring core operations remain zero model tokens.",
+    "before": "4937ad1 registered runtime operations and global ceilings.",
+    "after": "Unchanged operations, caps and authorization. New revision operation not yet registered or callable.",
+    "developer_usage": "unknown; not measured by project ledger"
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementer; local contract, final tests and package compatibility audit",
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic;184 related tests,506 malformed inputs, four findings fixed and reprobes passed",
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Stage07 service/API/UI, authoritative cutoff persistence, reconfirmation, snapshot CAS and atomic undo are not implemented; E07 stays not_run.",
+    "Stage08 and native/real-model/resource release gates remain unfinished."
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 -m unittest tests.test_route_revision tests.test_pathgraph -q",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    },
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-contract-checks.txt"
+    }
+  ]
+}

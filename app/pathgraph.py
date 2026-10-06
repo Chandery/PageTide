@@ -460,7 +460,7 @@ def _short(value, name):
     return value
 
 
-def validate(graph, tolerate=()):
+def validate(graph, tolerate=(), *, explicit=False, require_active_targets=True):
     """A clean deep copy of a structured graph, or ValueError naming the broken rule.
 
     This is the gate for graphs that were not just made by normalize(): a graph a person edited on the page or
@@ -471,14 +471,20 @@ def validate(graph, tolerate=()):
     quietly (reachability is unchanged). Unknown fields are dropped. A paper-shaped concept is refused by name,
     except one whose name key is in `tolerate` (the names the stored map already had: a map saved before that rule
     existed must still be savable, only a new paper-shaped concept is refused).
+
+    `explicit=True` is the revision contract: preserve explicitly requested edges,
+    allow hint inversions for a separate warning, and require explicit active targets.
+    A source graph awaiting target repair can set require_active_targets=False;
+    the merged revision must always use the default True before preview/save.
+    Legacy creation/saves retain their old contract until the revision flow is integrated.
     """
     try:
-        return _validate(graph, set(tolerate))
+        return _validate(graph, set(tolerate), explicit=explicit, require_active_targets=require_active_targets)
     except (TypeError, AttributeError, KeyError) as exc:
         raise ValueError("not a valid map") from exc
 
 
-def _validate(graph, tolerate=frozenset()):
+def _validate(graph, tolerate=frozenset(), *, explicit=False, require_active_targets=True):
     if not isinstance(graph, dict) or not isinstance(graph.get("concepts"), list) or not isinstance(graph.get("prereqs"), list):
         raise ValueError("not a map")
     if len(graph["concepts"]) > MAX_MAP_NODES or len(graph["prereqs"]) > MAX_MAP_NODES * MAX_FAN_IN:
@@ -521,6 +527,11 @@ def _validate(graph, tolerate=frozenset()):
             if not isinstance(evidence, list) or len(evidence) > 12:
                 raise ValueError("evidence must be a short list")
             clean["evidence"] = [_short(e, "evidence") for e in evidence]
+        if explicit and item.get("progress_since_feedback_id") is not None:
+            cutoff = item["progress_since_feedback_id"]
+            if type(cutoff) is not int or not 0 <= cutoff <= 2**63 - 1:
+                raise ValueError("invalid progress feedback cutoff")
+            clean["progress_since_feedback_id"] = cutoff
         concepts.append(clean)
     if not any(c["state"] == "active" for c in concepts):
         raise ValueError("The map has no active concepts")
@@ -533,7 +544,7 @@ def _validate(graph, tolerate=frozenset()):
         pair = (item["from"], item["to"])
         if pair[0] == pair[1] or pair in seen:
             raise ValueError("an edge points at itself or is repeated")
-        if hints[pair[0]] > hints[pair[1]]:
+        if not explicit and hints[pair[0]] > hints[pair[1]]:
             raise ValueError("a prerequisite cannot be harder than the concept that needs it")
         origin, state = item.get("origin", "plan"), item.get("state", "active")
         if origin not in _ORIGINS or state not in ("active", "proposed"):
@@ -546,14 +557,19 @@ def _validate(graph, tolerate=frozenset()):
     targets = graph.get("targets", [])
     if not isinstance(targets, list) or any(not isinstance(t, str) or t not in ids for t in targets):
         raise ValueError("a target is not on the map")
+    if explicit and (len(set(targets)) != len(targets)
+                     or (require_active_targets and (not targets
+                         or any(c["state"] != "active" for c in concepts if c["id"] in targets)))):
+        raise ValueError("explicit active targets are required")
     clean_graph = {"concepts": concepts, "prereqs": edges, "targets": list(dict.fromkeys(targets))}
     if not is_acyclic(clean_graph):
         raise ValueError("that would make a cycle")
-    _reduce(edges, live={c["id"] for c in concepts if c["state"] == "active"})
+    if not explicit:
+        _reduce(edges, live={c["id"] for c in concepts if c["state"] == "active"})
     for node in ids:
         if sum(1 for e in edges if e["to"] == node) > MAX_FAN_IN:
             raise ValueError("too many prerequisites for one concept")
-    if not clean_graph["targets"]:
+    if not explicit and not clean_graph["targets"]:
         feeding = {e["from"] for e in edges}
         clean_graph["targets"] = [c["id"] for c in concepts if c["state"] == "active" and c["id"] not in feeding]
     reach = ancestors(clean_graph, clean_graph["targets"]) | set(clean_graph["targets"])
