@@ -40,7 +40,7 @@ def _text(value, limit):
     return re.sub(r"\s+", " ", re.sub(r"[,|:!\"\\\r\n\t]", " ", str(value or ""))).strip()[:limit]
 
 
-INTRO_LIMIT = 90         # characters in the one-sentence "what this concept is"
+INTRO_LIMIT = 140        # characters in the short "what this concept is and what makes it hard"
 INTRO_AUTHORS = ("user", "ai")   # who wrote an intro; kept apart so the page can say which is which
 
 

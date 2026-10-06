@@ -324,38 +324,83 @@ const growth = (o = {}) => ({ id: 'g-0123456789', name: 'strain relaxation', ter
   parent: { id: 'c2', name: 'Epitaxy' }, prereqs: [{ id: 'c1', name: 'Crystal basics', support: 0.4 }],
   topology: { needs: [{ id: 'c1', name: 'Crystal basics', support: 0.4 }], parent: { id: 'c2', name: 'Epitaxy' }, note: '加入后：Crystal basics → 「strain relaxation」；它比「Epitaxy」更细' }, ...o });
 const forming = () => growth({ status: 'watch', progress: 0.62, gates: gates({ papers: { have: 2, need: 3, ok: false }, sources: { have: 1, need: 2, ok: false }, strength: { have: 0.12, need: 0.25, ok: false } }),
-  missing: ['还差 1 篇含这个短语的论文', '还差 1 个不同来源'], prereqs: [], parent: null, topology: { needs: [], parent: null, note: '加入后「strain relaxation」会是一个新的入口（没有前置）' } });
+  missing: ['还差 1 篇属于这个方向的论文', '还差 1 个不同来源'], prereqs: [], parent: null, topology: { needs: [], parent: null, note: '加入后「strain relaxation」会是一个新的入口（没有前置）' } });
 
-test('a direction card shows how far it is, what it has and what it lacks, all escaped', () => {
+test('a direction row shows how far it is and what it has, all escaped, and is only a row to click', () => {
   const R = load();
-  const html = R.candidateHTML(forming());
+  const html = R.candidateRowHTML(forming(), null);
   assert.match(html, /strain relaxation/);
   assert.match(html, /证据 62%/);
   assert.match(html, /论文 2\/3/);
-  assert.match(html, /你明确点过 2\/2/);
+  assert.match(html, /你点过 2\/2/);
   assert.match(html, /来源 1\/2/);
-  assert.match(html, /还差 1 篇含这个短语的论文/);
   assert.match(html, /还在形成/);
-  const ready = R.candidateHTML(growth());
+  assert.match(html, /data-growth="select"/);
+  assert.doesNotMatch(html, /data-growth="accept"|data-growth="reject"/);       // adding and turning down live in the panel you open
+  const ready = R.candidateRowHTML(growth({ name: 'x <b>y</b>' }), null);
   assert.match(ready, /可以加入/);
-  assert.ok(!ready.includes('<b>relaxation</b>') && ready.includes('&lt;b&gt;relaxation&lt;/b&gt;'));
+  assert.ok(!ready.includes('<b>y</b>') && ready.includes('&lt;b&gt;y&lt;/b&gt;'));
+});
+
+test('the row of the direction you opened is marked, the others are not', () => {
+  const R = load();
+  assert.match(R.candidateRowHTML(growth(), 'g-0123456789'), /is-selected[^>]*aria-pressed="true"/);
+  assert.match(R.candidateRowHTML(growth(), 'other'), /aria-pressed="false"/);
 });
 
 test('only a ready direction can be added; every one can be turned down; edits that are unsaved lock both', () => {
   const R = load();
   const button = (html, kind) => (html.match(new RegExp(`<button[^>]*data-growth="${kind}"[^>]*>`)) || [''])[0];
-  assert.ok(!/disabled/.test(button(R.candidateHTML(growth()), 'accept')));
-  assert.ok(/disabled/.test(button(R.candidateHTML(forming()), 'accept')));
-  assert.ok(!/disabled/.test(button(R.candidateHTML(forming()), 'reject')));
-  assert.equal((R.candidateHTML(growth()).match(/data-id="g-0123456789"/g) || []).length, 3);   // accept, reject and the card itself
-  const locked = R.candidateHTML(growth(), { locked: true });
+  assert.ok(!/disabled/.test(button(R.ghostDetailHTML(growth()), 'accept')));
+  assert.ok(/disabled/.test(button(R.ghostDetailHTML(forming()), 'accept')));
+  assert.ok(!/disabled/.test(button(R.ghostDetailHTML(forming()), 'reject')));
+  const locked = R.ghostDetailHTML(growth(), { locked: true });
   assert.ok(/disabled/.test(button(locked, 'accept')) && /disabled/.test(button(locked, 'reject')));
 });
 
-test('the card says where the direction would sit', () => {
+test('the panel says where the direction would sit', () => {
   const R = load();
-  assert.match(R.candidateHTML(growth()), /加入后：Crystal basics/);
-  assert.match(R.candidateHTML(forming()), /新的入口/);
+  assert.match(R.ghostDetailHTML(growth()), /加入后：Crystal basics/);
+  assert.match(R.ghostDetailHTML(forming()), /新的入口/);
+});
+
+test('the panel shows the model\'s introduction and barrier, marked as its opinion, escaped', () => {
+  const R = load();
+  const html = R.ghostDetailHTML(growth({ intro: '位错滑移释放<i>应力</i>。', barrier: '要先懂外延。' }));
+  assert.match(html, /位错滑移释放/);
+  assert.match(html, /门槛：/);
+  assert.match(html, /要先懂外延/);
+  assert.match(html, /AI 的判断，不是事实/);
+  assert.ok(!html.includes('<i>应力</i>'));
+  assert.doesNotMatch(R.ghostDetailHTML(growth()), /AI 的判断/);                 // no brief yet: nothing to attribute
+});
+
+test('the waiting exploration papers are listed with the one button that asks the model, and it can be off', () => {
+  const R = load();
+  assert.equal(R.pendingHTML({ pending: [], judges_left: 5 }, {}), '');
+  const html = R.pendingHTML({ pending: [{ key: 'a', title: 'T <b>1</b>' }, { key: 'b', title: 'T2' }, { key: 'c', title: 'T3' }, { key: 'd', title: 'T4' }], judges_left: 7 }, {});
+  assert.match(html, /<b>4<\/b>/);
+  assert.match(html, /data-growth="judge"/);
+  assert.ok(!html.includes('<b>1</b>') && html.includes('T &lt;b&gt;1&lt;/b&gt;'));
+  assert.equal((html.match(/<li/g) || []).length, 3);                          // at most the three the model would see
+  assert.match(html, /今天还能判断 7 次/);
+  assert.match(html, /不发送笔记、画像或其他项目/);
+  assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 0 }, {}), /data-growth="judge" disabled/);
+  assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 3 }, { busy: true }), /data-growth="judge" disabled/);
+});
+
+test('what the model said is put in plain words, one phrase per group, and never as a fact about the reader', () => {
+  const R = load();
+  const text = R.judgeSummary([{ verdict: 'new', name: '应变弛豫' }, { verdict: 'join', name: '应变弛豫' }, { verdict: 'covered', nearest: 'Epitaxy' }, { verdict: 'covered' }, { verdict: 'unclear' }]);
+  assert.match(text, /「应变弛豫」是一个新方向/);
+  assert.match(text, /并入了潜在方向「应变弛豫」/);
+  assert.match(text, /和「Epitaxy」太接近，不算新方向/);
+  assert.match(text, /和学习图里已有的概念太接近/);
+  assert.match(text, /看不出来/);
+  assert.match(R.judgeSummary([{ verdict: 'declined', name: '应变弛豫' }]), /之前选了“不再提示”/);
+  assert.match(R.judgeSummary([{ verdict: 'full' }]), /还留在待判断里/);
+  assert.match(R.judgeSummary([{ verdict: 'unusable' }]), /回复不完整.*再点一次/);
+  assert.equal(R.judgeSummary([]), '');
 });
 
 test('the detail of a direction explains every gate, lists the papers with the ones you marked, and the parts in words', () => {
@@ -364,6 +409,7 @@ test('the detail of a direction explains every gate, lists the papers with the o
   assert.equal((html.match(/class="gate[ "]/g) || []).length, 4);
   assert.match(html, /还差 1 个不同来源/);
   assert.match(html, /你明确点过的论文/);
+  assert.match(html, /属于这个方向的论文/);
   assert.match(html, /证据量/);
   assert.match(html, /0\.12\/0\.25/);              // strength is shown with decimals, the counts without
   assert.match(html, /2\/3/);
@@ -373,11 +419,12 @@ test('the detail of a direction explains every gate, lists the papers with the o
   assert.ok(!html.includes('<b>relaxation</b>'));
 });
 
-test('the list says how many are still forming and never calls silence a reason', () => {
+test('the list says what to do when nothing is on file and never calls silence a reason', () => {
   const R = load();
-  assert.match(R.growthNote({ candidates: [] }), /还没有出现潜在方向/);
-  assert.match(R.growthNote({ candidates: [] }), /点“有用”或“已读懂”/);
+  assert.match(R.growthNote({ candidates: [] }), /还没有潜在方向/);
+  assert.match(R.growthNote({ candidates: [] }), /点“有用”收藏/);
   assert.equal(R.growthNote({ candidates: [growth(), forming()] }), '');
+  assert.equal(R.growthNote({ candidates: [], pending: [{ key: 'a', title: 'T' }] }), '');   // there is something to judge: the pending block says so
   assert.doesNotMatch(R.growthNote({ candidates: [] }), /落后|没读|不喜欢/);
 });
 
@@ -424,7 +471,7 @@ test('the status of a ghost node says it is a direction in the making and how fa
   const R = load();
   assert.deepEqual(JSON.parse(JSON.stringify(R.ghostStatus(forming()))), { key: 'ghost', label: '潜在方向 · 62%', title: R.ghostStatus(forming()).title });
   assert.match(R.ghostStatus(growth()).label, /可以加入/);
-  assert.match(R.ghostStatus(forming()).title, /还差 1 篇含这个短语的论文/);
+  assert.match(R.ghostStatus(forming()).title, /还差 1 篇属于这个方向的论文/);
 });
 
 // ---- what a concept is: intro, role, difficulty, the project's papers and a few public ones
@@ -505,7 +552,7 @@ test('setting an intro marks who wrote it, keeps the author when nothing changed
   assert.equal(edited.concepts[1].intro_by, 'user');
   const cleared = R.setIntro(edited, 'c2', '   ', 'user');
   assert.ok(!('intro' in cleared.concepts[1]) && !('intro_by' in cleared.concepts[1]));
-  assert.equal(R.setIntro(g, 'c2', 'x'.repeat(300), 'user').concepts[1].intro.length, 90);
+  assert.equal(R.setIntro(g, 'c2', 'x'.repeat(300), 'user').concepts[1].intro.length, 140);
   assert.equal(JSON.stringify(g), JSON.stringify(mapOf()));               // the original is left alone
 });
 

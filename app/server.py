@@ -582,6 +582,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"graph": app.route_ground(body.get("graph"))})
                 elif action == "concept-intro":
                     return self._json(app.route_concept_intro(project_id, body.get("concept"), dry_run=bool(body.get("dry_run"))))
+                elif action == "direction-judge":
+                    return self._json(app.route_direction_judge(project_id, dry_run=bool(body.get("dry_run"))))
                 elif action == "concept-papers":
                     return self._json(app.route_concept_papers(project_id, body.get("concept")))
                 elif action == "concept-examples":

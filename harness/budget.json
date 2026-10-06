@@ -260,24 +260,45 @@
     },
     "concept_intro": {
       "owner_approved": true,
-      "approval_note": "owner 于 2026-10-06 在会话中明确批准（回答“AI 写简介需要改预算，你要批准哪些？”选择“起草学习图时一起写简介,新增“写这个节点的简介”操作”）：新增 concept_intro，学习图页选中一个概念后显式点“让 AI 写这个节点的简介”才调用一次，只发送概念名、检索词（至多 2 个）和项目目标的前 100 字，输入上限 500、输出上限 250，每个项目每个本地日最多 20 次，沿用全局日/月上限与 AI 总开关；结果只是提议，填进编辑框，保存前不改变学习图，保存后标明是 AI 写的。上限是保守字符估算，未用分词器实测；真实调用还没有做过。",
+      "approval_note": "owner 于 2026-10-06 在会话中明确批准（回答“AI 写简介需要改预算，你要批准哪些？”选择“起草学习图时一起写简介,新增“写这个节点的简介”操作”）：新增 concept_intro，学习图页选中一个概念后显式点“让 AI 写这个节点的简介”才调用一次，只发送概念名、检索词（至多 2 个）和项目目标的前 100 字，输入上限 500、输出上限 250，每个项目每个本地日最多 20 次，沿用全局日/月上限与 AI 总开关；结果只是提议，填进编辑框，保存前不改变学习图，保存后标明是 AI 写的。上限是保守字符估算，未用分词器实测；真实调用还没有做过。 2026-10-06 再次批准：owner 在会话中回答“节点简介要结合论文讲门槛……你批准这项预算调整吗？”选择“批准：简介 + 方向解释两项上调”：concept_intro 输入上限 500→2000、输出上限 250→400，每个项目每个本地日最多 20 次不变，额外发送该概念匹配到的最多 3 篇本项目论文的标题（≤80 字）和摘要前 200 字（比批准时说的 250 字少一些，为了不超过 2000 的上限）。",
       "prompt": "prompts/concept-intro.md",
       "trigger": "interactive",
       "enabled_by_default": false,
       "reference": {
-        "input": 300,
-        "output": 120
+        "input": 1300,
+        "output": 180
       },
       "cap": {
-        "input": 500,
-        "output": 250
+        "input": 2000,
+        "output": 400
       },
       "input_cap_components": {
-        "instructions_and_schema": 200,
-        "concept_and_goal": 240,
-        "framing_and_margin": 60
+        "instructions_and_schema": 300,
+        "concept_goal_and_papers": 1500,
+        "framing_and_margin": 200
       },
-      "scope": "one explicit click on one concept of an existing learning map, at most 20 paid attempts per project per local day: the concept's name, up to two search terms and the project name and its first three keywords joined (first 80 characters together; a project has no separate goal field) only; no papers, notes, profile or other concepts; the reply is one sentence that fills the edit box and is saved (marked as the model's) only when the person saves the map"
+      "scope": "one explicit click on one concept of an existing learning map, at most 20 paid attempts per project per local day: the concept's name, up to two search terms, the project name and its first three keywords joined (first 40 characters together; a project has no separate goal field) and up to three of the project's own papers that match the concept (title up to 80 characters and the first 200 characters of the abstract); no paper ids, notes, profile, feedback or other concepts; the reply is one short paragraph that fills the edit box and is saved (marked as the model's) only when the person saves the map"
+    },
+    "direction_judge": {
+      "owner_approved": true,
+      "approval_note": "owner 于 2026-10-06 在会话中明确批准：回答“这需要把该节点匹配到的最多 3 篇论文……发给 AI。你批准这项预算调整吗？”选择“批准：简介 + 方向解释两项上调”，并说明方向由“推送探索类、用户收藏之后，用 AI 判断是不是值得成为新的方向并命名，放进潜在方向”（“方向解释”预算：输入 3000、输出 500，每项目每天最多 10 次）。操作名 direction_judge（议案里叫方向解释）。读者点“让 AI 判断”才调用一次，只发送他收藏的探索论文（至多 3 篇，标题≤80 字+摘要前 180 字）、至多 10 个已有概念名和至多 3 个已有潜在方向的名字与一句话；沿用全局日/月上限与 AI 总开关；结果只是意见，由本地校验后记录，方向加入学习图仍要读者点击。上限是保守字符估算，未用分词器实测；真实调用还没有做过。",
+      "prompt": "prompts/direction-judge.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 1800,
+        "output": 300
+      },
+      "cap": {
+        "input": 3000,
+        "output": 500
+      },
+      "input_cap_components": {
+        "instructions_and_schema": 600,
+        "papers_and_names": 2100,
+        "framing_and_margin": 300
+      },
+      "scope": "one explicit click on the learning-map page or on an exploration card the reader just collected, at most 10 paid attempts per project per local day: up to three papers the reader collected from the exploration slots (title up to 80 characters and the first 180 characters of the abstract, sent as p1..p3 without any id), up to ten names of the map's concepts (20 characters each) and up to three already proposed directions (name and a short line); no notes, profile, other feedback, seeds, other projects or full text; the reply is an opinion that is validated locally and stored as a potential direction, which the reader must still add to the map"
     }
   },
   "scenarios": [

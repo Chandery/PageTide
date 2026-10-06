@@ -6,7 +6,7 @@
   else root.PDHRoute = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const MAX_NODES = 40;
-  const INTRO_LIMIT = 90;   // the same bound as pathgraph.INTRO_LIMIT
+  const INTRO_LIMIT = 140;   // the same bound as pathgraph.INTRO_LIMIT
   const MAX_FAN_IN = 3;
   const LABELS = {
     supported: '语料支持这个先后顺序',
@@ -243,7 +243,7 @@
   }
 
   function introHTML(concept, canEdit) {
-    if (!concept.intro) return `<p class="map-note concept-intro is-empty">${canEdit ? '这个概念还没有简介。可以点“编辑”自己写，或让 AI 写一句。' : '这个概念还没有简介。'}</p>`;
+    if (!concept.intro) return `<p class="map-note concept-intro is-empty">${canEdit ? '这个概念还没有简介。可以点“编辑”自己写，或让 AI 写一段。' : '这个概念还没有简介。'}</p>`;
     return `<p class="concept-intro" data-no-i18n>${esc(concept.intro)}</p><div class="badges"><span class="badge">${concept.intro_by === 'ai' ? 'AI 写的' : '你写的'}</span></div>`;
   }
 
@@ -341,31 +341,26 @@
     return TYPES[concept.type] + (concept.why ? ' · ' + concept.why : '');
   }
 
-  /* ---- directions that are forming: shown from the moment two papers you marked share a phrase, with how far they
-     are from being addable. Everything is data from the server and goes through esc(); the buttons carry the id only. */
+  /* ---- potential directions: what the model judged from the exploration papers you collected, with the evidence the
+     app counts under each. A row is only a row: the map shows a direction (ghost node, progress outline, arrows) when
+     you click it. Everything is data from the server and goes through esc(); the buttons carry the id only. */
   const pct = (v) => Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 100);
-  const GATE_LABEL = { papers: '含这个短语的论文', positive: '你明确点过的论文', sources: '不同来源', strength: '证据强度' };
+  const GATE_LABEL = { papers: '属于这个方向的论文', positive: '你明确点过的论文', sources: '不同来源', strength: '证据强度' };
   const ready = (c) => c.status === 'ready';
   const gateText = (g, decimals) => (decimals ? `${(Number(g.have) || 0).toFixed(2)}/${(Number(g.need) || 0).toFixed(2)}` : `${Number(g.have) || 0}/${Number(g.need) || 0}`);
 
-  function candidateHTML(c, options) {
-    const locked = options && options.locked ? ' disabled title="先保存或放弃对学习图的修改"' : '';
+  function candidateRowHTML(c, selectedId) {
     const g = c.gates || {};
-    const counts = `论文 ${gateText(g.papers || {})} · 你明确点过 ${gateText(g.positive || {})} · 来源 ${gateText(g.sources || {})}`;
-    const missing = (c.missing || []).length ? `<p class="growth-missing">${c.missing.map((m) => esc(m)).join('；')}</p>` : '';
-    const titles = (c.papers || []).slice(0, 4).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('');
-    const where = c.topology && c.topology.note ? `<p class="growth-where" data-no-i18n>${esc(c.topology.note)}</p>` : '';
-    const accept = ready(c) ? '' : ' disabled title="证据还不够，还不能加入"';
-    return `<article class="growth-card${ready(c) ? ' is-ready' : ''}" data-id="${esc(c.id)}"><header><h4 data-no-i18n>${esc(c.name)}</h4><span class="growth-pill">${ready(c) ? '可以加入' : '还在形成'}</span></header>`
-      + `<div class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></div>`
-      + `<div class="counts">证据 ${pct(c.progress)}% · ${counts}</div>${missing}`
-      + `<ul class="growth-papers">${titles}</ul>${where}`
-      + `<div class="row"><button type="button" class="primary small" data-growth="accept" data-id="${esc(c.id)}"${locked || accept}>加入学习图</button>`
-      + `<button type="button" class="ghost small" data-growth="reject" data-id="${esc(c.id)}"${locked}>不再提示</button></div></article>`;
+    const counts = `论文 ${gateText(g.papers || {})} · 你点过 ${gateText(g.positive || {})} · 来源 ${gateText(g.sources || {})}`;
+    const chosen = c.id === selectedId;
+    return `<button type="button" class="growth-row${ready(c) ? ' is-ready' : ''}${chosen ? ' is-selected' : ''}" data-growth="select" data-id="${esc(c.id)}" aria-pressed="${chosen}">`
+      + `<span class="growth-row-top"><b data-no-i18n>${esc(c.name)}</b><span class="growth-pill">${ready(c) ? '可以加入' : '还在形成'}</span></span>`
+      + `<span class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></span>`
+      + `<span class="counts">证据 ${pct(c.progress)}% · ${counts}</span></button>`;
   }
 
-  /* The side panel for one direction: each gate with how far it is, the papers behind it (the ones you marked
-     first), where it would sit, and what the strength is made of in plain words. */
+  /* The side panel for one direction: the model's introduction and barrier (marked as the model's), each gate with how
+     far it is, the papers behind it (the ones you marked first), where it would sit, and what the strength is made of. */
   function ghostDetailHTML(c, options) {
     const locked = options && options.locked ? ' disabled title="先保存或放弃对学习图的修改"' : '';
     const g = c.gates || {};
@@ -377,14 +372,45 @@
     const papers = (c.papers || []).map((p) => `<li><span data-no-i18n>${esc(p.title)}</span>${p.explicit ? ' <em class="mark">你点过</em>' : ''}${p.source ? ` <small data-no-i18n>${esc(p.source)}</small>` : ''}</li>`).join('');
     const parts = (c.parts || []).map((p) => `<li><span>${esc(p.label)}</span> <b>${pct(p.value)}%</b> <small>${esc(p.hint)}</small></li>`).join('');
     const where = c.topology && c.topology.note ? `<p class="growth-where" data-no-i18n>${esc(c.topology.note)}</p>` : '';
+    const terms = (c.terms || []).length ? `<div class="terms" data-no-i18n>${esc(c.terms.join(' · '))}</div>` : '';
+    const brief = (c.intro || c.barrier)
+      ? `<p class="concept-intro" data-no-i18n>${esc(c.intro || '')}</p>${c.barrier ? `<p class="concept-intro"><b>门槛：</b><span data-no-i18n>${esc(c.barrier)}</span></p>` : ''}`
+        + '<div class="badges"><span class="badge">AI 的判断，不是事实</span></div>' : '';
     const accept = ready(c) ? '' : ' disabled title="证据还不够，还不能加入"';
-    return `<h3 data-no-i18n>${esc(c.name)}</h3><div class="badges"><span class="badge">${ready(c) ? '可以加入' : '还在形成'}</span></div>`
+    return `<h3 data-no-i18n>${esc(c.name)}</h3>${terms}<div class="badges"><span class="badge">${ready(c) ? '可以加入' : '还在形成'}</span></div>${brief}`
       + `<div class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></div>`
       + `<div class="gates">${gates}</div>${missing}${where}`
       + `<h4>哪几篇论文</h4><ul class="growth-papers">${papers}</ul>`
       + `<h4>强度是怎么来的</h4><ul class="growth-parts">${parts}</ul>`
       + `<div class="row"><button type="button" class="primary small" data-growth="accept" data-id="${esc(c.id)}"${locked || accept}>加入学习图</button>`
       + `<button type="button" class="ghost small" data-growth="reject" data-id="${esc(c.id)}"${locked}>不再提示</button></div>`;
+  }
+
+  /* The exploration papers you collected that nobody has judged yet, with the one button that asks the model. */
+  function pendingHTML(result, options) {
+    const list = (result && result.pending) || [];
+    if (!list.length) return '';
+    const left = Number(result.judges_left) || 0;
+    const off = left <= 0 ? ' disabled title="今天的次数用完了，明天再试"' : (options && options.busy ? ' disabled' : '');
+    return `<div class="growth-pending"><p>你在探索推荐里收藏、还没判断是不是新方向的论文：<b>${list.length}</b></p>`
+      + `<ul class="growth-papers">${list.slice(0, 3).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('')}</ul>`
+      + `<div class="row"><button type="button" class="small" data-growth="judge"${off} title="点一次调用一次 AI：只发送这些论文（最多 3 篇）的标题和摘要节选、学习图里的概念名和已有的潜在方向名，不发送笔记、画像或其他项目">让 AI 判断</button>`
+      + `<small>今天还能判断 ${left} 次</small></div></div>`;
+  }
+
+  /* One line per judged group, in plain words, for the page to show after the model answered. */
+  function judgeSummary(results) {
+    const says = (results || []).map((r) => {
+      const name = r.name ? `「${r.name}」` : '';
+      if (r.verdict === 'new') return `${name}是一个新方向，已放进潜在方向`;
+      if (r.verdict === 'join') return `并入了潜在方向${name}`;
+      if (r.verdict === 'covered') return `和${r.nearest ? `「${r.nearest}」` : '学习图里已有的概念'}太接近，不算新方向`;
+      if (r.verdict === 'declined') return `${name || '这个方向'}你之前选了“不再提示”，不再收进来`;
+      if (r.verdict === 'full') return '潜在方向已经很多了，先加入或“不再提示”一些，这几篇还留在待判断里';
+      if (r.verdict === 'unusable') return 'AI 的回复不完整，这几篇还留在待判断里，可以再点一次';
+      return 'AI 看不出来，先不算新方向';
+    });
+    return says.join('；');
   }
 
   /* A copy of the map for drawing only: each direction is a ghost node, with dashed arrows from what it would need.
@@ -416,10 +442,10 @@
       title: ready(c) ? '一个正在形成的方向，证据够了，可以加入学习图。' : `一个正在形成的方向：${(c.missing || []).join('；') || '证据还不够'}` };
   }
 
-  /* What to say when no direction has formed yet: the truth, never a reason to feel behind. */
+  /* What to say when no direction is on file yet: the truth, never a reason to feel behind. */
   function growthNote(result) {
     if ((result.candidates || []).length) return '';
-    return '还没有出现潜在方向。当你对论文点“有用”或“已读懂”，并且至少两篇共享一个学习图里没有的短语时，它会出现在这里。';
+    return (result.pending || []).length ? '' : '还没有潜在方向。在今日推荐里带“探索”标的论文上点“有用”收藏，再让 AI 判断它是不是一个明显不同于学习图里已有概念的新方向，它就会出现在这里。';
   }
 
   function countsText(state) {
@@ -443,5 +469,5 @@
     return `已读懂 ${done} / ${total} 个概念 · 探索约占 ${share}%`;
   }
 
-  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateHTML, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

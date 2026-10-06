@@ -67,7 +67,9 @@ function render() {
   const shape = R.shape(graph);
   part('shape').textContent = R.shapeText(shape);
   part('shape').classList.toggle('single', shape.chain);
-  const shown = growth.result && growth.result.candidates ? R.ghostGraph(graph, growth.result.candidates) : graph;   // for drawing only: ghosts are never part of the draft
+  const picked = growth.selected && growth.result && (growth.result.candidates || []).find((c) => c.id === growth.selected);
+  if (growth.selected && !picked) growth.selected = null;
+  const shown = picked ? R.ghostGraph(graph, [picked]) : graph;   // for drawing only, and only the direction you clicked: ghosts are never part of the draft
   if (state.selected && !shown.concepts.some((c) => c.id === state.selected)) state.selected = state.editing = null;
   const known = !state.dirty;   // progress belongs to the saved map; structural edits have none until saved
   // a re-draw keeps the zoom, the scroll position and the focused concept
@@ -89,9 +91,14 @@ function render() {
     decorate: (el, concept, node) => { if (concept.ghost) el.insertAdjacentHTML('beforeend', R.ringSVG(concept.candidate.progress, concept.candidate.status === 'ready', node.w, node.h)); },
     edgeState: (from, to) => (String(to).startsWith('ghost:') ? 'ghost' : known && route.progress && route.progress[from] && route.progress[from].status === 'satisfied' ? 'met'
       : known && route.progress && route.progress[to] && route.progress[to].status === 'locked' ? 'wait' : 'plain'),
-    onSelect: (id) => { state.selected = id; state.editing = null; state.pendingIntro = null; renderDetail(); },
+    onSelect: (id) => {
+      state.selected = id; state.editing = null; state.pendingIntro = null;
+      if (!String(id).startsWith('ghost:') && growth.selected) { growth.selected = null; render(); return; }   // another node: the preview goes away
+      renderDetail(); renderGrowth();
+    },
   });
-  if (focused && focused.dataset.id) state.graph.focusNode(focused.dataset.id);
+  if (state.selected && String(state.selected).startsWith('ghost:')) state.graph.focusNode(state.selected);
+  else if (focused && focused.dataset.id) state.graph.focusNode(focused.dataset.id);
   renderDetail();
   renderGrowth();   // its buttons are off while there are unsaved edits
 }
@@ -127,7 +134,7 @@ function renderDetail() {
   if (stored) {
     const ask = document.createElement('button');
     ask.type = 'button'; ask.className = 'ghost small'; ask.textContent = concept.intro ? '让 AI 重写简介' : '让 AI 写简介';
-    ask.title = '点一次调用一次 AI，只发送概念名、检索词、项目名称和前 3 个关键词（合计前 80 个字）；结果先放进编辑框，你点“确定”和“保存”才会生效';
+    ask.title = '点一次调用一次 AI：只发送概念名、检索词、项目名称和前 3 个关键词（合计前 40 个字），以及这个项目里匹配到该概念的最多 3 篇论文的标题和摘要节选；结果先放进编辑框，你点“确定”和“保存”才会生效';
     ask.onclick = () => askIntro(concept.id);
     row.appendChild(ask);
     const examples = document.createElement('button');
@@ -171,7 +178,7 @@ function askIntro(id) {
       return;
     }
     state.pendingIntro = {id, text: out.intro}; state.selected = state.editing = id;
-    notice(`AI 写了一句话，已放进编辑框，点“确定”再保存才会生效；今天这个项目还能让 AI 写 ${out.attempts_left} 次。`, false);
+    notice(`AI 写了一段话，已放进编辑框，点“确定”再保存才会生效；今天这个项目还能让 AI 写 ${out.attempts_left} 次。`, false);
     renderDetail();
   });
 }
@@ -192,10 +199,12 @@ function change(next) {
 function editConcept(holder, graph, concept) {
   holder.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
     <input class="edit" data-role="t" maxlength="130" placeholder="两个英文检索词，用 / 分隔" aria-label="英文检索词">
-    <textarea class="edit" data-role="i" maxlength="90" rows="2" placeholder="一句话说明这个概念是什么（最多 90 字，可以不写）" aria-label="简介"></textarea>
+    <textarea class="edit" data-role="i" maxlength="140" rows="2" placeholder="简单说明这个概念是什么、门槛在哪（最多 140 字，可以不写）" aria-label="简介"></textarea>
     <p class="map-note" data-role="introNote"></p>
     ${R.needsEditorHTML(graph, concept.id)}
-    <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>`;
+    <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>
+    <section class="concept-papers" data-concept-papers></section>`;
+  if (!state.dirty && state.route && state.route.graph && state.route.graph.concepts.some((c) => c.id === concept.id)) showMatched(concept.id);   // what the AI sentence is about stays in view while you edit it
   $('[data-role=n]', holder).value = concept.name;
   $('[data-role=t]', holder).value = (concept.terms || []).join(' / ');
   const proposed = state.pendingIntro && state.pendingIntro.id === concept.id ? state.pendingIntro.text : null;   // the model's sentence, not yet saved
@@ -300,12 +309,13 @@ part('aiGo').onclick = () => guarded(async () => {
   } finally { part('aiGo').disabled = false; part('aiActivity').textContent = ''; }
 });
 /* ---- directions that are forming: from what the reader explicitly responded to; only a click adds one */
-const growth = {result: null, undo: null, error: ''};
+const growth = {result: null, undo: null, error: '', selected: null, judging: false};
 function renderGrowth() {
   const box = part('growthList'), result = growth.result;
   if (!result) { box.innerHTML = growth.error ? `<p class="hint">${esc(growth.error)}</p>` : '<p class="hint">正在找潜在方向…</p>'; return; }
   const locked = state.dirty;   // a direction is saved straight to the stored map, so unsaved edits must be dealt with first
-  box.innerHTML = (result.candidates || []).map((c) => R.candidateHTML(c, {locked})).join('')
+  box.innerHTML = R.pendingHTML(result, {busy: growth.judging})
+    + (result.candidates || []).map((c) => R.candidateRowHTML(c, growth.selected)).join('')
     + (R.growthNote(result) ? `<p class="hint">${esc(R.growthNote(result))}</p>` : '')
     + (growth.undo && growth.undo.revision === state.route.revision   // any other save or mark moves the revision on: then it is no longer the step to take back
       ? `<p class="hint">${esc(growth.undo.label)}。<button type="button" class="ghost small" data-growth="undo" data-event="${esc(growth.undo.id)}"${locked ? ' disabled title="先保存或放弃对学习图的修改"' : ''}>撤销</button></p>` : '');
@@ -324,6 +334,13 @@ function growthClick(event) {
   const button = event.target.closest('button[data-growth]');
   if (!button || button.disabled) return;
   const kind = button.dataset.growth, id = button.dataset.id;
+  if (kind === 'select') {   // a row only previews: the map draws this one direction, nothing is added
+    growth.selected = growth.selected === id ? null : id;
+    state.selected = growth.selected ? `ghost:${id}` : null; state.editing = null; state.pendingIntro = null;
+    render();
+    return;
+  }
+  if (kind === 'judge') { judgeNow(); return; }
   guarded(async () => {
     notice('');
     const body = kind === 'undo' ? {action: 'undo', revision: state.route.revision, event: Number(button.dataset.event)}
@@ -332,10 +349,23 @@ function growthClick(event) {
     const {undo, ...route} = out;
     growth.undo = kind === 'undo' || !undo ? null : {...undo, revision: route.revision};
     state.route = route; state.draft = route.graph ? JSON.parse(JSON.stringify(route.graph)) : null; state.dirty = false; state.annotated = false;
-    state.selected = null;
+    state.selected = null; growth.selected = null;
     render();
     await loadGrowth();
   });
+}
+async function judgeNow() {
+  if (growth.judging) return;
+  growth.judging = true; renderGrowth(); notice('');
+  try {
+    const out = await api({action: 'direction-judge'});
+    if (!out.ok) { notice(`没有使用 AI：${out.reason || 'AI 没有给出判断'}。`); return; }
+    notice(`AI 判断完了：${R.judgeSummary(out.results)}。今天还能判断 ${out.judges_left} 次。`, false);
+    const made = (out.results || []).find((r) => r.direction && (r.verdict === 'new' || r.verdict === 'join'));
+    await loadGrowth();
+    if (made) { growth.selected = made.direction; state.selected = `ghost:${made.direction}`; render(); }
+  } catch (error) { notice(error.message); }
+  finally { growth.judging = false; renderGrowth(); }
 }
 part('growthList').onclick = growthClick;
 part('detail').addEventListener('click', growthClick);   // the same buttons in a direction's own panel

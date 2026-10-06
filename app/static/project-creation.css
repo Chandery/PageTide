@@ -223,6 +223,19 @@ p.growth-missing{padding-left:0}
 .growth-card h4{margin:0 0 calc(4px * var(--s));font-size:calc(14px * var(--s));white-space:normal;overflow-wrap:anywhere}
 .growth-papers{margin:calc(4px * var(--s)) 0;padding-left:calc(18px * var(--s));font-size:calc(12px * var(--s));color:var(--muted);overflow-wrap:anywhere}
 .growth-card .row{display:flex;gap:calc(8px * var(--s));margin-top:calc(8px * var(--s))}
+.growth-row{display:grid;gap:calc(6px * var(--s));width:100%;text-align:left;font:inherit;color:inherit;background:var(--base);border:1px dashed var(--line-strong);border-radius:var(--r-md);padding:calc(10px * var(--s)) calc(12px * var(--s));margin:calc(6px * var(--s)) 0;cursor:pointer}
+.growth-row:hover{background:var(--surface-2)}
+.growth-row.is-ready{border-style:solid;border-color:var(--good)}
+.growth-row.is-selected{outline:2px solid var(--accent-text);outline-offset:1px}
+.growth-row-top{display:flex;align-items:flex-start;justify-content:space-between;gap:calc(10px * var(--s))}
+.growth-row-top b{font-size:calc(14px * var(--s));overflow-wrap:anywhere}
+.growth-row .growth-meter{margin:0}
+.growth-row.is-ready .growth-pill{border-style:solid;border-color:var(--good);color:var(--good)}
+.growth-row.is-ready .growth-meter i{background:var(--good)}
+.growth-pending{border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-2);padding:calc(10px * var(--s)) calc(12px * var(--s));margin:calc(8px * var(--s)) 0;font-size:calc(13px * var(--s))}
+.growth-pending p{margin:0 0 calc(4px * var(--s))}
+.growth-pending .row{display:flex;align-items:center;gap:calc(10px * var(--s));margin-top:calc(8px * var(--s))}
+.growth-pending small{color:var(--muted)}
 .ai-draft{border:1px solid var(--line);border-radius:var(--r-md);background:var(--base);padding:calc(10px * var(--s)) calc(12px * var(--s));margin:calc(8px * var(--s)) 0}
 .ai-draft textarea{width:100%;min-height:54px;margin:calc(6px * var(--s)) 0;box-sizing:border-box}
 .boundary{display:flex;flex-wrap:wrap;gap:calc(8px * var(--s)) calc(16px * var(--s));margin:calc(6px * var(--s)) 0}

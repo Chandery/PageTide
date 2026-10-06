@@ -4,6 +4,7 @@ The daily loop is zero-token: discover -> dedupe -> rank -> diversify -> 5 cards
 Feedback updates a transparent profile. AI triage is optional and budgeted.
 """
 import glob
+import hashlib
 import json
 import re
 import threading
@@ -105,23 +106,12 @@ class App:
                 "frontier": pathgraph.frontier(graph, prog), "done": done, "total": len(live),
                 "exploration_share": pathgraph.exploration_share(done, len(live))}
 
-    def _route_candidates(self, project_id):
-        """(project_id, revision, route, candidates, explicit): the directions that are forming, from what the reader
-        explicitly responded to, ready ones first.
+    DIRECTION_JUDGES_PER_DAY = 10   # paid attempts at "judge my collected exploration papers" per project per local day
 
-        Evidence for a direction: a paper marked useful, a paper marked understood, a chosen seed. Not interested
-        never creates a branch, too hard is difficulty and not direction, and silence is nothing. A frozen
-        profile replays feedback only up to the freeze; undone feedback is gone. A direction is listed from the
-        moment two explicit papers share a phrase the map does not cover (status "watch" until it has enough to
-        be added, "ready" after). Directions already on the map (proposed or active) and the ones the person
-        turned down are left out. `explicit` is the set of papers that count as evidence. Local and deterministic."""
-        project_id = self._require_project(project_id)
-        revision, route = read_route(self.store.conn, project_id)
-        if not route or not route.get("graph"):
-            return project_id, revision, route, [], set()
-        graph = route["graph"]
-        papers = [dict(r) for r in self.store.conn.execute(
-            "SELECT p.key, p.title, p.abstract, p.source, p.doi FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
+    def _positive_evidence(self, project_id, seeds=True):
+        """{paper_key: day} of the reader's explicit positive evidence: a paper marked useful, one marked understood (not
+        if they also turned it down), and, unless `seeds` is false, a chosen seed. Not interested never counts, too hard
+        is difficulty and not direction, and silence is nothing. A frozen profile replays feedback only up to the freeze."""
         freeze = self.store.get_setting(f"profile_freeze_{project_id}")
         feedback = self.latest_feedback(project_id, freeze.get("through_feedback_id") if freeze else None)
         day = lambda entry: str(entry.get("at") or "")[:10] or None
@@ -131,47 +121,125 @@ class App:
                 positive[key] = day(item)
             elif item["familiar"] and item["familiar"]["action"] == "understood" and item["action"] != "irrelevant":
                 positive[key] = day(item["familiar"])   # understanding what you turned down is not interest in it
-        added = {r["paper_key"]: str(r["added_at"] or "")[:10] or None for r in self.store.conn.execute(
-            "SELECT paper_key, added_at FROM project_papers WHERE project_id=?", (project_id,))}
-        for key in self.seed_keys(project_id):
-            if feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins over the seed
-                positive.setdefault(key, added.get(key))   # the day they chose it
-        # a direction is recognised by its phrases, not by the set of papers it was found in: the set changes with
-        # every new paper, the direction does not
-        known = {pathgraph._key(c["name"]) for c in graph["concepts"]} | {pathgraph._key(t) for c in graph["concepts"] for t in c.get("terms", [])}
-        known |= set(route.get("rejected") or [])
-        known.discard("")
-        found = [c for c in pathgrowth.branch_candidates(graph, papers, positive, min_members=2, limit=12)
-                 if not ({pathgraph._key(c["name"])} | {pathgraph._key(t) for t in c["terms"]}) & known]
+        if seeds:
+            added = {r["paper_key"]: str(r["added_at"] or "")[:10] or None for r in self.store.conn.execute(
+                "SELECT paper_key, added_at FROM project_papers WHERE project_id=?", (project_id,))}
+            for key in self.seed_keys(project_id):
+                if feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins over the seed
+                    positive.setdefault(key, added.get(key))   # the day they chose it
+        return positive, feedback
+
+    def _directions_store(self, project_id):
+        """The potential directions the model proposed for this project and what it said about each collected paper:
+        {"directions": [{id, name, terms, intro, barrier, needs, papers, created}], "judged": {paper_key: {verdict, nearest}}}."""
+        state = self.store.get_setting(f"route_directions_{project_id}") or {}
+        return {"directions": [d for d in state.get("directions") or [] if isinstance(d, dict) and d.get("id")],
+                "judged": dict(state.get("judged") or {})}
+
+    def _project_papers_for_growth(self, project_id):
+        return [dict(r) for r in self.store.conn.execute(
+            "SELECT p.key, p.title, p.abstract, p.source, p.doi FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
+
+    def _route_candidates(self, project_id):
+        """(project_id, revision, route, candidates, explicit): the potential directions on file, ready ones first.
+
+        A direction is the model's opinion about papers the reader collected from the exploration slots (see
+        route_direction_judge); what this counts, locally, is the evidence under it: how many of its papers there are, how many
+        the reader still marks explicitly positive (useful or understood; not interested never counts, too hard is
+        difficulty and silence is nothing), how many sources, and how alike they read (`pathgrowth.direction_evidence`).
+        Directions already on the map (proposed or active) and the ones the person turned down are left out.
+        `explicit` is the set of papers that count as evidence. Local and deterministic: reading costs no token."""
+        project_id = self._require_project(project_id)
+        revision, route = read_route(self.store.conn, project_id)
+        if not route or not route.get("graph"):
+            return project_id, revision, route, [], set()
+        graph = route["graph"]
+        stored = self._directions_store(project_id)["directions"]
+        if not stored:
+            return project_id, revision, route, [], set()
+        papers = self._project_papers_for_growth(project_id)
+        positive, feedback = self._positive_evidence(project_id)
+        vectors, _ = pathgrowth.paper_vectors(papers)
+        ids = {c["id"] for c in graph["concepts"]}
+        found = []
+        for d in self._visible_directions(project_id, route, feedback):
+            members = d["papers"]
+            evidence = pathgrowth.direction_evidence(members, papers, positive, vectors)
+            found.append({"id": d["id"], "name": d["name"], "terms": list(d.get("terms") or []), "intro": d.get("intro") or "",
+                          "barrier": d.get("barrier") or "", **evidence, "parent": None,
+                          "prereqs": [{"from": cid, "support": None} for cid in d.get("needs", []) if cid in ids]})
         found.sort(key=lambda c: (c["status"] != "ready", -c["strength"], c["name"]))   # what can be added comes first
         return project_id, revision, route, found[:pathgrowth.MAX_CANDIDATES], set(positive)
 
-    def _batch_directions(self, project_id, revision):
-        """The forming directions for the exploration slots, recomputed only when something they depend on changed
-        (the map's revision, the project's papers, any feedback or the freeze); paging through batches reuses it."""
-        conn = self.store.conn
-        freeze = self.store.get_setting(f"profile_freeze_{project_id}") or {}
-        signature = (revision, conn.execute("SELECT COUNT(*) FROM project_papers WHERE project_id=?", (project_id,)).fetchone()[0],
-                     conn.execute("SELECT COALESCE(MAX(id), 0) FROM feedback").fetchone()[0], freeze.get("through_feedback_id"))
-        cache = self.__dict__.setdefault("_direction_cache", {})
-        if cache.get(project_id, (None, None))[0] != signature:
-            try:
-                cache[project_id] = (signature, self._route_candidates(project_id)[3])
-            except (KeyError, TypeError, ValueError):
+    def _visible_directions(self, project_id, route, feedback=None):
+        """The stored directions the reader can still see: not already on the map and not turned down ("不再提示"). With
+        `feedback`, each one's papers are only those the reader still stands behind (a paper turned down or taken back
+        is dropped, so steering and evidence agree). One place, so what is listed, what steers exploration and what the
+        model is told about are the same directions."""
+        graph = (route or {}).get("graph") or {"concepts": []}
+        on_map = {c.get("candidate") for c in graph["concepts"] if c.get("candidate")}
+        rejected = set((route or {}).get("rejected") or [])
+        out = []
+        for d in self._directions_store(project_id)["directions"]:
+            if d["id"] in on_map or ({pathgraph._key(d["name"])} | {pathgraph._key(t) for t in d.get("terms", [])}) & rejected:
+                continue
+            papers = list(d.get("papers") or [])
+            if feedback is not None:
+                papers = [k for k in papers if feedback.get(k) and feedback[k].get("action") != "irrelevant"]
+            out.append({**d, "papers": papers})
+        return out
+
+    def _pending_explored(self, project_id):
+        """The papers the reader collected from an exploration slot that nobody has judged yet, newest feedback first:
+        [{key, title, abstract, source}]. Explicit positive feedback (useful or understood) on a paper that was shown as
+        exploration; being shown, ignored, turned down or too hard is not a reason to ask. Local, no token."""
+        project_id = self._require_project(project_id)
+        explored = {r[0] for r in self.store.conn.execute(
+            """SELECT DISTINCT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id
+               WHERE b.project_id=? AND e.route_kind IN ('explore', 'explore_new')""", (project_id,))}
+        if not explored:
+            return []
+        positive, feedback = self._positive_evidence(project_id, seeds=False)
+        store = self._directions_store(project_id)
+        attached = {k for d in store["directions"] for k in d.get("papers", [])}
+        latest = lambda k: max(feedback[k].get("id") or 0, (feedback[k].get("familiar") or {}).get("id") or 0)   # the order the reader collected them in
+        keys = sorted((k for k in explored if k in positive and k not in store["judged"] and k not in attached), key=lambda k: (latest(k), k), reverse=True)
+        rows = {r["key"]: dict(r) for r in self.store.conn.execute(
+            "SELECT p.key, p.title, p.abstract, p.source FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))}
+        return [rows[k] for k in keys if k in rows]
+
+    def _exploration_targets(self, project_id, pool, vectors, idf):
+        """[{name, papers}] for the exploration slots: for each direction on file (not yet on the map), the pool's papers that
+        read like the papers the model put under it. The same idf as the batch's own vectors; failures just mean no steering."""
+        try:
+            _, route = read_route(self.store.conn, project_id)
+            stored = [d for d in self._visible_directions(project_id, route, self.latest_feedback(project_id)) if d["papers"]]
+            if not stored:
                 return []
-        return cache[project_id][1]
+            members = sorted({k for d in stored for k in d["papers"]} - set(vectors))
+            rows = []
+            for start in range(0, len(members), 400):      # SQLite limits the number of ? in one statement
+                chunk = members[start:start + 400]
+                rows += [dict(r) for r in self.store.conn.execute(
+                    "SELECT key, title, abstract FROM papers WHERE key IN (%s)" % ",".join("?" * len(chunk)), chunk)]
+            local = dict(vectors)
+            for row in rows:
+                local[row["key"]] = ranking.l2_normalize(ranking.vectorize(ranking.tokenize(f"{row['title'] or ''} {row['abstract'] or ''}"), idf))
+            return pathgrowth.toward_directions(stored, local, [p["key"] for p in pool])
+        except (KeyError, TypeError, ValueError):
+            return []
 
     CANDIDATE_PARTS = (("S", ("证据量", "Amount of evidence"), ("你明确点过的论文越多越高", "Higher with more papers you marked")),
                        ("C", ("集中度", "Focus"), ("这些论文的文字越接近越高", "Higher when these papers read alike")),
-                       ("R", ("近期", "Recency"), ("最近有明确反馈的越多越高", "Higher with more recent explicit feedback")),
-                       ("N", ("新颖度", "Novelty"), ("学习图里还没覆盖的部分越多越高", "Higher the less the map already covers")))
+                       ("R", ("近期", "Recency"), ("最近有明确反馈的越多越高", "Higher with more recent explicit feedback")))
 
     def route_candidates(self, project_id=None):
-        """The directions that are forming, each with what it has, what it lacks, the papers behind it and where it
-        would sit on the map. Nothing is changed or saved."""
+        """The potential directions on file, each with what it has, what it lacks, the papers behind it, the model's short
+        intro and barrier, and where it would sit on the map; plus the exploration papers waiting to be judged.
+        Nothing is changed or saved, and nothing is sent anywhere."""
         project_id, revision, route, found, explicit = self._route_candidates(project_id)
         if not route or not route.get("graph"):
-            return {"project_id": project_id, "available": False, "candidates": [], "watching": 0, "revision": revision}
+            return {"project_id": project_id, "available": False, "candidates": [], "watching": 0, "revision": revision, "pending": [], "judges_left": 0}
         en = self.english()
         say = lambda zh, eng: eng if en else zh
         graph = route["graph"]
@@ -188,7 +256,7 @@ class App:
             missing = []
             if not gates["papers"]["ok"]:
                 n = need["papers"] - have["papers"]
-                missing.append(say(f"还差 {n} 篇含这个短语的论文", f"{n} more paper{'s' if n != 1 else ''} containing this phrase needed"))
+                missing.append(say(f"还差 {n} 篇属于这个方向的论文（在探索推荐里收藏相关的论文，再让 AI 判断）", f"{n} more paper{'s' if n != 1 else ''} under this direction needed (collect related papers from exploration, then ask the AI to judge)"))
             if not gates["positive"]["ok"]:
                 n = need["positive"] - have["positive"]
                 missing.append(say(f"还差 {n} 篇你明确点过（有用或已读懂）的论文", f"{n} more paper{'s' if n != 1 else ''} you mark Useful or Understood needed"))
@@ -204,17 +272,179 @@ class App:
             joined = "、".join(n["name"] for n in needs) if not en else ", ".join(n["name"] for n in needs)
             note = (say(f"加入后：{joined} → 「{c['name']}」", f"If added: {joined} → \"{c['name']}\"") if needs
                     else say(f"加入后「{c['name']}」会是一个新的入口（没有前置）", f"If added, \"{c['name']}\" would be a new entry point (no prerequisite)"))
-            if parent:
-                note += say(f"；它比「{parent['name']}」更细", f"; it is narrower than \"{parent['name']}\"")
-            out.append({"id": c["id"], "name": c["name"], "terms": c["terms"], "status": c["status"], "strength": c["strength"],
+            out.append({"id": c["id"], "name": c["name"], "terms": c["terms"], "intro": c.get("intro", ""), "barrier": c.get("barrier", ""),
+                        "status": c["status"], "strength": c["strength"],
                         "positive": len(c["positive"]), "paper_count": len(c["papers"]), "sources": c["counts"]["sources"],
-                        "source_names": c["source_names"], "overlap": round(1.0 - c["parts"]["N"], 2),
+                        "source_names": c["source_names"],
                         "gates": gates, "progress": progress, "missing": missing,
                         "parts": [{"key": k, "label": say(*label), "hint": say(*hint), "value": c["parts"][k]} for k, label, hint in self.CANDIDATE_PARTS],
                         "papers": [{"key": k, "title": (rows.get(k) or {"title": k})["title"] or k, "source": (rows.get(k) or {"source": None})["source"],
                                     "explicit": k in explicit} for k in shown[:8]],
                         "parent": parent, "prereqs": needs, "topology": {"needs": needs, "parent": parent, "note": note}})
-        return {"project_id": project_id, "available": True, "candidates": out, "watching": sum(1 for c in out if c["status"] != "ready"), "revision": revision}
+        pending = [{"key": p["key"], "title": p["title"] or p["key"]} for p in self._pending_explored(project_id)]
+        state = self.store.get_setting(f"direction_judge_{project_id}") or {}
+        used = int(state.get("attempts") or 0) if state.get("day") == time.strftime("%Y-%m-%d") else 0
+        return {"project_id": project_id, "available": True, "candidates": out, "watching": sum(1 for c in out if c["status"] != "ready"), "revision": revision,
+                "pending": pending, "judges_left": max(0, self.DIRECTION_JUDGES_PER_DAY - used)}
+
+    def route_direction_judge(self, project_id, dry_run=False):
+        """Ask the model whether the exploration papers the reader collected are a new direction (operation direction_judge),
+        one explicit click.
+
+        It sees at most three of those papers (title and the start of the abstract, sent as p1..p3 without any id), the
+        names of at most ten concepts of the map and at most three directions already on file, nothing else. Its answer is
+        an opinion: `new` (clearly different from every concept), `join` (belongs to a direction on file), `covered`
+        (a neighbour or a narrower topic of a concept) or `unclear`. The app checks it locally (needs must be concepts
+        that exist, a "new" whose text reads like a concept on the map, or that repeats a name on the map, is turned into
+        `covered`) and records it; nothing reaches the map until the reader adds a ready direction. At most
+        DIRECTION_JUDGES_PER_DAY paid attempts per project per local day, reserved before the call and given back when the
+        gateway refused before sending; one call at a time per project."""
+        project_id = self._require_project(project_id)
+        revision, route = read_route(self.store.conn, project_id)
+        if not route or not route.get("graph"):
+            raise ValueError("这个项目还没有学习图")
+        graph = route["graph"]
+        batch = self._pending_explored(project_id)[:routeplan.JUDGE_PAPERS]
+        if not batch:
+            raise ValueError("现在没有待判断的探索论文：在探索推荐里点“有用”收藏之后才会出现")
+        english = self.english()
+        # The model sees the concepts and directions nearest to these papers (not the first ones in storage order), so
+        # "clearly different from the map" is judged against what the papers actually resemble.
+        everything = self._project_papers_for_growth(project_id)
+        vectors, idf = pathgrowth.paper_vectors(everything)
+        batch_keys = [p["key"] for p in batch]
+        by_id = {c["id"]: c for c in graph["concepts"] if c.get("state", "active") == "active"}
+        ranked = [cid for cid, _ in pathgrowth.rank_concepts(graph, everything, batch_keys, vectors, idf) if cid in by_id]
+        active = [by_id[cid] for cid in (ranked or list(by_id))[:routeplan.JUDGE_CONCEPTS]]
+        visible = self._visible_directions(project_id, route)
+        sent_dirs = pathgrowth.rank_directions(visible, batch_keys, vectors)[:routeplan.JUDGE_DIRECTIONS]
+        messages = routeplan.judge_messages(batch, [c["name"] for c in active], sent_dirs, english)   # built before an attempt is reserved
+        key, busy, today = f"direction_judge_{project_id}", f"judge:{project_id}", time.strftime("%Y-%m-%d")
+        with self._ROUTE_LOCK:
+            state = self.store.get_setting(key) or {}
+            attempts = int(state.get("attempts") or 0) if state.get("day") == today else 0
+            if busy in self._ROUTE_BUSY:
+                raise ValueError("AI 正在判断，请稍候")
+            if attempts >= self.DIRECTION_JUDGES_PER_DAY and not dry_run:
+                raise ValueError(f"这个项目今天已经让 AI 判断过 {self.DIRECTION_JUDGES_PER_DAY} 次，请明天再试")
+            self._ROUTE_BUSY.add(busy)
+            if not dry_run:
+                self.store.set_setting(key, {"day": today, "attempts": attempts + 1})
+        left = lambda used: max(0, self.DIRECTION_JUDGES_PER_DAY - used)
+        try:
+            started = time.monotonic()
+            try:
+                result = self.gateway.call("direction_judge", messages, dry_run=dry_run) or {}
+            except Exception as exc:
+                result = {"ok": False, "degraded": True, "reason": str(exc)}
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            if dry_run or not result.get("ok"):
+                code, text = creation.degrade_reason(result, english)
+                refunded = code in self._ROUTE_UNPAID   # refused before anything was sent
+                if refunded and not dry_run:
+                    with self._ROUTE_LOCK:
+                        self.store.set_setting(key, {"day": today, "attempts": attempts})
+                used = attempts + (0 if dry_run or refunded else 1)
+                return {"ok": False, "mode": "local", "reason_code": code, "reason": text, "results": [], "elapsed_ms": elapsed_ms, "judges_left": left(used)}
+            used = attempts + 1
+            outcomes = self._apply_direction_judgement(project_id, route, batch, active, sent_dirs, routeplan.parse_judge(result.get("content")))
+            if not outcomes:
+                return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), "results": [],
+                        "elapsed_ms": elapsed_ms, "judges_left": left(used)}
+            return {"ok": True, "mode": "ai", "results": outcomes, "tokens": (result.get("usage") or {}).get("total_tokens"),
+                    "elapsed_ms": elapsed_ms, "judges_left": left(used), "pending": len(self._pending_explored(project_id))}
+        finally:
+            with self._ROUTE_LOCK:
+                self._ROUTE_BUSY.discard(busy)
+
+    MAX_VISIBLE_DIRECTIONS = 12     # more than this on file and the reader has to add or turn some down first
+
+    def _apply_direction_judgement(self, project_id, route, batch, active, sent_dirs, results):
+        """Validate the model's opinion and record it. Returns [{verdict, titles, name, nearest, direction}] for the page.
+
+        A reply item that is not usable (a label it made up, a name or search terms of the wrong type, no room left) is
+        reported as "unusable" and its papers stay waiting: that is a defect in the reply, not the model's opinion about
+        the papers, so it is not recorded as judged."""
+        graph = route["graph"]
+        label_to_concept = {f"c{i + 1}": c["id"] for i, c in enumerate(active)}
+        name_to_concept = {pathgraph._key(c["name"][:routeplan.JUDGE_CONCEPT_CHARS]): c["id"] for c in active}
+        known = {pathgraph._key(c["name"]) for c in graph["concepts"]} | {pathgraph._key(t) for t in (t for c in graph["concepts"] for t in c.get("terms", []))}
+        known.discard("")
+        rejected = set(route.get("rejected") or [])
+        concept_name = {c["id"]: c["name"] for c in graph["concepts"]}
+        papers = self._project_papers_for_growth(project_id)
+        vectors, idf = pathgrowth.paper_vectors(papers)
+        store = self._directions_store(project_id)
+        visible = {d["id"]: d for d in self._visible_directions(project_id, route)}
+        by_label = {f"d{i + 1}": d["id"] for i, d in enumerate(sent_dirs)}
+        title = {p["key"]: p["title"] or p["key"] for p in batch}
+        today = time.strftime("%Y-%m-%d")
+        outcomes, seen, changed = [], set(), False
+        text = lambda value, limit: pathgraph._prose(value, limit) if isinstance(value, str) else ""
+        for item in results[:3]:
+            refs = [x for x in (item.get("papers") or []) if isinstance(x, str) and re.fullmatch(r"p[1-9]", x) and int(x[1:]) <= len(batch)]
+            keys = [k for k in (batch[int(x[1:]) - 1]["key"] for x in dict.fromkeys(refs)) if k not in seen]
+            if not keys:
+                continue
+            seen.update(keys)
+            verdict = item.get("verdict") if item.get("verdict") in ("new", "join", "covered", "unclear") else "unusable"
+            nearest, direction_id, name, usable = "", None, "", verdict != "unusable"
+            if verdict == "join":
+                direction_id = by_label.get(str(item.get("direction") or ""))
+                if direction_id not in visible:
+                    usable = False
+            if verdict == "new" and usable:
+                name = text(item.get("name"), 20)
+                raw_terms = item.get("terms") if isinstance(item.get("terms"), list) else []
+                terms = [t for t in dict.fromkeys(text(t, 30) for t in raw_terms) if len(t) >= 3][:2]
+                if not name or not terms:
+                    usable = False
+            if verdict == "new" and usable:
+                keyset = {pathgraph._key(name)} | {pathgraph._key(t) for t in terms}
+                twin = next((d for d in visible.values() if keyset & ({pathgraph._key(d["name"])} | {pathgraph._key(t) for t in d.get("terms", [])})), None)
+                if twin:     # the model proposed something already on file under the same words: it is that direction
+                    verdict, direction_id = "join", twin["id"]
+                elif keyset & rejected:
+                    verdict = "declined"       # the reader said "no more of this" about these words
+                elif keyset & known:
+                    verdict = "covered"
+                    nearest = next((concept_name[c["id"]] for c in graph["concepts"] if keyset & ({pathgraph._key(c["name"])} | {pathgraph._key(t) for t in c.get("terms", [])})), "")
+                else:
+                    near_id, near_value = pathgrowth.nearest_concept(graph, papers, keys, vectors, idf)
+                    if near_id and near_value >= pathgrowth.T_NEAR:
+                        verdict, nearest = "covered", concept_name.get(near_id, "")
+                    elif len(visible) >= self.MAX_VISIBLE_DIRECTIONS:
+                        verdict, usable = "full", False
+            if not usable:
+                outcomes.append({"verdict": "full" if verdict == "full" else "unusable", "titles": [title[k] for k in keys], "name": "", "nearest": "", "direction": None})
+                continue
+            if verdict == "covered" and not nearest:
+                nearest = text(item.get("nearest"), 30)
+            if verdict == "new":
+                needs = []
+                for value in item.get("needs") if isinstance(item.get("needs"), list) else []:
+                    cid = label_to_concept.get(str(value)) or name_to_concept.get(pathgraph._key(str(value)[:routeplan.JUDGE_CONCEPT_CHARS]))
+                    if cid and cid not in needs:
+                        needs.append(cid)
+                new_id = "d-" + hashlib.sha1(("|".join(sorted(keys)) + pathgraph._key(name)).encode()).hexdigest()[:10]
+                store["directions"].append({"id": new_id, "name": name, "terms": terms, "intro": text(item.get("intro"), 60),
+                                            "barrier": text(item.get("barrier"), 60), "needs": needs[:3], "papers": keys, "created": today})
+                visible[new_id] = store["directions"][-1]
+                direction_id = new_id
+            elif verdict == "join":
+                direction = next(d for d in store["directions"] if d["id"] == direction_id)
+                direction["papers"] = list(dict.fromkeys([*direction.get("papers", []), *keys]))
+                name = direction["name"]
+            for k in keys:
+                if verdict in ("covered", "unclear", "declined"):
+                    store["judged"][k] = {"verdict": verdict, "nearest": nearest}
+                else:
+                    store["judged"][k] = {"verdict": verdict, "direction": direction_id}
+            changed = True
+            outcomes.append({"verdict": verdict, "titles": [title[k] for k in keys], "name": name, "nearest": nearest, "direction": direction_id})
+        if changed:
+            self.store.set_setting(f"route_directions_{project_id}", store)
+        return outcomes
 
     def route_candidate_accept(self, project_id, candidate_id, revision=None):
         """Add a proposed direction to the map: the person's click is the confirmation. The candidate is looked up
@@ -405,18 +635,20 @@ class App:
         return project_id, found
 
     def route_concept_intro(self, project_id, concept_id, dry_run=False):
-        """Ask the model for one sentence saying what one concept is (operation concept_intro), one explicit click.
+        """Ask the model what one concept is and what makes it hard (operation concept_intro), one explicit click.
 
-        The model sees the concept's name, up to two of its search terms and the start of the project goal, nothing
-        else. The sentence is returned for the page to put in the edit box: nothing is saved, and when the person
-        saves it, it is recorded as the model's (`intro_by` "ai"), apart from sentences they wrote. At most
+        The model sees the concept's name, up to two of its search terms, the project name and first keywords and up to
+        three of the project's own papers that use those terms (title and the start of the abstract), nothing else. The
+        paragraph is returned for the page to put in the edit box: nothing is saved, and when the person
+        saves it, it is recorded as the model's (`intro_by` "ai"), apart from text they wrote. At most
         CONCEPT_INTROS_PER_DAY paid attempts per project per local day, reserved before the call and given back
         when the gateway refused before sending; one call at a time per project."""
         project_id, concept = self._route_concept(project_id, concept_id)
         project = self.projects.get_project(project_id)
         goal = " ".join([project["name"], *(project.get("keywords") or [])[:3]])
         english = self.english()
-        messages = routeplan.intro_messages(concept["name"], concept.get("terms"), goal, english)   # built before an attempt is reserved
+        papers = [row for _, row, _ in self._concept_matches(project_id, concept)[:routeplan.INTRO_PAPERS]]
+        messages = routeplan.intro_messages(concept["name"], concept.get("terms"), goal, english, papers)   # built before an attempt is reserved
         key, busy, today = f"concept_intro_{project_id}", f"intro:{project_id}", time.strftime("%Y-%m-%d")
         with self._ROUTE_LOCK:
             state = self.store.get_setting(key) or {}
@@ -455,13 +687,10 @@ class App:
             with self._ROUTE_LOCK:
                 self._ROUTE_BUSY.discard(busy)
 
-    def route_concept_papers(self, project_id, concept_id, limit=5):
-        """The project's own papers that use this concept's search terms (title hits count double), best first, with
-        the words that matched and what the reader did with each (their explicit label only; no label is not a label).
-        Derived and read-only: nothing is stored."""
-        project_id, concept = self._route_concept(project_id, concept_id)
+    def _concept_matches(self, project_id, concept):
+        """[(key, row, hit terms)] of the project's own papers that use the concept's search terms (title hits count double),
+        best first. Local and read-only."""
         terms = [t for t in concept.get("terms", []) if t]
-        feedback = self.latest_feedback(project_id)
         scored = []
         for r in self.store.conn.execute(
                 "SELECT p.key, p.title, p.abstract, p.published FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,)):
@@ -470,13 +699,22 @@ class App:
             if hits:
                 scored.append((-(len(hits) + sum(pathgrowth.term_in_text(title, t) for t in hits)), r["key"], dict(r), hits))
         scored.sort(key=lambda row: (row[0], row[1]))
+        return [(key, row, hits) for _, key, row, hits in scored]
+
+    def route_concept_papers(self, project_id, concept_id, limit=5):
+        """The project's own papers that use this concept's search terms (title hits count double), best first, with
+        the words that matched and what the reader did with each (their explicit label only; no label is not a label).
+        Derived and read-only: nothing is stored."""
+        project_id, concept = self._route_concept(project_id, concept_id)
+        feedback = self.latest_feedback(project_id)
+        matches = self._concept_matches(project_id, concept)
         out = []
-        for _, key, row, hits in scored[:limit]:
+        for key, row, hits in matches[:limit]:
             entry = feedback.get(key) or {}
             out.append({"key": key, "title": row["title"] or key, "published": row["published"], "terms": hits,
                         "feedback": entry.get("action") if entry.get("action") in INTEREST_ACTIONS else None,
                         "familiarity": (entry.get("familiar") or {}).get("action")})
-        return {"project_id": project_id, "concept": concept_id, "papers": out, "total": len(scored)}
+        return {"project_id": project_id, "concept": concept_id, "papers": out, "total": len(matches)}
 
     def route_concept_examples(self, project_id, concept_id, count=3):
         """A few public papers about this concept, for someone who does not know what it is: one search with the
@@ -1647,7 +1885,7 @@ class App:
         route = self._route_state(project_id)
         if route and route["frontier"]:
             batch_index = self.store.conn.execute("SELECT COUNT(*) FROM batches WHERE project_id=?", (project_id,)).fetchone()[0]
-            directions = self._batch_directions(project_id, route["revision"])   # forming directions: their papers get the exploration slots first
+            directions = self._exploration_targets(project_id, pool, vectors, idf)   # directions on file: papers that read like theirs get the exploration slots first
             picks = self._route_pick(route, pool, scored, vectors, limit, batch_index, directions)
             if any(kind in ("route", "remedial") for _, _, kind, _ in picks):
                 if len(picks) < limit:

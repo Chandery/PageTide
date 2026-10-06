@@ -516,7 +516,7 @@ class IntroTests(unittest.TestCase):
         text = "A model, learned from data: it predicts what happens next!   " + "x" * 200
         graph, _ = pg.normalize(raw(dict(concept("a", "World models"), intro=text)), intro_by="ai")
         got = graph["concepts"][0]["intro"]
-        self.assertLessEqual(len(got), 90)
+        self.assertLessEqual(len(got), 140)
         self.assertTrue(got.startswith("A model, learned from data: it predicts what happens next!"))
 
     def test_markup_and_control_characters_are_plain_text(self):

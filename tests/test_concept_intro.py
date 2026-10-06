@@ -66,12 +66,13 @@ class RegistryTests(unittest.TestCase):
         self.assertIs(self.op["owner_approved"], True)
         self.assertIn("2026-10-06", self.op["approval_note"])
         self.assertIn("写这个节点的简介", self.op["approval_note"])
-        self.assertEqual((self.op["cap"]["input"], self.op["cap"]["output"]), (500, 250))
+        self.assertIn("批准：简介 + 方向解释两项上调", self.op["approval_note"])      # the second approval, in the owner's words
+        self.assertEqual((self.op["cap"]["input"], self.op["cap"]["output"]), (2000, 400))
         self.assertEqual(sum(self.op["input_cap_components"].values()), self.op["cap"]["input"])
         self.assertFalse(self.op["enabled_by_default"])
         self.assertEqual(self.op["trigger"], "interactive")
         self.assertLessEqual(self.op["reference"]["input"], self.op["cap"]["input"])
-        self.assertLess(budget.cost(self.cfg, 500, 250), 0.001)
+        self.assertLess(budget.cost(self.cfg, 2000, 400), 0.002)
 
     def test_the_prompt_file_has_the_header_and_matches_the_code(self):
         text = (ROOT / self.op["prompt"]).read_text(encoding="utf-8")
@@ -80,7 +81,8 @@ class RegistryTests(unittest.TestCase):
         self.assertIn(routeplan.INTRO_SYSTEM, text)
 
     def test_the_longest_input_fits_the_cap_by_a_pessimistic_estimate(self):
-        out = routeplan.intro_messages("名" * 500, ["词" * 500, "词" * 500, "词" * 500], "目" * 5000, True)
+        big = {"title": "题" * 500, "abstract": "摘" * 3000}
+        out = routeplan.intro_messages("名" * 500, ["词" * 500, "词" * 500, "词" * 500], "目" * 5000, True, [big] * 5)
         chars = sum(len(m["content"]) for m in out)
         self.assertLessEqual(chars * 1.5, self.op["cap"]["input"])    # 1.5 tokens per character is a heuristic, not a measurement
 
@@ -94,6 +96,42 @@ class RegistryTests(unittest.TestCase):
             self.assertIn("2026-10-06", op["approval_note"], name)
 
 
+class JudgeRegistryTests(unittest.TestCase):
+    def setUp(self):
+        self.cfg = json.loads((ROOT / "harness" / "budget.json").read_text())
+        self.op = self.cfg["operations"]["direction_judge"]
+
+    def test_it_is_registered_bounded_and_the_owners_approval_is_recorded_in_their_words(self):
+        self.assertIs(self.op["owner_approved"], True)
+        self.assertIn("2026-10-06", self.op["approval_note"])
+        self.assertIn("批准：简介 + 方向解释两项上调", self.op["approval_note"])
+        self.assertEqual((self.op["cap"]["input"], self.op["cap"]["output"]), (3000, 500))
+        self.assertEqual(sum(self.op["input_cap_components"].values()), self.op["cap"]["input"])
+        self.assertFalse(self.op["enabled_by_default"])
+        self.assertEqual(self.op["trigger"], "interactive")
+        self.assertLessEqual(self.op["reference"]["input"], self.op["cap"]["input"])
+        self.assertLess(budget.cost(self.cfg, 3000, 500), 0.002)
+
+    def test_the_prompt_file_has_the_header_and_matches_the_code(self):
+        text = (ROOT / self.op["prompt"]).read_text(encoding="utf-8")
+        self.assertIn("operation: direction_judge", text)
+        self.assertIn("contract: implemented", text)
+        self.assertIn(routeplan.JUDGE_SYSTEM, text)
+
+    def test_the_longest_input_fits_the_cap_by_a_pessimistic_estimate(self):
+        big = {"title": "题" * 500, "abstract": "摘" * 3000}
+        out = routeplan.judge_messages([big] * 5, ["概" * 100] * 20, [{"name": "向" * 100, "intro": "介" * 100}] * 9, True)
+        self.assertLessEqual(sum(len(m["content"]) for m in out) * 1.5, self.op["cap"]["input"])    # 1.5 tokens per character: a heuristic
+
+    def test_the_reply_is_found_bare_fenced_or_wrapped_and_garbage_gives_nothing(self):
+        item = {"papers": ["p1"], "verdict": "new"}
+        self.assertEqual(routeplan.parse_judge(json.dumps({"results": [item]})), [item])
+        self.assertEqual(routeplan.parse_judge("```json\n" + json.dumps({"results": [item, 5]}) + "\n```"), [item])
+        self.assertEqual(routeplan.parse_judge("sure! " + json.dumps({"results": [item]}) + " done"), [item])
+        for bad in ("", "no json", '{"results": 5}', '{"other": []}', None):
+            self.assertEqual(routeplan.parse_judge(bad), [])
+
+
 class ParseIntroTests(unittest.TestCase):
     def test_a_json_reply_without_an_intro_offers_nothing(self):
         self.assertEqual(routeplan.parse_intro('{"concept": "x"}'), "")
@@ -101,7 +139,9 @@ class ParseIntroTests(unittest.TestCase):
 
     def test_json_and_plain_replies_give_one_clean_sentence(self):
         self.assertEqual(routeplan.parse_intro('{"intro": "一句话。"}'), "一句话。")
-        self.assertEqual(routeplan.parse_intro('简介：“一句话。”\n多余的一行'), "一句话。")
+        self.assertEqual(routeplan.parse_intro('简介：“一句话。”'), "一句话。")
+        self.assertEqual(routeplan.parse_intro("在这些论文里指用示范学技能。\n门槛：要先懂监督学习，难在数据质量。"), "在这些论文里指用示范学技能。 门槛：要先懂监督学习，难在数据质量。")
+        self.assertEqual(routeplan.parse_intro('{"intro": "第一行\\n第二行"}'), "第一行 第二行")
         self.assertEqual(routeplan.parse_intro(""), "")
 
 
@@ -121,24 +161,42 @@ class IntroTests(Fixture):
 
     def test_a_long_reply_is_cut_to_the_limit(self):
         self.gateway(reply("很长" * 100))
-        self.assertLessEqual(len(self.app.route_concept_intro(self.pid, self.cid["Epitaxy"])["intro"]), 90)
+        self.assertLessEqual(len(self.app.route_concept_intro(self.pid, self.cid["Epitaxy"])["intro"]), 140)
 
-    def test_the_model_sees_the_concept_and_the_goal_only(self):
+    def test_the_model_sees_the_concept_the_goal_and_its_matching_papers_only(self):
         self.app.create_project("Secret other project", "manual", ["classified"])
-        self.paper("x", "PRIVATE TITLE", "private abstract")
+        self.paper("x", "PRIVATE TITLE", "private abstract")                                    # in the project, matches nothing
+        self.paper("m1", "Epitaxial growth of GaN", "epitaxy of gallium nitride on sapphire needs lattice matching")
         calls = self.gateway(reply("一句话。"))
         self.app.route_concept_intro(self.pid, self.cid["Epitaxy"])
-        sent = json.dumps(calls[0][1], ensure_ascii=False)
-        for forbidden in ("Secret other project", "classified", "PRIVATE TITLE", "private abstract", "Crystal basics"):
+        sent = calls[0][1][1]["content"]
+        for forbidden in ("Secret other project", "classified", "PRIVATE TITLE", "private abstract", "Crystal basics", '"m1"', "journal"):
             self.assertNotIn(forbidden, sent)
+        body = json.loads(sent)
+        self.assertEqual(set(body), {"concept", "terms", "goal", "papers"})
+        self.assertEqual(body["papers"], [{"title": "Epitaxial growth of GaN", "abstract": "epitaxy of gallium nitride on sapphire needs lattice matching"}])
         for wanted in ("Epitaxy", "epitaxy"):
             self.assertIn(wanted, sent)
+
+    def test_at_most_three_matching_papers_are_sent_each_cut_to_size(self):
+        for i in range(6):
+            self.paper(f"m{i}", "Epitaxy " + "T" * 300, "epitaxy " + "A" * 900)
+        calls = self.gateway(reply("一句话。"))
+        self.app.route_concept_intro(self.pid, self.cid["Epitaxy"])
+        papers = json.loads(calls[0][1][1]["content"])["papers"]
+        self.assertEqual(len(papers), routeplan.INTRO_PAPERS)
+        self.assertTrue(all(len(p["title"]) <= routeplan.PAPER_TITLE_CHARS and len(p["abstract"]) <= routeplan.INTRO_ABSTRACT_CHARS for p in papers))
+
+    def test_a_concept_no_paper_uses_is_asked_about_without_papers(self):
+        calls = self.gateway(reply("一句话。"))
+        self.app.route_concept_intro(self.pid, self.cid["Epitaxy"])
+        self.assertEqual(json.loads(calls[0][1][1]["content"])["papers"], [])
 
     def test_the_goal_is_bounded(self):
         self.app.projects.update_project(self.pid, name="N" * 400)
         calls = self.gateway(reply("一句话。"))
         self.app.route_concept_intro(self.pid, self.cid["Epitaxy"])
-        self.assertLess(len(json.dumps(calls[0][1], ensure_ascii=False)), 600)
+        self.assertLess(len(json.dumps(calls[0][1], ensure_ascii=False)), 800)
 
     def test_an_unreadable_reply_degrades_with_a_reason_and_counts_as_an_attempt(self):
         self.gateway(reply("   "))

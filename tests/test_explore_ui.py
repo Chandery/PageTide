@@ -15,7 +15,7 @@ class ExploreBadgeTests(unittest.TestCase):
         for kind in ("explore", "explore_new"):
             self.assertIn(f"{kind}:", kinds)
         self.assertIn("探索 · 新方向", kinds)
-        self.assertIn("会给这个方向攒证据", kinds)       # what the reader's own response does
+        self.assertIn("让 AI 判断", kinds)               # what the reader can do after collecting it
         self.assertIn("不在你现在能读的概念里", kinds)
 
     def test_the_new_direction_badge_is_styled_like_the_other_kinds(self):
