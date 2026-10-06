@@ -22,14 +22,17 @@ MAX_FAN_IN = 3
 MAX_MAP_NODES = 40     # a map may grow past the size of one AI plan, but not without limit
 PRIOR = 0.1             # mastery before any evidence
 START_PRIOR = 0.3       # the entry points of the map
-GAIN = 0.35             # a saved paper closes this share of the remaining gap
+GAIN = 0.35             # an understood paper closes this share of the remaining gap
 HARD_FACTOR = 0.6       # a "too hard" paper multiplies mastery by this
 SATISFIED_AT = 0.6      # a concept counts as understood from here
 LOW_INTEREST_RATINGS = 3
 LOW_INTEREST_AT = 0.35
 EXPLORE_BASE = 0.10     # share of a batch that is exploration at the start
 EXPLORE_SPAN = 0.40     # ... rising by this much as the map fills
-EVENTS = ("useful", "irrelevant", "too_hard")
+EVENTS = ("useful", "irrelevant", "understood", "too_hard")
+INTEREST_EVENTS = ("useful", "irrelevant")   # what the reader likes
+MASTERY_EVENTS = ("understood",)             # what the reader has understood
+DIFFICULTY_EVENTS = ("too_hard",)            # what was beyond the reader for now
 
 
 # ------------------------------------------------------------------ cleaning
@@ -60,8 +63,29 @@ def _hint(value):
         return 2
 
 
+TYPES = ("topic", "method", "problem", "foundation")   # what kind of unit to learn; never a paper
+_PAPER_KEYS = ("doi", "arxiv", "arxiv_id", "paper", "papers", "url", "authors", "venue", "citation", "references")
+_PAPER_TEXT = re.compile(r"10\.\d{4,9}/\S|arxiv\s*[:.]?\s*\d{4}\.\d{4,5}|\b\d{4}\.\d{4,5}(?:v\d+)?\b|https?://|www\.|\bet al\b", re.IGNORECASE)
+
+
+def paper_shaped(item):
+    """True when a proposed concept looks like a paper: a DOI, an arXiv id, a URL or "et al." in its name or
+    search terms, or a paper field (doi, url, authors, ...). A concept is a unit to learn; papers are found
+    later from its search terms, so a model that lists papers has not done the job."""
+    if not isinstance(item, dict):
+        return False
+    if any(item.get(key) for key in _PAPER_KEYS):
+        return True
+    terms = item.get("terms") if isinstance(item.get("terms"), list) else []
+    return any(_PAPER_TEXT.search(str(text)) for text in [item.get("name") or "", *terms])
+
+
+def _kind(value):
+    return value if value in TYPES else None
+
+
 def _blank_report():
-    return {"dropped_edges": [], "dropped_concepts": [], "merged": [], "terms_missing": []}
+    return {"dropped_edges": [], "dropped_concepts": [], "merged": [], "terms_missing": [], "papers_ignored": False}
 
 
 def empty_graph():
@@ -152,7 +176,7 @@ def _reduce(edges, live=None):
     return dropped
 
 
-def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN):
+def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN, allow_foundation=True):
     """Make an AI-proposed (or hand-edited) concept graph safe and return (graph, report).
 
     Never raises on bad input. Steps: clean fields, merge duplicate concepts (same name, or identical
@@ -160,10 +184,16 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN):
     prerequisite is harder than the dependent, break cycles, remove shortcuts implied by longer paths, cap
     the number of prerequisites. Concepts are tracked by position, so missing or repeated ids in the input
     cannot collide; a need may refer to a concept by id or by name.
+
+    A concept may carry a `type` (topic, method, problem or foundation; anything else is left out). A paper-shaped
+    concept is dropped, and a paper list beside the concepts is ignored and reported (`papers_ignored`): the
+    graph holds units to learn only. A foundation needs a one-line `why`, and is dropped without one, and
+    dropped altogether when `allow_foundation` is False (the reader did not say they lack the basics).
     """
     report = _blank_report()
     if not isinstance(raw, dict) or not isinstance(raw.get("concepts"), list):
         return empty_graph(), report
+    report["papers_ignored"] = any(raw.get(key) for key in ("papers", "resources", "references"))
 
     # 1. clean and merge
     kept, id_map, name_map = [], {}, {}
@@ -174,6 +204,16 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN):
         name = _text(item.get("name"), 60)
         if not name or not _key(name):
             report["dropped_concepts"].append({"name": name, "why": "no_name"})
+            continue
+        if paper_shaped(item):
+            report["dropped_concepts"].append({"name": name, "why": "paper_shaped"})
+            continue
+        kind, why = _kind(item.get("type")), _text(item.get("why"), 120)
+        if kind == "foundation" and not allow_foundation:
+            report["dropped_concepts"].append({"name": name, "why": "foundation_not_allowed"})
+            continue
+        if kind == "foundation" and not why:
+            report["dropped_concepts"].append({"name": name, "why": "foundation_unexplained"})
             continue
         terms = _terms(item.get("terms"), name)
         name_key = _key(name)
@@ -192,7 +232,7 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN):
             name_map.setdefault(name_key, twin["pos"])
             continue
         record = {"pos": f"#{position}", "name": name, "terms": terms, "hint": _hint(item.get("hint")), "needs": needs,
-                  "name_key": name_key, "term_keys": term_keys}
+                  "type": kind, "why": why, "name_key": name_key, "term_keys": term_keys}
         kept.append(record)
         if user_id and user_id not in id_map:
             id_map[user_id] = record["pos"]
@@ -271,7 +311,8 @@ def normalize(raw, max_nodes=MAX_NODES, max_fan_in=MAX_FAN_IN):
             report["dropped_edges"].append({"from": name_of[edge["from"]], "to": name_of[edge["to"]], "why": "fan_in"})
 
     concepts = [{"id": new_id[c["pos"]], "name": c["name"], "terms": c["terms"], "hint": c["hint"],
-                 "origin": "plan", "state": "active", "side": False} for c in kept]
+                 "origin": "plan", "state": "active", "side": False,
+                 **({"type": c["type"]} if c["type"] else {}), **({"why": c["why"]} if c["why"] else {})} for c in kept]
     targets = [new_id[t] for t in raw_targets if t in new_id]
     graph = {"concepts": concepts, "prereqs": edges, "targets": targets}
     if not targets:
@@ -364,6 +405,13 @@ def add_concept(graph, concept, needs=(), dependents=()):
         raise ValueError("the map is full")
     if any(_key(c["name"]) == _key(name) for c in graph["concepts"]):
         raise ValueError("two concepts cannot share a name")
+    kind, why = _kind(concept.get("type")), _text(concept.get("why"), 120)
+    if concept.get("type") is not None and kind is None:
+        raise ValueError("unknown concept type")
+    if paper_shaped(concept):
+        raise ValueError("a concept is something to learn, not a paper")
+    if kind == "foundation" and not why:
+        raise ValueError("a foundation concept needs a reason")
     hint = _hint(concept.get("hint"))
     if any(hints[i] > hint for i in needs) or any(hint > hints[i] for i in dependents):
         raise ValueError("a prerequisite cannot be harder than the concept that needs it")
@@ -371,7 +419,8 @@ def add_concept(graph, concept, needs=(), dependents=()):
     new_id = _next_id(graph)
     origin, state = concept.get("origin", "user"), concept.get("state", "active")
     grown["concepts"].append({"id": new_id, "name": name, "terms": _terms(concept.get("terms"), name), "hint": hint,
-                              "origin": origin, "state": state, "side": False})
+                              "origin": origin, "state": state, "side": False,
+                              **({"type": kind} if kind else {}), **({"why": why} if why else {})})
     for source in needs:
         grown["prereqs"].append({"from": source, "to": new_id, "support": concept.get("support"), "origin": origin, "state": state})
     for target in dependents:
@@ -395,7 +444,7 @@ def _short(value, name):
     return value
 
 
-def validate(graph):
+def validate(graph, tolerate=()):
     """A clean deep copy of a structured graph, or ValueError naming the broken rule.
 
     This is the gate for graphs that were not just made by normalize(): a graph a person edited on the page or
@@ -403,15 +452,17 @@ def validate(graph):
     concept, edges between known concepts with no self edge or duplicate, no cycle, no prerequisite harder than
     its dependent, at most MAX_FAN_IN prerequisites, at most MAX_MAP_NODES concepts, targets that exist (the
     sinks when none are given), bounded extra fields. Active edges implied by a longer active path are dropped
-    quietly (reachability is unchanged). Unknown fields are dropped.
+    quietly (reachability is unchanged). Unknown fields are dropped. A paper-shaped concept is refused by name,
+    except one whose name key is in `tolerate` (the names the stored map already had: a map saved before that rule
+    existed must still be savable, only a new paper-shaped concept is refused).
     """
     try:
-        return _validate(graph)
+        return _validate(graph, set(tolerate))
     except (TypeError, AttributeError, KeyError) as exc:
         raise ValueError("not a valid map") from exc
 
 
-def _validate(graph):
+def _validate(graph, tolerate=frozenset()):
     if not isinstance(graph, dict) or not isinstance(graph.get("concepts"), list) or not isinstance(graph.get("prereqs"), list):
         raise ValueError("not a map")
     if len(graph["concepts"]) > MAX_MAP_NODES or len(graph["prereqs"]) > MAX_MAP_NODES * MAX_FAN_IN:
@@ -429,10 +480,18 @@ def _validate(graph):
             raise ValueError("unknown origin or state")
         if _key(name) in names:
             raise ValueError("two concepts cannot share a name")
+        if paper_shaped(item) and _key(name) not in tolerate:
+            raise ValueError(f'a concept is something to learn, not a paper: "{name}"')
+        kind, why = _kind(item.get("type")), _text(item.get("why"), 120)
+        if item.get("type") is not None and kind is None:
+            raise ValueError("unknown concept type")
+        if kind == "foundation" and not why:
+            raise ValueError("a foundation concept needs a reason")
         names.add(_key(name))
         ids.add(item["id"])
         clean = {"id": item["id"], "name": name, "terms": _terms(item.get("terms"), name), "hint": _hint(item.get("hint")),
-                 "origin": origin, "state": state, "side": False}
+                 "origin": origin, "state": state, "side": False,
+                 **({"type": kind} if kind else {}), **({"why": why} if why else {})}
         for extra in ("parent", "candidate", "direction_id"):
             if item.get(extra) is not None:
                 clean[extra] = _short(item[extra], extra)
@@ -494,14 +553,15 @@ def remove_concept(graph, concept_id):
 def progress(graph, events, manual=None, shown=None, start=None):
     """Per-concept state from explicit feedback only.
 
-    events: {concept_id: ["useful" | "irrelevant" | "too_hard", ...]} in the order they happened.
+    events: {concept_id: ["useful" | "irrelevant" | "understood" | "too_hard", ...]} in the order they happened.
     manual: {concept_id: "mastered" | "unlocked" | "demoted"}.   shown: {concept_id: papers shown}.
     start: the entry points; the roots when omitted.
 
-    Mastery m (what unlocks the next concepts): starts at PRIOR (START_PRIOR for entry points), a saved
-    paper moves it toward 1, a "too hard" paper scales it down, nothing else touches it. Interest p comes
-    from ratings alone: (saved + 1) / (rated + 2). Silence, "irrelevant" and unmet prerequisites never lower
-    mastery, and no concept is ever marked as disliked.
+    Three kinds of evidence stay apart (`evidence` in each entry). Interest p comes from ratings alone,
+    useful and irrelevant: (useful + 1) / (rated + 2). Mastery m (what unlocks the next concepts) starts at
+    PRIOR (START_PRIOR for entry points), an "understood" paper moves it toward 1, a "too hard" paper scales
+    it down, nothing else touches it: saving a paper shows interest, not that it was understood. Silence,
+    "irrelevant" and unmet prerequisites never lower mastery, and no concept is ever marked as disliked.
 
     Only active concepts and active edges take part in unlocking. A proposed concept (an unconfirmed
     suggestion) has status "proposed" and an archived one "archived"; neither is on the frontier and neither
@@ -528,7 +588,7 @@ def progress(graph, events, manual=None, shown=None, start=None):
             if name not in counts:
                 continue
             counts[name] += 1
-            if name == "useful":
+            if name == "understood":
                 mastery += (1 - mastery) * GAIN
             elif name == "too_hard":
                 mastery *= HARD_FACTOR
@@ -545,7 +605,11 @@ def progress(graph, events, manual=None, shown=None, start=None):
             status = "unlocked"
         else:
             status = "locked"
-        out[node] = {"m": mastery, "useful": counts["useful"], "irrelevant": counts["irrelevant"], "too_hard": counts["too_hard"],
+        out[node] = {"m": mastery, "useful": counts["useful"], "irrelevant": counts["irrelevant"],
+                     "understood": counts["understood"], "too_hard": counts["too_hard"],
+                     "evidence": {"interest": {n: counts[n] for n in INTEREST_EVENTS},
+                                  "mastery": {n: counts[n] for n in MASTERY_EVENTS},
+                                  "difficulty": {n: counts[n] for n in DIFFICULTY_EVENTS}},
                      "rated": rated, "shown": int(shown.get(node, 0)), "p": interest,
                      "low_interest": override == "demoted" or (rated >= LOW_INTEREST_RATINGS and interest <= LOW_INTEREST_AT),
                      "status": status, "manual": override, "unmet": unmet}

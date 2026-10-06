@@ -172,6 +172,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   const R = window.PDHRoute;
   const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null};
   const mapAct = makeActivity(part('mapActivity'));
+  part('mapBoundary').innerHTML = R.boundaryHTML('map');   // optional: where the reader starts and how deep to go
   const mapNotice = (message, isError = true) => {
     const el = part('mapNotice');
     el.hidden = !message; el.textContent = message || ''; el.classList.toggle('error', isError);
@@ -272,7 +273,8 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     mapNotice(''); mapAct.start('正在请 AI 规划学习路径（约 10–30 秒）…');
     part('mapGenerate').disabled = true; part('mapRegen').disabled = true;
     try {
-      const out = await post(`/api/project-guidance/sessions/${sessionId()}/route`, {regenerate});
+      const boundary = R.readBoundary(part('mapBoundary'));
+      const out = await post(`/api/project-guidance/sessions/${sessionId()}/route`, {regenerate, ...(boundary ? {boundary} : {})});
       if (!out.ok) { mapNotice(`没有使用 AI：${out.reason || 'AI 没有给出学习图'}。可以点“添加概念”自己搭学习图，或不使用学习图。`); return; }
       map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
       const fixed = out.report ? out.report.dropped_edges.length + out.report.merged.length + out.report.dropped_concepts.length : 0;

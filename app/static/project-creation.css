@@ -165,7 +165,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .map-layout>*{min-width:0}
 .map-layout.stack{grid-template-columns:minmax(0,1fr)}
 .map-detail{border:1px solid var(--line);border-radius:var(--r-md);background:var(--base);padding:calc(10px * var(--s)) calc(12px * var(--s));font-size:calc(13px * var(--s));min-height:90px}
-.map-detail h3{margin:0 0 calc(2px * var(--s));font-size:calc(15px * var(--s))}
+.map-detail{overflow-wrap:anywhere}
+.map-detail h3{margin:0 0 calc(2px * var(--s));font-size:calc(15px * var(--s));white-space:normal}   /* the page-wide h3 is nowrap: a long concept name must wrap inside the panel */
 .map-detail .terms{color:var(--muted);font-size:calc(12px * var(--s))}
 .map-detail .needs{margin-top:calc(6px * var(--s));font-size:calc(12px * var(--s));line-height:1.7}
 .map-detail .need.supported{color:var(--good)}.map-detail .need.contradicted{color:var(--warn)}
@@ -178,8 +179,18 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .map-detail input.edit{width:100%;margin-top:calc(4px * var(--s))}
 .map-shape{font-size:calc(12px * var(--s));color:var(--muted);margin:calc(4px * var(--s)) 0 calc(8px * var(--s))}
 .map-shape.single{color:var(--warn)}
+.growth{margin-top:calc(18px * var(--s))}
+.growth header{display:flex;align-items:center;gap:calc(10px * var(--s))}
+.growth header h3{margin:0}
+.growth-card{border:1px solid var(--line);border-radius:var(--r-md);background:var(--base);padding:calc(10px * var(--s)) calc(12px * var(--s));margin:calc(8px * var(--s)) 0}
+.growth-card h4{margin:0 0 calc(4px * var(--s));font-size:calc(14px * var(--s));white-space:normal;overflow-wrap:anywhere}
+.growth-papers{margin:calc(4px * var(--s)) 0;padding-left:calc(18px * var(--s));font-size:calc(12px * var(--s));color:var(--muted);overflow-wrap:anywhere}
+.growth-card .row{display:flex;gap:calc(8px * var(--s));margin-top:calc(8px * var(--s))}
 .ai-draft{border:1px solid var(--line);border-radius:var(--r-md);background:var(--base);padding:calc(10px * var(--s)) calc(12px * var(--s));margin:calc(8px * var(--s)) 0}
 .ai-draft textarea{width:100%;min-height:54px;margin:calc(6px * var(--s)) 0;box-sizing:border-box}
+.boundary{display:flex;flex-wrap:wrap;gap:calc(8px * var(--s)) calc(16px * var(--s));margin:calc(6px * var(--s)) 0}
+.boundary-field{display:flex;flex-direction:column;gap:calc(3px * var(--s));font-size:calc(12px * var(--s));color:var(--muted);min-width:min(100%, calc(200px * var(--s)))}
+.boundary-field select{font:inherit;font-size:calc(13px * var(--s));color:var(--text);padding:calc(6px * var(--s)) calc(8px * var(--s));border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--base)}
 .ai-draft .row{display:flex;gap:calc(8px * var(--s));flex-wrap:wrap;align-items:center}
 
 /* The learning map drawn as a graph (route-graph.js): arrows run from what is needed to what needs it. */
@@ -201,7 +212,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .rg-node{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:calc(3px * var(--s));text-align:left;
   padding:calc(6px * var(--s)) calc(10px * var(--s));border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--base);color:inherit;font:inherit;font-size:calc(13px * var(--s));cursor:pointer}
 .rg-node:focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
-.rg-name{font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rg-name{flex:none;white-space:normal;overflow-wrap:anywhere;font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .rg-state{font-size:calc(11px * var(--s));color:var(--muted)}
 .rg-node.side{border-style:dashed}
 .rg-node.st-satisfied{border-color:var(--good);background:var(--accent-soft)}

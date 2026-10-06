@@ -89,6 +89,7 @@ function render() {
   });
   if (focused && focused.dataset.id) state.graph.focusNode(focused.dataset.id);
   renderDetail();
+  renderGrowth();   // its buttons are off while there are unsaved edits
 }
 
 function renderDetail() {
@@ -204,6 +205,7 @@ function defaultGoal() {
 }
 function openAi() {
   part('aiBox').hidden = false;
+  if (!part('aiBoundary').firstChild) part('aiBoundary').innerHTML = R.boundaryHTML('plan');   // built once, so a choice survives re-opening the box
   part('aiWarn').textContent = [state.dirty ? '你有没保存的修改，AI 草稿会替换掉它们。' : '',
     state.route && state.route.graph ? '保存草稿时，你在现在这张图上做的“已掌握 / 手动解锁”标记只会保留给名字相同的概念。' : ''].filter(Boolean).join(' ');
   if (!part('goal').value) part('goal').value = defaultGoal();
@@ -216,7 +218,8 @@ part('aiGo').onclick = () => guarded(async () => {
   if (!goal) { notice('请先写下你想学什么。'); return; }
   part('aiGo').disabled = true; part('aiActivity').textContent = 'AI 正在起草（约 10–30 秒）…'; notice('');
   try {
-    const out = await api({action: 'plan', goal});
+    const boundary = R.readBoundary(part('aiBoundary'));
+    const out = await api({action: 'plan', goal, ...(boundary ? {boundary} : {})});
     if (!out.ok) {
       notice(out.reason_code === 'not_approved'
         ? '“为已有项目起草学习图”这项 AI 调用还在等你批准（harness/budget.json 里的 learning_path_plan_project）。批准之前，可以自己搭学习图。'
@@ -232,6 +235,38 @@ part('aiGo').onclick = () => guarded(async () => {
     render();
   } finally { part('aiGo').disabled = false; part('aiActivity').textContent = ''; }
 });
+/* ---- new directions: proposals from what the reader explicitly responded to; only a click adds one */
+const growth = {result: null, undo: null};
+function renderGrowth() {
+  const box = part('growthList'), result = growth.result;
+  if (!result) { box.innerHTML = ''; return; }
+  const locked = state.dirty;   // a proposal is saved straight to the stored map, so unsaved edits must be dealt with first
+  box.innerHTML = (result.candidates || []).map((c) => R.candidateHTML(c, {locked})).join('')
+    + (R.growthNote(result) ? `<p class="hint">${esc(R.growthNote(result))}</p>` : '')
+    + (growth.undo && growth.undo.revision === state.route.revision   // any other save or mark moves the revision on: then it is no longer the step to take back
+      ? `<p class="hint">${esc(growth.undo.label)}。<button type="button" class="ghost small" data-growth="undo" data-event="${esc(growth.undo.id)}"${locked ? ' disabled title="先保存或放弃对学习图的修改"' : ''}>撤销</button></p>` : '');
+}
+async function findGrowth() {
+  const result = await api({action: 'candidates'});
+  growth.result = result; renderGrowth();
+}
+part('findGrowth').onclick = () => guarded(async () => { notice(''); await findGrowth(); });
+part('growthList').onclick = (event) => {
+  const button = event.target.closest('button[data-growth]');
+  if (!button || button.disabled) return;
+  const kind = button.dataset.growth, id = button.dataset.id;
+  guarded(async () => {
+    notice('');
+    const body = kind === 'undo' ? {action: 'undo', revision: state.route.revision, event: Number(button.dataset.event)}
+      : {action: kind === 'accept' ? 'candidate-accept' : 'candidate-reject', candidate: id, revision: state.route.revision};
+    const out = await api(body);
+    const {undo, ...route} = out;
+    growth.undo = kind === 'undo' || !undo ? null : {...undo, revision: route.revision};
+    state.route = route; state.draft = route.graph ? JSON.parse(JSON.stringify(route.graph)) : null; state.dirty = false; state.annotated = false;
+    render();
+    await findGrowth();
+  });
+};
 window.addEventListener('beforeunload', (event) => { if (state.dirty) { event.preventDefault(); event.returnValue = ''; } });
 
 (async () => {

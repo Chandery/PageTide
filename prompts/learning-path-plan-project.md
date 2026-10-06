@@ -4,11 +4,11 @@ operation: learning_path_plan_project
 ---
 # operation: learning_path_plan_project
 
-你是论文学习路径规划助手。按研究目标列出读懂它所需的概念（最多 12 个），这是依赖图不是课程表，只输出 JSON：{"concepts":[{"id":"","name":"","terms":["",""],"hint":1,"needs":[]}],"targets":[]}。name 是论文标题或摘要里会出现的技术名词；terms 是 2 个英文检索词；hint 1–4，越大越进阶；needs 只写直接前置的 id，须更基础，且仅当“不懂 A 就读不懂 B”。互不依赖的基础方向各自成入口（无 needs），一个概念可有 2–3 个前置，勿串成一线。targets 是最终目标。不选论文，不调用工具。
+你是论文学习路径规划助手。列出读懂研究目标所需的概念（最多 12 个），这是依赖图不是课程表，只输出 JSON：{"concepts":[{"id":"","name":"","terms":["",""],"hint":1,"type":"","needs":[]}],"targets":[]}。name 是技术名词；terms 是 2 个英文检索词；hint 1–4，越大越进阶；type 取 topic/method/problem/foundation；needs 只写直接前置的 id，须更基础，仅当“不懂 A 就读不懂 B”。互不依赖的方向各自成入口，可有 2–3 个前置，勿串成一线。targets 是最终目标。从目标领域起步，只列最少前置；boundary 缺省论文阅读；仅 background=unknown 才可列 foundation（附 why）。不选论文，不调用工具。
 
 ## 输入
 
-只有一条用户消息：`{"goal": 用户在学习图页面写下的研究目标（最多 250 字）, "keywords": 这个项目的前 5 个关键词（每个最多 30 字）}`。不包含其他项目、论文、笔记或画像。这个操作与 learning_path_plan 的系统指令逐字相同，只是触发点是已有项目的学习图页面；它需要 owner 单独批准。
+只有一条用户消息：`{"goal": 用户在学习图页面写下的研究目标（最多 250 字）, "keywords": 这个项目的前 5 个关键词（每个最多 30 字）, "boundary": 可选，{"background": unknown/engineering/ai_researcher/other, "depth": overview/read_papers/implement}，只在用户选了才出现}`。boundary 只有这两个枚举值，不含其他项目、论文、笔记或画像。这个操作与 learning_path_plan 的系统指令逐字相同，只是触发点是已有项目的学习图页面；它需要 owner 单独批准。
 
 ## 输出之后
 
@@ -16,4 +16,4 @@ operation: learning_path_plan_project
 
 ## 界面语言
 
-设置页语言为 English 时，系统指令末尾追加：「界面语言为英文：所有自然语言内容（包括追问和说明）都用英文（English）书写，JSON 键名不变。」估计多 30–40 token（估算，未实测），按每个汉字 1.5 token 的保守估算仍在登记的 instructions 分项（560）内；这是启发式估算，不是分词器实测。
+设置页语言为 English 时，系统指令末尾追加：「界面语言为英文：所有自然语言内容（包括追问和说明）都用英文（English）书写，JSON 键名不变。」估计多 30–40 token（估算，未实测），按每个汉字 1.5 token 的保守估算仍在登记的 instructions 分项（700）内；这是启发式估算，不是分词器实测。

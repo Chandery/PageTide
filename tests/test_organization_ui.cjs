@@ -17,6 +17,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   const ui = context.module.exports;
   ui.setReader = reader => { context.window.PDH.openReader = reader; };
   ui.setDetail = open => { context.window.PDH.openDetail = open; };
+  ui.setCytoscape = factory => { context.window.cytoscape = factory; };
   ui.reduceMotion = enabled => { context.window.matchMedia = () => ({matches: enabled}); };
   ui.createGraph = elements => {
     context.elements=elements;
@@ -790,4 +791,134 @@ test('the reading button icon is visible in both modes', () => {
   const css = fs.readFileSync(path.join(__dirname, '../app/static/organization.css'), 'utf8');
   assert.match(css, /\.org-detail \.org-reading-tools button \.org-icon \{ filter:invert\(1\); \}/);
   assert.match(css, /html\[data-mode="dark"\] \.org-detail \.org-reading-tools button \.org-icon \{ filter:none; \}/);
+});
+
+
+function routeBox() {
+  const box = { hidden: true, innerHTML: '', classList: { toggle() {} } };
+  const container = { innerHTML: '', title: '', setAttribute() {}, isConnected: true };
+  const hint = { textContent: '' };
+  const pick = (selector) => selector === '[data-view-seg]' ? box : selector === '.org-graph-wrap' ? { classList: box.classList } : selector === '.org-graph' ? container : selector === '.org-graph-hint' ? hint : selector === '[data-focus-seg]' ? { hidden: false, innerHTML: '' } : selector === '.org-graph-legend' ? { hidden: true, innerHTML: '' } : null;
+  return { box, container, hint, root: { querySelector: pick, querySelectorAll: () => [] } };
+}
+
+test('the second graph view is offered only on a project tab whose project has a learning map', () => {
+  const ui = fixture(), dom = routeBox();
+  ui.S.root = dom.root;
+  ui.S.snapshot = snapshot({ route_projects: ['p1'], projects: [{ id: 'p1', name: 'A' }, { id: 'p2', name: 'B' }] });
+  ui.S.scope = 'all'; ui.renderViewSeg();
+  assert.equal(dom.box.hidden, true);
+  assert.equal(ui.routeAvailable(), false);
+  ui.S.scope = 'p2'; ui.renderViewSeg();
+  assert.equal(dom.box.hidden, true);   // a project without a map
+  ui.S.scope = 'p1'; ui.renderViewSeg();
+  assert.equal(dom.box.hidden, false);
+  assert.match(dom.box.innerHTML, /data-view="papers"/);
+  assert.match(dom.box.innerHTML, /data-view="route"/);
+  assert.match(dom.box.innerHTML, /aria-checked="true"[^>]*data-action="graph-view" data-view="papers"/);
+});
+
+test('leaving the project tab, or a project losing its map, puts the paper graph back', () => {
+  const ui = fixture(), dom = routeBox();
+  ui.S.root = dom.root;
+  ui.S.snapshot = snapshot({ route_projects: ['p1'], projects: [{ id: 'p1', name: 'A' }] });
+  ui.S.scope = 'p1'; ui.S.graphView = 'route';
+  ui.renderViewSeg();
+  assert.equal(ui.S.graphView, 'route');
+  ui.S.scope = 'all'; ui.renderViewSeg();
+  assert.equal(ui.S.graphView, 'papers');
+  ui.S.scope = 'p1'; ui.S.graphView = 'route'; ui.S.snapshot = snapshot({ route_projects: [] });
+  ui.renderViewSeg();
+  assert.equal(ui.S.graphView, 'papers');
+});
+
+test('the view switch changes only the view: no request that saves, no layout touched', async () => {
+  const calls = [];
+  const ui = fixture(async (url, body) => { calls.push([url, body]); return { available: false, reason: 'no_route', project_id: 'p1' }; });
+  const dom = routeBox();
+  ui.S.root = dom.root; ui.S.mode = 'graph';
+  ui.S.snapshot = snapshot({ route_projects: ['p1'], projects: [{ id: 'p1', name: 'A' }] });
+  ui.S.scope = 'p1'; ui.S.positions = { 'paper:one': { x: 1, y: 2 } };
+  ui.setCytoscape(() => ({}));
+  await ui.handle('graph-view', { dataset: { view: 'route' } });
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(ui.S.graphView, 'route');
+  assert.deepEqual(calls.map(c => [c[0], c[1].action, c[1].project_id]), [['/api/organization', 'route-detail', 'p1']]);
+  assert.deepEqual(JSON.parse(JSON.stringify(ui.S.positions)), { 'paper:one': { x: 1, y: 2 } });
+  assert.match(dom.container.innerHTML, /还没有学习图|图谱组件未加载/);
+});
+
+test('a failed read of the learning map is shown as text, never as markup', async () => {
+  const ui = fixture(async () => { throw new Error('<img src=x onerror=alert(1)>'); });
+  const dom = routeBox();
+  ui.S.root = dom.root; ui.S.mode = 'graph';
+  ui.S.snapshot = snapshot({ route_projects: ['p1'] });
+  ui.S.scope = 'p1'; ui.S.graphView = 'route';
+  ui.setCytoscape(() => ({}));
+  await ui.renderRouteGraph();
+  assert.ok(!dom.container.innerHTML.includes('<img'));
+  assert.match(dom.container.innerHTML, /&lt;img/);
+});
+
+test('a new snapshot makes the second view read the map again', () => {
+  const ui = fixture();
+  ui.S.routeDetail = { scope: 'p1', data: { available: true } };
+  ui.accept(snapshot());
+  assert.equal(ui.S.routeDetail, null);
+});
+
+test('the second view\'s style is accepted by cytoscape and styles units by status and edges by kind', () => {
+  const ui = fixture();
+  const D = require('../app/static/route-detail.js');
+  const built = JSON.parse(JSON.stringify(D.layout({ available: true, units: [
+      { id: 'a', name: 'Basics', level: 1, status: 'satisfied', state: 'active' }, { id: 'b', name: 'Next', level: 2, status: 'locked', state: 'proposed', side: true }],
+    prereqs: [{ from: 'a', to: 'b', state: 'proposed' }], papers: [{ key: 'p', title: 'Paper' }, { key: 'q', title: 'Other' }],
+    matches: [{ paper: 'p', unit: 'a', rank: 0, terms: ['x'] }, { paper: 'p', unit: 'b', rank: 1, terms: ['y'] }], unmatched: ['q'] }, { edges: [{ source: 'p', target: 'q', weight: 0.5 }] })));
+  const elements = [...built.nodes.map(n => ({ data: { id: n.id, kind: n.kind, label: n.label, status: n.status, side: n.side }, position: { x: n.x, y: n.y } })),
+    ...built.edges.map(e => ({ data: { id: e.id, source: e.source, target: e.target, kind: e.kind, rank: e.rank, proposed: e.proposed, weight: e.weight } }))];
+  const cy = ui.createGraph(elements);
+  assert.equal(cy.nodes().length, built.nodes.length);
+  ui.S.cy = null;
+  const styled = ui.createGraph(elements);   // headless, no style: only checks the elements are valid
+  assert.ok(styled);
+  const vm2 = require('node:vm');
+  assert.doesNotThrow(() => cy.style(ui.routeStyle()));
+  assert.equal(cy.nodes('[kind = "unit"][status = "satisfied"]').length, 1);
+  assert.equal(cy.edges('[kind = "matched_to"]').length, 2);
+  assert.equal(cy.edges('[kind = "prerequisite"][?proposed]').length, 1);
+});
+
+test('a slow read of the learning map never draws over the paper graph the person switched back to', async () => {
+  let release;
+  const ui = fixture(() => new Promise(resolve => { release = resolve; }));
+  const dom = routeBox();
+  ui.S.root = dom.root; ui.S.mode = 'graph';
+  ui.S.snapshot = snapshot({ route_projects: ['p1'], projects: [{ id: 'p1', name: 'A' }] });
+  ui.S.scope = 'p1'; ui.S.graphView = 'route';
+  let created = 0;
+  ui.setCytoscape(() => { created += 1; return { on() {}, nodes: () => ({}), zoom: () => 1, destroy() {}, resize() {}, animate() {} }; });
+  const pending = ui.renderRouteGraph();
+  ui.S.graphView = 'papers';          // the person clicks "论文关系" while the request is out
+  ui.S.routeToken++;                  // what renderGraph does first on every render
+  dom.container.innerHTML = '<paper-graph>';
+  release({ available: true, units: [{ id: 'a', name: 'A', level: 1, status: 'unlocked', state: 'active' }], prereqs: [], papers: [], matches: [], unmatched: [], omitted: 0 });
+  await pending;
+  assert.equal(created, 0);
+  assert.equal(dom.container.innerHTML, '<paper-graph>');
+  assert.equal(ui.S.rcy, null);
+});
+
+test('a slow read for one project is dropped when another project tab was chosen', async () => {
+  let release;
+  const ui = fixture(() => new Promise(resolve => { release = resolve; }));
+  const dom = routeBox();
+  ui.S.root = dom.root; ui.S.mode = 'graph';
+  ui.S.snapshot = snapshot({ route_projects: ['p1', 'p2'], projects: [{ id: 'p1', name: 'A' }, { id: 'p2', name: 'B' }] });
+  ui.S.scope = 'p1'; ui.S.graphView = 'route';
+  ui.setCytoscape(() => { throw new Error('must not draw'); });
+  const pending = ui.renderRouteGraph();
+  ui.S.scope = 'p2';
+  release({ available: true, units: [], prereqs: [], papers: [], matches: [], unmatched: [], omitted: 0 });
+  await pending;
+  assert.equal(ui.S.routeDetail, null);
 });

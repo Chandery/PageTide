@@ -3,8 +3,9 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from . import ranking
 
-KINDS = {'saved', 'positive', 'negative', 'too_hard', 'seed', 'term', 'feedback', 'week', 'exposed'}
-LABELS = {'positive': '有用', 'negative': '不相关', 'too_hard': '太难', 'saved': '收藏', 'exposed': '曝光'}
+KINDS = {'saved', 'positive', 'negative', 'too_hard', 'understood', 'seed', 'term', 'feedback', 'week', 'exposed'}
+LABELS = {'positive': '有用', 'negative': '不相关', 'too_hard': '太难', 'understood': '已读懂', 'saved': '收藏', 'exposed': '曝光'}
+INTEREST = ('useful', 'irrelevant')   # a later 'understood' or 'too_hard' never replaces one of these
 STOP = {'further', 'framework', 'model', 'models', 'using', 'propose', 'proposed', 'approach'}
 
 
@@ -21,10 +22,10 @@ def context(app, project_id):
     feedback = [dict(r) for r in c.execute('''SELECT f.* FROM feedback f
         JOIN project_papers pp ON pp.project_id=f.project_id AND pp.paper_key=f.paper_key
         WHERE f.project_id=? ORDER BY f.id''', (project_id,))]
-    latest = {}
+    latest, familiar = {}, {}   # the latest interest label and the latest familiarity label, each on its own
     for r in feedback:
         if not r['undone']:
-            latest[r['paper_key']] = r
+            (latest if r['action'] in INTEREST else familiar)[r['paper_key']] = r
     saved = {r['paper_key']: dict(r) for r in c.execute('''
         SELECT l.* FROM project_library l JOIN papers p ON p.key=l.paper_key
         WHERE l.project_id=?''', (project_id,))}
@@ -48,7 +49,7 @@ def context(app, project_id):
                                time=timestamp, sources=evidence.get(key, []), **extra))
     for r in feedback:
         if not r['undone']:
-            kind = {'useful': 'positive', 'irrelevant': 'negative', 'too_hard': 'too_hard'}.get(r['action'], 'other')
+            kind = {'useful': 'positive', 'irrelevant': 'negative', 'too_hard': 'too_hard', 'understood': 'understood'}.get(r['action'], 'other')
             event(r['paper_key'], kind, r['created_at'], feedback_id=r['id'], action=r['action'], reason=r['reason'])
     for key, r in saved.items():
         event(key, 'saved', r['saved_at'])
@@ -56,7 +57,7 @@ def context(app, project_id):
         WHERE b.project_id=?''', (project_id,)):
         event(r['paper_key'], 'exposed', r['shown_at'])
     return dict(project_id=project_id, project=project, profile=profile, papers=papers,
-                feedback=feedback, latest=latest, saved=saved, evidence=evidence, events=events)
+                feedback=feedback, latest=latest, familiar=familiar, saved=saved, evidence=evidence, events=events)
 
 
 def stamp(value):
@@ -128,7 +129,7 @@ def insights(app, project_id, weeks=12):
                             **{k: cnt[k] for k in LABELS}, activity=len(events), interest_score=cnt['positive']-cnt['negative']))
     from .service import PROFILE_STOPWORDS
     terms = keywords(ctx, PROFILE_STOPWORDS)
-    latest_counts = Counter(r['action'] for r in ctx['latest'].values())
+    latest_counts = Counter(r['action'] for r in [*ctx['latest'].values(), *ctx['familiar'].values()])
     signals = dict(pinned=len(ctx['profile']['pinned_terms']), saved=len(ctx['saved']),
                    positive=latest_counts['useful'], negative=latest_counts['irrelevant'], too_hard=latest_counts['too_hard'], seed=len(ctx['evidence'].keys() & set(ctx['profile']['positive_seeds'])))
     recent = sorted([e for e in ctx['events'] if 'feedback_id' in e], key=lambda e: e['feedback_id'], reverse=True)[:5]
@@ -165,9 +166,9 @@ def evidence(app, project_id, kind, term='', start=None, end=None, offset=0):
             raise ValueError('周明细需要日期范围')
     else:
         items = []
-        action = {'positive': 'useful', 'negative': 'irrelevant', 'too_hard': 'too_hard'}.get(kind)
+        action = {'positive': 'useful', 'negative': 'irrelevant', 'too_hard': 'too_hard', 'understood': 'understood'}.get(kind)
         for key, p in ctx['papers'].items():
-            fb = ctx['latest'].get(key, {})
+            fb = (ctx['familiar'] if action in ('too_hard', 'understood') else ctx['latest']).get(key, {})
             matched = (kind=='saved' and key in ctx['saved']) or (action and fb.get('action')==action) or (kind=='seed' and key in ctx['profile']['positive_seeds'])
             if kind == 'term':
                 matched = key in ctx['evidence'] and term in ranking.words(f"{p['title'] or ''} {p['abstract'] or ''}")

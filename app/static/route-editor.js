@@ -232,6 +232,7 @@
     const lines = [];
     lines.push(`<h3 data-no-i18n>${esc(concept.name)}</h3>`);
     lines.push((concept.terms || []).length ? `<div class="terms" data-no-i18n>${esc(concept.terms.join(' · '))}</div>` : '<div class="terms">（没有检索词）</div>');
+    if (typeText(concept)) lines.push(`<div class="terms"><span>类型：</span><span>${esc(TYPES[concept.type])}</span>${concept.why ? ` · <span>为什么在这里：</span><span data-no-i18n>${esc(concept.why)}</span>` : ''}</div>`);
     if (p) {
       lines.push(`<div class="badges"><span class="badge st-${esc(p.status)}" title="${esc(p.status === 'locked' ? LOCKED_TITLE : '')}">${esc(STATUS[p.status] || '')}</span>`
         + `${p.low_interest ? `<span class="badge" title="${esc(LOW_INTEREST_TITLE)}">暂不优先</span>` : ''}`
@@ -251,9 +252,61 @@
     return lines.join('');
   }
 
+  /* What the reader may say about where they start and how deep they want to go. Both can be skipped; the server
+     accepts exactly these values (app/routeplan.py) and the page sends nothing else about the reader. */
+  const BACKGROUNDS = [['', '不说明（默认）'], ['unknown', '未知（会补充基础概念）'], ['engineering', '计算机 / 工程'], ['ai_researcher', 'AI 研究者'], ['other', '其他']];
+  const DEPTHS = [['', '不说明（默认：能读论文）'], ['overview', '快速了解'], ['read_papers', '能读论文'], ['implement', '研究 / 实现']];
+  const TYPES = { topic: '主题', method: '方法', problem: '问题', foundation: '基础' };
+
+  function boundaryHTML(prefix) {
+    const select = (name, label, list) => `<label class="boundary-field" for="${esc(prefix)}-${name}"><span>${label}</span><select id="${esc(prefix)}-${name}">`
+      + list.map(([value, text]) => `<option value="${esc(value)}">${text}</option>`).join('') + '</select></label>';
+    return `<div class="boundary">${select('background', '你的背景', BACKGROUNDS)}${select('depth', '想学到', DEPTHS)}</div>`;
+  }
+
+  /* The boundary to send: only the chosen values, nothing when both are skipped or a value is not on the list. */
+  function readBoundary(container) {
+    const pick = (name, list) => {
+      const node = container.querySelector(`[id$="-${name}"]`);
+      return node && list.some(([value]) => value === node.value) ? node.value : '';
+    };
+    const out = {}, background = pick('background', BACKGROUNDS), depth = pick('depth', DEPTHS);
+    if (background) out.background = background;
+    if (depth) out.depth = depth;
+    return Object.keys(out).length ? out : undefined;
+  }
+
+  /* "foundation · why ..." for a concept that has a type (the page puts the labels around it), or ''. */
+  function typeText(concept) {
+    if (!concept || !TYPES[concept.type]) return '';
+    return TYPES[concept.type] + (concept.why ? ' · ' + concept.why : '');
+  }
+
+  /* One proposed new direction: what it is called, the evidence behind it (counts and titles), where it would sit.
+     Everything is data from the server and goes through esc(); the two buttons carry the id and nothing else. */
+  function candidateHTML(c, options) {
+    const locked = options && options.locked ? ' disabled title="先保存或放弃对学习图的修改"' : '';
+    const titles = (c.papers || []).slice(0, 5).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('');
+    const where = [];
+    if (c.parent) where.push(`<div class="needs">建议放在：<span class="need" data-no-i18n>${esc(c.parent.name)}</span></div>`);
+    if ((c.prereqs || []).length) where.push(`<div class="needs">建议的前置：${c.prereqs.map((p) => `<span class="need" data-no-i18n>${esc(p.name)}</span>`).join('、')}</div>`);
+    return `<article class="growth-card"><h4 data-no-i18n>${esc(c.name)}</h4>`
+      + `<div class="counts">${esc(c.paper_count)} 篇论文（其中你明确点过 ${esc(c.positive)} 篇）· ${esc(c.sources)} 个来源 · 与现有概念重叠 ${Math.round((Number(c.overlap) || 0) * 100)}%</div>`
+      + `<ul class="growth-papers">${titles}</ul>${where.join('')}`
+      + `<div class="row"><button type="button" class="primary small" data-growth="accept" data-id="${esc(c.id)}"${locked}>加入学习图</button>`
+      + `<button type="button" class="ghost small" data-growth="reject" data-id="${esc(c.id)}"${locked}>不再提示</button></div></article>`;
+  }
+
+  /* What to say when there is nothing to propose: the truth, never a reason to feel behind. */
+  function growthNote(result) {
+    if ((result.candidates || []).length) return '';
+    const watching = Number(result.watching) || 0;
+    return watching ? `暂时没有可以加入的方向；还有 ${watching} 个方向证据不够，继续点“有用”或“已读懂”后再来看。` : '现在没有新的建议。继续读、点“有用”或“已读懂”后再来看。';
+  }
+
   function countsText(state) {
     const n = (v) => Number(v) || 0;
-    return `收藏 ${n(state.useful)} · 不感兴趣 ${n(state.irrelevant)} · 太难 ${n(state.too_hard)} · 已展示 ${n(state.shown)}`;
+    return `收藏 ${n(state.useful)} · 已读懂 ${n(state.understood)} · 不感兴趣 ${n(state.irrelevant)} · 太难 ${n(state.too_hard)} · 已展示 ${n(state.shown)}`;
   }
 
   /* Marks a person may set on a concept. Each has a way back (clear), none is inferred from silence. */
@@ -272,5 +325,5 @@
     return `已读懂 ${done} / ${total} 个概念 · 探索约占 ${share}%`;
   }
 
-  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, candidateHTML, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

@@ -65,9 +65,9 @@ class Fixture(unittest.TestCase):
         return route
 
     def understand_the_basics(self):
-        """Satisfy the entry concept through evidence (two saved papers), not by a manual mark."""
+        """Satisfy the entry concept through evidence (two understood papers), not by a manual mark."""
         for key in ("lat0", "lat1"):
-            self.app.record_feedback(key, "useful", project_id=self.pid)
+            self.app.record_feedback(key, "understood", project_id=self.pid)
 
     def batch(self, limit=5):
         out = self.app.build_batch(limit=limit, project_id=self.pid)
@@ -218,7 +218,7 @@ class BatchTests(Fixture):
     def test_a_branch_with_more_evidence_still_leaves_the_other_branch_its_turn(self):
         self.enable(mastered=["Crystal basics"])
         for key in ("epi0", "epi1"):
-            self.app.record_feedback(key, "useful", project_id=self.pid)
+            self.app.record_feedback(key, "understood", project_id=self.pid)
         cards = self.batch()
         nodes = [c["route"]["node"] for c in cards if c["route"]["kind"] == "route"]
         self.assertIn(self.cid["Doping"], nodes)   # Epitaxy is satisfied; Doping is still being read
@@ -348,7 +348,7 @@ class BatchTests(Fixture):
         self.app.store.conn.execute("DELETE FROM batches")
         self.app.store.conn.commit()
         for key in ("lat0", "lat1"):
-            self.app.record_feedback(key, "useful", project_id=self.pid)
+            self.app.record_feedback(key, "understood", project_id=self.pid)
         advanced = {c["route"]["node"] for c in self.batch() if c["route"]["kind"] == "route"}
         self.assertNotIn(self.cid["Crystal basics"], advanced)
         for key in ("lat0", "lat1"):
@@ -362,7 +362,7 @@ class BatchTests(Fixture):
         self.enable()
         self.app.set_profile_frozen(True, self.pid)
         for key in ("lat0", "lat1"):
-            self.app.record_feedback(key, "useful", project_id=self.pid)
+            self.app.record_feedback(key, "understood", project_id=self.pid)
         self.assertEqual(self.app.route_get(self.pid)["progress"][self.cid["Crystal basics"]]["status"], "unlocked")
 
     def test_when_the_route_has_nothing_left_the_batch_is_the_ordinary_one(self):
@@ -554,8 +554,8 @@ class HomeOffTests(Fixture):
         self.enable()
         self.fill()
         before = self.app.home_route(self.pid)
-        self.app.record_feedback("lat0", "useful", project_id=self.pid)
-        self.app.record_feedback("lat1", "useful", project_id=self.pid)
+        self.app.record_feedback("lat0", "understood", project_id=self.pid)
+        self.app.record_feedback("lat1", "understood", project_id=self.pid)
         self.assertGreater(self.app.home_route(self.pid)["done"], before["done"])
         done = self.app.home_route(self.pid)["done"]
         self.app.route_manual(self.pid, self.cid["Epitaxy"], "mastered")

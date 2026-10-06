@@ -37,7 +37,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import unquote
 
-from . import pathgraph
+from . import pathgraph, pathgrowth
 from .clustering import cluster, corpus_fingerprint
 from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
 from .db import now
@@ -49,6 +49,62 @@ def read_route(conn, project):
         return 0, None
     row = conn.execute("SELECT revision,data FROM org_projects WHERE project=?", (project,)).fetchone()
     return (row[0], json.loads(row[1]).get("route")) if row else (0, None)
+
+
+def saved_corpus(conn, scope=None):
+    """The saved papers; with `scope` (a project id) only the ones that project saved."""
+    if scope:
+        return [dict(row) for row in conn.execute("""SELECT p.* FROM papers p
+            JOIN library l ON p.key=l.paper_key
+            WHERE p.key IN (SELECT paper_key FROM project_library WHERE project_id=?) ORDER BY p.key""", (scope,))]
+    return [dict(row) for row in conn.execute("""SELECT p.* FROM papers p
+        JOIN library l ON p.key=l.paper_key ORDER BY p.key""")]
+
+
+ROUTE_DETAIL_MAX_PAPERS = 120   # the second view draws what can be read, and says how many it left out
+
+
+def route_detail(conn, project_id):
+    """The data of the second knowledge-graph view: one project's learning units and the papers it saved.
+
+    Read-only and derived. A paper is matched to the (at most two) units whose search terms its title or
+    abstract uses (pathgrowth.assign), and the terms that matched travel with the match so the line can be
+    explained. Nothing is stored: matches are not part of anyone's classification, and a paper that fits no
+    unit is listed, not hidden. Unknown project: ValueError. No learning map: {"available": False}."""
+    _text(project_id, "project_id", 200)
+    if not conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone():
+        raise ValueError("项目不存在")
+    _, route = read_route(conn, project_id)
+    graph = (route or {}).get("graph") or {}
+    live = [c for c in graph.get("concepts", []) if c.get("state", "active") != "archived"]
+    if not live:
+        return {"available": False, "reason": "no_route", "project_id": project_id}
+    ids = {c["id"] for c in live}
+    edges = [e for e in graph.get("prereqs", []) if e["from"] in ids and e["to"] in ids]
+    shown = {"concepts": live, "prereqs": edges, "targets": [t for t in graph.get("targets", []) if t in ids]}
+    level = pathgraph.layers(shown)
+    papers = saved_corpus(conn, project_id)
+    assigned = pathgrowth.assign(shown, papers)
+    by_id = {c["id"]: c for c in live}
+    matches = []
+    for paper in papers:
+        for rank, unit in enumerate(assigned.get(paper["key"], [])):
+            text = f"{paper.get('title') or ''} {paper.get('abstract') or ''}"
+            terms = [t for t in by_id[unit].get("terms", []) if pathgrowth.term_in_text(text, t)]
+            matches.append({"paper": paper["key"], "unit": unit, "rank": rank, "terms": terms})
+    matched = {m["paper"] for m in matches}
+    ordered = [p for p in papers if p["key"] in matched] + [p for p in papers if p["key"] not in matched]
+    kept = ordered[:ROUTE_DETAIL_MAX_PAPERS]
+    kept_keys = {p["key"] for p in kept}
+    return {"available": True, "project_id": project_id,
+            "units": [{"id": c["id"], "name": c["name"], "terms": c.get("terms", []), "hint": c.get("hint", 2),
+                       "type": c.get("type"), "why": c.get("why"), "state": c.get("state", "active"),
+                       "side": bool(c.get("side")), "level": level[c["id"]]} for c in live],
+            "prereqs": [{"from": e["from"], "to": e["to"], "state": e.get("state", "active")} for e in edges],
+            "papers": [{"key": p["key"], "title": p.get("title") or p["key"], "published": p.get("published")} for p in kept],
+            "matches": [m for m in matches if m["paper"] in kept_keys],
+            "unmatched": [p["key"] for p in kept if p["key"] not in matched],
+            "omitted": len(ordered) - len(kept)}
 
 
 class Conflict(ValueError):
@@ -103,7 +159,9 @@ def _version(value, label):
     return value
 
 
-ROUTE_OPS = {"route-save", "route-manual", "route-start", "route-mode"}
+ROUTE_OPS = {"route-save", "route-manual", "route-start", "route-mode", "route-reject"}
+ROUTE_SAVE_LABELS = {"candidate": "加入新方向"}   # what the undo button says when a save adds a proposed direction
+MAX_REJECTED = 100
 ROUTE_MARKS = {"mastered", "unlocked", "demoted"}
 MAX_PLAN_CONCEPTS = 200   # a plan from an AI or a person is a dozen concepts; this only bounds hostile input
 
@@ -231,6 +289,7 @@ class Organization:
                                   for d in data["directions"]],
                   "items": papers, "positions": data["positions"], "revision": revision}
         result["projects"] = self._project_names()
+        result["route_projects"] = self._route_projects()
         result["collapsed"] = data.get("collapsed", [])
         result["drafts"] = self._drafts()
         event = self._undoable()
@@ -260,6 +319,18 @@ class Organization:
             owners.setdefault(key, []).append(project)
         return owners
 
+    def _route_projects(self):
+        """Ids of the projects that have a learning map with at least one live unit: where the second graph view exists."""
+        found = []
+        for project, raw in self.conn.execute("SELECT project, data FROM org_projects ORDER BY project"):
+            try:
+                graph = (json.loads(raw).get("route") or {}).get("graph") or {}
+            except ValueError:
+                continue
+            if any(c.get("state", "active") != "archived" for c in graph.get("concepts", [])):
+                found.append(project)
+        return found
+
     def _project_names(self):
         try:
             return [{"id": r[0], "name": r[1]} for r in self.conn.execute("SELECT id, name FROM projects ORDER BY creation_timestamp, id")]
@@ -273,13 +344,7 @@ class Organization:
                                  (self.project,) + LAYOUT_LABELS).fetchone()
 
     def _corpus(self, scope=None):
-        """The saved papers; with `scope` (a project id) only the ones that project saved."""
-        if scope:
-            return [dict(row) for row in self.conn.execute("""SELECT p.* FROM papers p
-                JOIN library l ON p.key=l.paper_key
-                WHERE p.key IN (SELECT paper_key FROM project_library WHERE project_id=?) ORDER BY p.key""", (scope,))]
-        return [dict(row) for row in self.conn.execute("""SELECT p.* FROM papers p
-            JOIN library l ON p.key=l.paper_key ORDER BY p.key""")]
+        return saved_corpus(self.conn, scope)
 
     def snapshot(self):
         with self._transaction(write=False):
@@ -586,7 +651,7 @@ class Organization:
                 fresh = {pathgraph._key(c["name"]): c["id"] for c in graph["concepts"]}
                 follow = lambda i: fresh.get(names.get(i))
             else:
-                graph = pathgraph.validate(graph)
+                graph = pathgraph.validate(graph, tolerate={pathgraph._key(c.get("name")) for c in (old.get("graph") or {}).get("concepts", [])})
                 before = {c["id"]: pathgraph._key(c["name"]) for c in (old.get("graph") or {}).get("concepts", [])}
                 now_ = {c["id"]: pathgraph._key(c["name"]) for c in graph["concepts"]}
                 # an id can be reused by a different concept (delete the last one, add another); a mark belongs to the concept
@@ -594,13 +659,30 @@ class Organization:
             manual = {follow(k): v for k, v in (old.get("manual") or {}).items() if follow(k)}
             start = [follow(i) for i in (old.get("start") or []) if follow(i)]
             updated = {"graph": graph, "mode": old.get("mode", "route"), "manual": manual, "start": start}
+            if old.get("rejected"):
+                updated["rejected"] = old["rejected"]   # a direction the person turned down stays turned down across saves
             if updated == route:
                 return None
             data["route"] = updated
-            return "保存学习路径"
+            return ROUTE_SAVE_LABELS.get(body.get("label"), "保存学习路径")
         if not route:
             raise ValueError("There is no learning path yet")
         known = {c["id"] for c in route["graph"]["concepts"]}
+        if op == "route-reject":
+            # a turned-down direction is remembered by its phrases (normalised), because the papers it was found in
+            # change with every new paper while the direction stays the same
+            terms = body.get("terms")
+            if not isinstance(terms, list) or not 1 <= len(terms) <= 4 or any(not isinstance(t, str) or len(t) > 80 for t in terms):
+                raise ValueError("Unknown candidate")
+            keys = [k for k in dict.fromkeys(pathgraph._key(t) for t in terms) if k]
+            if not keys:
+                raise ValueError("Unknown candidate")
+            rejected = list(route.get("rejected") or [])
+            fresh = [k for k in keys if k not in rejected]
+            if not fresh:
+                return None
+            route["rejected"] = (rejected + fresh)[-MAX_REJECTED:]
+            return "不再提示这个新方向"
         if op == "route-manual":
             concept, value = body.get("concept"), body.get("value")
             if not isinstance(concept, str) or concept not in known:

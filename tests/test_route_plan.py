@@ -63,9 +63,11 @@ class RegistryTests(unittest.TestCase):
         self.cfg = json.loads((ROOT / "harness" / "budget.json").read_text())
         self.op = self.cfg["operations"]["learning_path_plan"]
 
-    def test_the_operation_is_registered_approved_and_bounded(self):
+    def test_the_operation_is_registered_bounded_and_the_owner_approved_the_raised_cap(self):
         self.assertIs(self.op["owner_approved"], True)
-        self.assertEqual((self.op["cap"]["input"], self.op["cap"]["output"]), (1200, 900))
+        self.assertIn("2026-10-06", self.op["approval_note"])   # the owner's approval of 1200 -> 1400, in their words
+        self.assertIn("AI 起草的输入上限我批准了", self.op["approval_note"])
+        self.assertEqual((self.op["cap"]["input"], self.op["cap"]["output"]), (1400, 900))
         self.assertEqual(self.op["prompt"], "prompts/learning-path-plan.md")
         self.assertFalse(self.op["enabled_by_default"])
         self.assertEqual(self.op["trigger"], "interactive")
@@ -91,6 +93,83 @@ class RegistryTests(unittest.TestCase):
         # Chinese is assumed to cost 1.5 tokens per character; this is a heuristic, not a tokenizer measurement
         english = routeplan.SYSTEM + routeplan.ENGLISH_OUTPUT
         self.assertLess(len(english) * 1.5, self.op["input_cap_components"]["instructions_and_schema"])
+
+
+EMBODIED = {"concepts": [
+    {"id": "la", "name": "Linear algebra", "terms": ["linear algebra", "matrix"], "hint": 1, "type": "foundation", "why": "matrices underlie every model", "needs": []},
+    {"id": "rl", "name": "Robot Learning", "terms": ["robot learning", "imitation learning"], "hint": 1, "type": "topic", "needs": []},
+    {"id": "cv", "name": "Computer Vision / Perception", "terms": ["robot perception", "visual perception"], "hint": 1, "type": "topic", "needs": []},
+    {"id": "vlm", "name": "Vision-Language Models", "terms": ["vision-language model", "VLM"], "hint": 2, "type": "method", "needs": ["cv"]},
+    {"id": "wm", "name": "World Models", "terms": ["world model", "latent dynamics"], "hint": 2, "type": "method", "needs": ["rl"]},
+    {"id": "man", "name": "Robot Manipulation", "terms": ["robot manipulation", "grasping"], "hint": 3, "type": "problem", "needs": ["rl", "cv"]},
+    {"id": "vla", "name": "VLA", "terms": ["vision-language-action", "VLA model"], "hint": 4, "type": "method", "needs": ["vlm", "wm", "man"]},
+    {"id": "p1", "name": "RT-2 paper", "terms": ["2307.15818", "rt-2"], "hint": 4, "needs": ["vlm"]}],
+    "targets": ["vla"], "papers": [{"title": "RT-2", "doi": "10.1000/rt2"}]}
+
+
+class BoundaryTests(Fixture):
+    def test_the_boundary_is_two_enum_values_and_nothing_else(self):
+        self.assertIsNone(routeplan.clean_boundary(None))
+        self.assertIsNone(routeplan.clean_boundary({}))
+        self.assertEqual(routeplan.clean_boundary({"background": "unknown", "depth": "implement"}), {"background": "unknown", "depth": "implement"})
+        self.assertEqual(routeplan.clean_boundary({"depth": "overview"}), {"depth": "overview"})
+        for bad in ({"background": "wizard"}, {"depth": "everything"}, {"background": "unknown", "notes": "my private diary"}, "unknown", ["unknown"]):
+            with self.assertRaises(ValueError, msg=bad):
+                routeplan.clean_boundary(bad)
+
+    def test_skipping_the_boundary_sends_none_and_the_default_is_described_to_the_model(self):
+        calls = self.gateway(reply(GOOD))
+        self.app.route_plan(self.session)
+        user = json.loads(calls[0][1][1]["content"])
+        self.assertEqual(set(user), {"goal", "keywords"})
+        self.assertIn("缺省论文阅读", calls[0][1][0]["content"])
+
+    def test_a_chosen_boundary_is_sent_as_the_two_values_only(self):
+        calls = self.gateway(reply(GOOD))
+        self.app.route_plan(self.session, boundary={"background": "engineering", "depth": "read_papers"})
+        self.assertEqual(json.loads(calls[0][1][1]["content"])["boundary"], {"background": "engineering", "depth": "read_papers"})
+
+    def test_a_bad_boundary_is_refused_before_any_attempt_is_spent(self):
+        calls = self.gateway(reply(GOOD))
+        with self.assertRaises(ValueError):
+            self.app.route_plan(self.session, boundary={"background": "wizard"})
+        self.assertEqual((calls, self.app.route_plan_state(self.session)["attempts"]), ([], 0))
+
+    def test_the_embodied_ai_map_starts_in_the_field_and_holds_no_paper(self):
+        self.gateway(reply(EMBODIED))
+        out = self.app.route_plan(self.session, boundary={"background": "engineering", "depth": "read_papers"})
+        found = {c["name"] for c in out["graph"]["concepts"]}
+        self.assertEqual(found, {"Robot Learning", "Computer Vision / Perception", "Vision-Language Models", "World Models", "Robot Manipulation", "VLA"})
+        self.assertIn({"name": "Linear algebra", "why": "foundation_not_allowed"}, out["report"]["dropped_concepts"])
+        self.assertIn({"name": "RT-2 paper", "why": "paper_shaped"}, out["report"]["dropped_concepts"])
+        self.assertTrue(out["report"]["papers_ignored"])
+        self.assertEqual(out["boundary"], {"background": "engineering", "depth": "read_papers"})
+
+    def test_a_skipped_boundary_also_leaves_out_the_basics(self):
+        self.gateway(reply(EMBODIED))
+        out = self.app.route_plan(self.session)
+        self.assertNotIn("Linear algebra", {c["name"] for c in out["graph"]["concepts"]})
+
+    def test_only_a_reader_who_starts_from_scratch_gets_a_foundation_with_its_reason(self):
+        self.gateway(reply(EMBODIED))
+        out = self.app.route_plan(self.session, boundary={"background": "unknown", "depth": "overview"})
+        basics = [c for c in out["graph"]["concepts"] if c["name"] == "Linear algebra"]
+        self.assertEqual([(c["type"], c["why"]) for c in basics], [("foundation", "matrices underlie every model")])
+
+    def test_the_project_page_takes_the_same_boundary(self):
+        pid = self.app.create_project("Embodied", "manual", ["embodied"])["project_id"]
+        calls = self.gateway(reply(EMBODIED))
+        out = self.app.route_plan_project(pid, "从头学具身智能", boundary={"background": "unknown"})
+        self.assertEqual(json.loads(calls[0][1][1]["content"])["boundary"], {"background": "unknown"})
+        self.assertIn("Linear algebra", {c["name"] for c in out["graph"]["concepts"]})
+        with self.assertRaises(ValueError):
+            self.app.route_plan_project(pid, "从头学具身智能", boundary={"depth": "bogus"})
+
+    def test_the_boundary_never_carries_project_history(self):
+        self.app.create_project("Secret other project", "manual", ["classified"])
+        calls = self.gateway(reply(GOOD))
+        self.app.route_plan(self.session, boundary={"background": "other", "depth": "implement"})
+        self.assertNotIn("classified", json.dumps(calls[0][1], ensure_ascii=False))
 
 
 class PlanTests(Fixture):
@@ -292,6 +371,8 @@ class PlanTests(Fixture):
         english = routeplan.messages("字" * 5000, ["关" * 500] * 20, True)
         chars = sum(len(m["content"]) for m in english)
         self.assertLessEqual(chars * 1.5, cfg["cap"]["input"] - cfg["input_cap_components"]["framing_and_margin"] + 150)
+        both = routeplan.messages("字" * 5000, ["关" * 500] * 20, True, {"background": "ai_researcher", "depth": "read_papers"})   # and the longest boundary
+        self.assertLessEqual(sum(len(m["content"]) for m in both) * 1.5, cfg["cap"]["input"] - cfg["input_cap_components"]["framing_and_margin"] + 150)
 
     def test_unknown_or_finished_sessions_are_refused(self):
         with self.assertRaises(ValueError):
@@ -433,6 +514,18 @@ class HttpTests(Fixture):
             status, done = self.post(port, f"/api/project-guidance/sessions/{sid}/finalize", {"selected_keys": [], "route": {"graph": graph, "mastered": []}})
             self.assertEqual(status, 200)
             self.assertTrue(self.app.route_get(done["project_id"])["enabled"])
+
+    def test_a_bad_boundary_is_a_400_on_both_plan_routes_and_costs_nothing(self):
+        port = self.serve()
+        pid = self.app.create_project("Embodied", "manual", ["embodied"])["project_id"]
+        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+            status, body = self.post(port, f"/api/project-guidance/sessions/{self.session}/route", {"boundary": {"background": "wizard"}})
+            self.assertEqual(status, 400)
+            self.assertIn("background", body["error"])
+            status, body = self.post(port, f"/api/route?project_id={pid}", {"action": "plan", "goal": "从头学具身智能", "boundary": {"depth": "forever"}})
+            self.assertEqual(status, 400)
+        self.assertEqual(self.app.route_plan_state(self.session)["attempts"], 0)
+        self.assertIsNone(self.app.store.get_setting(f"route_plan_project_{pid}"))
 
     def test_a_bad_map_is_a_400_and_creates_nothing(self):
         port = self.serve()

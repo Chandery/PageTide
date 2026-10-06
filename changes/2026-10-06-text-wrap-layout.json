@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-text-wrap-layout",
+  "class": "standard",
+  "summary": "Fix two layout bugs reported by the owner: long concept names overflowing the learning-map side panel and cut off inside graph nodes (global nowrap on h3 and button), and the Today card's two button groups being left misaligned when they wrap. Front-end only.",
+  "tasks": [
+    "PROJECT-01",
+    "PROFILE-02"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/static/index.html",
+    "app/static/project-creation.css",
+    "app/static/route-graph.js",
+    "changes/2026-10-06-text-wrap-layout.json",
+    "docs/evidence/2026-10-06-text-wrap-checks.txt",
+    "tests/test_route_graph_page.py"
+  ],
+  "scope_note": "Committed on main from a worktree that holds only these files; another session's uncommitted work in the shared checkout (app/db.py, app/service.py, app/pathgraph.py, app/profile_insights.py and tests) is not part of it.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Stylesheet, markup and a layout constant only; no model call, data or network.",
+    "before": "nowrap on every h3 and button made long names overflow; card action groups wrapped ragged.",
+    "after": "Names wrap inside their container; wrapped action groups fill the row.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-text-wrap-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-text-wrap-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-text-wrap-checks.txt"
+    }
+  ],
+  "reviews": [],
+  "owner_approved": false,
+  "open_risks": [
+    "Not checked in the Tauri window, at other window heights, in dark mode or with display scaling; only widths 760-2560 were sampled.",
+    "The overflow scan sees horizontal overflow and clipped text, not overlap or vertical misalignment.",
+    "No independent review; self-checked only."
+  ]
+}

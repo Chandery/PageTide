@@ -544,7 +544,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif action == "preview":
                     self._json(app.guidance_preview(session_id, body.get("draft")))
                 elif action == "route":
-                    self._json(app.route_plan(session_id, regenerate=bool(body.get("regenerate")), dry_run=bool(body.get("dry_run"))))
+                    self._json(app.route_plan(session_id, regenerate=bool(body.get("regenerate")), dry_run=bool(body.get("dry_run")), boundary=body.get("boundary")))
                 elif action == "finalize":
                     self._json(app.finalize_guidance(session_id, body.get("draft"), body.get("selected_keys"), route=body.get("route")))
                 else:
@@ -570,10 +570,18 @@ class Handler(BaseHTTPRequestHandler):
                     result = app.route_start(project_id, body.get("start"), revision=revision)
                 elif action == "mode":
                     result = app.route_mode(project_id, body.get("mode"), revision=revision)
+                elif action == "candidates":
+                    return self._json(app.route_candidates(project_id))
+                elif action == "candidate-accept":
+                    result = app.route_candidate_accept(project_id, body.get("candidate"), revision=revision)
+                elif action == "undo":
+                    result = app.route_undo(project_id, revision=revision, event=body.get("event"))
+                elif action == "candidate-reject":
+                    result = app.route_candidate_reject(project_id, body.get("candidate"), revision=revision)
                 elif action == "ground":
                     return self._json({"graph": app.route_ground(body.get("graph"))})
                 elif action == "plan":
-                    return self._json(app.route_plan_project(project_id, body.get("goal")))
+                    return self._json(app.route_plan_project(project_id, body.get("goal"), boundary=body.get("boundary")))
                 else:
                     return self._json({"error": "unknown route action"}, 400)
                 self._json(result)
@@ -797,6 +805,8 @@ class Handler(BaseHTTPRequestHandler):
             if body and "op" in body and "action" in body and body["op"] != body["action"]:
                 raise ValueError("conflicting operation fields")
             operation = body.get("op", body.get("action")) if body else None
+            if operation == "route-detail":   # read-only and derived: nothing is stored, nothing needs a revision
+                return self._json(app.route_detail(body.get("project_id")))
             if operation in {"suggest", "graph"}:
                 path = app.store.path.resolve()
                 request = ({"profile": suggestion_profile(app, body.get("project_id")),

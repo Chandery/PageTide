@@ -283,6 +283,20 @@ class ServerSmokeTests(unittest.TestCase):
             payload = json.loads(response.read())
         self.assertTrue(payload["interest_changed"])
 
+    def test_understood_feedback_over_http_is_not_an_interest_change(self):
+        app = server.make_app(str(self.root))
+        app.store.upsert_papers([
+            {"key": "p9", "title": "World Model Paper", "abstract": "latent planning",
+             "published": "2026-08-01", "group_name": "field"}])
+        app.build_batch(limit=1)
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/feedback",
+            data=json.dumps({"key": "p9", "action": "understood"}).encode(),
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read())
+        self.assertEqual((payload["action"], payload["interest_changed"], payload["saved"]), ("understood", False, False))
+
 
 if __name__ == "__main__":
     unittest.main()

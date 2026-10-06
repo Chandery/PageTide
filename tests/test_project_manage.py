@@ -260,8 +260,9 @@ class ProjectPlanTests(Fixture):
 
     def test_if_the_project_operation_is_not_approved_the_real_gateway_refuses_and_costs_nothing(self):
         ops = json.loads((ROOT / "harness" / "budget.json").read_text())["operations"]
-        self.assertIs(ops["learning_path_plan"]["owner_approved"], True)
+        self.assertIs(ops["learning_path_plan"]["owner_approved"], True)            # raised cap 1200 -> 1400, approved by the owner on 2026-10-06
         self.assertIs(ops["learning_path_plan_project"]["owner_approved"], True)
+        self.assertIn("2026-10-06", ops["learning_path_plan_project"]["approval_note"])
         self.assertIn("owner", ops["learning_path_plan_project"]["approval_note"])
         self.assertIn("2026-10-05", ops["learning_path_plan_project"]["approval_note"])
         self.app.gateway.config["operations"]["learning_path_plan_project"]["owner_approved"] = False

@@ -162,6 +162,35 @@ class LargeScreenTests(unittest.TestCase):
         self.assertIn("onRescale", js)
 
 
+class TextMustWrapTests(unittest.TestCase):
+    """project-creation.css makes every h3 and button nowrap; places that hold user or AI text must opt out, and the
+    two groups of buttons on a recommendation card must line up however narrow the card is."""
+
+    def rule(self, css, selector):
+        found = re.findall(r"(?:^|[}\s])" + re.escape(selector) + r"\s*\{([^}]*)\}", css)   # every rule that has exactly this selector
+        self.assertTrue(found, selector)
+        return ";".join(found)
+
+    def test_the_global_nowrap_is_opted_out_where_long_concept_names_appear(self):
+        css = read("project-creation.css")
+        self.assertIn("white-space:nowrap", self.rule(css, "h3"))
+        self.assertIn("white-space:normal", self.rule(css, ".map-detail h3"))     # the concept title in the side panel
+        self.assertIn("overflow-wrap:anywhere", self.rule(css, ".map-detail"))
+        name = self.rule(css, ".rg-name")                                          # nodes are buttons, which are nowrap
+        self.assertIn("white-space:normal", name)
+        self.assertIn("overflow-wrap:anywhere", name)
+        self.assertIn("flex:none", name)                                           # the name keeps its two lines, the state label cannot squeeze it
+
+    def test_card_action_groups_fill_the_row_so_a_wrapped_group_is_not_left_hanging(self):
+        index = read("index.html")
+        self.assertIn('<span class="actions-fb">', index)
+        group = self.rule(index, ".card .actions .actions-fb, .card .actions .actions-end")
+        self.assertIn("flex:1 1 auto", group)
+        self.assertNotIn("margin-left:auto", group)
+        self.assertNotIn("justify-content:flex-end", group)
+        self.assertIn("flex:1 1 auto", self.rule(index, ".card .actions .actions-fb button, .card .actions .actions-end button"))
+
+
 class OverviewPlaceholderTests(unittest.TestCase):
     def test_the_placeholder_page_is_centred_by_padding_alone(self):
         css = read("index.html")

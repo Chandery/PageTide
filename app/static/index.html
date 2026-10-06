@@ -444,7 +444,11 @@
   .card h3 { font-size:calc(16px * var(--s)); line-height:1.38; margin-bottom:calc(8px * var(--s)); }
   .card .actions { padding-top:calc(16px * var(--s)); margin-top:auto; gap:calc(8px * var(--s)); }
   .card .actions button { font-size:calc(12px * var(--s)); padding:calc(7px * var(--s)) calc(12px * var(--s)); }
-  .card .actions .actions-end { margin-left:auto; display:flex; flex-wrap:wrap; gap:calc(8px * var(--s)); justify-content:flex-end; }
+  /* Two groups (your verdict on the paper, and what to do with it). They share a row while both fit; when the card is
+     too narrow each group takes a whole row and its buttons share it equally, so the edges always line up instead of
+     the second group being left hanging on the right. The test is the content width, so it holds at every screen size. */
+  .card .actions .actions-fb, .card .actions .actions-end { flex:1 1 auto; display:flex; gap:calc(8px * var(--s)); min-width:0; }
+  .card .actions .actions-fb button, .card .actions .actions-end button { flex:1 1 auto; display:inline-flex; align-items:center; justify-content:center; gap:calc(6px * var(--s)); }
   .card .actions .read-action { color:var(--accent-text); border-color:var(--accent-soft); }
   .card .actions .ai-action { color:var(--ai-text); border-color:color-mix(in srgb, var(--ai) 55%, var(--line)); }
   .card .actions .ai-action:disabled { opacity:.55; cursor:progress; }
@@ -868,10 +872,13 @@ function cardHTML(c, i) {
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
     <div class="actions">
-      <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
-        <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
-      <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
-      <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
+      <span class="actions-fb">
+        <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
+          <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
+        <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
+        <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
+        <button class="tiny ${c.familiarity === 'understood' ? 'saved' : ''}" data-fb="understood" data-key="${esc(c.key)}" title="读懂了：只推进学习进度，不改变兴趣画像">${c.familiarity === 'understood' ? '✓ 已读懂' : '已读懂'}</button>
+      </span>
       <span class="actions-end">
         <button class="tiny ai-action" data-ai="${esc(c.key)}" ${state.triaging || state.triagingKeys.has(c.key) ? 'disabled' : ''} title="${c.summary ? '让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）' : '让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）'}"><i class="icon sparkles" aria-hidden="true"></i>${c.summary ? '重新速览' : 'AI 速览'}</button>
         <button class="tiny read-action" data-read="${esc(c.key)}" data-title="${esc(c.title)}"><i class="icon book" aria-hidden="true"></i>阅读 PDF</button>
@@ -1131,11 +1138,18 @@ async function doFeedback(key, action) {
     const body = { key, action };
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/feedback', body);
-    toast(r.saved ? '已收藏到论文库（卡片保留）' : (r.interest_changed ? `已记录：${action}` : `已记录：${action}（不影响兴趣）`),
-          r.saved || r.interest_changed ? 'ok' : 'warn');
+    const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;
+    toast(r.saved ? '已收藏到论文库（卡片保留）'
+          : action === 'understood' ? '已记录：已读懂（只推进学习进度，不改变兴趣）'
+          : (r.interest_changed ? `已记录：${said}` : `已记录：${said}（不影响兴趣）`),
+          r.saved || r.interest_changed || action === 'understood' ? 'ok' : 'warn');
   }
   const card = state.cards.find(c => c.key === key);
-  if (card) { if (action === 'unsave') { card.saved = false; card.feedback = null; } else if (action === 'useful') card.saved = true; }
+  if (card) {
+    if (action === 'unsave') { card.saved = false; card.feedback = null; }
+    else if (action === 'useful') card.saved = true;
+    if (action === 'understood' || action === 'too_hard') card.familiarity = action;   // a familiarity label never replaces the interest one
+  }
   renderCards();
   if (state.view === 'library') await loadLibrary();
 }
@@ -1223,6 +1237,7 @@ async function openDetail(key) {
             ${d.url ? `<a class="btn tiny" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
             <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
             <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
+            <button class="tiny ${d.feedback?.familiar?.action === 'understood' ? 'saved' : ''}" data-fb="understood" data-key="${esc(d.key)}" title="读懂了：只推进学习进度，不改变兴趣画像">${d.feedback?.familiar?.action === 'understood' ? '✓ 已读懂' : '已读懂'}</button>
           </div>
         </div>
         <section class="detail-section detail-projects"><h3>加入其他项目</h3>
@@ -1269,7 +1284,8 @@ async function openDetail(key) {
 }
 $('#detail').addEventListener('click', (e) => {
   const fb = e.target.closest('button[data-fb]');
-  if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err'));
+  // the open pane is drawn again so its buttons show the new state ("✓ 已读懂") instead of the old one
+  if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).then(() => { if ($('#detail .detail-panel')) return openDetail(fb.dataset.key); }).catch(x => toast(x.message, 'err'));
 });
 
 // --------------------------------------------------------------- settings
@@ -2153,6 +2169,7 @@ document.addEventListener('keydown', (e) => {
 </script>
 <script src="/vendor/cytoscape/cytoscape.min.js"></script>
 <script src="/graph-motion.js"></script>
+<script src="/route-detail.js"></script>
 <script src="/organization.js"></script>
 </body>
 </html>

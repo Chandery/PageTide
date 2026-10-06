@@ -431,6 +431,69 @@ class StructureTests(unittest.TestCase):
         self.assertTrue(pg.is_acyclic(smaller))
 
 
+class ConceptTypeTests(unittest.TestCase):
+    """A concept is a unit to learn (topic, method, problem or foundation), never a paper."""
+
+    def test_a_valid_type_is_kept_and_an_unknown_one_is_left_out(self):
+        graph, _ = pg.normalize(raw(dict(concept("a", "World models", hint=2), type="topic"),
+                                    dict(concept("b", "Dreamer", ["a"], hint=3), type="gizmo"), targets=["b"]))
+        types = {c["name"]: c.get("type") for c in graph["concepts"]}
+        self.assertEqual(types, {"World models": "topic", "Dreamer": None})
+
+    def test_a_foundation_needs_a_reason_and_the_boundary_must_allow_it(self):
+        found = raw(dict(concept("a", "Linear algebra", hint=1), type="foundation", why="matrix products appear in every model"),
+                    dict(concept("b", "Calculus", hint=1), type="foundation"),
+                    concept("c", "World models", ["a"], hint=3), targets=["c"])
+        graph, report = pg.normalize(found, allow_foundation=True)
+        self.assertEqual(names(graph), ["Linear algebra", "World models"])
+        self.assertEqual(graph["concepts"][0]["why"], "matrix products appear in every model")
+        self.assertEqual([d for d in report["dropped_concepts"] if d["name"] == "Calculus"], [{"name": "Calculus", "why": "foundation_unexplained"}])
+        graph, report = pg.normalize(found, allow_foundation=False)
+        self.assertEqual(names(graph), ["World models"])
+        self.assertIn({"name": "Linear algebra", "why": "foundation_not_allowed"}, report["dropped_concepts"])
+
+    def test_by_default_a_foundation_is_not_dropped_so_hand_edits_stay_possible(self):
+        graph, _ = pg.normalize(raw(dict(concept("a", "Linear algebra", hint=1), type="foundation", why="needed"), targets=["a"]))
+        self.assertEqual(names(graph), ["Linear algebra"])
+
+    def test_paper_shaped_concepts_are_dropped_and_reported(self):
+        graph, report = pg.normalize(raw(
+            concept("a", "World models", hint=2),
+            concept("b", "arXiv:2301.04104 Mastering Diverse Domains", ["a"], hint=3),
+            concept("c", "https://doi.org/10.1000/xyz123", hint=2),
+            dict(concept("d", "Dreamer v3 paper", hint=3), doi="10.1000/abc"),
+            dict(concept("e", "Latent imagination", hint=3), terms=["2301.04104", "latent imagination"]),
+            concept("f", "Ha and Schmidhuber et al. 2018", hint=2), targets=["a"]))
+        self.assertEqual(names(graph), ["World models"])
+        self.assertEqual({d["name"] for d in report["dropped_concepts"] if d["why"] == "paper_shaped"},
+                         {"arXiv 2301.04104 Mastering Diverse Domains", "https //doi.org/10.1000/xyz123", "Dreamer v3 paper",
+                          "Latent imagination", "Ha and Schmidhuber et al. 2018"})
+
+    def test_a_paper_list_next_to_the_concepts_is_ignored_and_reported(self):
+        graph, report = pg.normalize(dict(raw(concept("a", "World models"), targets=["a"]), papers=[{"title": "x"}], resources=["y"]))
+        self.assertEqual(names(graph), ["World models"])
+        self.assertTrue(report["papers_ignored"])
+        self.assertNotIn("papers", graph)
+
+    def test_a_saved_map_cannot_hold_a_paper_or_an_unknown_type(self):
+        good = {"concepts": [{"id": "c1", "name": "World models", "terms": ["world model"], "hint": 2, "type": "topic"}], "prereqs": [], "targets": ["c1"]}
+        self.assertEqual(pg.validate(good)["concepts"][0]["type"], "topic")
+        for broken in ({"name": "10.1000/abc.def"}, {"doi": "10.1000/abc"}, {"type": "paper"}, {"type": "foundation"}):
+            bad = {**good, "concepts": [{**good["concepts"][0], **broken}]}
+            with self.assertRaises(ValueError, msg=broken):
+                pg.validate(bad)
+
+    def test_a_saved_foundation_with_a_reason_is_accepted_and_its_text_is_cleaned(self):
+        graph = {"concepts": [{"id": "c1", "name": "Linear algebra", "terms": ["linear algebra"], "hint": 1, "type": "foundation", "why": "matrix, products!"}],
+                 "prereqs": [], "targets": ["c1"]}
+        self.assertEqual(pg.validate(graph)["concepts"][0]["why"], "matrix products")
+
+    def test_add_concept_takes_a_type(self):
+        graph, _ = pg.normalize(raw(concept("a", "World models", hint=2), targets=["a"]))
+        grown = pg.add_concept(graph, {"name": "Dreamer", "terms": ["dreamer"], "hint": 3, "type": "method"}, needs=[graph["concepts"][0]["id"]])
+        self.assertEqual(grown["concepts"][-1]["type"], "method")
+
+
 class ProgressTests(unittest.TestCase):
     def setUp(self):
         self.graph, _ = pg.normalize(raw(
@@ -450,26 +513,26 @@ class ProgressTests(unittest.TestCase):
         self.assertAlmostEqual(prog["Left"]["m"], 0.1)
 
     def test_two_saved_papers_satisfy_a_node_and_unlock_its_dependents(self):
-        prog = self.prog({"Basics": ["useful", "useful"]})
+        prog = self.prog({"Basics": ["understood", "understood"]})
         self.assertEqual(prog["Basics"]["status"], "satisfied")
         self.assertGreaterEqual(prog["Basics"]["m"], 0.6)
         self.assertEqual((prog["Left"]["status"], prog["Right"]["status"], prog["Joint"]["status"]), ("unlocked", "unlocked", "locked"))
 
     def test_one_saved_paper_is_not_enough(self):
-        self.assertEqual(self.prog({"Basics": ["useful"]})["Basics"]["status"], "unlocked")
+        self.assertEqual(self.prog({"Basics": ["understood"]})["Basics"]["status"], "unlocked")
 
     def test_a_too_hard_paper_lowers_mastery_and_can_undo_satisfaction(self):
-        prog = self.prog({"Basics": ["useful", "useful", "too_hard"]})
+        prog = self.prog({"Basics": ["understood", "understood", "too_hard"]})
         self.assertEqual(prog["Basics"]["status"], "unlocked")
         self.assertEqual(prog["Left"]["status"], "locked")
         self.assertLess(prog["Basics"]["m"], 0.6)
 
     def test_branches_advance_independently(self):
-        prog = self.prog({"Basics": ["useful", "useful"], "Left": ["useful", "useful"]})
+        prog = self.prog({"Basics": ["understood", "understood"], "Left": ["understood", "understood"]})
         self.assertEqual((prog["Left"]["status"], prog["Right"]["status"], prog["Joint"]["status"]), ("satisfied", "unlocked", "locked"))
 
     def test_a_node_with_every_prerequisite_satisfied_is_unlocked(self):
-        prog = self.prog({"Basics": ["useful"] * 2, "Left": ["useful"] * 2, "Right": ["useful"] * 2})
+        prog = self.prog({"Basics": ["understood"] * 2, "Left": ["understood"] * 2, "Right": ["understood"] * 2})
         self.assertEqual(prog["Joint"]["status"], "unlocked")
 
     def test_irrelevant_and_silence_never_change_mastery(self):
@@ -517,12 +580,30 @@ class ProgressTests(unittest.TestCase):
         self.assertEqual(prog[self.ids["Basics"]]["useful"], 1)
 
     def test_unmet_prerequisites_are_listed_for_the_page(self):
-        prog = self.prog({"Basics": ["useful"] * 2})
+        prog = self.prog({"Basics": ["understood"] * 2})
         self.assertEqual(prog["Joint"]["unmet"], [self.ids["Left"], self.ids["Right"]])
 
     def test_same_events_give_the_same_progress(self):
-        events = {"Basics": ["useful", "useful", "too_hard", "useful"]}
+        events = {"Basics": ["understood", "useful", "too_hard", "understood"]}
         self.assertEqual(self.prog(events), self.prog(events))
+
+    def test_saving_papers_raises_interest_but_never_mastery(self):
+        prog = self.prog({"Basics": ["useful"] * 5})
+        self.assertAlmostEqual(prog["Basics"]["m"], 0.3)
+        self.assertEqual(prog["Basics"]["status"], "unlocked")
+        self.assertEqual(prog["Basics"]["useful"], 5)
+        self.assertGreater(prog["Basics"]["p"], 0.8)
+
+    def test_understanding_raises_mastery_but_not_interest(self):
+        prog = self.prog({"Basics": ["understood", "understood"]})
+        self.assertGreaterEqual(prog["Basics"]["m"], 0.6)
+        self.assertEqual(prog["Basics"]["understood"], 2)
+        self.assertEqual(prog["Basics"]["rated"], 0)
+        self.assertAlmostEqual(prog["Basics"]["p"], 0.5)   # nothing rated: the neutral prior
+
+    def test_the_three_kinds_of_evidence_are_reported_apart(self):
+        prog = self.prog({"Basics": ["useful", "irrelevant", "understood", "too_hard"]})["Basics"]
+        self.assertEqual(prog["evidence"], {"interest": {"useful": 1, "irrelevant": 1}, "mastery": {"understood": 1}, "difficulty": {"too_hard": 1}})
 
 
 class StateAndCycleTests(unittest.TestCase):
@@ -567,18 +648,18 @@ class FrontierAndRemedialTests(unittest.TestCase):
         self.ids = {c["name"]: c["id"] for c in self.graph["concepts"]}
 
     def test_the_frontier_is_unlocked_and_unsatisfied_ordered_by_layer_then_interest(self):
-        events = {self.ids["Basics"]: ["useful", "useful"], self.ids["Right"]: ["useful", "irrelevant"], self.ids["Left"]: ["irrelevant"]}
+        events = {self.ids["Basics"]: ["understood", "understood"], self.ids["Right"]: ["useful", "irrelevant"], self.ids["Left"]: ["irrelevant"]}
         prog = pg.progress(self.graph, events, {}, {})
         front = pg.frontier(self.graph, prog)
         self.assertEqual(front, [self.ids["Right"], self.ids["Left"]])   # same layer: the one with higher interest first
 
     def test_remedial_lists_the_unmet_prerequisites_most_basic_first(self):
-        prog = pg.progress(self.graph, {self.ids["Basics"]: ["useful", "useful"]}, {}, {})
+        prog = pg.progress(self.graph, {self.ids["Basics"]: ["understood", "understood"]}, {}, {})
         self.assertEqual(pg.remedial(self.graph, prog, self.ids["Joint"]), [self.ids["Left"], self.ids["Right"]])
         self.assertEqual(pg.remedial(self.graph, prog, self.ids["Basics"]), [])
 
     def test_a_branch_stuck_on_a_hard_node_does_not_block_the_other_branch(self):
-        events = {self.ids["Basics"]: ["useful", "useful"], self.ids["Left"]: ["too_hard", "too_hard"]}
+        events = {self.ids["Basics"]: ["understood", "understood"], self.ids["Left"]: ["too_hard", "too_hard"]}
         prog = pg.progress(self.graph, events, {}, {})
         self.assertIn(self.ids["Right"], pg.frontier(self.graph, prog))
         self.assertIn(self.ids["Left"], pg.frontier(self.graph, prog))

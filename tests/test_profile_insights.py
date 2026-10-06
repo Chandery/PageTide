@@ -38,6 +38,18 @@ class ProfileInsightsTests(unittest.TestCase):
         self.assertEqual(sum(item["negative"] for item in after["timeline"]["weeks"]), 1)
         self.assertEqual(sum(item["activity"] for item in after["timeline"]["weeks"]), 1)
 
+    def test_understood_is_counted_apart_and_keeps_the_interest_label(self):
+        self.app.record_feedback("p1", "useful", project_id=self.project)
+        self.app.record_feedback("p1", "understood", project_id=self.project)
+        self.app.record_feedback("p2", "too_hard", project_id=self.project)
+        result = self.app.profile_insights(self.project)
+        self.assertEqual((result["signals"]["positive"], result["signals"]["too_hard"]), (1, 1))
+        weeks = result["timeline"]["weeks"]
+        self.assertEqual((sum(w["positive"] for w in weeks), sum(w["understood"] for w in weeks)), (1, 1))
+        self.assertEqual(sum(w["interest_score"] for w in weeks), 1)   # understanding is not interest
+        self.assertEqual([i["key"] for i in self.app.profile_evidence(self.project, "positive")["items"]], ["p1"])
+        self.assertEqual([i["key"] for i in self.app.profile_evidence(self.project, "understood")["items"]], ["p1"])
+
     def test_weekly_keyword_changes_compare_two_real_periods(self):
         now = datetime.now(timezone.utc)
         self.app.record_feedback("p1", "useful", project_id=self.project)

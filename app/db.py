@@ -63,6 +63,29 @@ def now():
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 
 
+INTEREST_ACTIONS = ("useful", "irrelevant")      # what the reader likes
+FAMILIARITY_ACTIONS = ("understood", "too_hard")  # how well the reader knows it
+
+
+def collapse_feedback(rows):
+    """{paper_key: entry} from feedback rows in id order (undone ones already left out).
+
+    A paper keeps its latest label in each of two separate dimensions, so a later "understood" or "too hard"
+    never replaces an earlier "useful" or "irrelevant", and the other way round. The entry is the interest
+    label when there is one, else the familiarity label ({action, reason, id}); `familiar` is the latest
+    familiarity label or None; `at` is when it was given. An action this version does not know is ignored.
+    """
+    interest, familiar = {}, {}
+    for row in rows:
+        entry = {"action": row["action"], "reason": row["reason"], "id": row["id"], "at": row["created_at"]}
+        if row["action"] in INTEREST_ACTIONS:
+            interest[row["paper_key"]] = entry
+        elif row["action"] in FAMILIARITY_ACTIONS:
+            familiar[row["paper_key"]] = entry
+    return {key: {**(interest.get(key) or familiar[key]), "familiar": familiar.get(key)}
+            for key in sorted(interest.keys() | familiar.keys())}
+
+
 class Store:
     def __init__(self, path):
         self.path = Path(path)
@@ -262,11 +285,8 @@ class Store:
         return [dict(r) for r in self.conn.execute(sql)]
 
     def feedback_by_paper(self):
-        """Latest effective feedback per paper, excluding undone events."""
-        result = {}
-        for row in self.conn.execute("SELECT * FROM feedback WHERE undone=0 ORDER BY id"):
-            result[row["paper_key"]] = {"action": row["action"], "reason": row["reason"], "id": row["id"]}
-        return result
+        """Latest effective feedback per paper, excluding undone events. See collapse_feedback."""
+        return collapse_feedback(self.conn.execute("SELECT * FROM feedback WHERE undone=0 ORDER BY id"))
 
     # ---------------------------------------------------------------- profile
     def save_profile(self, data, note=None):

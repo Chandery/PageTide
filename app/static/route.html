@@ -19,8 +19,10 @@
   <b>让 AI 起草学习图</b>
   <label class="hint" for="aiGoal">你想学什么、学到什么程度？</label>
   <textarea id="aiGoal" data-role="goal" maxlength="250" placeholder="例如：想系统了解半导体晶体生长，能读懂 MBE 方向的论文"></textarea>
+  <div data-role="aiBoundary"></div>
+  <div class="map-note">背景和想学到的程度可以跳过；跳过时按“能读论文 + 最少前置”生成，不会从无关的基础开始。只有选了“未知”才会补充基础概念，并写明原因。</div>
   <div class="map-note" data-role="aiWarn"></div>
-  <div class="map-note">只会发送上面这段目标和这个项目的前 5 个关键词，不发送论文、笔记、画像或别的项目。一次调用约 10–30 秒；每个项目每天最多 3 次。AI 给的只是草稿：你点保存之前，现在的学习图不会改变。</div>
+  <div class="map-note">只会发送上面这段目标、你选的这两个选项和这个项目的前 5 个关键词，不发送论文、笔记、画像或别的项目。一次调用约 10–30 秒；每个项目每天最多 3 次。AI 给的只是草稿：你点保存之前，现在的学习图不会改变。</div>
   <div class="row"><button type="button" class="primary small" data-role="aiGo">让 AI 起草（1 次调用）</button><button type="button" class="ghost small" data-role="aiCancel">取消</button><span class="map-note" data-role="aiActivity" role="status" aria-live="polite"></span></div>
 </div>
 
@@ -38,7 +40,7 @@
     <div class="mode-pick"><div class="seg" role="radiogroup" aria-label="推荐方式" data-role="modeSeg"><button type="button" role="radio" aria-checked="true" data-mode="route">按学习图推荐</button><button type="button" role="radio" aria-checked="false" data-mode="off">普通排序</button></div>
       <span class="sub" data-role="modeNote"></span></div>
   </div>
-  <div class="map-note" data-role="legend">箭头从“要先读懂的概念”指向“依赖它的概念”。每个概念只等它自己的前置，不同分支互不等待；上下位置只表示要先读懂几层前置，不是必须读完一整层。“可以读”的概念正在被推荐，“未解锁”在等它的前置被读懂。沉默不会改变任何状态，“太难”只会让推荐先补基础，也不代表不感兴趣。</div>
+  <div class="map-note" data-role="legend">箭头从“要先读懂的概念”指向“依赖它的概念”。每个概念只等它自己的前置，不同分支互不等待；上下位置只表示要先读懂几层前置，不是必须读完一整层。“可以读”的概念正在被推荐，“未解锁”在等它的前置被读懂。沉默不会改变任何状态，“太难”只会让推荐先补基础，也不代表不感兴趣。收藏表示感兴趣，不等于读懂：只有点“已读懂”才会推进进度。</div>
   <div class="map-shape" data-role="shape"></div>
   <div class="map-layout">
     <div data-role="graph"></div>
@@ -51,6 +53,12 @@
     <button type="button" class="primary small" data-role="save" hidden>保存对学习图的修改</button>
     <button type="button" class="ghost small" data-role="discard" hidden>放弃修改</button>
   </div>
+  <section class="growth" data-role="growth">
+    <header><h3>新方向</h3><button type="button" class="ghost small" data-role="findGrowth">查找新方向</button></header>
+    <div class="map-note">只看你明确点过“有用”“已读懂”的论文和创建时选的种子论文；“不感兴趣”“太难”和没点过的论文都不算。这里只是建议，点“加入学习图”才会加入；加入后可以马上撤销。</div>
+    <div class="notice" data-role="growthNotice" hidden></div>
+    <div data-role="growthList"></div>
+  </section>
 </section>
 </div>
 <script src="/route-editor.js"></script>

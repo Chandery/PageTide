@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', showOther: false, showAll: false, transient: new Set() };
+  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', graphView: 'papers', rcy: null, routeDetail: null, routeToken: 0, showOther: false, showAll: false, transient: new Set() };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const DEFAULT_COLOR = '#64748b';
   const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
@@ -147,6 +147,7 @@
     if (S.relationsCorpus !== JSON.stringify(snap.items.map(p => [p.key,p.title,p.abstract,p.topic]))) S.relations = null;
     if (graphSignature(S.snapshot) !== graphSignature(snap)) S.positions = {};
     S.snapshot = snap;
+    S.routeDetail = null;   // the second graph view is read again after any change of the library or of a map
     S.collapsed = new Set((snap.collapsed || []).map(String));
     if (S.scope !== 'all' && Array.isArray(snap.projects) && !snap.projects.some(x => x.id === S.scope)) S.scope = 'all';   // that project was deleted
     S.snapshot.positions ||= {};
@@ -242,7 +243,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -496,6 +497,7 @@
   function renderGraphLegend() {
     const legend = $('.org-graph-legend');
     if (!legend) return;
+    if (S.graphView === 'route') { renderRouteLegend(legend); return; }
     const rows = treeRows();
     if (!rows.length) { legend.hidden = true; return; }
     legend.hidden = false;
@@ -540,8 +542,22 @@
     return key && present.has(paperNodeId(key)) ? paperNodeId(key) : nodes[0]?.data.id;
   }
   const OVERVIEW_LIMIT = 60;   // more papers than this are not drawn all at once unless asked
+  /* The second graph view exists only for a project tab whose project has a learning map. */
+  const routeAvailable = () => S.scope !== 'all' && (S.snapshot.route_projects || []).includes(S.scope);
+  function renderViewSeg() {
+    const box = $('[data-view-seg]'), wrap = $('.org-graph-wrap'); if (!box || !wrap) return;
+    const on = routeAvailable();
+    if (!on && S.graphView === 'route') S.graphView = 'papers';
+    box.hidden = !on;
+    wrap.classList?.toggle('has-view', on); wrap.classList?.toggle('is-route', S.graphView === 'route');
+    box.innerHTML = on ? [['papers', '论文关系', '论文之间的相似关系和类别'], ['route', '学习图 + 论文', '这个项目的学习单元，以及每篇论文对应哪个单元']].map(([view, label, tip]) =>
+      `<button type="button" role="radio" aria-checked="${S.graphView === view}" data-action="graph-view" data-view="${view}" title="${h(tip)}">${label}</button>`).join('') : '';
+  }
   function renderFocus() {
+    renderViewSeg();
     const box = $('[data-focus-seg]'); if (!box) return;
+    box.hidden = S.graphView === 'route';
+    if (box.hidden) return;
     const canCat = S.filter !== '*', canPaper = !!S.key && scoped().some(p => p.key === S.key);
     if (S.focus === 'category' && !canCat) S.focus = 'all';
     if (S.focus.startsWith('paper') && !canPaper) S.focus = 'all';
@@ -549,6 +565,10 @@
     box.innerHTML = b('all', '全貌', true, '显示当前范围内的全部论文') + b('category', '当前类别', canCat, canCat ? '只画当前所选类别（含子类别）里的论文' : '先在左侧选一个类别') + b('paper1', '论文·1 跳', canPaper, canPaper ? '只画所选论文和与它直接相连的论文' : '先选一篇论文') + b('paper2', '论文·2 跳', canPaper, canPaper ? '再多画一层相连的论文' : '先选一篇论文');
   }
   function renderGraph(persistInitial = true) {
+    S.routeToken++;   // a second-view read still in flight must not draw over what is drawn now
+    renderViewSeg();
+    if (S.graphView === 'route') { renderRouteGraph(); return; }
+    S.rcy?.destroy(); S.rcy = null;
     capturePositions();
     S.relationsPending=false;
     const previousElements = S.graphSeen || new Set();
@@ -660,6 +680,84 @@
     S.graphSeen = new Set(S.cy.elements().map(e=>e.id()));
     S.resizeObserver?.disconnect(); S.resizeObserver = new ResizeObserver(() => S.cy?.resize()); S.resizeObserver.observe(container);
   }
+  /* ---- the second view: learning units + this project's papers. Its own cytoscape instance (S.rcy), its own node
+     ids (ru:/rp:), laid out in memory by route-detail.js: it never touches S.cy, S.positions or a saved layout. */
+  const UNIT_STATUS = { satisfied: '已读懂', unlocked: '可以读', locked: '未解锁', proposed: '建议（未加入）' };
+  function renderRouteLegend(legend) {
+    legend.hidden = false;
+    const dot = (color, label) => `<div class="org-graph-legend-item"><span class="org-graph-legend-dot" style="background:${color}"></span><span>${label}</span></div>`;
+    legend.innerHTML = dot(theme('--good', '#2f6a4c'), '已读懂') + dot(theme('--accent-text', '#1c2230'), '可以读') + dot(theme('--line-strong', '#bdb3a0'), '未解锁') + dot(theme('--muted', '#5e5a52'), '论文');
+  }
+  function routeStyle() {
+    const ink = theme('--text', '#1c2230'), muted = theme('--muted', '#5e5a52'), base = theme('--base', '#fbf8f2'), good = theme('--good', '#2f6a4c'),
+      line = theme('--line-strong', '#bdb3a0'), accent = theme('--accent-text', '#1c2230'), soft = theme('--surface-2', '#f1ece2');
+    return [
+      { selector: 'node', style: { label: 'data(label)', color: ink, 'font-size': 12, 'text-wrap': 'wrap', 'text-valign': 'center', 'text-halign': 'center' } },
+      { selector: 'node[kind="unit"]', style: { shape: 'round-rectangle', width: 176, height: 48, 'text-max-width': 156, 'background-color': soft, 'border-width': 2, 'border-color': line, 'font-size': 13, 'font-weight': 600 } },
+      { selector: 'node[kind="unit"][status="satisfied"]', style: { 'border-color': good, 'background-color': base } },
+      { selector: 'node[kind="unit"][status="unlocked"]', style: { 'border-color': accent, 'border-width': 3, 'background-color': base } },
+      { selector: 'node[kind="unit"][status="locked"]', style: { color: muted } },
+      { selector: 'node[kind="unit"][status="proposed"], node[kind="unit"][?side]', style: { 'border-style': 'dashed' } },
+      { selector: 'node[kind="paper"]', style: { shape: 'ellipse', width: 24, height: 24, 'background-color': muted, 'border-width': 2, 'border-color': base, 'text-valign': 'bottom', 'text-margin-y': 6, 'text-max-width': 96, 'font-size': 11, 'text-background-color': base, 'text-background-opacity': 0.85, 'text-background-padding': 2 } },
+      { selector: 'node[kind="group"]', style: { 'background-opacity': 0, 'border-width': 0, width: 10, height: 10, 'font-size': 13, 'font-weight': 'bold', color: muted, events: 'no' } },
+      { selector: 'edge', style: { 'curve-style': 'bezier', width: 1, 'line-color': line, opacity: 0.5 } },
+      { selector: 'edge[kind="prerequisite"]', style: { width: 2.2, 'line-color': ink, 'target-arrow-color': ink, 'target-arrow-shape': 'triangle', opacity: 0.8 } },
+      { selector: 'edge[kind="prerequisite"][?proposed]', style: { 'line-style': 'dashed' } },
+      { selector: 'edge[kind="matched_to"]', style: { 'line-style': 'dashed', 'line-color': accent, opacity: 0.55 } },
+      { selector: 'edge[kind="matched_to"][rank = 1]', style: { opacity: 0.25 } },
+      { selector: 'edge[kind="similarity"]', style: { 'line-color': '#a89e8b', opacity: 0.4, 'curve-style': 'unbundled-bezier' } },
+      { selector: '.org-dim', style: { opacity: 0.15 } },
+      { selector: 'node.org-current', style: { 'border-color': ink, 'border-width': 4 } }
+    ];
+  }
+  function fitRouteGraph() {
+    const cy = S.rcy; if (!cy) return;
+    cy.resize(); cy.animate({ fit: { eles: cy.nodes(), padding: 40 } }, { duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 200 });
+  }
+  async function renderRouteGraph() {
+    capturePositions();
+    S.cy?.destroy(); S.cy = null; S.rcy?.destroy(); S.rcy = null;
+    const container = $('.org-graph'); if (!container) return;
+    const token = ++S.routeToken, scope = S.scope;
+    container.innerHTML = '<p class="org-empty">正在读取学习图…</p>';
+    renderFocus(); renderGraphLegend();
+    if (!window.cytoscape) { container.innerHTML = '<p class="org-empty org-error">图谱组件未加载，请刷新重试</p>'; return; }
+    let detail = S.routeDetail && S.routeDetail.scope === scope ? S.routeDetail.data : null;
+    try {
+      if (!detail) {
+        detail = await window.PDH.api('/api/organization', { action: 'route-detail', project_id: scope });
+        if (token !== S.routeToken || S.graphView !== 'route' || S.scope !== scope || S.mode !== 'graph') return;   // the person moved on while it was loading
+        S.routeDetail = { scope, data: detail };
+      }
+    } catch (error) {
+      if (token === S.routeToken && S.graphView === 'route' && S.scope === scope && S.mode === 'graph') container.innerHTML = `<p class="org-empty org-error">${h(`学习图没有读到：${error.message}`)}</p>`;
+      return;
+    }
+    if (!detail.available) { container.innerHTML = '<p class="org-empty">这个项目还没有学习图。可以在项目的学习图页创建一张。</p>'; return; }
+    if (!S.relations) loadRelations();   // similarity lines join in when the offline job is done
+    const built = window.PDHRouteDetail.layout(detail, S.relations);
+    if (!built.nodes.length) { container.innerHTML = '<p class="org-empty">学习图里还没有可画的单元</p>'; return; }
+    container.innerHTML = '';
+    container.setAttribute('aria-label', `学习图和论文，${window.PDHRouteDetail.summary(built.counts)}`);
+    const elements = [
+      ...built.nodes.map(n => ({ data: { id: n.id, kind: n.kind, label: n.label, status: n.status, side: n.side, key: n.key, name: n.name, type: n.type, why: n.why }, position: { x: n.x, y: n.y } })),
+      ...built.edges.map(e => ({ data: { id: e.id, source: e.source, target: e.target, kind: e.kind, rank: e.rank, proposed: e.proposed, weight: e.weight, tip: e.title } }))];
+    const cy = S.rcy = window.cytoscape({ container, elements, layout: { name: 'preset' }, minZoom: 0.1, maxZoom: 2.5, wheelSensitivity: 0.18, autoungrabify: true, boxSelectionEnabled: false, style: routeStyle() });
+    fitRouteGraph();
+    const hint = $('.org-graph-hint');
+    const say = text => { if (hint) hint.textContent = text; };
+    say(`${window.PDHRouteDetail.summary(built.counts)} · 点论文看详情，点学习单元看它的说明`);
+    cy.on('tap', 'node[kind="paper"]', e => { S.key = e.target.data('key'); cy.nodes().removeClass('org-current'); e.target.addClass('org-current'); renderSidebar(); renderDetail(); renderList(); });
+    cy.on('tap', 'node[kind="unit"]', e => {
+      const d = e.target.data(), kind = { topic: '主题', method: '方法', problem: '问题', foundation: '基础' }[d.type];
+      say([d.name, UNIT_STATUS[d.status] || '', kind ? `类型：${kind}` : '', d.why ? `为什么在这里：${d.why}` : ''].filter(Boolean).join(' · '));   // text only
+    });
+    cy.on('mouseover', 'node', e => { cy.elements().addClass('org-dim'); e.target.closedNeighborhood().removeClass('org-dim'); container.title = e.target.data('key') ? item(e.target.data('key'))?.title || '' : (e.target.data('name') || ''); });
+    cy.on('mouseout', 'node', () => { cy.elements().removeClass('org-dim'); container.title = ''; });
+    cy.on('mouseover', 'edge', e => { container.title = e.target.data('tip') || ''; });
+    cy.on('mouseout', 'edge', () => { container.title = ''; });
+    S.resizeObserver?.disconnect(); S.resizeObserver = new ResizeObserver(() => S.rcy?.resize()); S.resizeObserver.observe(container);
+  }
   function graphSignature(snap) { return JSON.stringify([snap.positions || {}, snap.directions || [], (snap.items || []).map(p => [p.key, p.directions]), snap.collapsed || []]); }
   function bindGraphDrag(cy, begin, drag, end, cancel = () => {}) {
     let moved=false;
@@ -746,6 +844,7 @@
     else cy.animate(target, { duration: 550, easing: 'ease-in-out-cubic', queue: false });
   }
   function zoomGraph(factor) {
+    if (S.rcy) { const z = Math.max(S.rcy.minZoom(), Math.min(S.rcy.maxZoom(), S.rcy.zoom() * factor)); S.rcy.animate({ zoom: { level: z, renderedPosition: { x: S.rcy.width() / 2, y: S.rcy.height() / 2 } } }, { duration: 150 }); return; }
     const cy = S.cy; if (!cy) return;
     const zoom = Math.max(cy.minZoom(), Math.min(cy.maxZoom(), cy.zoom() * factor));
     const ratio = zoom / cy.zoom(), pan = cy.pan();
@@ -962,6 +1061,13 @@
         break;
       }
       case 'toggle-other-cats': S.showOther = !S.showOther; renderSidebar(); break;
+      case 'graph-view': {
+        const next = b.dataset.view === 'route' ? 'route' : 'papers';
+        if (next === S.graphView || (next === 'route' && !routeAvailable())) break;
+        S.graphView = next; S.graphFocus = null;
+        if (S.mode === 'graph') renderGraph(false); else renderFocus();
+        break;
+      }
       case 'focus-mode': {
         if (b.disabled) break;
         S.focus = b.dataset.mode; S.graphFocus = null; S.showAll = false;
@@ -1034,8 +1140,9 @@
       }
       case 'suggest': await suggest(); break;
       case 'export': await exportData(); break;
-      case 'fit': focusGraph(null); break;
+      case 'fit': if (S.rcy) fitRouteGraph(); else focusGraph(null); break;
       case 'rearrange':
+        if (S.graphView === 'route') break;   // this view has no saved layout to rearrange
         dialog('重新排列', '<p>重新排列当前显示的论文卡片？没有显示的论文不受影响。之后可点击「撤销重新排列」恢复原布局。</p>', '重新排列', async () => {
           await S.positionQueue;
           const previous = S.snapshot.positions, drawn = new Set(S.cy ? S.cy.nodes().map(n => n.id()) : []);   // only what is drawn is re-arranged; hidden papers keep their place
@@ -1068,5 +1175,5 @@
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, positionWriter, bindGraphDrag, radialPositions };
 })();

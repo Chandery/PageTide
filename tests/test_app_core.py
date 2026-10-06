@@ -144,6 +144,22 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("p1", profile["too_hard_feedback"])
         self.assertNotIn("p1", profile["positive_feedback"])
 
+    def test_understood_is_familiarity_not_interest_and_not_a_save(self):
+        result = self.app.record_feedback("p1", "understood")
+        self.assertFalse(result["interest_changed"])
+        self.assertFalse(result["saved"])
+        profile = self.app.profile()
+        self.assertNotIn("p1", profile["positive_feedback"] + profile["explicit_negatives"] + profile["too_hard_feedback"])
+        self.assertEqual(self.app.stats()["understood"], 1)
+
+    def test_a_familiarity_label_does_not_replace_an_interest_label(self):
+        self.app.record_feedback("p1", "useful")
+        self.app.record_feedback("p1", "too_hard")
+        self.app.record_feedback("p1", "understood")
+        entry = self.app.latest_feedback()["p1"]
+        self.assertEqual((entry["action"], entry["familiar"]["action"]), ("useful", "understood"))
+        self.assertIn("p1", self.app.profile()["positive_feedback"])
+
     def test_irrelevant_is_explicit_negative(self):
         result = self.app.record_feedback("p2", "irrelevant")
         self.assertTrue(result["interest_changed"])

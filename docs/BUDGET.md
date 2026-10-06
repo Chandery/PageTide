@@ -42,6 +42,9 @@
 
 **评估标注实验（一次性，非运行时额度，只记 token）**：裁判用 taomu 中转 / `gpt-6-astra`（[ADR 0004](decisions/0004-evaluation-annotator-separation.md)），与运行时 DeepSeek 分开，避免自己给自己打分。taomu 无公开价格、且每次请求注入约 **4,403 个隐藏输入 token**，因此标注 200 篇（20 篇/次 × 10 次）上限约 **149,030 token，不计算 USD**。详见生成表的「离线评估标注」段与 [EVALUATION](EVALUATION.md)。
 
+**学习图起草（`learning_path_plan` / `learning_path_plan_project`，2026-10-06 变更）**：系统指令加入概念类型（`type`）和可选边界（`boundary`：背景、深度两个枚举值）后，按“全中文最坏情况、每字 1.5 token”的保守估算，输入超出原登记的 1200 约 127 个字符（`tests/test_route_plan.py` 的最坏情况测试）。agent 把两项的输入上限登记为 **1400**（输出上限不变 900；分项 700 + 600 + 100），agent 先把它们登记为未批准；**owner 已于 2026-10-06 在会话中批准**（原话“AI 起草的输入上限我批准了”），现在是 `owner_approved: true`，批准记录和此前的批准（1200/900）都在 `approval_note` 里。所有数字都是启发式估算，未用分词器实测。注意：最坏情况测试沿用了原有的 +150 容差（`cap − framing + 150`），按它，含最长 boundary 的全中文最坏输入估算约 1447 token，仍**高于登记的 1400**；网关只按上限预留额度、发送前并不按输入长度拒绝，所以这是估算与登记值之间的缺口，不是已发生的超支——如要消除这个缺口，需要把上限登记得更高或收紧输入限制，这是另一个需要 owner 决定的变更。
+**这两项的次数上限不在 `budget.json` 里**，写在代码中：创建会话首次生成后最多再重新生成 2 次（`routeplan.MAX_REGENERATIONS`，共 1+2 次付费尝试），已有项目每个项目每个本地日最多 3 次（`App.PROJECT_PLANS_PER_DAY`）；网关拒绝而没发出去的不计。`tests/test_route_plan.py` 和 `tests/test_project_manage.py` 固定这两个数；预算检查（`scripts/budget.py`）看不到它们。
+
 **所有数字都是**未实测的计划 envelope（除上述探针外）：参考量来自 arXiv 摘要长度的少量测量与 DeepSeek 官方 token 比例，未经离线 tokenizer 校准前不得称为账单或保证。
 
 ## 3. 授权顺序

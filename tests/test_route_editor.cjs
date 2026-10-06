@@ -175,8 +175,9 @@ test('status words describe where a concept stands, never disinterest, lateness 
 
 test('a concept card summary reports only explicit counts', () => {
   const R = load();
-  const text = R.countsText({ useful: 2, irrelevant: 1, too_hard: 1, shown: 5, rated: 3 });
+  const text = R.countsText({ useful: 2, understood: 1, irrelevant: 1, too_hard: 1, shown: 5, rated: 3 });
   assert.match(text, /收藏 2/);
+  assert.match(text, /已读懂 1/);
   assert.match(text, /太难 1/);
   assert.match(text, /已展示 5/);
   assert.doesNotMatch(R.countsText({ useful: 0, irrelevant: 0, too_hard: 0, shown: 0, rated: 0 }), /undefined|NaN/);
@@ -268,4 +269,76 @@ test('only active arrows count as what a concept needs or opens', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(R.needsOf(g, 'c4').map((n) => n.id))), ['c2']);
   assert.deepEqual(JSON.parse(JSON.stringify(R.dependents(g, 'c3').map((n) => n.id))), []);
   assert.deepEqual(JSON.parse(JSON.stringify(R.waitingOn(g, { c2: { status: 'unlocked' } }, 'c4').map((n) => n.id))), ['c2']);
+});
+
+
+test('the boundary choices are optional enums that match the server', () => {
+  const R = load();
+  const values = (list) => JSON.parse(JSON.stringify(list.map(([value]) => value)));
+  assert.deepEqual(values(R.BACKGROUNDS), ['', 'unknown', 'engineering', 'ai_researcher', 'other']);
+  assert.deepEqual(values(R.DEPTHS), ['', 'overview', 'read_papers', 'implement']);
+  const html = R.boundaryHTML('x');
+  assert.match(html, /id="x-background"/);
+  assert.match(html, /id="x-depth"/);
+  assert.equal((html.match(/<option value=""/g) || []).length, 2);   // each can be skipped
+});
+
+test('reading the boundary gives only the chosen values, or nothing when both are skipped', () => {
+  const R = load();
+  const root = (bg, depth) => ({ querySelector: (sel) => ({ value: sel.includes('background') ? bg : depth }) });
+  assert.equal(R.readBoundary(root('', '')), undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(R.readBoundary(root('unknown', '')))), { background: 'unknown' });
+  assert.deepEqual(JSON.parse(JSON.stringify(R.readBoundary(root('engineering', 'implement')))), { background: 'engineering', depth: 'implement' });
+  assert.equal(R.readBoundary(root('wizard', 'forever')), undefined);   // anything the server would refuse is never sent
+});
+
+test('a concept panel says what kind of unit it is and why a basic one is there', () => {
+  const R = load();
+  const graph = { concepts: [{ id: 'c1', name: 'Linear algebra', terms: ['linear algebra'], hint: 1, type: 'foundation', why: 'matrices underlie every model', state: 'active' }], prereqs: [], targets: ['c1'] };
+  const text = R.typeText(graph.concepts[0]);
+  assert.match(text, /基础/);
+  assert.match(text, /matrices underlie every model/);
+  assert.equal(R.typeText({ id: 'c2', name: 'x' }), '');
+});
+
+
+const growth = () => ({ id: 'g-0123456789', name: 'strain relaxation', terms: ['strain relaxation'], status: 'ready', positive: 2, paper_count: 4, sources: 2, overlap: 0.15,
+  papers: [{ key: 's1', title: 'Strain <b>relaxation</b>' }, { key: 's2', title: 'Second' }], parent: { id: 'c2', name: 'Epitaxy' }, prereqs: [{ id: 'c1', name: 'Crystal basics', support: 0.4 }] });
+
+test('a proposed direction shows its evidence as counts and titles, all escaped', () => {
+  const R = load();
+  const html = R.candidateHTML(growth());
+  assert.match(html, /strain relaxation/);
+  assert.match(html, /4 篇论文/);
+  assert.match(html, /你明确点过 2 篇/);
+  assert.match(html, /2 个来源/);
+  assert.match(html, /重叠 15%/);
+  assert.match(html, /建议放在：.*Epitaxy/);
+  assert.match(html, /建议的前置：.*Crystal basics/);
+  assert.ok(!html.includes('<b>relaxation</b>') && html.includes('&lt;b&gt;relaxation&lt;/b&gt;'));
+});
+
+test('a proposal has exactly two buttons, each carrying the id, and they are off while edits are unsaved', () => {
+  const R = load();
+  const html = R.candidateHTML(growth());
+  assert.equal((html.match(/data-growth="accept"/g) || []).length, 1);
+  assert.equal((html.match(/data-growth="reject"/g) || []).length, 1);
+  assert.equal((html.match(/data-id="g-0123456789"/g) || []).length, 2);
+  assert.ok(!/disabled/.test(html));
+  assert.equal((R.candidateHTML(growth(), { locked: true }).match(/disabled/g) || []).length, 2);
+});
+
+test('a proposal without a parent or prerequisites says nothing about them', () => {
+  const R = load();
+  const bare = { ...growth(), parent: null, prereqs: [] };
+  const html = R.candidateHTML(bare);
+  assert.ok(!/建议放在|建议的前置/.test(html));
+});
+
+test('the list says how many are only being watched and never calls silence a reason', () => {
+  const R = load();
+  assert.match(R.growthNote({ candidates: [], watching: 2 }), /还有 2 个方向证据不够/);
+  assert.match(R.growthNote({ candidates: [], watching: 0 }), /没有新的建议/);
+  assert.equal(R.growthNote({ candidates: [growth()], watching: 0 }), '');
+  assert.doesNotMatch(R.growthNote({ candidates: [], watching: 0 }), /落后|没读|不喜欢/);
 });

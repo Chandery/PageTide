@@ -253,17 +253,17 @@ class ProgressFromFeedbackTests(Fixture):
         self.assertEqual(self.status(), {"Crystal basics": "unlocked", "Epitaxy": "locked", "MBE": "locked"})
         self.assertEqual(self.app.route_get(self.pid)["frontier"], [self.cid["Crystal basics"]])
 
-    def test_two_saved_papers_unlock_the_next_concept_only(self):
-        self.feedback(("cb0", "useful"), ("cb1", "useful"))
+    def test_two_understood_papers_unlock_the_next_concept_only(self):
+        self.feedback(("cb0", "understood"), ("cb1", "understood"))
         self.assertEqual(self.status(), {"Crystal basics": "satisfied", "Epitaxy": "unlocked", "MBE": "locked"})
 
     def test_undoing_feedback_takes_the_progress_back(self):
-        self.feedback(("cb0", "useful"), ("cb1", "useful"))
+        self.feedback(("cb0", "understood"), ("cb1", "understood"))
         self.app.undo_feedback(self.app.latest_feedback(self.pid)["cb1"]["id"])
         self.assertEqual(self.status()["Crystal basics"], "unlocked")
 
     def test_a_too_hard_paper_lowers_progress_and_is_not_interest(self):
-        self.feedback(("cb0", "useful"), ("cb1", "useful"), ("cb2", "too_hard"))
+        self.feedback(("cb0", "understood"), ("cb1", "understood"), ("cb2", "too_hard"), ("cb0", "useful"), ("cb1", "useful"))
         prog = self.app.route_get(self.pid)["progress"][self.cid["Crystal basics"]]
         self.assertEqual(prog["status"], "unlocked")
         self.assertEqual((prog["too_hard"], prog["rated"]), (1, 2))
@@ -282,16 +282,51 @@ class ProgressFromFeedbackTests(Fixture):
         best = pathgrowth.assign(self.app.route_get(self.pid)["graph"], [dict(self.app.store.paper("both"))])["both"][0]
         self.assertEqual(prog[best]["useful"], 1)   # it counted for the concept it fits best, not just for some concept
 
-    def test_a_seed_counts_as_explicit_positive_evidence(self):
+    def test_a_seed_proves_relevance_not_understanding(self):
         self.app.store.add_project_paper(self.pid, "cb0", "seed")
         self.app.store.add_project_paper(self.pid, "cb1", "seed")
         self.app.store.set_setting(f"seed_keys_{self.pid}", ["cb0", "cb1"])
-        self.assertEqual(self.status()["Crystal basics"], "satisfied")
+        prog = self.app.route_get(self.pid)["progress"][self.cid["Crystal basics"]]
+        self.assertEqual(prog["status"], "unlocked")
+        self.assertAlmostEqual(prog["m"], 0.3)
+        self.assertEqual(prog["understood"], 0)   # they still count as chosen interest, never as understanding
+
+    def test_saving_a_paper_is_interest_and_does_not_unlock_the_next_concept(self):
+        self.feedback(("cb0", "useful"), ("cb1", "useful"), ("cb2", "useful"))
+        prog = self.app.route_get(self.pid)["progress"][self.cid["Crystal basics"]]
+        self.assertEqual((prog["status"], prog["useful"], prog["understood"]), ("unlocked", 3, 0))
+        self.assertEqual(self.status()["Epitaxy"], "locked")
+
+    def test_understanding_a_saved_paper_keeps_it_as_interest_evidence(self):
+        self.feedback(("cb0", "useful"), ("cb0", "understood"), ("cb1", "understood"))
+        prog = self.app.route_get(self.pid)["progress"][self.cid["Crystal basics"]]
+        self.assertEqual((prog["useful"], prog["understood"]), (1, 2))
+        self.assertEqual(prog["status"], "satisfied")
+        self.assertIn("cb0", self.app.profile(self.pid)["positive_feedback"])
+        self.assertTrue(self.app.store.in_library("cb0", self.pid))
+
+    def test_too_hard_after_useful_no_longer_removes_the_interest(self):
+        self.feedback(("cb0", "useful"), ("cb0", "too_hard"))
+        profile = self.app.profile(self.pid)
+        self.assertIn("cb0", profile["positive_feedback"])
+        self.assertIn("cb0", profile["too_hard_feedback"])
+
+    def test_understood_is_not_an_interest_signal_or_a_save(self):
+        self.feedback(("cb0", "understood"))
+        profile = self.app.profile(self.pid)
+        self.assertNotIn("cb0", profile["positive_feedback"] + profile["explicit_negatives"])
+        self.assertFalse(self.app.store.in_library("cb0", self.pid))
+        self.assertEqual(self.app.record_feedback("cb0", "understood", project_id=self.pid)["duplicate"], True)
+
+    def test_undoing_understood_restores_the_earlier_too_hard_label(self):
+        self.feedback(("cb0", "too_hard"), ("cb0", "understood"))
+        self.app.undo_feedback(self.app.latest_feedback(self.pid)["cb0"]["familiar"]["id"])
+        self.assertEqual(self.app.latest_feedback(self.pid)["cb0"]["familiar"]["action"], "too_hard")
 
     def test_freezing_stops_new_feedback_from_moving_the_map(self):
-        self.feedback(("cb0", "useful"))
+        self.feedback(("cb0", "understood"))
         self.app.set_profile_frozen(True, self.pid)
-        self.feedback(("cb1", "useful"))
+        self.feedback(("cb1", "understood"))
         self.assertEqual(self.status()["Crystal basics"], "unlocked")
 
     def test_shown_counts_come_from_the_batches(self):

@@ -2,7 +2,7 @@
 (function(global) {
 'use strict';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const labels = {positive:'有用',negative:'不相关',too_hard:'太难',saved:'收藏',exposed:'曝光',seed:'种子',other:'历史状态'};
+const labels = {positive:'有用',negative:'不相关',too_hard:'太难',understood:'已读懂',saved:'收藏',exposed:'曝光',seed:'种子',other:'历史状态'};
 const sources = {seed:'种子',useful_feedback:'有用反馈',saved:'收藏'};
 const colors = {positive:'var(--p-positive)',negative:'var(--p-negative)',too_hard:'var(--p-hard)',saved:'var(--p-saved)',exposed:'var(--p-exposed)'};
 const date = t => t ? String(t).slice(0,10) : '暂无记录';
@@ -78,7 +78,7 @@ function create(root, options) {
   const api = options.api;
   function row(e, undo=false) {
     const tag = labels[e.kind] || labels[{useful:'positive',irrelevant:'negative'}[e.action]] || '论文证据';
-    return `<div class="profile-feedback-row"><div>${button(esc(e.title),`class="paper-link" data-paper="${esc(e.key)}"`)}<div class="profile-note">${esc(e.published || '年份未知')} · ${esc(tag)} · ${date(e.time)}${e.sources?.length ? ' · '+e.sources.map(s=>esc(sources[s]||s)).join(' / ') : ''}${e.action ? ' · 当前反馈：'+esc({useful:'有用',irrelevant:'不相关',too_hard:'太难'}[e.action]||e.action):''}</div>${e.reason ? `<div class="profile-note">${esc(e.reason)}</div>`:''}</div>${undo && e.feedback_id ? button('撤销',`data-undo="${e.feedback_id}"`):''}</div>`;
+    return `<div class="profile-feedback-row"><div>${button(esc(e.title),`class="paper-link" data-paper="${esc(e.key)}"`)}<div class="profile-note">${esc(e.published || '年份未知')} · ${esc(tag)} · ${date(e.time)}${e.sources?.length ? ' · '+e.sources.map(s=>esc(sources[s]||s)).join(' / ') : ''}${e.action ? ' · 当前反馈：'+esc({useful:'有用',irrelevant:'不相关',understood:'已读懂',too_hard:'太难'}[e.action]||e.action):''}</div>${e.reason ? `<div class="profile-note">${esc(e.reason)}</div>`:''}</div>${undo && e.feedback_id ? button('撤销',`data-undo="${e.feedback_id}"`):''}</div>`;
   }
   function pinHTML() { return pins.map((p,i)=>`<span class="profile-pin">${esc(p)}${button('×',`data-remove-pin="${i}" aria-label="移除 ${esc(p)}"`)}</span>`).join('') || '<span class="profile-note">未设置固定关键词</span>'; }
   function render(next, p, projectName) {

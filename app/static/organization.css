@@ -254,3 +254,9 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-detail .org-ai-sub { margin-top:6px; color:var(--org-muted); font-size:12.5px; }
 .org-detail .org-reading-tools button .org-icon { filter:invert(1); }
 html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:none; }
+
+/* The graph view switch (papers / learning map + papers) sits where the focus bar is; the focus bar moves below it. */
+.org-view { position:absolute; top:10px; left:10px; z-index:3; background:var(--org-bg); }
+.org-view button { font-size:12px; padding:5px 12px; }
+.org-graph-wrap.has-view .org-focus { top:54px; }
+.org-graph-wrap.is-route .org-graph-tools [data-action="rearrange"] { display:none; }

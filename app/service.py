@@ -14,17 +14,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import creation, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan
-from .db import Store, now
+from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
-from .organization import Organization, read_route
+from .organization import Conflict, Organization, read_route, route_detail as read_route_detail
 from .project import ProjectManager
 from .sources import OpenAlex, SourceError, fetch_seed_work, pdf_availability, resolve_seed, slim, window_start
 
-ACTIONS = ("useful", "irrelevant", "too_hard")
+ACTIONS = ("useful", "irrelevant", "understood", "too_hard")
+INTEREST_ACTIONS = {"useful", "irrelevant"}
+FAMILIARITY_ACTIONS = {"understood", "too_hard"}
 POSITIVE_ACTIONS = {"useful"}
 NEGATIVE_ACTIONS = {"irrelevant"}
 TOO_HARD_ACTIONS = {"too_hard"}  # Familiarity signal only: never an interest negative
+UNDERSTOOD_ACTIONS = {"understood"}  # Familiarity signal only: neither a save nor an interest
 DEFAULT_WEIGHTS = {"pos": 1.0, "neg": 0.5}
 GUIDANCE_MAX_TURNS = 6          # AI turns in a guided session; a turn that got no AI answer is free
 GUIDANCE_QUICK_MAX_TURNS = 1    # quick creation is one AI call, not a conversation
@@ -70,11 +73,14 @@ class App:
         feedback = self.latest_feedback(project_id, through)
         events = {}
         for key in self.seed_keys(project_id):
-            if key in best and key not in feedback:
+            if key in best and feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins
                 events.setdefault(best[key], []).append("useful")
-        for key, item in sorted(feedback.items(), key=lambda kv: kv[1]["id"]):
-            if key in best and item["action"] in pathgraph.EVENTS:
-                events.setdefault(best[key], []).append(item["action"])
+        labels = sorted(((item["id"], key, item["action"]) for key, item in feedback.items()
+                         if item["action"] in pathgraph.INTEREST_EVENTS), key=lambda t: t[0])
+        labels += sorted((item["familiar"]["id"], key, item["familiar"]["action"]) for key, item in feedback.items() if item["familiar"])
+        for _, key, action in sorted(labels):
+            if key in best and action in pathgraph.EVENTS:
+                events.setdefault(best[key], []).append(action)
         shown = {}
         for row in self.store.conn.execute(
                 """SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?""", (project_id,)):
@@ -99,6 +105,111 @@ class App:
                 "frontier": pathgraph.frontier(graph, prog), "done": done, "total": len(live),
                 "exploration_share": pathgraph.exploration_share(done, len(live))}
 
+    def _route_candidates(self, project_id):
+        """(route, ready candidates, how many are only being watched) from what the reader explicitly responded to.
+
+        Evidence for a direction: a paper marked useful, a paper marked understood, a chosen seed. Not interested
+        never creates a branch, too hard is difficulty and not direction, and silence is nothing. A frozen
+        profile replays feedback only up to the freeze; undone feedback is gone. Directions already on the map
+        (proposed or active) and the ones the person turned down are left out. Local and deterministic."""
+        project_id = self._require_project(project_id)
+        revision, route = read_route(self.store.conn, project_id)
+        if not route or not route.get("graph"):
+            return project_id, revision, route, [], 0
+        graph = route["graph"]
+        papers = [dict(r) for r in self.store.conn.execute(
+            "SELECT p.key, p.title, p.abstract, p.source, p.doi FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
+        freeze = self.store.get_setting(f"profile_freeze_{project_id}")
+        feedback = self.latest_feedback(project_id, freeze.get("through_feedback_id") if freeze else None)
+        day = lambda entry: str(entry.get("at") or "")[:10] or None
+        positive = {}
+        for key, item in feedback.items():
+            if item["action"] == "useful":
+                positive[key] = day(item)
+            elif item["familiar"] and item["familiar"]["action"] == "understood" and item["action"] != "irrelevant":
+                positive[key] = day(item["familiar"])   # understanding what you turned down is not interest in it
+        added = {r["paper_key"]: str(r["added_at"] or "")[:10] or None for r in self.store.conn.execute(
+            "SELECT paper_key, added_at FROM project_papers WHERE project_id=?", (project_id,))}
+        for key in self.seed_keys(project_id):
+            if feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins over the seed
+                positive.setdefault(key, added.get(key))   # the day they chose it
+        # a direction is recognised by its phrases, not by the set of papers it was found in: the set changes with
+        # every new paper, the direction does not
+        known = {pathgraph._key(c["name"]) for c in graph["concepts"]} | {pathgraph._key(t) for c in graph["concepts"] for t in c.get("terms", [])}
+        known |= set(route.get("rejected") or [])
+        known.discard("")
+        found = [c for c in pathgrowth.branch_candidates(graph, papers, positive)
+                 if not ({pathgraph._key(c["name"])} | {pathgraph._key(t) for t in c["terms"]}) & known]
+        return project_id, revision, route, [c for c in found if c["status"] == "ready"], sum(1 for c in found if c["status"] != "ready")
+
+    def route_candidates(self, project_id=None):
+        """New directions to propose to the person, with the evidence behind each. Nothing is changed or saved."""
+        project_id, revision, route, ready, watching = self._route_candidates(project_id)
+        if not route or not route.get("graph"):
+            return {"project_id": project_id, "available": False, "candidates": [], "watching": 0, "revision": revision}
+        graph = route["graph"]
+        names = {c["id"]: c["name"] for c in graph["concepts"]}
+        titles = {r["key"]: r["title"] for r in self.store.conn.execute(
+            "SELECT p.key, p.title FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))}
+        sources = {r["key"]: str(r["source"] or "").strip().lower() for r in self.store.conn.execute(
+            "SELECT p.key, p.source FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))}
+        out = []
+        for c in ready:
+            shown = c["positive"] + [k for k in c["papers"] if k not in c["positive"]]
+            out.append({"id": c["id"], "name": c["name"], "terms": c["terms"], "status": c["status"], "strength": c["strength"],
+                        "positive": len(c["positive"]), "paper_count": len(c["papers"]),
+                        "sources": len({sources[k] for k in c["papers"] if sources.get(k)}),
+                        "overlap": round(1.0 - c["parts"]["N"], 2),
+                        "papers": [{"key": k, "title": titles.get(k, k)} for k in shown[:8]],
+                        "parent": {"id": c["parent"], "name": names[c["parent"]]} if c.get("parent") in names else None,
+                        "prereqs": [{"id": p["from"], "name": names[p["from"]], "support": p["support"]} for p in c["prereqs"] if p["from"] in names]})
+        return {"project_id": project_id, "available": True, "candidates": out, "watching": watching, "revision": revision}
+
+    def route_candidate_accept(self, project_id, candidate_id, revision=None):
+        """Add a proposed direction to the map: the person's click is the confirmation. The candidate is looked up
+        again now, so one that changed since it was shown is refused instead of added from stale evidence."""
+        project_id, current, route, ready, _ = self._route_candidates(project_id)
+        if revision is not None and revision != current:
+            raise Conflict("Organization revision conflict")   # the map moved on since it was shown: say so before anything else
+        found = next((c for c in ready if c["id"] == candidate_id), None)
+        if not found:
+            raise ValueError("这个新方向已经变了或不存在，请重新查找")
+        merged = pathgrowth.merge_candidate(route["graph"], found)
+        for concept in merged["concepts"]:
+            if concept.get("candidate") == candidate_id:
+                concept["state"] = "active"
+        for edge in merged["prereqs"]:
+            if any(c["id"] == edge["to"] and c.get("candidate") == candidate_id for c in merged["concepts"]):
+                edge["state"] = "active"
+        return self._with_undo(project_id, self._route_apply(project_id, {"action": "route-save", "graph": merged, "label": "candidate"}, revision))
+
+    def route_candidate_reject(self, project_id, candidate_id, revision=None):
+        """Turn a proposed direction down for good (undoable); it is not proposed again."""
+        project_id, current, _, ready, _ = self._route_candidates(project_id)
+        if revision is not None and revision != current:
+            raise Conflict("Organization revision conflict")
+        if not any(c["id"] == candidate_id for c in ready):
+            raise ValueError("这个新方向已经变了或不存在，请重新查找")
+        found = next(c for c in ready if c["id"] == candidate_id)
+        terms = [found["name"], *found["terms"]]
+        return self._with_undo(project_id, self._route_apply(project_id, {"action": "route-reject", "terms": terms}, revision))
+
+    def _with_undo(self, project_id, state):
+        """The map with the step the person can still take back ({id, label} or None), for a page that offers it."""
+        return {**state, "undo": self._route_org(project_id).snapshot()["undo"]}
+
+    def route_undo(self, project_id, revision=None, event=None):
+        """Take back the project's latest map step (adding or turning down a direction, a save, a mark). When the
+        page names the step it is offering to undo (`event`), anything newer refuses instead of undoing a
+        different step than the one the person saw."""
+        latest = self._route_org(project_id).snapshot()["undo"]
+        if not latest:
+            raise ValueError("没有可以撤销的操作")
+        if event is not None and event != latest["id"]:
+            raise ValueError("这一步之后又有别的改动，不能只撤销它")
+        event = latest
+        return self._with_undo(project_id, self._route_apply(project_id, {"action": "undo", "event": event["id"]}, revision))
+
     def _route_apply(self, project_id, body, revision=None):
         org = self._route_org(project_id)
         if revision is not None:
@@ -113,6 +224,17 @@ class App:
         if graph is not None:
             body["graph"] = graph
         return self._route_apply(project_id, body, revision)
+
+    def route_detail(self, project_id):
+        """The second knowledge-graph view's data (Organization.route_detail) with each unit's progress status."""
+        if not isinstance(project_id, str) or not project_id:
+            raise ValueError("project_id 必须是项目 id")
+        detail = read_route_detail(self.store.conn, project_id)   # plain reads: it must not create the knowledge-base tables or a row
+        if detail["available"]:
+            progress = self.route_get(project_id)["progress"]
+            for unit in detail["units"]:
+                unit["status"] = (progress.get(unit["id"]) or {}).get("status", "locked")
+        return detail
 
     def route_manual(self, project_id, concept, value, revision=None):
         return self._route_apply(project_id, {"action": "route-manual", "concept": concept, "value": value}, revision)
@@ -141,7 +263,7 @@ class App:
             session["draft"] = {**session["draft"], "route_plan": self.route_plan_state(session_id)["plan"]}
         return session
 
-    def route_plan(self, session_id, regenerate=False, dry_run=False):
+    def route_plan(self, session_id, regenerate=False, dry_run=False, boundary=None):
         """Ask the model for a concept graph for this creation session (operation learning_path_plan).
 
         One explicit call per click. A plan already made is returned without a call. `regenerate` asks again;
@@ -150,14 +272,16 @@ class App:
         gateway refused before sending (AI off, no key, not approved, budget, dry run, a rejected request). The
         attempt is reserved before the call under a lock, so concurrent requests cannot exceed the limit, and a
         second request for a session that is generating is refused. The model sees the goal and the draft
-        keywords only; the reply is repaired locally (pathgraph.normalize) and nothing is saved to a project.
+        keywords only, plus the optional boundary (two enum values, routeplan.clean_boundary); the reply is
+        repaired locally (pathgraph.normalize) and nothing is saved to a project.
         """
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
             raise ValueError("引导会话不存在或已结束")
         draft = self._bounded_guidance_draft(session["draft"])
         english = self.english()
-        messages = routeplan.messages(draft["goal"], draft["keywords"], english)   # built before an attempt is reserved
+        boundary = routeplan.clean_boundary(boundary)
+        messages = routeplan.messages(draft["goal"], draft["keywords"], english, boundary)   # built before an attempt is reserved
         limit = 1 + routeplan.MAX_REGENERATIONS
         key = f"route_plan_{session_id}"
         with self._ROUTE_LOCK:
@@ -174,7 +298,7 @@ class App:
             if not dry_run:
                 self.store.set_setting(key, {"plan": plan, "attempts": attempts + 1})   # reserved before the call
         try:
-            response, stored = self._route_ask("learning_path_plan", messages, english, dry_run)
+            response, stored = self._route_ask("learning_path_plan", messages, english, dry_run, boundary)
             if stored is None:
                 if response.get("reason_code") in self._ROUTE_UNPAID:
                     with self._ROUTE_LOCK:
@@ -190,10 +314,11 @@ class App:
             with self._ROUTE_LOCK:
                 self._ROUTE_BUSY.discard(session_id)
 
-    def _route_ask(self, operation, messages, english, dry_run=False):
+    def _route_ask(self, operation, messages, english, dry_run=False, boundary=None):
         """One concept-graph call, shared by the creation session (learning_path_plan) and an existing project
         (learning_path_plan_project). Returns (response, stored): `stored` is the plan to keep, or None when
-        nothing usable came back. It writes no state; the caller counts the attempt."""
+        nothing usable came back. It writes no state; the caller counts the attempt. Basic concepts (type
+        foundation) are kept only when the boundary says the reader starts from scratch."""
         started = time.monotonic()
         try:
             result = self.gateway.call(operation, messages, dry_run=dry_run) or {}
@@ -205,17 +330,17 @@ class App:
             code, text = creation.degrade_reason(result, english)
             return {"ok": False, "mode": "local", "reason_code": code, "reason": text, **base}, None
         found = routeplan.parse(result.get("content"))
-        graph, report = pathgraph.normalize(found) if found is not None else (None, None)
+        graph, report = pathgraph.normalize(found, allow_foundation=routeplan.allows_foundation(boundary)) if found is not None else (None, None)
         if not graph or not graph["concepts"]:
             return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), **base}, None
         report = {**report, "shape": pathgraph.shape(graph)}
         tokens = (result.get("usage") or {}).get("total_tokens")
-        stored = {"graph": graph, "report": report, "tokens": tokens, "elapsed_ms": elapsed_ms}
+        stored = {"graph": graph, "report": report, "tokens": tokens, "elapsed_ms": elapsed_ms, "boundary": boundary}
         return {"ok": True, "mode": "ai", **stored}, stored
 
     PROJECT_PLANS_PER_DAY = 3
 
-    def route_plan_project(self, project_id, goal, dry_run=False):
+    def route_plan_project(self, project_id, goal, dry_run=False, boundary=None):
         """Ask for a concept graph for an existing project (operation learning_path_plan_project, which the owner
         approves separately), one explicit call per click. The model sees the goal the person typed and the project's first five keywords, nothing else. The
         reply is a proposal: it is returned for the page to show and edit, and nothing is saved until the person
@@ -229,7 +354,8 @@ class App:
             raise ValueError(f"目标最多 {routeplan.MAX_GOAL_CHARS} 个字符")
         keywords = (self.projects.get_project(project_id).get("keywords") or [])[:routeplan.MAX_DRAFT_TERMS]
         english = self.english()
-        messages = routeplan.messages(goal, keywords, english)   # built before an attempt is reserved
+        boundary = routeplan.clean_boundary(boundary)
+        messages = routeplan.messages(goal, keywords, english, boundary)   # built before an attempt is reserved
         key, busy, today = f"route_plan_project_{project_id}", f"project:{project_id}", time.strftime("%Y-%m-%d")
         with self._ROUTE_LOCK:
             state = self.store.get_setting(key) or {}
@@ -242,7 +368,7 @@ class App:
             if not dry_run:
                 self.store.set_setting(key, {"day": today, "attempts": attempts + 1})
         try:
-            response, stored = self._route_ask("learning_path_plan_project", messages, english, dry_run)
+            response, stored = self._route_ask("learning_path_plan_project", messages, english, dry_run, boundary)
             refunded = stored is None and response.get("reason_code") in self._ROUTE_UNPAID   # refused before anything was sent
             used = attempts + (0 if dry_run or refunded else 1)
             if refunded and not dry_run:
@@ -933,21 +1059,19 @@ class App:
     def latest_feedback(self, project_id=None, through_id=None):
         """Get feedback for a project. If no project_id, get all feedback.
 
-        through_id limits the replay to events recorded up to a frozen snapshot.
+        One entry per paper, with its latest interest label and, apart from it, its latest familiarity label
+        under "familiar" (see collapse_feedback). through_id limits the replay to events recorded up to a
+        frozen snapshot.
         """
         if not project_id:
             return self.store.feedback_by_paper()
 
         # Filter by project_id
-        result = {}
-        for row in self.store.conn.execute(
+        return collapse_feedback(self.store.conn.execute(
             """SELECT f.* FROM feedback f
                JOIN project_papers pp ON pp.project_id=f.project_id AND pp.paper_key=f.paper_key
                WHERE f.undone=0 AND f.project_id=? AND f.id<=? ORDER BY f.id""",
-            (project_id, through_id if through_id is not None else 2 ** 62)
-        ):
-            result[row["paper_key"]] = {"action": row["action"], "reason": row["reason"], "id": row["id"]}
-        return result
+            (project_id, through_id if through_id is not None else 2 ** 62)))
 
     def project_pinned_terms(self, project_id, base):
         project = self.projects.get_project(project_id)
@@ -973,7 +1097,7 @@ class App:
         feedback = self.latest_feedback(project_id)
         positives = [k for k, v in feedback.items() if v["action"] in POSITIVE_ACTIONS]
         negatives = [k for k, v in feedback.items() if v["action"] in NEGATIVE_ACTIONS]
-        too_hard = [k for k, v in feedback.items() if v["action"] in TOO_HARD_ACTIONS]
+        too_hard = [k for k, v in feedback.items() if (v["familiar"] or {}).get("action") in TOO_HARD_ACTIONS]
         freeze = self.store.get_setting(f"profile_freeze_{project_id}")
         if freeze and "through_feedback_id" in freeze:
             # Feedback events are still recorded, but learning replays only the events up to the
@@ -1174,7 +1298,8 @@ class App:
                 "saved": library_count,
                 "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
                 "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
-                "too_hard": sum(1 for v in feedback.values() if v["action"] in TOO_HARD_ACTIONS),
+                "understood": sum(1 for v in feedback.values() if (v["familiar"] or {}).get("action") in UNDERSTOOD_ACTIONS),
+                "too_hard": sum(1 for v in feedback.values() if (v["familiar"] or {}).get("action") in TOO_HARD_ACTIONS),
                 "shown": shown_count,
                 "summaries": self.store.conn.execute(
                     "SELECT COUNT(*) FROM summaries s JOIN project_papers pp ON pp.paper_key=s.paper_key "
@@ -1189,7 +1314,8 @@ class App:
                 "saved": len(self.store.library()),
                 "positive": sum(1 for v in feedback.values() if v["action"] in POSITIVE_ACTIONS),
                 "negative": sum(1 for v in feedback.values() if v["action"] in NEGATIVE_ACTIONS),
-                "too_hard": sum(1 for v in feedback.values() if v["action"] in TOO_HARD_ACTIONS),
+                "understood": sum(1 for v in feedback.values() if (v["familiar"] or {}).get("action") in UNDERSTOOD_ACTIONS),
+                "too_hard": sum(1 for v in feedback.values() if (v["familiar"] or {}).get("action") in TOO_HARD_ACTIONS),
                 "shown": len(self.store.seen_keys()),
                 "summaries": len(self.store.summaries()),
             }
@@ -1480,6 +1606,7 @@ class App:
                 "pdf_status": pdf_availability(row["arxiv_id"], row["oa_json"]),
                 "saved": self.store.in_library(row["key"], project_id),
                 "feedback": (feedback.get(row["key"]) or {}).get("action"),
+                "familiarity": ((feedback.get(row["key"]) or {}).get("familiar") or {}).get("action"),
                 "summary": summaries.get(row["key"]),
             })
         return cards
@@ -1502,7 +1629,9 @@ class App:
                 (project_id, paper_key)).fetchone():
             raise ValueError("论文不属于当前项目")
 
-        current = self.latest_feedback(project_id).get(paper_key)
+        entry = self.latest_feedback(project_id).get(paper_key) or {}
+        # A label replaces the earlier one of its own kind only: "understood" leaves "useful" standing.
+        current = entry.get("familiar") if action in FAMILIARITY_ACTIONS else (entry if entry.get("action") in INTEREST_ACTIONS else None)
         if current and current["action"] == action:
             # Idempotent: repeating the effective label (double click, retry) adds no event,
             # but a repeated "useful" still means "keep it saved" if the user unsaved it meanwhile.
