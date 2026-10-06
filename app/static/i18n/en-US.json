@@ -113,6 +113,8 @@
   "已取消收藏": "Unsaved",
   "已收藏到论文库（卡片保留）": "Saved to the library (card kept)",
   "已记录：{0}": "Recorded: {0}",
+  "今天这一批没有探索位：探索约占 {0}%，只有没展示过、又不属于学习图里任何概念的论文，才会排成探索。": "No exploration slot in today's batch: exploration takes about {0}%, and only papers never shown before that belong to no concept of the map are placed there.",
+  "状态：来自学习图的探索位。这篇没展示过，也不属于学习图里的任何概念（不管已读懂还是没解锁），但和你的兴趣接近；你点“收藏”之后，可以让 AI 判断它是不是一个明显不同于学习图里已有概念的新方向。": "Status: an exploration slot of the learning map. This paper has not been shown before and belongs to no concept of the map (understood or still locked), but it is close to your interests; after you collect it you can ask the AI whether it is a new direction clearly different from the concepts on the map.",
   "探索位：{0} / {1} 篇。": "Exploration slots: {0} / {1}.",
   "今天有 {0} 篇是路径外的补充：你现在能读的概念暂时没有未展示的论文了。点“抓取新论文”，推荐会回到路径上。{1}": "Today some papers are off-path fillers: the concepts you can read now have no unshown papers left. Click “Fetch new papers” to get back on the path. {0}",
   "路径外": "Off path",

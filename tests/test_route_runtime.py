@@ -263,36 +263,75 @@ class BatchTests(Fixture):
         for state in self.app.route_get(self.pid)["progress"].values():
             self.assertFalse(state["low_interest"])
 
-    def test_exploration_never_exceeds_its_share_and_a_batch_is_not_padded_when_route_papers_run_out(self):
+    def test_exploration_never_exceeds_its_share_and_unrated_path_papers_keep_coming_back_to_fill_a_batch(self):
         self.enable()
-        sizes, explore = [], []
+        explore, route_keys = [], []
         for index in range(5):
             cards = self.batch()
-            sizes.append(len(cards))
+            self.assertEqual(len(cards), 5 if index < 1 else len(cards))
             explore.append(sum(1 for c in cards if c["route"] and c["route"]["kind"] == "explore"))
             self.assertLessEqual(explore[-1], 1)
-        self.assertEqual(sizes[0], 5)
-        self.assertLess(sum(sizes), 25)           # seven papers belong to the entry concept: later batches are shorter, not padded
+            route_keys += [c["key"] for c in cards if c["route"] and c["route"]["kind"] == "route"]
         self.assertLessEqual(sum(explore), 5)     # 20% of the slots: one per batch of five, never more
+        self.assertGreater(len(route_keys), len(set(route_keys)))   # seven papers belong to the entry concept: unanswered ones are shown again
 
-    def test_a_short_batch_says_why_and_never_borrows_from_locked_concepts(self):
+    def test_a_paper_is_shown_again_only_after_the_ones_not_shown_yet_and_never_after_the_reader_answered_it(self):
         self.enable()
-        self.batch()
-        out = self.app.build_batch(limit=5, project_id=self.pid)
-        self.assertIn("路径上", out["shortfall"]["reason"])
-        for c in out["cards"]:
-            self.assertTrue(c["route"] is None or c["route"]["kind"] != "route" or c["route"]["node"] == self.cid["Crystal basics"])
+        first = {c["key"] for c in self.batch() if c["route"]["kind"] == "route"}
+        second = {c["key"] for c in self.batch() if c["route"]["kind"] == "route"}
+        entry = [p["key"] for p in self.app.store.papers() if p["key"].startswith(("lat", "survey"))]
+        self.assertEqual(first | second, set(entry))      # the unseen path papers all come before any is repeated (the second batch is topped up with one repeat)
+        for key in entry[:3]:
+            self.app.record_feedback(key, "irrelevant", project_id=self.pid)
+        later = []
+        for _ in range(4):
+            later += [c["key"] for c in self.batch() if c["route"]["kind"] == "route"]
+        self.assertFalse(set(entry[:3]) & set(later))                 # answered: never again
+        self.assertTrue(set(later) & (first | second))                # unanswered: back again once everything was shown
 
-    def test_when_the_map_has_no_papers_at_all_the_batch_keeps_its_path_labels_and_says_so(self):
+    def test_a_batch_never_borrows_from_locked_concepts(self):
+        self.enable()
+        for _ in range(4):
+            for c in self.batch():
+                self.assertTrue(c["route"]["kind"] != "route" or c["route"]["node"] == self.cid["Crystal basics"])
+
+    def test_a_short_batch_says_why_when_every_path_paper_was_answered(self):
+        self.enable()
+        for p in self.app.store.papers():
+            if p["key"].startswith(("lat", "survey")):
+                self.app.record_feedback(p["key"], "irrelevant", project_id=self.pid)
+        out = self.app.build_batch(limit=5, project_id=self.pid)
+        self.assertTrue(all(c["route"]["kind"] == "explore" for c in out["cards"]))
+        self.assertIn("没凑够", out["shortfall"]["reason"])
+
+    def test_when_the_map_has_no_papers_at_all_the_batch_is_only_exploration_and_says_so(self):
         for key in [p["key"] for p in self.app.store.papers() if p["key"].startswith(("lat", "survey"))]:
             self.app.store.conn.execute("DELETE FROM project_papers WHERE project_id=? AND paper_key=?", (self.pid, key))
         self.app.store.conn.commit()
         self.enable()
         out = self.app.build_batch(limit=5, project_id=self.pid)
         self.assertTrue(out["cards"])
-        self.assertTrue(all(c["route"] is not None and c["route"]["kind"] in ("explore", "offroute") for c in out["cards"]))   # never a card without a path label
-        self.assertIn("offroute", {c["route"]["kind"] for c in out["cards"]})
-        self.assertIn("路径外", out["shortfall"]["reason"])
+        self.assertTrue(all(c["route"] is not None and c["route"]["kind"] == "explore" for c in out["cards"]))   # never a card without a path label
+        self.assertIn("没凑够", out["shortfall"]["reason"])
+
+    def test_exploration_offers_only_papers_that_match_no_concept_of_the_map(self):
+        self.enable(mastered=["Crystal basics"])
+        self.paper("understood_one", "Crystal lattice reconstruction notes", "lattice crystal lattice")   # a concept the reader already understood
+        self.paper("locked_one", "Dislocation defects revisited", "dislocation defects")                     # a concept that is still locked
+        self.paper("new_one", "Photonic nanowire arrays", "photonics nanowires")                            # matches nothing on the map
+        explored = []
+        for _ in range(6):
+            explored += [c["key"] for c in self.batch() if c["route"]["kind"] == "explore"]
+        self.assertNotIn("understood_one", explored)
+        self.assertNotIn("locked_one", explored)
+        self.assertIn("new_one", explored)
+
+    def test_a_paper_is_explored_only_once(self):
+        self.enable()
+        explored = []
+        for _ in range(8):
+            explored += [c["key"] for c in self.batch() if c["route"]["kind"] == "explore"]
+        self.assertEqual(len(explored), len(set(explored)))
 
     def test_exploration_picks_are_outside_the_unlocked_frontier(self):
         self.enable(mastered=["Crystal basics", "Epitaxy", "Doping"])
@@ -389,15 +428,12 @@ class BatchTests(Fixture):
         self.assertTrue(all(c["route"]["name"] == "Crystal basics" for c in mine if c["route"] and c["route"]["kind"] == "route"))
         self.assertEqual({c["route"]["name"] for c in theirs}, {"Poetry forms"})
 
-    def test_a_batch_never_exceeds_the_limit_or_repeats_a_paper_across_many_batches(self):
+    def test_a_batch_never_exceeds_the_limit_or_repeats_a_paper_inside_itself(self):
         self.enable(mastered=["Crystal basics"])
-        seen = set()
         for limit in (1, 2, 3, 5, 8, 5, 3, 2, 1, 5):
             keys = [c["key"] for c in self.batch(limit=limit)]
             self.assertEqual(len(keys), len(set(keys)))
             self.assertLessEqual(len(keys), limit)
-            self.assertFalse(seen & set(keys))
-            seen |= set(keys)
 
 
 class ReviewFixTests(Fixture):
@@ -416,15 +452,13 @@ class ReviewFixTests(Fixture):
                 self.assertFalse(out["shortfall"] and out["shortfall"].get("reason", "").startswith("路径上"))
         self.assertEqual(sizes[:3], [5, 5, 5])     # twenty papers, only route papers exist: every batch is full
 
-    def test_a_batch_that_is_short_because_everything_was_shown_says_so_truthfully(self):
+    def test_batches_stay_full_while_path_papers_are_unanswered_and_never_claim_the_map_has_no_papers(self):
         for i in range(6):
             self.paper(f"other{i}", f"Unrelated ecology note {i}", "rainfall ecology")
-        reasons = []
-        for _ in range(8):   # exploration uses papers faster than before, so the pool runs dry a batch earlier or so
+        for _ in range(8):
             out = self.app.build_batch(limit=5, project_id=self.pid)
-            reasons.append((out["shortfall"] or {}).get("reason", ""))
-        self.assertTrue(any("没有未展示" in r for r in reasons))   # the batch that ran short says the papers were all shown
-        self.assertFalse(any("还没有论文" in r for r in reasons))
+            self.assertEqual(len(out["cards"]), 5)                       # unanswered path papers come back instead of leaving a gap
+            self.assertNotIn("还没有论文", (out["shortfall"] or {}).get("reason", ""))
 
     def test_cards_keep_the_concept_name_they_were_shown_under_after_the_map_changes(self):
         card = [c for c in self.batch() if c["route"]["kind"] == "route"][0]

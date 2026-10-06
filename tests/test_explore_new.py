@@ -107,29 +107,23 @@ class ExploreNewTests(Fixture):
         self.assertNotIn("explore_new", kinds.values())
         self.assertIn("explore", kinds.values())
 
-    def test_when_the_readable_concepts_run_out_of_papers_the_batch_stays_a_path_batch_and_says_so(self):
+    def test_the_path_keeps_its_labels_when_the_readable_concepts_run_out_of_unseen_papers(self):
         for i in range(6):
             self.add(f"o{i}", f"Quantum dots and nanowires {i}", f"quantum dots nanowires photonics {i}", "journal-q")
-        self.app.build_batch(limit=5, project_id=self.pid)
-        self.app.build_batch(limit=5, project_id=self.pid)           # now every paper of the readable concept has been shown
-        out = self.app.build_batch(limit=5, project_id=self.pid)
-        kinds = self.kinds(out["cards"])
-        self.assertEqual(len(out["cards"]), 5)
-        self.assertNotIn(None, kinds.values())                         # no card loses its path label
-        self.assertNotIn("route", kinds.values())
-        self.assertIn("offroute", kinds.values())
-        self.assertIn("路径外", out["shortfall"]["reason"])
-        self.assertTrue(all(c["route"] is not None for c in out["cards"]))
-        self.assertEqual(sum(1 for v in kinds.values() if v in ("explore", "explore_new")), 1)   # the exploration slot keeps its own tag
+        for _ in range(4):
+            out = self.app.build_batch(limit=5, project_id=self.pid)
+            kinds = self.kinds(out["cards"])
+            self.assertNotIn(None, kinds.values())                          # no card without a path label, however many batches
+            self.assertTrue(set(kinds.values()) <= {"route", "explore", "explore_new"})
+            self.assertEqual(len(out["cards"]), 5)                          # unanswered path papers come back to fill the batch
 
-    def test_an_off_path_paper_names_the_concept_it_resembles_when_there_is_one(self):
-        for i in range(4):
-            self.add(f"e{i}", f"Epitaxial growth study {i}", "epitaxy epitaxial growth", "journal-e")
-        self.app.build_batch(limit=5, project_id=self.pid)
-        self.app.build_batch(limit=5, project_id=self.pid)
-        route = self.app.build_batch(limit=5, project_id=self.pid)["cards"]
-        named = [c["route"]["name"] for c in route if c["route"]["kind"] == "offroute"]
-        self.assertIn("Epitaxy", named)                                # "Epitaxy" is locked, so these are not on the readable path
+    def test_a_paper_that_matches_a_concept_of_the_map_is_never_exploration(self):
+        for i in range(3):
+            self.add(f"e{i}", f"Epitaxial growth study {i}", "epitaxy epitaxial growth", "journal-e")     # a locked concept
+        seen = []
+        for _ in range(6):
+            seen += [c["key"] for c in self.app.build_batch(limit=5, project_id=self.pid)["cards"] if c["route"]["kind"].startswith("explore")]
+        self.assertFalse({"e0", "e1", "e2"} & set(seen))
 
     def test_every_batch_has_an_exploration_slot_when_the_pool_has_something_to_explore(self):
         first = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])

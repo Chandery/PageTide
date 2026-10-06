@@ -16,14 +16,17 @@ class ExploreBadgeTests(unittest.TestCase):
             self.assertIn(f"{kind}:", kinds)
         self.assertIn("探索 · 新方向", kinds)
         self.assertIn("让 AI 判断", kinds)               # what the reader can do after collecting it
-        self.assertIn("不在你现在能读的概念里", kinds)
+        self.assertIn("没展示过，也不属于学习图里的任何概念", kinds)
 
-    def test_the_off_path_label_exists_and_says_why(self):
+    def test_there_is_no_off_path_label_any_more(self):
+        self.assertNotIn("offroute", INDEX + THEME)
+        self.assertNotIn("路径外", INDEX)
+
+    def test_the_standard_for_exploration_is_stated_on_the_card_and_in_the_panel(self):
         kinds = INDEX[INDEX.index("const ROUTE_KINDS"):INDEX.index("function routeBadge")]
-        self.assertIn("offroute: '路径外'", kinds)
-        self.assertIn("抓取新论文后，推荐会回到路径上", kinds)
+        self.assertIn("也不属于学习图里的任何概念", kinds)
         panel = INDEX[INDEX.index("function exploreLine"):INDEX.index("$('#routePanel').addEventListener")]
-        self.assertIn("路径外的补充", panel)
+        self.assertIn("没展示过、又不属于学习图里任何概念", panel)
 
     def test_exploration_is_hard_to_miss(self):
         self.assertRegex(THEME, r"\.kw-explore \.kw-k, \.kw-explore_new \.kw-k \{ background:var\(--ai-text\);")   # a solid, bold tag

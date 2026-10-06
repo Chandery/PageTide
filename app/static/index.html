@@ -777,9 +777,7 @@ function aiSlot(c) {
 function exploreLine(share) {
   const cards = state.cards || [], explored = cards.filter((c) => c.route && (c.route.kind === 'explore' || c.route.kind === 'explore_new'));
   if (!cards.length) return `探索约占 ${share}%：每批会留出这个比例，给不在你现在能读的概念里、但和你兴趣接近的论文。`;
-  const off = cards.filter((c) => c.route && c.route.kind === 'offroute').length;
-  if (off) return `今天有 ${off} 篇是路径外的补充：你现在能读的概念暂时没有未展示的论文了。点“抓取新论文”，推荐会回到路径上。${explored.length ? `探索位：${explored.length} / ${cards.length} 篇。` : ''}`;
-  if (!explored.length) return `今天这一批没有探索位：探索约占 ${share}%，只有在没看过的论文里有不在你现在能读的概念里的，才会排出来。`;
+  if (!explored.length) return `今天这一批没有探索位：探索约占 ${share}%，只有没展示过、又不属于学习图里任何概念的论文，才会排成探索。`;
   const toward = explored.filter((c) => c.route.kind === 'explore_new').length;
   return toward ? `今天的探索位：${explored.length} / ${cards.length} 篇，其中 ${toward} 篇指向正在形成的新方向。` : `今天的探索位：${explored.length} / ${cards.length} 篇。`;
 }
@@ -818,13 +816,12 @@ $('#routePanel').addEventListener('click', async (event) => {
     await load();
   } catch (e) { toast(`没能切换推荐方式：${e.message}`, 'err'); buttons.forEach((b) => { b.disabled = false; }); }
 });
-const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索', explore_new: '探索 · 新方向', offroute: '路径外' };
+const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索', explore_new: '探索 · 新方向' };
 const ROUTE_TITLES = {
   route: '状态：来自学习图。它属于你现在能读的概念。',
   remedial: '状态：来自学习图。你把相关论文标为“太难”，所以先补一篇基础。',
-  explore: '状态：来自学习图的探索位。这篇不在你现在能读的概念里，但和你的兴趣接近；你点“收藏”之后，可以让 AI 判断它是不是一个明显不同于学习图里已有概念的新方向。',
+  explore: '状态：来自学习图的探索位。这篇没展示过，也不属于学习图里的任何概念（不管已读懂还是没解锁），但和你的兴趣接近；你点“收藏”之后，可以让 AI 判断它是不是一个明显不同于学习图里已有概念的新方向。',
   explore_new: '状态：来自学习图的探索位，和一个已经出现的潜在方向读起来很像。你点“收藏”之后让 AI 判断，通常会并入那个方向，给它攒证据；到学习图页能看到进度。',
-  offroute: '状态：路径外的补充。你现在能读的概念暂时没有未展示的论文了，所以这篇按你的兴趣补上；标签里是它最像的概念（如果有）。抓取新论文后，推荐会回到路径上。',
 };
 function routeBadge(c) {
   if (!c.route) return '';

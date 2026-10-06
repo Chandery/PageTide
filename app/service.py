@@ -896,7 +896,7 @@ class App:
         self._HOME_ROUTE_CACHE[project_id] = (signature, summary)
         return json.loads(json.dumps(summary))
 
-    def _route_pick(self, route, pool, scored, vectors, limit, batch_index, directions=()):
+    def _route_pick(self, route, pool, scored, vectors, limit, batch_index, directions=(), shown=None):
         """Choose a batch from a learning map: [(paper_key, concept_id | None, kind)].
 
         Route slots go to the concepts the reader can read now (unlocked, not yet understood), shared by weight
@@ -907,7 +907,12 @@ class App:
         (`directions`, from _route_candidates) first, then the best profile matches. Every pick is
         (paper_key, concept_id | None, kind, label | None); an "explore_new" pick carries the direction's phrase as its
         label. Nothing here looks at silence, and nothing reads the clock.
+
+        `shown` is {paper_key: how many times it was shown}. A paper of a concept the reader can read now stays a candidate
+        until they answer it, the ones shown least first; exploration only offers papers that were never shown and that
+        match no concept of the map (what the map already covers, understood or still locked, is not exploration).
         """
+        shown = shown or {}
         graph, prog = route["graph"], route["progress"]
         active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}
         assigned = {key: ids[0] for key, ids in pathgrowth.assign(active, pool).items()}
@@ -918,12 +923,13 @@ class App:
         for key, cid in assigned.items():
             by_concept.setdefault(cid, []).append(key)
         def ordered(keys):
-            """Introductions first, then profile similarity, then newest, then key; undated papers last. Four
+            """Introductions first, then profile similarity, then newest, then key; undated papers last, and what was shown least first. Five
             stable passes, so every tie falls through to the next rule."""
             keys = sorted(keys)
             keys.sort(key=lambda k: published[k], reverse=True)
             keys.sort(key=lambda k: -score.get(k, 0.0))
             keys.sort(key=lambda k: role[k] != "intro")
+            keys.sort(key=lambda k: shown.get(k, 0))      # a paper shown before comes back only after the ones not shown yet
             return keys
         for cid in by_concept:
             by_concept[cid] = ordered(by_concept[cid])
@@ -977,7 +983,7 @@ class App:
         for direction in directions:
             for key in direction["papers"]:
                 toward.setdefault(key, direction["name"])
-        outside = [k for k in rest if k not in on_frontier]
+        outside = [k for k in rest if k not in on_frontier and k not in assigned and not shown.get(k)]
         explored = 0
         for key in [k for k in outside if k in toward] + [k for k in outside if k not in toward]:
             if explored >= explore_slots or len(chosen) >= limit:
@@ -1859,7 +1865,13 @@ class App:
             seen = set()
 
         feedback = self.latest_feedback(project_id)
-        pool = [p for p in papers if p["key"] not in seen and p["key"] not in feedback]
+        fresh = [p for p in papers if p["key"] not in seen and p["key"] not in feedback]    # never shown, never rated
+        route = self._route_state(project_id)
+        on_path = bool(route and route["frontier"])
+        # On a learning map the reader can be shown a paper again until they answer it: a paper of a concept they can read
+        # now that they have not saved, turned down or rated stays a candidate (the ones shown least come first). Exploration
+        # papers are always ones never shown before. Without a map, only never-shown papers are offered, as before.
+        pool = [p for p in papers if p["key"] not in feedback] if on_path else fresh
         shortfall = None
         if len(pool) < limit:
             shortfall = {"requested": limit, "available": len(pool), "candidates": len(papers),
@@ -1882,36 +1894,28 @@ class App:
         scored = ranking.sort_scored(
             [(p["key"], ranking.cosine(profile_vector, vectors[p["key"]])) for p in pool],
             {p["key"]: p.get("published") for p in pool})
-        route = self._route_state(project_id)
-        if route and route["frontier"]:
+        if on_path:
             batch_index = self.store.conn.execute("SELECT COUNT(*) FROM batches WHERE project_id=?", (project_id,)).fetchone()[0]
+            shown = {r[0]: r[1] for r in self.store.conn.execute(
+                "SELECT e.paper_key, COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=? GROUP BY e.paper_key", (project_id,))}
             directions = self._exploration_targets(project_id, pool, vectors, idf)   # directions on file: papers that read like theirs get the exploration slots first
-            picks = self._route_pick(route, pool, scored, vectors, limit, batch_index, directions)
-            if any(kind in ("route", "remedial") for _, _, kind, _ in picks):
+            picks = self._route_pick(route, pool, scored, vectors, limit, batch_index, directions, shown)
+            if picks:
                 if len(picks) < limit:
                     shortfall = {**(shortfall or {}), "requested": limit, "available": len(picks), "candidates": len(papers),
-                                 "reason": ("The concepts you can read now have no papers you have not been shown; rate the ones you saw, fetch new papers, or mark concepts as known"
-                                            if self.english() else "路径上你现在能读的概念暂时没有未展示的论文；可以给已展示的评价、抓取新论文，或把已掌握的概念标出来")}
+                                 "reason": ("Fewer papers than asked for: the concepts you can read now have no papers left that you have not rated, and exploration only offers papers outside the map that were never shown. Rate or save the ones you saw, fetch new papers, or mark concepts as known"
+                                            if self.english() else "没凑够：你现在能读的概念里没有还没评价的论文了，探索位也只推地图之外、没展示过的论文。可以给已展示的评价或收藏、抓取新论文，或把已掌握的概念标出来")}
                 names = {c["id"]: (c["name"], route["layers"][c["id"]]) for c in route["graph"]["concepts"]}
                 batch_id = self.store.create_batch(run_date, [k for k, _, _, _ in picks], project_id=project_id,
                                                    route={k: (node, kind) + (names.get(node, (None, None)) if label is None else (label, None)) for k, node, kind, label in picks})
                 return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
-            # The concepts the reader can read now have no unshown papers. The batch stays a path batch instead of silently
-            # turning into an ordinary one: the exploration papers keep their tag, and the rest are filled in by interest
-            # and marked "offroute" (with the concept they resemble, when there is one), so the page can say why.
             shortfall = {**(shortfall or {}), "requested": limit, "available": 0, "candidates": len(papers),
-                         "reason": ("The concepts you can read now have no unshown papers; the rest of this batch is filled in by your interests and marked as off the path. Fetch new papers to get path papers again"
-                                    if self.english() else "路径上你现在能读的概念暂时没有未展示的论文；这一批其余的论文按你的兴趣补上，标为“路径外”。抓取新论文后会回到路径上")}
-            kept = [k for k, _, _, _ in picks]
-            rest = [(k, v) for k, v in scored if k not in set(kept)]
-            fill = ranking.mmr_select(rest[:max(limit * 4, limit)], vectors, max(0, limit - len(kept))) if len(kept) < limit else []
-            active = {**route["graph"], "concepts": [c for c in route["graph"]["concepts"] if c.get("state", "active") == "active"]}
-            near = {k: ids[0] for k, ids in pathgrowth.assign(active, [p for p in pool if p["key"] in set(fill)]).items()}
-            names = {c["id"]: (c["name"], route["layers"][c["id"]]) for c in route["graph"]["concepts"]}
-            labelled = {k: (node, kind) + (names.get(node, (None, None)) if label is None else (label, None)) for k, node, kind, label in picks}
-            labelled.update({k: (near.get(k), "offroute") + names.get(near.get(k), (None, None)) for k in fill})
-            batch_id = self.store.create_batch(run_date, kept + fill, project_id=project_id, route=labelled)
-            return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
+                         "reason": ("There are no papers for the concepts you can read now, so this is an ordinary batch"
+                                    if self.english() else "路径上你现在能读的概念没有可推的论文，这一批是普通推荐")}
+            fresh_keys = {p["key"] for p in fresh}
+            scored = [(k, v) for k, v in scored if k in fresh_keys]
+            if not scored:
+                return {"batch_id": None, "cards": [], "reason": "no unseen candidates", "shortfall": shortfall}
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
         batch_id = self.store.create_batch(run_date, chosen, project_id=project_id)

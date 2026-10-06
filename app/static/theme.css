@@ -71,7 +71,6 @@ html[data-mode="dark"] {
 .kw-explore, .kw-explore_new { border-color:var(--ai-text); border-width:2px; font-size:calc(13px * var(--s)); }
 .kw-explore .kw-k, .kw-explore_new .kw-k { background:var(--ai-text); color:var(--base); font-weight:700; letter-spacing:.04em; }
 .kw-explore .kw-k::before, .kw-explore_new .kw-k::before { content:'✦ '; }
-.kw-offroute .kw-k { color:var(--muted); font-style:italic; }
 .card.is-explore { border-left:5px solid var(--ai-text); }
 .route-explore { margin-top:calc(6px * var(--s)); }
 .judge-ask { display:flex; flex-wrap:wrap; align-items:center; gap:calc(8px * var(--s)); margin-top:calc(10px * var(--s)); padding:calc(8px * var(--s)) calc(10px * var(--s)); border:1px dashed var(--line-strong); border-radius:var(--r-md); font-size:calc(12.5px * var(--s)); color:var(--muted); }
