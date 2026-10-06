@@ -70,8 +70,8 @@ def _recently_attempted(app, project_id, now):
 
 
 def _has_batch_today(app, project_id, now):
-    row = app.store.conn.execute("SELECT run_date FROM batches WHERE project_id=? ORDER BY id DESC LIMIT 1", (project_id,)).fetchone()
-    return bool(row) and row["run_date"] == _today(now)
+    return bool(app.store.conn.execute('SELECT 1 FROM batches WHERE project_id=? AND run_date=? LIMIT 1',
+                                      (project_id,_today(now))).fetchone())
 
 
 def _today(now):
@@ -79,11 +79,21 @@ def _today(now):
 
 
 def _has_unseen(app, project_id):
+    from . import eligibility
+    verification_budget={'remaining':eligibility.MAX_VERIFY_BYTES,'deferred':False}
     seen = {r[0] for r in app.store.conn.execute('''SELECT e.paper_key FROM exposures e
         JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?''', (project_id,))}
     answered = set(app.latest_feedback(project_id))
-    return any(p['_eligibility']['eligible'] and p['key'] not in seen and p['key'] not in answered
-               for p in app.recommendation_pool(project_id))
+    route=app._route_state(project_id,verification_budget=verification_budget)
+    if route and (route['goal_status']=='needs_review' or route.get('progress_verification_deferred')):return False
+    if route and route['goal_status']=='completed' and app._completed_batch(project_id,app.batch_day()):return False
+    eligible=[p for p in app.recommendation_pool(project_id,verification_budget=verification_budget) if p['_eligibility']['eligible'] and p['key'] not in answered]
+    if route and route['goal_status']=='learning':
+        from . import pathgrowth
+        active={**route['graph'],'concepts':[c for c in route['graph']['concepts'] if c.get('state','active')=='active']}
+        matches=pathgrowth.assign(active,eligible)
+        if any(ids and ids[0] in route['frontier'] for ids in matches.values()):return True
+    return any(p['key'] not in seen for p in eligible)
 
 
 def plan(app, project_id, now=None):

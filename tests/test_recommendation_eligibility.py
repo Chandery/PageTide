@@ -154,6 +154,109 @@ class EligibilityTests(unittest.TestCase):
             self.app.save_fulltext('punct',[{'page':1,'text':text}],source_pdf_sha256=sha)
             self.assertEqual(self.keys(),[])
 
+    def test_body_only_route_papers_advance_the_card_node_and_invalidate_home_cache(self):
+        self.policy()
+        plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']}
+        route=self.app.route_save(self.pid,plan=plan);cid=route['graph']['concepts'][0]['id']
+        for key in ['body1','body2']:
+            self.paper(key,abstract='No abstract available.',title='Generic publication')
+            _,sha=self.pdf(key)
+            self.app.save_fulltext(key,[{'page':1,'text':'Epitaxy growth methods and engineering. '*15}],source_pdf_sha256=sha)
+        result=self.app.build_batch(project_id=self.pid)
+        self.assertEqual({c['route']['node'] for c in result['cards']},{cid})
+        self.assertEqual(self.app.route_get(self.pid)['progress'][cid]['shown'],2)
+        for key in ['body1','body2']:
+            self.app.store.save_to_library(key,project_id=self.pid)
+            self.app.record_feedback(key,'understood',project_id=self.pid)
+        self.assertEqual(self.app.home_route(self.pid)['goal_status'],'completed')
+        self.assertEqual(self.app.route_get(self.pid)['progress'][cid]['understood'],2)
+        self.app.set_project_language(self.pid,'humanities',['zh'])
+        self.assertEqual(self.app.route_get(self.pid)['progress'][cid]['understood'],2)
+        self.app.store.conn.execute("UPDATE fulltext SET content='Unrelated unrelated text' WHERE paper_key='body2'")
+        self.app.store.conn.commit()
+        self.assertEqual(self.app.home_route(self.pid)['goal_status'],'learning')
+
+    def test_changed_body_during_selection_cannot_save_a_stale_route_assignment(self):
+        self.policy();self.paper('body',abstract='',title='Generic publication')
+        _,sha=self.pdf('body')
+        self.app.save_fulltext('body',[{'page':1,'text':'Epitaxy growth methods. '*20}],source_pdf_sha256=sha)
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        original=self.app._route_pick
+        def changed(*args,**kwargs):
+            picks=original(*args,**kwargs)
+            self.app.save_fulltext('body',[{'page':1,'text':'Photonic calibration unrelated methods. '*20}],source_pdf_sha256=sha)
+            return picks
+        with mock.patch.object(self.app,'_route_pick',side_effect=changed):result=self.app.build_batch(project_id=self.pid)
+        self.assertEqual(result['reason_code'],'recommendation_changed')
+
+    def test_deferred_body_progress_is_not_cached_as_final_home_progress(self):
+        from app import eligibility
+        self.policy()
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        for key in ['b1','b2']:
+            self.paper(key,abstract='',title='Generic publication')
+            path,sha=self.pdf(key)
+            self.app.save_fulltext(key,[{'page':1,'text':'Epitaxy growth methods. '*20}],source_pdf_sha256=sha)
+            self.app.store.save_to_library(key,project_id=self.pid)
+            self.app.record_feedback(key,'understood',project_id=self.pid)
+        eligibility._PDF_CACHE.clear();eligibility._SCAN_CURSOR.clear()
+        with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',path.stat().st_size):
+            first=self.app.home_route(self.pid)
+            self.assertTrue(first['progress_verification_deferred'])
+            second=self.app.home_route(self.pid)
+        self.assertFalse(second['progress_verification_deferred'])
+        self.assertEqual(second['goal_status'],'completed')
+
+    def test_pending_body_difficulty_cannot_consume_completed_daily_cap(self):
+        from app import eligibility
+        self.policy()
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        for key in ['known1','known2']:
+            self.paper(key,title='Epitaxy study',abstract='Epitaxy growth methods')
+            self.app.store.save_to_library(key,project_id=self.pid)
+            self.app.record_feedback(key,'understood',project_id=self.pid)
+        for i in range(12):
+            key='body'+str(i);self.paper(key,title='Generic publication',abstract='')
+            path,sha=self.pdf(key)
+            text='Epitaxy difficult methods. '*20 if i==11 else 'Photonic calibration methods. '*20
+            self.app.save_fulltext(key,[{'page':1,'text':text}],source_pdf_sha256=sha)
+            self.app.record_feedback(key,'too_hard' if i==11 else 'irrelevant',project_id=self.pid)
+        self.paper('new',title='Photonic calibration',abstract='Photonic calibration methods')
+        eligibility._PDF_CACHE.clear();eligibility._SCAN_CURSOR.clear()
+        real_digest=eligibility.pdf_digest;used=[]
+        def measured(path,budget=None):
+            before=budget['remaining'] if budget is not None else 0
+            result=real_digest(path,budget)
+            if budget is not None:used.append(before-budget['remaining'])
+            return result
+        with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',path.stat().st_size):
+            with mock.patch.object(eligibility,'pdf_digest',side_effect=measured):result=self.app.build_batch(project_id=self.pid)
+            self.assertEqual(result['reason_code'],'route_progress_verification_pending')
+            self.assertEqual(sum(used),path.stat().st_size)
+            self.assertFalse(self.app.store.conn.execute('SELECT 1 FROM batches').fetchone())
+            for _ in range(12):route=self.app.route_get(self.pid)
+        self.assertFalse(route['progress_verification_deferred'])
+        self.assertEqual(route['goal_status'],'learning')
+
+    def test_batch_card_language_after_digest_eviction_stays_within_shared_budget(self):
+        from app import eligibility
+        self.policy()
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        for key in ['v1','v2']:
+            self.paper(key,title='Epitaxy study',abstract='Epitaxy growth methods')
+            path,sha=self.pdf(key)
+            self.app.store.record_fulltext_language(key,'en',sha,'manual')
+        maximum=2*path.stat().st_size;used=[];real=eligibility.pdf_digest
+        def measured(path,budget=None):
+            self.assertIsNotNone(budget)
+            before=budget['remaining'];result=real(path,budget);used.append(before-budget['remaining']);return result
+        eligibility._PDF_CACHE.clear();eligibility._SCAN_CURSOR.clear()
+        with mock.patch.object(eligibility,'MAX_CACHED_DIGESTS',1),mock.patch.object(eligibility,'MAX_VERIFY_BYTES',maximum),mock.patch.object(eligibility,'pdf_digest',side_effect=measured):
+            result=self.app.build_batch(project_id=self.pid)
+        self.assertEqual(len(result['cards']),2)
+        self.assertEqual(sum(used),maximum)
+        self.assertEqual({c['language']['fulltext_status'] for c in result['cards']},{'verified'})
+
     def test_verification_has_one_shared_hash_and_a_total_read_budget(self):
         from app import eligibility
         self.policy(); self.paper('bound',abstract='')
@@ -169,9 +272,52 @@ class EligibilityTests(unittest.TestCase):
             self.assertTrue(self.app.recommendation_pool(self.pid)[0]['_eligibility']['eligible'])
         eligibility._PDF_CACHE.clear()
         with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',path.stat().st_size-1):
+            self.app.store.conn.execute("DELETE FROM settings WHERE key LIKE 'pdf_verification_%'");self.app.store.conn.commit()
             result=self.app.recommendation_pool(self.pid)[0]['_eligibility']
             self.assertFalse(result['eligible']);self.assertEqual(result['reason'],'source_verification_deferred')
         self.assertEqual(self.keys(),['bound'])
+
+    def test_route_verification_finishes_across_lru_eviction_budget_and_restart(self):
+        from app import eligibility
+        self.policy()
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        for key in ['e1','e2']:
+            self.paper(key,title='Generic publication',abstract='')
+            path,sha=self.pdf(key)
+            self.app.save_fulltext(key,[{'page':1,'text':'Epitaxy growth methods. '*20}],source_pdf_sha256=sha)
+            self.app.store.save_to_library(key,project_id=self.pid)
+            self.app.record_feedback(key,'understood',project_id=self.pid)
+        self.paper('new',title='Photonic calibration',abstract='Photonic calibration methods')
+        eligibility._PDF_CACHE.clear();eligibility._SCAN_CURSOR.clear()
+        with mock.patch.object(eligibility,'MAX_CACHED_DIGESTS',1),mock.patch.object(eligibility,'MAX_VERIFY_BYTES',path.stat().st_size):
+            attempts=[self.app.build_batch(project_id=self.pid) for _ in range(4)]
+        self.assertEqual(attempts[0]['reason_code'],'route_progress_verification_pending')
+        ready=next(r for r in attempts if r['cards'])
+        self.assertEqual(ready['route_goal_status'],'completed')
+        self.assertEqual(self.app.store.conn.execute('SELECT COUNT(*) FROM batches').fetchone()[0],1)
+        self.assertEqual(self.app.store.conn.execute("SELECT COUNT(*) FROM settings WHERE key LIKE 'pdf_verification_%'").fetchone()[0],2)
+        again=App(data_dir=self.data);self.addCleanup(again.store.close)
+        eligibility._PDF_CACHE.clear()
+        with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',0),mock.patch.object(eligibility,'pdf_digest',side_effect=AssertionError('proof must survive restart')):
+            self.assertEqual(again.route_get(self.pid)['goal_status'],'completed')
+        path.write_bytes(b'%PDF-1.4\nexternally changed\n%%EOF')
+        with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',0):
+            self.assertTrue(again.route_get(self.pid)['progress_verification_deferred'])
+
+    def test_pdf_proofs_do_not_commit_outer_transaction_and_new_pdf_clears_them(self):
+        self.policy();self.paper('proof',abstract='')
+        path,sha=self.pdf('proof')
+        self.app.save_fulltext('proof',[{'page':1,'text':'Epitaxy growth methods. '*20}],source_pdf_sha256=sha)
+        self.app.store.conn.execute('BEGIN IMMEDIATE')
+        self.app.recommendation_pool(self.pid)
+        self.assertTrue(self.app.store.conn.in_transaction)
+        self.assertIsNotNone(self.app.store.get_setting('pdf_verification_proof'))
+        self.app.store.conn.rollback()
+        self.assertIsNone(self.app.store.get_setting('pdf_verification_proof'))
+        self.app.recommendation_pool(self.pid)
+        self.assertIsNotNone(self.app.store.get_setting('pdf_verification_proof'))
+        self.pdf('proof',suffix='new')
+        self.assertIsNone(self.app.store.get_setting('pdf_verification_proof'))
 
     def test_frozen_import_preserves_reported_languages_without_inventing_english(self):
         self.policy()

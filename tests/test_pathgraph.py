@@ -726,30 +726,9 @@ class FrontierAndRemedialTests(unittest.TestCase):
 
 
 class ExplorationTests(unittest.TestCase):
-    def test_the_share_rises_smoothly_with_progress(self):
-        self.assertAlmostEqual(pg.exploration_share(0, 10), 0.20)
-        self.assertAlmostEqual(pg.exploration_share(5, 10), 0.40)
-        self.assertAlmostEqual(pg.exploration_share(10, 10), 0.60)
-        self.assertAlmostEqual(pg.exploration_share(0, 0), 0.20)
-        self.assertAlmostEqual(pg.exploration_share(99, 10), 0.60)   # clamped
-
-    def test_slots_follow_the_share_on_average_and_are_replayable(self):
-        counts = [pg.exploration_slots(5, 0, 10, n) for n in range(20)]
-        self.assertEqual(sum(counts), 20)            # 0.20 of 100 slots over twenty batches
-        self.assertEqual(counts, [1] * 20)           # a batch of five has one from the very first batch: it is seen, not "from the second batch on"
-        self.assertEqual(counts, [pg.exploration_slots(5, 0, 10, n) for n in range(20)])
-        full = [pg.exploration_slots(5, 10, 10, n) for n in range(20)]
-        self.assertEqual(sum(full), 60)
-
-    def test_a_batch_always_keeps_at_least_one_route_slot(self):
-        self.assertTrue(all(pg.exploration_slots(5, 10, 10, n) <= 4 for n in range(10)))
-        self.assertEqual(pg.exploration_slots(1, 10, 10, 0), 0)
-
-    def test_odd_arguments_are_safe(self):
-        self.assertEqual(pg.exploration_slots(10, 5, 10, -3), pg.exploration_slots(10, 5, 10, 0))
-        self.assertEqual(pg.exploration_slots(0, 5, 10, 1), 0)
-        self.assertEqual(pg.allocate(3, [float("nan"), 1, float("inf")]), [0, 3, 0])
-        self.assertEqual(pg.allocate(3, ["x", None, 2]), [0, 0, 3])
+    def test_odd_allocation_arguments_are_safe(self):
+        self.assertEqual(pg.allocate(3,[float('nan'),1,float('inf')]),[0,3,0])
+        self.assertEqual(pg.allocate(3,['x',None,2]),[0,0,3])
 
     def test_allocation_uses_largest_remainders_and_is_stable(self):
         self.assertEqual(pg.allocate(5, [1, 1, 1]), [2, 2, 1])

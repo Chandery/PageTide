@@ -313,6 +313,7 @@ class Store:
     # -------------------------------------------------------------------- pdf
     def record_pdf(self, paper_key, path, source_url=None, sha256=None, size=None,
                    source_kind=None, license=None):
+        self.conn.execute('DELETE FROM settings WHERE key=?',('pdf_verification_'+paper_key,))
         self.conn.execute(
             """INSERT INTO pdfs (paper_key, path, source_url, fetched_at, sha256, bytes, source_kind, license)
                VALUES (?,?,?,?,?,?,?,?)

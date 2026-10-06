@@ -1372,6 +1372,21 @@
   "（{0} 个查询未完成，请稍后重试）": [
    "({0} query was not completed; try again later)",
    "({0} queries were not completed; try again later)"
-  ]
+  ],
+  "生成今日发现": "Pick today's discovery",
+  "目标已完成，每日本地最多一篇发现；优先探索，再看持续关注的新进展。": "Goal completed: at most one discovery per local day, exploration first, then watched developments.",
+  "每批最多三篇路径、一篇探索、一篇新进展；发现互相补位，再由路径补位。路径不足时少推，发现仍最多两篇。": "Up to three path papers, one exploration and one watched development. Discoveries fill for each other, then path papers fill gaps. Path shortages give fewer papers, with at most two discoveries.",
+  "当前批次：探索 {0} 篇、新进展 {1} 篇。": "Current batch: {0} exploration papers and {1} watched developments.",
+  "当前批次没有探索候选；探索可提出已有概念的新任务、前置缺口或新分支，学习价值待确认。": "No exploration candidate in this batch. Exploration may suggest a new task, missing prerequisite or branch; learning value still needs confirmation.",
+  "状态：探索。这篇没展示过，可能提出已有概念的新任务、缺失前置或新分支。检索来源只是线索；学习价值待确认。点击后可让 AI 判断。": "Status: exploration, never shown before. It may suggest a new task, missing prerequisite or branch. Retrieval is only a clue; learning value needs confirmation. Click to request an AI judgment.",
+  "状态：探索。这篇没展示过，和潜在方向的论文相近。相近只是线索；学习价值待确认。点击后可让 AI 判断。": "Status: exploration, never shown before and similar to papers in a potential direction. Similarity is only a clue; learning value needs confirmation. Click to request an AI judgment.",
+  "状态：新进展。这篇没展示过，属于已满足且勾选持续关注的概念，并有近期发布日期。它不增加学习任务。": "Status: a watched development, never shown before, in a satisfied concept you follow, with a recent publication date. It adds no learning task.",
+  "新进展": "New developments",
+  "已读懂 {0} / {1} 个概念": "Understood {0} / {1} concepts",
+  "正文证据正在核验，当前进度暂不完整；稍后刷新。": "Body evidence verification is incomplete; progress is partial. Refresh later.",
+  "正文证据核验中": "Verifying body evidence",
+  "正文证据核验中，当前进度暂不完整。": "Verifying body evidence; progress is partial.",
+  "核验后生成推荐": "Verify evidence and generate",
+  "正文证据核验未完成，请刷新后再生成": "Body evidence verification is incomplete; refresh before generating"
  }
 }

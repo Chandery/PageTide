@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,12 +53,20 @@ class Fixture(unittest.TestCase):
 
 
 class ExploreNewTests(Fixture):
+    def test_rejecting_a_direction_during_selection_invalidates_stale_steering(self):
+        english_papers(self.app,self.pid);original=self.app._route_pick
+        def changed(*args,**kwargs):
+            picks=original(*args,**kwargs);self.app.route_candidate_reject(self.pid,'d-1');return picks
+        with mock.patch.object(self.app,'_route_pick',side_effect=changed):
+            result=self.app.build_batch(limit=5,project_id=self.pid)
+        self.assertEqual(result['reason_code'],'recommendation_changed')
+
     def test_the_exploration_slot_goes_to_a_paper_that_reads_like_the_directions_papers(self):
         english_papers(self.app, self.pid)
         cards = self.app.build_batch(limit=5, project_id=self.pid)["cards"]
         kinds = self.kinds(cards)
         explored = [k for k, v in kinds.items() if v in ("explore", "explore_new")]
-        self.assertEqual(len(explored), 1)
+        self.assertEqual(len(explored), 2)
         self.assertIn(explored[0], ("s3", "s4"))   # a paper like the direction's, not the decoy the profile likes better
         card = next(c for c in cards if c["route"]["kind"] == "explore_new")
         self.assertEqual(card["route"]["name"], "应变弛豫")
@@ -70,7 +79,7 @@ class ExploreNewTests(Fixture):
         plain = self.app._route_pick(route, pool, scored, {}, 5, 0, ())
         steered = self.app._route_pick(route, pool, scored, {}, 5, 0, [{"name": "应变弛豫", "papers": ["s3"]}])
         self.assertIn(("decoy", None, "explore", None), plain)
-        self.assertEqual([p for p in steered if p[2].startswith("explore")], [("s3", None, "explore_new", "应变弛豫")])
+        self.assertEqual([p for p in steered if p[2].startswith("explore")], [("s3", None, "explore_new", "应变弛豫"), ("decoy", None, "explore", None)])
 
     def test_the_targets_come_from_the_papers_under_each_direction_and_leave_out_unlike_papers(self):
         papers = self.app._project_papers_for_growth(self.pid)
@@ -136,7 +145,7 @@ class ExploreNewTests(Fixture):
     def test_every_batch_has_an_exploration_slot_when_the_pool_has_something_to_explore(self):
         english_papers(self.app, self.pid)
         first = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
-        self.assertEqual(sum(1 for v in first.values() if v in ("explore", "explore_new")), 1)   # not "from the second batch on"
+        self.assertEqual(sum(1 for v in first.values() if v in ("explore", "explore_new")), 2)   # not "from the second batch on"
 
     def test_the_label_is_stored_so_it_does_not_change_when_the_map_does(self):
         english_papers(self.app, self.pid)

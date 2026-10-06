@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, eligibility, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan, route_recall
+from . import creation, eligibility, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan, route_recall, route_batch
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -49,6 +49,11 @@ class RecommendationChanged(Exception):
     pass
 
 
+class CompletedDiscoveryLimit(Exception):
+    def __init__(self, batch_id):
+        self.batch_id=batch_id
+
+
 class App:
     def __init__(self, root=".", data_dir=None):
         self.root = Path(root)
@@ -65,17 +70,23 @@ class App:
     def _route_org(self, project_id):
         return Organization(self.store, project=self._require_project(project_id))
 
-    def _route_inputs(self, project_id, graph):
+    def _route_inputs(self, project_id, graph, verification_budget=None):
         """Explicit events and shown counts per concept. A paper counts for the one concept it fits best, so
         a single paper cannot raise two concepts at once. Seeds are explicit positives chosen at creation.
         A frozen profile replays feedback only up to the freeze, and undone feedback is gone."""
         papers = [dict(r) for r in self.store.conn.execute(
             "SELECT p.key, p.title, p.abstract FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
-        active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}   # a suggestion collects no evidence
-        best = {key: ids[0] for key, ids in pathgrowth.assign(active, papers).items()}
         freeze = self.store.get_setting(f"profile_freeze_{project_id}")
         through = freeze.get("through_feedback_id") if freeze else None
         feedback = self.latest_feedback(project_id, through)
+        exposures=list(self.store.conn.execute('SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?',(project_id,)))
+        relevant=set(feedback)|set(self.seed_keys(project_id))|{row[0] for row in exposures}
+        # Only evidence-bearing papers need their bounded, current PDF text.
+        # Classification remains independent of recommendation language policy.
+        bodies={p['key']:p for p in self.recommendation_pool(project_id,paper_keys=relevant,retrieval_only=True,verification_budget=verification_budget)} if relevant else {}
+        papers=[bodies.get(p['key'],p) for p in papers]
+        active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}
+        best = {key: ids[0] for key, ids in pathgrowth.assign(active, papers).items()}
         events = {}
         for key in self.seed_keys(project_id):
             if key in best and feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins
@@ -87,20 +98,20 @@ class App:
             if key in best and action in pathgraph.EVENTS:
                 events.setdefault(best[key], []).append(action)
         shown = {}
-        for row in self.store.conn.execute(
-                """SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?""", (project_id,)):
+        for row in exposures:
             if row[0] in best:
                 shown[best[row[0]]] = shown.get(best[row[0]], 0) + 1
-        return events, shown
+        deferred=any(p['_eligibility']['reason']=='source_verification_deferred' for p in bodies.values())
+        return events, shown, deferred
 
-    def route_get(self, project_id=None):
+    def route_get(self, project_id=None, verification_budget=None):
         """The project's learning map with per-concept progress, derived from explicit feedback only."""
         project_id = self._require_project(project_id)
         revision, route = read_route(self.store.conn, project_id)
         if not route:
             return {"enabled": False, "mode": "off", "graph": None, "revision": revision}
         graph, manual = route["graph"], route.get("manual") or {}
-        events, shown = self._route_inputs(project_id, graph)
+        events, shown, deferred = self._route_inputs(project_id, graph,verification_budget)
         start = route.get("start") or None
         prog = pathgraph.progress(graph, events, manual, shown, start=start)
         live = [i for i, s in prog.items() if s["status"] in ("locked", "unlocked", "satisfied")]
@@ -110,8 +121,8 @@ class App:
         return {"project_id": project_id, "enabled": route.get("mode", "route") == "route", "mode": route.get("mode", "route"), "graph": graph, "manual": manual,
                 "start": route.get("start") or [], "revision": revision, "layers": pathgraph.layers(graph), "progress": prog,
                 **goal, "watch": watch, "watched_satisfied": [i for i in watch if prog[i]["status"] == "satisfied"],
-                "done": done, "total": len(live),
-                "exploration_share": pathgraph.exploration_share(done, len(live))}
+                "done": done, "total": len(live), "progress_verification_deferred":deferred,
+                "batch_policy": route_batch.policy(goal["goal_status"] == "completed")}
 
     DIRECTION_JUDGES_PER_DAY = 10   # paid attempts at "judge my collected exploration papers" per project per local day
 
@@ -838,10 +849,10 @@ class App:
             name, layer = names.get(row.get("route_node"), (None, None))
         return {"node": row.get("route_node"), "name": name, "layer": layer, "kind": row["route_kind"]}
 
-    def _route_state(self, project_id):
+    def _route_state(self, project_id, verification_budget=None):
         """route_get() for a project whose map is switched on, else None."""
         try:
-            state = self.route_get(project_id)
+            state = self.route_get(project_id,verification_budget=verification_budget)
         except ValueError:
             return None
         return state if state.get("enabled") and state.get("graph") else None
@@ -881,9 +892,9 @@ class App:
             window_policy={'basic_years': CREATION_WINDOW_YEARS,
                            'recent_since': from_date, 'recent_years': None if from_date else FEED_WINDOW_YEARS})
 
-    def route_recall_sources(self, project_id):
+    def route_recall_sources(self, project_id, route=None):
         """Current local explanation only; does not fetch or affect categories."""
-        route = self._route_state(project_id)
+        route = self._route_state(project_id) if route is None else route
         if not route: return {}
         state = self.store.get_setting('route_recall_' + project_id) or {}
         if not isinstance(state, dict): state = {}
@@ -948,7 +959,17 @@ class App:
         freeze = self.store.get_setting(f"profile_freeze_{project_id}")
         feedback = self.latest_feedback(project_id, freeze.get("through_feedback_id") if freeze else None)
         papers = [tuple(r) for r in conn.execute("SELECT p.key,p.title,p.abstract FROM papers p JOIN project_papers pp ON pp.paper_key=p.key WHERE pp.project_id=? ORDER BY p.key", (project_id,))]
-        evidence = hashlib.sha256(json.dumps([feedback, papers], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        relevant=set(feedback)|set(self.seed_keys(project_id))|{r[0] for r in conn.execute('SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?',(project_id,))}
+        body_versions=[]
+        for key,_,abstract in papers:
+            if key not in relevant or eligibility.usable_abstract(abstract):continue
+            pdf=conn.execute('SELECT path,sha256 FROM pdfs WHERE paper_key=?',(key,)).fetchone()
+            if not pdf:continue
+            text=[tuple(r) for r in conn.execute('SELECT page,substr(content,1,?) FROM fulltext WHERE paper_key=? AND source_pdf_sha256=? AND page BETWEEN 1 AND ? ORDER BY page LIMIT ?',
+                  (eligibility.BODY_PAGE_CHARS,key,pdf[1],eligibility.BODY_PAGES,eligibility.BODY_PAGES))]
+            text_signature=hashlib.sha256(json.dumps(text,ensure_ascii=False).encode()).hexdigest()
+            body_versions.append((key,tuple(pdf),eligibility.file_identity(pdf[0]),text_signature))
+        evidence = hashlib.sha256(json.dumps([feedback, papers,body_versions], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         return (str(self.data.resolve()), project_id, revision, evidence,
                 conn.execute("SELECT COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?", (project_id,)).fetchone()[0],
                 json.dumps(self.store.get_setting(f"seed_keys_{project_id}"), sort_keys=True),
@@ -966,7 +987,7 @@ class App:
             live = [c for c in graph["concepts"] if c.get("state", "active") == "active"]
             return {"enabled": False, "mode": stored.get("mode", "off"), "total": len(live), "done": None,
                     "goal_status": "off", "goal_done": None, "goal_total": None,
-                    "exploration_share": None, "frontier": []}
+                    "batch_policy": None, "frontier": []}
         signature = self._route_signature(project_id, revision)
         cached = self._HOME_ROUTE_CACHE.get(project_id)
         if cached and cached[0] == signature:
@@ -975,115 +996,53 @@ class App:
         by_id = {c["id"]: c for c in route["graph"]["concepts"]}
         summary = {"enabled": True, "mode": route["mode"], "total": route["total"], "done": route["done"],
                    "goal_status": route["goal_status"], "goal_done": route["goal_done"], "goal_total": route["goal_total"],
-                   "goal_reasons": route["goal_reasons"], "watched_satisfied": route["watched_satisfied"],
-                   "exploration_share": route["exploration_share"],
+                    "goal_reasons": route["goal_reasons"], "watched_satisfied": route["watched_satisfied"],
+                   "progress_verification_deferred":route['progress_verification_deferred'],
+                   "batch_policy": route["batch_policy"],
                    "frontier": [{"id": i, "name": by_id[i]["name"], "layer": route["layers"][i]} for i in route["frontier"]]}
         if len(self._HOME_ROUTE_CACHE) > 64:
             self._HOME_ROUTE_CACHE.clear()
-        self._HOME_ROUTE_CACHE[project_id] = (signature, summary)
+        if route['progress_verification_deferred']:
+            self._HOME_ROUTE_CACHE.pop(project_id,None)
+        else:self._HOME_ROUTE_CACHE[project_id] = (signature, summary)
         return json.loads(json.dumps(summary))
 
     def _route_pick(self, route, pool, scored, vectors, limit, batch_index, directions=(), shown=None):
-        """Choose a batch from a learning map: [(paper_key, concept_id | None, kind)].
+        """Choose bounded 3+1+1 roles; historical batch_index has no quota effect."""
+        return route_batch.choose(route,pool,scored,limit,directions,shown,self.route_recall_sources(route['project_id'],route=route),
+                                  recent_since=window_start(FEED_WINDOW_YEARS),today=self.batch_day())
 
-        Route slots go to the concepts the reader can read now (unlocked, not yet understood), shared by weight
-        (concepts shown less get more; a concept the reader rated low gets half), best paper of a concept first:
-        introductions before the rest, then similarity to the profile, then newest. When a concept was marked
-        "too hard" one slot goes to an introduction of its prerequisite ("remedial"). A smooth, replayable
-        share of the batch is exploration: papers outside the frontier, those of a direction that is forming
-        (`directions`, from _route_candidates) first, then the best profile matches. Every pick is
-        (paper_key, concept_id | None, kind, label | None); an "explore_new" pick carries the direction's phrase as its
-        label. Nothing here looks at silence, and nothing reads the clock.
+    def batch_day(self):
+        """Same local-calendar clock used by maintenance. Client dates cannot set the cap."""
+        return maintenance._today(maintenance._now(None))
 
-        `shown` is {paper_key: how many times it was shown}. A paper of a concept the reader can read now stays a candidate
-        until they answer it, the ones shown least first; exploration only offers papers that were never shown and that
-        match no concept of the map (what the map already covers, understood or still locked, is not exploration).
-        """
-        shown = shown or {}
-        graph, prog = route["graph"], route["progress"]
-        active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}
-        assigned = {key: ids[0] for key, ids in pathgrowth.assign(active, pool).items()}
-        score = dict(scored)
-        published = {p["key"]: str(p.get("published") or "") for p in pool}
-        role = {p["key"]: pathgrowth.paper_role(p) for p in pool}
-        by_concept = {}
-        for key, cid in assigned.items():
-            by_concept.setdefault(cid, []).append(key)
-        def ordered(keys):
-            """Introductions first, then profile similarity, then newest, then key; undated papers last, and what was shown least first. Five
-            stable passes, so every tie falls through to the next rule."""
-            keys = sorted(keys)
-            keys.sort(key=lambda k: published[k], reverse=True)
-            keys.sort(key=lambda k: -score.get(k, 0.0))
-            keys.sort(key=lambda k: role[k] != "intro")
-            keys.sort(key=lambda k: shown.get(k, 0))      # a paper shown before comes back only after the ones not shown yet
-            return keys
-        for cid in by_concept:
-            by_concept[cid] = ordered(by_concept[cid])
-        frontier = [c for c in route["frontier"] if by_concept.get(c)]
-        explore_slots = pathgraph.exploration_slots(limit, route["done"], route["total"], batch_index)
-        chosen, used = [], set()
+    def _completed_batch(self, project_id, day):
+        row=self.store.conn.execute('SELECT id FROM batches WHERE project_id=? AND run_date=? AND source=? ORDER BY id LIMIT 1',
+                                    (project_id,day,route_batch.COMPLETED_SOURCE)).fetchone()
+        return row[0] if row else None
 
-        def take(key, node, kind, label=None):
-            if key not in used and len(chosen) < limit:
-                used.add(key)
-                chosen.append((key, node, kind, label))
+    def _completed_result(self, batch_id, project_id, verification_budget=None):
+        reason='The goal is complete; today’s discovery has already been generated' if self.english() else '目标已完成，今天的发现已生成；每日最多一篇'
+        return {'batch_id':batch_id,'cards':self.cards(batch_id,project_id,verification_budget=verification_budget),'reused':True,
+                'reason':reason,'reason_code':'completed_daily_limit','shortfall':None}
 
-        # One remedial slot: an introduction to the nearest prerequisite of a concept marked too hard. It needs room
-        # (a batch of one stays on the route), it is not offered for a prerequisite the reader marked as known, and
-        # there is one introduction per too-hard paper, not one in every batch for ever.
-        done_remedial = {r[0]: r[1] for r in self.store.conn.execute(
-            """SELECT e.route_node, COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id
-               WHERE b.project_id=? AND e.route_kind='remedial' GROUP BY e.route_node""", (route["project_id"],))}
-        if limit >= 2:
-            for cid in route["frontier"]:
-                if not prog[cid]["too_hard"] or len(chosen) >= limit - explore_slots:
-                    continue
-                needs = [e["from"] for e in graph["prereqs"] if e["to"] == cid and e.get("state", "active") == "active"]
-                for need in sorted(needs, key=lambda n: (route["layers"][n], n), reverse=True):
-                    wanted = sum(prog[c]["too_hard"] for c in route["frontier"]
-                                 if any(e["from"] == need and e["to"] == c for e in graph["prereqs"]))
-                    if prog[need].get("manual") == "mastered" or done_remedial.get(need, 0) >= wanted:
-                        continue
-                    pick = next((k for k in by_concept.get(need, []) if role[k] == "intro" and k not in used), None)
-                    if pick:
-                        take(pick, need, "remedial")
-                        break
-                if chosen:
-                    break
-        slots = max(0, limit - explore_slots - len(chosen))
-        weights = [(1.0 / (1 + prog[c]["shown"])) * (0.5 if prog[c]["low_interest"] else 1.0) for c in frontier]
-        quotas = pathgraph.allocate(slots, weights)
-        for cid, quota in zip(frontier, quotas):
-            for key in [k for k in by_concept[cid] if k not in used][:quota]:
-                take(key, cid, "route")
-        for cid in frontier:                      # a concept with too few papers leaves its slots to the others
-            for key in [k for k in by_concept[cid] if k not in used]:
-                if len(chosen) >= limit - explore_slots:
-                    break
-                take(key, cid, "route")
-        # Exploration is the only way a paper outside the frontier gets in, and only up to its share: a batch
-        # whose route papers ran out is shorter rather than padded with papers from concepts that are still locked.
-        on_frontier = set().union(*[set(by_concept[c]) for c in frontier]) if frontier else set()
-        rest = ordered_rest = [k for k in ordered([k for k, _ in scored]) if k not in used]
-        toward = {}   # paper -> the direction it belongs to (the first, strongest one)
-        for direction in directions:
-            for key in direction["papers"]:
-                toward.setdefault(key, direction["name"])
-        outside = [k for k in rest if k not in on_frontier and k not in assigned and not shown.get(k)]
-        explored = 0
-        for key in [k for k in outside if k in toward] + [k for k in outside if k not in toward]:
-            if explored >= explore_slots or len(chosen) >= limit:
-                break
-            if key in toward:
-                take(key, None, "explore_new", toward[key])
-            else:
-                take(key, assigned.get(key), "explore")
-            explored += 1
-        for cid in frontier:   # an exploration slot with nothing to explore goes back to the route
-            for key in [k for k in by_concept[cid] if k not in used]:
-                take(key, cid, "route")
-        return chosen
+    def _batch_route_context(self, project_id, route=None, feedback=None, verification_budget=None):
+        route=self._route_state(project_id,verification_budget=verification_budget) if route is None else route
+        feedback=self.latest_feedback(project_id) if feedback is None else feedback
+        fields=('graph','manual','start','watch','goal_status','goal_scope','goal_targets','frontier','watched_satisfied','progress_verification_deferred')
+        recall=self.store.get_setting('route_recall_'+project_id) or {}
+        recall=recall if isinstance(recall,dict) else {}
+        freeze=self.store.get_setting('profile_freeze_'+project_id)
+        frozen_feedback=self.latest_feedback(project_id,freeze['through_feedback_id']) if freeze and 'through_feedback_id' in freeze else None
+        _,stored_route=read_route(self.store.conn,project_id)
+        body={'route':{k:route.get(k) for k in fields} if route else None,'feedback':feedback,
+              'freeze':freeze,'frozen_feedback':frozen_feedback,'seeds':self.seed_keys(project_id),
+              'profile':self.store.current_profile(),'project_terms':self._project_keywords(project_id),
+              'rejected':(stored_route or {}).get('rejected',[]),'directions':self._directions_store(project_id),
+              'recall':{k:recall.get(k) for k in ('signature','observed_at','configuration')}}
+        signature=hashlib.sha256(json.dumps(body,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+        last=self.store.conn.execute('SELECT MAX(id) FROM batches WHERE project_id=?',(project_id,)).fetchone()[0]
+        return {'signature':signature,'last_batch':last}
 
     def home_maintenance(self, project_id=None):
         """Refresh times for the page (no counts of anything unread or pending)."""
@@ -1937,14 +1896,38 @@ class App:
         added = self.store.upsert_papers(normalized)
         return {"imported": len(normalized), "added": added}
 
-    def _paper_language(self, paper, digest=None):
+    def _paper_language(self, paper, digest=None, verification_budget=None):
         verified = bool(paper.get('verified_language') and paper.get('current_pdf_sha256')
-                        and (digest if digest is not None else eligibility.pdf_digest(paper.get('current_pdf_path'))) == paper['current_pdf_sha256'])
+                        and (digest if digest is not None else self._verified_pdf_digest(paper,eligibility.file_identity(paper.get('current_pdf_path')),verification_budget)) == paper['current_pdf_sha256'])
         return {'metadata_language': paper.get('metadata_language'),
                 'metadata_source': paper.get('metadata_language_source'),
                 'fulltext_language': paper.get('verified_language') if verified else None,
                 'fulltext_status': 'verified' if verified else 'unverified',
                 'verification_method': paper.get('verified_method') if verified else None}
+
+    def _verified_pdf_digest(self, paper, identity, budget):
+        """One local proof per current paper/PDF, independent of digest LRU.
+
+        A proof records an actual hash plus immutable-at-read file identity.
+        Reusing it still checks the current identity; it stores no text/role.
+        This allows bounded scans to finish even when evidence exceeds the LRU.
+        """
+        key='pdf_verification_'+paper['key']
+        sha=paper.get('current_pdf_sha256')
+        proof=self.store.get_setting(key)
+        if identity and sha and isinstance(proof,dict) and proof.get('sha256')==sha and proof.get('identity')==list(identity) and eligibility.file_identity(paper.get('current_pdf_path'))==identity:
+            return sha
+        digest=eligibility.pdf_digest(paper.get('current_pdf_path'),budget)
+        if digest==sha and identity and eligibility.file_identity(paper.get('current_pdf_path'))==identity:
+            value={'sha256':sha,'identity':list(identity)}
+            with self.store._lock:
+                outer=self.store.conn.in_transaction
+                self.store.conn.execute('''INSERT INTO settings (key,value)
+                    SELECT ?,? WHERE EXISTS (SELECT 1 FROM pdfs WHERE paper_key=? AND path=? AND sha256=?)
+                    ON CONFLICT(key) DO UPDATE SET value=excluded.value''',
+                    (key,json.dumps(value),paper['key'],paper.get('current_pdf_path'),sha))
+                if not outer:self.store.conn.commit()
+        return digest
 
     def _recommendation_rows(self, project_id=None, paper_key=None):
         if project_id is not None:
@@ -1957,21 +1940,23 @@ class App:
             LEFT JOIN fulltext_languages l ON l.paper_key=p.key AND l.pdf_sha256=d.sha256
             WHERE ''' + where + ' ORDER BY p.published DESC', params)]
 
-    def recommendation_pool(self, project_id, policy=None):
+    def recommendation_pool(self, project_id, policy=None, paper_keys=None, retrieval_only=False, verification_budget=None):
         project_id = self._require_project_id(project_id)
         policy = policy or self.projects.get_project(project_id)['language_policy']
         papers = self._recommendation_rows(project_id=project_id)
-        budget = {'remaining': eligibility.MAX_VERIFY_BYTES, 'deferred': False}
+        if paper_keys is not None:
+            keys=set(paper_keys);papers=[p for p in papers if p['key'] in keys]
+        budget = verification_budget if verification_budget is not None else {'remaining': eligibility.MAX_VERIFY_BYTES, 'deferred': False}
         scope = (str(self.store.path.resolve()), project_id, policy['revision'])
         first_deferred = None
         for paper in eligibility.verification_order(papers, scope):
             body = ''
             sha = paper.get('current_pdf_sha256')
-            needs_version = policy['status'] == 'ready' and sha and (paper.get('verified_language')
+            needs_version = (retrieval_only or policy['status'] == 'ready') and sha and (paper.get('verified_language')
                 or not eligibility.usable_abstract(paper.get('abstract')))
             budget['deferred'] = False
             identity = eligibility.file_identity(paper.get('current_pdf_path')) if needs_version else None
-            digest = eligibility.pdf_digest(paper.get('current_pdf_path'), budget) if needs_version else None
+            digest = self._verified_pdf_digest(paper,identity,budget) if needs_version else None
             if needs_version and eligibility.file_identity(paper.get('current_pdf_path')) != identity:
                 digest = None
             version_changed = bool(needs_version and not self.store.conn.execute(
@@ -1994,13 +1979,13 @@ class App:
             if budget['deferred'] and first_deferred is None:
                 first_deferred = paper['key']
             # Only the local retriever sees this. Cards/AI metadata still use the stored abstract.
-            paper['_local_body'] = body if paper['_eligibility']['eligible'] else ''
+            paper['_local_body'] = body if paper['_eligibility']['eligible'] or (retrieval_only and eligibility.usable_body(body)) else ''
         eligibility.defer_verification(scope, first_deferred)
         return papers
 
-    def _create_eligible_batch(self, run_date, keys, project_id, policy, papers, route=None):
+    def _create_eligible_batch(self, run_date, keys, project_id, policy, papers, route=None, selection_context=None, completed_day=None, verification_budget=None):
         expected = {p['key']: p for p in papers}
-        columns = ('title', 'abstract', 'metadata_language', 'current_pdf_path', 'current_pdf_sha256',
+        columns = ('title', 'abstract', 'published', 'metadata_language', 'current_pdf_path', 'current_pdf_sha256',
                    'verified_language', 'verified_method')
         with self.store._lock:
             self.store.conn.execute('BEGIN IMMEDIATE')
@@ -2008,6 +1993,16 @@ class App:
                 current_project = self.projects.get_project(project_id)
                 if not current_project or current_project['language_policy']['revision'] != policy['revision']:
                     raise RecommendationChanged()
+                if selection_context:
+                    current_context=self._batch_route_context(project_id,verification_budget=verification_budget)
+                    if current_context['signature'] != selection_context['signature']:
+                        raise RecommendationChanged()
+                    if completed_day:
+                        if self.batch_day()!=completed_day:raise RecommendationChanged()
+                        existing=self._completed_batch(project_id,completed_day)
+                        if existing:raise CompletedDiscoveryLimit(existing)
+                    if current_context['last_batch'] != selection_context['last_batch']:
+                        raise RecommendationChanged()
                 for key in keys:
                     rows = self._recommendation_rows(paper_key=key)
                     if not rows or any(rows[0].get(c) != expected[key].get(c) for c in columns):
@@ -2023,33 +2018,38 @@ class App:
                             body = '\n'.join(r[0] for r in self.store.conn.execute('''SELECT substr(content,1,?)
                                 FROM fulltext WHERE paper_key=? AND source_pdf_sha256=? AND page BETWEEN 1 AND ? ORDER BY page LIMIT ?''',
                                 (eligibility.BODY_PAGE_CHARS,key,sha,eligibility.BODY_PAGES,eligibility.BODY_PAGES)))
-                            if not eligibility.usable_body(body):
+                            if not eligibility.usable_body(body) or body!=expected[key].get('_local_body'):
                                 raise RecommendationChanged()
-                return self.store.create_batch(run_date, keys, project_id=project_id, route=route)
+                return self.store.create_batch(run_date, keys, project_id=project_id, route=route,
+                    source=route_batch.COMPLETED_SOURCE if completed_day else 'openalex')
             except Exception:
                 self.store.conn.rollback()
                 raise
 
     def build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None):
+        verification_budget={'remaining':eligibility.MAX_VERIFY_BYTES,'deferred':False}
         try:
-            return self._build_batch(limit, run_date, exclude_seen, project_id)
+            return self._build_batch(limit, run_date, exclude_seen, project_id,verification_budget)
+        except CompletedDiscoveryLimit as exc:
+            return self._completed_result(exc.batch_id,project_id or self.get_default_project_id(),verification_budget)
         except RecommendationChanged:
-            reason = ('Paper sources or the language policy changed; generate again' if self.english()
-                      else '论文来源或语言设置已变化，请重新生成')
+            reason = ('Papers, route, feedback or language settings changed; generate again' if self.english()
+                      else '论文、路线、反馈或语言设置已变化，请重新生成')
             return {'batch_id': None, 'cards': [], 'reason': reason, 'reason_code': 'recommendation_changed'}
 
-    def _build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None):
+    def _build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None,verification_budget=None):
         """Build a recommendation batch for a specific project."""
         if not project_id:
             project_id = self.get_default_project_id()
 
-        run_date = run_date or now()[:10]
+        run_date = run_date or self.batch_day()
         project = self.projects.get_project(project_id)
         if not project:
             raise ValueError('项目不存在')
         policy = project['language_policy']
+        if verification_budget is None:verification_budget={'remaining':eligibility.MAX_VERIFY_BYTES,'deferred':False}
         try:
-            papers = self.recommendation_pool(project_id, policy=policy)
+            papers = self.recommendation_pool(project_id, policy=policy,verification_budget=verification_budget)
         except ValueError:
             if not self.projects.get_project(project_id):
                 raise RecommendationChanged()
@@ -2090,8 +2090,22 @@ class App:
         feedback = self.latest_feedback(project_id)
         readable = lambda p: p['_eligibility']['eligible']
         fresh = [p for p in papers if p["key"] not in seen and p["key"] not in feedback and readable(p)]    # never shown, never rated
-        route = self._route_state(project_id)
-        on_path = bool(route and route["frontier"])
+        route = self._route_state(project_id,verification_budget=verification_budget)
+        if route and route.get('progress_verification_deferred'):
+            return {'batch_id':None,'cards':[],'reason_code':'route_progress_verification_pending',
+                    'reason':'Body evidence verification is incomplete; refresh before generating' if self.english() else '正文证据核验未完成，请刷新后再生成','eligibility':snapshot}
+        on_path = bool(route)
+        selection_context=self._batch_route_context(project_id,route,feedback) if route else None
+        completed_day=self.batch_day() if route and route['goal_status']=='completed' else None
+        if route and route['goal_status']=='needs_review':
+            return {'batch_id':None,'cards':[],'reason_code':'route_needs_review','reason':'Review the learning goal or prerequisites' if self.english() else '学习目标或前置关系需要检查','eligibility':snapshot}
+        if route and route['goal_status']=='learning' and not route['frontier']:
+            return {'batch_id':None,'cards':[],'reason_code':'route_no_frontier','reason':'No learnable frontier; review the route' if self.english() else '当前没有可学习的前沿，请检查路线','eligibility':snapshot}
+        if completed_day:
+            run_date=completed_day
+            existing=self._completed_batch(project_id,completed_day)
+            if existing:return self._completed_result(existing,project_id,verification_budget)
+        if route:limit=max(1,min(route_batch.MAX_BATCH,int(limit)))
         # On a learning map the reader can be shown a paper again until they answer it: a paper of a concept they can read
         # now that they have not saved, turned down or rated stays a candidate (the ones shown least come first). Exploration
         # papers are always ones never shown before. Without a map, only never-shown papers are offered, as before.
@@ -2106,8 +2120,8 @@ class App:
                                     if self.english() else f"项目候选池中只剩 {len(pool)} 篇未展示且未反馈的论文")}
 
         if not pool:
-            reason = ('No eligible candidates' if self.english() else '没有符合条件的候选论文') if counts else 'no unseen candidates'
-            return {"batch_id": None, "cards": [], "reason": reason, "shortfall": shortfall, 'eligibility': snapshot}
+            reason = ('No eligible route candidates' if self.english() else '路线没有符合条件的候选论文') if route else (('No eligible candidates' if self.english() else '没有符合条件的候选论文') if counts else 'no unseen candidates')
+            return {"batch_id": None, "cards": [], "reason": reason,"reason_code":"route_no_candidates" if route else "no_candidates", "shortfall": shortfall, 'eligibility': snapshot}
 
         # The profile is learned from labelled and seed papers, which the pool by definition excludes
         # (shown or rated), so IDF and the profile vector use every paper of the project.
@@ -2119,32 +2133,29 @@ class App:
         scored = ranking.sort_scored(
             [(p["key"], ranking.cosine(profile_vector, vectors[p["key"]])) for p in pool],
             {p["key"]: p.get("published") for p in pool})
-        if on_path:
-            batch_index = self.store.conn.execute("SELECT COUNT(*) FROM batches WHERE project_id=?", (project_id,)).fetchone()[0]
-            shown = {r[0]: r[1] for r in self.store.conn.execute(
-                "SELECT e.paper_key, COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=? GROUP BY e.paper_key", (project_id,))}
-            directions = self._exploration_targets(project_id, pool, vectors, idf)   # directions on file: papers that read like theirs get the exploration slots first
-            picks = self._route_pick(route, pool, scored, vectors, limit, batch_index, directions, shown)
-            if picks:
-                if len(picks) < limit:
-                    shortfall = {**(shortfall or {}), "requested": limit, "available": len(picks), "candidates": len(papers),
-                                 "reason": ("Fewer papers than asked for: the concepts you can read now have no papers left that you have not rated, and exploration only offers papers outside the map that were never shown. Rate or save the ones you saw, fetch new papers, or mark concepts as known"
-                                            if self.english() else "没凑够：你现在能读的概念里没有还没评价的论文了，探索位也只推地图之外、没展示过的论文。可以给已展示的评价或收藏、抓取新论文，或把已掌握的概念标出来")}
-                names = {c["id"]: (c["name"], route["layers"][c["id"]]) for c in route["graph"]["concepts"]}
-                batch_id = self._create_eligible_batch(run_date, [k for k, _, _, _ in picks], project_id, policy, papers,
-                                                   route={k: (node, kind) + (names.get(node, (None, None)) if label is None else (label, None)) for k, node, kind, label in picks})
-                return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall, 'eligibility': snapshot}
-            shortfall = {**(shortfall or {}), "requested": limit, "available": 0, "candidates": len(papers),
-                         "reason": ("There are no papers for the concepts you can read now, so this is an ordinary batch"
-                                    if self.english() else "路径上你现在能读的概念没有可推的论文，这一批是普通推荐")}
-            fresh_keys = {p["key"] for p in fresh}
-            scored = [(k, v) for k, v in scored if k in fresh_keys]
-            if not scored:
-                return {"batch_id": None, "cards": [], "reason": "no unseen candidates", "shortfall": shortfall, "eligibility": snapshot}
+        if route:
+            shown={r[0]:r[1] for r in self.store.conn.execute('SELECT e.paper_key,COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=? GROUP BY e.paper_key',(project_id,))}
+            directions=self._exploration_targets(project_id,pool,vectors,idf)
+            picks=self._route_pick(route,pool,scored,vectors,limit,0,directions,shown)
+            target=1 if completed_day else limit
+            shortage=None
+            if len(picks)<target:
+                paths=sum(p[2]=='route' for p in picks);discoveries=len(picks)-paths
+                reason=(f'Candidate shortage: {paths} path papers and {discoveries} discoveries; discovery quota is bounded' if self.english() else f'没凑够：路径 {paths} 篇、发现 {discoveries} 篇；路径不足不会扩大发现配额')
+                shortage={'requested':target,'available':len(picks),'candidates':len(papers),'reason':reason}
+            if not picks:
+                return {'batch_id':None,'cards':[],'reason_code':'route_no_candidates',
+                        'reason':shortage['reason'] if shortage else '路线没有符合条件的候选论文','shortfall':shortage,'eligibility':snapshot}
+            names={c['id']:(c['name'],route['layers'][c['id']]) for c in route['graph']['concepts']}
+            batch_id=self._create_eligible_batch(run_date,[k for k,_,_,_ in picks],project_id,policy,papers,
+                route={k:(node,kind)+(names.get(node,(None,None)) if label is None else (label,None)) for k,node,kind,label in picks},
+                selection_context=selection_context,completed_day=completed_day,verification_budget=verification_budget)
+            return {'batch_id':batch_id,'cards':self.cards(batch_id,project_id,verification_budget=verification_budget),'shortfall':shortage,'eligibility':snapshot,
+                    'route_goal_status':route['goal_status'],'batch_policy':route_batch.policy(bool(completed_day))}
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
         batch_id = self._create_eligible_batch(run_date, chosen, project_id, policy, papers)
-        return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall, 'eligibility': snapshot}
+        return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id,verification_budget=verification_budget), "shortfall": shortfall, 'eligibility': snapshot}
 
     def _reference_docs(self, project_id=None):
         """Seeds and saved papers, used to explain *which* direction a card resembles."""
@@ -2223,7 +2234,7 @@ class App:
             "shared_terms": shared,
         }
 
-    def cards(self, batch_id=None, project_id=None):
+    def cards(self, batch_id=None, project_id=None, verification_budget=None):
         if not project_id:
             project_id = self.get_default_project_id()
 
@@ -2252,7 +2263,7 @@ class App:
                 "feedback": (feedback.get(row["key"]) or {}).get("action"),
                 "familiarity": ((feedback.get(row["key"]) or {}).get("familiar") or {}).get("action"),
                 "summary": summaries.get(row["key"]),
-                'language': self._paper_language(self._recommendation_rows(paper_key=row['key'])[0]),
+                'language': self._paper_language(self._recommendation_rows(paper_key=row['key'])[0],verification_budget=verification_budget),
             })
         return cards
 

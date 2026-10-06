@@ -241,10 +241,13 @@
     },
     {
       "id": "E-ROUTE-V2-05",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-05. 充足与各类短缺配额、相互补位、少推原因测试通过，路径不足不扩大探索；已满足仅持续关注有新进展，手动与维护一致，目标完成多次点击不能绕过每日上限。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-05-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-05-review.md"
+      ]
     },
     {
       "id": "E-ROUTE-V2-06",

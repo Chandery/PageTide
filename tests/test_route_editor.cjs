@@ -213,7 +213,7 @@ test('the actions offered for a concept depend on its state and are all reversib
 
 test('the progress summary line is plain', () => {
   const R = load();
-  assert.equal(R.summaryText({ done: 2, total: 5, exploration_share: 0.26 }), '已读懂 2 / 5 个概念 · 探索约占 26%');
+  assert.equal(R.summaryText({ done: 2, total: 5, exploration_share: 0.26 }), '已读懂 2 / 5 个概念');
   assert.doesNotMatch(R.summaryText({ done: 0, total: 0, exploration_share: 0.1 }), /NaN/);
 });
 

@@ -16,7 +16,7 @@ class ExploreBadgeTests(unittest.TestCase):
             self.assertIn(f"{kind}:", kinds)
         self.assertIn("探索 · 新方向", kinds)
         self.assertIn("让 AI 判断", kinds)               # what the reader can do after collecting it
-        self.assertIn("没展示过，也不属于学习图里的任何概念", kinds)
+        self.assertIn("学习价值待确认", kinds)
 
     def test_there_is_no_off_path_label_any_more(self):
         self.assertNotIn("offroute", INDEX + THEME)
@@ -24,9 +24,9 @@ class ExploreBadgeTests(unittest.TestCase):
 
     def test_the_standard_for_exploration_is_stated_on_the_card_and_in_the_panel(self):
         kinds = INDEX[INDEX.index("const ROUTE_KINDS"):INDEX.index("function routeBadge")]
-        self.assertIn("也不属于学习图里的任何概念", kinds)
+        self.assertIn("已有概念的新任务", kinds)
         panel = INDEX[INDEX.index("function exploreLine"):INDEX.index("$('#routePanel').addEventListener")]
-        self.assertIn("没展示过、又不属于学习图里任何概念", panel)
+        self.assertIn("前置缺口或新分支", panel)
 
     def test_exploration_is_hard_to_miss(self):
         self.assertRegex(THEME, r"\.kw-explore \.kw-k, \.kw-explore_new \.kw-k \{ background:var\(--ai-text\);")   # a solid, bold tag
@@ -44,13 +44,13 @@ class ExploreBadgeTests(unittest.TestCase):
 class TodayLineTests(unittest.TestCase):
     def test_the_panel_counts_todays_exploration_papers(self):
         panel = INDEX[INDEX.index("function exploreLine"):INDEX.index("$('#routePanel').addEventListener")]
-        self.assertIn("今天的探索位", panel)
+        self.assertIn("当前批次：探索", panel)
         self.assertRegex(panel, r"kind === 'explore_new'|kind==='explore_new'")
 
     def test_when_there_is_none_it_says_why_without_blaming_the_reader(self):
         panel = INDEX[INDEX.index("function exploreLine"):INDEX.index("$('#routePanel').addEventListener")]
-        self.assertIn("今天这一批没有探索位", panel)
-        self.assertIn("探索约占", panel)
+        self.assertIn("当前批次没有探索候选", panel)
+        self.assertIn("发现仍最多两篇", panel)
         self.assertNotRegex(panel, r"落后|没读|欠|逾期")
 
 

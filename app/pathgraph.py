@@ -27,8 +27,6 @@ HARD_FACTOR = 0.6       # a "too hard" paper multiplies mastery by this
 SATISFIED_AT = 0.6      # a concept counts as understood from here
 LOW_INTEREST_RATINGS = 3
 LOW_INTEREST_AT = 0.35
-EXPLORE_BASE = 0.20     # share of a batch that is exploration at the start (one paper in five: seen from the first batch)
-EXPLORE_SPAN = 0.40     # ... rising by this much as the map fills
 EVENTS = ("useful", "irrelevant", "understood", "too_hard")
 INTEREST_EVENTS = ("useful", "irrelevant")   # what the reader likes
 MASTERY_EVENTS = ("understood",)             # what the reader has understood
@@ -714,25 +712,6 @@ def remedial(graph, prog, concept_id):
 
 
 # --------------------------------------------------------------- exploration
-def exploration_share(done, total):
-    """Share of a batch spent outside the unlocked frontier: EXPLORE_BASE at the start, rising to
-    EXPLORE_BASE + EXPLORE_SPAN as the share of understood concepts goes to 1. A smooth curve, not a switch."""
-    ratio = 0.0 if total <= 0 else max(0.0, min(1.0, done / total))
-    return EXPLORE_BASE + EXPLORE_SPAN * ratio
-
-
-def exploration_slots(batch_size, done, total, batch_index):
-    """Exploration slots in batch number `batch_index` (0-based). Cumulative rounding, so the average
-    over batches equals the share exactly and the same batch number always gives the same answer.
-    At least one slot of every batch stays on the route."""
-    if batch_size <= 1:
-        return 0   # a one-paper batch has no room for exploration; the average-equals-share claim holds from two papers
-    batch_index = max(0, int(batch_index))
-    share = exploration_share(done, total) * batch_size
-    slots = int(math.floor(share * (batch_index + 1) + 1e-9) - math.floor(share * batch_index + 1e-9))
-    return max(0, min(slots, batch_size - 1))
-
-
 def allocate(slots, weights):
     """Split `slots` among items in proportion to `weights` (largest remainder; ties go to the earlier item)."""
     weights = [w if isinstance(w, (int, float)) and not isinstance(w, bool) and math.isfinite(w) and w > 0 else 0 for w in weights]

@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-05",
+  "class": "critical",
+  "summary": "Deterministic three-purpose batch matching, consistent bounded body/progress attribution and atomic per-local-day completed discovery shared by manual/maintenance; reject concurrent evidence, direction and paper changes and display truthful bilingual quota/reuse states.",
+  "tasks": [
+    "ROUTE-V2-05"
+  ],
+  "files": [
+    "app/db.py",
+    "app/maintenance.py",
+    "app/pathgraph.py",
+    "app/route_batch.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/route-editor.js",
+    "changes/2026-10-07-route-v2-05.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0017-route-batch-quota.md",
+    "docs/evidence/2026-10-07-route-v2-05-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-05-review.md",
+    "harness/evaluations.json",
+    "harness/tasks.json",
+    "scripts/verify_packaged_route.py",
+    "tests/test_explore_new.py",
+    "tests/test_explore_ui.py",
+    "tests/test_i18n.cjs",
+    "tests/test_pathgraph.py",
+    "tests/test_recommendation_eligibility.py",
+    "tests/test_route_batch_ui.cjs",
+    "tests/test_route_batches.py",
+    "tests/test_route_editor.cjs",
+    "tests/test_route_runtime.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "New selection, progress and SQLite admission remain local; no new model operation or external metadata query. Existing optional AI only through gateway. Reused daily discovery skips another automatic triage. Minimum daily model tokens0.",
+    "before": "f3f2c14: approved operation scopes and global token/money caps unchanged.",
+    "after": "Same approved scopes/caps and zero-token daily core; expanded AI remains unapproved. Local resource cost unmeasured.",
+    "developer_usage": "unknown; project ledger does not measure coding-agent consumption"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    },
+    {
+      "command": "PYTHONPATH=tests python3 -m unittest test_route_batches test_route_runtime test_explore_new test_recommendation_eligibility test_candidate_quality test_route_goal test_route_store test_maintenance test_i18n test_project_creation_ui -q",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementing agent",
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic",
+      "evidence": "docs/evidence/2026-10-07-route-v2-05-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Stages06-08 incomplete: useful/seed growth, structured revision and two views/native full flow.",
+    "Native-window flow, real recall/recommendation value, language accuracy, large-library/8GB resources and AI quality/tokenizer/billing unmeasured.",
+    "Expanded AI scope remains unapproved; original release gates unchanged."
+  ]
+}

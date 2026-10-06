@@ -182,3 +182,21 @@ test('language evidence and exclusion counts translate as complete UI messages',
   assert.equal(i18n.translate('全文语言未核验 · 元数据语言：en'),'Full-text language unverified · Metadata language: en');
   assert.equal(i18n.translate('语言未知 2 篇'),'Language unknown: 2 papers');
 });
+
+test('actual Route batch sentences and badges translate in empty, watch-only and mixed batches',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'../app/static/index.html'),'utf8');
+ const helpers=html.slice(html.indexOf('function dailyButtonText'),html.indexOf('function renderRoute'));
+ const {i18n,context}=load('en-US',PACK);context.state={cards:[]};
+ vm.runInContext(helpers,context);
+ for(const goal_status of ['learning','completed']) {
+  for(const cards of [[],[{route:{kind:'watch'}}],[{route:{kind:'route'}},{route:{kind:'explore_new'}},{route:{kind:'watch'}}]]) {
+   context.state.cards=cards;
+   const line=context.exploreLine({goal_status});
+   assert.doesNotMatch(i18n.translate(line),/[㐀-鿿]/,line);
+  }
+ }
+ assert.doesNotMatch(i18n.translate('生成今日发现'),/[㐀-鿿]/);
+ const badges=html.slice(html.indexOf('const ROUTE_KINDS'),html.indexOf('const PDF_BADGES'));
+ vm.runInContext(badges+';globalThis.batchTitles=ROUTE_TITLES;',context);
+ for(const kind of ['explore','explore_new','watch'])assert.doesNotMatch(i18n.translate(context.batchTitles[kind]),/[㐀-鿿]/);
+});

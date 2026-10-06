@@ -464,13 +464,13 @@
   }
 
   function summaryText(route) {
+    if (route.progress_verification_deferred) return '正文证据核验中，当前进度暂不完整。';
     if (route.goal_status) {
       const label = route.goal_status === 'completed' ? '当前目标已完成' : route.goal_status === 'needs_review' ? '目标或前置关系需要检查' : '当前目标学习中';
       return `${label} · 目标范围已满足 ${Number(route.goal_done) || 0} / ${Number(route.goal_total) || 0} 个概念`;
     }
     const total = Number(route.total) || 0, done = Number(route.done) || 0;
-    const share = Math.round((Number(route.exploration_share) || 0) * 100);
-    return `已读懂 ${done} / ${total} 个概念 · 探索约占 ${share}%`;
+    return `已读懂 ${done} / ${total} 个概念`;
   }
 
   function watchHTML(watching, satisfied) {

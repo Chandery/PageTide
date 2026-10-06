@@ -777,16 +777,24 @@ function aiSlot(c) {
 }
 // The learning map: where the reader stands and why each card was chosen. Plain words, no counts of what was missed.
 // How many of today's papers are exploration (outside what can be read now), and why there are none when there are none.
-function exploreLine(share) {
+function dailyButtonText() {
+  if (state.route?.enabled !== false && state.route?.progress_verification_deferred) return '核验后生成推荐';
+  return state.route?.enabled !== false && state.route?.goal_status === 'completed' ? '生成今日发现' : '生成今日 5 篇';
+}
+function exploreLine(route) {
+  if (route.progress_verification_deferred) return '正文证据核验未完成，请刷新后再生成';
   const cards = state.cards || [], explored = cards.filter((c) => c.route && (c.route.kind === 'explore' || c.route.kind === 'explore_new'));
-  if (!cards.length) return `探索约占 ${share}%：每批会留出这个比例，给不在你现在能读的概念里、但和你兴趣接近的论文。`;
-  if (!explored.length) return `今天这一批没有探索位：探索约占 ${share}%，只有没展示过、又不属于学习图里任何概念的论文，才会排成探索。`;
-  const toward = explored.filter((c) => c.route.kind === 'explore_new').length;
-  return toward ? `今天的探索位：${explored.length} / ${cards.length} 篇，其中 ${toward} 篇指向正在形成的新方向。` : `今天的探索位：${explored.length} / ${cards.length} 篇。`;
+  const watched = cards.filter((c) => c.route?.kind === 'watch').length;
+  const policy = route.goal_status === 'completed' ? '目标已完成，每日本地最多一篇发现；优先探索，再看持续关注的新进展。' : '每批最多三篇路径、一篇探索、一篇新进展；发现互相补位，再由路径补位。路径不足时少推，发现仍最多两篇。';
+  if (!cards.length) return policy;
+  const counts = `当前批次：探索 ${explored.length} 篇、新进展 ${watched} 篇。`;
+  const absent = '当前批次没有探索候选；探索可提出已有概念的新任务、前置缺口或新分支，学习价值待确认。';
+  return [policy,counts,...(explored.length ? [] : [absent])].join(' · ');
 }
 function renderRoute(route) {
   const panel = $('#routePanel');
   if (!panel) return;
+  $('#btnDaily').textContent = dailyButtonText();
   const link = state.currentProject ? `/route.html?project_id=${encodeURIComponent(state.currentProject)}` : '/route.html';
   const seg = (on) => `<div class="seg" role="radiogroup" aria-label="推荐方式"><button type="button" role="radio" aria-checked="${on}" data-route-mode="route">按学习图推荐</button><button type="button" role="radio" aria-checked="${!on}" data-route-mode="off">普通排序</button></div>`;
   if (!route) {
@@ -801,15 +809,14 @@ function renderRoute(route) {
       <div class="route-foot"><span class="sub">现在推荐按普通排序。打开后，推荐会先从你现在能读的概念里选论文。</span><a class="btn" href="${link}">查看学习图</a></div>`;
     return;
   }
-  const share = Math.round((route.exploration_share || 0) * 100);
   const goalDone = route.goal_done ?? route.done, goalTotal = route.goal_total ?? route.total;
   const pct = goalTotal ? Math.round(100 * (goalDone || 0) / goalTotal) : 0;
-  const goalLabel = route.goal_status === 'completed' ? '当前目标已完成' : route.goal_status === 'needs_review' ? '目标或前置关系需要检查' : '当前目标学习中';
+  const goalLabel = route.progress_verification_deferred ? '正文证据核验中' : route.goal_status === 'completed' ? '当前目标已完成' : route.goal_status === 'needs_review' ? '目标或前置关系需要检查' : '当前目标学习中';
   const names = (route.frontier || []).map((f) => `<span class="kw"><span class="kw-v" data-no-i18n>${esc(f.name)}</span></span>`).join('');
   panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">路径模式</span></div>${seg(true)}</div>
     <div class="route-meter"><div class="route-bar" role="img" aria-label="目标范围已满足 ${goalDone} / ${goalTotal} 个概念"><i style="width:${pct}%"></i></div><span>${goalLabel} · 目标范围已满足 ${goalDone} / ${goalTotal} 个概念</span></div>
-    <div class="route-now">${names ? `<span class="sub">现在在读：</span>${names}` : `<span class="sub">${goalLabel}</span>`}</div>
-    <div class="route-explore"><span class="sub">${exploreLine(share)}</span></div>
+    <div class="route-now">${names ? `<span class="sub">现在在读：</span>${names}` : `<span class="sub">${goalLabel}</span>`}${route.progress_verification_deferred ? '<span class="sub">正文证据正在核验，当前进度暂不完整；稍后刷新。</span>' : ''}</div>
+    <div class="route-explore"><span class="sub">${exploreLine(route)}</span></div>
     <div class="route-foot"><span class="sub">开启后推荐先从你现在能读的概念里选论文，各条分支各走各的，互不等待。</span><a class="btn" href="${link}">查看和调整学习图</a></div>`;
 }
 $('#routePanel').addEventListener('click', async (event) => {
@@ -821,12 +828,13 @@ $('#routePanel').addEventListener('click', async (event) => {
     await load();
   } catch (e) { toast(`没能切换推荐方式：${e.message}`, 'err'); buttons.forEach((b) => { b.disabled = false; }); }
 });
-const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索', explore_new: '探索 · 新方向' };
+const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索', explore_new: '探索 · 新方向', watch: '新进展' };
 const ROUTE_TITLES = {
   route: '状态：来自学习图。它属于你现在能读的概念。',
   remedial: '状态：来自学习图。你把相关论文标为“太难”，所以先补一篇基础。',
-  explore: '状态：来自学习图的探索位。这篇没展示过，也不属于学习图里的任何概念（不管已读懂还是没解锁），但和你的兴趣接近；你点“收藏”之后，可以让 AI 判断它是不是一个明显不同于学习图里已有概念的新方向。',
-  explore_new: '状态：来自学习图的探索位，和一个已经出现的潜在方向读起来很像。你点“收藏”之后让 AI 判断，通常会并入那个方向，给它攒证据；到学习图页能看到进度。',
+  explore: '状态：探索。这篇没展示过，可能提出已有概念的新任务、缺失前置或新分支。检索来源只是线索；学习价值待确认。点击后可让 AI 判断。',
+  explore_new: '状态：探索。这篇没展示过，和潜在方向的论文相近。相近只是线索；学习价值待确认。点击后可让 AI 判断。',
+  watch: '状态：新进展。这篇没展示过，属于已满足且勾选持续关注的概念，并有近期发布日期。它不增加学习任务。',
 };
 function routeBadge(c) {
   if (!c.route) return '';
@@ -1081,12 +1089,13 @@ async function generate() {
     const r = await api('/api/daily', body);
     renderEligibility(r.eligibility);
     if (!r.cards || !r.cards.length) { toast(r.reason || '没有新候选，先抓取', 'warn'); return; }
-    state.cards = r.cards.map(c => ({ ...c, summary: null }));
+    state.cards = r.cards.map(c => ({ ...c, summary: r.reused ? c.summary : null }));
     renderCards();
-    toast(`已生成 ${r.cards.length} 篇`, 'ok');
-    if ($('#autoAi').checked) await autoTriage();
+    if (state.route?.enabled !== false && state.route) renderRoute(state.route);
+    toast(r.reused ? r.reason : (r.shortfall?.reason || `已生成 ${r.cards.length} 篇`), r.reused || r.shortfall ? 'warn' : 'ok');
+    if (!r.reused && $('#autoAi').checked) await autoTriage();
   } catch (e) { toast(`生成失败：${e.message}`, 'err'); }
-  finally { b.disabled = false; b.textContent = '生成今日 5 篇'; }
+  finally { b.disabled = false; b.textContent = dailyButtonText(); }
 }
 async function autoTriage() {
   if (state.triaging) return;

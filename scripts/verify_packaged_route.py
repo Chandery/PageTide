@@ -6,6 +6,7 @@ metadata fixtures exercise candidate refresh. This is a backend
 package check, not a native-window or recommendation-value evaluation.
 """
 import hashlib
+from collections import Counter
 import http.cookiejar
 import json
 import os
@@ -74,6 +75,15 @@ def main():
         pending=app.create_project('Legacy pending')['project_id']
         route_pid=app.create_project('Goal fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         recall_pid=app.create_project('Recall fixture',keywords=['recall topic'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        batch_pid=app.create_project('Batch fixture',keywords=['epitaxy'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        batch_route=app.route_save(batch_pid,plan={'concepts':[
+            {'id':'a','name':'Crystal foundation','terms':['crystal lattice'],'hint':1,'needs':[]},
+            {'id':'b','name':'Epitaxy task','terms':['epitaxy'],'hint':2,'needs':['a']}], 'targets':['b']})
+        batch_ids={c['name']:c['id'] for c in batch_route['graph']['concepts']}
+        app.route_manual(batch_pid,batch_ids['Crystal foundation'],'mastered')
+        app.route_watch(batch_pid,batch_ids['Crystal foundation'],True)
+        app.store.upsert_papers([{'key':kind+str(i),'title':term+' study '+str(i),'abstract':term+' methods and measurement',
+                 'language':'en','published':'2026-01-01'} for kind,term in [('bp','epitaxy'),('bx','photonic calibration'),('bw','crystal lattice')] for i in range(6)],batch_pid)
         recall=app.route_save(recall_pid,plan={'concepts':[
             {'id':'a','name':'Recall foundations','terms':['recall foundations'],'hint':1,'needs':[]},
             {'id':'b','name':'Recall methods','terms':['recall methods'],'hint':2,'needs':['a']},
@@ -126,6 +136,17 @@ def main():
             assert result['fetched']>0 and result['query_plan']==expected,result
         def first(call):
             refresh(call,recall_plans[0])
+            full=call('/api/daily',{'project_id':batch_pid})
+            assert Counter(c['route']['kind'] for c in full['cards'])=={'route':3,'explore':1,'watch':1},full
+            route=call('/api/route?project_id='+batch_pid)
+            completed=call('/api/route',{'action':'manual','project_id':batch_pid,'concept':batch_ids['Epitaxy task'],'value':'mastered','revision':route['revision']})
+            assert completed['goal_status']=='completed'
+            discovery=call('/api/daily',{'project_id':batch_pid})
+            assert len(discovery['cards'])==1 and discovery['cards'][0]['route']['kind']=='explore'
+            repeated=call('/api/daily',{'project_id':batch_pid,'run_date':'2099-01-01'})
+            assert repeated['reused'] and repeated['batch_id']==discovery['batch_id']
+            assert repeated['reason_code']=='completed_daily_limit'
+            assert 'function dailyButtonText()' in call('/',raw=True)
             assert 'const languages' in call('/paper-policy.js',raw=True)
             assert 'getData' in call('/reader-source.js',raw=True)
             blocked=call('/api/daily',{'project_id':pending})
@@ -165,6 +186,8 @@ def main():
             assert 'data-route-watch' in call('/route-editor.js',raw=True)
         launch(executable,data,home,first)
         def restart(call):
+            daily=call('/api/daily',{'project_id':batch_pid})
+            assert daily['reused'] and daily['reason_code']=='completed_daily_limit' and len(daily['cards'])==1
             refresh(call,recall_plans[1])
             refresh(call,recall_plans[2])
             projects=call('/api/projects')['projects']; project=next(p for p in projects if p['id']==pid)
@@ -186,7 +209,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, cached three-purpose refresh, rotation/paging/provenance after restart, assets, isolated HOME, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, assets, isolated HOME, outbound network blocked')
 
 
 if __name__=='__main__': main()

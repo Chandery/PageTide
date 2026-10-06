@@ -802,7 +802,7 @@
       "id": "ROUTE-V2-05",
       "stage": "graph",
       "title": "3+1+1 批次和完成后的每日发现",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "ROUTE-V2-04"
       ],
@@ -816,7 +816,11 @@
         "充足与各类短缺配额、相互补位、少推原因测试通过，路径不足不扩大探索",
         "已满足仅持续关注有新进展，手动与维护一致，目标完成多次点击不能绕过每日上限"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-05-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-05-review.md",
+        "docs/decisions/0017-route-batch-quota.md"
+      ]
     },
     {
       "id": "ROUTE-V2-06",
