@@ -277,9 +277,16 @@ class Organization:
                 if row:
                     papers.append(dict(row, saved_at=None))
         owners = self._owners()
+        understood = {}   # paper -> projects whose latest familiarity label is "understood" (the library shows it)
+        for row in self.conn.execute("""SELECT f.paper_key, f.project_id FROM feedback f
+            WHERE f.undone=0 AND f.action='understood' AND f.id=(SELECT MAX(g.id) FROM feedback g
+              WHERE g.undone=0 AND g.project_id=f.project_id AND g.paper_key=f.paper_key
+                AND g.action IN ('understood','too_hard'))"""):
+            understood.setdefault(row[0], []).append(row[1])
         for paper in papers:
             key = paper["key"]
             paper["projects"] = owners.get(key, [])
+            paper["understood_in"] = understood.get(key, [])
             paper["directions"] = data["memberships"].get(key, [])
             paper["note"], paper["note_version"] = self._note(key)
             if archived:

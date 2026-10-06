@@ -144,10 +144,13 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("p1", profile["too_hard_feedback"])
         self.assertNotIn("p1", profile["positive_feedback"])
 
-    def test_understood_is_familiarity_not_interest_and_not_a_save(self):
+    def test_understood_is_familiarity_not_interest_and_needs_a_saved_paper(self):
+        with self.assertRaisesRegex(ValueError, "先收藏"):
+            self.app.record_feedback("p1", "understood")
+        self.app.store.save_to_library("p1", project_id=self.app.get_default_project_id())
         result = self.app.record_feedback("p1", "understood")
         self.assertFalse(result["interest_changed"])
-        self.assertFalse(result["saved"])
+        self.assertFalse(result["saved"])   # this call saved nothing itself
         profile = self.app.profile()
         self.assertNotIn("p1", profile["positive_feedback"] + profile["explicit_negatives"] + profile["too_hard_feedback"])
         self.assertEqual(self.app.stats()["understood"], 1)

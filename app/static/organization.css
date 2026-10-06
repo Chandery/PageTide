@@ -125,8 +125,9 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .pdh-organization .org-category-actions button { display:block; width:100%; text-align:left; border:0; padding:6px 8px; }
 .org-directory-empty { padding:20px 8px; color:var(--org-muted); line-height:1.8; }
 .org-breadcrumb { font-size:12px; font-weight:500; color:var(--org-ink); width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.org-paper-actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; max-width:118px; }
-.org-paper-actions > button:first-child { font-size:12px; }
+.org-paper-actions { display:flex; align-items:center; gap:4px; flex-wrap:nowrap; flex:none; }
+.org-paper-actions > button { font-size:12px; white-space:nowrap; }
+.org-paper-actions > button.is-on { background:var(--org-active); border-color:var(--org-accent); }
 html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-graph-legend { position:absolute; bottom:12px; left:12px; z-index:2; display:flex; flex-direction:column; gap:4px; pointer-events:none; }
 .org-graph-legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--org-ink); background:color-mix(in srgb, var(--surface-1) 86%, transparent); border-radius:5px; padding:2px 7px 2px 4px; backdrop-filter:blur(4px); }

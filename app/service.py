@@ -1629,6 +1629,9 @@ class App:
                 (project_id, paper_key)).fetchone():
             raise ValueError("论文不属于当前项目")
 
+        if action in UNDERSTOOD_ACTIONS and not self.store.in_library(paper_key, project_id):
+            raise ValueError("先收藏这篇论文，才能标记已读懂")
+
         entry = self.latest_feedback(project_id).get(paper_key) or {}
         # A label replaces the earlier one of its own kind only: "understood" leaves "useful" standing.
         current = entry.get("familiar") if action in FAMILIARITY_ACTIONS else (entry if entry.get("action") in INTEREST_ACTIONS else None)

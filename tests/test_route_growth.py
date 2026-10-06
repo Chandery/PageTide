@@ -46,6 +46,8 @@ class Fixture(unittest.TestCase):
 
     def say(self, *pairs):
         for key, action in pairs:
+            if action == "understood":
+                self.app.store.save_to_library(key, project_id=self.pid)   # "understood" needs a saved paper
             self.app.record_feedback(key, action, project_id=self.pid)
 
     def names(self):

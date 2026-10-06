@@ -298,7 +298,7 @@
   }
   function renderList() {
     renderBulk();
-    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="detail" data-key="${h(p.key)}" title="打开右侧论文详情：摘要、笔记、所属类别和项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
+    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="detail" data-key="${h(p.key)}" title="打开右侧论文详情：摘要、笔记、所属类别和项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${understoodButton(p)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
   }
   // Which categories the open paper belongs to; each chip locates that category, and an
   // uncategorized paper says so instead of showing nothing.
@@ -312,6 +312,19 @@
   function aiSummaryHTML(s) {
     if (!s || !(s.one_liner || s.why_relevant)) return '';
     return `<section class="org-ai" aria-label="AI 速览"><b>AI 速览</b> <span data-no-i18n>${h(s.one_liner || '')}</span>${s.why_relevant || s.caution ? `<div class="org-ai-sub">${s.why_relevant ? `<span class="org-ai-label">相关：</span><span data-no-i18n>${h(s.why_relevant)}</span>` : ''}${s.caution ? `${s.why_relevant ? ' · ' : ''}<span class="org-ai-label">注意：</span><span data-no-i18n>${h(s.caution)}</span>` : ''}</div>` : ''}</section>`;
+  }
+  /* "已读懂" lives here, on a saved paper: you save it first, then say you understood it. It is recorded in one project:
+     the project tab being viewed, or the current project when the tab is 全部. Only a project that saved the paper counts. */
+  const understoodProject = p => {
+    const want = S.scope !== 'all' && S.scope ? S.scope : currentProject();
+    return owners(p).includes(want) ? want : (S.scope === 'all' || !S.scope ? owners(p)[0] || null : null);
+  };
+  function understoodButton(p) {
+    const project = understoodProject(p);
+    if (!project) return `<button type="button" disabled title="先在某个项目里收藏这篇论文，才能标记已读懂">已读懂</button>`;
+    const on = (p.understood_in || []).includes(project);
+    const where = owners(p).length > 1 ? `，记在项目「${projectName(project)}」` : '';
+    return `<button type="button" data-action="understood" data-key="${h(p.key)}" data-project="${h(project)}" class="${on ? 'is-on' : ''}" aria-pressed="${on}" title="${h(`读懂了：只推进学习进度，不改变兴趣画像${where}`)}">${on ? '✓ 已读懂' : '已读懂'}</button>`;
   }
   function summaryFor(key) {
     if (summaryCache.has(key)) return summaryCache.get(key);
@@ -1142,6 +1155,15 @@
       case 'membership': editMembership([...S.selected]); break;
       case 'paper-membership': editMembership([b.dataset.key]); break;
       case 'clear-selection': S.selected.clear(); S.cy?.elements().unselect(); renderList(); break;
+      case 'understood': {
+        const key = b.dataset.key, project = b.dataset.project, p = item(key);
+        try {
+          await window.PDH.api('/api/feedback', { key, action: 'understood', project_id: project });
+          if (p && !(p.understood_in || []).includes(project)) p.understood_in = [...(p.understood_in || []), project];
+          window.PDH.toast('已记录：已读懂（只推进学习进度，不改变兴趣）', 'ok');
+        } catch (e) { window.PDH.toast(e.message, 'err'); }
+        renderList(); break;
+      }
       case 'note-save': await saveNote(S.key); break;
       case 'draft-choose': {
         const key = S.key, draft = S.drafts.get(key);

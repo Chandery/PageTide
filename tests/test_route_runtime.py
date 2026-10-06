@@ -67,6 +67,7 @@ class Fixture(unittest.TestCase):
     def understand_the_basics(self):
         """Satisfy the entry concept through evidence (two understood papers), not by a manual mark."""
         for key in ("lat0", "lat1"):
+            self.app.store.save_to_library(key, project_id=self.pid)   # "understood" needs a saved paper
             self.app.record_feedback(key, "understood", project_id=self.pid)
 
     def batch(self, limit=5):
@@ -218,6 +219,7 @@ class BatchTests(Fixture):
     def test_a_branch_with_more_evidence_still_leaves_the_other_branch_its_turn(self):
         self.enable(mastered=["Crystal basics"])
         for key in ("epi0", "epi1"):
+            self.app.store.save_to_library(key, project_id=self.pid)   # "understood" needs a saved paper
             self.app.record_feedback(key, "understood", project_id=self.pid)
         cards = self.batch()
         nodes = [c["route"]["node"] for c in cards if c["route"]["kind"] == "route"]
@@ -348,6 +350,7 @@ class BatchTests(Fixture):
         self.app.store.conn.execute("DELETE FROM batches")
         self.app.store.conn.commit()
         for key in ("lat0", "lat1"):
+            self.app.store.save_to_library(key, project_id=self.pid)   # "understood" needs a saved paper
             self.app.record_feedback(key, "understood", project_id=self.pid)
         advanced = {c["route"]["node"] for c in self.batch() if c["route"]["kind"] == "route"}
         self.assertNotIn(self.cid["Crystal basics"], advanced)
@@ -362,6 +365,7 @@ class BatchTests(Fixture):
         self.enable()
         self.app.set_profile_frozen(True, self.pid)
         for key in ("lat0", "lat1"):
+            self.app.store.save_to_library(key, project_id=self.pid)   # "understood" needs a saved paper
             self.app.record_feedback(key, "understood", project_id=self.pid)
         self.assertEqual(self.app.route_get(self.pid)["progress"][self.cid["Crystal basics"]]["status"], "unlocked")
 
@@ -554,8 +558,9 @@ class HomeOffTests(Fixture):
         self.enable()
         self.fill()
         before = self.app.home_route(self.pid)
-        self.app.record_feedback("lat0", "understood", project_id=self.pid)
-        self.app.record_feedback("lat1", "understood", project_id=self.pid)
+        for key in ("lat0", "lat1"):
+            self.app.store.save_to_library(key, project_id=self.pid)   # "understood" needs a saved paper
+            self.app.record_feedback(key, "understood", project_id=self.pid)
         self.assertGreater(self.app.home_route(self.pid)["done"], before["done"])
         done = self.app.home_route(self.pid)["done"]
         self.app.route_manual(self.pid, self.cid["Epitaxy"], "mastered")

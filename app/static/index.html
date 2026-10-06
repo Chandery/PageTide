@@ -852,7 +852,6 @@ function cardHTML(c, i) {
           <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
         <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
         <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
-        <button class="tiny ${c.familiarity === 'understood' ? 'saved' : ''}" data-fb="understood" data-key="${esc(c.key)}" title="读懂了：只推进学习进度，不改变兴趣画像">${c.familiarity === 'understood' ? '✓ 已读懂' : '已读懂'}</button>
       </span>
       <span class="actions-end">
         <button class="tiny ai-action" data-ai="${esc(c.key)}" ${state.triaging || state.triagingKeys.has(c.key) ? 'disabled' : ''} title="${c.summary ? '让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）' : '让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）'}"><i class="icon sparkles" aria-hidden="true"></i>${c.summary ? '重新速览' : 'AI 速览'}</button>
@@ -1099,7 +1098,7 @@ async function doFeedback(key, action) {
     const body = { key, action };
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/feedback', body);
-    const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;
+    const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;   // "已读懂" is recorded from the library, on a saved paper
     toast(r.saved ? '已收藏到论文库（卡片保留）'
           : action === 'understood' ? '已记录：已读懂（只推进学习进度，不改变兴趣）'
           : (r.interest_changed ? `已记录：${said}` : `已记录：${said}（不影响兴趣）`),
@@ -1192,7 +1191,6 @@ async function openDetail(key) {
             ${d.url ? `<a class="btn tiny" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
             <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
             <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
-            <button class="tiny ${d.feedback?.familiar?.action === 'understood' ? 'saved' : ''}" data-fb="understood" data-key="${esc(d.key)}" title="读懂了：只推进学习进度，不改变兴趣画像">${d.feedback?.familiar?.action === 'understood' ? '✓ 已读懂' : '已读懂'}</button>
           </div>
         </div>
         <section class="detail-section detail-projects"><h3>加入其他项目</h3>
@@ -1310,6 +1308,9 @@ document.addEventListener('scroll', hidePreview, { passive: true });
     const note = sessionStorage.getItem('pdh-notice');
     if (note) { sessionStorage.removeItem('pdh-notice'); toast(note, 'ok', 8000); }
     await load();
+    // ?view=profile / ?view=library opens that tab (the weekly report's "返回画像" link uses it)
+    const wanted = new URLSearchParams(window.location.search).get('view');
+    if (wanted === 'profile' || wanted === 'library') document.querySelector(`.tab[data-view="${wanted}"]`)?.click();
     autoMaintain();
   } catch (e) {
     toast(`加载失败：${e.message}`, 'err');

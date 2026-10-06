@@ -32,6 +32,22 @@ class OrganizationTests(unittest.TestCase):
         self.assertEqual((names[one], names[two]), ("One", "Two"))
         self.assertTrue(all(isinstance(item["projects"], list) for item in snapshot["items"]))
 
+    def test_the_snapshot_lists_the_projects_where_a_paper_is_understood(self):
+        from app.project import ProjectManager
+        one = ProjectManager(self.store).create_project("One")
+        self.store.add_project_paper(one, "a")
+        self.store.save_to_library("a", project_id=one)
+        now = "2026-10-06T10:00:00"
+        for action, undone in (("understood", 0), ("too_hard", 0)):   # the later label replaces the earlier one
+            self.store.conn.execute("INSERT INTO feedback (paper_key, action, created_at, project_id, undone) VALUES (?,?,?,?,?)",
+                                    ("a", action, now, one, undone))
+        self.store.conn.execute("INSERT INTO feedback (paper_key, action, created_at, project_id, undone) VALUES (?,?,?,?,0)",
+                                ("b", "understood", now, one))
+        self.store.conn.commit()
+        found = {item["key"]: item["understood_in"] for item in self.org.snapshot()["items"]}
+        self.assertEqual(found["a"], [])        # too hard came last
+        self.assertEqual(found["b"], [one])
+
     def test_building_the_snapshot_with_project_data_writes_nothing_and_adds_no_undo_step(self):
         from app.project import ProjectManager
         pid = ProjectManager(self.store).create_project("One")

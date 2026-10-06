@@ -247,6 +247,8 @@ class ProgressFromFeedbackTests(Fixture):
 
     def feedback(self, *pairs):
         for key, action in pairs:
+            if action == "understood":
+                self.app.store.save_to_library(key, project_id=self.pid)   # "understood" needs a saved paper
             self.app.record_feedback(key, action, project_id=self.pid)
 
     def test_the_start_of_the_map(self):
@@ -311,11 +313,15 @@ class ProgressFromFeedbackTests(Fixture):
         self.assertIn("cb0", profile["positive_feedback"])
         self.assertIn("cb0", profile["too_hard_feedback"])
 
-    def test_understood_is_not_an_interest_signal_or_a_save(self):
-        self.feedback(("cb0", "understood"))
+    def test_understood_needs_a_saved_paper_and_is_not_an_interest_signal(self):
+        self.assertFalse(self.app.store.in_library("cb0", self.pid))
+        with self.assertRaisesRegex(ValueError, "先收藏"):
+            self.app.record_feedback("cb0", "understood", project_id=self.pid)
+        self.assertNotIn("cb0", self.app.latest_feedback(self.pid))   # nothing was recorded
+        self.feedback(("cb0", "understood"))   # the helper saves the paper first
         profile = self.app.profile(self.pid)
         self.assertNotIn("cb0", profile["positive_feedback"] + profile["explicit_negatives"])
-        self.assertFalse(self.app.store.in_library("cb0", self.pid))
+        self.assertFalse(self.app.record_feedback("cb0", "understood", project_id=self.pid)["saved"])   # this call saved nothing
         self.assertEqual(self.app.record_feedback("cb0", "understood", project_id=self.pid)["duplicate"], True)
 
     def test_undoing_understood_restores_the_earlier_too_hard_label(self):

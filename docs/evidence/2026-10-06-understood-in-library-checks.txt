@@ -1,0 +1,5 @@
+budget: PASS budget arithmetic and generated document parity (no live API)
+harness: PASS repository checks only; app gates/real billing are not implied
+tests: python3 -m unittest discover -s tests -> Ran 1071 tests, OK; all tests/*.cjs pass
+build: build_desktop.py + cargo tauri build --bundles app -> PaperDigHelper.app built
+not done: the library row layout was not looked at in a running app

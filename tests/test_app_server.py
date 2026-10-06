@@ -289,6 +289,7 @@ class ServerSmokeTests(unittest.TestCase):
             {"key": "p9", "title": "World Model Paper", "abstract": "latent planning",
              "published": "2026-08-01", "group_name": "field"}])
         app.build_batch(limit=1)
+        app.store.save_to_library("p9", project_id=app.get_default_project_id())   # "understood" needs a saved paper
         request = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/feedback",
             data=json.dumps({"key": "p9", "action": "understood"}).encode(),
