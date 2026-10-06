@@ -1576,6 +1576,10 @@ class App:
         self.projects.update_project(project_id, name=name)
         return self.projects.get_project(project_id)
 
+    def set_project_language(self, project_id, discipline, allowed_languages):
+        project_id = self._require_project_id(project_id)
+        return self.projects.set_language_policy(project_id, discipline, allowed_languages)
+
     KEEP_DELETE_BACKUPS = 3
 
     def delete_project(self, project_id):
@@ -2092,8 +2096,8 @@ class App:
         return {"undone": feedback_id}
 
     # ------------------------------------------------------------- full text
-    def save_fulltext(self, paper_key, pages):
-        self.store.save_fulltext(paper_key, pages)
+    def save_fulltext(self, paper_key, pages, source_pdf_sha256=None):
+        self.store.save_fulltext(paper_key, pages, source_pdf_sha256=source_pdf_sha256)
         return {"pages": len(pages), "chars": sum(len(p.get("text") or "") for p in pages)}
 
     def fulltext_status(self, paper_key):

@@ -4,6 +4,7 @@ Each project has independent profile, recommendations, and paper library.
 """
 import json
 import uuid
+from .paper_language import policy_from_row, validate_policy
 
 
 def now():
@@ -70,6 +71,7 @@ class ProjectManager:
             "creation_timestamp": row["creation_timestamp"],
             "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
             "decay_window_days": row["decay_window_days"],
+            "language_policy": policy_from_row(row),
             "guidance_transcript": json.loads(row["guidance_transcript"]) if row["guidance_transcript"] else None,
             "recommended_learning_path": json.loads(row["recommended_learning_path"]) if row["recommended_learning_path"] else None
         }
@@ -87,7 +89,8 @@ class ProjectManager:
                 "creation_mode": row["creation_mode"],
                 "creation_timestamp": row["creation_timestamp"],
                 "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
-                "decay_window_days": row["decay_window_days"]
+                "decay_window_days": row["decay_window_days"],
+                "language_policy": policy_from_row(row)
             }
             for row in rows
         ]
@@ -114,6 +117,20 @@ class ProjectManager:
         sql = f"UPDATE projects SET {', '.join(updates)} WHERE id=?"
         self.store.conn.execute(sql, params)
         self.store.conn.commit()
+
+    def set_language_policy(self, project_id, discipline, allowed_languages):
+        allowed = validate_policy(discipline, allowed_languages)
+        project = self.get_project(project_id)
+        if not project:
+            raise ValueError('项目不存在')
+        old = project['language_policy']
+        if old['discipline'] == discipline and old['allowed_languages'] == allowed:
+            return project
+        with self.store.conn:
+            self.store.conn.execute('''UPDATE projects SET discipline=?, allowed_languages=?,
+                language_policy_revision=language_policy_revision+1 WHERE id=?''',
+                (discipline, json.dumps(allowed), project_id))
+        return self.get_project(project_id)
 
     def delete_project(self, project_id):
         """Delete one project's state while retaining canonical paper facts."""

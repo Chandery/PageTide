@@ -276,7 +276,7 @@ class StoreMigrationTests(unittest.TestCase):
             store.record_pdf("k", "/tmp/a.pdf", "https://arxiv.org/pdf/1")
             store.close()
             conn = sqlite3.connect(str(path))
-            conn.execute("DELETE FROM schema_version WHERE version>=6")
+            conn.execute("DELETE FROM schema_version WHERE version=6")
             conn.commit()
             conn.close()
             store = Store(path)
@@ -315,18 +315,12 @@ class MigrationNumberingTests(unittest.TestCase):
     def make_db_at_foreign_version_5(self, tmp):
         path = Path(tmp) / "db.sqlite"
         store = Store(path)
-        store.init()
+        with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 5]):
+            store.init()
         conn = store.conn
-        conn.execute("DELETE FROM schema_version WHERE version>=5")
-        for table in ("pdf_versions",):
-            conn.execute(f"DROP TABLE IF EXISTS {table}")
         # what the real database looked like: the channels branch's migration 005 recorded, mine never run
         conn.execute("CREATE TABLE channel_status (channel TEXT PRIMARY KEY)")
         conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (5, '2026-10-02T00:56:04+00:00')")
-        conn.execute("ALTER TABLE pdfs RENAME TO pdfs_new")
-        conn.execute("CREATE TABLE pdfs (paper_key TEXT PRIMARY KEY, path TEXT NOT NULL, source_url TEXT, fetched_at TEXT NOT NULL)")
-        conn.execute("DROP TABLE pdfs_new")
-        conn.execute("ALTER TABLE papers DROP COLUMN oa_json")
         conn.execute("INSERT INTO papers (key, title, created_at, project_id) VALUES ('k','T','2026-01-01','default_project')")
         conn.execute("INSERT INTO pdfs VALUES ('k', '/x/a.pdf', 'u', '2026-01-01')")
         conn.commit()
@@ -339,7 +333,7 @@ class MigrationNumberingTests(unittest.TestCase):
             store = Store(path)
             store.init()  # used to crash: "no such column: sha256"
             applied = {r[0] for r in store.conn.execute("SELECT version FROM schema_version")}
-            self.assertTrue({1, 2, 3, 4, 5, 6, 7, 8} <= applied)
+            self.assertTrue({1, 2, 3, 4, 5, 6, 7, 8, 9} <= applied)
             self.assertTrue({"sha256", "bytes", "source_kind", "license"} <= {r[1] for r in store.conn.execute("PRAGMA table_info(pdfs)")})
             self.assertIn("oa_json", {r[1] for r in store.conn.execute("PRAGMA table_info(papers)")})
             self.assertEqual([h["path"] for h in store.pdf_history("k")], ["/x/a.pdf"])  # backfilled
@@ -351,7 +345,7 @@ class MigrationNumberingTests(unittest.TestCase):
             store = Store(Path(tmp) / "db.sqlite")
             store.init()
             applied = {r[0] for r in store.conn.execute("SELECT version FROM schema_version")}
-            self.assertEqual(applied, {1, 2, 3, 4, 6, 7, 8})
+            self.assertEqual(applied, {1, 2, 3, 4, 6, 7, 8, 9})
             self.assertEqual(migrations.pending(store.conn), 0)
             store.close()
 
@@ -800,7 +794,7 @@ class ReviewFixTests(AppCase):
         self.app.store.record_pdf("k", "/x/a.pdf", "u", sha256="ab", size=1, source_kind="arxiv")
         conn = self.app.store.conn
         conn.execute("DROP TABLE pdf_versions")
-        conn.execute("DELETE FROM schema_version WHERE version>=7")
+        conn.execute("DELETE FROM schema_version WHERE version=7")
         conn.commit()
         migrations.apply_migrations(conn)
         self.assertEqual([h["sha256"] for h in self.app.store.pdf_history("k")], ["ab"])

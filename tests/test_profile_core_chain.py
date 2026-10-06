@@ -387,13 +387,13 @@ class MigrationBackupTests(unittest.TestCase):
     def test_pending_migration_backs_up_and_backup_restores(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "paperdighelper.sqlite"
-            app = App(root=ROOT, data_dir=Path(tmp))
-            pid = app.create_project("Keep", "manual", ["kept"])["project_id"]
+            with mock.patch('app.migrations.MIGRATIONS', MIGRATIONS[:-1]):
+                app = App(root=ROOT, data_dir=Path(tmp))
+                pid = app.create_project("Keep", "manual", ["kept"])["project_id"]
             app.store.upsert_papers([{"key": "k1", "title": "Kept paper", "abstract": "", "published": "2026-01-01",
                                       "project_id": pid}])
-            app.record_feedback("k1", "useful", project_id=pid)
-            # Simulate a database written by an older build that still has the last migration pending.
-            app.store.conn.execute("DELETE FROM schema_version WHERE version=?", (len(MIGRATIONS),))
+            # The real old migration set supplies both the old schema and version history.
+            app.store.conn.execute("INSERT INTO feedback(paper_key,action,created_at,project_id) VALUES ('k1','useful','2026-01-01',?)", (pid,))
             app.store.conn.commit()
             app.store.conn.close()
 

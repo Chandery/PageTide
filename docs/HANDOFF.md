@@ -1,3 +1,12 @@
+# 当前工作单元：Route Mode 阶段 01 数据基础（2026-10-07）
+
+- 分支 `codex/route-discovery-rework`；阶段 00 已提交 `cc6bcaf`。本切片在其后本地提交，最新哈希用 `git log -1` 核对。唯一状态源仍为 `harness/tasks.json`，ROUTE-V2-01 为 in_progress，E-ROUTE-V2-01 为 not_run。目标仍是执行完整 [方案](ROUTE_MODE_REWORK.md)，不能把此切片当重构完成。
+- 已实现数据基础：迁移 009 保存显式学科/允许语言/revision，旧项目保持 pending；STEM 只接受英文，文科13种固定选项可多选。OpenAlex语言单独保存，不从英文标题猜全文。全文语言核验绑定 PDF hash，替换失效且历史证据保留。
+- 正文保存可明确传来源 hash；缺失保持 NULL，过期版本被拒绝，分页失败原子回滚，HTTP透传并返回400。旧阅读器目前仍提交未绑定正文，尚未作为当前文件证据；后续必须接入来源版本与当前版本读取。
+- 最终全量1205 Python测试通过；独立审查实际21项基础/迁移/备份及1项HTTP测试通过，发现误绑定和迁移夹具问题已修复复查。后端与 Tauri .app 重新构建成功；打包后端从v8夹具升级v9、pending策略、备份、隔离认证、退出重启通过。原生窗口未操作。[检查](evidence/2026-10-07-route-v2-01a-checks.txt)、[审查](evidence/2026-10-07-route-v2-01a-review.md)、[ADR](decisions/0013-project-paper-language.md)。
+- 模型预算和外发范围不变，新增本地逻辑0模型token。AI扩展仍未批准、未真实调用，旧发布门槛不改为 passed。
+- 下一步继续 ROUTE-V2-01：项目设置/创建UI与API接入、旧项目生成新批次前的语言策略检查、策略变化的资格失效和元数据/全文状态显示。随后 ROUTE-V2-02 共用资格函数，并把阅读器实际抽取文件的hash传到正文保存、过滤过期缓存。资格规则只有摘要或当前有效本地正文；链接不能代替正文。调整既有推荐测试时显式补语言策略与元数据夹具，不在生产默认猜英文，不用全局测试补丁绕过门槛。
+
 # 当前工作单元：Route Mode 重构阶段 00（2026-10-07）
 
 - 分支 `codex/route-discovery-rework`，基线 `850f9fc`。完整设计见 [方案](ROUTE_MODE_REWORK.md)；唯一阶段状态在 `harness/tasks.json`（ROUTE-V2-00 至 08）。

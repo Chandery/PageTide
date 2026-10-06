@@ -131,6 +131,7 @@ def oa_of(work):
 
 
 def slim(work, group="field"):
+    from .paper_language import metadata_code
     ids = ids_of(work)
     abstract = abstract_text(work.get("abstract_inverted_index"))
     topic = ((work.get("primary_topic") or {}).get("display_name")
@@ -145,6 +146,8 @@ def slim(work, group="field"):
                                       for a in (work.get("authorships") or [])[:6]) if name],
         "group_name": group,
         "oa": oa_of(work),
+        "metadata_language": metadata_code(work.get('language')),
+        "metadata_language_source": 'OpenAlex',
     }
 
 

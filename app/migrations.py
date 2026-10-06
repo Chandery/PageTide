@@ -257,6 +257,27 @@ def migrate_005_reserved_for_channels(conn):
 
 migrate_005_reserved_for_channels.reserved = True
 
+
+def migrate_009_project_languages(conn):
+    """Add explicit policy and version-bound language evidence; infer no legacy values."""
+    for table, column, kind in (
+            ('projects', 'discipline', 'TEXT'),
+            ('projects', 'allowed_languages', "TEXT NOT NULL DEFAULT '[]'"),
+            ('projects', 'language_policy_revision', 'INTEGER NOT NULL DEFAULT 0'),
+            ('papers', 'metadata_language', 'TEXT'),
+            ('papers', 'metadata_language_source', 'TEXT'),
+            ('fulltext', 'source_pdf_sha256', 'TEXT')):
+        conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {kind}')
+    conn.execute('''CREATE TABLE fulltext_languages (
+        paper_key TEXT NOT NULL REFERENCES papers(key),
+        pdf_sha256 TEXT NOT NULL,
+        language TEXT NOT NULL,
+        method TEXT NOT NULL,
+        verified_at TEXT NOT NULL,
+        PRIMARY KEY (paper_key, pdf_sha256)
+    )''')
+    set_schema_version(conn, 9)
+
 MIGRATIONS = [
     migrate_001_multi_project,
     migrate_002_shared_papers,
@@ -266,6 +287,7 @@ MIGRATIONS = [
     migrate_006_pdf_acquisition,
     migrate_007_pdf_versions,
     migrate_008_exposure_route,
+    migrate_009_project_languages,
 ]
 
 

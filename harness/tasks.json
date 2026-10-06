@@ -708,7 +708,7 @@
       "id": "ROUTE-V2-01",
       "stage": "graph",
       "title": "项目语言策略与可恢复迁移",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "ROUTE-V2-00"
       ],
@@ -722,7 +722,10 @@
         "迁移备份恢复与重复启动通过，旧历史可读，旧项目未选择策略不得生成新批次",
         "元数据不冒充全文语言，PDF 版本变化使核验失效，项目隔离和策略变更测试通过"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-01a-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-01a-review.md"
+      ]
     },
     {
       "id": "ROUTE-V2-02",

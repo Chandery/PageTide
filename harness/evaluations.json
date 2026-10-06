@@ -202,7 +202,10 @@
       "status": "not_run",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-01. 迁移备份恢复与重复启动通过，旧历史可读，旧项目未选择策略不得生成新批次；元数据不冒充全文语言，PDF 版本变化使核验失效，项目隔离和策略变更测试通过。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-01a-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-01a-review.md"
+      ]
     },
     {
       "id": "E-ROUTE-V2-02",

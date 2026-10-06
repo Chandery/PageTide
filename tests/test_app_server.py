@@ -70,6 +70,25 @@ class ServerSmokeTests(unittest.TestCase):
         self.assertIn("stats", payload)
         self.assertIn("summaries", payload)
 
+    def test_fulltext_version_rejects_stale_extraction_over_http(self):
+        app = server.make_app(str(self.root))
+        app.store.upsert_papers([{'key': 'versioned-body', 'title': 'Versioned body'}])
+        current = 'b' * 64
+        app.store.record_pdf('versioned-body', 'current.pdf', sha256=current)
+        app.store.close()
+        payload = {'key': 'versioned-body', 'pages': [{'page': 1, 'text': 'Text'}]}
+        status, body = self._post('/api/fulltext', {**payload, 'source_pdf_sha256': 'a' * 64})
+        self.assertEqual(status, 400)
+        self.assertIn('PDF', body['error'])
+        status, _ = self._post('/api/fulltext', {**payload, 'source_pdf_sha256': current})
+        self.assertEqual(status, 200)
+        app = server.make_app(str(self.root))
+        try:
+            self.assertEqual(app.store.conn.execute('SELECT source_pdf_sha256 FROM fulltext WHERE paper_key=?',
+                             ('versioned-body',)).fetchone()[0], current)
+        finally:
+            app.store.close()
+
     def test_paper_detail_endpoint(self):
         app = server.make_app(str(self.root))
         # A realistic key contains '://' and '/', which is why the API takes ?key= or a POST body.

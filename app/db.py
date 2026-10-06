@@ -159,6 +159,11 @@ class Store:
                  paper["title"], paper.get("abstract"), paper.get("published"),
                  paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now()))
             added += cur.rowcount
+            if 'metadata_language' in paper or 'language' in paper:
+                from .paper_language import metadata_code
+                self.conn.execute('''UPDATE papers SET metadata_language=?, metadata_language_source=? WHERE key=?''',
+                    (metadata_code(paper.get('metadata_language', paper.get('language'))),
+                     str(paper.get('metadata_language_source') or 'metadata')[:80], paper['key']))
             if paper.get("oa") is not None:
                 # Open-access status changes over time, so the newest report replaces the old one.
                 self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
@@ -332,6 +337,37 @@ class Store:
                           (json.dumps(oa, ensure_ascii=False) if oa is not None else None, paper_key))
         self.conn.commit()
 
+    def record_fulltext_language(self, paper_key, language, pdf_sha256, method):
+        from .paper_language import LANGUAGES
+        if (not isinstance(pdf_sha256, str) or len(pdf_sha256) != 64
+                or any(c not in '0123456789abcdef' for c in pdf_sha256)):
+            raise ValueError('全文语言核验必须对应当前 PDF 版本')
+        if not isinstance(language, str) or language not in LANGUAGES or method != 'manual':
+            raise ValueError('全文语言或核验方式无效')
+        cur = self.conn.execute('''INSERT INTO fulltext_languages
+            SELECT ?,?,?,?,? FROM pdfs WHERE paper_key=? AND sha256=?
+            ON CONFLICT(paper_key,pdf_sha256) DO UPDATE SET language=excluded.language,
+            method=excluded.method, verified_at=excluded.verified_at''',
+            (paper_key, pdf_sha256, language, method, now(), paper_key, pdf_sha256))
+        if cur.rowcount != 1:
+            self.conn.rollback()
+            raise ValueError('全文语言核验必须对应当前 PDF 版本')
+        self.conn.commit()
+
+    def paper_language(self, paper_key):
+        paper = self.paper(paper_key)
+        if not paper:
+            raise ValueError('论文不存在')
+        verified = self.conn.execute('''SELECT l.* FROM fulltext_languages l
+            JOIN pdfs p ON p.paper_key=l.paper_key AND p.sha256=l.pdf_sha256
+            WHERE l.paper_key=?''', (paper_key,)).fetchone()
+        return {'metadata_language': paper['metadata_language'],
+                'metadata_source': paper['metadata_language_source'],
+                'fulltext_language': verified['language'] if verified else None,
+                'fulltext_status': 'verified' if verified else 'unverified',
+                'verification_method': verified['method'] if verified else None,
+                'pdf_sha256': verified['pdf_sha256'] if verified else None}
+
     # --------------------------------------------------------------- settings
     def set_setting(self, key, value):
         self.conn.execute("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -454,15 +490,27 @@ class Store:
         self.conn.commit()
 
     # ------------------------------------------------------------- full text
-    def save_fulltext(self, paper_key, pages):
+    def save_fulltext(self, paper_key, pages, source_pdf_sha256=None):
         stamp = now()
-        for page in pages:
-            self.conn.execute(
-                """INSERT INTO fulltext (paper_key, page, content, chars, created_at) VALUES (?,?,?,?,?)
-                   ON CONFLICT(paper_key, page) DO UPDATE SET content=excluded.content,
-                   chars=excluded.chars, created_at=excluded.created_at""",
-                (paper_key, int(page["page"]), page.get("text") or "", len(page.get("text") or ""), stamp))
-        self.conn.commit()
+        if source_pdf_sha256 is not None and (
+                not isinstance(source_pdf_sha256, str) or len(source_pdf_sha256) != 64
+                or any(c not in '0123456789abcdef' for c in source_pdf_sha256)):
+            raise ValueError('正文来源 PDF 版本无效')
+        # An unversioned reader may save text for legacy reading, but it cannot
+        # claim this came from today's PDF. A supplied version is checked in the
+        # write statement, under the same transaction as every page.
+        with self._lock, self.conn:
+            for page in pages:
+                cur = self.conn.execute(
+                    """INSERT INTO fulltext (paper_key, page, content, chars, created_at, source_pdf_sha256)
+                       SELECT ?,?,?,?,?,? WHERE ? IS NULL OR EXISTS
+                       (SELECT 1 FROM pdfs WHERE paper_key=? AND sha256=?)
+                       ON CONFLICT(paper_key, page) DO UPDATE SET content=excluded.content,
+                       chars=excluded.chars, created_at=excluded.created_at, source_pdf_sha256=excluded.source_pdf_sha256""",
+                    (paper_key, int(page["page"]), page.get("text") or "", len(page.get("text") or ""),
+                     stamp, source_pdf_sha256, source_pdf_sha256, paper_key, source_pdf_sha256))
+                if cur.rowcount != 1:
+                    raise ValueError('PDF 已变化，请重新提取正文')
 
     def fulltext_pages(self, paper_key):
         rows = self.conn.execute(

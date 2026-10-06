@@ -655,7 +655,11 @@ class Handler(BaseHTTPRequestHandler):
             project_id = body.get("project_id")
             self._json({"items": app.library(project_id), "stats": app.stats(project_id)})
         elif route == "/api/fulltext":
-            self._json(app.save_fulltext(body.get("key") or "", body.get("pages") or []))
+            try:
+                self._json(app.save_fulltext(body.get("key") or "", body.get("pages") or [],
+                                             source_pdf_sha256=body.get('source_pdf_sha256')))
+            except (ValueError, TypeError) as exc:
+                return self._json({"error": str(exc)}, 400)
         elif route == "/api/qa":
             try:
                 self._json(app.qa(body.get("key"), body.get("question") or "", body.get("selection"),
