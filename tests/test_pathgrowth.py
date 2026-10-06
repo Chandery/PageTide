@@ -307,7 +307,7 @@ class MergeTests(unittest.TestCase):
         self.assertTrue(pg.is_acyclic(merged))
         self.assertEqual([(e["from"], e["state"]) for e in merged["prereqs"]], [(cid, "proposed")])
 
-    def test_merging_twice_adds_the_concept_once_and_never_a_redundant_edge(self):
+    def test_merging_twice_preserves_both_explicit_proposed_prerequisites(self):
         graph = graph_of(("A", ["aterm"], []), ("B", ["bterm"], [0]))
         a, b = [c["id"] for c in graph["concepts"]]
         cand = {"id": "g-1", "name": "new topic", "terms": ["new topic"], "papers": ["x"], "prereqs": [{"from": a, "support": 0.5}, {"from": b, "support": 0.4}]}
@@ -315,7 +315,7 @@ class MergeTests(unittest.TestCase):
         twice = pgr.merge_candidate(once, cand)
         self.assertEqual(once, twice)
         new_id = once["concepts"][-1]["id"]
-        self.assertEqual([(e["from"], e["to"]) for e in once["prereqs"] if e["to"] == new_id], [(b, new_id)])   # a -> new is implied by a -> b -> new
+        self.assertEqual([(e["from"], e["to"]) for e in once["prereqs"] if e["to"] == new_id], [(a, new_id), (b, new_id)])   # Explicit proposed edges survive preview.
 
     def test_a_direction_with_no_known_prerequisite_becomes_an_entry(self):
         graph = graph_of(("A", ["aterm"], []))

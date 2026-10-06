@@ -357,7 +357,7 @@ class Organization:
         with self._transaction(write=False):
             return self._snapshot()
 
-    def action(self, body):
+    def action(self, body, *, precondition=None):
         if not isinstance(body, dict):
             raise ValueError("Action must be an object")
         op = body.get("op", body.get("action"))
@@ -378,6 +378,8 @@ class Organization:
         if op == "suggest":
             return self._suggest(body)
         with self._transaction(write=op not in {"history", "export", "drafts"}):
+            if precondition is not None:
+                precondition()
             revision, data = self._load()
             if "revision" in body and _version(body["revision"], "revision") != revision:
                 raise Conflict("Organization revision conflict")

@@ -251,10 +251,13 @@
     },
     {
       "id": "E-ROUTE-V2-06",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-06. 非探索路径论文也能支持生长；导入、曝光、沉默和撤销后的收藏残留不算证据；完整有界 Map、图变更过期、近邻深化、前置缺口、不确定和人工编辑测试通过；真实 AI 质量另测。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-06-proposals-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-06-proposals-review.md"
+      ]
     },
     {
       "id": "E-ROUTE-V2-07",

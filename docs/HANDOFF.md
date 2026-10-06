@@ -1,3 +1,12 @@
+# 当前工作单元：Route Mode 阶段06完成（2026-10-07）
+
+- 分支 `codex/route-discovery-rework`，基线 `a7abf94`，本单元本地提交哈希以git log核对。唯一任务状态在 `harness/tasks.json`：00–06 done，07–08 planned；完整目标未完成。
+- 完整有界Map/临时别名、新route_growth_judge、已有任务附近深化/前置缺口/新分支/已覆盖/不确定/补证据、过期签名、活动目标预览、原子确认、跨进程claim及中英文UI已实现。图或相关有效证据变化拒绝旧意见，布局/无关兴趣不误伤。相似度/计数只解释，低证据可主动确认，手动入口保持。
+- 修复重复发送、过期遮挡、撤销拒绝不重开、目标预览误算proposed边。失败/409刷新次数和过期，保留编辑草稿；未知5xx保留次数/预算预留，4xx已释放才退。缺口两个方向均未确认虚线。原始提议保留支持接受/拒绝后的撤销，不为清理破坏undo；12仅当前有效意见，页面5、模型3，历史大规模资源未知。
+- 最终1354 Python、241 Node、153目标通过；独立核心247、追加80Node/20Python通过，无剩余P1/P2。新后端/Tauri .app和实际新包隔离后端确认/目标重开/撤销/过期/重启/AI-off及前期兼容通过。[检查](evidence/2026-10-07-route-v2-06-proposals-checks.txt)、[审查](evidence/2026-10-07-route-v2-06-proposals-review.md)、[ADR](decisions/0018-route-growth-proposals.md)。
+- 新操作仍owner_approved=false，真实模型token/外发0、真实库/源未调用；临时假模型/缓存来源，出站代理封锁。参考3000/700、上限8000/1000、每项目本地日10尝试；全局额度不变，官方价格/协议UTC2026-10-06（本地07）HTTP200复核，旧记录保留。原授权不扩用。E06 passed仅离线合同+新包后端，不证明AI质量/tokenizer/账单/原生窗口/推荐价值/全文语言准确率/8GB资源；原发布gates保留。
+- 下一步07固定五字段需求（goal250/known150/include150/exclude150/structure500，仅goal必填）、完整紧凑Map+allowlist patch预览、严格引用/目标/冲突/循环/容量、保留显式边、身份与掌握cutoff、revision+有效反馈CAS、原子graph+brief+cutoffs及undo。之后08共享paper双图导航/Routeoff/迟到响应、隔离全链条及原生完整流程；新AI范围/预算仍需独立审批，不借旧授权。
+
 # 当前工作单元：Route Mode 阶段06进行中（2026-10-07）
 
 - 分支 `codex/route-discovery-rework`，基线 `b752d63`。证据基础本地提交后的最新哈希用git log核对，阶段06未完成；07–08继续保留 planned。任务状态以 `harness/tasks.json` 为准。

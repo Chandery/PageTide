@@ -1,0 +1,101 @@
+Stage06 complete offline acceptance, baseline a7abf94, branch codex/route-discovery-rework.
+Final1354 Python exit0;241 Node exit0; final153 targeted exit0. Independent core247 plus final80Node/20Python exit0; no remaining P1/P2.
+Fresh backend and Tauri app exit0, actual freshly bundled backend isolated acceptance exit0. Stage07-08 and full goal remain incomplete.
+New operation owner_approved=false, no real model/metadata source/library accesses. Official public protocol/price HTML HTTP200 separately checked UTC2026-10-06/local07.
+Native-window full flow, true model quality/tokenizer/billing, actual recommendation value, language accuracy, large-history/8GB resources remain unmeasured. Global ceilings and original release gates unchanged.
+
+Final Python summary:
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+ok
+
+----------------------------------------------------------------------
+Ran 1354 tests in 295.670s
+
+OK
+
+Final Node summary:
+  duration_ms: 0.094875
+  type: 'test'
+  ...
+1..241
+# tests 241
+# suites 0
+# pass 241
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 763.20425
+
+Targeted summary:
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+Database is up to date (version 9)
+Database is up to date (version 9)
+Database is up to date (version 9)
+Database is up to date (version 9)
+----------------------------------------------------------------------
+Ran 153 tests in 3.973s
+
+OK
+
+Backend summary:
+3248 INFO: Removing signature(s) from EXE
+3258 INFO: Modifying Mach-O image UUID(s) in EXE
+3262 INFO: Appending PKG archive to EXE
+3262 INFO: Fixing EXE headers for code signing
+3265 INFO: Re-signing the EXE
+3276 INFO: Building EXE from EXE-00.toc completed successfully.
+3277 INFO: checking COLLECT
+3278 INFO: Removing dir /Users/chandery/PaperDigHelper/.local/desktop-dist/paperdighelper-server
+3291 INFO: Building COLLECT COLLECT-00.toc
+3614 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+3616 INFO: Build complete! The results are available in: /Users/chandery/PaperDigHelper/.local/desktop-dist
+Prepared /Users/chandery/PaperDigHelper/src-tauri/resources/paperdighelper-server
+
+Tauri summary:
+        Info Looking up installed tauri packages to check mismatched versions...
+   Compiling paper-dig-helper v0.1.0 (/Users/chandery/PaperDigHelper/src-tauri)
+    Finished `release` profile [optimized] target(s) in 14.13s
+       Built application at: /Users/chandery/PaperDigHelper/src-tauri/target/release/paper-dig-helper
+    Bundling PaperDigHelper.app (/Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+    Finished 1 bundle at:
+        /Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app
+
+
+Fresh packaged backend summary:
+Migration 4 applied successfully
+Applying migration 6: migrate_006_pdf_acquisition
+Migration 6 applied successfully
+Applying migration 7: migrate_007_pdf_versions
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+Database is up to date (version 9)
+PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, assets, isolated HOME, outbound network blocked
+
+Commands all exit0:
+python3 -m unittest discover -s tests -v
+node --test tests/*.cjs
+PYTHONPATH=tests python3 -m unittest test_growth_proposals test_gateway_budget test_route_growth test_growth_ui test_i18n test_budget -q
+.local/desktop-build-env/bin/python scripts/build_desktop.py
+cargo tauri build --bundles app
+python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server
+
+Earlier failures and fixes: first full1351 had one translation-coverage failure (two missing entries). Added entries; subsequent intermediate1351 runs passed. UI supplemental targets caught two obsolete static contracts (loadGrowth6→7, incoming-only ghost→both endpoints); updated and actual six VM callbacks passed. Final full1354 above includes HTTP4xx/5xx fixes. Future-date registry check initially failed because local07 is UTC06; source dates corrected to actualUTC06. These are historical failures, not hidden skips.
+
+Official documents actual fresh reads: pricing HTTP200/23982 bytes SHA256210f102275ccf1a6542f08a3bc9e4b4c7c83278cb74b35217bffa112df6363b2; chat HTTP200/142966 bytes SHA256e7133a7c2a7c2662567cca2e2392b503f97c2fb583009ff85f878744e0a36ba7. Web tool timed out; urllib fallback fetched public official HTML, not a model request. Provider prices unchanged; historical records preserved. New single-call cap9000/$0.0036, eight cap calls/month72000/$0.0288 are arithmetic, not billing.
+
+Packaged fixtures: startup authenticated/isolated; a temporary fake model opinion is prepared locally, then actual bundle serves preview/confirm/goal-reopen/undo/stale/restart and AI-off refusal. This does not establish real model output quality or actual native-window usability. Temporary HOME marker unchanged; outbound proxy blocked; cached source fixtures only.
+
+Final governance: python3 scripts/budget.py --check exit0; python3 scripts/harness.py check exit0; python3 scripts/harness.py review changes/2026-10-07-route-v2-06-proposals.json exit0; git diff --check exit0. Initial review lacked the structured quantified object and failed; added per-call before3000/500/$0.0015 versus after8000/1000/$0.0036 arithmetic (not a measurement/approval), then final review passed.

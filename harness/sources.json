@@ -424,6 +424,22 @@
       "recheck_after_days": 30,
       "claim": "deepseek-flash accepts OpenAI-compatible content parts: text plus image_url with either a base64 data URL or a public http(s) link (<=32 MiB, link <=8192 chars). The same model name serves vision, so no separate vision model is required.",
       "verification": "official vision guide fetched (HTTP 200); request shape cross-checked with the OpenAI-format example on the page; no live image call made yet"
+    },
+    {
+      "id": "DS-PRICE-20261006",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "verified_on": "2026-10-06",
+      "recheck_after_days": 30,
+      "claim": "Flash V4.1 peak cache-miss input $0.30/M, cache-hit $0.006/M, output $1.20/M; off-peak half. Same existing price basis; no billing probe.",
+      "verification": "Official HTML HTTP 200, bytes=23982, SHA256=210f102275ccf1a6542f08a3bc9e4b4c7c83278cb74b35217bffa112df6363b2; after web timeout via stdlib urllib. No documented effective date or real billing/tokenizer measurement. Historical source records preserved. Checked at local2026-10-07/UTC2026-10-06; registry date uses UTC."
+    },
+    {
+      "id": "DS-CHAT-20261006",
+      "url": "https://api-docs.deepseek.com/api/create-chat-completion",
+      "verified_on": "2026-10-06",
+      "recheck_after_days": 30,
+      "claim": "Explicit thinking disabled and max_tokens supported; finish_reason length means incomplete generation, even parseable JSON may be truncated. No live model probe.",
+      "verification": "Official HTML HTTP 200, bytes=142966, SHA256=e7133a7c2a7c2662567cca2e2392b503f97c2fb583009ff85f878744e0a36ba7; after web timeout via stdlib urllib. No documented effective date or real billing/tokenizer measurement. Historical source records preserved. Checked at local2026-10-07/UTC2026-10-06; registry date uses UTC."
     }
   ]
 }

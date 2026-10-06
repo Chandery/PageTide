@@ -826,7 +826,7 @@
       "id": "ROUTE-V2-06",
       "stage": "graph",
       "title": "有效证据驱动生长提议",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "ROUTE-V2-05"
       ],
@@ -840,7 +840,11 @@
         "非探索路径论文也能支持生长；导入、曝光、沉默和撤销后的收藏残留不算证据",
         "完整有界 Map、图变更过期、近邻深化、前置缺口、不确定和人工编辑测试通过；真实 AI 质量另测"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-06-proposals-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-06-proposals-review.md",
+        "docs/decisions/0018-route-growth-proposals.md"
+      ]
     },
     {
       "id": "ROUTE-V2-07",

@@ -15,14 +15,14 @@ class GrowthPageTests(unittest.TestCase):
     def test_the_page_has_the_section_and_explains_the_outline_and_what_counts_as_evidence(self):
         self.assertIn('data-role="findGrowth"', HTML)
         self.assertIn('data-role="growthList"', HTML)
-        for wanted in ("潜在方向来自“探索”", "明显不同于学习图里已有概念", "点下面的某个方向，上面的图里才会出现", "整圈变成实线才能加入",
-                       "“有用”“已读懂”", "“不感兴趣”“太难”和没点过的论文都不算", "点“加入学习图”才会加入"):
+        for wanted in ("生长证据来自你明确认为有用或选作种子的论文", "不限于探索位", "点下面的某个方向，上面的图里才会出现",
+                       "“已读懂”只影响学习进度", "导入、曝光、沉默不算兴趣", "点“加入学习图”才会加入", "旧提议会过期，不自动重判"):
             self.assertIn(wanted, HTML)
 
     def test_directions_are_read_when_the_page_opens_and_after_each_change_to_the_map_never_by_surprise_elsewhere(self):
         self.assertEqual(JS.count("action: 'candidates'"), 1)            # one request site, in loadGrowth
         calls = [i for i in range(len(JS)) if JS.startswith("loadGrowth()", i)]
-        self.assertEqual(len(calls), 6)   # declaration, load(), save, the refresh button, after add / reject / undo and after the judge click
+        self.assertEqual(len(calls), 7)   # declaration, load(), save, the refresh button, after add / reject / undo and after the judge response or Conflict
         load = JS[JS.index("async function load()"):JS.index("function render()")]
         self.assertIn("loadGrowth();", load)
         save = JS[JS.index("part('save').onclick"):JS.index("part('modeSeg').onclick")]
@@ -44,7 +44,7 @@ class GrowthPageTests(unittest.TestCase):
 
     def test_a_ghost_node_gets_the_progress_outline_a_dashed_arrow_and_its_own_panel(self):
         self.assertIn("R.ringSVG(concept.candidate.progress, concept.candidate.status === 'ready', node.w, node.h)", JS)
-        self.assertIn("String(to).startsWith('ghost:') ? 'ghost'", JS)
+        self.assertIn("(String(from).startsWith('ghost:') || String(to).startsWith('ghost:')) ? 'ghost'", JS)
         self.assertIn("R.ghostDetailHTML(found, {locked: state.dirty})", JS)
 
     def test_accepting_and_rejecting_carry_the_revision_so_a_stale_page_is_refused(self):
@@ -116,10 +116,10 @@ class PreviewAndJudgeTests(unittest.TestCase):
         self.assertEqual(JS.count("action: 'direction-judge'"), 1)
         self.assertIn("if (kind === 'judge') { judgeNow(); return; }", JS)
         self.assertEqual(JS.count("judgeNow()"), 2)                        # the declaration and the click
-        self.assertIn("没有使用 AI：${out.reason", JS)                      # a refusal is said, not hidden
+        self.assertIn("未得到有效判断：${out.reason", JS)                      # a refusal is said, not hidden
 
-    def test_the_today_page_only_offers_after_a_collected_exploration_paper_and_sends_nothing_until_clicked(self):
-        self.assertIn("(action === 'useful' || action === 'understood') && isExploration(card) && state.currentProject) card.judgeAsk = true;", INDEX)
+    def test_the_today_page_offers_after_useful_papers_with_a_map_and_sends_nothing_until_clicked(self):
+        self.assertIn("action === 'useful' && state.route && state.route.graph && state.currentProject) card.judgeAsk = true;", INDEX)
         self.assertEqual(INDEX.count("action: 'direction-judge'"), 1)
         doing = INDEX[INDEX.index("async function doJudge"):INDEX.index("function cardHTML")]
         self.assertIn("/api/route", doing)

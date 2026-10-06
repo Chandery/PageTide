@@ -96,7 +96,7 @@ function render() {
     extraClass: (concept) => (concept.ghost ? `ghost${concept.candidate.status === 'ready' ? ' ready' : ''}`
       : known && route.progress && route.progress[concept.id] && route.progress[concept.id].manual === 'mastered' ? 'mastered' : ''),
     decorate: (el, concept, node) => { if (concept.ghost) el.insertAdjacentHTML('beforeend', R.ringSVG(concept.candidate.progress, concept.candidate.status === 'ready', node.w, node.h)); },
-    edgeState: (from, to) => (String(to).startsWith('ghost:') ? 'ghost' : known && route.progress && route.progress[from] && route.progress[from].status === 'satisfied' ? 'met'
+    edgeState: (from, to) => ((String(from).startsWith('ghost:') || String(to).startsWith('ghost:')) ? 'ghost' : known && route.progress && route.progress[from] && route.progress[from].status === 'satisfied' ? 'met'
       : known && route.progress && route.progress[to] && route.progress[to].status === 'locked' ? 'wait' : 'plain'),
     onSelect: (id) => {
       state.selected = id; state.editing = null; state.pendingIntro = null;
@@ -334,6 +334,7 @@ function renderGrowth() {
   if (!result) { box.innerHTML = growth.error ? `<p class="hint">${esc(growth.error)}</p>` : '<p class="hint">正在找潜在方向…</p>'; return; }
   const locked = state.dirty;   // a direction is saved straight to the stored map, so unsaved edits must be dealt with first
   box.innerHTML = R.pendingHTML(result, {busy: growth.judging})
+    + R.judgementsHTML(result)
     + (result.candidates || []).map((c) => R.candidateRowHTML(c, growth.selected)).join('')
     + (R.growthNote(result) ? `<p class="hint">${esc(R.growthNote(result))}</p>` : '')
     + (growth.undo && growth.undo.revision === state.route.revision   // any other save or mark moves the revision on: then it is no longer the step to take back
@@ -378,12 +379,12 @@ async function judgeNow() {
   growth.judging = true; renderGrowth(); notice('');
   try {
     const out = await api({action: 'direction-judge'});
-    if (!out.ok) { notice(`没有使用 AI：${out.reason || 'AI 没有给出判断'}。`); return; }
+    await loadGrowth();
+    if (!out.ok) { notice(`未得到有效判断：${out.reason || 'AI 没有给出判断'} 今天还能判断 ${out.judges_left} 次。`); return; }
     notice(`AI 判断完了：${R.judgeSummary(out.results)}。今天还能判断 ${out.judges_left} 次。`, false);
     const made = (out.results || []).find((r) => r.direction && (r.verdict === 'new' || r.verdict === 'join'));
-    await loadGrowth();
     if (made) { growth.selected = made.direction; state.selected = `ghost:${made.direction}`; render(); }
-  } catch (error) { notice(error.message); }
+  } catch (error) { await refreshRoute(); await loadGrowth(); notice(error.message); }
   finally { growth.judging = false; renderGrowth(); }
 }
 part('growthList').onclick = growthClick;

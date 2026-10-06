@@ -856,16 +856,16 @@ const pdfBadge = (status) => {
 /* A collected exploration paper: offer, once, to let the AI judge whether it is a new direction. Nothing is sent until the button is clicked. */
 const isExploration = (c) => Boolean(c.route && /^explore/.test(c.route.kind || ''));
 function judgeAskHTML(c) {
-  return `<div class="judge-ask"><span>这篇是探索推荐来的。要让 AI 判断它是不是一个新方向吗？</span>`
-    + `<button class="tiny" data-judge="ask" data-key="${esc(c.key)}" ${c.judgeBusy ? 'disabled' : ''} title="点一次调用一次 AI：只发送你收藏过的探索论文（最多 3 篇）的标题和摘要节选、学习图里的概念名和已有的潜在方向名，不发送笔记、画像或其他项目">${c.judgeBusy ? '判断中…' : '让 AI 判断'}</button>`
+  return `<div class="judge-ask"><span>这篇你认为有用。要让 AI 判断它的学习价值吗？</span>`
+    + `<button class="tiny" data-judge="ask" data-key="${esc(c.key)}" ${c.judgeBusy ? 'disabled' : ''} title="点一次调用一次 AI：发送最多 3 篇有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目">${c.judgeBusy ? '判断中…' : '让 AI 判断'}</button>`
     + `<button class="tiny" data-judge="later" data-key="${esc(c.key)}">以后再说</button></div>`;
 }
 function judgeSummary(results) {
   return (results || []).map((r) => {
     const name = r.name ? `「${r.name}」` : '';
-    if (r.verdict === 'new') return `${name}是一个新方向，已放进学习图页的潜在方向`;
+    if (r.verdict === 'new') return `${name}已成为学习提议，请到学习图页预览并确认`;
     if (r.verdict === 'join') return `并入了潜在方向${name}`;
-    if (r.verdict === 'covered') return `和${r.nearest ? `「${r.nearest}」` : '学习图里已有的概念'}太接近，不算新方向`;
+    if (r.verdict === 'covered') return `${r.nearest ? `「${r.nearest}」` : '学习图里已有的概念'}已覆盖这项学习任务`;
     if (r.verdict === 'declined') return `${name || '这个方向'}你之前选了“不再提示”，不再收进来`;
     if (r.verdict === 'full') return '潜在方向已经很多了，先加入或“不再提示”一些，这几篇还留在待判断里';
     if (r.verdict === 'unusable') return 'AI 的回复不完整，这几篇还留在待判断里，可以再点一次';
@@ -878,7 +878,7 @@ async function doJudge(key) {
   if (card) { card.judgeBusy = true; renderCards(); }
   try {
     const out = await api('/api/route', { action: 'direction-judge', project_id: state.currentProject });
-    if (!out.ok) toast(`没有使用 AI：${out.reason || 'AI 没有给出判断'}`, 'warn');
+    if (!out.ok) toast(`未得到有效判断：${out.reason || 'AI 没有给出判断'} 今天还能判断 ${out.judges_left} 次。`, 'warn');
     else { toast(`AI 判断完了：${judgeSummary(out.results)}。今天还能判断 ${out.judges_left} 次。`, 'ok'); if (card) card.judgeAsk = false; }
   } catch (e) { toast(e.message, 'err'); }
   finally { if (card) card.judgeBusy = false; renderCards(); }
@@ -1186,8 +1186,9 @@ async function doFeedback(key, action) {
   if (card) {
     if (action === 'unsave') { card.saved = false; card.feedback = null; card.judgeAsk = false; }
     else if (action === 'useful') card.saved = true;
+    if (action === 'irrelevant') card.judgeAsk = false;
     if (action === 'understood' || action === 'too_hard') card.familiarity = action;   // a familiarity label never replaces the interest one
-    if ((action === 'useful' || action === 'understood') && isExploration(card) && state.currentProject) card.judgeAsk = true;   // offered, not sent
+    if (action === 'useful' && state.route && state.route.graph && state.currentProject) card.judgeAsk = true;   // offered, not sent
   }
   renderCards();
   if (state.view === 'library') await refreshStats();

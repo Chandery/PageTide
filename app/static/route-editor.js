@@ -347,6 +347,8 @@
   const pct = (v) => Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 100);
   const GATE_LABEL = { papers: '属于这个方向的论文', positive: '你明确点过的论文', sources: '不同来源', strength: '证据强度' };
   const ready = (c) => c.status === 'ready';
+  const accepts = (c) => !c.stale && (typeof c.can_accept === 'boolean' ? c.can_accept : ready(c));
+  const kindText = {new_task: '新任务', missing_prerequisite: '前置缺口', new_branch: '新分支', legacy: '旧规则提议'};
   const gateText = (g, decimals) => (decimals ? `${(Number(g.have) || 0).toFixed(2)}/${(Number(g.need) || 0).toFixed(2)}` : `${Number(g.have) || 0}/${Number(g.need) || 0}`);
 
   function candidateRowHTML(c, selectedId) {
@@ -354,7 +356,7 @@
     const counts = `论文 ${gateText(g.papers || {})} · 你点过 ${gateText(g.positive || {})} · 来源 ${gateText(g.sources || {})}`;
     const chosen = c.id === selectedId;
     return `<button type="button" class="growth-row${ready(c) ? ' is-ready' : ''}${chosen ? ' is-selected' : ''}" data-growth="select" data-id="${esc(c.id)}" aria-pressed="${chosen}">`
-      + `<span class="growth-row-top"><b data-no-i18n>${esc(c.name)}</b><span class="growth-pill">${ready(c) ? '可以加入' : '还在形成'}</span></span>`
+      + `<span class="growth-row-top"><b data-no-i18n>${esc(c.name)}</b><span class="growth-pill">${c.stale ? '已过期' : (accepts(c) ? '可确认提议' : '证据较少')}</span></span>`
       + `<span class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></span>`
       + `<span class="counts">证据 ${pct(c.progress)}% · ${counts}</span></button>`;
   }
@@ -376,8 +378,10 @@
     const brief = (c.intro || c.barrier)
       ? `<p class="concept-intro" data-no-i18n>${esc(c.intro || '')}</p>${c.barrier ? `<p class="concept-intro"><b>门槛：</b><span data-no-i18n>${esc(c.barrier)}</span></p>` : ''}`
         + '<div class="badges"><span class="badge">AI 的判断，不是事实</span></div>' : '';
-    const accept = ready(c) ? '' : ' disabled title="证据还不够，还不能加入"';
-    return `<h3 data-no-i18n>${esc(c.name)}</h3>${terms}<div class="badges"><span class="badge">${ready(c) ? '可以加入' : '还在形成'}</span></div>${brief}`
+    const accept = accepts(c) ? '' : ' disabled title="提议已过期或没有有效证据，可重新判断或手动编辑"';
+    const lifecycle = c.stale ? '<p>提议已过期：图或有效证据发生变化，不会自动调用 AI。</p>' : '<p>证据数量和相似度仅供参考；你可以确认提议或手动编辑。</p>';
+    const impact = c.goal_impact === 'adds_prerequisite' ? '新前置进入当前目标范围，可能重新开启学习。' : '当前目标保持不变；新增任务不自动成为目标。';
+    return `<h3 data-no-i18n>${esc(c.name)}</h3><p>${kindText[c.proposal_type] || '新分支'}</p>${lifecycle}<p>${impact}</p>${terms}<div class="badges"><span class="badge">${c.stale ? '已过期' : (accepts(c) ? '可以加入' : '证据较少')}</span></div>${brief}`
       + `<div class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></div>`
       + `<div class="gates">${gates}</div>${missing}${where}`
       + `<h4>哪几篇论文</h4><ul class="growth-papers">${papers}</ul>`
@@ -392,9 +396,9 @@
     if (!list.length) return '';
     const left = Number(result.judges_left) || 0;
     const off = left <= 0 ? ' disabled title="今天的次数用完了，明天再试"' : (options && options.busy ? ' disabled' : '');
-    return `<div class="growth-pending"><p>你在探索推荐里收藏、还没判断是不是新方向的论文：<b>${list.length}</b></p>`
+    return `<div class="growth-pending"><p>你明确认为有用或选作种子、还待判断的论文：<b>${list.length}</b></p>`
       + `<ul class="growth-papers">${list.slice(0, 3).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('')}</ul>`
-      + `<div class="row"><button type="button" class="small" data-growth="judge"${off} title="点一次调用一次 AI：只发送这些论文（最多 3 篇）的标题和摘要节选、学习图里的概念名和已有的潜在方向名，不发送笔记、画像或其他项目">让 AI 判断</button>`
+      + `<div class="row"><button type="button" class="small" data-growth="judge"${off} title="点一次调用一次 AI：发送最多 3 篇有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目">让 AI 判断</button>`
       + `<small>今天还能判断 ${left} 次</small></div></div>`;
   }
 
@@ -402,9 +406,9 @@
   function judgeSummary(results) {
     const says = (results || []).map((r) => {
       const name = r.name ? `「${r.name}」` : '';
-      if (r.verdict === 'new') return `${name}是一个新方向，已放进潜在方向`;
+      if (r.verdict === 'new') return `${name}是一个${kindText[r.proposal_type] || '新分支'}提议，预览后确认才会入图`;
       if (r.verdict === 'join') return `并入了潜在方向${name}`;
-      if (r.verdict === 'covered') return `和${r.nearest ? `「${r.nearest}」` : '学习图里已有的概念'}太接近，不算新方向`;
+      if (r.verdict === 'covered') return `${r.nearest ? `「${r.nearest}」` : '学习图里已有的概念'}已覆盖这项学习任务`;
       if (r.verdict === 'declined') return `${name || '这个方向'}你之前选了“不再提示”，不再收进来`;
       if (r.verdict === 'full') return '潜在方向已经很多了，先加入或“不再提示”一些，这几篇还留在待判断里';
       if (r.verdict === 'unusable') return 'AI 的回复不完整，这几篇还留在待判断里，可以再点一次';
@@ -421,6 +425,9 @@
     (candidates || []).forEach((c) => {
       const id = `ghost:${c.id}`;
       concepts.push({ id, name: c.name, terms: c.terms || [], hint: 2, state: 'active', side: false, ghost: true, candidate: c });
+      ((c.topology && c.topology.required_by) || []).forEach((dependent) => {
+        if (known.has(dependent.id)) prereqs.push({from: id, to: dependent.id, state: 'active', ghost: true});
+      });
       ((c.topology && c.topology.needs) || []).forEach((need) => {
         if (known.has(need.id)) prereqs.push({ from: need.id, to: id, state: 'active', ghost: true });
       });
@@ -438,14 +445,20 @@
   }
 
   function ghostStatus(c) {
-    return { key: 'ghost', label: ready(c) ? '潜在方向 · 可以加入' : `潜在方向 · ${pct(c.progress)}%`,
-      title: ready(c) ? '一个正在形成的方向，证据够了，可以加入学习图。' : `一个正在形成的方向：${(c.missing || []).join('；') || '证据还不够'}` };
+    if (c.stale) return {key: 'ghost', label: '潜在方向 · 已过期', title: '旧提议已过期，重新判断或手动编辑。'};
+    return { key: 'ghost', label: accepts(c) ? '潜在方向 · 可以加入' : `潜在方向 · ${pct(c.progress)}%`,
+      title: accepts(c) ? '一个学习提议：确认后才会加入；证据强弱仅供参考。' : `一个正在形成的方向：${(c.missing || []).join('；') || '证据还不够'}` };
   }
 
   /* What to say when no direction is on file yet: the truth, never a reason to feel behind. */
   function growthNote(result) {
     if ((result.candidates || []).length) return '';
-    return (result.pending || []).length ? '' : '还没有潜在方向。在今日推荐里带“探索”标的论文上点“有用”收藏，再让 AI 判断它是不是一个明显不同于学习图里已有概念的新方向，它就会出现在这里。';
+    return (result.pending || []).length ? '' : '还没有潜在方向。对论文点“有用”收藏或选作种子，再主动判断学习价值；也可以直接手动编辑。';
+  }
+
+  function judgementsHTML(result) {
+    const list = (result && result.judgements) || [];
+    return list.length ? '<h4>判断记录</h4>' + list.map((j) => `<p>${j.stale ? '已过期' : (j.verdict === 'covered' ? '已覆盖' : (j.verdict === 'unclear' ? '看不清' : '已有判断'))}<span data-no-i18n> · ${esc((j.titles || []).join(' · '))}${j.reason ? ` · ${esc(j.reason)}` : ''}</span></p>`).join('') : '';
   }
 
   function countsText(state) {
@@ -477,5 +490,5 @@
     return `<label class="map-note"><input type="checkbox" data-route-watch ${watching ? 'checked' : ''}> 持续关注</label><p class="map-note">${satisfied ? '已满足的概念：开启后可推荐这个方向的新进展。' : '持续关注不改变掌握状态；满足这个概念后才推荐新进展。'}</p>`;
   }
 
-  return { watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  return { watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgementsHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

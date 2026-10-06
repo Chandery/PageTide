@@ -1,14 +1,8 @@
-"""Attaching papers to concepts, checking edges against the corpus, and counting the evidence for a new branch.
+"""Local paper matching and descriptive evidence for growth proposals.
 
-Deterministic and local: no model, no network, no clock, no randomness. Whether a group of collected papers is a new
-direction, and what to call it, is the model's opinion (operation direction_judge, one click); this module only counts
-what is under a stored direction and never adds anything to the map by itself; a person confirms (PRODUCT: the
-profile is data you can check and correct).
-
-The thresholds are proposals without data behind them (named constants, to be tuned on replay):
-a branch needs several distinct papers, explicit positive evidence and more than one source (the gates),
-and a strength score S * C * (0.5 + 0.5 * R): enough independent evidence (S), papers that read alike (C) and recent
-activity (R). "Not already on the map" is the model's judgement, backed by a local check (T_NEAR).
+The explicit route_growth_judge operation proposes structure; the person confirms.
+Counts and lexical similarity explain evidence but never gate manual confirmation.
+Named thresholds below are descriptive proposals, not measured product quality.
 """
 import functools
 import math
@@ -238,12 +232,12 @@ def merge_candidate(graph, candidate):
         return pathgraph.copy.deepcopy(graph)
     hints = {c["id"]: c["hint"] for c in graph["concepts"]}
     needs = [p["from"] for p in candidate.get("prereqs", []) if p["from"] in hints]
-    # A prerequisite that is already an ancestor of another proposed one is implied by it: propose only the nearer one.
-    needs = [n for n in needs if not any(n in pathgraph.ancestors(graph, [m]) for m in needs if m != n)]
+    dependents = list(candidate.get('required_by') or [])
+    hint = max([hints[n] for n in needs], default=min([hints[n] for n in dependents], default=2))
     intro = "；".join(x for x in (str(candidate.get("intro") or "").strip(), ("门槛：" + str(candidate["barrier"]).strip()) if candidate.get("barrier") else "") if x)
     merged = pathgraph.add_concept(
-        graph, {"name": candidate["name"], "terms": candidate["terms"], "hint": max([hints[n] for n in needs], default=2),
-                "origin": "grown", "state": "proposed", "intro": intro, "intro_by": "ai"}, needs=needs)
+        graph, {"name": candidate["name"], "terms": candidate["terms"], "hint": hint,
+                "origin": "grown", "state": "proposed", "intro": intro, "intro_by": "ai"}, needs=needs, dependents=dependents)
     added = merged["concepts"][-1]
     added["candidate"] = candidate.get("id")
     added["evidence"] = list(candidate.get("papers", []))[:12]

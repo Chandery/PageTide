@@ -305,7 +305,8 @@ class Gateway:
             if 400 <= exc.code < 500:
                 # Rejected before generation (auth, balance, validation, rate limit).
                 self._record(today, operation, {}, Decimal(0), provider["model"], rid, "released")
-            return {"ok": False, "degraded": True, "reason": f"HTTPError: {exc.code}"}
+            return {"ok": False, "degraded": True, "usage_unknown": not 400 <= exc.code < 500,
+                    "http_status": exc.code, "reason": f"HTTPError: {exc.code}"}
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             # The request may have been processed: keep the reservation charged.
             return {"ok": False, "degraded": True, "usage_unknown": True,
@@ -314,12 +315,13 @@ class Gateway:
         model = (payload.get("model") if isinstance(payload, dict) else None) or provider["model"]
         content = (((payload.get("choices") or [{}])[0].get("message") or {}).get("content", "")
                    if isinstance(payload, dict) else "")
+        finish_reason = ((payload.get('choices') or [{}])[0].get('finish_reason') if isinstance(payload, dict) else None)
         if not isinstance(usage, dict) or "prompt_tokens" not in usage or "completion_tokens" not in usage:
             self._record(today, operation, {"prompt_tokens": cap_in, "completion_tokens": cap_out},
                          reserve_usd, model, rid, "unknown")
-            return {"ok": True, "content": content, "usage": {"total_tokens": cap_in + cap_out},
+            return {"ok": True, "content": content, 'finish_reason': finish_reason, "usage": {"total_tokens": cap_in + cap_out},
                     "usage_unknown": True, "usd": str(reserve_usd), "model": model, "dev": self.dev}
         usd = _cost(provider, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
                     usage.get("prompt_cache_hit_tokens", 0))
         self._record(today, operation, usage, usd, model, rid, "reconciled")
-        return {"ok": True, "content": content, "usage": usage, "usd": str(usd), "model": model, "dev": self.dev}
+        return {"ok": True, "content": content, 'finish_reason': finish_reason, "usage": usage, "usd": str(usd), "model": model, "dev": self.dev}

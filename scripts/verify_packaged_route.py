@@ -124,6 +124,22 @@ def main():
             path=data/(key+'.pdf'); content=b'%PDF-1.4\n'+key.encode()+b'\n%%EOF';path.write_bytes(content)
             version=hashlib.sha256(content).hexdigest();app.store.record_pdf(key,path,sha256=version)
             app.save_fulltext(key,pages,source_pdf_sha256=version)
+        growth_pid=app.create_project('Growth fixture',keywords=['growth'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        growth_map=app.route_save(growth_pid,plan={'concepts':[
+            {'id':'a','name':'Growth basis','terms':['growth basis'],'hint':1,'needs':[]},
+            {'id':'b','name':'Growth goal','terms':['growth goal'],'hint':2,'needs':['a']}], 'targets':['b']})
+        for concept in growth_map['graph']['concepts']:
+            app.route_manual(growth_pid,concept['id'],'mastered')
+        app.store.upsert_papers([{'key':'growth-proof','title':'Calibration method',
+            'abstract':'Calibration method and measurement techniques','language':'en'}],growth_pid)
+        app.record_feedback('growth-proof','useful',project_id=growth_pid)
+        # Public fixture answer creates a local proposal; no claim of real model quality.
+        fixture={'results':[{'papers':['p1'],'verdict':'missing_prerequisite','name':'Calibration task',
+            'terms':['calibration'],'intro':'A prerequisite calibration task','barrier':'Measurement basics',
+            'needs':[],'required_by':['c2'],'reason':'Fixture prerequisite'}]}
+        with mock.patch.object(app.gateway,'call',return_value={'ok':True,'content':json.dumps(fixture)}):
+            proposal=app.route_direction_judge(growth_pid)
+        growth_id=proposal['results'][0]['direction']
         app.store.close()
         def refresh(call, expected):
             job=call('/api/refresh',{'project_id':recall_pid})
@@ -135,6 +151,20 @@ def main():
             assert result['errors']==[],result
             assert result['fetched']>0 and result['query_plan']==expected,result
         def first(call):
+            listed=call('/api/route',{'action':'candidates','project_id':growth_pid})
+            candidate=next(c for c in listed['candidates'] if c['id']==growth_id)
+            assert candidate['can_accept'] and candidate['goal_impact']=='adds_prerequisite'
+            accepted=call('/api/route',{'action':'candidate-accept','project_id':growth_pid,'candidate':growth_id,'revision':listed['revision']})
+            assert accepted['goal_status']=='learning' and accepted['goal_total']==3
+            restored=call('/api/route',{'action':'undo','project_id':growth_pid,'revision':accepted['revision']})
+            assert restored['goal_status']=='completed' and restored['goal_total']==2
+            graph=restored['graph'];graph['concepts'][0]['name']='Changed basis'
+            call('/api/route',{'action':'save','project_id':growth_pid,'graph':graph,'revision':restored['revision']})
+            stale=call('/api/route',{'action':'candidates','project_id':growth_pid})['candidates'][0]
+            assert stale['stale'] and not stale['can_accept']
+            refused=call('/api/route',{'action':'direction-judge','project_id':growth_pid})
+            assert not refused['ok'] and refused['reason_code']=='ai_off'
+            assert 'judgementsHTML' in call('/route-editor.js',raw=True)
             refresh(call,recall_plans[0])
             full=call('/api/daily',{'project_id':batch_pid})
             assert Counter(c['route']['kind'] for c in full['cards'])=={'route':3,'explore':1,'watch':1},full
@@ -186,6 +216,8 @@ def main():
             assert 'data-route-watch' in call('/route-editor.js',raw=True)
         launch(executable,data,home,first)
         def restart(call):
+            stale=call('/api/route',{'action':'candidates','project_id':growth_pid})['candidates'][0]
+            assert stale['stale'] and not stale['can_accept']
             daily=call('/api/daily',{'project_id':batch_pid})
             assert daily['reused'] and daily['reason_code']=='completed_daily_limit' and len(daily['cards'])==1
             refresh(call,recall_plans[1])
@@ -209,7 +241,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, assets, isolated HOME, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, assets, isolated HOME, outbound network blocked')
 
 
 if __name__=='__main__': main()

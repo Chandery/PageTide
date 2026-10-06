@@ -200,3 +200,19 @@ test('actual Route batch sentences and badges translate in empty, watch-only and
  vm.runInContext(badges+';globalThis.batchTitles=ROUTE_TITLES;',context);
  for(const kind of ['explore','explore_new','watch'])assert.doesNotMatch(i18n.translate(context.batchTitles[kind]),/[㐀-鿿]/);
 });
+
+
+test('growth contract disclosure and complete summaries translate into English', () => {
+  const {i18n} = load('en-US', PACK);
+  for (const line of ['新任务','前置缺口','已过期','可确认提议','证据较少',
+    '「Example」是一个新任务提议，预览后确认才会入图',
+    '「Example」是一个前置缺口提议，预览后确认才会入图',
+    '「Example」是一个新分支提议，预览后确认才会入图',
+    '「Example」已覆盖这项学习任务',
+    '「Example」已成为学习提议，请到学习图页预览并确认',
+    '提议已过期：图或有效证据发生变化，不会自动调用 AI。',
+    '你明确认为有用或选作种子、还待判断的论文：',
+    '点一次调用一次 AI：发送最多 3 篇有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目']) {
+    assert.doesNotMatch(i18n.translate(line), /[㐀-鿿]/, line);
+  }
+});

@@ -43,7 +43,7 @@ class Fixture(unittest.TestCase):
         self.app.store.create_batch("2026-09-01", ["s1", "s2"], project_id=self.pid, route={k: (None, "explore", None, None) for k in ("s1", "s2")})
         self.app.store.set_setting(f"route_directions_{self.pid}", {"directions": [
             {"id": "d-1", "name": "应变弛豫", "terms": ["strain relaxation", "dislocation glide"], "intro": "位错滑移释放应力。", "barrier": "难在应变与缺陷。",
-             "needs": [], "papers": ["s1", "s2"], "created": "2026-09-01"}], "judged": {"s1": {"verdict": "new"}, "s2": {"verdict": "join"}}})
+             "needs": [], "papers": ["s1", "s2"], "created": "2026-09-01", "proposal_type": "new_branch", "context": self.app._growth_context(self.pid, ["s1", "s2"])}], "judged": {"s1": {"verdict": "new"}, "s2": {"verdict": "join"}}})
 
     def add(self, key, title, abstract, source="arXiv"):
         self.app.store.upsert_papers([{"key": key, "title": title, "abstract": abstract, "source": source, "published": "2026-02-01"}], project_id=self.pid)
@@ -110,7 +110,7 @@ class ExploreNewTests(Fixture):
     def test_papers_the_reader_turned_down_since_no_longer_steer(self):
         self.app.record_feedback("s1", "irrelevant", project_id=self.pid)
         self.app.record_feedback("s2", "irrelevant", project_id=self.pid)
-        self.assertEqual(self.app._visible_directions(self.pid, self.app._route_org(self.pid)._load()[1]["route"], self.app.latest_feedback(self.pid))[0]["papers"], [])
+        self.assertEqual(self.app._visible_directions(self.pid, self.app._route_org(self.pid)._load()[1]["route"], self.app.latest_feedback(self.pid)), [])
         english_papers(self.app, self.pid)
         kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
         self.assertNotIn("explore_new", kinds.values())

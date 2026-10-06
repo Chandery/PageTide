@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, eligibility, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan, route_recall, route_batch
+from . import creation, eligibility, growthproposal, maintenance, operation_lock, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan, route_recall, route_batch
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -124,7 +124,7 @@ class App:
                 "done": done, "total": len(live), "progress_verification_deferred":deferred,
                 "batch_policy": route_batch.policy(goal["goal_status"] == "completed")}
 
-    DIRECTION_JUDGES_PER_DAY = 10   # paid attempts at "judge my collected exploration papers" per project per local day
+    DIRECTION_JUDGES_PER_DAY = 10   # explicit paid growth attempts per project per local day
 
     def _positive_evidence(self, project_id, seeds=True):
         """Effective growth interest: Useful or an explicitly chosen seed, never familiarity.
@@ -158,10 +158,10 @@ class App:
         return [dict(r) for r in self.store.conn.execute(
             "SELECT p.key, p.title, p.abstract, p.source, p.doi FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))]
 
-    def _route_candidates(self, project_id):
+    def _route_candidates(self, project_id, *, limit=True):
         """(project_id, revision, route, candidates, explicit): the potential directions on file, ready ones first.
 
-        A direction is the model's opinion about papers the reader collected from the exploration slots (see
+        A direction is the model's opinion about explicit Useful/chosen-seed evidence (see
         route_direction_judge); what this counts, locally, is the evidence under it: how many of its papers there are, how many
         the reader still marks explicitly positive (useful or a chosen seed; not interested never counts, too hard is
         difficulty and silence is nothing), how many sources, and how alike they read (`pathgrowth.direction_evidence`).
@@ -180,16 +180,18 @@ class App:
         vectors, _ = pathgrowth.paper_vectors(papers)
         ids = {c["id"] for c in graph["concepts"]}
         found = []
-        for d in self._visible_directions(project_id, route, feedback):
+        for d in self._visible_directions(project_id, route, feedback, include_stale=True):
             members = d["papers"]
             evidence = pathgrowth.direction_evidence(members, papers, positive, vectors)
             found.append({"id": d["id"], "name": d["name"], "terms": list(d.get("terms") or []), "intro": d.get("intro") or "",
-                          "barrier": d.get("barrier") or "", **evidence, "parent": None,
+                          "barrier": d.get("barrier") or "", **evidence, "parent": d.get('parent'),
+                          'proposal_type': d.get('proposal_type', 'legacy'), 'required_by': d.get('required_by', []),
+                          'context': d.get('context'), 'stale': d['stale'],
                           "prereqs": [{"from": cid, "support": None} for cid in d.get("needs", []) if cid in ids]})
-        found.sort(key=lambda c: (c["status"] != "ready", -c["strength"], c["name"]))   # what can be added comes first
-        return project_id, revision, route, found[:pathgrowth.MAX_CANDIDATES], set(positive)
+        found.sort(key=lambda c: (c["stale"], c["status"] != "ready", -c["strength"], c["name"]))
+        return project_id, revision, route, found[:pathgrowth.MAX_CANDIDATES] if limit else found, set(positive)
 
-    def _visible_directions(self, project_id, route, feedback=None):
+    def _visible_directions(self, project_id, route, feedback=None, include_stale=False, context_data=None):
         """The stored directions the reader can still see: not already on the map and not turned down ("不再提示"). With
         each one's papers are only those the reader still stands behind (a paper turned down or taken back
         is dropped, so steering and evidence agree). One place, so what is listed, what steers exploration and what the
@@ -198,6 +200,7 @@ class App:
         # The legacy feedback argument is retained for callers, but cannot substitute
         # live familiarity for frozen interest or accidentally omit unlabelled seeds.
         positive, _ = self._positive_evidence(project_id)
+        context_data = self._growth_context_data(project_id) if context_data is None else context_data
         graph = (route or {}).get("graph") or {"concepts": []}
         on_map = {c.get("candidate") for c in graph["concepts"] if c.get("candidate")}
         rejected = set((route or {}).get("rejected") or [])
@@ -205,17 +208,19 @@ class App:
         for d in self._directions_store(project_id)["directions"]:
             if d["id"] in on_map or ({pathgraph._key(d["name"])} | {pathgraph._key(t) for t in d.get("terms", [])}) & rejected:
                 continue
+            stale = d.get('context') != self._growth_context(project_id, d.get('papers', []), data=context_data)
+            if stale and not include_stale:
+                continue
             papers = list(d.get("papers") or [])
             papers = [k for k in papers if k in positive]
-            out.append({**d, "papers": papers})
+            out.append({**d, "papers": papers, 'stale': stale})
         return out
 
     def _pending_growth(self, project_id):
         """Local evidence queue for the new growth contract, independent of exposure type.
 
-        This does not send data or extend the old approved direction_judge scope.
-        That legacy operation still uses _pending_explored until replaced by the
-        separately registered full-Map operation.
+        Reading sends no data. Explicit judgment uses route_growth_judge, whose
+        expanded scope has its own approval field and cannot borrow the old grant.
         """
         project_id = self._require_project(project_id)
         _, route = read_route(self.store.conn, project_id)
@@ -223,30 +228,16 @@ class App:
             return []
         positive, feedback = self._positive_evidence(project_id)
         state = self._directions_store(project_id)
-        attached = {k for d in state["directions"] for k in d.get("papers", [])}
+        context_data = self._growth_context_data(project_id)
+        attached = {k for d in self._visible_directions(project_id, route, context_data=context_data) for k in d.get('papers', [])}
         rows = {p["key"]: p for p in self._project_papers_for_growth(project_id)}
-        keys = [k for k in positive if k in rows and k not in state["judged"] and k not in attached]
+        keys = [k for k in positive if k in rows and state['judged'].get(k, {}).get('context') != self._growth_context(project_id, state['judged'].get(k, {}).get('proof_keys', [k]), data=context_data, include_rejected=state['judged'].get(k, {}).get('rejected_dependent', False)) and k not in attached]
         keys.sort(key=lambda k: (feedback.get(k, {}).get("id") or 0, positive[k] or "", k), reverse=True)
         return [rows[k] for k in keys]
 
     def _pending_explored(self, project_id):
-        """The papers the reader collected from an exploration slot that nobody has judged yet, newest feedback first:
-        [{key, title, abstract, source}]. Explicit Useful feedback on a paper that was shown as
-        exploration; being shown, ignored, turned down or too hard is not a reason to ask. Local, no token."""
-        project_id = self._require_project(project_id)
-        explored = {r[0] for r in self.store.conn.execute(
-            """SELECT DISTINCT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id
-               WHERE b.project_id=? AND e.route_kind IN ('explore', 'explore_new')""", (project_id,))}
-        if not explored:
-            return []
-        positive, feedback = self._positive_evidence(project_id, seeds=False)
-        store = self._directions_store(project_id)
-        attached = {k for d in store["directions"] for k in d.get("papers", [])}
-        latest = lambda k: max(feedback[k].get("id") or 0, (feedback[k].get("familiar") or {}).get("id") or 0)   # the order the reader collected them in
-        keys = sorted((k for k in explored if k in positive and k not in store["judged"] and k not in attached), key=lambda k: (latest(k), k), reverse=True)
-        rows = {r["key"]: dict(r) for r in self.store.conn.execute(
-            "SELECT p.key, p.title, p.abstract, p.source FROM project_papers pp JOIN papers p ON p.key=pp.paper_key WHERE pp.project_id=?", (project_id,))}
-        return [rows[k] for k in keys if k in rows]
+        """Compatibility name for the exposure-independent growth queue."""
+        return self._pending_growth(project_id)
 
     def _exploration_targets(self, project_id, pool, vectors, idf):
         """[{name, papers}] for the exploration slots: for each direction on file (not yet on the map), the pool's papers that
@@ -275,7 +266,7 @@ class App:
 
     def route_candidates(self, project_id=None):
         """The potential directions on file, each with what it has, what it lacks, the papers behind it, the model's short
-        intro and barrier, and where it would sit on the map; plus the exploration papers waiting to be judged.
+        intro and barrier, and where it would sit on the map; plus positive papers waiting to be judged.
         Nothing is changed or saved, and nothing is sent anywhere."""
         project_id, revision, route, found, explicit = self._route_candidates(project_id)
         if not route or not route.get("graph"):
@@ -296,7 +287,7 @@ class App:
             missing = []
             if not gates["papers"]["ok"]:
                 n = need["papers"] - have["papers"]
-                missing.append(say(f"还差 {n} 篇属于这个方向的论文（在探索推荐里收藏相关的论文，再让 AI 判断）", f"{n} more paper{'s' if n != 1 else ''} under this direction needed (collect related papers from exploration, then ask the AI to judge)"))
+                missing.append(say(f"还差 {n} 篇属于这个方向的论文（数量仅供参考，不限制确认）", f"{n} more paper{'s' if n != 1 else ''} under this direction for the reference score (does not block confirmation)"))
             if not gates["positive"]["ok"]:
                 n = need["positive"] - have["positive"]
                 missing.append(say(f"还差 {n} 篇你明确认为有用或选作种子的论文", f"{n} more paper{'s' if n != 1 else ''} you mark Useful or explicitly choose as seeds needed"))
@@ -309,10 +300,17 @@ class App:
             shown = c["positive"] + [k for k in c["papers"] if k not in c["positive"]]
             needs = [{"id": p["from"], "name": names[p["from"]], "support": p["support"]} for p in c["prereqs"] if p["from"] in names]
             parent = {"id": c["parent"], "name": names[c["parent"]]} if c.get("parent") in names else None
+            required_by = [{'id': cid, 'name': names[cid]} for cid in c['required_by'] if cid in names]
             joined = "、".join(n["name"] for n in needs) if not en else ", ".join(n["name"] for n in needs)
             note = (say(f"加入后：{joined} → 「{c['name']}」", f"If added: {joined} → \"{c['name']}\"") if needs
                     else say(f"加入后「{c['name']}」会是一个新的入口（没有前置）", f"If added, \"{c['name']}\" would be a new entry point (no prerequisite)"))
+            if required_by:
+                note += say('；它也是以下节点的新前置：', '; it also becomes a prerequisite of: ') + ', '.join(n['name'] for n in required_by)
+            goal_ancestors = set(pathgraph.goal_state(graph, {})['goal_scope'])
+            impact = 'adds_prerequisite' if any(n['id'] in goal_ancestors for n in required_by) else 'targets_unchanged'
             out.append({"id": c["id"], "name": c["name"], "terms": c["terms"], "intro": c.get("intro", ""), "barrier": c.get("barrier", ""),
+                        'proposal_type': c['proposal_type'], 'stale': c['stale'],
+                        'can_accept': not c['stale'] and bool(c['positive']), 'goal_impact': impact,
                         "status": c["status"], "strength": c["strength"],
                         "positive": len(c["positive"]), "paper_count": len(c["papers"]), "sources": c["counts"]["sources"],
                         "source_names": c["source_names"],
@@ -320,195 +318,221 @@ class App:
                         "parts": [{"key": k, "label": say(*label), "hint": say(*hint), "value": c["parts"][k]} for k, label, hint in self.CANDIDATE_PARTS],
                         "papers": [{"key": k, "title": (rows.get(k) or {"title": k})["title"] or k, "source": (rows.get(k) or {"source": None})["source"],
                                     "explicit": k in explicit} for k in shown[:8]],
-                        "parent": parent, "prereqs": needs, "topology": {"needs": needs, "parent": parent, "note": note}})
+                        "parent": parent, "prereqs": needs, "topology": {"needs": needs, "parent": parent, 'required_by': required_by, "note": note}})
         pending = [{"key": p["key"], "title": p["title"] or p["key"]} for p in self._pending_explored(project_id)]
+        context_data = self._growth_context_data(project_id)
+        judgements, seen_groups = [], set()
+        for key, item in reversed(list(self._directions_store(project_id)['judged'].items())):
+            proof_keys = item.get('proof_keys', [key])
+            group = (item.get('context'), item.get('direction'), tuple(proof_keys))
+            if group in seen_groups:
+                continue
+            seen_groups.add(group)
+            judgements.append({'verdict': item.get('verdict'), 'proposal_type': item.get('proposal_type', 'legacy'),
+                'nearest': item.get('nearest') or '', 'reason': item.get('reason') or '',
+                'stale': item.get('context') != self._growth_context(project_id, proof_keys, data=context_data, include_rejected=item.get('rejected_dependent', False)),
+                'titles': [rows[k]['title'] or k for k in proof_keys if k in rows]})
+            if len(judgements) == 20:
+                break
         state = self.store.get_setting(f"direction_judge_{project_id}") or {}
         used = int(state.get("attempts") or 0) if state.get("day") == time.strftime("%Y-%m-%d") else 0
         return {"project_id": project_id, "available": True, "candidates": out, "watching": sum(1 for c in out if c["status"] != "ready"), "revision": revision,
-                "pending": pending, "judges_left": max(0, self.DIRECTION_JUDGES_PER_DAY - used)}
+                "pending": pending, 'judgements': judgements, "judges_left": max(0, self.DIRECTION_JUDGES_PER_DAY - used)}
+
+    MAX_VISIBLE_DIRECTIONS = 12
+
+    def _growth_context_data(self, project_id):
+        """Build private per-paper proofs once, so queue checks are linear in the corpus."""
+        _, route = read_route(self.store.conn, project_id)
+        positive, feedback = self._positive_evidence(project_id)
+        evidence = {}
+        for paper in self._project_papers_for_growth(project_id):
+            key = paper['key']
+            if key in positive:
+                evidence[key] = growthproposal.digest([positive[key], feedback.get(key, {}).get('id')
+                    if feedback.get(key, {}).get('action') == 'useful' else 'seed', paper.get('title'), paper.get('abstract')])
+        return {'map': growthproposal.digest(growthproposal.map_semantics(route['graph'])) if route and route.get('graph') else None,
+                'rejected': sorted((route or {}).get('rejected') or []), 'evidence': evidence}
+
+    def _growth_context(self, project_id, keys=None, data=None, include_rejected=False):
+        """Private local fingerprint; never included in a provider request."""
+        data = self._growth_context_data(project_id) if data is None else data
+        return growthproposal.digest({**data, 'rejected': data['rejected'] if keys is None or include_rejected else None,
+            'evidence': [[key, data['evidence'].get(key, 'absent')]
+            for key in sorted(data['evidence'] if keys is None else set(keys))]})
+
+    def _growth_write_setting(self, key, value):
+        # The caller owns BEGIN/commit; Store.set_setting would prematurely commit it.
+        self.store.conn.execute('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                                (key, json.dumps(value, ensure_ascii=False)))
 
     def route_direction_judge(self, project_id, dry_run=False):
-        """Ask the model whether the exploration papers the reader collected are a new direction (operation direction_judge),
-        one explicit click.
-
-        It sees at most three of those papers (title and the start of the abstract, sent as p1..p3 without any id), the
-        names of at most ten concepts of the map and at most three directions already on file, nothing else. Its answer is
-        an opinion: `new` (clearly different from every concept), `join` (belongs to a direction on file), `covered`
-        (a neighbour or a narrower topic of a concept) or `unclear`. The app checks it locally (needs must be concepts
-        that exist, a "new" whose text reads like a concept on the map, or that repeats a name on the map, is turned into
-        `covered`) and records it; nothing reaches the map until the reader adds a ready direction. At most
-        DIRECTION_JUDGES_PER_DAY paid attempts per project per local day, reserved before the call and given back when the
-        gateway refused before sending; one call at a time per project."""
         project_id = self._require_project(project_id)
-        revision, route = read_route(self.store.conn, project_id)
-        if not route or not route.get("graph"):
-            raise ValueError("这个项目还没有学习图")
-        graph = route["graph"]
-        batch = self._pending_explored(project_id)[:routeplan.JUDGE_PAPERS]
-        if not batch:
-            raise ValueError("现在没有待判断的探索论文：在探索推荐里点“有用”收藏之后才会出现")
-        english = self.english()
-        # The model sees the concepts and directions nearest to these papers (not the first ones in storage order), so
-        # "clearly different from the map" is judged against what the papers actually resemble.
-        everything = self._project_papers_for_growth(project_id)
-        vectors, idf = pathgrowth.paper_vectors(everything)
-        batch_keys = [p["key"] for p in batch]
-        by_id = {c["id"]: c for c in graph["concepts"] if c.get("state", "active") == "active"}
-        ranked = [cid for cid, _ in pathgrowth.rank_concepts(graph, everything, batch_keys, vectors, idf) if cid in by_id]
-        active = [by_id[cid] for cid in (ranked or list(by_id))[:routeplan.JUDGE_CONCEPTS]]
-        visible = self._visible_directions(project_id, route)
-        sent_dirs = pathgrowth.rank_directions(visible, batch_keys, vectors)[:routeplan.JUDGE_DIRECTIONS]
-        messages = routeplan.judge_messages(batch, [c["name"] for c in active], sent_dirs, english)   # built before an attempt is reserved
-        key, busy, today = f"direction_judge_{project_id}", f"judge:{project_id}", time.strftime("%Y-%m-%d")
-        with self._ROUTE_LOCK:
-            state = self.store.get_setting(key) or {}
-            attempts = int(state.get("attempts") or 0) if state.get("day") == today else 0
-            if busy in self._ROUTE_BUSY:
-                raise ValueError("AI 正在判断，请稍候")
-            if attempts >= self.DIRECTION_JUDGES_PER_DAY and not dry_run:
-                raise ValueError(f"这个项目今天已经让 AI 判断过 {self.DIRECTION_JUDGES_PER_DAY} 次，请明天再试")
-            self._ROUTE_BUSY.add(busy)
-            if not dry_run:
-                self.store.set_setting(key, {"day": today, "attempts": attempts + 1})
-        left = lambda used: max(0, self.DIRECTION_JUDGES_PER_DAY - used)
-        try:
-            started = time.monotonic()
+        # Kernel-held lock spans snapshot, provider call and commit; crash releases it.
+        with operation_lock.claim(self.data, f'growth:{project_id}'):
+            return self._route_direction_judge(project_id, dry_run)
+
+    def _route_direction_judge(self, project_id, dry_run=False):
+        """One explicitly requested full-Map judgment through the separately approved gateway operation."""
+        project_id = self._require_project(project_id)
+        with self.store._lock:
+            self.store.conn.execute('BEGIN')
             try:
-                result = self.gateway.call("direction_judge", messages, dry_run=dry_run) or {}
+                _, route = read_route(self.store.conn, project_id)
+                if not route or not route.get('graph'):
+                    raise ValueError('这个项目还没有学习图')
+                batch = self._pending_growth(project_id)[:3]
+                if not batch:
+                    raise ValueError('现在没有待判断的论文：明确有用或选定种子后才会出现')
+                visible = self._visible_directions(project_id, route)[:3]
+                context = self._growth_context(project_id)
+                previous = self._directions_store(project_id)
+                messages = growthproposal.messages(batch, route['graph'], visible, self.english(),
+                                                    self.gateway.config['provider']['model'])
+                self.store.conn.commit()
+            except BaseException:
+                self.store.conn.rollback()
+                raise
+        key, busy, today = f'direction_judge_{project_id}', f'judge:{project_id}', time.strftime('%Y-%m-%d')
+        with self._ROUTE_LOCK, self.store._lock:
+            if busy in self._ROUTE_BUSY:
+                raise ValueError('AI 正在判断，请稍候')
+            self.store.conn.execute('BEGIN IMMEDIATE')
+            try:
+                state = self.store.get_setting(key) or {}
+                attempts = int(state.get('attempts') or 0) if state.get('day') == today else 0
+                if attempts >= self.DIRECTION_JUDGES_PER_DAY and not dry_run:
+                    raise ValueError(f'这个项目今天已经让 AI 判断过 {self.DIRECTION_JUDGES_PER_DAY} 次，请明天再试')
+                if self._growth_context(project_id) != context:
+                    raise Conflict('Growth evidence changed; refresh the proposals')
+                if not dry_run:
+                    self._growth_write_setting(key, {'day': today, 'attempts': attempts + 1})
+                self.store.conn.commit()
+            except BaseException:
+                self.store.conn.rollback()
+                raise
+            self._ROUTE_BUSY.add(busy)
+        started = time.monotonic()
+        left = lambda n: max(0, self.DIRECTION_JUDGES_PER_DAY - n)
+        try:
+            try:
+                result = self.gateway.call(growthproposal.OPERATION, messages, dry_run=dry_run) or {}
             except Exception as exc:
-                result = {"ok": False, "degraded": True, "reason": str(exc)}
-            elapsed_ms = int((time.monotonic() - started) * 1000)
-            if dry_run or not result.get("ok"):
-                code, text = creation.degrade_reason(result, english)
-                refunded = code in self._ROUTE_UNPAID   # refused before anything was sent
+                result = {'ok': False, 'reason': str(exc)}
+            elapsed = int((time.monotonic() - started) * 1000)
+            if dry_run or not result.get('ok'):
+                code, reason = growthproposal.degrade_reason(result, self.english())
+                refunded = code in self._ROUTE_UNPAID
                 if refunded and not dry_run:
-                    with self._ROUTE_LOCK:
-                        self.store.set_setting(key, {"day": today, "attempts": attempts})
-                used = attempts + (0 if dry_run or refunded else 1)
-                return {"ok": False, "mode": "local", "reason_code": code, "reason": text, "results": [], "elapsed_ms": elapsed_ms, "judges_left": left(used)}
-            used = attempts + 1
-            outcomes = self._apply_direction_judgement(project_id, route, batch, active, sent_dirs, routeplan.parse_judge(result.get("content")))
-            if not outcomes:
-                return {"ok": False, "mode": "local", "reason_code": "bad_reply", "reason": creation.reason_text("bad_reply", english), "results": [],
-                        "elapsed_ms": elapsed_ms, "judges_left": left(used)}
-            return {"ok": True, "mode": "ai", "results": outcomes, "tokens": (result.get("usage") or {}).get("total_tokens"),
-                    "elapsed_ms": elapsed_ms, "judges_left": left(used), "pending": len(self._pending_explored(project_id))}
+                    with self.store._lock:
+                        self.store.conn.execute('BEGIN IMMEDIATE')
+                        try:
+                            current = self.store.get_setting(key) or {}
+                            if current.get('day') == today:
+                                self._growth_write_setting(key, {**current, 'attempts': max(0, int(current.get('attempts') or 0) - 1)})
+                            self.store.conn.commit()
+                        except BaseException:
+                            self.store.conn.rollback()
+                            raise
+                return {'ok': False, 'mode': 'local', 'reason_code': code, 'reason': reason, 'results': [],
+                        'elapsed_ms': elapsed, 'judges_left': left(attempts + (0 if dry_run or refunded else 1))}
+            parsed = [] if result.get('finish_reason') == 'length' else growthproposal.parse(result.get('content'))
+            with self.store._lock:
+                self.store.conn.execute('BEGIN IMMEDIATE')
+                try:
+                    if self._growth_context(project_id) != context or self._directions_store(project_id) != previous:
+                        raise Conflict('Map, evidence or proposals changed during judgment; refresh')
+                    outcomes = self._apply_growth_judgement(project_id, route, batch, visible, parsed, context)
+                    self.store.conn.commit()
+                except BaseException:
+                    self.store.conn.rollback()
+                    raise
+            good = any(r['verdict'] not in ('unusable', 'full') for r in outcomes)
+            return {'ok': good, 'mode': 'ai', 'reason_code': None if good else 'bad_reply',
+                    'reason': None if good else ('No valid learning judgment was saved; request another judgment or edit manually.' if self.english() else '本次未保存有效的学习判断；可重新判断或手动编辑。'),
+                    'results': outcomes, 'tokens': (result.get('usage') or {}).get('total_tokens'),
+                    'elapsed_ms': elapsed, 'judges_left': left(attempts + 1), 'pending': len(self._pending_growth(project_id))}
         finally:
             with self._ROUTE_LOCK:
                 self._ROUTE_BUSY.discard(busy)
 
-    MAX_VISIBLE_DIRECTIONS = 12     # more than this on file and the reader has to add or turn some down first
-
-    def _apply_direction_judgement(self, project_id, route, batch, active, sent_dirs, results):
-        """Validate the model's opinion and record it. Returns [{verdict, titles, name, nearest, direction}] for the page.
-
-        A reply item that is not usable (a label it made up, a name or search terms of the wrong type, no room left) is
-        reported as "unusable" and its papers stay waiting: that is a defect in the reply, not the model's opinion about
-        the papers, so it is not recorded as judged."""
-        graph = route["graph"]
-        label_to_concept = {f"c{i + 1}": c["id"] for i, c in enumerate(active)}
-        name_to_concept = {pathgraph._key(c["name"][:routeplan.JUDGE_CONCEPT_CHARS]): c["id"] for c in active}
-        known = {pathgraph._key(c["name"]) for c in graph["concepts"]} | {pathgraph._key(t) for t in (t for c in graph["concepts"] for t in c.get("terms", []))}
-        known.discard("")
-        rejected = set(route.get("rejected") or [])
-        concept_name = {c["id"]: c["name"] for c in graph["concepts"]}
-        papers = self._project_papers_for_growth(project_id)
-        vectors, idf = pathgrowth.paper_vectors(papers)
+    def _apply_growth_judgement(self, project_id, route, batch, directions, results, context):
         store = self._directions_store(project_id)
-        visible = {d["id"]: d for d in self._visible_directions(project_id, route)}
-        by_label = {f"d{i + 1}": d["id"] for i, d in enumerate(sent_dirs)}
-        title = {p["key"]: p["title"] or p["key"] for p in batch}
-        today = time.strftime("%Y-%m-%d")
-        outcomes, seen, changed = [], set(), False
-        text = lambda value, limit: pathgraph._prose(value, limit) if isinstance(value, str) else ""
-        for item in results[:3]:
-            refs = [x for x in (item.get("papers") or []) if isinstance(x, str) and re.fullmatch(r"p[1-9]", x) and int(x[1:]) <= len(batch)]
-            keys = [k for k in (batch[int(x[1:]) - 1]["key"] for x in dict.fromkeys(refs)) if k not in seen]
-            if not keys:
+        title = {p['key']: p.get('title') or p['key'] for p in batch}
+        outcomes, seen = [], set()
+        fresh = {d['id']: d for d in self._visible_directions(project_id, route)}
+        for raw in results:
+            item = growthproposal.validate(raw, batch, route['graph'], directions)
+            if item is None or seen.intersection(item['papers']):
+                outcomes.append({'verdict': 'unusable', 'titles': [], 'name': '', 'nearest': '', 'direction': None})
                 continue
-            seen.update(keys)
-            verdict = item.get("verdict") if item.get("verdict") in ("new", "join", "covered", "unclear") else "unusable"
-            nearest, direction_id, name, usable = "", None, "", verdict != "unusable"
-            if verdict == "join":
-                direction_id = by_label.get(str(item.get("direction") or ""))
-                if direction_id not in visible:
-                    usable = False
-            if verdict == "new" and usable:
-                name = text(item.get("name"), 20)
-                raw_terms = item.get("terms") if isinstance(item.get("terms"), list) else []
-                terms = [t for t in dict.fromkeys(text(t, 30) for t in raw_terms) if len(t) >= 3][:2]
-                if not name or not terms:
-                    usable = False
-            if verdict == "new" and usable:
-                keyset = {pathgraph._key(name)} | {pathgraph._key(t) for t in terms}
-                twin = next((d for d in visible.values() if keyset & ({pathgraph._key(d["name"])} | {pathgraph._key(t) for t in d.get("terms", [])})), None)
-                if twin:     # the model proposed something already on file under the same words: it is that direction
-                    verdict, direction_id = "join", twin["id"]
-                elif keyset & rejected:
-                    verdict = "declined"       # the reader said "no more of this" about these words
-                elif keyset & known:
-                    verdict = "covered"
-                    nearest = next((concept_name[c["id"]] for c in graph["concepts"] if keyset & ({pathgraph._key(c["name"])} | {pathgraph._key(t) for t in c.get("terms", [])})), "")
+            seen.update(item['papers'])
+            kind, direction_id = item['proposal_type'], None
+            verdict = 'new' if kind in growthproposal.KINDS else kind
+            if kind in growthproposal.KINDS:
+                identity = [kind, pathgraph._key(item['name']), item['parent'], item['needs'], item['required_by'], [pathgraph._key(t) for t in item['terms']]]
+                twin = next((d for d in fresh.values() if d.get('identity') == identity), None)
+                if {pathgraph._key(item['name']), *[pathgraph._key(t) for t in item['terms']]} & set(route.get('rejected') or []):
+                    verdict = 'declined'
+                elif twin:
+                    direction_id, verdict = twin['id'], 'join'
+                elif len(fresh) >= self.MAX_VISIBLE_DIRECTIONS:
+                    outcomes.append({'verdict': 'full', 'titles': [title[k] for k in item['papers']], 'name': '', 'nearest': '', 'direction': None})
+                    continue
                 else:
-                    near_id, near_value = pathgrowth.nearest_concept(graph, papers, keys, vectors, idf)
-                    if near_id and near_value >= pathgrowth.T_NEAR:
-                        verdict, nearest = "covered", concept_name.get(near_id, "")
-                    elif len(visible) >= self.MAX_VISIBLE_DIRECTIONS:
-                        verdict, usable = "full", False
-            if not usable:
-                outcomes.append({"verdict": "full" if verdict == "full" else "unusable", "titles": [title[k] for k in keys], "name": "", "nearest": "", "direction": None})
-                continue
-            if verdict == "covered" and not nearest:
-                nearest = text(item.get("nearest"), 30)
-            if verdict == "new":
-                needs = []
-                for value in item.get("needs") if isinstance(item.get("needs"), list) else []:
-                    cid = label_to_concept.get(str(value)) or name_to_concept.get(pathgraph._key(str(value)[:routeplan.JUDGE_CONCEPT_CHARS]))
-                    if cid and cid not in needs:
-                        needs.append(cid)
-                new_id = "d-" + hashlib.sha1(("|".join(sorted(keys)) + pathgraph._key(name)).encode()).hexdigest()[:10]
-                store["directions"].append({"id": new_id, "name": name, "terms": terms, "intro": text(item.get("intro"), 60),
-                                            "barrier": text(item.get("barrier"), 60), "needs": needs[:3], "papers": keys, "created": today})
-                visible[new_id] = store["directions"][-1]
-                direction_id = new_id
-            elif verdict == "join":
-                direction = next(d for d in store["directions"] if d["id"] == direction_id)
-                direction["papers"] = list(dict.fromkeys([*direction.get("papers", []), *keys]))
-                name = direction["name"]
-            for k in keys:
-                if verdict in ("covered", "unclear", "declined"):
-                    store["judged"][k] = {"verdict": verdict, "nearest": nearest}
-                else:
-                    store["judged"][k] = {"verdict": verdict, "direction": direction_id}
-            changed = True
-            outcomes.append({"verdict": verdict, "titles": [title[k] for k in keys], "name": name, "nearest": nearest, "direction": direction_id})
-        if changed:
-            self.store.set_setting(f"route_directions_{project_id}", store)
+                    direction_id = 'd-' + growthproposal.digest([identity, context])[:16]
+                    candidate = {**item, 'id': direction_id, 'identity': identity, 'context': self._growth_context(project_id, item['papers']),
+                                 'created': time.strftime('%Y-%m-%d')}
+                    # Validate the full structural change before displaying an actionable proposal.
+                    try:
+                        pathgrowth.merge_candidate(route['graph'], {**candidate,
+                            'prereqs': [{'from': cid} for cid in item['needs']]})
+                    except (ValueError, TypeError):
+                        outcomes.append({'verdict': 'unusable', 'titles': [title[k] for k in item['papers']], 'name': '', 'nearest': '', 'direction': None})
+                        continue
+                    store['directions'] = [d for d in store['directions'] if d['id'] != direction_id]
+                    store['directions'].append(candidate)
+                    fresh[direction_id] = candidate
+            elif kind == 'join':
+                direction_id = item['direction']
+            if verdict == 'join':
+                target = next(d for d in store['directions'] if d['id'] == direction_id)
+                target['papers'] = list(dict.fromkeys([*target.get('papers', []), *item['papers']]))
+                target['context'] = self._growth_context(project_id, target['papers'])
+                item['name'] = target['name']
+            for key in item['papers']:
+                store['judged'][key] = {'verdict': verdict, 'direction': direction_id,
+                                        'nearest': item.get('nearest', ''), 'context': self._growth_context(project_id, item['papers'], include_rejected=verdict == 'declined'), 'proof_keys': item['papers'], 'reason': item['reason'], 'proposal_type': kind, 'rejected_dependent': verdict == 'declined'}
+            outcomes.append({'verdict': verdict, 'proposal_type': kind, 'titles': [title[k] for k in item['papers']],
+                             'name': item['name'], 'nearest': item.get('nearest', ''), 'direction': direction_id})
+        if seen:
+            self._growth_write_setting(f'route_directions_{project_id}', store)
         return outcomes
 
     def route_candidate_accept(self, project_id, candidate_id, revision=None):
         """Add a proposed direction to the map: the person's click is the confirmation. The candidate is looked up
         again now, so one that changed since it was shown is refused instead of added from stale evidence."""
-        project_id, current, route, listed, _ = self._route_candidates(project_id)
+        project_id, current, route, listed, _ = self._route_candidates(project_id, limit=False)
         if revision is not None and revision != current:
             raise Conflict("Organization revision conflict")   # the map moved on since it was shown: say so before anything else
         found = next((c for c in listed if c["id"] == candidate_id), None)
         if not found:
             raise ValueError("这个新方向已经变了或不存在，请重新查找")
-        if found["status"] != "ready":
-            raise ValueError("这个方向的证据还不够，还不能加入")
+        if found['stale'] or not found['positive']:
+            raise Conflict('提议已过期，请重新判断；仍可手动编辑学习图')
         merged = pathgrowth.merge_candidate(route["graph"], found)
         for concept in merged["concepts"]:
             if concept.get("candidate") == candidate_id:
                 concept["state"] = "active"
         for edge in merged["prereqs"]:
-            if any(c["id"] == edge["to"] and c.get("candidate") == candidate_id for c in merged["concepts"]):
+            if any(c["id"] in (edge['from'], edge['to']) and c.get("candidate") == candidate_id for c in merged["concepts"]):
                 edge["state"] = "active"
-        return self._with_undo(project_id, self._route_apply(project_id, {"action": "route-save", "graph": merged, "label": "candidate"}, revision))
+        return self._with_undo(project_id, self._route_apply(project_id, {"action": "route-save", "graph": merged, "label": "candidate"},
+                                                         current if revision is None else revision, growth_context=(found['context'], found['papers'])))
 
     def route_candidate_reject(self, project_id, candidate_id, revision=None):
         """Turn a proposed direction down for good (undoable); it is not proposed again."""
-        project_id, current, _, listed, _ = self._route_candidates(project_id)
+        project_id, current, _, listed, _ = self._route_candidates(project_id, limit=False)
         if revision is not None and revision != current:
             raise Conflict("Organization revision conflict")
         found = next((c for c in listed if c["id"] == candidate_id), None)
@@ -533,11 +557,17 @@ class App:
         event = latest
         return self._with_undo(project_id, self._route_apply(project_id, {"action": "undo", "event": event["id"]}, revision))
 
-    def _route_apply(self, project_id, body, revision=None):
+    def _route_apply(self, project_id, body, revision=None, growth_context=None):
         org = self._route_org(project_id)
         if revision is not None:
             body = {**body, "revision": revision}
-        org.action(body)
+        def precondition():
+            if self._growth_context(project_id, growth_context[1]) != growth_context[0]:
+                raise Conflict('Growth evidence changed before confirmation; refresh')
+        if growth_context is None:
+            org.action(body)
+        else:
+            org.action(body, precondition=precondition)
         return self.route_get(project_id)
 
     def route_save(self, project_id, plan=None, graph=None, revision=None):

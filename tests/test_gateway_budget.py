@@ -101,6 +101,17 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertEqual(body["thinking"], {"type": "disabled"})
         self.assertEqual(body["model"], self.gateway.config["provider"]["model"])
 
+    def test_finish_reason_reaches_callers_with_known_and_unknown_usage(self):
+        for usage in ({'prompt_tokens': 100, 'completion_tokens': 20, 'total_tokens': 120}, None):
+            payload = {'choices': [{'message': {'content': '{}'}, 'finish_reason': 'length'}]}
+            if usage is not None:
+                payload['usage'] = usage
+            with mock.patch('app.gateway.urllib.request.urlopen', return_value=_ok(payload)):
+                out = self.gateway.call('daily_triage', [{'role': 'user', 'content': 'x'}])
+            self.assertTrue(out['ok'])
+            self.assertEqual(out['finish_reason'], 'length')
+            self.assertEqual(out.get('usage_unknown', False), usage is None)
+
     def test_in_flight_reservation_blocks_concurrent_admission(self):
         cap = self.gateway.config["operations"]["daily_triage"]["cap"]
         per_call = cap["input"] + cap["output"]
@@ -134,6 +145,14 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertTrue(result["usage_unknown"])
         self.assertEqual(self.gateway.usage_today()["tokens"], cap["input"] + cap["output"])
         self.assertEqual([r["status"] for r in self._rows()], ["reserved", "unknown"])
+
+    def test_server_http_failure_reports_unknown_usage_and_keeps_reservation(self):
+        error = urllib.error.HTTPError('u', 503, 'unavailable', {}, io.BytesIO(b''))
+        with mock.patch('app.gateway.urllib.request.urlopen', side_effect=error):
+            out = self.gateway.call('daily_triage', [])
+        self.assertTrue(out['usage_unknown'])
+        self.assertEqual(out['http_status'], 503)
+        self.assertEqual([r['status'] for r in self._rows()], ['reserved'])
 
     def test_client_rejection_releases_and_network_failure_does_not_retry(self):
         error = urllib.error.HTTPError("u", 401, "unauthorized", {}, io.BytesIO(b""))

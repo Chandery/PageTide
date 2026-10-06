@@ -16,7 +16,7 @@ class GrowthEvidenceTests(Fixture):
     def direction(self, keys):
         self.app.store.set_setting(f'route_directions_{self.pid}', {
             'directions': [{'id': 'd-test', 'name': 'Strain', 'terms': ['strain'],
-                            'papers': keys, 'needs': []}], 'judged': {}})
+                            'papers': keys, 'needs': [], 'context': self.app._growth_context(self.pid, keys)}], 'judged': {}})
 
     def visible(self):
         return self.app._visible_directions(self.pid, self.app.route_get(self.pid))
@@ -67,7 +67,8 @@ class GrowthEvidenceTests(Fixture):
         self.direction(['s1'])
         useful_id = self.app.latest_feedback(self.pid)['s1']['id']
         self.app.undo_feedback(useful_id)
-        self.assertEqual(self.visible()[0]['papers'], [])
+        self.assertEqual(self.visible(), [])
+        self.assertEqual(self.app.route_candidates(self.pid)['candidates'][0]['papers'], [])
 
     def test_growth_pending_obeys_frozen_effective_interest(self):
         self.say(('s1', 'useful'))

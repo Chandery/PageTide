@@ -124,16 +124,16 @@ class PendingTests(Fixture):
         self.say(("s1", "irrelevant"), ("s2", "too_hard"), ("s3", "irrelevant"), ("s3", "understood"))   # understanding what you turned down is not interest
         self.assertEqual(self.pending(), [])
 
-    def test_a_paper_that_was_not_an_exploration_slot_is_not_asked_about(self):
+    def test_useful_papers_are_pending_regardless_of_exposure_type(self):
         self.shown("s1", kind="route")
         self.shown("s2", kind=None)
         self.say(("s1", "useful"), ("s2", "useful"))
-        self.assertEqual(self.pending(), [])
+        self.assertEqual(self.pending(), ["s2", "s1"])
 
-    def test_a_seed_is_not_an_exploration_paper(self):
+    def test_a_chosen_seed_can_supply_growth_evidence(self):
         self.app.store.add_project_paper(self.pid, "s1", "seed")
         self.app.store.set_setting(f"seed_keys_{self.pid}", ["s1"])
-        self.assertEqual(self.pending(), [])
+        self.assertEqual(self.pending(), ["s1"])
 
     def test_undone_feedback_is_no_reason(self):
         self.shown("s1")
@@ -181,11 +181,11 @@ class JudgeTests(Fixture):
         for forbidden in ("Poetry", "poetry", "PRIVATE NOTE", "Secret other", "journal-a", "journal-b", '"s1"', '"s2"', "useful", "Crystals", "seed"):
             self.assertNotIn(forbidden, sent, forbidden)
         body = json.loads(sent)
-        self.assertEqual(set(body), {"papers", "concepts", "directions"})
+        self.assertEqual(set(body), {"papers", "map", "directions"})
         self.assertEqual(set(body["papers"]), {"p1", "p2"})
         self.assertTrue(all(set(p) == {"title", "abstract"} for p in body["papers"].values()))
-        self.assertEqual(set(body["concepts"].values()), {"Epitaxy", "Crystal basics", "MBE"})
-        self.assertEqual(calls[0][0], "direction_judge")
+        self.assertEqual(set(c["name"] for c in body["map"]["concepts"].values()), {"Epitaxy", "Crystal basics", "MBE"})
+        self.assertEqual(calls[0][0], "route_growth_judge")
 
     def add_secret(self):
         self.app.create_project("Secret other project", "manual", ["classified"])
@@ -215,14 +215,14 @@ class JudgeTests(Fixture):
         again = self.app.route_candidates(self.pid)["candidates"]
         self.assertEqual(([c["id"] for c in again], again[0]["paper_count"]), ([d["id"]], 3))
 
-    def test_a_new_that_repeats_a_direction_on_file_is_joined_not_duplicated(self):
+    def test_shared_search_terms_do_not_merge_distinct_tasks(self):
         self.judge_new("s1", "s2")
         self.shown("s3")
         self.say(("s3", "useful"))
-        self.gateway(reply([new(["p1"], name="应变弛豫（另一个说法）", terms=["strain relaxation", "x"])]))
+        self.gateway(reply([new(["p1"], name="应变弛豫（另一个说法）", terms=["strain relaxation", "other task"])]))
         out = self.app.route_direction_judge(self.pid)
-        self.assertEqual(out["results"][0]["verdict"], "join")
-        self.assertEqual(len(self.app.route_candidates(self.pid)["candidates"]), 1)
+        self.assertEqual(out["results"][0]["verdict"], "new")
+        self.assertEqual(len(self.app.route_candidates(self.pid)["candidates"]), 2)
 
     def test_a_neighbour_of_a_concept_is_covered_and_creates_nothing(self):
         self.shown("s1")
@@ -233,31 +233,30 @@ class JudgeTests(Fixture):
         self.assertEqual(self.names(), [])
         self.assertEqual(self.app._pending_explored(self.pid), [])      # asked once, not again and again
 
-    def test_a_new_whose_words_are_already_on_the_map_is_turned_into_covered(self):
+    def test_existing_search_terms_allow_a_new_task_under_the_node(self):
         self.shown("s1")
         self.say(("s1", "useful"))
-        self.gateway(reply([new(["p1"], name="外延", terms=["epitaxy", "x"])]))
+        self.gateway(reply([new(["p1"], name="外延的新任务", terms=["epitaxy", "thin films"], verdict="new_task", parent="c2")]))
         out = self.app.route_direction_judge(self.pid)
-        self.assertEqual((out["results"][0]["verdict"], out["results"][0]["nearest"]), ("covered", "Epitaxy"))
-        self.assertEqual(self.names(), [])
+        self.assertEqual(out["results"][0]["proposal_type"], "new_task")
+        self.assertEqual(self.names(), ["外延的新任务"])
 
-    def test_a_new_that_reads_like_a_concept_of_the_map_is_turned_into_covered_by_the_local_check(self):
+    def test_text_similarity_cannot_override_a_new_learning_task(self):
         self.add(*NEAR)
         for i in range(3):
             self.add(f"n{i + 2}", f"Epitaxial growth study {i}", "epitaxy epitaxial growth of thin films on a substrate lattice", "journal-c")
         self.shown("n1")
         self.say(("n1", "useful"))
-        self.gateway(reply([new(["p1"], name="薄膜生长", terms=["thin film growth", "substrate"])]))
+        self.gateway(reply([new(["p1"], name="薄膜生长", terms=["thin film growth", "substrate"], verdict="new_task", parent="c2")]))
         out = self.app.route_direction_judge(self.pid)
-        self.assertEqual(out["results"][0]["verdict"], "covered")
-        self.assertTrue(out["results"][0]["nearest"])
-        self.assertEqual(self.names(), [])
+        self.assertEqual(out["results"][0]["proposal_type"], "new_task")
+        self.assertEqual(self.names(), ["薄膜生长"])
 
-    def test_prerequisites_can_only_be_concepts_that_exist(self):
-        self.judge_new("s1", "s2", needs=["Epitaxy", "c1", "Not a concept", "Epitaxy"])
-        found = self.app.route_candidates(self.pid)["candidates"][0]
-        cid = {c["name"]: c["id"] for c in self.app.route_get(self.pid)["graph"]["concepts"]}
-        self.assertEqual([p["id"] for p in found["prereqs"]], [cid["Epitaxy"], cid["Crystal basics"]])
+    def test_bad_prerequisite_references_are_rejected_not_dropped(self):
+        out = self.judge_new("s1", "s2", needs=["Epitaxy", "c1", "Not a concept", "Epitaxy"])
+        self.assertFalse(out['ok'])
+        self.assertEqual(self.names(), [])
+        self.assertEqual(len(self.app._pending_growth(self.pid)), 2)
 
     def test_a_reply_item_that_is_not_usable_creates_nothing_and_leaves_the_papers_waiting(self):
         self.shown("s1", "s2", "s3")
@@ -284,14 +283,14 @@ class JudgeTests(Fixture):
         self.assertEqual([r["verdict"] for r in out["results"]], ["unusable", "unusable"])      # a string for terms; terms too short to search with
         self.assertEqual(self.names(), [])
 
-    def test_intro_and_barrier_of_the_wrong_type_become_empty_not_python_reprs(self):
-        self.judge_new("s1", "s2", intro=["a"], barrier=5)
-        c = self.app.route_candidates(self.pid)["candidates"][0]
-        self.assertEqual((c["intro"], c["barrier"]), ("", ""))
+    def test_intro_and_barrier_of_the_wrong_type_reject_the_proposal(self):
+        out = self.judge_new("s1", "s2", intro=["a"], barrier=5)
+        self.assertFalse(out['ok'])
+        self.assertEqual(self.names(), [])
 
     def test_when_twelve_directions_are_on_file_a_new_one_waits_instead_of_piling_up(self):
         self.app.store.set_setting(f"route_directions_{self.pid}", {"judged": {}, "directions": [
-            {"id": f"d-{i}", "name": f"方向{i}", "terms": [f"alpha{i} beta{i}", f"gamma{i}"], "intro": "", "barrier": "", "needs": [], "papers": [], "created": "2026-10-01"}
+            {"id": f"d-{i}", "name": f"方向{i}", "terms": [f"alpha{i} beta{i}", f"gamma{i}"], "intro": "", "barrier": "", "needs": [], "papers": [], "created": "2026-10-01", "context": self.app._growth_context(self.pid, [])}
             for i in range(App.MAX_VISIBLE_DIRECTIONS)]})
         self.shown("s1")
         self.say(("s1", "useful"))
@@ -315,7 +314,7 @@ class JudgeTests(Fixture):
         self.assertEqual(self.names(), [])
         self.assertEqual(self.app._pending_explored(self.pid), [])
 
-    def test_the_model_is_told_about_the_concepts_nearest_to_the_papers_not_the_first_ones(self):
+    def test_the_model_sees_every_node_including_the_relevant_late_node(self):
         graph = self.app.route_get(self.pid)["graph"]
         for i in range(14):
             graph["concepts"].append({"id": f"z{i}", "name": f"Filler {i}", "terms": [f"zzfiller{i}"], "hint": 1, "origin": "user", "state": "active", "side": False})
@@ -325,8 +324,8 @@ class JudgeTests(Fixture):
         self.say(("s1", "useful"))
         calls = self.gateway(reply([]))
         self.app.route_direction_judge(self.pid)
-        names = set(json.loads(calls[0][1][1]["content"])["concepts"].values())
-        self.assertEqual(len(names), routeplan.JUDGE_CONCEPTS)
+        names = {c["name"] for c in json.loads(calls[0][1][1]["content"])["map"]["concepts"].values()}
+        self.assertEqual(len(names), 18)
         self.assertIn("Dislocation glide", names)
 
     def test_labels_the_model_made_up_are_ignored_and_those_papers_stay_pending(self):
@@ -335,7 +334,7 @@ class JudgeTests(Fixture):
         labels = self.labels()
         self.gateway(reply([new(["p9", "nope"]), new([labels["s1"]])]))
         out = self.app.route_direction_judge(self.pid)
-        self.assertEqual(len(out["results"]), 1)
+        self.assertEqual([r['verdict'] for r in out['results']], ['unusable', 'new'])
         self.assertEqual([p["key"] for p in self.app._pending_explored(self.pid)], ["s2"])
 
     def test_an_unreadable_reply_degrades_and_counts_as_an_attempt(self):
@@ -357,7 +356,7 @@ class JudgeTests(Fixture):
         self.shown("s1")
         self.say(("s1", "useful"))
         out = self.app.route_direction_judge(self.pid, dry_run=True)
-        self.assertEqual((out["ok"], out["reason_code"], out["judges_left"]), (False, "dry_run", App.DIRECTION_JUDGES_PER_DAY))
+        self.assertEqual((out["ok"], out["reason_code"], out["judges_left"]), (False, "not_approved", App.DIRECTION_JUDGES_PER_DAY))
 
     def test_ten_a_day_per_project_and_then_it_says_so(self):
         self.shown("s1")
@@ -479,13 +478,13 @@ class AcceptTests(Fixture):
         self.assertEqual([c for c in self.app.route_get(self.pid)["graph"]["concepts"] if c.get("candidate")], [])
         self.assertIn("应变弛豫", self.names())          # undone: the direction is back on file
 
-    def test_a_direction_that_is_not_ready_cannot_be_added(self):
+    def test_evidence_strength_does_not_block_explicit_confirmation(self):
         self.judge_new("s1")
         cand = self.app.route_candidates(self.pid)["candidates"][0]
-        before = self.app.route_get(self.pid)
-        with self.assertRaisesRegex(ValueError, "还不够"):
-            self.app.route_candidate_accept(self.pid, cand["id"])
-        self.assertEqual(self.app.route_get(self.pid)["graph"], before["graph"])
+        self.assertEqual(cand['status'], 'watch')
+        self.assertTrue(cand['can_accept'])
+        out = self.app.route_candidate_accept(self.pid, cand['id'])
+        self.assertTrue(any(c.get('candidate') == cand['id'] for c in out['graph']['concepts']))
 
     def test_new_feedback_and_reading_never_add_a_concept_by_itself(self):
         self.ready_direction()
@@ -557,13 +556,13 @@ class AcceptTests(Fixture):
             self.app.route_undo(self.other)
 
     def test_a_legacy_concept_that_looks_like_a_paper_does_not_lock_the_map(self):
-        cand = self.ready_direction()
         graph = self.app.route_get(self.pid)["graph"]
         graph["concepts"][0]["name"] = "Scaling laws (Kaplan et al.)"   # saved before concept names were checked
         revision, data = self.app._route_org(self.pid)._load()
         data["route"]["graph"] = graph
         self.app.store.conn.execute("UPDATE org_projects SET data=? WHERE project=?", (json.dumps(data), self.pid))
         self.app.store.conn.commit()
+        cand = self.ready_direction()  # judge against the actual legacy Map, not a stale preview
         out = self.app.route_candidate_accept(self.pid, cand["id"])   # must still work
         self.assertTrue(any(c.get("candidate") for c in out["graph"]["concepts"]))
         fresh = self.app.route_get(self.pid)["graph"]
@@ -594,7 +593,7 @@ class HttpTests(Fixture):
             status, body = self.post(port, {"action": "candidates", "project_id": self.pid})
             self.assertEqual((status, body["candidates"], len(body["pending"])), (200, [], 3))
             status, out = self.post(port, {"action": "direction-judge", "project_id": self.pid, "dry_run": True})
-            self.assertEqual((status, out["ok"], out["reason_code"]), (200, False, "dry_run"))
+            self.assertEqual((status, out["ok"], out["reason_code"]), (200, False, "not_approved"))
             self.assertEqual(self.post(port, {"action": "direction-judge", "project_id": "no-such"})[0], 400)
             with mock.patch("app.service.Gateway.call", return_value=reply([new(list(labels.values()))])):
                 status, out = self.post(port, {"action": "direction-judge", "project_id": self.pid})

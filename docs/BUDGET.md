@@ -77,3 +77,11 @@ python3 scripts/budget.py --check
 ```
 
 检查操作登记、envelope 自洽、场景算术与生成文档一致性；**不发起任何模型请求**，也不是运行时拦截器。`runtime_enforcement_implemented` 与 `tokenizer_parity_verified` 仍为 false，因此发布检查继续阻断。
+
+## Route V2 阶段06：新生长合同（2026-10-07，未批准）
+
+旧 `direction_judge` 的2026-10-06授权只覆盖其旧范围。Route页现在使用独立 `route_growth_judge`，不借旧许可扩大外发。新合同发送最多3篇有效 Useful/主动种子公开元数据、完整有界Map及至多3条有效提议；详情见 [ADR 0018](decisions/0018-route-growth-proposals.md) 和 [新提示词](../prompts/route-growth-judge.md)。`owner_approved=false`，不能真实调用；手动编辑仍可用。历史旧操作/价格记录保留。
+
+日常检索、去重、排序、画像、归档、数据库维护最低0模型token。显式点击的新生长参考3000/700，上限8000/1000，单次最高9000/$0.0036；十次/日90000/$0.036超过原55k总日token额度，因此次数上限不保证全部准入。新情景每月8次最高72000/$0.0288；均为峰时缓存未命中算术，非账单。全局55k日/150万月/$0.15日/$1.50月不变。无重试或自动刷新。
+
+2026-10-07重新读取官方价格和聊天协议HTTP200，版本化来源保留旧记录。完整协议以UTF8字节加固定framing作保守检查，超限明确拒绝，Map不裁剪。未执行新tokenizer校准、真实AI质量或计费探针；相关发布gates不降低。

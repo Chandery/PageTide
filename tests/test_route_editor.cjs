@@ -352,11 +352,11 @@ test('a direction row shows how far it is and what it has, all escaped, and is o
   assert.match(html, /论文 2\/3/);
   assert.match(html, /你点过 2\/2/);
   assert.match(html, /来源 1\/2/);
-  assert.match(html, /还在形成/);
+  assert.match(html, /证据较少/);
   assert.match(html, /data-growth="select"/);
   assert.doesNotMatch(html, /data-growth="accept"|data-growth="reject"/);       // adding and turning down live in the panel you open
   const ready = R.candidateRowHTML(growth({ name: 'x <b>y</b>' }), null);
-  assert.match(ready, /可以加入/);
+  assert.match(ready, /可确认提议/);
   assert.ok(!ready.includes('<b>y</b>') && ready.includes('&lt;b&gt;y&lt;/b&gt;'));
 });
 
@@ -410,10 +410,10 @@ test('the waiting exploration papers are listed with the one button that asks th
 test('what the model said is put in plain words, one phrase per group, and never as a fact about the reader', () => {
   const R = load();
   const text = R.judgeSummary([{ verdict: 'new', name: '应变弛豫' }, { verdict: 'join', name: '应变弛豫' }, { verdict: 'covered', nearest: 'Epitaxy' }, { verdict: 'covered' }, { verdict: 'unclear' }]);
-  assert.match(text, /「应变弛豫」是一个新方向/);
+  assert.match(text, /「应变弛豫」是一个新分支提议/);
   assert.match(text, /并入了潜在方向「应变弛豫」/);
-  assert.match(text, /和「Epitaxy」太接近，不算新方向/);
-  assert.match(text, /和学习图里已有的概念太接近/);
+  assert.match(text, /「Epitaxy」已覆盖这项学习任务/);
+  assert.match(text, /学习图里已有的概念已覆盖这项学习任务/);
   assert.match(text, /看不出来/);
   assert.match(R.judgeSummary([{ verdict: 'declined', name: '应变弛豫' }]), /之前选了“不再提示”/);
   assert.match(R.judgeSummary([{ verdict: 'full' }]), /还留在待判断里/);
@@ -582,4 +582,33 @@ test('a new concept can carry an intro and keeps it through a rename and a re-dr
   assert.equal(renamed.concepts[1].name, 'Epitaxy basics');
   const reused = R.reuseIds(grown, g);
   assert.equal(reused.concepts.find((c) => c.name === 'Dreamer').intro, 'A method.');
+});
+
+
+test('current one-paper proposal can be confirmed while stale strong proposal cannot', () => {
+  const R = load();
+  const weak = {...forming(), can_accept: true, stale: false, proposal_type: 'new_task'};
+  const html = R.ghostDetailHTML(weak);
+  assert.match(html, /新任务/);
+  assert.match(html, /仅供参考/);
+  assert.doesNotMatch(html.match(/<button[^>]+data-growth="accept"[^>]*>/)[0], /disabled/);
+  const stale = R.ghostDetailHTML(growth({can_accept: false, stale: true}));
+  assert.match(stale.match(/<button[^>]+data-growth="accept"[^>]*>/)[0], /disabled/);
+  assert.match(stale, /不会自动调用 AI/);
+  assert.match(R.ghostStatus(growth({stale:true})).label, /已过期/);
+});
+
+test('missing prerequisite ghost points to dependent and cannot change stored map', () => {
+  const R = load(), graph = mapOf(), before = JSON.stringify(graph);
+  const ghost = R.ghostGraph(graph, [growth({proposal_type:'missing_prerequisite',
+    topology:{needs:[],required_by:[{id:'c2',name:'Epitaxy'}]}})]);
+  assert.ok(ghost.prereqs.some(e => e.from === 'ghost:g-0123456789' && e.to === 'c2'));
+  assert.equal(JSON.stringify(graph), before);
+});
+
+test('judgment history exposes outdated status and escapes source prose', () => {
+  const html = load().judgementsHTML({judgements:[{stale:true,verdict:'covered',titles:['<script>x</script>'],reason:'<b>source</b>'}]});
+  assert.match(html, /已过期/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.doesNotMatch(html, /<script>|<b>source/);
 });
