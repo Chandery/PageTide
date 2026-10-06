@@ -17,6 +17,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   const ui = context.module.exports;
   ui.setReader = reader => { context.window.PDH.openReader = reader; };
   ui.setDetail = open => { context.window.PDH.openDetail = open; };
+  ui.setDocument = doc => { context.document = doc; };
   ui.setCytoscape = factory => { context.window.cytoscape = factory; };
   ui.reduceMotion = enabled => { context.window.matchMedia = () => ({matches: enabled}); };
   ui.createGraph = elements => {
@@ -921,4 +922,71 @@ test('a slow read for one project is dropped when another project tab was chosen
   release({ available: true, units: [], prereqs: [], papers: [], matches: [], unmatched: [], omitted: 0 });
   await pending;
   assert.equal(ui.S.routeDetail, null);
+});
+
+
+function routeGraphFixture() {
+  const ui = fixture();
+  ui.S.snapshot = snapshot({ route_projects: ['p1'], projects: [{ id: 'p1', name: 'A' }],
+    directions: [{ id: 'd1', name: 'Models', rank: 0 }, { id: 'd2', name: 'Other', rank: 1 }],
+    items: [{ key: 'one', title: 'One', directions: ['d1'], projects: ['p1'] }, { key: 'two', title: 'Two', directions: ['d2'], projects: ['p1'] }, { key: 'free', title: 'Free', directions: ['d2'], projects: ['p1'] }] });
+  ui.S.scope = 'p1'; ui.S.graphView = 'route'; ui.S.mode = 'graph';
+  ui.S.rcy = ui.createGraph([
+    { data: { id: 'ru:a', kind: 'unit', label: 'A' }, position: { x: 0, y: 0 } }, { data: { id: 'ru:b', kind: 'unit', label: 'B' }, position: { x: 0, y: 200 } },
+    { data: { id: 'rp:one', kind: 'paper', key: 'one', label: 'One' }, position: { x: 0, y: 100 } },
+    { data: { id: 'rp:two', kind: 'paper', key: 'two', label: 'Two' }, position: { x: 100, y: 300 } },
+    { data: { id: 'rp:free', kind: 'paper', key: 'free', label: 'Free' }, position: { x: 300, y: 500 } },
+    { data: { id: 'e1', source: 'rp:one', target: 'ru:a', kind: 'matched_to' } }, { data: { id: 'e2', source: 'rp:two', target: 'ru:b', kind: 'matched_to' } },
+    { data: { id: 'e3', source: 'ru:a', target: 'ru:b', kind: 'prerequisite' } }]);
+  const base = routeBox().root;
+  // every other part of the page (sidebar, list, detail pane) is a stand-in that accepts whatever is drawn into it
+  const stub = () => new Proxy(function () {}, { get: (t, k) => (k === Symbol.toPrimitive ? () => '' : k === 'length' ? 0 : k === 'then' ? undefined : k in t ? t[k] : stub()), set: () => true, apply: () => stub() });
+  ui.setDocument(stub());
+  ui.S.root = { querySelector: (selector) => base.querySelector(selector) || stub(), querySelectorAll: () => [], classList: { contains: () => false, toggle() {}, add() {} } };
+  return ui;
+}
+const dimmed = (ui) => JSON.parse(JSON.stringify(ui.S.rcy.elements('.org-dim').map(e => e.id()).sort()));
+
+test('picking a paper in the left list focuses it in the learning-map view: it and its neighbours stay, the rest dims', () => {
+  const ui = routeGraphFixture();
+  ui.focusRoute('rp:one');
+  assert.equal(ui.S.routeFocus, 'rp:one');
+  assert.deepEqual(dimmed(ui), ['e2', 'e3', 'rp:free', 'rp:two', 'ru:b']);
+  assert.ok(ui.S.rcy.getElementById('rp:one').hasClass('org-current'));
+});
+
+test('focusing nothing clears the dimming again', () => {
+  const ui = routeGraphFixture();
+  ui.focusRoute('rp:one'); ui.focusRoute(null);
+  assert.deepEqual(dimmed(ui), []);
+  assert.equal(ui.S.routeFocus, null);
+});
+
+test('picking a category in the left list keeps that category\'s papers and the units they fit, and dims the rest', () => {
+  const ui = routeGraphFixture();
+  ui.S.filter = 'd2';
+  ui.focusRouteCategory();
+  assert.deepEqual(dimmed(ui), ['e1', 'e3', 'rp:one', 'ru:a']);
+  ui.S.filter = '*';
+  ui.focusRouteCategory();
+  assert.deepEqual(dimmed(ui), []);
+});
+
+test('a category with nothing drawn says so instead of dimming everything silently', () => {
+  const ui = routeGraphFixture();
+  ui.S.snapshot.directions.push({ id: 'd3', name: 'Empty', rank: 2 });
+  ui.S.filter = 'd3';
+  ui.focusRouteCategory();
+  assert.deepEqual(dimmed(ui), []);
+  assert.match(ui.S.notice, /没有/);
+});
+
+test('in the learning-map view the left list focuses the node instead of redrawing the paper graph', async () => {
+  const ui = routeGraphFixture();
+  await ui.handle('graph-paper-focus', { dataset: { key: 'one' } });
+  assert.equal(ui.S.key, 'one');
+  assert.equal(ui.S.routeFocus, 'rp:one');
+  assert.equal(ui.S.focus, 'all');   // the paper graph's own focus mode is not touched
+  await ui.handle('filter', { dataset: { id: 'd2' } });
+  assert.deepEqual(dimmed(ui), ['e1', 'e3', 'rp:one', 'ru:a']);
 });

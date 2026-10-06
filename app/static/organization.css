@@ -209,7 +209,6 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 @media (max-width:1150px) { .org-workspace:has(.org-detail.has-paper) { grid-template-columns:var(--org-side) minmax(240px,1fr) minmax(320px,360px); } }
 
 /* view scope, project tags, cross-project mark, graph focus */
-.org-focus button { font-size:12px; padding:5px 12px; }
 .org-paper-open .org-projects, .org-detail-projects .org-projects { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
 .org-proj { font-size:11.5px; padding:1px 8px; border-radius:999px; border:1px solid var(--org-border); color:var(--org-muted); }
 .org-proj.is-current { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
@@ -257,6 +256,14 @@ html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:
 
 /* The graph view switch (papers / learning map + papers) sits where the focus bar is; the focus bar moves below it. */
 .org-view { position:absolute; top:10px; left:10px; z-index:3; background:var(--org-bg); }
-.org-view button { font-size:12px; padding:5px 12px; }
-.org-graph-wrap.has-view .org-focus { top:54px; }
 .org-graph-wrap.is-route .org-graph-tools [data-action="rearrange"] { display:none; }
+
+/* The two switches on the graph (which view; which papers) are one pill each: the page-wide button style
+   (border, fill, 5px corners, 32px height) must not show through inside the pill, or the outline looks too big
+   for what it holds. Same look as .seg elsewhere, in this page's colours. */
+.pdh-organization .seg { display:inline-flex; gap:2px; padding:3px; border:1px solid var(--org-border); border-radius:999px; background:var(--org-bg); }
+.pdh-organization .seg button { border:0; border-radius:999px; background:transparent; min-height:0; padding:5px 14px; font-size:12px; line-height:1.3; color:var(--org-muted); white-space:nowrap; }
+.pdh-organization .seg button:hover:not(:disabled):not([aria-checked="true"]) { background:var(--org-subtle); color:var(--org-ink); }
+.pdh-organization .seg button[aria-checked="true"] { background:var(--org-accent); color:var(--org-accent-ink); font-weight:600; }
+.pdh-organization .seg button:disabled { opacity:.45; }
+.org-graph-wrap.has-view .org-focus { top:50px; }

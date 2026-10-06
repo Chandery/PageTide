@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', graphView: 'papers', rcy: null, routeDetail: null, routeToken: 0, showOther: false, showAll: false, transient: new Set() };
+  const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', graphView: 'papers', routeFocus: null, rcy: null, routeDetail: null, routeToken: 0, showOther: false, showAll: false, transient: new Set() };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const DEFAULT_COLOR = '#64748b';
   const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
@@ -9,6 +9,7 @@
     try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
     catch { return fallback; }
   };
+  const PAPER_HINT = '点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布';
   const $ = selector => S.root.querySelector(selector);
   const icons = { undo: 'undo-2', export: 'download', fit: 'maximize', rearrange: 'grid-2x2', 'zoom-in': 'plus', 'zoom-out': 'minus', 'direction-new': 'plus', collapse: 'chevron-down', 'direction-edit': 'pencil', 'category-child': 'plus', 'direction-delete': 'x', 'direction-up': 'arrow-up', 'direction-down': 'arrow-down', 'detail-close': 'x', 'dialog-close': 'x', history: 'history', 'note-save': 'check' };
   const button = (action, label, symbol, extra = '') => `<button type="button" data-action="${action}" title="${h(label)}" aria-label="${h(label)}" ${extra}><img class="org-icon" src="/icons/org/${icons[action] || 'pencil'}.svg" width="16" height="16" alt=""></button>`;
@@ -243,7 +244,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文整理</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">论文库</button><button role="tab" data-action="graph">知识图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理建议</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">${PAPER_HINT}</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -569,6 +570,7 @@
     renderViewSeg();
     if (S.graphView === 'route') { renderRouteGraph(); return; }
     S.rcy?.destroy(); S.rcy = null;
+    const hint = $('.org-graph-hint'); if (hint) hint.textContent = PAPER_HINT;   // the learning-map view writes its own line there
     capturePositions();
     S.relationsPending=false;
     const previousElements = S.graphSeen || new Set();
@@ -710,6 +712,30 @@
       { selector: 'node.org-current', style: { 'border-color': ink, 'border-width': 4 } }
     ];
   }
+  /* The left list works in the learning-map view as it does in the paper view: a paper or a category is located, what
+     is connected to it stays lit and the rest dims. Only classes and the camera change; nothing is saved. */
+  function routeMotion() { return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 200; }
+  function focusRoute(id) {
+    const cy = S.rcy; if (!cy) return;
+    S.routeFocus = id || null;
+    cy.elements().removeClass('org-dim'); cy.nodes().removeClass('org-current');
+    const node = id ? cy.getElementById(id) : null;
+    if (!node || !node.length) { S.routeFocus = null; fitRouteGraph(); return; }
+    cy.elements().addClass('org-dim'); node.closedNeighborhood().removeClass('org-dim'); node.addClass('org-current');
+    cy.resize(); cy.animate({ center: { eles: node }, zoom: Math.min(cy.maxZoom(), Math.max(cy.zoom(), 1)) }, { duration: routeMotion() });
+  }
+  function focusRouteCategory() {
+    const cy = S.rcy; if (!cy) return;
+    S.routeFocus = null; cy.elements().removeClass('org-dim'); cy.nodes().removeClass('org-current');
+    if (S.filter === '*') { fitRouteGraph(); return; }
+    const keys = new Set(visible().map(p => p.key));
+    const papers = cy.nodes('[kind="paper"]').filter(n => keys.has(n.data('key')));
+    if (!papers.length) { S.notice = '当前类别或搜索没有可显示的论文'; status(); return; }
+    const lit = papers.closedNeighborhood();
+    cy.elements().addClass('org-dim'); lit.removeClass('org-dim');
+    S.notice = `${papers.length} 篇论文 · 已定位，滚轮缩放或拖动画布浏览`; status();
+    cy.resize(); cy.animate({ fit: { eles: lit.nodes(), padding: 50 } }, { duration: routeMotion() });
+  }
   function fitRouteGraph() {
     const cy = S.rcy; if (!cy) return;
     cy.resize(); cy.animate({ fit: { eles: cy.nodes(), padding: 40 } }, { duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 200 });
@@ -757,6 +783,8 @@
     cy.on('mouseover', 'edge', e => { container.title = e.target.data('tip') || ''; });
     cy.on('mouseout', 'edge', () => { container.title = ''; });
     S.resizeObserver?.disconnect(); S.resizeObserver = new ResizeObserver(() => S.rcy?.resize()); S.resizeObserver.observe(container);
+    if (S.routeFocus && cy.getElementById(S.routeFocus).length) focusRoute(S.routeFocus);   // a redraw keeps what was located
+    else if (S.key && cy.getElementById(`rp:${S.key}`).length) cy.getElementById(`rp:${S.key}`).addClass('org-current');
   }
   function graphSignature(snap) { return JSON.stringify([snap.positions || {}, snap.directions || [], (snap.items || []).map(p => [p.key, p.directions]), snap.collapsed || []]); }
   function bindGraphDrag(cy, begin, drag, end, cancel = () => {}) {
@@ -1029,6 +1057,7 @@
       case 'library': case 'graph': await S.positionQueue; capturePositions(); S.mode = action; renderSidebar(); setMode(); if (action === 'graph') await loadRelations(); break;
       case 'filter': {
         S.filter = b.dataset.id; S.graphFocus = null;
+        if (S.graphView === 'route' && S.mode === 'graph') { renderSidebar(); renderList(); renderFocus(); focusRouteCategory(); break; }
         if (S.mode === 'graph' && S.focus === 'all' && S.filter !== '*' && scoped().length > OVERVIEW_LIMIT) S.focus = 'category';   // a big overview is narrowed by picking a category
         renderSidebar(); renderList(); renderFocus();
         if (S.mode === 'graph' && (S.focus === 'category' || !S.cy)) { renderGraph(false); if (S.cy) focusCategory(); }
@@ -1042,6 +1071,11 @@
       }
       case 'graph-paper-focus': {
         const p = item(b.dataset.key); if (!p) break;
+        if (S.graphView === 'route' && S.mode === 'graph') {   // the learning-map view: locate the node, keep the paper graph's focus untouched
+          S.key = p.key; renderSidebar(); renderDetail(); renderList();
+          S.rcy ? focusRoute(`rp:${p.key}`) : (S.routeFocus = `rp:${p.key}`);
+          S.notice = `${p.title || p.key} · 已定位`; status(); break;
+        }
         if (!S.cy) {   // nothing is drawn yet (the overview): picking a paper draws it with its neighbours
           S.key = p.key; S.focus = 'paper1'; S.graphFocus = paperNodeId(p.key);
           renderSidebar(); renderDetail(); renderList(); renderGraph(false); break;
@@ -1054,7 +1088,7 @@
         const next = b.dataset.scope || 'all';
         if (next === S.scope) break;
         // Only the view changes: nothing is saved, no layout is touched, the shared tree is not edited.
-        S.scope = next; S.selected.clear(); S.showOther = false; S.filter = '*'; S.focus = 'all'; S.showAll = false; S.graphFocus = null;
+        S.scope = next; S.selected.clear(); S.showOther = false; S.filter = '*'; S.focus = 'all'; S.showAll = false; S.graphFocus = null; S.routeFocus = null;
         if (S.key && !scoped().some(p => p.key === S.key)) S.key = null;
         renderSidebar(); renderList(); renderDetail(); renderFocus(); status();
         if (S.mode === 'graph') renderGraph(false);
@@ -1064,7 +1098,7 @@
       case 'graph-view': {
         const next = b.dataset.view === 'route' ? 'route' : 'papers';
         if (next === S.graphView || (next === 'route' && !routeAvailable())) break;
-        S.graphView = next; S.graphFocus = null;
+        S.graphView = next; S.graphFocus = null; S.routeFocus = null;
         if (S.mode === 'graph') renderGraph(false); else renderFocus();
         break;
       }
@@ -1175,5 +1209,5 @@
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
 })();

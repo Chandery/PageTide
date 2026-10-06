@@ -1,0 +1,6 @@
+Checks for changes/2026-10-06-route-view-focus.json (2026-10-06)
+node --test tests/<each>.cjs: fail 0 in all files (organization_ui 72 tests)
+python3 -m unittest tests.test_i18n tests.test_route_graph_page tests.test_ui_layout tests.test_ui_contrast tests.test_route_detail tests.test_growth_ui: OK (92)
+python3 scripts/harness.py check: PASS; i18n_extract: 0 missing
+python3 -m unittest discover -s tests: full suite re-run, OK (1035).
+Browser preview (seeded copy): paper click in the left list located and dimmed as intended; the pills have no inner borders.
