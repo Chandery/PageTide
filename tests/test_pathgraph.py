@@ -494,6 +494,66 @@ class ConceptTypeTests(unittest.TestCase):
         self.assertEqual(grown["concepts"][-1]["type"], "method")
 
 
+class IntroTests(unittest.TestCase):
+    """A concept can say what it is. Who wrote that is kept apart: the model's sentence and the person's own are
+    different things, and the page says which is which."""
+
+    def concept(self, **extra):
+        return {"id": "c1", "name": "World models", "terms": ["world model"], "hint": 2, **extra}
+
+    def graph(self, **extra):
+        return {"concepts": [self.concept(**extra)], "prereqs": [], "targets": ["c1"]}
+
+    def test_a_plan_keeps_the_models_sentence_marked_as_the_models(self):
+        graph, _ = pg.normalize(raw(dict(concept("a", "World models"), intro="让智能体在脑中模拟环境，再据此规划。")), intro_by="ai")
+        self.assertEqual((graph["concepts"][0]["intro"], graph["concepts"][0]["intro_by"]), ("让智能体在脑中模拟环境，再据此规划。", "ai"))
+
+    def test_without_intro_by_nothing_claims_to_be_the_models(self):
+        graph, _ = pg.normalize(raw(dict(concept("a", "World models"), intro="A sentence.")))
+        self.assertNotIn("intro", graph["concepts"][0])   # a plan from anywhere but the model path has no say in who wrote it
+
+    def test_the_sentence_is_cleaned_and_bounded_but_keeps_its_punctuation(self):
+        text = "A model, learned from data: it predicts what happens next!   " + "x" * 200
+        graph, _ = pg.normalize(raw(dict(concept("a", "World models"), intro=text)), intro_by="ai")
+        got = graph["concepts"][0]["intro"]
+        self.assertLessEqual(len(got), 140)
+        self.assertTrue(got.startswith("A model, learned from data: it predicts what happens next!"))
+
+    def test_markup_and_control_characters_are_plain_text(self):
+        graph, _ = pg.normalize(raw(dict(concept("a", "World models"), intro="<b>bold</b>\x00 and\nlines")), intro_by="ai")
+        got = graph["concepts"][0]["intro"]
+        self.assertNotIn("\x00", got)
+        self.assertNotIn("\n", got)
+        self.assertEqual(got, "<b>bold</b> and lines")   # stays text; the page escapes it
+
+    def test_a_saved_map_keeps_intro_and_who_wrote_it(self):
+        kept = pg.validate(self.graph(intro="Said by the person.", intro_by="user"))["concepts"][0]
+        self.assertEqual((kept["intro"], kept["intro_by"]), ("Said by the person.", "user"))
+        ai = pg.validate(self.graph(intro="Said by the model.", intro_by="ai"))["concepts"][0]
+        self.assertEqual(ai["intro_by"], "ai")
+
+    def test_an_intro_with_no_author_is_taken_as_the_persons_own(self):
+        self.assertEqual(pg.validate(self.graph(intro="Old note."))["concepts"][0]["intro_by"], "user")
+
+    def test_an_unknown_author_is_refused(self):
+        with self.assertRaises(ValueError):
+            pg.validate(self.graph(intro="x", intro_by="somebody"))
+
+    def test_an_empty_intro_is_dropped_with_its_author(self):
+        kept = pg.validate(self.graph(intro="   ", intro_by="ai"))["concepts"][0]
+        self.assertNotIn("intro", kept)
+        self.assertNotIn("intro_by", kept)
+
+    def test_add_concept_takes_an_intro(self):
+        graph, _ = pg.normalize(raw(concept("a", "World models"), targets=["a"]))
+        grown = pg.add_concept(graph, {"name": "Dreamer", "terms": ["dreamer"], "hint": 3, "intro": "A method.", "intro_by": "user"}, needs=[graph["concepts"][0]["id"]])
+        self.assertEqual((grown["concepts"][-1]["intro"], grown["concepts"][-1]["intro_by"]), ("A method.", "user"))
+
+    def test_a_paper_looking_intro_is_not_a_reason_to_drop_the_concept(self):
+        graph, report = pg.normalize(raw(dict(concept("a", "World models"), intro="See Ha et al. 2018 (arXiv:1803.10122).")), intro_by="ai")
+        self.assertEqual(names(graph), ["World models"])   # the intro may cite; the concept itself is not a paper
+
+
 class ProgressTests(unittest.TestCase):
     def setUp(self):
         self.graph, _ = pg.normalize(raw(
@@ -667,19 +727,19 @@ class FrontierAndRemedialTests(unittest.TestCase):
 
 class ExplorationTests(unittest.TestCase):
     def test_the_share_rises_smoothly_with_progress(self):
-        self.assertAlmostEqual(pg.exploration_share(0, 10), 0.10)
-        self.assertAlmostEqual(pg.exploration_share(5, 10), 0.30)
-        self.assertAlmostEqual(pg.exploration_share(10, 10), 0.50)
-        self.assertAlmostEqual(pg.exploration_share(0, 0), 0.10)
-        self.assertAlmostEqual(pg.exploration_share(99, 10), 0.50)   # clamped
+        self.assertAlmostEqual(pg.exploration_share(0, 10), 0.20)
+        self.assertAlmostEqual(pg.exploration_share(5, 10), 0.40)
+        self.assertAlmostEqual(pg.exploration_share(10, 10), 0.60)
+        self.assertAlmostEqual(pg.exploration_share(0, 0), 0.20)
+        self.assertAlmostEqual(pg.exploration_share(99, 10), 0.60)   # clamped
 
     def test_slots_follow_the_share_on_average_and_are_replayable(self):
         counts = [pg.exploration_slots(5, 0, 10, n) for n in range(20)]
-        self.assertEqual(sum(counts), 10)            # 0.10 of 100 slots over twenty batches
-        self.assertTrue(all(0 <= c <= 1 for c in counts))
+        self.assertEqual(sum(counts), 20)            # 0.20 of 100 slots over twenty batches
+        self.assertEqual(counts, [1] * 20)           # a batch of five has one from the very first batch: it is seen, not "from the second batch on"
         self.assertEqual(counts, [pg.exploration_slots(5, 0, 10, n) for n in range(20)])
-        half = [pg.exploration_slots(5, 10, 10, n) for n in range(20)]
-        self.assertEqual(sum(half), 50)
+        full = [pg.exploration_slots(5, 10, 10, n) for n in range(20)]
+        self.assertEqual(sum(full), 60)
 
     def test_a_batch_always_keeps_at_least_one_route_slot(self):
         self.assertTrue(all(pg.exploration_slots(5, 10, 10, n) <= 4 for n in range(10)))

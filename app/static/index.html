@@ -773,6 +773,16 @@ function aiSlot(c) {
   return `<div class="ai-off">（尚未速览）</div>`;
 }
 // The learning map: where the reader stands and why each card was chosen. Plain words, no counts of what was missed.
+// How many of today's papers are exploration (outside what can be read now), and why there are none when there are none.
+function exploreLine(share) {
+  const cards = state.cards || [], explored = cards.filter((c) => c.route && (c.route.kind === 'explore' || c.route.kind === 'explore_new'));
+  if (!cards.length) return `探索约占 ${share}%：每批会留出这个比例，给不在你现在能读的概念里、但和你兴趣接近的论文。`;
+  const off = cards.filter((c) => c.route && c.route.kind === 'offroute').length;
+  if (off) return `今天有 ${off} 篇是路径外的补充：你现在能读的概念暂时没有未展示的论文了。点“抓取新论文”，推荐会回到路径上。${explored.length ? `探索位：${explored.length} / ${cards.length} 篇。` : ''}`;
+  if (!explored.length) return `今天这一批没有探索位：探索约占 ${share}%，只有在没看过的论文里有不在你现在能读的概念里的，才会排出来。`;
+  const toward = explored.filter((c) => c.route.kind === 'explore_new').length;
+  return toward ? `今天的探索位：${explored.length} / ${cards.length} 篇，其中 ${toward} 篇指向正在形成的新方向。` : `今天的探索位：${explored.length} / ${cards.length} 篇。`;
+}
 function renderRoute(route) {
   const panel = $('#routePanel');
   if (!panel) return;
@@ -796,6 +806,7 @@ function renderRoute(route) {
   panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">路径模式</span></div>${seg(true)}</div>
     <div class="route-meter"><div class="route-bar" role="img" aria-label="已读懂 ${route.done} / ${route.total} 个概念"><i style="width:${pct}%"></i></div><span>已读懂 ${route.done} / ${route.total} 个概念 · 探索约占 ${share}%</span></div>
     <div class="route-now">${names ? `<span class="sub">现在在读：</span>${names}` : '<span class="sub">所有概念都已读懂，推荐回到普通排序。</span>'}</div>
+    <div class="route-explore"><span class="sub">${exploreLine(share)}</span></div>
     <div class="route-foot"><span class="sub">开启后推荐先从你现在能读的概念里选论文，各条分支各走各的，互不等待。</span><a class="btn" href="${link}">查看和调整学习图</a></div>`;
 }
 $('#routePanel').addEventListener('click', async (event) => {
@@ -807,11 +818,13 @@ $('#routePanel').addEventListener('click', async (event) => {
     await load();
   } catch (e) { toast(`没能切换推荐方式：${e.message}`, 'err'); buttons.forEach((b) => { b.disabled = false; }); }
 });
-const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索' };
+const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索', explore_new: '探索 · 新方向', offroute: '路径外' };
 const ROUTE_TITLES = {
   route: '状态：来自学习图。它属于你现在能读的概念。',
   remedial: '状态：来自学习图。你把相关论文标为“太难”，所以先补一篇基础。',
-  explore: '状态：来自学习图。这篇是探索位，不在你现在能读的概念里。',
+  explore: '状态：来自学习图的探索位。这篇不在你现在能读的概念里，但和你的兴趣接近；你点“收藏”之后，可以让 AI 判断它是不是一个明显不同于学习图里已有概念的新方向。',
+  explore_new: '状态：来自学习图的探索位，和一个已经出现的潜在方向读起来很像。你点“收藏”之后让 AI 判断，通常会并入那个方向，给它攒证据；到学习图页能看到进度。',
+  offroute: '状态：路径外的补充。你现在能读的概念暂时没有未展示的论文了，所以这篇按你的兴趣补上；标签里是它最像的概念（如果有）。抓取新论文后，推荐会回到路径上。',
 };
 function routeBadge(c) {
   if (!c.route) return '';
@@ -830,10 +843,41 @@ const pdfBadge = (status) => {
   return `<span class="pdf-tag pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}"><i class="icon book" aria-hidden="true"></i>${text}</span>`;
 };
 
+/* A collected exploration paper: offer, once, to let the AI judge whether it is a new direction. Nothing is sent until the button is clicked. */
+const isExploration = (c) => Boolean(c.route && /^explore/.test(c.route.kind || ''));
+function judgeAskHTML(c) {
+  return `<div class="judge-ask"><span>这篇是探索推荐来的。要让 AI 判断它是不是一个新方向吗？</span>`
+    + `<button class="tiny" data-judge="ask" data-key="${esc(c.key)}" ${c.judgeBusy ? 'disabled' : ''} title="点一次调用一次 AI：只发送你收藏过的探索论文（最多 3 篇）的标题和摘要节选、学习图里的概念名和已有的潜在方向名，不发送笔记、画像或其他项目">${c.judgeBusy ? '判断中…' : '让 AI 判断'}</button>`
+    + `<button class="tiny" data-judge="later" data-key="${esc(c.key)}">以后再说</button></div>`;
+}
+function judgeSummary(results) {
+  return (results || []).map((r) => {
+    const name = r.name ? `「${r.name}」` : '';
+    if (r.verdict === 'new') return `${name}是一个新方向，已放进学习图页的潜在方向`;
+    if (r.verdict === 'join') return `并入了潜在方向${name}`;
+    if (r.verdict === 'covered') return `和${r.nearest ? `「${r.nearest}」` : '学习图里已有的概念'}太接近，不算新方向`;
+    if (r.verdict === 'declined') return `${name || '这个方向'}你之前选了“不再提示”，不再收进来`;
+    if (r.verdict === 'full') return '潜在方向已经很多了，先加入或“不再提示”一些，这几篇还留在待判断里';
+    if (r.verdict === 'unusable') return 'AI 的回复不完整，这几篇还留在待判断里，可以再点一次';
+    return 'AI 看不出来，先不算新方向';
+  }).join('；');
+}
+async function doJudge(key) {
+  const card = state.cards.find(c => c.key === key);
+  if (!state.currentProject || (card && card.judgeBusy)) return;
+  if (card) { card.judgeBusy = true; renderCards(); }
+  try {
+    const out = await api('/api/route', { action: 'direction-judge', project_id: state.currentProject });
+    if (!out.ok) toast(`没有使用 AI：${out.reason || 'AI 没有给出判断'}`, 'warn');
+    else { toast(`AI 判断完了：${judgeSummary(out.results)}。今天还能判断 ${out.judges_left} 次。`, 'ok'); if (card) card.judgeAsk = false; }
+  } catch (e) { toast(e.message, 'err'); }
+  finally { if (card) card.judgeBusy = false; renderCards(); }
+}
 function cardHTML(c, i) {
   const saved = c.saved || c.feedback === 'useful';
+  const exploring = c.route && /^explore/.test(c.route.kind || '');
   return `
-  <article class="card" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
+  <article class="card${exploring ? ' is-explore' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <div class="paper-topline"><span class="paper-number"><i class="icon book" aria-hidden="true"></i>${String(i + 1).padStart(2,'0')}</span>
       ${c.summary ? '<span class="st st-done"><i class="icon sparkles" aria-hidden="true"></i>AI 已速览</span>' : '<span class="st st-pending">待速览</span>'}</div>
     <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
@@ -846,6 +890,7 @@ function cardHTML(c, i) {
     <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
+    ${c.judgeAsk ? judgeAskHTML(c) : ''}
     <div class="actions">
       <span class="actions-fb">
         <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
@@ -1106,9 +1151,10 @@ async function doFeedback(key, action) {
   }
   const card = state.cards.find(c => c.key === key);
   if (card) {
-    if (action === 'unsave') { card.saved = false; card.feedback = null; }
+    if (action === 'unsave') { card.saved = false; card.feedback = null; card.judgeAsk = false; }
     else if (action === 'useful') card.saved = true;
     if (action === 'understood' || action === 'too_hard') card.familiarity = action;   // a familiarity label never replaces the interest one
+    if ((action === 'useful' || action === 'understood') && isExploration(card) && state.currentProject) card.judgeAsk = true;   // offered, not sent
   }
   renderCards();
   if (state.view === 'library') await refreshStats();
@@ -1118,6 +1164,13 @@ $('#cards').addEventListener('click', (e) => {
   if (rd) { e.stopPropagation(); window.PDH.openReader(rd.dataset.read, rd.dataset.title); return; }
   const ai = e.target.closest('button[data-ai]');
   if (ai) { e.stopPropagation(); triageOne(ai.dataset.ai); return; }
+  const judge = e.target.closest('button[data-judge]');
+  if (judge) {
+    e.stopPropagation();
+    if (judge.dataset.judge === 'ask') doJudge(judge.dataset.key);
+    else { const c = state.cards.find(x => x.key === judge.dataset.key); if (c) { c.judgeAsk = false; renderCards(); } }   // "later" records nothing
+    return;
+  }
   const fb = e.target.closest('button[data-fb]');
   if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
   const card = e.target.closest('.card[data-key]');
@@ -1236,6 +1289,13 @@ async function openDetail(key) {
   }
 }
 $('#detail').addEventListener('click', (e) => {
+  const judge = e.target.closest('button[data-judge]');
+  if (judge) {
+    e.stopPropagation();
+    if (judge.dataset.judge === 'ask') doJudge(judge.dataset.key);
+    else { const c = state.cards.find(x => x.key === judge.dataset.key); if (c) { c.judgeAsk = false; renderCards(); } }   // "later" records nothing
+    return;
+  }
   const fb = e.target.closest('button[data-fb]');
   // the open pane is drawn again so its buttons show the new state ("✓ 已读懂") instead of the old one
   if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).then(() => { if ($('#detail .detail-panel')) return openDetail(fb.dataset.key); }).catch(x => toast(x.message, 'err'));

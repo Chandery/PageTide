@@ -244,8 +244,9 @@
     return { up, down };
   }
 
-  /* options: statusOf(concept) -> {key, label, title}, extraClass(concept), selected, onSelect(id|null),
-     scale ('fit-width' | number), maxHeight. Returns a controller. */
+  /* options: statusOf(concept) -> {key, label, title}, extraClass(concept), decorate(element, concept, node) (a hook
+     to add to a node after it is built, e.g. an outline), edgeState(from, to) -> 'met' | 'wait' | 'plain' | 'ghost',
+     selected, onSelect(id|null), scale ('fit-width' | number), maxHeight. Returns a controller. */
   function mount(host, graph, options) {
     const opts = options || {};
     const doc = host.ownerDocument;
@@ -300,6 +301,7 @@
       el.dataset.id = concept.id;
       el.title = status.title || concept.name;
       el.innerHTML = `<span class="rg-name" data-no-i18n>${esc(concept.name)}</span>${status.label ? `<span class="rg-state">${esc(status.label)}</span>` : ''}`;
+      if (opts.decorate) opts.decorate(el, concept, n);
       el.onclick = () => { if (opts.canSelect && !opts.canSelect(concept.id)) return; select(state.selected === concept.id ? null : concept.id, true); };
       canvas.appendChild(el);
       nodeEls.set(concept.id, el);

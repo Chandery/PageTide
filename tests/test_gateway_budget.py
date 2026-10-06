@@ -185,7 +185,7 @@ class GatewayBudgetTests(unittest.TestCase):
             result = self.gateway.call("learning_path_plan", [{"role": "user", "content": "x"}])
         self.assertTrue(result["ok"])
         self.assertEqual(urlopen.call_count, 1)
-        self.assertEqual(json.loads(urlopen.call_args[0][0].data)["max_tokens"], 900)
+        self.assertEqual(json.loads(urlopen.call_args[0][0].data)["max_tokens"], 1500)
         self.assertEqual([r["operation"] for r in self._rows()], ["learning_path_plan", "learning_path_plan"])
 
     def test_learning_path_plan_is_refused_when_unapproved(self):

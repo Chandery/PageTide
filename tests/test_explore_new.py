@@ -1,0 +1,162 @@
+"""Exploration and potential directions are one loop: a direction on file (the model's opinion about papers the reader
+collected from exploration) steers the exploration slots toward papers that read like its own, and the card says so.
+The reader's explicit feedback on such a paper is what makes the direction grow; being shown a paper is not evidence."""
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from app.service import App
+
+PLAN = {"concepts": [
+    {"id": "a", "name": "Crystal basics", "terms": ["crystal growth", "lattice"], "hint": 1, "needs": []},
+    {"id": "b", "name": "Epitaxy", "terms": ["epitaxy", "epitaxial"], "hint": 2, "needs": ["a"]}], "targets": ["b"]}
+
+
+class Fixture(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        (self.root / "harness").mkdir()
+        (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
+        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
+        self.addCleanup(self.app.store.close)
+        self.pid = self.app.create_project("Crystals", "manual", ["epitaxy"])["project_id"]
+        self.app.route_save(self.pid, plan=PLAN)
+        for i in range(8):   # papers of the readable concept: the route has plenty to show
+            self.add(f"cb{i}", f"Crystal growth and lattice basics {i}", "crystal growth lattice", f"journal-{i % 3}")
+        # four papers of a direction the map does not cover; two of them the reader collected earlier and the model put under a direction
+        for i, source in enumerate(("journal-a", "journal-b", "journal-a", "journal-b"), start=1):
+            self.add(f"s{i}", f"Strain relaxation by misfit dislocation glide {i}",
+                     "strain relaxation by misfit dislocation glide in thin films", source)
+        # a paper outside the map that the profile will like better than the direction's papers
+        self.add("decoy", "A decoy about quantum dots", "quantum dots")
+        self.app.record_feedback("s1", "useful", project_id=self.pid)
+        self.app.record_feedback("s2", "useful", project_id=self.pid)
+        self.app.store.create_batch("2026-09-01", ["s1", "s2"], project_id=self.pid, route={k: (None, "explore", None, None) for k in ("s1", "s2")})
+        self.app.store.set_setting(f"route_directions_{self.pid}", {"directions": [
+            {"id": "d-1", "name": "应变弛豫", "terms": ["strain relaxation", "dislocation glide"], "intro": "位错滑移释放应力。", "barrier": "难在应变与缺陷。",
+             "needs": [], "papers": ["s1", "s2"], "created": "2026-09-01"}], "judged": {"s1": {"verdict": "new"}, "s2": {"verdict": "join"}}})
+
+    def add(self, key, title, abstract, source="arXiv"):
+        self.app.store.upsert_papers([{"key": key, "title": title, "abstract": abstract, "source": source, "published": "2026-02-01"}], project_id=self.pid)
+
+    def kinds(self, cards):
+        return {c["key"]: (c["route"] or {}).get("kind") for c in cards}
+
+
+class ExploreNewTests(Fixture):
+    def test_the_exploration_slot_goes_to_a_paper_that_reads_like_the_directions_papers(self):
+        cards = self.app.build_batch(limit=5, project_id=self.pid)["cards"]
+        kinds = self.kinds(cards)
+        explored = [k for k, v in kinds.items() if v in ("explore", "explore_new")]
+        self.assertEqual(len(explored), 1)
+        self.assertIn(explored[0], ("s3", "s4"))   # a paper like the direction's, not the decoy the profile likes better
+        card = next(c for c in cards if c["route"]["kind"] == "explore_new")
+        self.assertEqual(card["route"]["name"], "应变弛豫")
+        self.assertIsNone(card["route"]["node"])
+
+    def test_it_is_chosen_over_a_paper_the_profile_likes_more(self):
+        route = self.app._route_state(self.pid)
+        pool = [dict(self.app.store.paper(k)) for k in ("decoy", "s3", "cb0", "cb1", "cb2", "cb3", "cb4")]
+        scored = [("decoy", 0.9), ("s3", 0.4)] + [(f"cb{i}", 0.3) for i in range(5)]
+        plain = self.app._route_pick(route, pool, scored, {}, 5, 0, ())
+        steered = self.app._route_pick(route, pool, scored, {}, 5, 0, [{"name": "应变弛豫", "papers": ["s3"]}])
+        self.assertIn(("decoy", None, "explore", None), plain)
+        self.assertEqual([p for p in steered if p[2].startswith("explore")], [("s3", None, "explore_new", "应变弛豫")])
+
+    def test_the_targets_come_from_the_papers_under_each_direction_and_leave_out_unlike_papers(self):
+        papers = self.app._project_papers_for_growth(self.pid)
+        vectors, idf = __import__("app.pathgrowth", fromlist=["x"]).paper_vectors(papers)
+        pool = [p for p in papers if p["key"] not in ("s1", "s2")]
+        targets = self.app._exploration_targets(self.pid, pool, {k: v for k, v in vectors.items() if k not in ("s1", "s2")}, idf)
+        self.assertEqual([t["name"] for t in targets], ["应变弛豫"])
+        self.assertEqual(set(targets[0]["papers"]), {"s3", "s4"})
+
+    def test_a_direction_already_on_the_map_no_longer_steers(self):
+        d = self.app.route_candidates(self.pid)["candidates"]
+        self.assertEqual(len(d), 1)
+        graph = self.app.route_get(self.pid)["graph"]
+        graph["concepts"].append({"id": "c9", "name": "应变弛豫", "terms": ["strain relaxation"], "hint": 2, "origin": "grown", "state": "active", "side": False, "candidate": "d-1"})
+        self.app.route_save(self.pid, graph=graph)
+        kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
+        self.assertNotIn("explore_new", kinds.values())
+
+    def test_a_direction_the_reader_turned_down_stops_steering_exploration(self):
+        self.app.route_candidate_reject(self.pid, self.app.route_candidates(self.pid)["candidates"][0]["id"])
+        papers = self.app._project_papers_for_growth(self.pid)
+        vectors, idf = __import__("app.pathgrowth", fromlist=["x"]).paper_vectors(papers)
+        self.assertEqual(self.app._exploration_targets(self.pid, [p for p in papers if p["key"] in ("s3", "s4")], vectors, idf), [])
+        self.assertNotIn("explore_new", self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"]).values())
+
+    def test_papers_the_reader_turned_down_since_no_longer_steer(self):
+        self.app.record_feedback("s1", "irrelevant", project_id=self.pid)
+        self.app.record_feedback("s2", "irrelevant", project_id=self.pid)
+        self.assertEqual(self.app._visible_directions(self.pid, self.app._route_org(self.pid)._load()[1]["route"], self.app.latest_feedback(self.pid))[0]["papers"], [])
+        kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
+        self.assertNotIn("explore_new", kinds.values())
+
+    def test_without_any_direction_on_file_the_exploration_slot_is_the_ordinary_one(self):
+        self.app.store.set_setting(f"route_directions_{self.pid}", {"directions": [], "judged": {}})
+        kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
+        self.assertNotIn("explore_new", kinds.values())
+        self.assertIn("explore", kinds.values())
+
+    def test_when_the_readable_concepts_run_out_of_papers_the_batch_stays_a_path_batch_and_says_so(self):
+        for i in range(6):
+            self.add(f"o{i}", f"Quantum dots and nanowires {i}", f"quantum dots nanowires photonics {i}", "journal-q")
+        self.app.build_batch(limit=5, project_id=self.pid)
+        self.app.build_batch(limit=5, project_id=self.pid)           # now every paper of the readable concept has been shown
+        out = self.app.build_batch(limit=5, project_id=self.pid)
+        kinds = self.kinds(out["cards"])
+        self.assertEqual(len(out["cards"]), 5)
+        self.assertNotIn(None, kinds.values())                         # no card loses its path label
+        self.assertNotIn("route", kinds.values())
+        self.assertIn("offroute", kinds.values())
+        self.assertIn("路径外", out["shortfall"]["reason"])
+        self.assertTrue(all(c["route"] is not None for c in out["cards"]))
+        self.assertEqual(sum(1 for v in kinds.values() if v in ("explore", "explore_new")), 1)   # the exploration slot keeps its own tag
+
+    def test_an_off_path_paper_names_the_concept_it_resembles_when_there_is_one(self):
+        for i in range(4):
+            self.add(f"e{i}", f"Epitaxial growth study {i}", "epitaxy epitaxial growth", "journal-e")
+        self.app.build_batch(limit=5, project_id=self.pid)
+        self.app.build_batch(limit=5, project_id=self.pid)
+        route = self.app.build_batch(limit=5, project_id=self.pid)["cards"]
+        named = [c["route"]["name"] for c in route if c["route"]["kind"] == "offroute"]
+        self.assertIn("Epitaxy", named)                                # "Epitaxy" is locked, so these are not on the readable path
+
+    def test_every_batch_has_an_exploration_slot_when_the_pool_has_something_to_explore(self):
+        first = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
+        self.assertEqual(sum(1 for v in first.values() if v in ("explore", "explore_new")), 1)   # not "from the second batch on"
+
+    def test_the_label_is_stored_so_it_does_not_change_when_the_map_does(self):
+        out = self.app.build_batch(limit=5, project_id=self.pid)
+        key = next(c["key"] for c in out["cards"] if c["route"]["kind"] == "explore_new")
+        self.app.store.set_setting(f"route_directions_{self.pid}", {"directions": [], "judged": {}})
+        again = next(c for c in self.app.cards(out["batch_id"], self.pid) if c["key"] == key)
+        self.assertEqual(again["route"]["name"], "应变弛豫")
+
+    def test_being_shown_is_not_evidence_only_the_readers_own_response_is(self):
+        self.app.build_batch(limit=5, project_id=self.pid)
+        self.assertEqual(self.app.route_candidates(self.pid)["candidates"][0]["positive"], 2)   # showing s3 changed nothing
+        self.assertEqual(self.app.route_candidates(self.pid)["pending"], [])
+        self.app.record_feedback("s3", "useful", project_id=self.pid)
+        out = self.app.route_candidates(self.pid)
+        self.assertEqual(out["candidates"][0]["positive"], 2)       # still under no direction until the model judged it
+        self.assertEqual([p["key"] for p in out["pending"]], ["s3"])    # it was shown as exploration and collected: waiting to be judged
+
+    def test_an_unknown_exploration_kind_does_not_break_the_cards(self):
+        out = self.app.build_batch(limit=5, project_id=self.pid)
+        self.app.store.conn.execute("UPDATE exposures SET route_kind='from-the-future' WHERE batch_id=? AND route_kind='explore_new'", (out["batch_id"],))
+        self.app.store.conn.commit()
+        self.assertTrue(self.app.cards(out["batch_id"], self.pid))
+
+
+if __name__ == "__main__":
+    unittest.main()
