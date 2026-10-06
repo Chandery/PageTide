@@ -1886,8 +1886,22 @@ class App:
         return {"ok": True, "path": str(path), "source_kind": "user_import"}
 
     # ---------------------------------------------------------------- triage
-    def triage(self, cards, dry_run=False, project_id=None):
-        """Optional AI summaries for the cards. Degrades to local-only on any failure."""
+    MAX_TRIAGE_KEYS = 5
+
+    def triage(self, cards, dry_run=False, project_id=None, keys=None):
+        """Optional AI summaries for the cards. Degrades to local-only on any failure.
+
+        `keys` (a person clicking "AI 速览" on a card): only those cards, at most MAX_TRIAGE_KEYS, and only cards that
+        are in the current batch; this is a subset of what the registered daily_triage sends (one batch of at most
+        five abstract-only cards), triggered by an explicit click instead of the background switch."""
+        if keys is not None:
+            if (not isinstance(keys, list) or not keys or len(keys) > self.MAX_TRIAGE_KEYS
+                    or any(not isinstance(k, str) for k in keys)):
+                raise ValueError("请选择 1 到 %d 篇论文" % self.MAX_TRIAGE_KEYS)
+            wanted = set(keys)
+            cards = [card for card in cards if card["key"] in wanted]
+            if not cards:
+                raise ValueError("这些论文不在当前推荐里")
         if not cards:
             return {"ok": True, "items": [], "mode": "sparse"}
 

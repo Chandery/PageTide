@@ -46,3 +46,26 @@ html[data-mode="dark"] {
 .seg button[aria-checked="true"] { background:var(--accent); color:var(--accent-ink); font-weight:600; }
 .seg button:disabled { opacity:.5; cursor:not-allowed; }
 .seg button:focus-visible { outline:2px solid var(--accent-text); outline-offset:2px; }
+
+/* Three kinds of small label, each with its own look so they are never mistaken for one another:
+   .st  = a status of this paper (summarised or not, saved): a round pill with a dot or icon;
+   .pdf-tag = where a legal PDF can come from: a tinted pill with a book icon, green / amber / grey;
+   .kw  = a keyword or concept the paper was chosen for: a square tag, optional muted kind on the left. */
+.st { display:inline-flex; align-items:center; gap:calc(5px * var(--s)); font-size:calc(11.5px * var(--s)); line-height:1.2; padding:calc(3px * var(--s)) calc(10px * var(--s)); border-radius:999px; border:1px solid var(--line); background:var(--surface-2); color:var(--muted); white-space:nowrap; }
+.st .icon { width:calc(12px * var(--s)); height:calc(12px * var(--s)); flex:0 0 calc(12px * var(--s)); }
+.st-pending { background:transparent; border-style:dashed; }
+.st-pending::before { content:""; width:calc(6px * var(--s)); height:calc(6px * var(--s)); border-radius:50%; border:1px solid currentColor; }
+.st-done { color:var(--ai-text); border-color:color-mix(in srgb, var(--ai) 60%, var(--line)); background:color-mix(in srgb, var(--ai) 14%, var(--surface-1)); }
+.st-saved { color:var(--mark-text); border-color:color-mix(in srgb, var(--mark) 45%, var(--line)); background:color-mix(in srgb, var(--mark) 9%, var(--surface-1)); }
+.pdf-tag { display:inline-flex; align-items:center; gap:calc(5px * var(--s)); font-size:calc(11.5px * var(--s)); line-height:1.2; padding:calc(3px * var(--s)) calc(10px * var(--s)); border-radius:calc(5px * var(--s)); border:1px solid var(--line); white-space:nowrap; }
+.pdf-tag .icon { width:calc(12px * var(--s)); height:calc(12px * var(--s)); flex:0 0 calc(12px * var(--s)); }
+.pdf-direct { color:var(--good); border-color:color-mix(in srgb, var(--good) 50%, var(--line)); background:color-mix(in srgb, var(--good) 11%, var(--surface-1)); }
+.pdf-page { color:var(--warn); border-color:color-mix(in srgb, var(--warn) 50%, var(--line)); background:color-mix(in srgb, var(--warn) 11%, var(--surface-1)); }
+.pdf-none { color:var(--muted); border-style:dashed; background:transparent; }
+.kws { display:flex; flex-wrap:wrap; gap:calc(6px * var(--s)); margin:0 0 calc(10px * var(--s)); }
+.kw { display:inline-flex; align-items:stretch; font-size:calc(12px * var(--s)); line-height:1.25; border-radius:calc(6px * var(--s)); border:1px solid color-mix(in srgb, var(--accent-text) 24%, var(--line)); background:var(--surface-1); color:var(--text); overflow:hidden; max-width:100%; }
+.kw-k, .kw-v { padding:calc(3px * var(--s)) calc(9px * var(--s)); }
+.kw-k { background:color-mix(in srgb, var(--accent-text) 9%, var(--surface-2)); color:var(--muted); border-right:1px solid color-mix(in srgb, var(--accent-text) 18%, var(--line)); }
+.kw-v { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kw-remedial .kw-k { color:var(--warn); }
+.kw-explore .kw-k { color:var(--ai-text); }

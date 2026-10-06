@@ -1055,6 +1055,10 @@
   "这个类别由所有项目共用：其中 {0} 篇属于其他项目，它们也会失去这个类别。": "This category is shared by all projects: {0} of these papers belong to other projects and will lose it too.",
   "重新排列当前显示的论文卡片？没有显示的论文不受影响。之后可点击「撤销重新排列」恢复原布局。": "Re-arrange the paper cards shown now? Papers that are not shown are not affected. You can click \"Undo re-arrange\" afterwards to restore the layout.",
   "当前没有显示论文，无法重新排列": "No papers are shown, so there is nothing to re-arrange",
-  "打开右侧论文详情：摘要、笔记、所属类别和项目": "Open the paper details on the right: abstract, notes, categories and projects"
+  "打开右侧论文详情：摘要、笔记、所属类别和项目": "Open the paper details on the right: abstract, notes, categories and projects",
+  "让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）": "Ask the AI to summarise this paper again (1 call; only this paper's title and abstract are sent)",
+  "让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）": "Ask the AI to summarise this paper (1 call; only this paper's title and abstract are sent)",
+  "重新速览": "Summarise again",
+  "AI 已速览 · {0} token · ${1}": "AI summarised · {0} tokens · ${1}"
  }
 }

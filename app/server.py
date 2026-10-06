@@ -595,7 +595,11 @@ class Handler(BaseHTTPRequestHandler):
             self._json(app.build_batch(limit=int(body.get("limit", 5)), project_id=project_id))
         elif route == "/api/triage":
             project_id = body.get("project_id")
-            self._json(app.triage(app.cards(project_id=project_id), dry_run=bool(body.get("dry_run")), project_id=project_id))
+            try:
+                self._json(app.triage(app.cards(project_id=project_id), dry_run=bool(body.get("dry_run")), project_id=project_id,
+                                      keys=body.get("keys")))
+            except ValueError as exc:
+                self._json({"error": str(exc)}, 400)
         elif route == "/api/feedback":
             key, action = body.get("key"), body.get("action")
             if not key or not action:

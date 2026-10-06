@@ -148,8 +148,6 @@
   .badge { font-size:calc(11px * var(--s)); padding:calc(3px * var(--s)) calc(10px * var(--s)); border-radius:999px; box-shadow:var(--sh-in-sm); color:var(--muted); }
   .badge.ai { color:var(--ai-text); }
   .badge.saved { color:var(--good); }
-  .badge.route-route, .badge.route-remedial { color:var(--ai-text); }
-  .badge.route-remedial { color:var(--warn); }
   .route-panel { margin-top:calc(16px * var(--s)); padding:calc(16px * var(--s)) calc(20px * var(--s)); border:1px solid var(--line); border-radius:var(--r-lg); background:var(--surface-1);
     display:grid; gap:calc(14px * var(--s)); font-size:calc(13px * var(--s)); line-height:1.6; }
   .route-head, .route-foot { display:flex; align-items:center; justify-content:space-between; gap:calc(12px * var(--s)) calc(16px * var(--s)); flex-wrap:wrap; }
@@ -160,8 +158,6 @@
   .route-meter span { white-space:nowrap; color:var(--muted); }
   .route-now { display:flex; flex-wrap:wrap; align-items:center; gap:calc(8px * var(--s)); }
   .route-foot .sub { max-width:62ch; }
-  .badge.pdf-direct { color:var(--good); }
-  .badge.pdf-page { color:var(--warn); }
   .abs { font-size:calc(13.5px * var(--s)); color:var(--text); opacity:.86;
          display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
   .ai-slot { margin-top:calc(12px * var(--s)); }
@@ -448,7 +444,11 @@
   .card h3 { font-size:calc(16px * var(--s)); line-height:1.38; margin-bottom:calc(8px * var(--s)); }
   .card .actions { padding-top:calc(16px * var(--s)); margin-top:auto; gap:calc(8px * var(--s)); }
   .card .actions button { font-size:calc(12px * var(--s)); padding:calc(7px * var(--s)) calc(12px * var(--s)); }
-  .card .actions .read-action { margin-left:auto; color:var(--accent-text); border-color:var(--accent-soft); }
+  .card .actions .actions-end { margin-left:auto; display:flex; flex-wrap:wrap; gap:calc(8px * var(--s)); justify-content:flex-end; }
+  .card .actions .read-action { color:var(--accent-text); border-color:var(--accent-soft); }
+  .card .actions .ai-action { color:var(--ai-text); border-color:color-mix(in srgb, var(--ai) 55%, var(--line)); }
+  .card .actions .ai-action:disabled { opacity:.55; cursor:progress; }
+  .card .actions .ai-action .icon { width:calc(14px * var(--s)); height:calc(14px * var(--s)); }
   .abs { color:var(--muted); line-height:1.7; opacity:1; -webkit-line-clamp:3; font-size:calc(13px * var(--s)); }
   .badge, .chip { background:var(--surface-2); border:1px solid var(--line); box-shadow:none; font-size:calc(11px * var(--s)); }
   .whyline { border-top:1px solid var(--line); padding-top:calc(12px * var(--s)); margin-top:calc(12px * var(--s)); font-size:calc(12px * var(--s)); }
@@ -725,7 +725,7 @@
 <script src="/figure-intent.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
+const state = { triagingKeys:new Set(), view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
                 currentProject:null, projects:[], maintained:new Set() };
 
 // ------------------------------------------------------------ appearance
@@ -790,7 +790,7 @@ function renderStats() {
 function aiSlot(c) {
   if (c.summary) return `<div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
     ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>`;
-  if (state.triaging) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
+  if (state.triaging || state.triagingKeys.has(c.key)) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return `<div class="ai-off">（尚未速览）</div>`;
 }
 // The learning map: where the reader stands and why each card was chosen. Plain words, no counts of what was missed.
@@ -813,7 +813,7 @@ function renderRoute(route) {
   }
   const share = Math.round((route.exploration_share || 0) * 100);
   const pct = route.total ? Math.round(100 * (route.done || 0) / route.total) : 0;
-  const names = (route.frontier || []).map((f) => `<span class="chip" data-no-i18n>${esc(f.name)}</span>`).join('');
+  const names = (route.frontier || []).map((f) => `<span class="kw"><span class="kw-v" data-no-i18n>${esc(f.name)}</span></span>`).join('');
   panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">路径模式</span></div>${seg(true)}</div>
     <div class="route-meter"><div class="route-bar" role="img" aria-label="已读懂 ${route.done} / ${route.total} 个概念"><i style="width:${pct}%"></i></div><span>已读懂 ${route.done} / ${route.total} 个概念 · 探索约占 ${share}%</span></div>
     <div class="route-now">${names ? `<span class="sub">现在在读：</span>${names}` : '<span class="sub">所有概念都已读懂，推荐回到普通排序。</span>'}</div>
@@ -838,7 +838,7 @@ function routeBadge(c) {
   if (!c.route) return '';
   const kind = ROUTE_KINDS[c.route.kind];
   if (!kind) return '';
-  return `<span class="badge route-${esc(c.route.kind)}" title="${esc(ROUTE_TITLES[c.route.kind])}"><span>${kind}</span>${c.route.name ? ` <span data-no-i18n>${esc(c.route.name)}</span>` : ''}</span>`;
+  return `<span class="kw kw-${esc(c.route.kind)}" title="${esc(ROUTE_TITLES[c.route.kind])}"><span class="kw-k">${kind}</span>${c.route.name ? `<span class="kw-v" data-no-i18n>${esc(c.route.name)}</span>` : ''}</span>`;
 }
 
 const PDF_BADGES = {
@@ -848,7 +848,7 @@ const PDF_BADGES = {
 };
 const pdfBadge = (status) => {
   const [text, tip] = PDF_BADGES[status] || PDF_BADGES.none;
-  return `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}">${text}</span>`;
+  return `<span class="pdf-tag pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}"><i class="icon book" aria-hidden="true"></i>${text}</span>`;
 };
 
 function cardHTML(c, i) {
@@ -856,14 +856,14 @@ function cardHTML(c, i) {
   return `
   <article class="card" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <div class="paper-topline"><span class="paper-number"><i class="icon book" aria-hidden="true"></i>${String(i + 1).padStart(2,'0')}</span>
-      ${c.summary ? '<span class="badge ai">AI 已速览</span>' : '<span class="badge">待速览</span>'}</div>
+      ${c.summary ? '<span class="st st-done"><i class="icon sparkles" aria-hidden="true"></i>AI 已速览</span>' : '<span class="st st-pending">待速览</span>'}</div>
     <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
       ${pdfBadge(c.pdf_status)}
-      ${routeBadge(c)}
-      ${saved ? '<span class="badge saved">已收藏</span>' : ''}
+      ${saved ? '<span class="st st-saved"><i class="icon bookmark" aria-hidden="true"></i>已收藏</span>' : ''}
     </div>
+    ${routeBadge(c) ? `<div class="kws">${routeBadge(c)}</div>` : ''}
     <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
@@ -872,7 +872,10 @@ function cardHTML(c, i) {
         <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
       <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
       <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
-      <button class="tiny read-action" data-read="${esc(c.key)}" data-title="${esc(c.title)}"><i class="icon book" aria-hidden="true"></i>阅读 PDF</button>
+      <span class="actions-end">
+        <button class="tiny ai-action" data-ai="${esc(c.key)}" ${state.triaging || state.triagingKeys.has(c.key) ? 'disabled' : ''} title="${c.summary ? '让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）' : '让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）'}"><i class="icon sparkles" aria-hidden="true"></i>${c.summary ? '重新速览' : 'AI 速览'}</button>
+        <button class="tiny read-action" data-read="${esc(c.key)}" data-title="${esc(c.title)}"><i class="icon book" aria-hidden="true"></i>阅读 PDF</button>
+      </span>
     </div>
   </article>`;
 }
@@ -1067,6 +1070,20 @@ async function autoTriage() {
   } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
   finally { state.triaging = false; renderCards(); }
 }
+// One paper, one explicit click, one call: only this card's title and abstract are sent.
+async function triageOne(key) {
+  if (state.triaging || state.triagingKeys.has(key)) return;
+  state.triagingKeys.add(key); renderCards();
+  try {
+    const body = { dry_run: false, keys: [key] };
+    if (state.currentProject) body.project_id = state.currentProject;
+    const r = await api('/api/triage', body);
+    if (!r.ok) toast(aiFailure(r.reason), 'warn', 6000);
+    else toast(`AI 已速览 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+    await load();
+  } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
+  finally { state.triagingKeys.delete(key); renderCards(); }
+}
 $('#btnDaily').onclick = generate;
 $('#btnRefresh').onclick = async () => {
   const b = $('#btnRefresh'); b.disabled = true; b.textContent = '抓取中…';
@@ -1125,6 +1142,8 @@ async function doFeedback(key, action) {
 $('#cards').addEventListener('click', (e) => {
   const rd = e.target.closest('button[data-read]');
   if (rd) { e.stopPropagation(); window.PDH.openReader(rd.dataset.read, rd.dataset.title); return; }
+  const ai = e.target.closest('button[data-ai]');
+  if (ai) { e.stopPropagation(); triageOne(ai.dataset.ai); return; }
   const fb = e.target.closest('button[data-fb]');
   if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
   const card = e.target.closest('.card[data-key]');

@@ -1,0 +1,3 @@
+# Self-review: 2026-10-06-card-tags
+
+Front-end plus a small server change. The manual button reuses daily_triage for a subset of cards; I judged that inside the registered scope (smaller input, explicit click) and left harness/budget.json untouched; the owner can say if a separate registration is preferred. Weak spots: server-starting tests could not run in this session's sandbox (they ran green in earlier sessions on the same code paths, but this change was not exercised over HTTP in a test); the detail pane and the library rows have no summary button; colours of the three label families were chosen by eye and only seen in light mode.

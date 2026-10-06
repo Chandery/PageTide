@@ -250,6 +250,41 @@ class ServiceDegradeTests(unittest.TestCase):
         self.assertEqual(triage["mode"], "sparse")
         self.assertEqual(len(self.app.cards(project_id=self.project)), 1)
 
+    def test_a_card_level_triage_sends_only_the_chosen_cards_and_saves_only_their_summaries(self):
+        self.app.store.upsert_papers([{"key": "p2", "title": "Other Planning Paper", "abstract": "other",
+                                       "published": "2026-08-02"}], project_id=self.project)
+        cards = self.app.build_batch(project_id=self.project)["cards"]
+        self.assertEqual({c["key"] for c in cards}, {"p1", "p2"})
+        reply = [{"paper_id": "p2", "one_liner": "about other", "why_relevant": "w", "caution": ""}]
+        payload = {"choices": [{"message": {"content": json.dumps(reply)}}], "model": "m",
+                   "usage": {"prompt_tokens": 50, "completion_tokens": 20, "total_tokens": 70}}
+        with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
+            result = self.app.triage(cards, project_id=self.project, keys=["p2"])
+        sent = json.loads(urlopen.call_args[0][0].data)["messages"][-1]["content"]
+        self.assertIn("id=p2", sent)
+        self.assertNotIn("id=p1", sent)
+        self.assertNotIn("World Model Planning", sent)
+        self.assertTrue(result["ok"])
+        summaries = self.app.store.summaries()
+        self.assertIn("p2", summaries)
+        self.assertNotIn("p1", summaries)
+
+    def test_a_card_level_triage_refuses_empty_oversized_foreign_and_non_text_keys_without_a_request(self):
+        cards = self.app.build_batch(project_id=self.project)["cards"]
+        with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
+            for bad in ([], ["not-in-batch"], [1], "p1", ["a"] * 6, [None]):
+                with self.assertRaises(ValueError, msg=repr(bad)):
+                    self.app.triage(cards, project_id=self.project, keys=bad)
+        urlopen.assert_not_called()
+
+    def test_a_card_level_triage_respects_the_ai_switch(self):
+        cards = self.app.build_batch(project_id=self.project)["cards"]
+        self.app.gateway.set_enabled(False)
+        with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
+            result = self.app.triage(cards, project_id=self.project, keys=["p1"])
+        urlopen.assert_not_called()
+        self.assertTrue(result["degraded"])
+
     def test_triage_unparseable_reply_degrades(self):
         cards = self.app.build_batch(project_id=self.project)["cards"]
         payload = {"choices": [{"message": {"content": "[not json"}}],
