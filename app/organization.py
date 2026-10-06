@@ -65,7 +65,7 @@ ROUTE_DETAIL_MAX_PAPERS = 120   # the second view draws what can be read, and sa
 
 
 def route_detail(conn, project_id):
-    """The data of the second knowledge-graph view: one project's learning units and the papers it saved.
+    """The data of the library graph's second view (the learning map): one project's learning units and the papers it saved.
 
     Read-only and derived. A paper is matched to the (at most two) units whose search terms its title or
     abstract uses (pathgrowth.assign), and the terms that matched travel with the match so the line can be

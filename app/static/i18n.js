@@ -143,7 +143,7 @@ if (lang !== 'en-US') return;
 
 document.documentElement.lang = 'en';
 // Nothing inside is touched: code, the PDF text layer, and what a person or a model wrote
-// (titles, abstracts, notes, drafts, quotes) in the knowledge base's own markup.
+// (titles, abstracts, notes, drafts, quotes) in the library page's own markup.
 const SKIP = 'script,style,.textLayer,[data-no-i18n],pre,.org-markdown,.org-detail-title,.org-abstract p,'
   + '.org-paper-open strong';
 const FIELD = 'textarea,[contenteditable=""],[contenteditable="true"]';   // the user's text; hints are translated

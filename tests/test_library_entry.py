@@ -34,6 +34,19 @@ class LibraryEntryTests(unittest.TestCase):
             for old in RETIRED:
                 self.assertNotIn(old, body, f"{old} in {name}")
 
+    def test_the_old_hidden_library_section_is_gone_with_its_code_and_styles(self):
+        for leftover in ("view-library", "我的论文库", "loadLibrary", "renderLibrary", "lib-item", "library-copy", "library-title", "#library", "libraryCount", "data-unsave"):
+            self.assertNotIn(leftover, INDEX, leftover)
+        self.assertIn("async function refreshStats()", INDEX)   # the top-bar counts still follow a save made on the library page
+
+    def test_no_source_file_calls_the_page_a_knowledge_base_or_knowledge_graph(self):
+        root = STATIC.parent
+        for path in sorted(root.rglob("*.py")) + sorted(root.rglob("*.js")) + sorted(root.rglob("*.html")) + sorted(root.rglob("*.css")):
+            if "vendor" in path.parts:
+                continue
+            text = path.read_text(encoding="utf-8")
+            self.assertNotRegex(text, r"(?i)knowledge[ -](base|graph)", str(path.relative_to(root)))
+
     def test_coming_back_to_the_page_returns_to_the_view_the_person_left(self):
         self.assertIn("S.modeKept = S.mode;", ORG)
         self.assertIn("(S.modeKept || 'library')", ORG)

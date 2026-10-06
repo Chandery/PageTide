@@ -145,7 +145,7 @@ class UserTextMarkupTests(unittest.TestCase):
                        "<span data-no-i18n>${md(s.one_liner || '')}</span>",
                        "相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>",
                        "注意：</span><span data-no-i18n>${esc(s.caution)}</span>",
-                       '<button class="paper-title" data-no-i18n>', '<button class="library-title" data-no-i18n>',
+                       '<button class="paper-title" data-no-i18n>',
                        "<h2 data-no-i18n>${esc(d.title)}</h2>", "<div data-no-i18n>${md(d.abstract)}</div>",
                        "quoted.dataset.noI18n = ''", "PDHi18n.exact(q)"]:
             self.assertIn(marked, html)

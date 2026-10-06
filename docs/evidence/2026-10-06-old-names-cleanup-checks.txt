@@ -1,0 +1,8 @@
+Checks for changes/2026-10-06-old-names-cleanup.json (2026-10-06)
+python3 -m unittest discover -s tests: Ran 1042 tests, OK (after the two test updates; the first run had those 2 failures)
+node --test (each tests/*.cjs): fail 0 in all 10 files
+python3 scripts/budget.py --check: PASS; python3 scripts/harness.py check: PASS; i18n_extract: 0 missing
+Browser preview (seeded copy, real server): top bar 今日 / 论文库 / 画像; no #view-library; the library page lists the papers; console shows only the static-preview server's own 404s.
+Desktop build: exit 0; app not launched.
+Two tests pinned the removed section's markup (test_i18n: library-title marked untranslated; test_ui_layout: library-title present); both were updated, not weakened elsewhere.
+Self-review only.

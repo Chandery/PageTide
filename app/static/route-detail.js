@@ -1,4 +1,4 @@
-/* The second knowledge-graph view: a project's learning units (top, by how many prerequisites come first) with the
+/* The library graph's second view (learning map + papers): a project's learning units (top, by how many prerequisites come first) with the
    papers it saved hung under the unit they fit, and the papers that fit no unit in their own row at the bottom.
    Pure: it turns the server's route-detail answer (and the similarity relations the page already has) into nodes
    and edges with positions. Nothing here is stored; the layout lives in memory only, so this view can never move a

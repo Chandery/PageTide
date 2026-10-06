@@ -116,7 +116,7 @@ class DraftSafetyTests(unittest.TestCase):
 
 
 class LargeScreenTests(unittest.TestCase):
-    """The low-density pages grow with the screen; the dense library and knowledge base keep their size."""
+    """The low-density pages grow with the screen; the dense library page keeps its size."""
 
     def test_the_steps_are_defined_once_in_the_shared_theme(self):
         theme = read("theme.css")
@@ -136,7 +136,7 @@ class LargeScreenTests(unittest.TestCase):
         for rule in (".card h3 { font-size:calc(16px * var(--s))", ".hero h1 { font-size:calc(28px * var(--s))", ".tab { padding:calc(7px * var(--s)) calc(16px * var(--s))",
                      "width:min(calc(520px * var(--s)), 100vw)"):
             self.assertIn(rule, index)
-        self.assertIn("#organizationRoot { --s:1; }", index)               # library and knowledge base keep their current size at every width
+        self.assertIn("#organizationRoot { --s:1; }", index)               # the library page keeps its current size at every width
         self.assertIn("@media (min-width:1700px) { .grid { grid-template-columns:repeat(3", index)
         self.assertIn("@media (min-width:2800px) { .grid { grid-template-columns:repeat(4", index)
         self.assertNotIn("--wrap, 1200px", index)                            # the fallback is no longer needed: theme.css always defines it

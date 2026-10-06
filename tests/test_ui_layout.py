@@ -18,8 +18,7 @@ class LayoutTests(unittest.TestCase):
             self.assertRegex(self.html, rf'<button[^>]+data-view="{view}"')
 
     def test_paper_titles_are_keyboard_operable(self):
-        self.assertIn('class="paper-title"', self.html)
-        self.assertIn('class="library-title"', self.html)
+        self.assertIn('class="paper-title"', self.html)   # the recommendation card's title; the library page draws its own rows
 
     def test_paper_detail_uses_a_reading_rail(self):
         self.assertIn('id="detail" class="page detail-page hidden"', self.html)

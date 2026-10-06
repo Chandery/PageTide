@@ -33,7 +33,7 @@ html[data-mode="dark"] {
 
 /* Screen-size steps, shared by every page. --s multiplies the size of text, controls and spacing, --wrap is the page
    width. Rules write calc(Npx * var(--s)) directly (never through another variable), so a region that sets --s:1 on
-   its own root (the library and knowledge base, which are dense) keeps its size. Below 1700px nothing changes. */
+   its own root (the library page, which is dense) keeps its size. Below 1700px nothing changes. */
 :root { --s:1; --wrap:1200px; }
 @media (min-width:1700px) { :root { --s:1.2;  --wrap:1560px; } }
 @media (min-width:2200px) { :root { --s:1.45; --wrap:2000px; } }

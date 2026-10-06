@@ -252,13 +252,6 @@
   .full a, .msg a { color:var(--accent-text); }
   .label { font-size:calc(12px * var(--s)); text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:calc(26px * var(--s)) 0 calc(10px * var(--s)); }
 
-  /* --------------------------------------------------------------- library */
-  .lib-item { padding:18px; cursor:pointer; display:flex; gap:16px; align-items:center; background:var(--base);
-              box-shadow:var(--sh-out); border-radius:var(--r-lg); animation:rise .4s ease both;
-              transition:box-shadow .2s, transform .2s; }
-  .lib-item:hover { transform:translateY(-2px);
-                    box-shadow:var(--sh-2); }
-  .lib-item h4 { margin:0 0 6px; font-size:14.5px; line-height:1.45; }
 
   /* ---------------------------------------------------------------- reader */
   .reader { position:fixed; inset:0; z-index:90; background:var(--base); display:flex; flex-direction:column;
@@ -402,7 +395,7 @@
   .brand { font-size:calc(15.5px * var(--s)); letter-spacing:0; gap:calc(10px * var(--s)); white-space:nowrap; }
   .wordmark { font-family:var(--serif); font-size:calc(19px * var(--s)); font-weight:600; }
   .wordmark em { color:var(--mark); font-style:italic; }
-  h1, .card h3, .lib-item h4, .detail-panel h2, .page h2, #preview h4 { font-family:var(--serif); }
+  h1, .card h3, .detail-panel h2, .page h2, #preview h4 { font-family:var(--serif); }
   .brand-mark { width:30px; height:30px; display:block; flex:none; }
   .dot { width:10px; height:10px; box-shadow:0 0 0 4px var(--accent-soft); }
   .tabs { background:transparent; border:0; padding:0; box-shadow:none; gap:calc(2px * var(--s)); }
@@ -464,17 +457,10 @@
   .paper-number { font-size:calc(11.5px * var(--s)); color:var(--muted); font-variant-numeric:tabular-nums;
     display:flex; align-items:center; gap:calc(8px * var(--s)); }
   .paper-number .icon { color:var(--accent-text); }
-  .paper-title, .library-title { padding:0; display:block; white-space:normal; text-align:left;
+  .paper-title { padding:0; display:block; white-space:normal; text-align:left;
     font:inherit; color:inherit; background:none; border:0; border-radius:0; box-shadow:none; overflow-wrap:anywhere; }
-  .paper-title:hover, .library-title:hover { transform:none; color:var(--accent-text); }
+  .paper-title:hover { transform:none; color:var(--accent-text); }
 
-  /* — library items — */
-  .lib-item { border-radius:var(--r-lg); box-shadow:none; border:1px solid var(--line);
-    background:var(--surface-1); align-items:flex-start; min-width:0; }
-  .lib-item:hover { transform:translateY(-2px); box-shadow:var(--sh-2); border-color:var(--line-strong); }
-  .lib-item h4 { font-size:calc(14px * var(--s)); line-height:1.45; }
-  .library-copy { flex:1; min-width:0; }
-  #library { grid-template-columns:1fr; }
 
   /* — badges and meta — */
   .meta { font-size:calc(11.5px * var(--s)); margin-bottom:calc(9px * var(--s)); }
@@ -552,7 +538,7 @@
   #modeBtn { width:34px; height:34px; padding:calc(8px * var(--s)); border-radius:50%; }
 
   /* — motion — */
-  button, .btn, .tab, .card, .lib-item, .pet {
+  button, .btn, .tab, .card, .pet {
     transition: transform .16s var(--ease-out), background .18s ease, border-color .18s ease,
                 box-shadow .22s var(--ease-out), color .18s ease, opacity .18s ease;
   }
@@ -592,8 +578,6 @@
     .page-inner { padding:calc(22px * var(--s)) calc(18px * var(--s)); }
     .view-heading { align-items:flex-start; }
     .devbanner { margin:calc(10px * var(--s)) calc(16px * var(--s)) 0; border-radius:8px; }
-    .lib-item { flex-wrap:wrap; gap:calc(10px * var(--s)); }
-    .library-copy { flex-basis:calc(100% - 40px); }
     .petpanel.docked { position:absolute; right:12px; bottom:0; width:min(380px,calc(100% - 24px));
       height:min(60%,480px); margin:calc(12px * var(--s)); z-index:5; }
     .reader .rside { width:100px; }
@@ -605,7 +589,7 @@
     .toast { max-width:100%; }
   }
 
-  /* — large screens: the steps (--s, --wrap) are defined in theme.css; the dense library and knowledge base keep --s:1 — */
+  /* — large screens: the steps (--s, --wrap) are defined in theme.css; the dense library page keeps --s:1 — */
   #organizationRoot { --s:1; }
   @media (min-width:1700px) { .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } }
@@ -661,14 +645,6 @@
       <div class="route-panel" id="routePanel" hidden></div>
     </section>
     <section id="cards" class="grid"></section>
-  </section>
-
-  <section id="view-library" class="hidden">
-    <section class="hero">
-      <div class="edition"><i class="icon library" aria-hidden="true"></i>已收藏</div>
-      <div class="view-heading"><h1>我的论文库</h1><span class="count" id="libraryCount"></span></div>
-    </section>
-    <div id="library" class="grid"></div>
   </section>
 
   <section id="view-profile" class="profile-page hidden" aria-label="用户画像"></section>
@@ -728,7 +704,7 @@
 <script src="/figure-intent.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { triagingKeys:new Set(), view:'today', cards:[], library:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
+const state = { triagingKeys:new Set(), view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
                 currentProject:null, projects:[], maintained:new Set() };
 
 // ------------------------------------------------------------ appearance
@@ -896,19 +872,6 @@ function renderCards() {
   $('#cards').innerHTML = state.cards.length ? state.cards.map(cardHTML).join('')
     : `<div class="empty">暂无推荐论文</div>`;
 }
-function renderLibrary() {
-  $('#libraryCount').textContent = `${state.library.length} 篇论文`;
-  $('#library').innerHTML = state.library.length ? state.library.map((p, i) => `
-    <article class="lib-item" data-key="${esc(p.key)}" style="animation-delay:${i*40}ms">
-      <i class="icon book" aria-hidden="true"></i>
-      <div class="library-copy">
-        <h4><button class="library-title" data-no-i18n>${esc(p.title)}</button></h4>
-        <div class="meta"><span>${esc(p.published || '')}</span><span>${esc(p.source || '')}</span>
-          <span>收藏于 ${esc((p.saved_at || '').slice(0,10))}</span></div>
-      </div>
-      <button class="tiny danger" data-unsave="${esc(p.key)}">取消收藏</button>
-    </article>`).join('') : `<div class="empty">暂无收藏论文</div>`;
-}
 let profileUI;
 function renderProfile() {
   if (!profileUI) profileUI = PDHProfile.create($('#view-profile'), {
@@ -952,9 +915,9 @@ async function switchProject(projectId) {
   state.currentProject = projectId;
   localStorage.setItem('pdh-current-project', projectId);
   renderProjectSelector();
-  window.PDHOrganization?.reset?.().catch?.(() => {});   // the knowledge base follows the project
+  window.PDHOrganization?.reset?.().catch?.(() => {});   // the library page follows the project
   await load();
-  if (state.view === 'library') await loadLibrary();
+  if (state.view === 'library') await refreshStats();
   autoMaintain();
 }
 
@@ -1036,10 +999,10 @@ async function autoMaintain() {
     await load();
   } catch (e) { renderMaintenance(state.maintenance); }
 }
-async function loadLibrary() {
+async function refreshStats() {   // the counts in the top bar follow a save made while the library page is open
   const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
   const data = await api(`/api/library${params}`);
-  state.library = data.items || []; state.stats = data.stats; renderStats(); renderLibrary();
+  state.stats = data.stats; renderStats();
 }
 
 // ------------------------------------------------------------- generation
@@ -1119,7 +1082,6 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelector('main').classList.toggle('hidden', organized);
   $('#organizationRoot').classList.toggle('hidden', !organized);
   $('#view-today').classList.toggle('hidden', state.view !== 'today');
-  $('#view-library').classList.toggle('hidden', state.view !== 'library');
   $('#view-profile').classList.toggle('hidden', state.view !== 'profile');
   window.scrollTo(0,0);
   if (state.view === 'profile') load().catch(e=>toast(e.message,'err'));
@@ -1150,7 +1112,7 @@ async function doFeedback(key, action) {
     if (action === 'understood' || action === 'too_hard') card.familiarity = action;   // a familiarity label never replaces the interest one
   }
   renderCards();
-  if (state.view === 'library') await loadLibrary();
+  if (state.view === 'library') await refreshStats();
 }
 $('#cards').addEventListener('click', (e) => {
   const rd = e.target.closest('button[data-read]');
@@ -1161,12 +1123,6 @@ $('#cards').addEventListener('click', (e) => {
   if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
   const card = e.target.closest('.card[data-key]');
   if (card) openDetail(card.dataset.key);
-});
-$('#library').addEventListener('click', (e) => {
-  const un = e.target.closest('button[data-unsave]');
-  if (un) { e.stopPropagation(); doFeedback(un.dataset.unsave, 'unsave').catch(x => toast(x.message, 'err')); return; }
-  const item = e.target.closest('.lib-item[data-key]');
-  if (item) openDetail(item.dataset.key);
 });
 
 // hover preview

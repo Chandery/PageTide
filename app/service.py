@@ -226,10 +226,10 @@ class App:
         return self._route_apply(project_id, body, revision)
 
     def route_detail(self, project_id):
-        """The second knowledge-graph view's data (Organization.route_detail) with each unit's progress status."""
+        """The library graph's second view (learning map + papers): its data (Organization.route_detail) with each unit's progress status."""
         if not isinstance(project_id, str) or not project_id:
             raise ValueError("project_id 必须是项目 id")
-        detail = read_route_detail(self.store.conn, project_id)   # plain reads: it must not create the knowledge-base tables or a row
+        detail = read_route_detail(self.store.conn, project_id)   # plain reads: it must not create the library-organization tables (org_*) or a row
         if detail["available"]:
             progress = self.route_get(project_id)["progress"]
             for unit in detail["units"]:
