@@ -1865,13 +1865,17 @@ class App:
             seen = set()
 
         feedback = self.latest_feedback(project_id)
-        fresh = [p for p in papers if p["key"] not in seen and p["key"] not in feedback]    # never shown, never rated
+        # A paper with no abstract and no PDF (none on disk, none known to be downloadable) gives the reader nothing to
+        # judge it by: it is not recommended. It stays in the project and still counts for the profile.
+        stored_pdfs = {r[0] for r in self.store.conn.execute("SELECT paper_key FROM pdfs")}
+        readable = lambda p: bool(str(p.get("abstract") or "").strip()) or p["key"] in stored_pdfs or pdf_availability(p.get("arxiv_id"), p.get("oa_json")) != "none"
+        fresh = [p for p in papers if p["key"] not in seen and p["key"] not in feedback and readable(p)]    # never shown, never rated
         route = self._route_state(project_id)
         on_path = bool(route and route["frontier"])
         # On a learning map the reader can be shown a paper again until they answer it: a paper of a concept they can read
         # now that they have not saved, turned down or rated stays a candidate (the ones shown least come first). Exploration
         # papers are always ones never shown before. Without a map, only never-shown papers are offered, as before.
-        pool = [p for p in papers if p["key"] not in feedback] if on_path else fresh
+        pool = [p for p in papers if p["key"] not in feedback and readable(p)] if on_path else fresh
         shortfall = None
         if len(pool) < limit:
             shortfall = {"requested": limit, "available": len(pool), "candidates": len(papers),

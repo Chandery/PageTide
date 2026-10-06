@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-unreadable-papers",
+  "class": "standard",
+  "summary": "The daily recommendation skips a paper that has no abstract and no PDF: nothing stored on disk and no PDF source known (neither a direct PDF nor an open-access landing page). The paper stays in the project and still counts for the profile and the map. Applies with and without a learning map.",
+  "tasks": [
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-NODEBT"
+  ],
+  "files": [
+    "app/service.py",
+    "changes/2026-10-07-unreadable-papers.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-07-unreadable-papers-checks.txt",
+    "docs/evidence/2026-10-07-unreadable-papers-self-review.md",
+    "tests/test_unreadable_papers.py"
+  ],
+  "scope_note": "Directly on main, after 91fee72.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "A local filter on the candidate pool; no model call, no network, no stored data change.",
+    "before": "papers with nothing to read could be recommended",
+    "after": "they are skipped",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-unreadable-papers-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-unreadable-papers-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-unreadable-papers-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "mutation: remove the filter",
+      "exit_code": 0,
+      "scope": "the new tests failed, then the filter was restored"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-07-unreadable-papers-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Read 'no PDF' as no PDF source at all: an open-access landing page still counts as readable.",
+    "How many papers of the owner's library this removes is unknown.",
+    "If every unseen paper is unreadable there is no batch."
+  ]
+}
