@@ -15,6 +15,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from recommendation_fixtures import english_papers
 from app import migrations
 from app import pathgraph as pg
 from app import sources
@@ -71,6 +72,7 @@ class Fixture(unittest.TestCase):
             self.app.record_feedback(key, "understood", project_id=self.pid)
 
     def batch(self, limit=5):
+        english_papers(self.app, self.pid)
         out = self.app.build_batch(limit=limit, project_id=self.pid)
         return out["cards"]
 
@@ -300,6 +302,7 @@ class BatchTests(Fixture):
         for p in self.app.store.papers():
             if p["key"].startswith(("lat", "survey")):
                 self.app.record_feedback(p["key"], "irrelevant", project_id=self.pid)
+        english_papers(self.app, self.pid)
         out = self.app.build_batch(limit=5, project_id=self.pid)
         self.assertTrue(all(c["route"]["kind"] == "explore" for c in out["cards"]))
         self.assertIn("没凑够", out["shortfall"]["reason"])
@@ -309,6 +312,7 @@ class BatchTests(Fixture):
             self.app.store.conn.execute("DELETE FROM project_papers WHERE project_id=? AND paper_key=?", (self.pid, key))
         self.app.store.conn.commit()
         self.enable()
+        english_papers(self.app, self.pid)
         out = self.app.build_batch(limit=5, project_id=self.pid)
         self.assertTrue(out["cards"])
         self.assertTrue(all(c["route"] is not None and c["route"]["kind"] == "explore" for c in out["cards"]))   # never a card without a path label
@@ -382,6 +386,7 @@ class BatchTests(Fixture):
         with mock.patch.object(other.gateway, "call", side_effect=AssertionError("no model")):
             two = []
             for _ in range(3):
+                english_papers(other, pid)
                 two += [(c["key"], c["route"]["kind"] if c["route"] else None) for c in other.build_batch(limit=5, project_id=pid)["cards"]]
         self.assertEqual(one, two)
 
@@ -423,6 +428,7 @@ class BatchTests(Fixture):
         poetry_plan = {"concepts": [{"id": "p", "name": "Poetry forms", "terms": ["poetry"], "hint": 1, "needs": []}]}
         self.app.route_save(other, plan=poetry_plan)
         mine = self.batch()
+        english_papers(self.app, other)
         theirs = self.app.build_batch(limit=5, project_id=other)["cards"]
         self.assertEqual([c["key"] for c in theirs], ["po0"])
         self.assertTrue(all(c["route"]["name"] == "Crystal basics" for c in mine if c["route"] and c["route"]["kind"] == "route"))
@@ -446,6 +452,7 @@ class ReviewFixTests(Fixture):
     def test_the_unused_explore_slot_goes_to_route_papers_and_no_false_shortfall_is_reported(self):
         sizes = []
         for _ in range(6):
+            english_papers(self.app, self.pid)
             out = self.app.build_batch(limit=5, project_id=self.pid)
             sizes.append(len(out["cards"]))
             if len(out["cards"]) == 5:
@@ -456,6 +463,7 @@ class ReviewFixTests(Fixture):
         for i in range(6):
             self.paper(f"other{i}", f"Unrelated ecology note {i}", "rainfall ecology")
         for _ in range(8):
+            english_papers(self.app, self.pid)
             out = self.app.build_batch(limit=5, project_id=self.pid)
             self.assertEqual(len(out["cards"]), 5)                       # unanswered path papers come back instead of leaving a gap
             self.assertNotIn("还没有论文", (out["shortfall"] or {}).get("reason", ""))

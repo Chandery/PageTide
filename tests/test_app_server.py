@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from recommendation_fixtures import english_papers
 from app import server
 
 
@@ -88,6 +89,43 @@ class ServerSmokeTests(unittest.TestCase):
                              ('versioned-body',)).fetchone()[0], current)
         finally:
             app.store.close()
+
+    def test_language_policy_creation_setting_and_daily_gate_over_http(self):
+        policy={'discipline':'humanities','allowed_languages':['zh','la']}
+        status,out=self._post('/api/projects',{'name':'History','language_policy':policy})
+        self.assertEqual(status,200); pid=out['project_id']
+        status,data=self._get('/api/projects'); before=json.loads(data)['projects']
+        made=next(p for p in before if p['id']==pid)
+        self.assertEqual(made['language_policy']['allowed_languages'],['zh','la'])
+        status,_=self._post('/api/projects',{'name':'Invalid','language_policy':{'discipline':'stem','allowed_languages':['zh']}})
+        self.assertEqual(status,400)
+        status,data=self._get('/api/projects'); self.assertEqual(len(json.loads(data)['projects']),len(before))
+        status,_=self._post('/api/projects/'+pid,{'action':'language','discipline':'humanities','allowed_languages':[]})
+        self.assertEqual(status,400)
+        status,out=self._post('/api/projects/'+pid,{'action':'language','discipline':'stem','allowed_languages':['en']})
+        self.assertEqual(status,200);self.assertEqual(out['project']['language_policy']['allowed_languages'],['en'])
+        status,_=self._post('/api/projects/missing',{'action':'language','discipline':'stem','allowed_languages':['en']})
+        self.assertEqual(status,404)
+        status,out=self._post('/api/projects',{'name':'Unconfigured'})
+        status,out=self._post('/api/daily',{'project_id':out['project_id']})
+        self.assertEqual(status,200);self.assertIsNone(out['batch_id']);self.assertEqual(out['reason_code'],'language_policy_required')
+
+    def test_fulltext_get_uses_current_physical_file_and_requested_version(self):
+        import hashlib
+        app=server.make_app(str(self.root))
+        path=self.root/'current.pdf'; raw=b'%PDF-1.4\ncurrent\n%%EOF';path.write_bytes(raw)
+        sha=hashlib.sha256(raw).hexdigest()
+        app.store.upsert_papers([{'key':'current-body','title':'Current'}])
+        app.store.record_pdf('current-body',path,sha256=sha)
+        app.save_fulltext('current-body',[{'page':1,'text':'Current text'}],source_pdf_sha256=sha)
+        app.store.close()
+        status,data=self._get('/api/fulltext?key=current-body&text=1&source_pdf_sha256='+sha)
+        self.assertEqual(status,200); self.assertEqual(json.loads(data)['texts'][0]['text'],'Current text')
+        status,data=self._get('/api/fulltext?key=current-body&text=1&source_pdf_sha256='+('a'*64))
+        self.assertEqual(json.loads(data)['texts'],[])
+        path.write_bytes(b'%PDF-1.4\nreplacement\n%%EOF')
+        status,data=self._get('/api/fulltext?key=current-body&text=1')
+        self.assertEqual(json.loads(data)['pages'],0);self.assertEqual(json.loads(data)['texts'],[])
 
     def test_paper_detail_endpoint(self):
         app = server.make_app(str(self.root))
@@ -293,6 +331,7 @@ class ServerSmokeTests(unittest.TestCase):
         app.store.upsert_papers([
             {"key": "p1", "title": "World Model Paper", "abstract": "latent planning",
              "published": "2026-08-01", "group_name": "field"}])
+        english_papers(app, None)
         app.build_batch(limit=1)
         request = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/api/feedback",
@@ -307,6 +346,7 @@ class ServerSmokeTests(unittest.TestCase):
         app.store.upsert_papers([
             {"key": "p9", "title": "World Model Paper", "abstract": "latent planning",
              "published": "2026-08-01", "group_name": "field"}])
+        english_papers(app, None)
         app.build_batch(limit=1)
         app.store.save_to_library("p9", project_id=app.get_default_project_id())   # "understood" needs a saved paper
         request = urllib.request.Request(

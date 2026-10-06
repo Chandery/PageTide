@@ -199,20 +199,25 @@
     },
     {
       "id": "E-ROUTE-V2-01",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-01. 迁移备份恢复与重复启动通过，旧历史可读，旧项目未选择策略不得生成新批次；元数据不冒充全文语言，PDF 版本变化使核验失效，项目隔离和策略变更测试通过。Automated fixtures do not establish human recommendation or model quality.",
       "evidence": [
         "docs/evidence/2026-10-07-route-v2-01a-checks.txt",
-        "docs/evidence/2026-10-07-route-v2-01a-review.md"
+        "docs/evidence/2026-10-07-route-v2-01a-review.md",
+        "docs/evidence/2026-10-07-route-v2-02-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-02-review.md"
       ]
     },
     {
       "id": "E-ROUTE-V2-02",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-02. 普通、Route、维护共享本地资格判断，缺失原因可见，原始论文不删除；无摘要只有链接、空正文、有效正文、旧 PDF 正文、语言冲突与无候选测试通过。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-02-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-02-review.md"
+      ]
     },
     {
       "id": "E-ROUTE-V2-03",

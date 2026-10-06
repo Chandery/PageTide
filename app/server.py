@@ -365,9 +365,9 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/fulltext":
             app = self._app()
             key = (query.get("key") or [""])[0]
-            status = app.fulltext_status(key)
-            if (query.get("text") or ["0"])[0] == "1":
-                status["texts"] = app.store.fulltext_pages(key)
+            source_hash = (query.get('source_pdf_sha256') or [None])[0]
+            status = app.fulltext_status(key, source_pdf_sha256=source_hash,
+                                        include_texts=(query.get('text') or ['0'])[0]=='1')
             self._json(status)
         elif route == "/api/figure-page":
             app = self._app()
@@ -491,13 +491,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "name required"}, 400)
             try:
                 result = app.create_project(name, creation_mode, keywords, body.get("seeds") or [],
-                                            body.get("guidance_transcript"), body.get("learning_path"), route=body.get("route"))
+                                            body.get("guidance_transcript"), body.get("learning_path"), route=body.get("route"),
+                                            language_policy=body.get('language_policy'))
             except (ValueError, TypeError, sqlite3.IntegrityError) as exc:
                 return self._json({"error": str(exc)}, 400)
             self._json(result)
         elif route.startswith("/api/projects/"):
             project_id = unquote(route[len("/api/projects/"):])
             try:
+                if body.get('action') == 'language':
+                    return self._json({'project': app.set_project_language(project_id, body.get('discipline'), body.get('allowed_languages'))})
                 if body.get("action") != "rename":
                     return self._json({"error": "unknown project action"}, 400)
                 self._json({"project": app.rename_project(project_id, body.get("name"))})
@@ -546,7 +549,8 @@ class Handler(BaseHTTPRequestHandler):
                 elif action == "route":
                     self._json(app.route_plan(session_id, regenerate=bool(body.get("regenerate")), dry_run=bool(body.get("dry_run")), boundary=body.get("boundary")))
                 elif action == "finalize":
-                    self._json(app.finalize_guidance(session_id, body.get("draft"), body.get("selected_keys"), route=body.get("route")))
+                    self._json(app.finalize_guidance(session_id, body.get("draft"), body.get("selected_keys"), route=body.get("route"),
+                                                     language_policy=body.get('language_policy')))
                 else:
                     return self._json({"error": "unknown guidance action"}, 404)
             except (ValueError, TypeError) as exc:
@@ -608,7 +612,10 @@ class Handler(BaseHTTPRequestHandler):
                             "job": _job_start("maintain", lambda: maintenance.run(make_app(root), project_id))})
         elif route == "/api/daily":
             project_id = body.get("project_id")
-            self._json(app.build_batch(limit=int(body.get("limit", 5)), project_id=project_id))
+            try:
+                self._json(app.build_batch(limit=int(body.get("limit", 5)), project_id=project_id))
+            except (ValueError, TypeError) as exc:
+                return self._json({'error': str(exc)}, 400)
         elif route == "/api/triage":
             project_id = body.get("project_id")
             try:

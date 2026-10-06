@@ -14,7 +14,7 @@ import functools
 import math
 import re
 
-from . import pathgraph, ranking
+from . import eligibility, pathgraph, ranking
 
 MIN_STRENGTH = 0.25
 MIN_MEMBERS = 3          # distinct papers in the cluster
@@ -48,7 +48,7 @@ def term_in_text(text, term):
 
 
 def _text(paper):
-    return f"{paper.get('title') or ''} {paper.get('abstract') or ''}"
+    return eligibility.retrieval_text(paper)
 
 
 def assign(graph, papers):

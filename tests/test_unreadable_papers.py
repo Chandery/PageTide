@@ -1,4 +1,4 @@
-"""A paper with no abstract and no PDF is not recommended: the reader would have nothing to judge it by."""
+"""Links and unextracted PDFs do not replace readable text for recommendation."""
 import json
 import sys
 import tempfile
@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from recommendation_fixtures import english_papers
 from app.service import App
 
 PLAN = {"concepts": [{"id": "a", "name": "Crystal basics", "terms": ["crystal lattice"], "hint": 1, "needs": []}], "targets": ["a"]}
@@ -30,6 +31,7 @@ class Fixture(unittest.TestCase):
     def shown(self, route):
         if route:
             self.app.route_save(self.pid, plan=PLAN)
+        english_papers(self.app, self.pid)
         return {c["key"] for c in self.app.build_batch(limit=10, project_id=self.pid)["cards"]}
 
 
@@ -39,20 +41,20 @@ class UnreadableTests(Fixture):
         self.add("blank", "   \n")                                             # whitespace is nothing
         self.add("nullabs", None)
         self.add("abs", "A real abstract about crystal lattice growth.")        # an abstract is enough
-        self.add("arx", "", arxiv_id="2601.00001")                              # a direct PDF is enough
+        self.add("arx", "", arxiv_id="2601.00001")                              # a link alone is insufficient
         self.add("oa", "", oa={"pdf_urls": ["https://example.org/a.pdf"], "landing_page": None})
-        self.add("page", "", oa={"pdf_urls": [], "landing_page": "https://example.org/landing"})   # an open-access landing page is a way to read it
+        self.add("page", "", oa={"pdf_urls": [], "landing_page": "https://example.org/landing"})   # a landing page alone is insufficient
         self.add("closed", "", oa={"pdf_urls": [], "landing_page": None})       # open-access report with nothing to open
         self.add("local", "")
-        self.app.store.record_pdf("local", str(self.root / "local.pdf"))        # a PDF the reader already has
+        self.app.store.record_pdf("local", str(self.root / "local.pdf"))        # a stored PDF without body extraction is insufficient
 
     def test_without_a_map(self):
         self.papers()
-        self.assertEqual(self.shown(route=False), {"abs", "arx", "oa", "page", "local"})
+        self.assertEqual(self.shown(route=False), {"abs"})
 
     def test_with_a_map(self):
         self.papers()
-        self.assertEqual(self.shown(route=True), {"abs", "arx", "oa", "page", "local"})
+        self.assertEqual(self.shown(route=True), {"abs"})
 
     def test_a_paper_without_either_stays_in_the_project(self):
         self.papers()
@@ -62,6 +64,7 @@ class UnreadableTests(Fixture):
 
     def test_when_only_unreadable_papers_are_left_there_is_no_batch_and_it_says_so(self):
         self.add("bare", "")
+        english_papers(self.app, self.pid)
         out = self.app.build_batch(limit=5, project_id=self.pid)
         self.assertEqual(out["cards"], [])
 

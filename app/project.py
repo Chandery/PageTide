@@ -4,7 +4,7 @@ Each project has independent profile, recommendations, and paper library.
 """
 import json
 import uuid
-from .paper_language import policy_from_row, validate_policy
+from .paper_language import policy_from_row, validate_policy, validate_value
 
 
 def now():
@@ -17,7 +17,7 @@ class ProjectManager:
         self.store = store
 
     def create_project(self, name, creation_mode="manual", keywords=None,
-                      guidance_transcript=None, learning_path=None):
+                      guidance_transcript=None, learning_path=None, language_policy=None):
         """Create a new research project.
 
         Args:
@@ -36,12 +36,13 @@ class ProjectManager:
         if not name or len(name) > 120:
             raise ValueError("项目名称不能为空且不能超过 120 个字符")
         project_id = str(uuid.uuid4())
+        language_policy = validate_value(language_policy)
 
         self.store.conn.execute("""
             INSERT INTO projects
             (id, name, creation_mode, creation_timestamp, keywords,
-             guidance_transcript, recommended_learning_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+             guidance_transcript, recommended_learning_path, discipline, allowed_languages, language_policy_revision)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             project_id,
             name,
@@ -49,7 +50,10 @@ class ProjectManager:
             now(),
             json.dumps(keywords or [], ensure_ascii=False),
             json.dumps(guidance_transcript or [], ensure_ascii=False) if guidance_transcript else None,
-            json.dumps(learning_path or {}, ensure_ascii=False) if learning_path else None
+            json.dumps(learning_path or {}, ensure_ascii=False) if learning_path else None,
+            language_policy['discipline'] if language_policy else None,
+            json.dumps(language_policy['allowed_languages'] if language_policy else []),
+            1 if language_policy else 0,
         ))
         self.store.conn.commit()
 
@@ -130,6 +134,7 @@ class ProjectManager:
             self.store.conn.execute('''UPDATE projects SET discipline=?, allowed_languages=?,
                 language_policy_revision=language_policy_revision+1 WHERE id=?''',
                 (discipline, json.dumps(allowed), project_id))
+            self.store.conn.execute('DELETE FROM settings WHERE key=?', ('recommendation_eligibility_' + project_id,))
         return self.get_project(project_id)
 
     def delete_project(self, project_id):
@@ -172,7 +177,7 @@ class ProjectManager:
             if table in existing:
                 self.store.conn.execute(f"DELETE FROM {table} WHERE project=?", (project_id,))
         names = ("seed_keys", "profile_freeze", "project_default_terms", "last_refresh", "last_attempt", "last_error",
-                 "route_plan_project")
+                 "route_plan_project", "recommendation_eligibility")
         self.store.conn.execute(
             f"DELETE FROM settings WHERE key IN ({','.join('?' * len(names))})", tuple(f"{n}_{project_id}" for n in names))
         self.store.conn.commit()

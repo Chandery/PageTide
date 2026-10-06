@@ -4,6 +4,7 @@ const $ = (s) => document.querySelector(s);
 const part = (role) => $(`[data-role="${role}"]`);
 const projectId = new URLSearchParams(location.search).get('project_id') || localStorage.getItem('pdh-current-project') || '';
 const state = {project: null, busy: false};
+const policyEditor = PaperPolicy.mount(part('paperPolicy'));
 
 function notice(message, isError = true) {
   const el = part('notice');
@@ -41,6 +42,18 @@ function render() {
 }
 
 part('confirm').oninput = render;
+part('languageForm').onsubmit = async event => {
+  event.preventDefault();
+  if (state.busy) return;
+  let value;
+  try {value=policyEditor.read();} catch(error) {notice(error.message); return;}
+  state.busy=true; policyEditor.disabled(true); part('languageSave').disabled=true;
+  try {
+    const out=await call(`/api/projects/${encodeURIComponent(projectId)}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'language',...value})});
+    state.project=out.project; policyEditor.set(out.project.language_policy); notice('论文语言已保存，下次生成推荐时使用。',false);
+  } catch(error) {notice(error.message);}
+  finally {state.busy=false; policyEditor.disabled(false); part('languageSave').disabled=false; render();}
+};
 part('renameForm').onsubmit = async (event) => {
   event.preventDefault();
   if (state.busy) return;
@@ -70,6 +83,7 @@ part('delete').onclick = async () => {
   try {
     const projects = (await call('/api/projects')).projects || [];
     state.project = projects.find((p) => p.id === projectId) || null;
+    if (state.project) policyEditor.set(state.project.language_policy);
     if (!state.project) notice('找不到这个项目，它可能已经被删除。');
   } catch (error) { notice(error.message); }
   render();

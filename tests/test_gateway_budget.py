@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from recommendation_fixtures import english_papers
 from app.gateway import BudgetExceeded, Gateway
 from app.service import App
 
@@ -227,6 +228,7 @@ class ServiceDegradeTests(unittest.TestCase):
     def test_ai_off_triage_guidance_and_creation_make_zero_requests(self):
         self.app.gateway.set_enabled(False)
         with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
+            english_papers(self.app, self.project)
             cards = self.app.build_batch(project_id=self.project)["cards"]
             triage = self.app.triage(cards, project_id=self.project)
             session = self.app.create_guidance_session("Q", "world model planning")
@@ -241,6 +243,7 @@ class ServiceDegradeTests(unittest.TestCase):
         self.assertEqual(len(cards), 1)
 
     def test_triage_network_failure_keeps_local_cards(self):
+        english_papers(self.app, self.project)
         cards = self.app.build_batch(project_id=self.project)["cards"]
         with mock.patch("app.gateway.urllib.request.urlopen",
                         side_effect=urllib.error.URLError("offline")) as urlopen:
@@ -253,6 +256,7 @@ class ServiceDegradeTests(unittest.TestCase):
     def test_a_card_level_triage_sends_only_the_chosen_cards_and_saves_only_their_summaries(self):
         self.app.store.upsert_papers([{"key": "p2", "title": "Other Planning Paper", "abstract": "other",
                                        "published": "2026-08-02"}], project_id=self.project)
+        english_papers(self.app, self.project)
         cards = self.app.build_batch(project_id=self.project)["cards"]
         self.assertEqual({c["key"] for c in cards}, {"p1", "p2"})
         reply = [{"paper_id": "p2", "one_liner": "about other", "why_relevant": "w", "caution": ""}]
@@ -270,6 +274,7 @@ class ServiceDegradeTests(unittest.TestCase):
         self.assertNotIn("p1", summaries)
 
     def test_a_card_level_triage_refuses_empty_oversized_foreign_and_non_text_keys_without_a_request(self):
+        english_papers(self.app, self.project)
         cards = self.app.build_batch(project_id=self.project)["cards"]
         with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
             for bad in ([], ["not-in-batch"], [1], "p1", ["a"] * 6, [None]):
@@ -278,6 +283,7 @@ class ServiceDegradeTests(unittest.TestCase):
         urlopen.assert_not_called()
 
     def test_a_card_level_triage_respects_the_ai_switch(self):
+        english_papers(self.app, self.project)
         cards = self.app.build_batch(project_id=self.project)["cards"]
         self.app.gateway.set_enabled(False)
         with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
@@ -286,6 +292,7 @@ class ServiceDegradeTests(unittest.TestCase):
         self.assertTrue(result["degraded"])
 
     def test_triage_unparseable_reply_degrades(self):
+        english_papers(self.app, self.project)
         cards = self.app.build_batch(project_id=self.project)["cards"]
         payload = {"choices": [{"message": {"content": "[not json"}}],
                    "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}}

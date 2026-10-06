@@ -11,6 +11,7 @@ const PDF = window.PDHCreationPdf;
 const AI_WAIT = 90;           // the gateway gives up after this many seconds
 const MAX_PATH = 8;
 const SESSION_KEY = 'pdh-guidance-session';
+const policyEditor = PaperPolicy.mount($('#creationPaperPolicy'));
 
 async function api(path, options = {}) {
   let response;
@@ -467,7 +468,11 @@ document.addEventListener('click', (event) => {
 });
 
 async function finalize({draft, selectedKeys, route}) {
-  const result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route});
+  const language_policy=policyEditor.read();
+  policyEditor.disabled(true);
+  let result;
+  try { result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route, language_policy}); }
+  finally { policyEditor.disabled(false); }
   localStorage.removeItem(SESSION_KEY);
   location.href = `/?project_id=${encodeURIComponent(result.project_id)}`;
 }
@@ -968,11 +973,12 @@ $('#manualCreate').onclick = async () => {
   $('#manualCreate').disabled = true;
   manualAct.start(payload.length ? `正在创建项目并导入 ${payload.length} 篇种子论文…` : '正在创建项目…');
   let result;
+  policyEditor.disabled(true);
   try {
-    result = await post('/api/projects', {name, creation_mode: 'manual', keywords: seedKeywords.get(), seeds: payload});
+    result = await post('/api/projects', {name, creation_mode: 'manual', keywords: seedKeywords.get(), seeds: payload, language_policy:policyEditor.read()});
   } catch (error) {
     manualAct.fail(error.message); manualRefresh(); return;
-  }
+  } finally { policyEditor.disabled(false); }
   manualAct.stop();
   const go = `/?project_id=${encodeURIComponent(result.project_id)}`;
   const problems = (result.seed_results || []).filter((r) => !['resolved', 'duplicate'].includes(r.status) || r.pdf_attached === false);

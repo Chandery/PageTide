@@ -11,6 +11,7 @@ import urllib.error
 from pathlib import Path
 from unittest import mock
 
+from recommendation_fixtures import english_papers
 from app.service import App, GUIDANCE_MAX_TURNS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -259,6 +260,7 @@ class CrossProjectSharingTests(unittest.TestCase):
     def test_feedback_saves_exposure_and_qa_stay_per_project(self):
         self.app.store.add_project_paper(self.b, "shared", "shared", source_project_id=self.a)
         self.app.record_feedback("shared", "useful", project_id=self.a)
+        english_papers(self.app, self.b)
         self.app.build_batch(project_id=self.b)
         self.app.store.add_qa("shared", "user", "A question", project_id=self.a)
         self.assertEqual(self.app.latest_feedback(self.b), {})

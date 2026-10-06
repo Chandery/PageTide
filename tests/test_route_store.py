@@ -14,6 +14,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from recommendation_fixtures import english_papers
 from app import pathgraph as pg
 from app import server
 from app.organization import Conflict, Organization
@@ -337,6 +338,7 @@ class ProgressFromFeedbackTests(Fixture):
 
     def test_shown_counts_come_from_the_batches(self):
         with mock.patch.object(self.app.gateway, "call", side_effect=AssertionError("no model")):
+            english_papers(self.app, self.pid)
             self.app.build_batch(limit=5, project_id=self.pid)
         prog = self.app.route_get(self.pid)["progress"]
         self.assertGreater(sum(v["shown"] for v in prog.values()), 0)

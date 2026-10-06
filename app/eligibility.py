@@ -1,0 +1,128 @@
+"""Local recommendation qualification; no network, models or interest inference."""
+from collections import OrderedDict
+import hashlib
+import threading
+from pathlib import Path
+
+MAX_PDF_BYTES = 128 * 1024 * 1024
+BODY_PAGES = 6
+BODY_PAGE_CHARS = 2000
+MIN_BODY_CHARS = 200
+MAX_VERIFY_BYTES = 256 * 1024 * 1024
+_PDF_CACHE = OrderedDict()
+_SCAN_CURSOR = OrderedDict()
+_PDF_CACHE_LOCK = threading.RLock()
+MAX_CACHED_DIGESTS = 1024
+PLACEHOLDERS = {'n/a', 'na', 'none', 'null', 'no abstract', 'no abstract available',
+                'abstract unavailable', '无摘要', '暂无摘要'}
+
+
+def usable_abstract(value):
+    text = str(value or '').strip()
+    return bool(text and any(c.isalnum() for c in text)
+                and text.lower().rstrip('.。') not in PLACEHOLDERS)
+
+
+def retrieval_text(paper):
+    content = paper.get("abstract") if usable_abstract(paper.get("abstract")) else paper.get("_local_body")
+    return f"{paper.get('title') or ''} {content or ''}"
+
+
+def usable_body(value):
+    return sum(c.isalnum() for c in value) >= MIN_BODY_CHARS
+
+
+def file_identity(path):
+    try:
+        path = Path(path)
+        info = path.stat()
+        return (str(path.resolve()), info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    except (OSError, TypeError, ValueError):
+        return None
+
+
+def pdf_digest(path, budget=None):
+    try:
+        path = Path(path)
+        info = path.stat()
+        if not path.is_file() or info.st_size < 5 or info.st_size > MAX_PDF_BYTES:
+            return None
+        identity = (str(path.resolve()), info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        with _PDF_CACHE_LOCK:
+            if identity in _PDF_CACHE:
+                _PDF_CACHE.move_to_end(identity)
+                return _PDF_CACHE[identity]
+        if budget is not None:
+            if info.st_size > budget['remaining']:
+                budget['deferred'] = True
+                return None
+            budget['remaining'] -= info.st_size
+        digest = hashlib.sha256()
+        with path.open('rb') as handle:
+            prefix = handle.read(5)
+            if prefix != b'%PDF-':
+                return None
+            digest.update(prefix)
+            read = len(prefix)
+            while read < info.st_size:
+                # Never read beyond the size reserved for this pass. A growing file fails the final stat check.
+                chunk = handle.read(min(1024 * 1024, info.st_size - read))
+                if not chunk:
+                    return None
+                read += len(chunk)
+                digest.update(chunk)
+            result = digest.hexdigest()
+            final = path.stat()
+            if (final.st_dev, final.st_ino, final.st_size, final.st_mtime_ns, final.st_ctime_ns) != identity[1:]:
+                return None
+            with _PDF_CACHE_LOCK:
+                _PDF_CACHE[identity] = result
+                while len(_PDF_CACHE) > MAX_CACHED_DIGESTS:
+                    _PDF_CACHE.popitem(last=False)
+            return result
+    except (OSError, TypeError, ValueError):
+        return None
+
+
+def verification_order(papers, scope):
+    with _PDF_CACHE_LOCK:
+        key = _SCAN_CURSOR.get(scope)
+    start = next((i for i, paper in enumerate(papers) if paper['key'] == key), 0)
+    return papers[start:] + papers[:start]
+
+
+def defer_verification(scope, key):
+    # Cache and cursor share a finite process lifetime; restarting safely starts a fresh pass.
+    with _PDF_CACHE_LOCK:
+        if key is None:
+            _SCAN_CURSOR.pop(scope, None)
+        else:
+            _SCAN_CURSOR[scope] = key
+            _SCAN_CURSOR.move_to_end(scope)
+            while len(_SCAN_CURSOR) > MAX_CACHED_DIGESTS:
+                _SCAN_CURSOR.popitem(last=False)
+
+
+def evaluate(policy, paper, language, local_body=''):
+    reason = None
+    if policy['status'] != 'ready':
+        reason = 'language_policy_required'
+    else:
+        reported = language.get('fulltext_language') or language.get('metadata_language')
+        if not reported:
+            reason = 'language_unknown'
+        elif reported not in policy['allowed_languages']:
+            reason = 'language_not_allowed'
+        elif not usable_abstract(paper.get('abstract')) and not usable_body(local_body):
+            reason = 'no_readable_content'
+    return {'eligible': reason is None, 'reason': reason, 'language': language}
+
+
+REASONS = {
+    'language_policy_required': ('请先在项目设置选择学科和允许的论文语言', 'Choose the discipline and allowed paper languages in project settings first'),
+    'source_version_changed': ('PDF 版本已变化，请重新生成', 'The PDF version changed; generate again'),
+    'source_verification_deferred': ('本轮文件核验读取量已达上限，请再次生成', 'File verification reached its read limit; generate again'),
+    'language_unknown': ('论文语言未知', 'Paper language is unknown'),
+    'language_not_allowed': ('论文语言不符合项目设置', 'Paper language is not allowed by this project'),
+    'no_readable_content': ('没有可用摘要或当前版本的本地正文', 'No usable abstract or local text from the current PDF'),
+}

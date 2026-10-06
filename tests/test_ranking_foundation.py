@@ -13,6 +13,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from recommendation_fixtures import english_papers
 from app import ranking
 from app.service import App
 
@@ -126,6 +127,7 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         self.app.record_feedback("liked", "useful", project_id=pid)
         self.app.record_feedback("disliked", "irrelevant", project_id=pid)
         with mock.patch.object(self.app.gateway, "call", side_effect=AssertionError("no model call")):
+            english_papers(self.app, pid)
             steered = self.app.build_batch(limit=1, project_id=pid, exclude_seen=False)["cards"][0]["key"]
         self.assertEqual(steered, "cand-a")
 
@@ -136,6 +138,7 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         self.add(pid, "cand-b", "epitaxial graphene substrate growth", "epitaxial graphene substrate steps", published="2026-03-01")
 
         def relative_order():
+            english_papers(self.app, pid)
             keys = [c["key"] for c in self.app.build_batch(limit=3, project_id=pid, exclude_seen=False)["cards"]]
             return [k for k in keys if k.startswith("cand")]
         before = relative_order()
@@ -153,19 +156,23 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         self.add(pid, "cand-a", "photonic crystal waveguide design", "photonic crystal waveguide modes", published="2026-02-01")
         self.add(pid, "cand-b", "unrelated topic entirely", "nothing in common here", published="2026-03-01")
         self.app.store.set_setting(f"seed_keys_{pid}", ["seedA"])
+        english_papers(self.app, pid)
         self.assertEqual(self.app.build_batch(limit=1, project_id=pid)["cards"][0]["key"], "cand-a")
 
     def test_a_chinese_project_ranks_by_chinese_overlap(self):
         pid = self.project(["半导体晶体生长"])
         self.add(pid, "zh-hit", "半导体晶体生长技术研究", "介绍半导体晶体生长的方法", published="2025-01-01")
         self.add(pid, "zh-miss", "古典诗歌的发展脉络", "唐诗宋词的演变", published="2026-01-01")
+        english_papers(self.app, pid)
         self.assertEqual(self.app.build_batch(limit=1, project_id=pid)["cards"][0]["key"], "zh-hit")
 
     def test_the_same_inputs_give_the_same_batch(self):
         pid = self.project(["photonic crystal"])
         for i in range(8):
             self.add(pid, f"p{i}", f"paper number {i}", "plain filler words", published=f"2026-01-0{i + 1}")
+        english_papers(self.app, pid)
         first = [c["key"] for c in self.app.build_batch(limit=3, project_id=pid, exclude_seen=False)["cards"]]
+        english_papers(self.app, pid)
         second = [c["key"] for c in self.app.build_batch(limit=3, project_id=pid, exclude_seen=False)["cards"]]
         self.assertEqual(first, second)
 

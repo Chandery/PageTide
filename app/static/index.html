@@ -642,6 +642,7 @@
         <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label><span class="sub" id="autoAiHint"></span>
       </div>
       <div class="sub" id="maintainNote" style="margin-top:8px"></div>
+      <div class="sub" id="eligibilityNote" style="margin-top:8px"></div>
       <div class="route-panel" id="routePanel" hidden></div>
     </section>
     <section id="cards" class="grid"></section>
@@ -702,6 +703,8 @@
 <script src="/profile-ui.js"></script>
 <script src="/project-switcher.js"></script>
 <script src="/figure-intent.js"></script>
+<script src="/paper-policy.js"></script>
+<script src="/reader-source.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { triagingKeys:new Set(), view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
@@ -884,7 +887,8 @@ function cardHTML(c, i) {
       ${saved ? '<span class="st st-saved"><i class="icon bookmark" aria-hidden="true"></i>已收藏</span>' : ''}
     </div>
     ${routeBadge(c) ? `<div class="kws">${routeBadge(c)}</div>` : ''}
-    <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
+    <div class="sub">${esc(PaperPolicy.label(c.language))} · 元数据语言：${esc(PaperPolicy.languages[c.language?.metadata_language] || c.language?.metadata_language || '未知')}</div>
+    <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '暂无摘要'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
     ${c.judgeAsk ? judgeAskHTML(c) : ''}
@@ -1008,6 +1012,7 @@ async function load() {
   }
   state.cards = (data.cards || []).map(c => ({ ...c, summary: c.summary || state.summaries[c.key] }));
   state.maintenance = data.maintenance; state.route = data.route; renderStats(); renderCards(); renderProfile(); renderMaintenance(data.maintenance); renderRoute(data.route);
+  renderEligibility(data.recommendation_eligibility);
   const u = state.usage;
   $('#foot').replaceChildren(`本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`,   // two phrases, two pack entries
     u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
@@ -1022,6 +1027,19 @@ function renderMaintenance(m) {
   if (m.last_refresh) parts.push(`上次刷新 ${new Date(m.last_refresh).toLocaleString()}`);
   if (m.last_error) parts.push(`上次刷新失败：${m.last_error}（已有内容不受影响）`);
   note.textContent = parts.join(' · ');
+}
+function renderEligibility(snapshot) {
+  const note=$('#eligibilityNote'), project=state.projects.find(p=>p.id===state.currentProject);
+  note.replaceChildren();
+  if (project?.language_policy?.status!=='ready') {
+    note.append('生成新推荐前，请选择项目学科和允许的论文语言。 ');
+    const link=document.createElement('a'); link.textContent='打开项目设置';
+    link.href='/project.html?project_id='+encodeURIComponent(state.currentProject || ''); note.append(link); return;
+  }
+  if (!snapshot || snapshot.policy_revision!==project.language_policy.revision) return;
+  const names={source_version_changed:n=>`PDF 版本变化 ${n} 篇`,source_verification_deferred:n=>`文件核验暂缓（可再次生成） ${n} 篇`,language_unknown:n=>`语言未知 ${n} 篇`,language_not_allowed:n=>`语言不符合设置 ${n} 篇`,no_readable_content:n=>`缺少可用摘要或当前正文 ${n} 篇`};
+  const parts=Object.entries(snapshot.excluded || {}).filter(([,n])=>n).map(([key,n])=>names[key] ? names[key](n) : `${key} ${n}`);
+  if (parts.length) note.textContent='上次生成时过滤：'+parts.join('；');
 }
 async function autoMaintain() {
   const key = state.currentProject || 'default';
@@ -1059,6 +1077,7 @@ async function generate() {
     const body = { limit: 5 };
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/daily', body);
+    renderEligibility(r.eligibility);
     if (!r.cards || !r.cards.length) { toast(r.reason || '没有新候选，先抓取', 'warn'); return; }
     state.cards = r.cards.map(c => ({ ...c, summary: null }));
     renderCards();
@@ -1255,6 +1274,7 @@ async function openDetail(key) {
         </section>
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
+        <section class="detail-section"><h3>论文语言</h3><p>${esc(PaperPolicy.label(d.language))}</p></section>
         <section class="detail-section"><h3>摘要</h3><div class="full">${d.abstract ? `<div data-no-i18n>${md(d.abstract)}</div>` : '暂无摘要'}</div></section>
       </aside>`;
     $('#detail').classList.remove('hidden');
@@ -1509,7 +1529,7 @@ async function openReader(key, title) {
     $('#readerInfo').textContent = `${R.doc.numPages} 页`;
     await layoutPages();
     buildThumbs();
-    extractFulltext(key);   // background: cache the text so questions can use the whole paper
+    extractFulltext(key, R.doc, [...R.pages]);
   } catch (e) {
     box.innerHTML = `<iframe src="${url}" style="width:min(1200px,96vw);height:calc(100vh - 120px);border:0;background:#fff"></iframe>`;
     $('#readerInfo').textContent = '内置预览（无法划词）';
@@ -1713,9 +1733,14 @@ function markCurrent(n) {
 
 /* --------------------------------------------------- full text + vision */
 
-async function extractFulltext(key) {
+async function extractFulltext(key, doc, sourcePages) {
+  const current=()=>R.key===key && R.doc===doc;
+  let sourceHash;
+  try {sourceHash=await PDHReaderSource.hash(doc);} catch(error) {if(current()) toast(error.message,'warn'); return;}
+  if (!current()) return;
   try {
-    const status = await api('/api/fulltext?key=' + encodeURIComponent(key) + '&text=1');
+    const status = await api('/api/fulltext?key=' + encodeURIComponent(key) + '&text=1&source_pdf_sha256='+sourceHash);
+    if (!current()) return;
     if (status.pages) {
       setFulltextBadge(status.pages, status.chars);
       R.fulltext = true;
@@ -1726,17 +1751,20 @@ async function extractFulltext(key) {
   setTimeout(async () => {
     try {
       const pages = [];
-      for (let i = 0; i < R.pages.length; i++) {
-        const content = await R.pages[i].getTextContent();
+      for (let i = 0; i < sourcePages.length; i++) {
+        if (!current()) return;
+        const content = await sourcePages[i].getTextContent();
         let text = '';
         for (const item of content.items) text += item.str + (item.hasEOL ? '\n' : '');
         pages.push({ page: i + 1, text });
       }
+      if (!current()) return;
+      const saved = await api('/api/fulltext', { key, pages, source_pdf_sha256:sourceHash });
+      if (!current()) return;
       R.pageTexts = pages.map((p) => p.text);
-      const saved = await api('/api/fulltext', { key, pages });
       setFulltextBadge(saved.pages, saved.chars);
       R.fulltext = true;
-    } catch (e) { toast('全文提取失败：' + e.message, 'warn'); }
+    } catch (e) { if(current()) toast('全文提取失败：' + e.message, 'warn'); }
   }, 400);
 }
 

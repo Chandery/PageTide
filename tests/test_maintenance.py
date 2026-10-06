@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app import maintenance, server, sources
 from app.service import App
+from recommendation_fixtures import english_papers
 
 UTC = datetime.timezone.utc
 
@@ -63,6 +64,7 @@ class Fixture(unittest.TestCase):
         self.addCleanup(self.app.store.close)
         self.pid = self.app.create_project("P", "manual", ["epitaxy"])["project_id"]
         self.add_papers(6)
+        english_papers(self.app,self.pid)
         tz = mock.patch.object(maintenance, "LOCAL_TZ", UTC)   # the tests reason in UTC days
         tz.start()
         self.addCleanup(tz.stop)
@@ -73,7 +75,7 @@ class Fixture(unittest.TestCase):
 
     def add_papers(self, n, start=0):
         self.app.store.upsert_papers([
-            {"key": f"p{start + i}", "title": f"epitaxy growth study {start + i}", "abstract": "epitaxy growth", "published": "2026-01-01"}
+            {"key": f"p{start + i}", "title": f"epitaxy growth study {start + i}", "abstract": "epitaxy growth", "published": "2026-01-01", 'language':'en'}
             for i in range(n)], project_id=self.pid)
 
     def set_frequency(self, value):
@@ -176,6 +178,7 @@ class RunTests(Fixture):
     def test_projects_are_independent(self):
         other = self.app.create_project("Q", "manual", ["glass"])["project_id"]
         self.app.store.upsert_papers([{"key": "q0", "title": "glass study", "abstract": "glass", "published": "2026-01-01"}], project_id=other)
+        english_papers(self.app,other)
         with self.refresher() as refresh:
             maintenance.run(self.app, self.pid, at(5))
             maintenance.run(self.app, other, at(5))

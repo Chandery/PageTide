@@ -165,3 +165,10 @@ test('no pack entry may rewrite a sentence it does not own: text with a count an
 test('the guard above does catch a pack entry that eats the unit', () => {
   assert.ok(noUnitEaten({ ...PACK, '{0} {1} 篇': '{0} {1}' }).length > 0);
 });
+
+test('language evidence and exclusion counts translate as complete UI messages',()=>{
+  const {i18n}=load('en-US',PACK);
+  assert.equal(i18n.translate('全文语言：中文（已核验）'),'Full-text language: Chinese (verified)');
+  assert.equal(i18n.translate('全文语言未核验 · 元数据语言：en'),'Full-text language unverified · Metadata language: en');
+  assert.equal(i18n.translate('语言未知 2 篇'),'Language unknown: 2 papers');
+});

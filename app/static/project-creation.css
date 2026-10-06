@@ -10,6 +10,14 @@ h3{margin:0;font-size:calc(14px * var(--s));font-weight:600;white-space:nowrap}
 .lead{color:var(--muted);margin:0 0 calc(22px * var(--s));max-width:70ch}
 
 /* ------------------------------------------------------------ mode cards */
+.paper-language-editor{margin:16px 0}
+.paper-language-editor fieldset{border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;background:var(--panel)}
+.paper-language-editor select{margin-left:12px;background:var(--panel);color:var(--text);border:1px solid var(--line);padding:6px 10px;border-radius:var(--r-sm)}
+.paper-language-choices{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:12px}
+.paper-language-choices[hidden]{display:none}
+.paper-language-choices label{display:flex;align-items:center;gap:6px}
+.paper-language-choices input{width:auto}
+
 .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(12px * var(--s));margin-bottom:calc(20px * var(--s))}
 .mode-card{white-space:normal;display:flex;flex-direction:column;align-items:flex-start;gap:calc(6px * var(--s));text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-lg);padding:calc(16px * var(--s)) calc(18px * var(--s));cursor:pointer;color:var(--text);font:inherit;transition:border-color .15s,background .15s}
 .mode-card:hover{border-color:var(--line-strong)}

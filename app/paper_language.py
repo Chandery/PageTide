@@ -29,6 +29,15 @@ def validate_policy(discipline, allowed):
     return allowed
 
 
+def validate_value(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - {'discipline', 'allowed_languages'}:
+        raise ValueError('论文语言设置格式无效')
+    return {'discipline': value.get('discipline'),
+            'allowed_languages': validate_policy(value.get('discipline'), value.get('allowed_languages'))}
+
+
 def policy_from_row(row):
     import json
     return {'discipline': row['discipline'],

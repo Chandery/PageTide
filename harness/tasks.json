@@ -708,7 +708,7 @@
       "id": "ROUTE-V2-01",
       "stage": "graph",
       "title": "项目语言策略与可恢复迁移",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "ROUTE-V2-00"
       ],
@@ -724,14 +724,16 @@
       ],
       "evidence": [
         "docs/evidence/2026-10-07-route-v2-01a-checks.txt",
-        "docs/evidence/2026-10-07-route-v2-01a-review.md"
+        "docs/evidence/2026-10-07-route-v2-01a-review.md",
+        "docs/evidence/2026-10-07-route-v2-02-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-02-review.md"
       ]
     },
     {
       "id": "ROUTE-V2-02",
       "stage": "graph",
       "title": "各模式共享推荐资格",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "ROUTE-V2-01"
       ],
@@ -745,7 +747,10 @@
         "普通、Route、维护共享本地资格判断，缺失原因可见，原始论文不删除",
         "无摘要只有链接、空正文、有效正文、旧 PDF 正文、语言冲突与无候选测试通过"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-02-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-02-review.md"
+      ]
     },
     {
       "id": "ROUTE-V2-03",

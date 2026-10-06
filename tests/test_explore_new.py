@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from recommendation_fixtures import english_papers
 from app.service import App
 
 PLAN = {"concepts": [
@@ -52,6 +53,7 @@ class Fixture(unittest.TestCase):
 
 class ExploreNewTests(Fixture):
     def test_the_exploration_slot_goes_to_a_paper_that_reads_like_the_directions_papers(self):
+        english_papers(self.app, self.pid)
         cards = self.app.build_batch(limit=5, project_id=self.pid)["cards"]
         kinds = self.kinds(cards)
         explored = [k for k, v in kinds.items() if v in ("explore", "explore_new")]
@@ -84,6 +86,7 @@ class ExploreNewTests(Fixture):
         graph = self.app.route_get(self.pid)["graph"]
         graph["concepts"].append({"id": "c9", "name": "应变弛豫", "terms": ["strain relaxation"], "hint": 2, "origin": "grown", "state": "active", "side": False, "candidate": "d-1"})
         self.app.route_save(self.pid, graph=graph)
+        english_papers(self.app, self.pid)
         kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
         self.assertNotIn("explore_new", kinds.values())
 
@@ -92,17 +95,20 @@ class ExploreNewTests(Fixture):
         papers = self.app._project_papers_for_growth(self.pid)
         vectors, idf = __import__("app.pathgrowth", fromlist=["x"]).paper_vectors(papers)
         self.assertEqual(self.app._exploration_targets(self.pid, [p for p in papers if p["key"] in ("s3", "s4")], vectors, idf), [])
+        english_papers(self.app, self.pid)
         self.assertNotIn("explore_new", self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"]).values())
 
     def test_papers_the_reader_turned_down_since_no_longer_steer(self):
         self.app.record_feedback("s1", "irrelevant", project_id=self.pid)
         self.app.record_feedback("s2", "irrelevant", project_id=self.pid)
         self.assertEqual(self.app._visible_directions(self.pid, self.app._route_org(self.pid)._load()[1]["route"], self.app.latest_feedback(self.pid))[0]["papers"], [])
+        english_papers(self.app, self.pid)
         kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
         self.assertNotIn("explore_new", kinds.values())
 
     def test_without_any_direction_on_file_the_exploration_slot_is_the_ordinary_one(self):
         self.app.store.set_setting(f"route_directions_{self.pid}", {"directions": [], "judged": {}})
+        english_papers(self.app, self.pid)
         kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
         self.assertNotIn("explore_new", kinds.values())
         self.assertIn("explore", kinds.values())
@@ -111,6 +117,7 @@ class ExploreNewTests(Fixture):
         for i in range(6):
             self.add(f"o{i}", f"Quantum dots and nanowires {i}", f"quantum dots nanowires photonics {i}", "journal-q")
         for _ in range(4):
+            english_papers(self.app, self.pid)
             out = self.app.build_batch(limit=5, project_id=self.pid)
             kinds = self.kinds(out["cards"])
             self.assertNotIn(None, kinds.values())                          # no card without a path label, however many batches
@@ -122,14 +129,17 @@ class ExploreNewTests(Fixture):
             self.add(f"e{i}", f"Epitaxial growth study {i}", "epitaxy epitaxial growth", "journal-e")     # a locked concept
         seen = []
         for _ in range(6):
+            english_papers(self.app, self.pid)
             seen += [c["key"] for c in self.app.build_batch(limit=5, project_id=self.pid)["cards"] if c["route"]["kind"].startswith("explore")]
         self.assertFalse({"e0", "e1", "e2"} & set(seen))
 
     def test_every_batch_has_an_exploration_slot_when_the_pool_has_something_to_explore(self):
+        english_papers(self.app, self.pid)
         first = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
         self.assertEqual(sum(1 for v in first.values() if v in ("explore", "explore_new")), 1)   # not "from the second batch on"
 
     def test_the_label_is_stored_so_it_does_not_change_when_the_map_does(self):
+        english_papers(self.app, self.pid)
         out = self.app.build_batch(limit=5, project_id=self.pid)
         key = next(c["key"] for c in out["cards"] if c["route"]["kind"] == "explore_new")
         self.app.store.set_setting(f"route_directions_{self.pid}", {"directions": [], "judged": {}})
@@ -137,6 +147,7 @@ class ExploreNewTests(Fixture):
         self.assertEqual(again["route"]["name"], "应变弛豫")
 
     def test_being_shown_is_not_evidence_only_the_readers_own_response_is(self):
+        english_papers(self.app, self.pid)
         self.app.build_batch(limit=5, project_id=self.pid)
         self.assertEqual(self.app.route_candidates(self.pid)["candidates"][0]["positive"], 2)   # showing s3 changed nothing
         self.assertEqual(self.app.route_candidates(self.pid)["pending"], [])
@@ -146,6 +157,7 @@ class ExploreNewTests(Fixture):
         self.assertEqual([p["key"] for p in out["pending"]], ["s3"])    # it was shown as exploration and collected: waiting to be judged
 
     def test_an_unknown_exploration_kind_does_not_break_the_cards(self):
+        english_papers(self.app, self.pid)
         out = self.app.build_batch(limit=5, project_id=self.pid)
         self.app.store.conn.execute("UPDATE exposures SET route_kind='from-the-future' WHERE batch_id=? AND route_kind='explore_new'", (out["batch_id"],))
         self.app.store.conn.commit()

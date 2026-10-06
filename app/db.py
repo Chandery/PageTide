@@ -322,8 +322,8 @@ class Store:
         self.conn.execute(
             """INSERT INTO pdf_versions (paper_key, path, source_url, sha256, bytes, source_kind, license, fetched_at)
                SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS
-               (SELECT 1 FROM (SELECT path FROM pdf_versions WHERE paper_key=? ORDER BY id DESC LIMIT 1) WHERE path=?)""",
-            (paper_key, str(path), source_url, sha256, size, source_kind, license, now(), paper_key, str(path)))
+               (SELECT 1 FROM (SELECT path,sha256 FROM pdf_versions WHERE paper_key=? ORDER BY id DESC LIMIT 1) WHERE path=? AND sha256 IS ?)""",
+            (paper_key, str(path), source_url, sha256, size, source_kind, license, now(), paper_key, str(path), sha256))
         self.conn.commit()
 
     def pdf_history(self, paper_key):
@@ -512,9 +512,17 @@ class Store:
                 if cur.rowcount != 1:
                     raise ValueError('PDF 已变化，请重新提取正文')
 
-    def fulltext_pages(self, paper_key):
+    def fulltext_pages(self, paper_key, current_only=False, source_pdf_sha256=None):
+        clause, params = '', [paper_key]
+        if source_pdf_sha256 is not None:
+            clause = ' AND source_pdf_sha256=? AND EXISTS (SELECT 1 FROM pdfs WHERE paper_key=? AND sha256=?)'
+            params.extend((source_pdf_sha256, paper_key, source_pdf_sha256))
+        elif current_only:
+            clause = ''' AND (NOT EXISTS (SELECT 1 FROM pdfs WHERE paper_key=?)
+                OR source_pdf_sha256=(SELECT sha256 FROM pdfs WHERE paper_key=?))'''
+            params.extend((paper_key, paper_key))
         rows = self.conn.execute(
-            "SELECT page, content FROM fulltext WHERE paper_key=? ORDER BY page", (paper_key,)).fetchall()
+            "SELECT page, content FROM fulltext WHERE paper_key=?" + clause + " ORDER BY page", params).fetchall()
         return [{"page": r["page"], "text": r["content"]} for r in rows]
 
     def qa_history(self, paper_key, limit=20, project_id=None):

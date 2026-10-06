@@ -13,6 +13,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
+from recommendation_fixtures import english_papers
 from app import server
 from app.language import language
 from app.organization_facets import suggest_groups
@@ -89,6 +90,7 @@ class EnglishServiceTests(unittest.TestCase):
         self.app.store.upsert_papers([{"key": "p1", "title": "World models", "abstract": "a",
                                        "published": "2026-08-01", "group_name": "field"}])
         set_language(self.app.data, "en-US")
+        english_papers(self.app, None)
         reason = self.app.build_batch(limit=5)["shortfall"]["reason"]
         self.assertIn("Only 1 paper in the project pool is neither", reason)
 

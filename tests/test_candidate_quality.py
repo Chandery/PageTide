@@ -16,6 +16,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from recommendation_fixtures import english_papers
 from app import creation, server, sources
 from app.service import App
 
@@ -161,6 +162,7 @@ class ServiceWindowTests(unittest.TestCase):
             {"key": "a", "title": "epitaxy growth direct", "abstract": "epitaxy", "published": "2026-01-01", "oa": DIRECT},
             {"key": "b", "title": "epitaxy growth page", "abstract": "epitaxy", "published": "2026-01-02", "oa": PAGE_ONLY},
             {"key": "c", "title": "epitaxy growth none", "abstract": "epitaxy", "published": "2026-01-03"}], project_id=project)
+        english_papers(self.app, project)
         cards = {c["key"]: c["pdf_status"] for c in self.app.build_batch(limit=5, project_id=project)["cards"]}
         self.assertEqual(cards, {"a": "direct", "b": "page", "c": "none"})
 

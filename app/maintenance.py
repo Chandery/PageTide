@@ -79,18 +79,18 @@ def _today(now):
 
 
 def _has_unseen(app, project_id):
-    return app.store.conn.execute(
-        """SELECT 1 FROM project_papers pp WHERE pp.project_id=?
-             AND pp.paper_key NOT IN (SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?)
-             AND pp.paper_key NOT IN (SELECT f.paper_key FROM feedback f WHERE f.project_id=? AND f.undone=0)
-             LIMIT 1""", (project_id, project_id, project_id)).fetchone() is not None
+    seen = {r[0] for r in app.store.conn.execute('''SELECT e.paper_key FROM exposures e
+        JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?''', (project_id,))}
+    answered = set(app.latest_feedback(project_id))
+    return any(p['_eligibility']['eligible'] and p['key'] not in seen and p['key'] not in answered
+               for p in app.recommendation_pool(project_id))
 
 
 def plan(app, project_id, now=None):
     """What would run now. Local only: no network, no model."""
     now = _now(now)
     freq = frequency(app.data)
-    if freq == "manual":
+    if freq == "manual" or app.projects.get_project(project_id)['language_policy']['status'] != 'ready':
         return {"frequency": freq, "refresh": False, "batch": False}
     refresh = (refresh_due(app.store.get_setting(_key("last_refresh", project_id)), freq, now)
                and not _recently_attempted(app, project_id, now))

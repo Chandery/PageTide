@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan
+from . import creation, eligibility, maintenance, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -43,6 +43,10 @@ PROFILE_STOPWORDS = {
 
 CREATION_WINDOW_YEARS = 10  # candidates while choosing seeds (a proposal; the page can lift it)
 FEED_WINDOW_YEARS = 5       # the refreshed feed (a proposal)
+
+
+class RecommendationChanged(Exception):
+    pass
 
 
 class App:
@@ -1000,7 +1004,9 @@ class App:
 
     def home_maintenance(self, project_id=None):
         """Refresh times for the page (no counts of anything unread or pending)."""
-        return {"maintenance": maintenance.status(self, project_id or self.get_default_project_id())}
+        project_id = project_id or self.get_default_project_id()
+        return {"maintenance": maintenance.status(self, project_id),
+                'recommendation_eligibility': self.store.get_setting('recommendation_eligibility_' + project_id)}
 
     def openalex_status(self):
         """Key state plus the allowance OpenAlex reported on its last response (no secret)."""
@@ -1071,7 +1077,7 @@ class App:
         }
 
     def create_project(self, name, creation_mode="manual", keywords=None, seeds=None,
-                       guidance_transcript=None, learning_path=None, route=None):
+                       guidance_transcript=None, learning_path=None, route=None, language_policy=None):
         """Create a project and optionally resolve explicit public seed identifiers."""
         if creation_mode not in {"quick", "manual", "ai_guided"}:
             raise ValueError("invalid creation mode")
@@ -1085,6 +1091,8 @@ class App:
         if not name or len(name) > 120:
             raise ValueError("项目名称不能为空且不能超过 120 个字符")
         keywords = [str(k).strip()[:120] for k in (keywords or []) if str(k).strip()][:40]
+        from .paper_language import validate_value
+        language_policy = validate_value(language_policy)
         route_graph, route_marks = None, {}
         if route is not None:   # validated before anything is created: a bad map must not leave a half-made project
             if not isinstance(route, dict):
@@ -1097,7 +1105,7 @@ class App:
             route_marks = {i: "mastered" for i in dict.fromkeys(mastered)}
         project_id = self.projects.create_project(name, creation_mode, keywords,
                                                    guidance_transcript=guidance_transcript,
-                                                   learning_path=learning_path)
+                                                   learning_path=learning_path, language_policy=language_policy)
         # "Restore default" returns to exactly these creation-time terms.
         self.store.set_setting(f"project_default_terms_{project_id}", keywords)
         results = []
@@ -1396,7 +1404,7 @@ class App:
         self.store.conn.execute("DELETE FROM settings WHERE key=?", (f"route_plan_{session_id}",))
         self.store.conn.commit()
 
-    def finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None):
+    def finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None, language_policy=None):
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
             raise ValueError("引导会话不存在或已结束")
@@ -1413,7 +1421,7 @@ class App:
                   for key in selected if key in candidates]
         result = self.create_project(session["name"], draft.get("creation_mode") or "ai_guided", draft["keywords"],
                                      guidance_transcript=session["transcript"],
-                                     learning_path=draft["learning_path"], route=route)
+                                     learning_path=draft["learning_path"], route=route, language_policy=language_policy)
         project_id = result["project_id"]
         for paper in chosen:
             paper["project_id"] = project_id
@@ -1655,7 +1663,7 @@ class App:
         weights = profile["weights"]
         seeds = [papers_by_key[k] for k in profile["positive_seeds"] if k in papers_by_key]
         # seed papers may not be in the candidate pool; fall back to the stored seed set
-        seed_texts = [f"{p.get('title') or ''} {p.get('abstract') or ''}" for p in seeds]
+        seed_texts = [eligibility.retrieval_text(p) for p in seeds]
         if not seed_texts and project_id == self.get_default_project_id():
             seed_texts = [s["title"] for s in self.seeds(project_id)]
         seed_vectors = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(t), idf)) for t in seed_texts]
@@ -1663,10 +1671,10 @@ class App:
         if term_text.strip():
             seed_vectors.append(ranking.l2_normalize(ranking.vectorize(ranking.tokenize(term_text), idf)))
         pos = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
-            f"{papers_by_key[k].get('title') or ''} {papers_by_key[k].get('abstract') or ''}"), idf))
+            eligibility.retrieval_text(papers_by_key[k])), idf))
             for k in profile["positive_feedback"] if k in papers_by_key]
         neg = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
-            f"{papers_by_key[k].get('title') or ''} {papers_by_key[k].get('abstract') or ''}"), idf))
+            eligibility.retrieval_text(papers_by_key[k])), idf))
             for k in profile["explicit_negatives"] if k in papers_by_key]
         # "too_hard" describes difficulty, not disinterest, so it never enters the negatives.
         return ranking.rocchio(seed_vectors, pos, neg, weights["pos"], weights["neg"])
@@ -1769,6 +1777,7 @@ class App:
             "topic": paper.get("topic"),
             "why": self.explain(paper, project_id)["why"],
             "has_pdf": self.pdf_path(key) is not None,
+            'language': self._paper_language(self._recommendation_rows(paper_key=key)[0]),
         }
 
     def _project_keywords(self, project_id):
@@ -1833,30 +1842,158 @@ class App:
             project_id = self.get_default_project_id()
 
         payload = json.loads(Path(path).read_text())
-        papers = payload.get("all", payload if isinstance(payload, list) else [])
+        papers = payload if isinstance(payload, list) else payload.get("all", [])
         normalized = [{"key": p["key"], "openalex_id": p.get("openalex_id"), "doi": p.get("doi"),
                        "arxiv_id": p.get("arxiv_id"), "title": p["title"], "abstract": p.get("abstract"),
                        "published": p.get("publication_date") or p.get("published"),
                        "source": p.get("source"), "group_name": p.get("group", "field"),
-                       "project_id": project_id}
+                       "project_id": project_id,
+                       **({"language": p.get("metadata_language", p.get("language")),
+                           "metadata_language_source": p.get("metadata_language_source", "frozen candidate")}
+                          if "metadata_language" in p or "language" in p else {})}
                       for p in papers]
         added = self.store.upsert_papers(normalized)
         return {"imported": len(normalized), "added": added}
 
+    def _paper_language(self, paper, digest=None):
+        verified = bool(paper.get('verified_language') and paper.get('current_pdf_sha256')
+                        and (digest if digest is not None else eligibility.pdf_digest(paper.get('current_pdf_path'))) == paper['current_pdf_sha256'])
+        return {'metadata_language': paper.get('metadata_language'),
+                'metadata_source': paper.get('metadata_language_source'),
+                'fulltext_language': paper.get('verified_language') if verified else None,
+                'fulltext_status': 'verified' if verified else 'unverified',
+                'verification_method': paper.get('verified_method') if verified else None}
+
+    def _recommendation_rows(self, project_id=None, paper_key=None):
+        if project_id is not None:
+            where, params = 'EXISTS (SELECT 1 FROM project_papers pp WHERE pp.project_id=? AND pp.paper_key=p.key)', (project_id,)
+        else:
+            where, params = 'p.key=?', (paper_key,)
+        return [dict(r) for r in self.store.conn.execute('''SELECT p.*, d.path AS current_pdf_path,
+            d.sha256 AS current_pdf_sha256, l.language AS verified_language, l.method AS verified_method
+            FROM papers p LEFT JOIN pdfs d ON d.paper_key=p.key
+            LEFT JOIN fulltext_languages l ON l.paper_key=p.key AND l.pdf_sha256=d.sha256
+            WHERE ''' + where + ' ORDER BY p.published DESC', params)]
+
+    def recommendation_pool(self, project_id, policy=None):
+        project_id = self._require_project_id(project_id)
+        policy = policy or self.projects.get_project(project_id)['language_policy']
+        papers = self._recommendation_rows(project_id=project_id)
+        budget = {'remaining': eligibility.MAX_VERIFY_BYTES, 'deferred': False}
+        scope = (str(self.store.path.resolve()), project_id, policy['revision'])
+        first_deferred = None
+        for paper in eligibility.verification_order(papers, scope):
+            body = ''
+            sha = paper.get('current_pdf_sha256')
+            needs_version = policy['status'] == 'ready' and sha and (paper.get('verified_language')
+                or not eligibility.usable_abstract(paper.get('abstract')))
+            budget['deferred'] = False
+            identity = eligibility.file_identity(paper.get('current_pdf_path')) if needs_version else None
+            digest = eligibility.pdf_digest(paper.get('current_pdf_path'), budget) if needs_version else None
+            if needs_version and eligibility.file_identity(paper.get('current_pdf_path')) != identity:
+                digest = None
+            version_changed = bool(needs_version and not self.store.conn.execute(
+                'SELECT 1 FROM pdfs WHERE paper_key=? AND sha256=? AND path=?',
+                (paper['key'], sha, paper.get('current_pdf_path'))).fetchone())
+            # Reuse the one physical check for language and text; never retry it when the read budget is exhausted.
+            language = self._paper_language({**paper, 'verified_language': paper.get('verified_language') if digest == sha else None}, digest)
+            if needs_version and not version_changed and digest == sha and not eligibility.usable_abstract(paper.get('abstract')):
+                rows = self.store.conn.execute('''SELECT substr(content,1,?) FROM fulltext
+                    WHERE paper_key=? AND source_pdf_sha256=? AND page BETWEEN 1 AND ?
+                    AND EXISTS (SELECT 1 FROM pdfs WHERE paper_key=? AND sha256=? AND path=?)
+                    ORDER BY page LIMIT ?''',
+                    (eligibility.BODY_PAGE_CHARS, paper['key'], sha, eligibility.BODY_PAGES, paper['key'], sha, paper.get('current_pdf_path'), eligibility.BODY_PAGES))
+                body = '\n'.join(r[0] for r in rows)
+            paper['_checked_pdf_sha256'] = digest if digest == sha and needs_version else None
+            paper['_checked_pdf_identity'] = identity if paper['_checked_pdf_sha256'] else None
+            paper['_eligibility'] = ({'eligible': False, 'reason': 'source_version_changed', 'language': language}
+                if version_changed else {'eligible': False, 'reason': 'source_verification_deferred', 'language': language}
+                if budget['deferred'] else eligibility.evaluate(policy, paper, language, body))
+            if budget['deferred'] and first_deferred is None:
+                first_deferred = paper['key']
+            # Only the local retriever sees this. Cards/AI metadata still use the stored abstract.
+            paper['_local_body'] = body if paper['_eligibility']['eligible'] else ''
+        eligibility.defer_verification(scope, first_deferred)
+        return papers
+
+    def _create_eligible_batch(self, run_date, keys, project_id, policy, papers, route=None):
+        expected = {p['key']: p for p in papers}
+        columns = ('title', 'abstract', 'metadata_language', 'current_pdf_path', 'current_pdf_sha256',
+                   'verified_language', 'verified_method')
+        with self.store._lock:
+            self.store.conn.execute('BEGIN IMMEDIATE')
+            try:
+                current_project = self.projects.get_project(project_id)
+                if not current_project or current_project['language_policy']['revision'] != policy['revision']:
+                    raise RecommendationChanged()
+                for key in keys:
+                    rows = self._recommendation_rows(paper_key=key)
+                    if not rows or any(rows[0].get(c) != expected[key].get(c) for c in columns):
+                        raise RecommendationChanged()
+                    if not self.store.conn.execute('SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?',
+                                                   (project_id,key)).fetchone():
+                        raise RecommendationChanged()
+                    sha = expected[key].get('_checked_pdf_sha256')
+                    if sha:
+                        if eligibility.file_identity(rows[0].get('current_pdf_path')) != expected[key].get('_checked_pdf_identity'):
+                            raise RecommendationChanged()
+                        if not eligibility.usable_abstract(rows[0].get('abstract')):
+                            body = '\n'.join(r[0] for r in self.store.conn.execute('''SELECT substr(content,1,?)
+                                FROM fulltext WHERE paper_key=? AND source_pdf_sha256=? AND page BETWEEN 1 AND ? ORDER BY page LIMIT ?''',
+                                (eligibility.BODY_PAGE_CHARS,key,sha,eligibility.BODY_PAGES,eligibility.BODY_PAGES)))
+                            if not eligibility.usable_body(body):
+                                raise RecommendationChanged()
+                return self.store.create_batch(run_date, keys, project_id=project_id, route=route)
+            except Exception:
+                self.store.conn.rollback()
+                raise
+
     def build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None):
+        try:
+            return self._build_batch(limit, run_date, exclude_seen, project_id)
+        except RecommendationChanged:
+            reason = ('Paper sources or the language policy changed; generate again' if self.english()
+                      else '论文来源或语言设置已变化，请重新生成')
+            return {'batch_id': None, 'cards': [], 'reason': reason, 'reason_code': 'recommendation_changed'}
+
+    def _build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None):
         """Build a recommendation batch for a specific project."""
         if not project_id:
             project_id = self.get_default_project_id()
 
         run_date = run_date or now()[:10]
-
-        # Get papers for this project only
-        rows = self.store.conn.execute(
-            """SELECT p.* FROM project_papers pp JOIN papers p ON p.key=pp.paper_key
-               WHERE pp.project_id=? ORDER BY p.published DESC""",
-            (project_id,)
-        ).fetchall()
-        papers = [dict(r) for r in rows]
+        project = self.projects.get_project(project_id)
+        if not project:
+            raise ValueError('项目不存在')
+        policy = project['language_policy']
+        try:
+            papers = self.recommendation_pool(project_id, policy=policy)
+        except ValueError:
+            if not self.projects.get_project(project_id):
+                raise RecommendationChanged()
+            raise
+        current_project = self.projects.get_project(project_id)
+        if not current_project or current_project['language_policy']['revision'] != policy['revision']:
+            raise RecommendationChanged()
+        counts = defaultdict(int)
+        for p in papers:
+            if not p['_eligibility']['eligible']:
+                counts[p['_eligibility']['reason']] += 1
+        snapshot = {'policy_revision': policy['revision'], 'created_at': now(), 'candidates': len(papers),
+                    'excluded': dict(counts), 'examples': [
+                        {'key': p['key'], 'reason': p['_eligibility']['reason']}
+                        for p in papers if not p['_eligibility']['eligible']][:20]}
+        with self.store._lock, self.store.conn:
+            written = self.store.conn.execute('''INSERT INTO settings (key,value)
+                SELECT ?,? FROM projects WHERE id=? AND language_policy_revision=?
+                ON CONFLICT(key) DO UPDATE SET value=excluded.value''',
+                ('recommendation_eligibility_' + project_id, json.dumps(snapshot, ensure_ascii=False), project_id, policy['revision']))
+            if written.rowcount != 1:
+                raise RecommendationChanged()
+        if policy['status'] != 'ready':
+            reason = eligibility.REASONS['language_policy_required'][1 if self.english() else 0]
+            return {'batch_id': None, 'cards': [], 'reason': reason, 'reason_code': 'language_policy_required',
+                    'eligibility': snapshot, 'shortfall': {'reason': reason, 'available': 0, 'requested': limit}}
 
         # Get seen papers for this project
         if exclude_seen:
@@ -1869,10 +2006,7 @@ class App:
             seen = set()
 
         feedback = self.latest_feedback(project_id)
-        # A paper with no abstract and no PDF (none on disk, none known to be downloadable) gives the reader nothing to
-        # judge it by: it is not recommended. It stays in the project and still counts for the profile.
-        stored_pdfs = {r[0] for r in self.store.conn.execute("SELECT paper_key FROM pdfs")}
-        readable = lambda p: bool(str(p.get("abstract") or "").strip()) or p["key"] in stored_pdfs or pdf_availability(p.get("arxiv_id"), p.get("oa_json")) != "none"
+        readable = lambda p: p['_eligibility']['eligible']
         fresh = [p for p in papers if p["key"] not in seen and p["key"] not in feedback and readable(p)]    # never shown, never rated
         route = self._route_state(project_id)
         on_path = bool(route and route["frontier"])
@@ -1890,14 +2024,15 @@ class App:
                                     if self.english() else f"项目候选池中只剩 {len(pool)} 篇未展示且未反馈的论文")}
 
         if not pool:
-            return {"batch_id": None, "cards": [], "reason": "no unseen candidates", "shortfall": shortfall}
+            reason = ('No eligible candidates' if self.english() else '没有符合条件的候选论文') if counts else 'no unseen candidates'
+            return {"batch_id": None, "cards": [], "reason": reason, "shortfall": shortfall, 'eligibility': snapshot}
 
         # The profile is learned from labelled and seed papers, which the pool by definition excludes
         # (shown or rated), so IDF and the profile vector use every paper of the project.
-        corpus = [f"{p['title']} {p['abstract'] or ''}" for p in papers]
+        corpus = [eligibility.retrieval_text(p) for p in papers]
         idf = ranking.build_idf([ranking.tokenize(doc) for doc in corpus])
         vectors = {p["key"]: ranking.l2_normalize(ranking.vectorize(ranking.tokenize(
-            f"{p['title']} {p['abstract'] or ''}"), idf)) for p in pool}
+            eligibility.retrieval_text(p)), idf)) for p in pool}
         profile_vector = self.profile_vector({p["key"]: p for p in papers}, idf, project_id)
         scored = ranking.sort_scored(
             [(p["key"], ranking.cosine(profile_vector, vectors[p["key"]])) for p in pool],
@@ -1914,20 +2049,20 @@ class App:
                                  "reason": ("Fewer papers than asked for: the concepts you can read now have no papers left that you have not rated, and exploration only offers papers outside the map that were never shown. Rate or save the ones you saw, fetch new papers, or mark concepts as known"
                                             if self.english() else "没凑够：你现在能读的概念里没有还没评价的论文了，探索位也只推地图之外、没展示过的论文。可以给已展示的评价或收藏、抓取新论文，或把已掌握的概念标出来")}
                 names = {c["id"]: (c["name"], route["layers"][c["id"]]) for c in route["graph"]["concepts"]}
-                batch_id = self.store.create_batch(run_date, [k for k, _, _, _ in picks], project_id=project_id,
+                batch_id = self._create_eligible_batch(run_date, [k for k, _, _, _ in picks], project_id, policy, papers,
                                                    route={k: (node, kind) + (names.get(node, (None, None)) if label is None else (label, None)) for k, node, kind, label in picks})
-                return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
+                return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall, 'eligibility': snapshot}
             shortfall = {**(shortfall or {}), "requested": limit, "available": 0, "candidates": len(papers),
                          "reason": ("There are no papers for the concepts you can read now, so this is an ordinary batch"
                                     if self.english() else "路径上你现在能读的概念没有可推的论文，这一批是普通推荐")}
             fresh_keys = {p["key"] for p in fresh}
             scored = [(k, v) for k, v in scored if k in fresh_keys]
             if not scored:
-                return {"batch_id": None, "cards": [], "reason": "no unseen candidates", "shortfall": shortfall}
+                return {"batch_id": None, "cards": [], "reason": "no unseen candidates", "shortfall": shortfall, "eligibility": snapshot}
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
-        batch_id = self.store.create_batch(run_date, chosen, project_id=project_id)
-        return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
+        batch_id = self._create_eligible_batch(run_date, chosen, project_id, policy, papers)
+        return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall, 'eligibility': snapshot}
 
     def _reference_docs(self, project_id=None):
         """Seeds and saved papers, used to explain *which* direction a card resembles."""
@@ -2035,6 +2170,7 @@ class App:
                 "feedback": (feedback.get(row["key"]) or {}).get("action"),
                 "familiarity": ((feedback.get(row["key"]) or {}).get("familiar") or {}).get("action"),
                 "summary": summaries.get(row["key"]),
+                'language': self._paper_language(self._recommendation_rows(paper_key=row['key'])[0]),
             })
         return cards
 
@@ -2100,9 +2236,18 @@ class App:
         self.store.save_fulltext(paper_key, pages, source_pdf_sha256=source_pdf_sha256)
         return {"pages": len(pages), "chars": sum(len(p.get("text") or "") for p in pages)}
 
-    def fulltext_status(self, paper_key):
-        pages = self.store.fulltext_pages(paper_key)
-        return {"pages": len(pages), "chars": sum(len(p["text"]) for p in pages)}
+    def current_fulltext_pages(self, paper_key, source_pdf_sha256=None):
+        pdf=self.store.conn.execute('SELECT path,sha256 FROM pdfs WHERE paper_key=?',(paper_key,)).fetchone()
+        if pdf and (not pdf['sha256'] or eligibility.pdf_digest(pdf['path'])!=pdf['sha256']):
+            return []
+        return self.store.fulltext_pages(paper_key, current_only=True, source_pdf_sha256=source_pdf_sha256)
+
+    def fulltext_status(self, paper_key, source_pdf_sha256=None, include_texts=False):
+        pages = self.current_fulltext_pages(paper_key, source_pdf_sha256)
+        result = {"pages": len(pages), "chars": sum(len(p["text"]) for p in pages)}
+        if include_texts:
+            result['texts']=pages
+        return result
 
     _CN_DIGIT = {"零": 0, "〇": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
     _CN_NUM = "[零〇一二两三四五六七八九十百]+"
@@ -2185,7 +2330,7 @@ class App:
             return []
         pattern = self._ref_pattern(*ref)
         hits = []
-        for page in self.store.fulltext_pages(paper_key):
+        for page in self.current_fulltext_pages(paper_key):
             text = page["text"]
             for found in pattern.finditer(text):
                 start, end = max(0, found.start() - 250), min(len(text), found.end() + 750)
@@ -2206,7 +2351,7 @@ class App:
         ref = self.figure_ref(question)
         if not ref:
             return None
-        pages = self.store.fulltext_pages(paper_key)
+        pages = self.current_fulltext_pages(paper_key)
         # A caption is authoritative: the first page that defines the figure wins
         # outright, because body pages reference many figures and would otherwise
         # out-score the single page that actually shows it.
@@ -2227,7 +2372,7 @@ class App:
 
     def passages(self, paper_key, question, k=8, size=900):
         """Local lexical retrieval over the extracted full text. Zero tokens."""
-        pages = self.store.fulltext_pages(paper_key)
+        pages = self.current_fulltext_pages(paper_key)
         chunks = []
         for page in pages:
             text = page["text"]
@@ -2389,7 +2534,14 @@ class App:
         if not refresh:
             cached = self.conn_pdf(paper_key)
             if cached:
-                return {"ok": True, "path": cached, "cached": True}
+                row=dict(self.store.conn.execute('SELECT * FROM pdfs WHERE paper_key=?',(paper_key,)).fetchone())
+                digest=eligibility.pdf_digest(cached)
+                if not digest or (row['sha256'] and row['sha256']!=digest):
+                    return {'ok':False,'reason':'pdf_changed','detail':('The local PDF changed or cannot be verified; reimport this file' if self.english() else '本地 PDF 已变化或无法核验，请重新导入该文件'),'attempts':[]}
+                if not row['sha256']:
+                    self.store.record_pdf(paper_key,cached,row['source_url'],sha256=digest,size=Path(cached).stat().st_size,
+                                          source_kind=row['source_kind'],license=row['license'])
+                return {"ok": True, "path": cached, "cached": True, 'sha256':digest}
         attempts, tried = [], set()
 
         def run(found):

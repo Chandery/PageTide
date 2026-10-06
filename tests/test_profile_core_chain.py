@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from recommendation_fixtures import english_papers
 from app import ranking
 from app.db import Store
 from app.migrations import MIGRATIONS, get_schema_version
@@ -59,23 +60,29 @@ class CoreChainTests(unittest.TestCase):
     # ------------------------------------------------------------ CORE-01
     def test_ranking_is_replayable_and_needs_no_pdf_or_model(self):
         with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
+            english_papers(self.app, self.a)
             first = self.app.build_batch(project_id=self.a, exclude_seen=False)
+            english_papers(self.app, self.a)
             second = self.app.build_batch(project_id=self.a, exclude_seen=False)
         urlopen.assert_not_called()
         self.assertEqual([c["key"] for c in first["cards"]], [c["key"] for c in second["cards"]])
         self.assertEqual(self.app.store.conn.execute("SELECT COUNT(*) FROM pdfs").fetchone()[0], 0)
 
     def test_repeat_exposure_and_feedback_exclusion(self):
+        english_papers(self.app, self.a)
         first = [c["key"] for c in self.app.build_batch(limit=3, project_id=self.a)["cards"]]
         self.app.record_feedback(first[0], "useful", project_id=self.a)
+        english_papers(self.app, self.a)
         second = self.app.build_batch(limit=3, project_id=self.a)
         keys = [c["key"] for c in second["cards"]]
         self.assertFalse(set(first) & set(keys), "seen papers must not be shown again")
         self.assertIsNone(second["shortfall"])
+        english_papers(self.app, self.a)
         third = self.app.build_batch(limit=5, project_id=self.a)
         self.assertEqual(len(third["cards"]), 1)
         self.assertEqual(third["shortfall"]["available"], 1)
         self.assertEqual(third["shortfall"]["excluded_seen"], 6)
+        english_papers(self.app, self.a)
         empty = self.app.build_batch(limit=5, project_id=self.a)
         self.assertEqual(empty["cards"], [])
         self.assertEqual(empty["shortfall"]["available"], 0)
@@ -94,6 +101,7 @@ class CoreChainTests(unittest.TestCase):
 
     def test_no_action_changes_nothing(self):
         before = self._snapshot(self.a)
+        english_papers(self.app, self.a)
         self.app.build_batch(project_id=self.a)  # shown but not labelled
         after = self._snapshot(self.a)
         self.assertEqual(before["profile"], after["profile"])
@@ -109,6 +117,7 @@ class CoreChainTests(unittest.TestCase):
             "SELECT COUNT(*) FROM feedback WHERE project_id=?", (self.a,)).fetchone()[0], 1)
 
     def test_undo_replays_to_the_pre_feedback_state_everywhere(self):
+        english_papers(self.app, self.a)
         self.app.build_batch(project_id=self.a)
         self.app.record_feedback("p2", "irrelevant", project_id=self.a)
         before = self._snapshot(self.a)
@@ -200,6 +209,7 @@ class CoreChainTests(unittest.TestCase):
     def test_two_projects_are_isolated(self):
         self.app.record_feedback("p1", "useful", project_id=self.a)
         self.app.set_profile_frozen(True, self.a)
+        english_papers(self.app, self.a)
         self.app.build_batch(limit=2, project_id=self.a)
         self.app.store.add_qa("p1", "user", "question", project_id=self.a)
         profile_b = self.app.profile(self.b)
@@ -208,6 +218,7 @@ class CoreChainTests(unittest.TestCase):
         self.assertEqual(self.app.stats(self.b)["shown"], 0)
         self.assertEqual(self.app.stats(self.b)["saved"], 0)
         self.assertEqual(self.app.qa_history("p1", project_id=self.b), [])
+        english_papers(self.app, self.b)
         self.assertEqual(len(self.app.build_batch(limit=5, project_id=self.b)["cards"]), 5)
 
     def test_delete_project_removes_its_state_and_keeps_canonical_facts(self):
@@ -216,6 +227,7 @@ class CoreChainTests(unittest.TestCase):
         self.app.store.record_pdf("p1", pdf, "local")
         self.app.store.save_fulltext("p1", [{"page": 1, "text": "full text"}])
         self.app.store.save_summary("p1", "one", "why", "caution", "test")
+        english_papers(self.app, self.a)
         self.app.build_batch(limit=2, project_id=self.a)
         self.app.record_feedback("p1", "useful", project_id=self.a)
         self.app.record_feedback("p1", "irrelevant", project_id=self.b)
@@ -389,7 +401,9 @@ class MigrationBackupTests(unittest.TestCase):
             path = Path(tmp) / "paperdighelper.sqlite"
             with mock.patch('app.migrations.MIGRATIONS', MIGRATIONS[:-1]):
                 app = App(root=ROOT, data_dir=Path(tmp))
-                pid = app.create_project("Keep", "manual", ["kept"])["project_id"]
+                pid = 'legacy-kept'
+                app.store.conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES (?, 'Keep','manual','2026-01-01','[\"kept\"]')", (pid,))
+                app.store.conn.commit()
             app.store.upsert_papers([{"key": "k1", "title": "Kept paper", "abstract": "", "published": "2026-01-01",
                                       "project_id": pid}])
             # The real old migration set supplies both the old schema and version history.

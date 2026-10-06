@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from recommendation_fixtures import english_papers
 from app import ranking
 from app.db import Store
 from app.gateway import BudgetExceeded, Gateway
@@ -173,12 +174,15 @@ class ServiceTests(unittest.TestCase):
             self.app.record_feedback("p1", "hate")
 
     def test_build_batch_excludes_seen_and_feedback(self):
+        english_papers(self.app, None)
         first = self.app.build_batch(limit=2)
         self.assertEqual(len(first["cards"]), 2)
+        english_papers(self.app, None)
         second = self.app.build_batch(limit=2)
         self.assertEqual(second["cards"], [])  # everything already exposed
 
     def test_cards_have_reason_and_url(self):
+        english_papers(self.app, None)
         self.app.build_batch(limit=1)
         card = self.app.cards()[0]
         self.assertTrue(card["why"])
@@ -191,6 +195,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.app.profile()["pinned_terms"], ["planning"])
 
     def test_useful_saves_to_library_and_card_stays(self):
+        english_papers(self.app, None)
         self.app.build_batch(limit=2)
         cards = self.app.cards()
         self.assertEqual(len(cards), 2)
@@ -206,6 +211,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(len(self.app.library()), 1)
 
     def test_unsave_removes_from_library(self):
+        english_papers(self.app, None)
         self.app.build_batch(limit=1)
         key = self.app.cards()[0]["key"]
         self.app.record_feedback(key, "useful")
@@ -213,6 +219,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.app.library(), [])
 
     def test_feedback_does_not_remove_card_from_view(self):
+        english_papers(self.app, None)
         self.app.build_batch(limit=2)
         for card in self.app.cards():
             self.app.record_feedback(card["key"], "irrelevant")
@@ -405,6 +412,7 @@ class ServiceTests(unittest.TestCase):
                 self.app.qa(None, "这张图是什么？", image=image)
 
     def test_cards_have_distinct_reasons(self):
+        english_papers(self.app, None)
         self.app.build_batch(limit=2)
         cards = self.app.cards()
         self.assertTrue(all(c["why"] for c in cards))
