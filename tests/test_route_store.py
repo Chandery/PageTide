@@ -395,6 +395,19 @@ class RouteTests(Fixture):
         port = self.serve()
         self.assertEqual(self.call(port, "/api/route", {"action": "save", "project_id": self.pid, "plan": PLAN}, origin="http://evil.example")[0], 403)
 
+    def test_watch_over_http_is_explicit_revision_guarded_and_undoable(self):
+        port = self.serve()
+        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+            _, saved = self.call(port, "/api/route", {"action": "save", "project_id": self.pid, "plan": PLAN})
+            cid = saved["graph"]["concepts"][0]["id"]
+            body = {"action": "watch", "project_id": self.pid, "concept": cid, "value": True, "revision": saved["revision"]}
+            code, watched = self.call(port, "/api/route", body)
+            self.assertEqual((code, watched["watch"], watched["watched_satisfied"]), (200, [cid], []))
+            self.assertEqual(self.call(port, "/api/route", {**body, "value": False})[0], 409)
+            self.assertEqual(self.call(port, "/api/route", {**body, "value": "true", "revision": watched["revision"]})[0], 400)
+            code, undone = self.call(port, "/api/route", {"action": "undo", "project_id": self.pid, "revision": watched["revision"]})
+            self.assertEqual((code, undone["watch"]), (200, []))
+
 
 if __name__ == "__main__":
     unittest.main()

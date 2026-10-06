@@ -601,7 +601,8 @@ def progress(graph, events, manual=None, shown=None, start=None):
         if (edge["from"] in needs and edge["to"] in needs and edge.get("state", "active") == "active"
                 and state_of[edge["from"]] == "active" and state_of[edge["to"]] == "active"):
             needs[edge["to"]].append(edge["from"])
-    level = layers(graph)
+    effective = {**graph, "prereqs": [{"from": p, "to": i} for i in ids for p in needs[i]]}
+    level = layers(effective)
     starts = set(start) if start is not None else {i for i in ids if not needs[i]}
     out = {}
     for node in sorted(ids, key=lambda i: (level[i], index[i])):
@@ -641,10 +642,70 @@ def progress(graph, events, manual=None, shown=None, start=None):
 
 def frontier(graph, prog):
     """Concepts to read from now: unlocked and not yet understood, nearest to the basics first, then by interest."""
-    level = layers(graph)
+    active = {c["id"] for c in graph["concepts"] if c.get("state", "active") == "active"}
+    effective = {**graph, "prereqs": [e for e in graph["prereqs"] if e.get("state", "active") == "active" and e["from"] in active and e["to"] in active]}
+    level = layers(effective)
     order = {c["id"]: i for i, c in enumerate(graph["concepts"])}
     open_ids = [i for i, state in prog.items() if state["status"] == "unlocked"]
     return sorted(open_ids, key=lambda i: (level[i], -prog[i]["p"], order[i]))
+
+
+def goal_state(graph, prog):
+    """Goal and active prerequisite closure, separate from all-map progress.
+
+    Stored legacy/malformed targets are never replaced with guessed sinks. Only
+    active edges between active concepts count. A dangling active prerequisite
+    or cycle within the goal needs repair even when manual marks say mastered.
+    Candidate availability is not evidence of learning or completion.
+    """
+    active = [c["id"] for c in graph["concepts"] if c.get("state", "active") == "active"]
+    ids = set(active)
+    targets = list(dict.fromkeys(graph.get("targets") or []))
+    invalid = [i for i in targets if i not in ids]
+    needs = {i: [] for i in active}
+    dangling = set()
+    all_ids = {c["id"] for c in graph["concepts"]}
+    for edge in graph["prereqs"]:
+        if edge.get("state", "active") != "active" or edge["to"] not in ids:
+            continue
+        if edge["from"] in ids:
+            needs[edge["to"]].append(edge["from"])
+        elif edge["from"] not in all_ids:
+            dangling.add(edge["to"])
+    found, stack = set(), [i for i in targets if i in ids]
+    while stack:
+        node = stack.pop()
+        if node in found:
+            continue
+        found.add(node)
+        stack.extend(needs[node])
+    scope = [i for i in active if i in found]
+    remaining = set(scope)
+    while remaining:
+        roots = {i for i in remaining if not any(p in remaining for p in needs[i])}
+        if not roots:
+            break
+        remaining -= roots
+    done = sum(prog.get(i, {}).get("status") == "satisfied" for i in scope)
+    open_ids = [i for i in frontier(graph, prog) if i in found]
+    reasons = []
+    if not targets: reasons.append("missing_targets")
+    if invalid: reasons.append("inactive_or_missing_targets")
+    if dangling & found: reasons.append("missing_prerequisite")
+    if remaining: reasons.append("cycle")
+    if reasons or not scope:
+        status = "needs_review"
+        open_ids = []
+    elif done == len(scope):
+        status = "completed"
+    elif open_ids:
+        status = "learning"
+    else:
+        status = "needs_review"
+        reasons.append("no_frontier")
+    return {"goal_scope": scope, "goal_targets": [i for i in targets if i in ids],
+            "goal_invalid_targets": invalid, "goal_status": status, "goal_reasons": reasons,
+            "goal_done": done, "goal_total": len(scope), "frontier": open_ids}
 
 
 def remedial(graph, prog, concept_id):

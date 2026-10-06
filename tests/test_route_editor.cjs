@@ -19,6 +19,24 @@ const graph = () => ({
   targets: ['c4'],
 });
 
+test('goal summary distinguishes completion, learning and structural review', () => {
+  const R = load();
+  for (const [status, text] of [['completed', '当前目标已完成'], ['learning', '当前目标学习中'], ['needs_review', '目标或前置关系需要检查']]) {
+    const line = R.summaryText({goal_status: status, goal_done: 3, goal_total: 3, done: 3, total: 9});
+    assert.match(line, new RegExp(text));
+    assert.match(line, /3 \/ 3 个概念/);
+    assert.doesNotMatch(line, /3 \/ 9/);
+  }
+});
+
+test('watching does not claim mastery and new developments require satisfaction', () => {
+  const R = load();
+  assert.match(R.watchHTML(true, false), /data-route-watch checked/);
+  assert.match(R.watchHTML(true, false), /不改变掌握状态/);
+  assert.match(R.watchHTML(false, true), /开启后可推荐这个方向的新进展/);
+  assert.doesNotMatch(R.watchHTML(false, true), /data-route-watch checked/);
+});
+
 test('layers are the longest path from the entry points', () => {
   const R = load();
   assert.deepEqual({ ...R.layers(graph()) }, { c1: 1, c2: 2, c3: 2, c4: 3 });

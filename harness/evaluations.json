@@ -221,10 +221,13 @@
     },
     {
       "id": "E-ROUTE-V2-03",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-03. 范围、前沿、完成分开，多目标与旁支测试通过，无前沿不被一概当完成；关注、掌握、撤销、Route 关闭重开、重启与冲突保存保持字段完整。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-03-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-03-review.md"
+      ]
     },
     {
       "id": "E-ROUTE-V2-04",

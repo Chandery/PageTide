@@ -1355,6 +1355,16 @@
   "论文语言不在支持的选项中": "This paper language is not supported",
   "论文语言设置格式无效": "Invalid paper-language settings",
   "PDF 版本变化 {0} 篇": "PDF version changed: {0} papers",
-  "论文来源或语言设置已变化，请重新生成": "Paper sources or the language policy changed; generate again"
+  "论文来源或语言设置已变化，请重新生成": "Paper sources or the language policy changed; generate again",
+  "当前目标已完成": "Current goal completed",
+  "目标或前置关系需要检查": "Check the goal or prerequisites",
+  "当前目标学习中": "Learning toward the current goal",
+  "持续关注": "Keep following",
+  "设置持续关注": "Set continued following",
+  "目标范围已满足 {0} / {1} 个概念": "Goal scope: {0} / {1} concepts satisfied",
+  "{0} · 目标范围已满足 {1} / {2} 个概念": "{0} · Goal scope: {1} / {2} concepts satisfied",
+  "已满足的概念：开启后可推荐这个方向的新进展。": "Satisfied concept: enable following to recommend new developments in this direction.",
+  "持续关注不改变掌握状态；满足这个概念后才推荐新进展。": "Following does not change mastery. New developments are eligible after this concept is satisfied.",
+  "学习图有未保存的修改，目标状态在保存后重新计算。": "The map has unsaved changes. Goal status will be recalculated after saving."
  }
 }

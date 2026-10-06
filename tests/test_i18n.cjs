@@ -9,6 +9,16 @@ const path = require('node:path');
 const SOURCE = fs.readFileSync(path.join(__dirname, '../app/static/i18n.js'), 'utf8');
 const PACK = JSON.parse(fs.readFileSync(path.join(__dirname, '../app/static/i18n/en-US.json'), 'utf8')).messages;
 
+test('goal status and following labels translate complete rendered sentences', () => {
+  const {i18n} = load('en-US', PACK);
+  for (const line of ['当前目标已完成 · 目标范围已满足 3 / 3 个概念',
+    '目标或前置关系需要检查 · 目标范围已满足 0 / 2 个概念', '持续关注',
+    '持续关注不改变掌握状态；满足这个概念后才推荐新进展。',
+    '学习图有未保存的修改，目标状态在保存后重新计算。']) {
+    assert.doesNotMatch(i18n.translate(line), /[㐀-鿿]/, line);
+  }
+});
+
 // A minimal page: the DOM walk finds no element nodes here; translate() is what is tested.
 function load(lang, messages) {
   const shown = [];

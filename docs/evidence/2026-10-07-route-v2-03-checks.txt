@@ -1,0 +1,63 @@
+Route stage03 actual check evidence (2026-10-07). Temporary fixtures only; no real library or live model calls.
+Initial regression: 15 tests failed before goal_state/route_watch existed. First post-implementation failure was a broad MBE fixture matching Epitaxy; changed fixture to distinct beam-deposition terms, without weakening matching.
+Independent review reproduced frozen-feedback cache and clean409 graph/revision defects; fixed and independently rechecked. Proposed reverse-edge ordering regression also rechecked.
+Final Python1251 passed, Node225 passed, budget and repository checks exit0, diff check exit0. Fresh backend build and Tauri build exit0. Actual new bundled backend verification exit0. Exact commands are in the change record.
+Not measured: native-window full flow, real paper usefulness, large-library cache/resource costs, fulltext language accuracy, AI quality/tokenizer/billing. Stages04-08 incomplete; original release gates unchanged.
+
+Final Python:
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+ok
+
+----------------------------------------------------------------------
+Ran 1251 tests in 297.333s
+
+OK
+
+Final Node:
+  ...
+1..225
+# tests 225
+# suites 0
+# pass 225
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 781.298416
+
+Backend build:
+3226 INFO: Re-signing the EXE
+3236 INFO: Building EXE from EXE-00.toc completed successfully.
+3237 INFO: checking COLLECT
+3238 INFO: Removing dir /Users/chandery/PaperDigHelper/.local/desktop-dist/paperdighelper-server
+3251 INFO: Building COLLECT COLLECT-00.toc
+3568 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+3570 INFO: Build complete! The results are available in: /Users/chandery/PaperDigHelper/.local/desktop-dist
+Prepared /Users/chandery/PaperDigHelper/src-tauri/resources/paperdighelper-server
+
+Tauri build:
+        Info Looking up installed tauri packages to check mismatched versions...
+   Compiling paper-dig-helper v0.1.0 (/Users/chandery/PaperDigHelper/src-tauri)
+    Finished `release` profile [optimized] target(s) in 14.08s
+       Built application at: /Users/chandery/PaperDigHelper/src-tauri/target/release/paper-dig-helper
+    Bundling PaperDigHelper.app (/Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+    Finished 1 bundle at:
+        /Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app
+
+
+Actual packaged backend:
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, assets, isolated HOME
+
+Final targeted goal/store/runtime/graph:
+Database migrated from version 0 to 9
+----------------------------------------------------------------------
+Ran 209 tests in 3.238s
+
+OK
+
+Final budget check, harness check, harness review change record, git diff --check: exit 0.

@@ -159,7 +159,7 @@ def _version(value, label):
     return value
 
 
-ROUTE_OPS = {"route-save", "route-manual", "route-start", "route-mode", "route-reject"}
+ROUTE_OPS = {"route-save", "route-manual", "route-watch", "route-start", "route-mode", "route-reject"}
 ROUTE_SAVE_LABELS = {"candidate": "加入新方向"}   # what the undo button says when a save adds a proposed direction
 MAX_REJECTED = 100
 ROUTE_MARKS = {"mastered", "unlocked", "demoted"}
@@ -665,7 +665,8 @@ class Organization:
                 follow = lambda i: i if i in now_ and before.get(i) == now_[i] else None
             manual = {follow(k): v for k, v in (old.get("manual") or {}).items() if follow(k)}
             start = [follow(i) for i in (old.get("start") or []) if follow(i)]
-            updated = {"graph": graph, "mode": old.get("mode", "route"), "manual": manual, "start": start}
+            watch = list(dict.fromkeys(follow(i) for i in (old.get("watch") or []) if follow(i)))
+            updated = {"graph": graph, "mode": old.get("mode", "route"), "manual": manual, "start": start, "watch": watch}
             if old.get("rejected"):
                 updated["rejected"] = old["rejected"]   # a direction the person turned down stays turned down across saves
             if updated == route:
@@ -675,6 +676,18 @@ class Organization:
         if not route:
             raise ValueError("There is no learning path yet")
         known = {c["id"] for c in route["graph"]["concepts"]}
+        if op == "route-watch":
+            concept, value = body.get("concept"), body.get("value")
+            active = {c["id"] for c in route["graph"]["concepts"] if c.get("state", "active") == "active"}
+            if not isinstance(concept, str) or concept not in known or (value is True and concept not in active):
+                raise ValueError("Unknown active concept")
+            if not isinstance(value, bool):
+                raise ValueError("Watching requires a boolean")
+            watch = list(route.get("watch") or [])
+            if (concept in watch) == value:
+                return None
+            route["watch"] = watch + [concept] if value else [i for i in watch if i != concept]
+            return "设置持续关注"
         if op == "route-reject":
             # a turned-down direction is remembered by its phrases (normalised), because the papers it was found in
             # change with every new paper while the direction stays the same

@@ -802,11 +802,13 @@ function renderRoute(route) {
     return;
   }
   const share = Math.round((route.exploration_share || 0) * 100);
-  const pct = route.total ? Math.round(100 * (route.done || 0) / route.total) : 0;
+  const goalDone = route.goal_done ?? route.done, goalTotal = route.goal_total ?? route.total;
+  const pct = goalTotal ? Math.round(100 * (goalDone || 0) / goalTotal) : 0;
+  const goalLabel = route.goal_status === 'completed' ? '当前目标已完成' : route.goal_status === 'needs_review' ? '目标或前置关系需要检查' : '当前目标学习中';
   const names = (route.frontier || []).map((f) => `<span class="kw"><span class="kw-v" data-no-i18n>${esc(f.name)}</span></span>`).join('');
   panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">路径模式</span></div>${seg(true)}</div>
-    <div class="route-meter"><div class="route-bar" role="img" aria-label="已读懂 ${route.done} / ${route.total} 个概念"><i style="width:${pct}%"></i></div><span>已读懂 ${route.done} / ${route.total} 个概念 · 探索约占 ${share}%</span></div>
-    <div class="route-now">${names ? `<span class="sub">现在在读：</span>${names}` : '<span class="sub">所有概念都已读懂，推荐回到普通排序。</span>'}</div>
+    <div class="route-meter"><div class="route-bar" role="img" aria-label="目标范围已满足 ${goalDone} / ${goalTotal} 个概念"><i style="width:${pct}%"></i></div><span>${goalLabel} · 目标范围已满足 ${goalDone} / ${goalTotal} 个概念</span></div>
+    <div class="route-now">${names ? `<span class="sub">现在在读：</span>${names}` : `<span class="sub">${goalLabel}</span>`}</div>
     <div class="route-explore"><span class="sub">${exploreLine(share)}</span></div>
     <div class="route-foot"><span class="sub">开启后推荐先从你现在能读的概念里选论文，各条分支各走各的，互不等待。</span><a class="btn" href="${link}">查看和调整学习图</a></div>`;
 }

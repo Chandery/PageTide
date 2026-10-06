@@ -570,6 +570,8 @@ class Handler(BaseHTTPRequestHandler):
                     result = app.route_save(project_id, plan=body.get("plan"), graph=body.get("graph"), revision=revision)
                 elif action == "manual":
                     result = app.route_manual(project_id, body.get("concept"), body.get("value"), revision=revision)
+                elif action == "watch":
+                    result = app.route_watch(project_id, body.get("concept"), body.get("value"), revision=revision)
                 elif action == "start":
                     result = app.route_start(project_id, body.get("start"), revision=revision)
                 elif action == "mode":

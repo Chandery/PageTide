@@ -25,8 +25,15 @@ function notice(message, isError = true) {
 const CONFLICT = '学习图刚刚在别处改动过，已刷新到最新版本；你没有保存的修改还在，请再试一次。';
 
 async function refreshRoute() {
-  // The server's version only (revision and progress); the draft being edited is left alone.
-  try { state.route = {...(await api()), graph: state.route && state.route.graph ? state.route.graph : null}; } catch (error) { /* shown by the caller */ }
+  // Preserve an edited draft, but a clean page must show the graph belonging to
+  // the new revision before another watch/manual action can use that revision.
+  try {
+    state.route = await api();
+    if (!state.dirty) {
+      state.draft = state.route.graph ? JSON.parse(JSON.stringify(state.route.graph)) : null;
+      state.annotated = false;
+    }
+  } catch (error) { /* shown by the caller */ }
 }
 
 async function guarded(action) {
@@ -56,7 +63,7 @@ function render() {
   part('empty').hidden = !!graph;
   part('main').hidden = !graph;
   if (!graph) return;
-  part('summary').textContent = R.summaryText(route);
+  part('summary').textContent = state.dirty ? '学习图有未保存的修改，目标状态在保存后重新计算。' : R.summaryText(route);
   const saved = !!(state.route && state.route.graph);   // nothing to switch before the first save
   part('modeSeg').querySelectorAll('button').forEach((b) => {
     b.setAttribute('aria-checked', String((b.dataset.mode === 'route') === !!route.enabled));
@@ -119,6 +126,10 @@ function renderDetail() {
   holder.innerHTML = `${R.detailHTML(graph, concept, {progress: known ? state.route.progress : null, canEdit: true})}<div class="row"></div>`;
   const row = $('.row', holder);
   const progress = known ? state.route.progress[concept.id] : null;
+  if (progress && (concept.state || 'active') === 'active') {
+    row.insertAdjacentHTML('beforebegin', R.watchHTML((state.route.watch || []).includes(concept.id), progress.status === 'satisfied'));
+    $('[data-route-watch]', holder).onchange = (event) => watch(concept.id, event.target.checked);
+  }
   if (progress) {
     R.actionsFor(progress).forEach((action) => {
       const button = document.createElement('button');
@@ -187,6 +198,14 @@ async function mark(concept, value) {
   await guarded(async () => {
     state.route = await api({action: 'manual', concept, value, revision: state.route.revision});
     state.draft = JSON.parse(JSON.stringify(state.route.graph)); state.dirty = false; state.annotated = false;
+    notice(''); render();
+  });
+}
+
+async function watch(concept, value) {
+  if (state.dirty || state.editing || state.busy) { renderDetail(); return; }
+  await guarded(async () => {
+    state.route = await api({action: 'watch', concept, value, revision: state.route.revision});
     notice(''); render();
   });
 }

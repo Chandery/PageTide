@@ -756,7 +756,7 @@
       "id": "ROUTE-V2-03",
       "stage": "graph",
       "title": "学习目标范围与独立持续关注",
-      "status": "planned",
+      "status": "done",
       "depends_on": [
         "ROUTE-V2-02"
       ],
@@ -770,7 +770,10 @@
         "范围、前沿、完成分开，多目标与旁支测试通过，无前沿不被一概当完成",
         "关注、掌握、撤销、Route 关闭重开、重启与冲突保存保持字段完整"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-03-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-03-review.md"
+      ]
     },
     {
       "id": "ROUTE-V2-04",

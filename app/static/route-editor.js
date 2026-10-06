@@ -464,10 +464,18 @@
   }
 
   function summaryText(route) {
+    if (route.goal_status) {
+      const label = route.goal_status === 'completed' ? '当前目标已完成' : route.goal_status === 'needs_review' ? '目标或前置关系需要检查' : '当前目标学习中';
+      return `${label} · 目标范围已满足 ${Number(route.goal_done) || 0} / ${Number(route.goal_total) || 0} 个概念`;
+    }
     const total = Number(route.total) || 0, done = Number(route.done) || 0;
     const share = Math.round((Number(route.exploration_share) || 0) * 100);
     return `已读懂 ${done} / ${total} 个概念 · 探索约占 ${share}%`;
   }
 
-  return { MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  function watchHTML(watching, satisfied) {
+    return `<label class="map-note"><input type="checkbox" data-route-watch ${watching ? 'checked' : ''}> 持续关注</label><p class="map-note">${satisfied ? '已满足的概念：开启后可推荐这个方向的新进展。' : '持续关注不改变掌握状态；满足这个概念后才推荐新进展。'}</p>`;
+  }
+
+  return { watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

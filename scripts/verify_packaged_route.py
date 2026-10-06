@@ -65,6 +65,7 @@ def main():
         app=App(data_dir=data)
         pid=app.create_project('Quality fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         pending=app.create_project('Legacy pending')['project_id']
+        route_pid=app.create_project('Goal fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         papers=[{'key':key,'title':'Model study '+key,'abstract':abstract,'language':lang,'published':'2026-01-01'}
                 for key,lang,abstract in [('en','en','Useful model learning abstract'),('zh','zh','有效中文论文摘要'),
                     ('unknown',None,'An English abstract is not a language report'),('link','en',''),('body','en','')]]
@@ -99,16 +100,41 @@ def main():
             assert [p['key'] for p in call('/api/daily',{'project_id':pid})['cards']]==['zh']
             pdf.write_bytes(b'%PDF-1.4\nchanged externally\n%%EOF')
             assert call('/api/fulltext?key=body&text=1')['pages']==0
+            plan={'concepts':[
+                {'id':'a','name':'Model basics','terms':['model basics'],'hint':1,'needs':[]},
+                {'id':'b','name':'Model prediction','terms':['model prediction'],'hint':2,'needs':['a']},
+                {'id':'side','name':'Model rendering','terms':['model rendering'],'hint':2,'needs':['a']}], 'targets':['b']}
+            saved=call('/api/route',{'action':'save','project_id':route_pid,'plan':plan})
+            ids={c['name']:c['id'] for c in saved['graph']['concepts']}
+            assert (saved['goal_status'],saved['goal_total'])==('learning',2)
+            assert ids['Model rendering'] not in saved['goal_scope']
+            cid=ids['Model prediction']
+            watched=call('/api/route',{'action':'watch','project_id':route_pid,'concept':cid,'value':True,'revision':saved['revision']})
+            assert watched['watch']==[cid] and watched['watched_satisfied']==[]
+            for name in ['Model basics','Model prediction']:
+                watched=call('/api/route',{'action':'manual','project_id':route_pid,'concept':ids[name],'value':'mastered','revision':watched['revision']})
+            assert watched['goal_status']=='completed' and watched['watched_satisfied']==[cid]
+            assert watched['progress'][ids['Model rendering']]['status']=='unlocked'
+            cleared=call('/api/route',{'action':'watch','project_id':route_pid,'concept':cid,'value':False,'revision':watched['revision']})
+            undone=call('/api/route',{'action':'undo','project_id':route_pid,'revision':cleared['revision']})
+            assert undone['watch']==[cid]
+            switched=call('/api/route',{'action':'mode','project_id':route_pid,'mode':'off','revision':undone['revision']})
+            assert switched['watch']==[cid] and not switched['enabled']
+            assert 'data-route-watch' in call('/route-editor.js',raw=True)
         launch(executable,data,home,first)
         def restart(call):
             projects=call('/api/projects')['projects']; project=next(p for p in projects if p['id']==pid)
             assert project['language_policy']['discipline']=='humanities'
             assert project['language_policy']['allowed_languages']==['zh']
             assert [p['key'] for p in call('/api/state?project_id='+pid)['cards']]==['zh']
+            stored=call('/api/route?project_id='+route_pid)
+            assert stored['watch']==[stored['graph']['targets'][0]] and not stored['enabled']
+            resumed=call('/api/route',{'action':'mode','project_id':route_pid,'mode':'route','revision':stored['revision']})
+            assert resumed['goal_status']=='completed' and resumed['watch']==resumed['watched_satisfied']
         launch(executable,data,home,restart)
         assert marker.read_bytes()==b'untouched default library'
         assert not (home/'Library/Application Support/PaperDigHelper').exists()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, assets, restart, isolated HOME')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, assets, isolated HOME')
 
 
 if __name__=='__main__': main()

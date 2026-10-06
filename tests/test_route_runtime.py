@@ -627,7 +627,7 @@ class HomeTests(Fixture):
         summary = self.app.home_route(self.pid)
         self.assertEqual((summary["enabled"], summary["total"], summary["done"]), (True, 4, 0))
         self.assertAlmostEqual(summary["exploration_share"], 0.20)
-        self.assertEqual(set(summary), {"enabled", "mode", "total", "done", "frontier", "exploration_share"})
+        self.assertEqual(set(summary), {"enabled", "mode", "total", "done", "frontier", "exploration_share", "goal_status", "goal_done", "goal_total", "goal_reasons", "watched_satisfied"})
         self.assertEqual(summary["frontier"], [{"id": self.cid["Crystal basics"], "name": "Crystal basics", "layer": 1}])
 
 

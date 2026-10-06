@@ -105,9 +105,12 @@ class App:
         prog = pathgraph.progress(graph, events, manual, shown, start=start)
         live = [i for i, s in prog.items() if s["status"] in ("locked", "unlocked", "satisfied")]
         done = sum(1 for i in live if prog[i]["status"] == "satisfied")
+        goal = pathgraph.goal_state(graph, prog)
+        watch = list(dict.fromkeys(i for i in (route.get("watch") or []) if i in prog))
         return {"project_id": project_id, "enabled": route.get("mode", "route") == "route", "mode": route.get("mode", "route"), "graph": graph, "manual": manual,
                 "start": route.get("start") or [], "revision": revision, "layers": pathgraph.layers(graph), "progress": prog,
-                "frontier": pathgraph.frontier(graph, prog), "done": done, "total": len(live),
+                **goal, "watch": watch, "watched_satisfied": [i for i in watch if prog[i]["status"] == "satisfied"],
+                "done": done, "total": len(live),
                 "exploration_share": pathgraph.exploration_share(done, len(live))}
 
     DIRECTION_JUDGES_PER_DAY = 10   # paid attempts at "judge my collected exploration papers" per project per local day
@@ -526,6 +529,9 @@ class App:
     def route_manual(self, project_id, concept, value, revision=None):
         return self._route_apply(project_id, {"action": "route-manual", "concept": concept, "value": value}, revision)
 
+    def route_watch(self, project_id, concept, value, revision=None):
+        return self._route_apply(project_id, {"action": "route-watch", "concept": concept, "value": value}, revision)
+
     def route_start(self, project_id, start, revision=None):
         return self._route_apply(project_id, {"action": "route-start", "start": start}, revision)
 
@@ -867,9 +873,11 @@ class App:
     def _route_signature(self, project_id, revision):
         """Everything route_get's result depends on, so an unchanged map is not recomputed on every home load."""
         conn = self.store.conn
-        return (project_id, revision,
-                conn.execute("SELECT COALESCE(MAX(id),0) FROM feedback WHERE project_id=?", (project_id,)).fetchone()[0],
-                conn.execute("SELECT COUNT(*) FROM project_papers WHERE project_id=?", (project_id,)).fetchone()[0],
+        freeze = self.store.get_setting(f"profile_freeze_{project_id}")
+        feedback = self.latest_feedback(project_id, freeze.get("through_feedback_id") if freeze else None)
+        papers = [tuple(r) for r in conn.execute("SELECT p.key,p.title,p.abstract FROM papers p JOIN project_papers pp ON pp.paper_key=p.key WHERE pp.project_id=? ORDER BY p.key", (project_id,))]
+        evidence = hashlib.sha256(json.dumps([feedback, papers], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        return (str(self.data.resolve()), project_id, revision, evidence,
                 conn.execute("SELECT COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?", (project_id,)).fetchone()[0],
                 json.dumps(self.store.get_setting(f"seed_keys_{project_id}"), sort_keys=True),
                 json.dumps(self.store.get_setting(f"profile_freeze_{project_id}"), sort_keys=True))
@@ -885,14 +893,17 @@ class App:
         if stored.get("mode", "route") != "route":
             live = [c for c in graph["concepts"] if c.get("state", "active") == "active"]
             return {"enabled": False, "mode": stored.get("mode", "off"), "total": len(live), "done": None,
+                    "goal_status": "off", "goal_done": None, "goal_total": None,
                     "exploration_share": None, "frontier": []}
         signature = self._route_signature(project_id, revision)
         cached = self._HOME_ROUTE_CACHE.get(project_id)
         if cached and cached[0] == signature:
             return json.loads(json.dumps(cached[1]))
         route = self.route_get(project_id)
-        by_id = {c["id"]: c for c in graph["concepts"]}
+        by_id = {c["id"]: c for c in route["graph"]["concepts"]}
         summary = {"enabled": True, "mode": route["mode"], "total": route["total"], "done": route["done"],
+                   "goal_status": route["goal_status"], "goal_done": route["goal_done"], "goal_total": route["goal_total"],
+                   "goal_reasons": route["goal_reasons"], "watched_satisfied": route["watched_satisfied"],
                    "exploration_share": route["exploration_share"],
                    "frontier": [{"id": i, "name": by_id[i]["name"], "layer": route["layers"][i]} for i in route["frontier"]]}
         if len(self._HOME_ROUTE_CACHE) > 64:
