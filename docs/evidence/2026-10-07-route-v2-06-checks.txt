@@ -1,0 +1,77 @@
+Route stage06 in progress; baseline b752d63, branch codex/route-discovery-rework.
+Evidence foundation only; full stage06 semantics/contract/UI/atomic acceptance and stages07-08 incomplete.
+Isolated regression before implementation: 12 tests; 3 failures + 8 errors, exit1 (remaining seed-only case already passed).
+PYTHONPATH=tests python3 -m unittest test_growth_evidence test_route_growth test_explore_new test_route_recall test_route_batches -q: 137 tests passed exit0.
+node --test tests/*.cjs: 231 tests passed exit0.
+python3 scripts/budget.py --check: passed exit0, no live API.
+git diff --check: passed exit0.
+Logs: /private/tmp/pdh-route-v2-06-evidence-before.log, -evidence-after.log, -foundation-python.log, -foundation-node.log.
+Full Python:1326 passed exit0 (297.711s). Independent80 tests passed exit0, no P1/P2 in evidence-foundation scope; see review.md. Fresh backend and Tauri .app build passed exit0. Actual new packaged-backend compatibility verification passed exit0; checks existing Route behavior, not the future full growth contract.
+No live source/model or real user library used. Daily minimum model token0, no new external scope; legacy judge scope retained.
+
+Repository check passed exit0.
+
+foundation-python final output:
+Applying migration 6: migrate_006_pdf_acquisition
+Migration 6 applied successfully
+Applying migration 7: migrate_007_pdf_versions
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+ok
+
+----------------------------------------------------------------------
+Ran 1326 tests in 297.711s
+
+OK
+
+foundation-node final output:
+# Subtest: missing numbers never print NaN or undefined
+ok 231 - missing numbers never print NaN or undefined
+  ---
+  duration_ms: 0.085292
+  type: 'test'
+  ...
+1..231
+# tests 231
+# suites 0
+# pass 231
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 754.632292
+
+foundation-backend final output:
+3166 INFO: Building EXE from EXE-00.toc
+3166 INFO: Copying bootloader EXE to /Users/chandery/PaperDigHelper/.local/desktop-work/paperdighelper-server/paperdighelper-server
+3167 INFO: Converting EXE to target arch (arm64)
+3179 INFO: Removing signature(s) from EXE
+3188 INFO: Modifying Mach-O image UUID(s) in EXE
+3191 INFO: Appending PKG archive to EXE
+3192 INFO: Fixing EXE headers for code signing
+3194 INFO: Re-signing the EXE
+3205 INFO: Building EXE from EXE-00.toc completed successfully.
+3206 INFO: checking COLLECT
+3207 INFO: Removing dir /Users/chandery/PaperDigHelper/.local/desktop-dist/paperdighelper-server
+3221 INFO: Building COLLECT COLLECT-00.toc
+3535 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+3537 INFO: Build complete! The results are available in: /Users/chandery/PaperDigHelper/.local/desktop-dist
+Prepared /Users/chandery/PaperDigHelper/src-tauri/resources/paperdighelper-server
+
+foundation-tauri final output:
+        Info Looking up installed tauri packages to check mismatched versions...
+   Compiling paper-dig-helper v0.1.0 (/Users/chandery/PaperDigHelper/src-tauri)
+    Finished `release` profile [optimized] target(s) in 15.18s
+       Built application at: /Users/chandery/PaperDigHelper/src-tauri/target/release/paper-dig-helper
+    Bundling PaperDigHelper.app (/Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+    Finished 1 bundle at:
+        /Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app
+
+
+Packaged command: python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server
+Database is up to date (version 9)
+PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, assets, isolated HOME, outbound network blocked

@@ -127,9 +127,11 @@ class App:
     DIRECTION_JUDGES_PER_DAY = 10   # paid attempts at "judge my collected exploration papers" per project per local day
 
     def _positive_evidence(self, project_id, seeds=True):
-        """{paper_key: day} of the reader's explicit positive evidence: a paper marked useful, one marked understood (not
-        if they also turned it down), and, unless `seeds` is false, a chosen seed. Not interested never counts, too hard
-        is difficulty and not direction, and silence is nothing. A frozen profile replays feedback only up to the freeze."""
+        """Effective growth interest: Useful or an explicitly chosen seed, never familiarity.
+
+        Understanding and difficulty describe learning, not interest. Undo is replayed even
+        inside a frozen profile; a saved-library residue is not positive evidence.
+        """
         freeze = self.store.get_setting(f"profile_freeze_{project_id}")
         feedback = self.latest_feedback(project_id, freeze.get("through_feedback_id") if freeze else None)
         day = lambda entry: str(entry.get("at") or "")[:10] or None
@@ -137,8 +139,6 @@ class App:
         for key, item in feedback.items():
             if item["action"] == "useful":
                 positive[key] = day(item)
-            elif item["familiar"] and item["familiar"]["action"] == "understood" and item["action"] != "irrelevant":
-                positive[key] = day(item["familiar"])   # understanding what you turned down is not interest in it
         if seeds:
             added = {r["paper_key"]: str(r["added_at"] or "")[:10] or None for r in self.store.conn.execute(
                 "SELECT paper_key, added_at FROM project_papers WHERE project_id=?", (project_id,))}
@@ -163,7 +163,7 @@ class App:
 
         A direction is the model's opinion about papers the reader collected from the exploration slots (see
         route_direction_judge); what this counts, locally, is the evidence under it: how many of its papers there are, how many
-        the reader still marks explicitly positive (useful or understood; not interested never counts, too hard is
+        the reader still marks explicitly positive (useful or a chosen seed; not interested never counts, too hard is
         difficulty and silence is nothing), how many sources, and how alike they read (`pathgrowth.direction_evidence`).
         Directions already on the map (proposed or active) and the ones the person turned down are left out.
         `explicit` is the set of papers that count as evidence. Local and deterministic: reading costs no token."""
@@ -191,9 +191,13 @@ class App:
 
     def _visible_directions(self, project_id, route, feedback=None):
         """The stored directions the reader can still see: not already on the map and not turned down ("不再提示"). With
-        `feedback`, each one's papers are only those the reader still stands behind (a paper turned down or taken back
+        each one's papers are only those the reader still stands behind (a paper turned down or taken back
         is dropped, so steering and evidence agree). One place, so what is listed, what steers exploration and what the
         model is told about are the same directions."""
+        # Use the same effective evidence for listing, steering and model context.
+        # The legacy feedback argument is retained for callers, but cannot substitute
+        # live familiarity for frozen interest or accidentally omit unlabelled seeds.
+        positive, _ = self._positive_evidence(project_id)
         graph = (route or {}).get("graph") or {"concepts": []}
         on_map = {c.get("candidate") for c in graph["concepts"] if c.get("candidate")}
         rejected = set((route or {}).get("rejected") or [])
@@ -202,14 +206,32 @@ class App:
             if d["id"] in on_map or ({pathgraph._key(d["name"])} | {pathgraph._key(t) for t in d.get("terms", [])}) & rejected:
                 continue
             papers = list(d.get("papers") or [])
-            if feedback is not None:
-                papers = [k for k in papers if feedback.get(k) and feedback[k].get("action") != "irrelevant"]
+            papers = [k for k in papers if k in positive]
             out.append({**d, "papers": papers})
         return out
 
+    def _pending_growth(self, project_id):
+        """Local evidence queue for the new growth contract, independent of exposure type.
+
+        This does not send data or extend the old approved direction_judge scope.
+        That legacy operation still uses _pending_explored until replaced by the
+        separately registered full-Map operation.
+        """
+        project_id = self._require_project(project_id)
+        _, route = read_route(self.store.conn, project_id)
+        if not route or not route.get("graph"):
+            return []
+        positive, feedback = self._positive_evidence(project_id)
+        state = self._directions_store(project_id)
+        attached = {k for d in state["directions"] for k in d.get("papers", [])}
+        rows = {p["key"]: p for p in self._project_papers_for_growth(project_id)}
+        keys = [k for k in positive if k in rows and k not in state["judged"] and k not in attached]
+        keys.sort(key=lambda k: (feedback.get(k, {}).get("id") or 0, positive[k] or "", k), reverse=True)
+        return [rows[k] for k in keys]
+
     def _pending_explored(self, project_id):
         """The papers the reader collected from an exploration slot that nobody has judged yet, newest feedback first:
-        [{key, title, abstract, source}]. Explicit positive feedback (useful or understood) on a paper that was shown as
+        [{key, title, abstract, source}]. Explicit Useful feedback on a paper that was shown as
         exploration; being shown, ignored, turned down or too hard is not a reason to ask. Local, no token."""
         project_id = self._require_project(project_id)
         explored = {r[0] for r in self.store.conn.execute(
@@ -277,7 +299,7 @@ class App:
                 missing.append(say(f"还差 {n} 篇属于这个方向的论文（在探索推荐里收藏相关的论文，再让 AI 判断）", f"{n} more paper{'s' if n != 1 else ''} under this direction needed (collect related papers from exploration, then ask the AI to judge)"))
             if not gates["positive"]["ok"]:
                 n = need["positive"] - have["positive"]
-                missing.append(say(f"还差 {n} 篇你明确点过（有用或已读懂）的论文", f"{n} more paper{'s' if n != 1 else ''} you mark Useful or Understood needed"))
+                missing.append(say(f"还差 {n} 篇你明确认为有用或选作种子的论文", f"{n} more paper{'s' if n != 1 else ''} you mark Useful or explicitly choose as seeds needed"))
             if not gates["sources"]["ok"]:
                 n = need["sources"] - have["sources"]
                 missing.append(say(f"还差 {n} 个不同来源", f"{n} more different source{'s' if n != 1 else ''} needed"))

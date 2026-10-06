@@ -110,10 +110,10 @@ class PendingTests(Fixture):
         self.assertEqual(self.pending(), ["s1"])
         self.assertEqual([p["key"] for p in self.app.route_candidates(self.pid)["pending"]], ["s1"])
 
-    def test_understood_counts_too(self):
+    def test_understood_does_not_count_as_interest(self):
         self.shown("s1")
         self.say(("s1", "understood"))
-        self.assertEqual(self.pending(), ["s1"])
+        self.assertEqual(self.pending(), [])
 
     def test_silence_is_not_a_reason_to_ask(self):
         self.shown("s1", "s2")                   # shown, never answered

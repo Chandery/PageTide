@@ -826,7 +826,7 @@
       "id": "ROUTE-V2-06",
       "stage": "graph",
       "title": "有效证据驱动生长提议",
-      "status": "planned",
+      "status": "in_progress",
       "depends_on": [
         "ROUTE-V2-05"
       ],
