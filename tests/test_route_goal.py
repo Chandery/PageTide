@@ -97,7 +97,7 @@ class WatchTests(Fixture):
         restored = self.app.route_undo(self.pid)
         self.assertEqual(restored["watch"], [self.cid])
 
-    def test_watch_follows_plan_identity_and_not_reused_id(self):
+    def test_watch_follows_plan_names_then_stable_graph_identity(self):
         self.app.route_watch(self.pid, self.cid, True)
         plan = copy.deepcopy(PLAN); plan["concepts"].reverse()
         saved = self.app.route_save(self.pid, plan=plan)
@@ -105,7 +105,15 @@ class WatchTests(Fixture):
         self.assertEqual(saved["watch"], [new_id])
         g = copy.deepcopy(saved["graph"])
         next(c for c in g["concepts"] if c["id"] == new_id)["name"] = "Brand new subject"
-        self.assertEqual(self.app.route_save(self.pid, graph=g)["watch"], [])
+        self.assertEqual(self.app.route_save(self.pid, graph=g)["watch"], [new_id])
+        # A different learning task has a fresh identity, instead of reusing one.
+        for node in g['concepts']:
+            if node['id'] == new_id: node['id'] = 'new-task-identity'
+        for edge in g['prereqs']:
+            for field in ('from','to'):
+                if edge[field] == new_id: edge[field] = 'new-task-identity'
+        g['targets'] = ['new-task-identity' if i == new_id else i for i in g['targets']]
+        self.assertEqual(self.app.route_save(self.pid, graph=g)['watch'], [])
 
     def test_stale_revision_and_invalid_watch_leave_state_unchanged(self):
         watched = self.app.route_watch(self.pid, self.cid, True)
@@ -125,6 +133,7 @@ class WatchTests(Fixture):
     def test_deleted_watch_is_restored_only_by_undo(self):
         watched = self.app.route_watch(self.pid, self.cid, True)
         reduced = pg.remove_concept(watched["graph"], self.cid)
+        reduced["targets"] = [self.ids(watched)["Epitaxy"]]   # target deletion requires explicit replacement
         self.assertEqual(self.app.route_save(self.pid, graph=reduced)["watch"], [])
         self.assertEqual(self.app.route_undo(self.pid)["watch"], [self.cid])
 

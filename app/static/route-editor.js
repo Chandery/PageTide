@@ -79,9 +79,18 @@
     return { ok: true, reason: '' };
   }
 
+  let identitySequence = 0;
   function nextId(g) {
-    const numbers = g.concepts.map(c => /^c(\d+)$/.exec(c.id)).filter(Boolean).map(m => Number(m[1]));
-    return `c${Math.max(0, ...numbers) + 1}`;
+    // Deleting and adding is a new identity, even after the draft is reloaded.
+    const used = new Set(g.concepts.map(c => c.id));
+    let id;
+    do {
+      const nonce = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID().replace(/-/g, '')
+        : `${Date.now().toString(16)}${(++identitySequence).toString(16)}${Math.random().toString(16).slice(2)}`;
+      id = `r-${nonce}`;
+    } while (used.has(id));
+    return id;
   }
 
   function terms(list) {

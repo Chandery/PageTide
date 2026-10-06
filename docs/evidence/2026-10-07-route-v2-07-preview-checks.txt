@@ -1,0 +1,42 @@
+Route-v2 stage07 local revision preview backend checks
+Date:2026-10-07, branch codex/route-discovery-rework, baseline d78d589.
+No actual product/model/tokenizer/billing/resource measurement is implied.
+
+Before implementation: initial service regression run17 errors (missing methods), exit1; log /private/tmp/pdh-route-v2-07-preview-before.log.
+Intermediate target diagnosis107 tests six errors/assertion failures; fixed implementation/fixture contracts and reran.
+Intermediate118 executed target tests passed but overall119 run exit1 for nonexistent test_profile_contract module; not claimed as passing command.
+Intermediate full suite1417 tests,300.769s, exit1, five weekly fixture idle-connection errors. Completed raw date fixture transaction before calling feedback service; no business assertions removed.
+
+Final targeted command:
+PYTHONPATH=tests python3 -m unittest test_weekly_detail test_route_revision_service test_route_revision_http test_route_revision -q
+exit0;90 tests,4.498s; /private/tmp/pdh-route-v2-07-preview-final-target.log.
+Additional related164 tests exit0; /private/tmp/pdh-route-v2-07-preview-target.log.
+
+Final full Python:
+python3 -m unittest discover -s tests -v
+exit0;1418 tests,293.979s; /private/tmp/pdh-route-v2-07-preview-python-final.log.
+Final Node:
+node --test tests/*.cjs
+exit0;242 tests,0 failed/0 skipped; /private/tmp/pdh-route-v2-07-preview-node-final.log.
+
+Independent228 Python+75 Node+26 weekly tests and actual atomic rollback/concurrency reprobes exit0; findings and commands in accompanying review.md.
+
+Fresh backend build:
+.local/desktop-build-env/bin/python scripts/build_desktop.py
+exit0; /private/tmp/pdh-route-v2-07-preview-backend.log; new backend prepared.
+Fresh desktop build:
+cargo tauri build --bundles app
+exit0; release build14.18s; /private/tmp/pdh-route-v2-07-preview-tauri.log.
+Actual new bundle:src-tauri/target/release/bundle/macos/PaperDigHelper.app.
+Actual fresh bundled backend verification:
+python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server
+exit0; /private/tmp/pdh-route-v2-07-preview-package.log.
+PASS authenticated isolated HOME/data, prior language/quality/goal/quota/growth compatibility plus revision preview/stable IDs/cutoff/atomic confirm/duplicate/undo/pending restart/409 draft retention. AI disabled, cached source fixtures, outbound proxy blocked, default-library marker unchanged. This is actual packaged-backend HTTP verification; native-window flow not run.
+
+python3 scripts/budget.py --check:exit0, arithmetic/parity only, no live API.
+python3 scripts/harness.py check:exit0, repository traceability only.
+python3 scripts/harness.py impact:exit0, critical,21 files.
+git diff --check:exit0.
+All model operations/caps/owner authorization unchanged; no actual source/provider/real-library calls.
+python3 scripts/harness.py review changes/2026-10-07-route-v2-07-preview.json:exit0; record coverage/repository checks only, not semantic acceptance.
+Stage07 remains in_progress; E07 not_run; shared UI/create/model and phase08 are unfinished.

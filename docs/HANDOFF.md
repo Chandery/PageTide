@@ -1,3 +1,12 @@
+# 当前工作单元：Route Mode 阶段07后端修改预览（2026-10-07）
+
+- 分支 `codex/route-discovery-rework`，本单元基线 `d78d589`；ROUTE-V2-07仍in_progress，E07 not_run，08未开始。实际最终commit和dirty用git核对；完整方案未完成。
+- 本地API revision-preview/draft/confirm接完整Map白名单补丁与五字段，新增alias固定UUID；预览不改图，事务内核对图revision+有效反馈（含撤销）/冻结/种子/内容身份。409保留草稿；图、brief、服务权威cutoff、组织事件与确认marker一起保存/失败回滚，重复确认无第二event，undo恢复且禁止重放。
+- 语义改变隔离旧熟悉度，保留兴趣/历史/人工简介；watch跟稳定ID。cutoff不低于project最大ID/冻结globalID/旧cutoff。冻结兴趣保持，显式重置后重新读懂或太难可产生一次新熟悉度；双击幂等。旧结构save保持显式边/活动明确目标、不可伪造cutoff；旧plan12限制不裁40图，保留身份/人工简介。旧编辑器删后新增不复用ID。
+- 独立审查修复跨项目冻结编号、too_hard重复、共享连接undo/freeze/restore提前commit、原始HTTP重复JSON与旧editor身份复用；228Python+75Node和26weekly夹具复核通过，无剩余P1/P2。最终1418Python/242Node、新backend/Tauri .app及实际新包隔离预览/确认/撤销/重启/409与前期兼容通过；包后端不等于原生窗口或整阶段验收。
+- 无新增模型操作/提示/外发/真实来源/真实库；AI扩展仍未批准，不借旧授权。原生窗口、推荐收益/全文语言准确率、AI质量/tokenizer/账单和8GB资源gates不降低。
+- [ADR0020](decisions/0020-route-revision-transaction.md)、[检查](evidence/2026-10-07-route-v2-07-preview-checks.txt)、[独立审查](evidence/2026-10-07-route-v2-07-preview-review.md)。下一单元继续07：注册未批准AI新合同，完整消息预算与length拒绝，创建/修改共享五字段、前端预览/409/迟到响应/手动fallback。之后08双图同paper导航与完整隔离+原生验收。任务唯一状态仍在harness/tasks.json。
+
 # 当前工作单元：Route Mode 阶段07本地合同基础（2026-10-07）
 
 - 分支 `codex/route-discovery-rework`，本单元基线 `4937ad1`。ROUTE-V2-07 in_progress，E07 not_run；07整项与08仍未完成。实际commit和dirty用git核对。

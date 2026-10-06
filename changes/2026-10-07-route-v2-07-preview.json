@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-07-preview",
+  "class": "critical",
+  "summary": "Authoritative local full-Map revision preview, atomic graph/brief/cutoff confirmation and undo; stage07 UI/model remains unfinished.",
+  "tasks": [
+    "ROUTE-V2-07"
+  ],
+  "files": [
+    "app/db.py",
+    "app/organization.py",
+    "app/project.py",
+    "app/route_revision.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/route-editor.js",
+    "changes/2026-10-07-route-v2-07-preview.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0020-route-revision-transaction.md",
+    "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-07-preview-review.md",
+    "scripts/verify_packaged_route.py",
+    "tests/test_route_editor.cjs",
+    "tests/test_route_goal.py",
+    "tests/test_route_revision.py",
+    "tests/test_route_revision_http.py",
+    "tests/test_route_revision_service.py",
+    "tests/test_route_store.py",
+    "tests/test_weekly_detail.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "All preview/confirm/CAS/progress/undo behavior is local. No new model operation, prompt, provider call, retry, network query or exposure scope; expanded AI remains unapproved.",
+    "before": "d78d589 runtime operations, caps and authorizations.",
+    "after": "Unchanged runtime model operations/caps/authorizations; local API preview adds zero model tokens.",
+    "developer_usage": "unknown; not measured by project ledger"
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementer; local contract and integration review; final check record required",
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic;228 Python +75 Node +26 weekly and actual atomic-failure reprobes; findings fixed",
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Stage07 model generation/full-message budget/shared creation fields/preview UI and E07 remain unfinished; phase08 planned.",
+    "Real model/usage/AI-quality/native-window/recommendation-value/language-accuracy/reference-machine release gates remain unmeasured."
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-preview-checks.txt"
+    }
+  ]
+}

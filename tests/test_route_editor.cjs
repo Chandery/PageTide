@@ -111,11 +111,23 @@ test('removing a concept removes its edges and keeps the graph valid', () => {
   assert.equal(R.check(next).ok, true);
 });
 
+test('deleting and adding never reuses watched identity, including a reloaded draft', () => {
+  const R = load(), original = graph();
+  const removed = R.removeConcept(original, 'c4');
+  const next = R.addConcept(removed, { name: 'Different task', terms: ['different task'], hint: 3 }, ['c2']);
+  const id = next.concepts.at(-1).id;
+  assert.notEqual(id, 'c4');
+  assert.ok(!original.concepts.some(c => c.id === id));
+  const reloaded = load().addConcept(JSON.parse(JSON.stringify(removed)), { name: 'Different task', terms: ['different task'], hint: 3 }, ['c2']);
+  assert.notEqual(reloaded.concepts.at(-1).id, id);
+});
+
 test('adding a concept picks a fresh id and refuses a cycle, a harder prerequisite, a full map', () => {
   const R = load();
   const g = R.addConcept(graph(), { name: 'Strain', terms: ['strain'], hint: 3 }, ['c2']);
   assert.equal(g.concepts.length, 5);
-  assert.equal(g.concepts[4].id, 'c5');
+  assert.match(g.concepts[4].id, /^r-/);
+  assert.ok(!graph().concepts.some(c => c.id === g.concepts[4].id));
   assert.throws(() => R.addConcept(graph(), { name: 'Loop', terms: ['loop'], hint: 1 }, ['c4']), (e) => /更基础/.test(e.message));
   const cyclic = graph();
   assert.throws(() => R.setNeeds(cyclic, 'c1', ['c4']), (e) => /更基础|环/.test(e.message));
@@ -173,7 +185,7 @@ test('a repeated prerequisite is collapsed so the page and the server agree', ()
   const g = R.setNeeds(graph(), 'c4', ['c2', 'c2']);
   assert.equal(g.prereqs.filter(e => e.to === 'c4').length, 1);
   const added = R.addConcept(graph(), { name: 'Strain', terms: ['strain'], hint: 3 }, ['c2', 'c2']);
-  assert.equal(added.prereqs.filter(e => e.to === 'c5').length, 1);
+  assert.equal(added.prereqs.filter(e => e.to === added.concepts.at(-1).id).length, 1);
 });
 
 test('a name made only of punctuation is refused like the server refuses it', () => {

@@ -37,7 +37,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import unquote
 
-from . import pathgraph, pathgrowth
+from . import pathgraph, pathgrowth, route_revision
 from .clustering import cluster, corpus_fingerprint
 from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
 from .db import now
@@ -357,10 +357,12 @@ class Organization:
         with self._transaction(write=False):
             return self._snapshot()
 
-    def action(self, body, *, precondition=None):
+    def action(self, body, *, precondition=None, revision_builder=None, postcondition=None):
         if not isinstance(body, dict):
             raise ValueError("Action must be an object")
         op = body.get("op", body.get("action"))
+        if (revision_builder is not None or postcondition is not None) and op != 'route-save':
+            raise ValueError('Revision callbacks require route-save')
         if op == "graph":
             with self._transaction(write=False):
                 papers = self._corpus()
@@ -434,9 +436,13 @@ class Organization:
                 self.conn.execute("UPDATE org_events SET undone=1 WHERE id=?", (event["id"],))
                 data.pop("suggestions", None)
             elif op in ROUTE_OPS:
-                label = self._route_op(op, body, data)
+                trusted_revision = revision_builder() if revision_builder is not None else None
+                label = self._route_op(op, body, data, trusted_revision=trusted_revision)
                 if label is None:
-                    return self._snapshot()   # nothing changed: no revision bump, no undo step
+                    result = self._snapshot()
+                    if postcondition is not None:
+                        postcondition(result)
+                    return result   # nothing changed: no revision bump, no undo step
             elif op == "note":
                 note_key = self._paper_key(body.get("key"))
                 version = _version(body.get("version"), "version")
@@ -633,9 +639,11 @@ class Organization:
             result = self._snapshot()
             if apply_result is not None:
                 result["apply_result"] = apply_result
+            if postcondition is not None:
+                postcondition(result)
             return result
 
-    def _route_op(self, op, body, data):
+    def _route_op(self, op, body, data, *, trusted_revision=None):
         """Edit the project's learning map (data["route"]) and return the label shown by the undo button,
         or None when nothing would change (then nothing is written and no undo step is added).
 
@@ -646,21 +654,37 @@ class Organization:
         """
         route = data.get("route")
         if op == "route-save":
+            if trusted_revision is not None:
+                body = {**body, 'graph': trusted_revision['graph'], 'brief': trusted_revision['brief']}
             plan, graph = body.get("plan"), body.get("graph")
             if plan is not None and graph is not None:
                 raise ValueError("Give either a plan or a graph, not both")
             old = route or {}
             if plan is not None:
-                if not isinstance(plan, dict) or not isinstance(plan.get("concepts"), list) or len(plan["concepts"]) > MAX_PLAN_CONCEPTS:
+                if not isinstance(plan, dict) or not isinstance(plan.get("concepts"), list) or len(plan["concepts"]) > pathgraph.MAX_NODES:
                     raise ValueError("The plan is missing or too big")
                 graph, _ = pathgraph.normalize(plan)
                 if not graph["concepts"]:
                     raise ValueError("The plan has no usable concepts")
-                names = {c["id"]: pathgraph._key(c["name"]) for c in (old.get("graph") or {}).get("concepts", [])}
-                fresh = {pathgraph._key(c["name"]): c["id"] for c in graph["concepts"]}
-                follow = lambda i: fresh.get(names.get(i))
+                prior_nodes = (old.get('graph') or {}).get('concepts', [])
+                if len(prior_nodes) > pathgraph.MAX_NODES:
+                    raise ValueError('已有学习图超过创建上限，请使用修改预览，不能用新草稿覆盖')
+                by_name = {pathgraph._key(c['name']): c for c in prior_nodes}
+                identity = {}
+                for node in graph['concepts']:
+                    prior = by_name.get(pathgraph._key(node['name']))
+                    fresh_id = prior['id'] if prior else ('r-' + uuid.uuid4().hex if prior_nodes else node['id'])
+                    identity[node['id']] = fresh_id
+                    node['id'] = fresh_id
+                    if prior and prior.get('intro') and prior.get('intro_by', 'user') == 'user':
+                        node['intro'], node['intro_by'] = prior['intro'], 'user'
+                for edge in graph['prereqs']:
+                    edge['from'], edge['to'] = identity[edge['from']], identity[edge['to']]
+                graph['targets'] = [identity[i] for i in graph['targets']]
+                fresh = {c['id'] for c in graph['concepts']}
+                follow = lambda i: i if i in fresh else None
             else:
-                graph = pathgraph.validate(graph, tolerate={pathgraph._key(c.get("name")) for c in (old.get("graph") or {}).get("concepts", [])})
+                graph = pathgraph.validate(graph, tolerate={pathgraph._key(c.get("name")) for c in (old.get("graph") or {}).get("concepts", [])}, explicit=True)
                 before = {c["id"]: pathgraph._key(c["name"]) for c in (old.get("graph") or {}).get("concepts", [])}
                 now_ = {c["id"]: pathgraph._key(c["name"]) for c in graph["concepts"]}
                 # an id can be reused by a different concept (delete the last one, add another); a mark belongs to the concept
@@ -668,13 +692,35 @@ class Organization:
             manual = {follow(k): v for k, v in (old.get("manual") or {}).items() if follow(k)}
             start = [follow(i) for i in (old.get("start") or []) if follow(i)]
             watch = list(dict.fromkeys(follow(i) for i in (old.get("watch") or []) if follow(i)))
+            if plan is None or old or 'brief' in body:
+                previous = {c['id']: c for c in (old.get('graph') or {}).get('concepts', [])}
+                cutoff = self.conn.execute('SELECT COALESCE(MAX(id),0) FROM feedback WHERE project_id=?', (self.project,)).fetchone()[0]
+                cutoff = route_revision.progress_cutoff(cutoff, self.store.get_setting('profile_freeze_' + self.project))
+                reset = set()
+                for node in graph['concepts']:
+                    prior = previous.get(node['id'])
+                    if not prior or route_revision.semantic_key(node) != route_revision.semantic_key(prior):
+                        node['progress_since_feedback_id'] = max(cutoff, (prior or {}).get('progress_since_feedback_id', 0))
+                        reset.add(node['id'])
+                    elif 'progress_since_feedback_id' in prior:
+                        node['progress_since_feedback_id'] = prior['progress_since_feedback_id']
+                    else:
+                        node.pop('progress_since_feedback_id', None)
+                manual = {k: v for k, v in manual.items() if k not in reset}
+                start = [i for i in start if i not in reset]
+                # Watching belongs to stable identity, separately from mastery.
+                watch = [i for i in (old.get('watch') or []) if i in {c['id'] for c in graph['concepts']}]
             updated = {"graph": graph, "mode": old.get("mode", "route"), "manual": manual, "start": start, "watch": watch}
+            if 'brief' in body:
+                updated['brief'] = route_revision.validate_brief(body['brief'])
+            elif 'brief' in old:
+                updated['brief'] = old['brief']
             if old.get("rejected"):
                 updated["rejected"] = old["rejected"]   # a direction the person turned down stays turned down across saves
             if updated == route:
                 return None
             data["route"] = updated
-            return ROUTE_SAVE_LABELS.get(body.get("label"), "保存学习路径")
+            return '修改学习图' if trusted_revision is not None else ROUTE_SAVE_LABELS.get(body.get("label"), "保存学习路径")
         if not route:
             raise ValueError("There is no learning path yet")
         known = {c["id"] for c in route["graph"]["concepts"]}

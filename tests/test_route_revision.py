@@ -46,6 +46,31 @@ class BriefTests(unittest.TestCase):
 
 
 class PatchTests(unittest.TestCase):
+    def test_saved_preview_identities_replay_exactly_and_reject_bad_mappings(self):
+        operation = patch({'op': 'add_node', 'ref': 'n1', 'node': {'name': 'New task', 'terms': ['new task']}})
+        first = rr.apply_patch(graph(), operation)
+        replay = rr.apply_patch(graph(), operation, new_ids=first['new_ids'])
+        self.assertEqual(replay['graph'], first['graph'])
+        for identities in [[], {}, {'n1': 'bad'}, {'c1': 'r-' + 'a'*32},
+                           {'n1': 'r-'+'a'*32, 'n2': 'r-'+'b'*32},
+                           {'n1': 'r-'+'a'*32, 'n2': 'r-'+'a'*32}]:
+            with self.subTest(identities=identities):
+                with self.assertRaises(ValueError): rr.apply_patch(graph(), operation, new_ids=identities)
+        source = graph(); source['concepts'][0]['id'] = 'r-'+'a'*32
+        source['prereqs'][0]['from'] = source['concepts'][0]['id']
+        with self.assertRaises(ValueError): rr.apply_patch(source, operation, new_ids={'n1': source['concepts'][0]['id']})
+
+    def test_cutoff_uses_frozen_global_boundary_and_rejects_invalid_ids(self):
+        self.assertEqual(rr.progress_cutoff(4, {'through_feedback_id': 5}), 5)
+        self.assertEqual(rr.progress_cutoff(8, {'through_feedback_id': 5}), 8)
+        for value in [True, -1, 2**63, None, '1']:
+            with self.assertRaises(ValueError): rr.progress_cutoff(value)
+            with self.assertRaises(ValueError): rr.progress_cutoff(0, {'through_feedback_id': value})
+
+    def test_raw_json_rejects_duplicate_nested_keys_and_nonfinite_numbers(self):
+        for value in [b'{"x":1,"x":2}', '{"node":{"name":"a","name":"b"}}', '{"x":NaN}', '{"x":Infinity}']:
+            with self.assertRaises(ValueError): rr.strict_json(value)
+
     def test_complete_context_has_no_private_ids_or_progress(self):
         source = graph(40)
         source['concepts'][0]['progress_since_feedback_id'] = 99

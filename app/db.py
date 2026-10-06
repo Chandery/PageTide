@@ -283,8 +283,11 @@ class Store:
         return cur.lastrowid
 
     def undo_feedback(self, feedback_id):
-        self.conn.execute("UPDATE feedback SET undone=1, undone_at=? WHERE id=?", (now(), feedback_id))
-        self.conn.commit()
+        with self._lock:
+            if self.conn.in_transaction:
+                raise RuntimeError("Feedback undo requires an idle connection")
+            self.conn.execute("UPDATE feedback SET undone=1, undone_at=? WHERE id=?", (now(), feedback_id))
+            self.conn.commit()
 
     def feedback(self, include_undone=False):
         sql = "SELECT * FROM feedback" + ("" if include_undone else " WHERE undone=0") + " ORDER BY id"

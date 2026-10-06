@@ -54,6 +54,7 @@ class Fixture(unittest.TestCase):
             self.app.store.save_to_library(key, project_id=self.pid)
             self.app.store.conn.execute("UPDATE project_library SET saved_at=? WHERE paper_key=? AND project_id=?",
                                         ((self.today - timedelta(days=60)).isoformat(), key, self.pid))
+            self.app.store.conn.commit()  # Finish fixture setup before the feedback service owns its transaction.
         self.app.record_feedback(key, action, project_id=self.pid)
         stamp = (self.today - timedelta(days=days_ago, hours=1)).isoformat()
         self.app.store.conn.execute("UPDATE feedback SET created_at=? WHERE id=(SELECT MAX(id) FROM feedback)", (stamp,))

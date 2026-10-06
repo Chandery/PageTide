@@ -39,6 +39,14 @@ def validate_brief(value):
     return clean
 
 
+def progress_cutoff(project_max, freeze=None):
+    """IDs are global; an explicit reset cannot predate its frozen snapshot."""
+    frozen = (freeze or {}).get('through_feedback_id', 0)
+    if any(type(value) is not int or not 0 <= value <= 2**63 - 1 for value in (project_max, frozen)):
+        raise ValueError('invalid progress feedback cutoff')
+    return max(project_max, frozen)
+
+
 def _unique_object(pairs):
     value = {}
     for key, item in pairs:
@@ -48,16 +56,21 @@ def _unique_object(pairs):
     return value
 
 
+def strict_json(content):
+    """Strict JSON shared by model replies and the raw Route HTTP boundary."""
+    try:
+        return json.loads(content, object_pairs_hook=_unique_object,
+                          parse_constant=lambda _: (_ for _ in ()).throw(ValueError('非有限JSON数值')))
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise ValueError('修改请求不是完整严格JSON') from exc
+
+
 def parse(content, *, finish_reason=None):
     if finish_reason == 'length':
         raise ValueError('修改回复已截断，原学习图未修改')
     if not isinstance(content, str) or len(content.encode('utf-8')) > MAX_RESPONSE_BYTES:
         raise ValueError('修改回复超出本地解析上限')
-    try:
-        value = json.loads(content, object_pairs_hook=_unique_object,
-                           parse_constant=lambda _: (_ for _ in ()).throw(ValueError('非有限JSON数值')))
-    except (TypeError, ValueError, RecursionError) as exc:
-        raise ValueError('修改回复不是完整严格JSON') from exc
+    value = strict_json(content)
     _operations(value)
     return value
 
@@ -127,7 +140,7 @@ def semantic_key(node):
             tuple(sorted(pathgraph._key(t) for t in node.get('terms', []))), node.get('type'))
 
 
-def apply_patch(graph, patch, *, through_feedback_id=0):
+def apply_patch(graph, patch, *, through_feedback_id=0, new_ids=None):
     """Apply an allowlisted patch to a copy; return changes, reset IDs and warnings.
 
     c# refers to a node in the original full graph. n# refers to a fresh node.
@@ -140,6 +153,11 @@ def apply_patch(graph, patch, *, through_feedback_id=0):
     before = _validated_graph(graph)
     result = copy.deepcopy(before)
     operations = _operations(patch)
+    if new_ids is not None and (not isinstance(new_ids, dict) or any(
+            not isinstance(k, str) or not re.fullmatch(r'n[1-9]\d{0,2}', k)
+            or not isinstance(v, str) or not re.fullmatch(r'r-[0-9a-f]{32}', v) for k, v in new_ids.items())
+            or len(set(new_ids.values())) != len(new_ids)):
+        raise ValueError('invalid saved preview identities')
     aliases = {f'c{i+1}': c['id'] for i, c in enumerate(before['concepts'])}
     old = {c['id']: c for c in before['concepts']}
     nodes = {c['id']: c for c in result['concepts']}
@@ -165,7 +183,9 @@ def apply_patch(graph, patch, *, through_feedback_id=0):
             changes = _node_changes(operation['node'])
             if not {'name', 'terms'} <= set(changes):
                 raise ValueError('新增节点需要名称和检索词')
-            node_id = 'r-' + uuid.uuid4().hex
+            if new_ids is not None and ref not in new_ids:
+                raise ValueError('saved preview identity missing')
+            node_id = new_ids[ref] if new_ids is not None else 'r-' + uuid.uuid4().hex
             if node_id in nodes:
                 raise ValueError('新增节点身份冲突，请重新预览')
             aliases[ref] = node_id
@@ -176,6 +196,10 @@ def apply_patch(graph, patch, *, through_feedback_id=0):
             nodes[node_id] = node
             added.append(node_id)
             result['concepts'].append(node)
+
+    assigned_ids = {ref: identifier for ref, identifier in aliases.items() if ref.startswith('n')}
+    if new_ids is not None and set(new_ids) != set(assigned_ids):
+        raise ValueError('saved preview contains unused identities')
 
     def resolve(ref):
         if not isinstance(ref, str) or ref not in aliases:
@@ -244,7 +268,7 @@ def apply_patch(graph, patch, *, through_feedback_id=0):
     by_id = {c['id']: c for c in result['concepts']}
     warnings = [{'kind': 'hint_inversion', 'from': e['from'], 'to': e['to']}
                 for e in result['prereqs'] if by_id[e['from']]['hint'] > by_id[e['to']]['hint']]
-    return {'graph': result, 'reset': reset, 'added': added, 'removed': removed,
+    return {'graph': result, 'reset': reset, 'added': added, 'removed': removed, 'new_ids': assigned_ids,
             'updated': [c['id'] for c in result['concepts'] if c['id'] in old and c != old[c['id']]],
             'warnings': warnings, 'targets_changed': result['targets'] != before['targets'],
             'changed': result != before}

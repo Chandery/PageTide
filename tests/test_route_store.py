@@ -181,6 +181,7 @@ class StoreTests(Fixture):
         graph = json.loads(json.dumps(self.app.route_save(self.pid, plan=plan)["graph"]))
         self.assertEqual(len(graph["concepts"]), 2)
         graph["concepts"][0]["state"] = "proposed"   # listed first, so it would win the tie
+        graph["targets"] = [graph["concepts"][1]["id"]]   # explicitly retain an active learning target
         self.app.route_save(self.pid, graph=graph)
         self.add("sh0", "A shared term study", "shared term")
         self.app.record_feedback("sh0", "useful", project_id=self.pid)

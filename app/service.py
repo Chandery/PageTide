@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, eligibility, growthproposal, maintenance, operation_lock, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan, route_recall, route_batch
+from . import creation, eligibility, growthproposal, maintenance, operation_lock, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, routeplan, route_recall, route_batch, route_revision
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -49,6 +49,10 @@ class RecommendationChanged(Exception):
     pass
 
 
+class _RevisionAlreadyConfirmed(Exception):
+    pass
+
+
 class CompletedDiscoveryLimit(Exception):
     def __init__(self, batch_id):
         self.batch_id=batch_id
@@ -79,8 +83,10 @@ class App:
         freeze = self.store.get_setting(f"profile_freeze_{project_id}")
         through = freeze.get("through_feedback_id") if freeze else None
         feedback = self.latest_feedback(project_id, through)
+        cutoffs = {c['id']: c['progress_since_feedback_id'] for c in graph['concepts'] if 'progress_since_feedback_id' in c}
+        full_familiarity = self.latest_feedback(project_id) if cutoffs and through is not None else feedback
         exposures=list(self.store.conn.execute('SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?',(project_id,)))
-        relevant=set(feedback)|set(self.seed_keys(project_id))|{row[0] for row in exposures}
+        relevant=set(feedback)|set(full_familiarity)|set(self.seed_keys(project_id))|{row[0] for row in exposures}
         # Only evidence-bearing papers need their bounded, current PDF text.
         # Classification remains independent of recommendation language policy.
         bodies={p['key']:p for p in self.recommendation_pool(project_id,paper_keys=relevant,retrieval_only=True,verification_budget=verification_budget)} if relevant else {}
@@ -93,9 +99,20 @@ class App:
                 events.setdefault(best[key], []).append("useful")
         labels = sorted(((item["id"], key, item["action"]) for key, item in feedback.items()
                          if item["action"] in pathgraph.INTEREST_EVENTS), key=lambda t: t[0])
-        labels += sorted((item["familiar"]["id"], key, item["familiar"]["action"]) for key, item in feedback.items() if item["familiar"])
-        for _, key, action in sorted(labels):
+        for key in set(feedback) | set(full_familiarity):
+            cutoff = cutoffs.get(best.get(key))
+            # Freezing preserves old tasks. Explicitly resetting a task after
+            # the freeze opts that task into fresh, explicit reconfirmation.
+            use_fresh = through is not None and cutoff is not None and cutoff >= through
+            item = (full_familiarity if use_fresh else feedback).get(key, {})
+            familiar = item.get('familiar')
+            if familiar:
+                labels.append((familiar['id'], key, familiar['action']))
+        for event_id, key, action in sorted(labels):
             if key in best and action in pathgraph.EVENTS:
+                cutoff = cutoffs.get(best[key])
+                if action in FAMILIARITY_ACTIONS and cutoff is not None and event_id <= cutoff:
+                    continue
                 events.setdefault(best[key], []).append(action)
         shown = {}
         for row in exposures:
@@ -119,7 +136,7 @@ class App:
         goal = pathgraph.goal_state(graph, prog)
         watch = list(dict.fromkeys(i for i in (route.get("watch") or []) if i in prog))
         return {"project_id": project_id, "enabled": route.get("mode", "route") == "route", "mode": route.get("mode", "route"), "graph": graph, "manual": manual,
-                "start": route.get("start") or [], "revision": revision, "layers": pathgraph.layers(graph), "progress": prog,
+                "start": route.get("start") or [], "brief": route.get("brief"), "revision": revision, "layers": pathgraph.layers(graph), "progress": prog,
                 **goal, "watch": watch, "watched_satisfied": [i for i in watch if prog[i]["status"] == "satisfied"],
                 "done": done, "total": len(live), "progress_verification_deferred":deferred,
                 "batch_policy": route_batch.policy(goal["goal_status"] == "completed")}
@@ -570,13 +587,129 @@ class App:
             org.action(body, precondition=precondition)
         return self.route_get(project_id)
 
-    def route_save(self, project_id, plan=None, graph=None, revision=None):
+    def route_save(self, project_id, plan=None, graph=None, revision=None, brief=None):
         body = {"action": "route-save"}
         if plan is not None:
             body["plan"] = plan
         if graph is not None:
             body["graph"] = graph
+        if brief is not None:
+            body['brief'] = route_revision.validate_brief(brief)
         return self._route_apply(project_id, body, revision)
+
+    def _route_revision_context(self, project_id):
+        revision, stored = read_route(self.store.conn, project_id)
+        cutoff = self.store.conn.execute('SELECT COALESCE(MAX(id),0) FROM feedback WHERE project_id=?', (project_id,)).fetchone()[0]
+        cutoff = route_revision.progress_cutoff(cutoff, self.store.get_setting('profile_freeze_' + project_id))
+        # Include effective undo, freeze, seed/content/body identity and stored
+        # graph/manual/watch/brief; MAX(id) alone cannot detect feedback undo.
+        context = [self._route_signature(project_id, revision), stored,
+                   self.latest_feedback(project_id), cutoff]
+        return growthproposal.digest(context), cutoff
+
+    def _write_route_revision(self, project_id, draft):
+        self.store.conn.execute('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                                ('route_revision_' + project_id, json.dumps(draft, ensure_ascii=False)))
+
+    def _revision_after(self, project_id, route, result, brief):
+        graph = result['graph']
+        known = {c['id'] for c in graph['concepts']}
+        reset = set(result['reset'])
+        manual = {k: v for k, v in (route.get('manual') or {}).items() if k in known and k not in reset}
+        start = [i for i in (route.get('start') or []) if i in known and i not in reset]
+        events, shown, deferred = self._route_inputs(project_id, graph)
+        if deferred:
+            raise ValueError('当前正文尚待核验，请完成核验后重新预览')
+        progress = pathgraph.progress(graph, events, manual, shown, start=start or None)
+        return {'graph': graph, 'manual': manual, 'start': start,
+                'watch': [i for i in (route.get('watch') or []) if i in known],
+                'brief': brief, 'progress': progress, **pathgraph.goal_state(graph, progress)}
+
+    def route_revision_preview(self, project_id, brief, patch, revision=None):
+        """Local patch preview; no AI and no mutation of the saved Map/undo."""
+        project_id = self._require_project_id(project_id)
+        brief = route_revision.validate_brief(brief)
+        org = self._route_org(project_id)
+        with org._transaction():
+            current, stored = read_route(self.store.conn, project_id)
+            if not stored:
+                raise ValueError('请先创建学习图')
+            if revision is not None and (type(revision) is not int or revision != current):
+                raise Conflict('学习图版本已变化，请重新预览')
+            signature, cutoff = self._route_revision_context(project_id)
+            result = route_revision.apply_patch(stored['graph'], patch, through_feedback_id=cutoff)
+            before = self.route_get(project_id)
+            if before.get('progress_verification_deferred'):
+                raise ValueError('当前正文尚待核验，请完成核验后重新预览')
+            after = self._revision_after(project_id, stored, result, brief)
+            preview = {'draft_id': uuid.uuid4().hex, 'revision': current, 'brief': brief,
+                       'before': {k: before.get(k) for k in ('graph', 'brief', 'progress', 'goal_status', 'goal_targets', 'goal_scope')},
+                       'after': after, 'changes': {k: result[k] for k in ('added', 'removed', 'updated', 'reset', 'warnings', 'targets_changed', 'changed')},
+                       'stale': False, 'confirmed': False}
+            draft = {'preview': preview, 'patch': patch, 'new_ids': result['new_ids'],
+                     'signature': signature, 'status': 'pending'}
+            self._write_route_revision(project_id, draft)
+        return preview
+
+    def _confirmed_revision_active(self, project_id, draft):
+        if draft.get('status') != 'confirmed':
+            return False
+        event = draft.get('event')
+        if event is None:
+            return True
+        row = self.store.conn.execute('SELECT undone FROM org_events WHERE project=? AND id=?', (project_id, event)).fetchone()
+        return bool(row and not row[0])
+
+    def route_revision_draft(self, project_id):
+        with self.store._lock:
+            return self._route_revision_draft(project_id)
+
+    def _route_revision_draft(self, project_id):
+        project_id = self._require_project_id(project_id)
+        draft = self.store.get_setting('route_revision_' + project_id)
+        if not draft:
+            return None
+        confirmed = self._confirmed_revision_active(project_id, draft)
+        stale = not confirmed and (draft.get('status') != 'pending' or self._route_revision_context(project_id)[0] != draft['signature'])
+        return {**draft['preview'], 'confirmed': confirmed, 'stale': stale}
+
+    def route_revision_confirm(self, project_id, draft_id):
+        """Revalidate in the Organization write transaction, then save once."""
+        project_id = self._require_project_id(project_id)
+        if not isinstance(draft_id, str) or not re.fullmatch(r'[0-9a-f]{32}', draft_id):
+            raise ValueError('无效预览身份')
+        state = {}
+        def build():
+            draft = self.store.get_setting('route_revision_' + project_id)
+            if not draft:
+                raise ValueError('这个项目没有修改预览')
+            if draft['preview']['draft_id'] != draft_id:
+                raise Conflict('预览已被新预览替换，请检查当前草稿')
+            if self._confirmed_revision_active(project_id, draft):
+                raise _RevisionAlreadyConfirmed()
+            if draft.get('status') != 'pending':
+                raise Conflict('这次修改已撤销，请重新预览')
+            signature, cutoff = self._route_revision_context(project_id)
+            if signature != draft['signature']:
+                raise Conflict('学习图或有效反馈已变化；草稿保留，请重新预览')
+            _, route = read_route(self.store.conn, project_id)
+            result = route_revision.apply_patch(route['graph'], draft['patch'], through_feedback_id=cutoff, new_ids=draft['new_ids'])
+            if result['graph'] != draft['preview']['after']['graph']:
+                raise Conflict('预览内容已变化，请重新预览')
+            state['draft'] = draft
+            return {'graph': result['graph'], 'brief': draft['preview']['brief']}
+        def mark_confirmed(snapshot):
+            draft = state['draft']
+            changed = snapshot['revision'] != draft['preview']['revision']
+            draft['status'] = 'confirmed'
+            draft['event'] = snapshot['undo']['id'] if changed else None
+            draft['confirmed_revision'] = snapshot['revision']
+            self._write_route_revision(project_id, draft)
+        try:
+            self._route_org(project_id).action({'action': 'route-save'}, revision_builder=build, postcondition=mark_confirmed)
+        except _RevisionAlreadyConfirmed:
+            return {**self._with_undo(project_id, self.route_get(project_id)), 'duplicate': True}
+        return self._with_undo(project_id, self.route_get(project_id))
 
     def route_detail(self, project_id):
         """The library graph's second view (learning map + papers): its data (Organization.route_detail) with each unit's progress status."""
@@ -1010,8 +1143,11 @@ class App:
         conn = self.store.conn
         freeze = self.store.get_setting(f"profile_freeze_{project_id}")
         feedback = self.latest_feedback(project_id, freeze.get("through_feedback_id") if freeze else None)
+        _, stored_route = read_route(conn, project_id)
+        reset_nodes = any('progress_since_feedback_id' in c for c in ((stored_route or {}).get('graph') or {}).get('concepts', []))
+        fresh_feedback = self.latest_feedback(project_id) if freeze and reset_nodes else feedback
         papers = [tuple(r) for r in conn.execute("SELECT p.key,p.title,p.abstract FROM papers p JOIN project_papers pp ON pp.paper_key=p.key WHERE pp.project_id=? ORDER BY p.key", (project_id,))]
-        relevant=set(feedback)|set(self.seed_keys(project_id))|{r[0] for r in conn.execute('SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?',(project_id,))}
+        relevant=set(feedback)|set(fresh_feedback)|set(self.seed_keys(project_id))|{r[0] for r in conn.execute('SELECT e.paper_key FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?',(project_id,))}
         body_versions=[]
         for key,_,abstract in papers:
             if key not in relevant or eligibility.usable_abstract(abstract):continue
@@ -1021,7 +1157,7 @@ class App:
                   (eligibility.BODY_PAGE_CHARS,key,pdf[1],eligibility.BODY_PAGES,eligibility.BODY_PAGES))]
             text_signature=hashlib.sha256(json.dumps(text,ensure_ascii=False).encode()).hexdigest()
             body_versions.append((key,tuple(pdf),eligibility.file_identity(pdf[0]),text_signature))
-        evidence = hashlib.sha256(json.dumps([feedback, papers,body_versions], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        evidence = hashlib.sha256(json.dumps([feedback, fresh_feedback, papers,body_versions], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         return (str(self.data.resolve()), project_id, revision, evidence,
                 conn.execute("SELECT COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?", (project_id,)).fetchone()[0],
                 json.dumps(self.store.get_setting(f"seed_keys_{project_id}"), sort_keys=True),
@@ -1717,6 +1853,12 @@ class App:
         return project_id
 
     def set_profile_frozen(self, frozen, project_id=None):
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError('Profile freeze requires an idle connection')
+            return self._set_profile_frozen(frozen, project_id)
+
+    def _set_profile_frozen(self, frozen, project_id=None):
         """Freeze or resume automatic learning. Pins stay editable either way."""
         project_id = self._require_project(project_id)
         key = f"profile_freeze_{project_id}"
@@ -1736,6 +1878,12 @@ class App:
         return {"profile": self.profile(project_id), "stats": self.stats(project_id)}
 
     def restore_default_profile(self, project_id=None):
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError('Profile restore requires an idle connection')
+            return self._restore_default_profile(project_id)
+
+    def _restore_default_profile(self, project_id=None):
         """Return pins to the creation-time terms and resume learning; no feedback event is deleted."""
         project_id = self._require_project(project_id)
         previous = self.profile(project_id)["pinned_terms"]
@@ -2320,61 +2468,76 @@ class App:
         return cards
 
     # --------------------------------------------------------------- feedback
+    def _route_reconfirmation_needed(self, project_id, paper_key, feedback_id):
+        _, route = read_route(self.store.conn, project_id)
+        graph = (route or {}).get('graph') or {}
+        if not any('progress_since_feedback_id' in c for c in graph.get('concepts', [])):
+            return False
+        paper = self.store.paper(paper_key)
+        bodies = self.recommendation_pool(project_id, paper_keys={paper_key}, retrieval_only=True)
+        if bodies:
+            if bodies[0]['_eligibility']['reason'] == 'source_verification_deferred':
+                raise ValueError('当前正文尚待核验，请完成核验后重新确认读懂')
+            paper = bodies[0]
+        active = {**graph, 'concepts': [c for c in graph['concepts'] if c.get('state', 'active') == 'active']}
+        ids = pathgrowth.assign(active, [paper]).get(paper_key, []) if paper else []
+        node = next((c for c in active['concepts'] if ids and c['id'] == ids[0]), {})
+        cutoff = node.get('progress_since_feedback_id')
+        return cutoff is not None and feedback_id <= cutoff
+
     def record_feedback(self, paper_key, action, reason=None, project_id=None):
         if action not in ACTIONS:
             raise ValueError(f"unknown action: {action}")
-
         if not project_id:
-            # Infer project_id from paper
             paper = self.store.paper(paper_key)
-            if paper:
-                project_id = paper.get("project_id")
-            if not project_id:
-                project_id = self.get_default_project_id()
-
-        if not self.store.conn.execute(
-                "SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?",
-                (project_id, paper_key)).fetchone():
-            raise ValueError("论文不属于当前项目")
-
-        if action in UNDERSTOOD_ACTIONS and not self.store.in_library(paper_key, project_id):
-            raise ValueError("先收藏这篇论文，才能标记已读懂")
-
-        entry = self.latest_feedback(project_id).get(paper_key) or {}
-        # A label replaces the earlier one of its own kind only: "understood" leaves "useful" standing.
-        current = entry.get("familiar") if action in FAMILIARITY_ACTIONS else (entry if entry.get("action") in INTEREST_ACTIONS else None)
-        if current and current["action"] == action:
-            # Idempotent: repeating the effective label (double click, retry) adds no event,
-            # but a repeated "useful" still means "keep it saved" if the user unsaved it meanwhile.
+            project_id = (paper or {}).get('project_id') or self.get_default_project_id()
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError('Feedback requires an idle connection')
+            self.store.conn.execute('BEGIN IMMEDIATE')
+            try:
+                if not self.store.conn.execute('SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?', (project_id, paper_key)).fetchone():
+                    raise ValueError('论文不属于当前项目')
+                if action in UNDERSTOOD_ACTIONS and not self.store.in_library(paper_key, project_id):
+                    raise ValueError('先收藏这篇论文，才能标记已读懂')
+                entry = self.latest_feedback(project_id).get(paper_key) or {}
+                current = entry.get('familiar') if action in FAMILIARITY_ACTIONS else (entry if entry.get('action') in INTEREST_ACTIONS else None)
+                duplicate = bool(current and current['action'] == action)
+                if duplicate and action in FAMILIARITY_ACTIONS and self._route_reconfirmation_needed(project_id, paper_key, current['id']):
+                    duplicate = False
+                if duplicate:
+                    result = {'feedback_id': current['id'], 'action': action, 'interest_changed': False,
+                              'saved': action in POSITIVE_ACTIONS, 'duplicate': True}
+                else:
+                    cursor = self.store.conn.execute('INSERT INTO feedback(paper_key,action,reason,created_at,project_id) VALUES (?,?,?,?,?)',
+                                                     (paper_key, action, reason, now(), project_id))
+                    result = {'feedback_id': cursor.lastrowid, 'action': action, 'interest_changed': action in INTEREST_ACTIONS,
+                              'saved': action in POSITIVE_ACTIONS}
+                self.store.conn.commit()
+            except BaseException:
+                self.store.conn.rollback()
+                raise
+            # Library save retains its existing lifecycle, after the feedback
+            # transaction. No helper may commit the duplicate check early.
             if action in POSITIVE_ACTIONS:
                 self.store.save_to_library(paper_key, note=reason, project_id=project_id)
-            return {"feedback_id": current["id"], "action": action, "interest_changed": False,
-                    "saved": action in POSITIVE_ACTIONS, "duplicate": True}
-
-        cursor = self.store.conn.execute(
-            "INSERT INTO feedback (paper_key, action, reason, created_at, project_id) VALUES (?,?,?,?,?)",
-            (paper_key, action, reason, now(), project_id))
-        feedback_id = cursor.lastrowid
-        self.store.conn.commit()
-
-        # 'useful' means "save to my library"; it does not remove the card from view.
-        if action in POSITIVE_ACTIONS:
-            self.store.save_to_library(paper_key, note=reason, project_id=project_id)
-        return {"feedback_id": feedback_id, "action": action,
-                "interest_changed": action in (POSITIVE_ACTIONS | NEGATIVE_ACTIONS),
-                "saved": action in POSITIVE_ACTIONS}
+            return result
 
     def unsave(self, paper_key, project_id=None):
         self.store.remove_from_library(paper_key, project_id=project_id)
         return {"saved": False}
 
     def undo_feedback(self, feedback_id, project_id=None):
-        row = self.store.conn.execute("SELECT project_id FROM feedback WHERE id=?", (feedback_id,)).fetchone()
-        if not row or (project_id and row["project_id"] != project_id):
-            raise ValueError("反馈不属于当前项目")
-        # Undo restores the profile signals; a library save is a separate user fact and stays.
-        self.store.undo_feedback(feedback_id)
-        return {"undone": feedback_id}
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError("Feedback undo requires an idle connection")
+            row = self.store.conn.execute("SELECT project_id FROM feedback WHERE id=?", (feedback_id,)).fetchone()
+            if not row or (project_id and row["project_id"] != project_id):
+                raise ValueError("反馈不属于当前项目")
+            # Undo restores the profile signals; a library save is a separate user fact and stays.
+            self.store.undo_feedback(feedback_id)
+            return {"undone": feedback_id}
+
 
     # ------------------------------------------------------------- full text
     def save_fulltext(self, paper_key, pages, source_pdf_sha256=None):

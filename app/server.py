@@ -282,7 +282,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self):
         length = int(self.headers.get("Content-Length") or 0)
-        return json.loads(self.rfile.read(length) or b"{}")
+        raw = self.rfile.read(length) or b"{}"
+        if urlparse(self.path).path == '/api/route':
+            from .route_revision import strict_json
+            return strict_json(raw)
+        return json.loads(raw)
 
     # -------------------------------------------------------------------- GET
     def do_GET(self):
@@ -453,7 +457,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._import_pdf()
         try:
             body = self._body()
-        except (ValueError, json.JSONDecodeError):
+        except (ValueError, json.JSONDecodeError, RecursionError):
             return self._json({"error": "invalid JSON"}, 400)
         if not isinstance(body, dict):
             return self._json({"error": "request must be an object"}, 400)
@@ -566,8 +570,21 @@ class Handler(BaseHTTPRequestHandler):
             from .organization import Conflict
             action, project_id, revision = body.get("action"), body.get("project_id"), body.get("revision")
             try:
+                revision_fields = {
+                    'revision-preview': {'action', 'project_id', 'revision', 'brief', 'patch'},
+                    'revision-confirm': {'action', 'project_id', 'draft_id'},
+                    'revision-draft': {'action', 'project_id'},
+                }
+                if action in revision_fields and set(body) - revision_fields[action]:
+                    raise ValueError('修改预览请求包含未知字段')
                 if action == "save":
-                    result = app.route_save(project_id, plan=body.get("plan"), graph=body.get("graph"), revision=revision)
+                    result = app.route_save(project_id, plan=body.get("plan"), graph=body.get("graph"), revision=revision, brief=body.get("brief"))
+                elif action == 'revision-preview':
+                    return self._json(app.route_revision_preview(project_id, body.get('brief'), body.get('patch'), revision=revision))
+                elif action == 'revision-confirm':
+                    return self._json(app.route_revision_confirm(project_id, body.get('draft_id')))
+                elif action == 'revision-draft':
+                    return self._json({'draft': app.route_revision_draft(project_id)})
                 elif action == "manual":
                     result = app.route_manual(project_id, body.get("concept"), body.get("value"), revision=revision)
                 elif action == "watch":
@@ -603,6 +620,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(exc)}, 409)
             except (ValueError, TypeError) as exc:
                 self._json({"error": str(exc)}, 400)
+            except sqlite3.Error:
+                self._json({'error': '本地保存失败；原修改未保存，请保留草稿后重试'}, 500)
         elif route == "/api/maintain":
             project_id = body.get("project_id") or app.get_default_project_id()
             wanted = maintenance.plan(app, project_id)

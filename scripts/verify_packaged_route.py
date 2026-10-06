@@ -214,6 +214,22 @@ def main():
             switched=call('/api/route',{'action':'mode','project_id':route_pid,'mode':'off','revision':undone['revision']})
             assert switched['watch']==[cid] and not switched['enabled']
             assert 'data-route-watch' in call('/route-editor.js',raw=True)
+            draft=call('/api/route',{'action':'revision-preview','project_id':route_pid,'revision':switched['revision'],
+                'brief':{'goal':'Revision fixture','structure':'Add a side task'},'patch':{'operations':[
+                    {'op':'update_node','ref':'c1','changes':{'name':'Revised model basics'}},
+                    {'op':'add_node','ref':'n1','node':{'name':'New side task','terms':['new side task']}}]}})
+            assert call('/api/route?project_id='+route_pid)['graph']==switched['graph']
+            assert draft['after']['goal_status']=='learning' and draft['changes']['reset']
+            confirmed=call('/api/route',{'action':'revision-confirm','project_id':route_pid,'draft_id':draft['draft_id']})
+            assert confirmed['graph']==draft['after']['graph'] and confirmed['brief']['goal']=='Revision fixture'
+            assert confirmed['watch']==[cid] and ids['Model basics'] not in confirmed['manual']
+            assert all(type(c['progress_since_feedback_id']) is int for c in confirmed['graph']['concepts'] if c['id'] in draft['changes']['reset'])
+            assert call('/api/route',{'action':'revision-confirm','project_id':route_pid,'draft_id':draft['draft_id']})['duplicate']
+            restored=call('/api/route',{'action':'undo','project_id':route_pid,'revision':confirmed['revision']})
+            for field in ['graph','manual','watch','brief']:
+                assert restored.get(field)==switched.get(field),field
+            call('/api/route',{'action':'revision-preview','project_id':route_pid,'revision':restored['revision'],
+                'brief':{'goal':'Persist pending revision'},'patch':{'operations':[]}})
         launch(executable,data,home,first)
         def restart(call):
             stale=call('/api/route',{'action':'candidates','project_id':growth_pid})['candidates'][0]
@@ -228,6 +244,17 @@ def main():
             assert [p['key'] for p in call('/api/state?project_id='+pid)['cards']]==['zh']
             stored=call('/api/route?project_id='+route_pid)
             assert stored['watch']==[stored['graph']['targets'][0]] and not stored['enabled']
+            pending_revision=call('/api/route',{'action':'revision-draft','project_id':route_pid})['draft']
+            assert not pending_revision['stale'] and not pending_revision['confirmed']
+            changed=call('/api/route',{'action':'watch','project_id':route_pid,'concept':stored['graph']['targets'][0],
+                'value':False,'revision':stored['revision']})
+            try:
+                call('/api/route',{'action':'revision-confirm','project_id':route_pid,'draft_id':pending_revision['draft_id']})
+            except urllib.error.HTTPError as exc:
+                assert exc.code==409;exc.close()
+            else:raise AssertionError('Stale revision confirmed')
+            assert call('/api/route',{'action':'revision-draft','project_id':route_pid})['draft']['draft_id']==pending_revision['draft_id']
+            stored=call('/api/route',{'action':'undo','project_id':route_pid,'revision':changed['revision']})
             resumed=call('/api/route',{'action':'mode','project_id':route_pid,'mode':'route','revision':stored['revision']})
             assert resumed['goal_status']=='completed' and resumed['watch']==resumed['watched_satisfied']
         launch(executable,data,home,restart)
@@ -241,7 +268,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, assets, isolated HOME, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, assets, isolated HOME, outbound network blocked')
 
 
 if __name__=='__main__': main()
