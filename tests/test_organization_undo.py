@@ -157,7 +157,7 @@ class NestedApplyTests(unittest.TestCase):
             {"id": "facet-kid", "name": "JEPA", "keys": ["a", "b"], "parent": "facet-top"}]}
 
     def suggest(self):
-        with patch("app.organization.suggest_groups", return_value=self.preview):
+        with patch("app.organization.review_papers", return_value=self.preview):
             self.org.action({"action": "suggest"})
 
     def apply(self, ids):

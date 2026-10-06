@@ -150,3 +150,22 @@ class WorkerLifecycleTests(unittest.TestCase):
         self.assertEqual(worker.communicate.call_count, 2)
         self.assertNotIn(worker, server.ORGANIZATION_PROCESSES)
         self.assertFalse(server.ORGANIZATION_JOB_LOCK.locked())
+
+
+class WorkerScopeRequestTests(unittest.TestCase):
+    """The review can be limited to one project's papers: the worker accepts scope_project on stdin, and nothing else new."""
+
+    def _run(self, db, request):
+        return subprocess.run([sys.executable, "-m", "app.organization_worker", db, "default", str(os.getpid()), "suggest", "stdin"],
+                              input=json.dumps(request), capture_output=True, text=True, timeout=120)
+
+    def test_scope_project_is_accepted_and_echoed_in_the_preview(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run(os.path.join(tmp, "s.sqlite"), {"profile": {}, "scope_project": "default_project"})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["suggestions"]["scope"], "default_project")
+
+    def test_other_keys_are_still_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run(os.path.join(tmp, "s.sqlite"), {"profile": {}, "something_else": 1})
+            self.assertNotEqual(result.returncode, 0)

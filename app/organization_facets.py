@@ -19,6 +19,7 @@ from .clustering import MAX_PAPERS, MAX_TEXT, corpus_fingerprint, _corpus
 from .organization_terms import LABELS
 
 ALGORITHM = "profile-facets-v1"
+REVIEW_ALGORITHM = "organization-review-v1"
 MIN_GROUP = 2
 MAX_TOP = 12
 MAX_CHILDREN = 6
@@ -317,3 +318,222 @@ def suggest_groups(papers, profile=None):
             "groups": groups, "pending_keys": [key for key in keys if key not in placed],
             "profile": {"project": profile.get("project") if isinstance(profile.get("project"), str) else None,
                         "pinned": pinned, "unmatched": unmatched}}
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# Review: look at what is already organised and say only what needs a change.
+#
+# suggest_groups() above proposes categories for a set of papers. review() decides which papers need looking at and
+# what the answer is. Papers that are already in a category are "reviewed" once and then left alone until their
+# title, abstract, topic, categories or the pinned keywords change; unplaced papers are always looked at. The result
+# lists changes only (new category, add to an existing category, merge duplicates, move a paper that does not
+# fit), each with a reason; what needs no change is not listed. Deterministic, offline, zero model tokens.
+
+REVIEW_REASONS = {
+    "zh-CN": {"add": "标题或摘要提到「%s」", "merge": "同一层级有 %d 个同名类别「%s」，合并后论文都在一个类别里",
+              "move": "它所在的类别「%s」没有出现在标题或摘要里，而「%s」出现了",
+              "partial": "标题或摘要里有「%s」，是类别「%s」的一部分（可能相关，请核对）"},
+    "en-US": {"add": "The title or abstract mentions “%s”", "merge": "%d categories named “%s” sit at the same level; merging puts their papers in one",
+              "move": "The category “%s” does not appear in its title or abstract, while “%s” does",
+              "partial": "The title or abstract has “%s”, part of the category “%s” (possibly related; please check)"},
+}
+
+
+def paper_signature(row, member_ids):
+    """What a review of an organised paper depends on: its text and its categories. If both are unchanged, the paper
+    is not looked at again. (The pinned keywords steer only the proposals for unplaced papers, so they are not part
+    of it: moving between project tabs must not reopen what was dismissed.)"""
+    payload = json.dumps([row.get("title") or "", row.get("abstract") or "", row.get("topic") or "",
+                          sorted(str(i) for i in member_ids), REVIEW_ALGORITHM], ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def _normal(name):
+    return " ".join(str(name or "").lower().split())
+
+
+def structure_hash(directions, memberships):
+    """The shape of the shared organisation a review rests on: categories (id, name, parent) and every membership.
+    A preview is only applied while this is unchanged, so a category edited or removed meanwhile cannot be hit by it."""
+    payload = json.dumps([sorted([str(d["id"]), d.get("name") or "", None if d.get("parent_id") is None else str(d["parent_id"])] for d in directions),
+                          sorted([k, sorted(str(i) for i in v)] for k, v in memberships.items() if v)], ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
+
+
+def review(papers, directions, memberships, reviewed, profile=None):
+    """Changes worth proposing for `papers` (the ones in view), given the shared categories.
+
+    directions: [{id, name, parent_id, rank, ...}]; memberships: {paper_key: [direction id]}; reviewed:
+    {paper_key: signature} written when an earlier review was finished. Returns the stored preview shape:
+    groups (new categories and additions, same shape as suggest_groups plus `target`), merges, moves,
+    evaluated (placed papers looked at, to be marked reviewed when the review is finished) and the fingerprint.
+    """
+    profile = profile or {}
+    english = profile.get("language") == "en-US"
+    text_of = REVIEW_REASONS["en-US" if english else "zh-CN"]
+    rows_list = _corpus(papers)
+    if len(rows_list) > MAX_PAPERS:
+        raise ValueError("Suggestions support at most %d saved papers" % MAX_PAPERS)
+    if any(sum(len(row[f]) for f in ("title", "abstract", "topic")) > MAX_TEXT for row in rows_list):
+        raise ValueError("Paper text exceeds suggestion limit")
+    rows = {row["key"]: row for row in rows_list}
+    keys = sorted(rows)
+    by_id = {str(d["id"]): d for d in directions}
+    member_ids = {key: [str(i) for i in memberships.get(key, []) if str(i) in by_id] for key in keys}
+    children = defaultdict(list)
+    for d in directions:
+        parent = None if d.get("parent_id") is None else str(d["parent_id"])
+        children[parent if parent in by_id else None].append(str(d["id"]))
+
+    def descendants(identifier):
+        out, queue = set(), [identifier]
+        while queue:
+            for child in children.get(queue.pop(), []):
+                if child not in out:
+                    out.add(child); queue.append(child)
+        return out
+
+    def ancestors(identifier):
+        out, up = set(), by_id[identifier].get("parent_id")
+        while up is not None and str(up) in by_id and str(up) not in out:
+            out.add(str(up)); up = by_id[str(up)].get("parent_id")
+        return out
+
+    doc = {key: _segments(rows[key]["title"]) + _segments(rows[key]["abstract"]) for key in keys}
+    text = {key: (rows[key]["title"] + " " + rows[key]["abstract"]).lower() for key in keys}
+    variants = {identifier: _variants(d["name"]) for identifier, d in by_id.items()}
+
+    generic = {identifier: bool(variants[identifier]) and all(set(v) <= WEAK for v in variants[identifier]) for identifier in by_id}   # a category named "Learning" or "Model" matches nearly everything
+
+    def mentions(key, identifier):
+        if generic[identifier]:
+            return False
+        name = by_id[identifier]["name"]
+        return any(_contains(doc[key], v) for v in variants[identifier]) or (bool(CJK.search(name)) and name.strip().lower() in text[key])
+
+    def most_specific(matched):
+        return [i for i in matched if not (descendants(i) & set(matched))]
+
+    signature = {key: paper_signature(rows[key], member_ids[key]) for key in keys}
+    placed = [key for key in keys if member_ids[key]]
+    unplaced = [key for key in keys if not member_ids[key]]
+    todo_placed = [key for key in placed if (reviewed or {}).get(key) != signature[key]]
+
+    # 0. Duplicate categories: same name at the same level. Which copy is kept follows the papers of ALL projects
+    # (the tree is shared), so a project tab and the all tab agree; a pair is offered only when some of its papers
+    # are in this review's scope.
+    members_of = defaultdict(set)
+    for key in keys:
+        for identifier in member_ids[key]:
+            members_of[identifier].add(key)
+    everyone = defaultdict(int)
+    for ids in memberships.values():
+        for identifier in {str(i) for i in ids}:
+            everyone[identifier] += 1
+    clusters = defaultdict(list)
+    for d in directions:
+        parent = None if d.get("parent_id") is None else str(d["parent_id"])
+        clusters[(parent if parent in by_id else None, _normal(d["name"]))].append(str(d["id"]))
+    order = lambda j: (-everyone[j], by_id[j].get("rank", 0), j)
+    merges = []
+    for (parent, name), ids in sorted(clusters.items(), key=lambda kv: (str(kv[0][0]), kv[0][1])):
+        if len(ids) < 2 or not name or not any(members_of[i] for i in ids):
+            continue
+        keep = sorted(ids, key=order)[0]
+        drop = [i for i in ids if i != keep]
+        moved = sorted(set().union(*(members_of[i] for i in drop)) - members_of[keep])
+        merges.append({"id": "merge-" + hashlib.sha256(json.dumps([keep, sorted(drop)]).encode()).hexdigest()[:20],
+                       "keep": keep, "drop": sorted(drop), "keys": moved, "name": by_id[keep]["name"],
+                       "copies": [{"id": i, "papers": everyone[i], "children": len(children.get(i, []))} for i in sorted(ids, key=order)],
+                       "reason": text_of["merge"] % (len(ids), by_id[keep]["name"])})
+    canonical = {i: sorted(ids, key=order)[0] for ids in clusters.values() for i in ids}   # a copy of a duplicated category stands for the one a merge keeps
+
+    # 1. Unplaced papers: add to an existing category they mention (firm), suggest a category that shares part of its
+    # name (weak: not ticked), then propose new categories for what is left.
+    groups, found = [], set()
+    add_to = defaultdict(list)
+    for key in unplaced:
+        matched = most_specific([i for i in by_id if mentions(key, i)])
+        for identifier in sorted({canonical[i] for i in matched}):
+            add_to[identifier].append(key)
+    for identifier in sorted(add_to, key=lambda i: (by_id[i].get("rank", 0), i)):
+        members = sorted(add_to[identifier])
+        groups.append({"id": "add-" + hashlib.sha256(json.dumps([identifier, members]).encode()).hexdigest()[:20],
+                       "name": by_id[identifier]["name"], "keys": members, "parent": None, "source": "existing",
+                       "terms": [by_id[identifier]["name"]], "reason": text_of["add"] % by_id[identifier]["name"],
+                       "color": by_id[identifier].get("color") or DEFAULT_COLOR, "target": identifier, "kind": "add"})
+        found.update(members)
+
+    def shared_part(key, identifier):
+        """The words of a multi-word category name that the paper has, when it has some but not all of them."""
+        if generic[identifier]:
+            return []
+        best = []
+        for v in variants[identifier]:
+            content = [t for t in v if t not in WEAK and len(t) >= 4]
+            hit = [t for t in content if any(t in segment for segment in doc[key])]
+            if len(v) >= 2 and hit and len(hit) < len(v) and len(hit) > len(best):
+                best = hit
+        return best
+
+    weak_to, weakly = defaultdict(lambda: defaultdict(list)), set()
+    for key in unplaced:
+        if key in found:
+            continue
+        # how much of a category's name the paper has (hits / words); only the best-fitting categories are offered
+        scored = sorted(((len(shared_part(key, i)) / max(1, max(len(v) for v in variants[i])), i) for i in by_id if shared_part(key, i) and canonical[i] == i),
+                        key=lambda t: (-t[0], t[1]))
+        scored = [t for t in scored if scored and t[0] == scored[0][0]]
+        seen_names, unique = set(), []
+        for t in sorted(scored, key=lambda t: (-everyone[t[1]], t[1])):   # categories with the same name at different levels: offer the most used one once
+            if _normal(by_id[t[1]]["name"]) not in seen_names:
+                seen_names.add(_normal(by_id[t[1]]["name"])); unique.append(t)
+        scored = unique[:2]
+        for _, identifier in scored:
+            weak_to[identifier][key] = shared_part(key, identifier)
+            weakly.add(key)
+    for identifier in sorted(weak_to, key=lambda i: (by_id[i].get("rank", 0), i)):
+        members = sorted(weak_to[identifier])
+        words = sorted({w for hit in weak_to[identifier].values() for w in hit})
+        groups.append({"id": "maybe-" + hashlib.sha256(json.dumps([identifier, members]).encode()).hexdigest()[:20],
+                       "name": by_id[identifier]["name"], "keys": members, "parent": None, "source": "existing",
+                       "terms": words, "reason": text_of["partial"] % (", ".join(words), by_id[identifier]["name"]),
+                       "color": by_id[identifier].get("color") or DEFAULT_COLOR, "target": identifier, "kind": "add", "weak": True})
+    rest = [rows[key] for key in unplaced if key not in found]
+    left = [row["key"] for row in rest]
+    if len(rest) >= MIN_GROUP:
+        fresh = suggest_groups(rest, profile)
+        left = fresh["pending_keys"]
+        mapped = {}
+        for group in fresh["groups"]:
+            parent_dir = mapped.get(group["parent"]) if group["parent"] else None
+            wanted = _normal(group["name"])
+            existing = next((i for i in by_id if _normal(by_id[i]["name"]) == wanted
+                             and (None if by_id[i].get("parent_id") is None else str(by_id[i]["parent_id"])) == parent_dir), None)
+            mapped[group["id"]] = existing
+            groups.append({**group, "target": existing, "kind": "add" if existing else "create"})
+            found.update(group["keys"])
+    pending = [key for key in left if key not in weakly]   # unplaced papers nothing could be proposed for: the owner has to place them
+
+    # 3. Placed papers that changed: only when none of their categories fits the text and another one clearly does.
+    moves = []
+    for key in todo_placed:
+        current = member_ids[key]
+        if not current or any(not variants[i] or mentions(key, i) for i in current):
+            continue   # some category is unknown to the matcher (e.g. a Chinese name without a glossary entry) or fits: leave it
+        near = set(current)
+        for identifier in current:
+            near |= ancestors(identifier) | descendants(identifier)
+        candidates = most_specific([i for i in by_id if i not in near and variants[i] and mentions(key, i)])
+        if not candidates:
+            continue
+        target = sorted(candidates, key=lambda i: (-len(ancestors(i)), -everyone[i], i))[0]
+        moves.append({"id": "move-" + hashlib.sha256(json.dumps([key, sorted(current), target]).encode()).hexdigest()[:20],
+                      "key": key, "from": sorted(current), "to": target, "name": by_id[target]["name"],
+                      "reason": text_of["move"] % ("」「".join(by_id[i]["name"] for i in sorted(current)) if not english else "”, “".join(by_id[i]["name"] for i in sorted(current)), by_id[target]["name"])})
+    return {"fingerprint": corpus_fingerprint(rows_list), "algorithm": REVIEW_ALGORITHM,
+            "structure": structure_hash(directions, memberships),
+            "groups": groups, "merges": merges, "moves": moves, "pending_keys": pending,
+            "evaluated": sorted(todo_placed), "signatures": {key: signature[key] for key in todo_placed}, "scope_size": len(keys),
+            "profile": {"project": profile.get("project") if isinstance(profile.get("project"), str) else None,
+                        "pinned": _clean_terms(profile.get("pinned")), "unmatched": []}}

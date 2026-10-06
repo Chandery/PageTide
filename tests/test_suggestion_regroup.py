@@ -1,5 +1,14 @@
 """Legacy regroup mode of suggest-apply: only untouched automatic groups are replaced."""
 import unittest
+from unittest.mock import patch
+
+
+def whole_library_preview(org):
+    """The old suggester's answer (groups for every saved paper), injected: the legacy regroup mode of
+    suggest-apply is still supported even though the review no longer proposes re-grouping organised papers."""
+    from app.organization_facets import suggest_groups
+    with patch('app.organization.review_papers', side_effect=lambda papers, *a, **k: suggest_groups(papers)):
+        return org.action({'action': 'suggest'})['suggestions']
 
 
 class RegroupTests(unittest.TestCase):
@@ -18,7 +27,7 @@ class RegroupTests(unittest.TestCase):
                     for key in ('a', 'b'):
                         store.save_to_library(key)
                     org = Organization(store)
-                    preview = org.action({'action': 'suggest'})['suggestions']
+                    preview = whole_library_preview(org)
                     selection = {field: preview['groups'][0][field]
                                  for field in ('id', 'name', 'color', 'keys')}
                     self.assertEqual(selection['color'], '#64748b')
@@ -31,7 +40,7 @@ class RegroupTests(unittest.TestCase):
                     self.assertEqual(saved['color'], selection['color'])
                     old_id = selection['id']
                     store.save_to_library('c')
-                    next_preview = org.action({'action': 'suggest'})['suggestions']
+                    next_preview = whole_library_preview(org)
                     next_selection = {field: next_preview['groups'][0][field]
                                       for field in ('id', 'name', 'color', 'keys')}
                     self.assertNotEqual(next_selection['id'], old_id)
@@ -64,13 +73,13 @@ class RegroupTests(unittest.TestCase):
             org = Organization(store)
             old = dict(fingerprint=corpus_fingerprint(papers), groups=[
                 dict(id='old-' + p['key'], name='Old label', keys=[p['key']]) for p in papers])
-            with patch('app.organization.suggest_groups', return_value=old):
+            with patch('app.organization.review_papers', return_value=old):
                 org.action({'action': 'suggest'})
             org.action(dict(action='suggest-apply', fingerprint=old['fingerprint']))
             # A manual rename protects its existing memberships too.
             org.action(dict(action='direction-save', id='old-c', name='手动方向', color='#123456'))
             before = org.snapshot()
-            preview = org.action({'action': 'suggest'})['suggestions']
+            preview = whole_library_preview(org)
             result = org.action(dict(action='suggest-apply', fingerprint=preview['fingerprint'], regroup_auto=True))
             by_key = {p['key']: p['directions'] for p in result['items']}
             self.assertEqual(by_key['a'], by_key['b'])

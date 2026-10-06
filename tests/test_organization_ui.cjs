@@ -485,38 +485,78 @@ test('categories left at the default slate still get distinct graph hues matchin
   assert.equal(hue(node.data.color),hue(ui.categoryColor('y')));
 });
 
-test('suggestion review nests child categories under their parent and states the profile basis', () => {
+const reviewPreview = () => ({ fingerprint: 'f', scope: 'p1', pending_keys: ['p9'], profile: { project: 'P', pinned: [], unmatched: [] },
+  groups: [
+    { id: 'top', name: '世界模型', keys: ['p1', 'p2'], parent: null, reason: '来自画像固定关键词「world models」', kind: 'create', target: null, color: '#64748b' },
+    { id: 'kid', name: 'JEPA', keys: ['p1'], parent: 'top', reason: '放在其下', kind: 'create', target: null, color: '#64748b' },
+    { id: 'grand', name: '<b>Video</b>', keys: ['p2'], parent: 'kid', reason: 'x', kind: 'create', target: null, color: '#64748b' },
+    { id: 'add-1', name: 'Robotics', keys: ['p3'], parent: null, reason: '标题或摘要提到「Robotics」', kind: 'add', target: 'd9', color: '#123456' }],
+  merges: [{ id: 'merge-1', keep: 'd1', drop: ['d2'], keys: ['p4'], name: '机器人', reason: '同一层级有 2 个同名类别「机器人」' }],
+  moves: [{ id: 'move-1', key: 'p5', from: ['d1'], to: 'd3', name: 'World <model>', reason: '它所在的类别「机器人」没有出现在标题或摘要里' }] });
+
+test('the review lists only changes, in sections, nests child categories and escapes what it shows', () => {
   const ui = fixture();
-  const preview = { fingerprint: 'f', pending_keys: ['p3'],
-    profile: { project: '世界模型<项目>', pinned: ['world models', 'JEPA'], unmatched: [{ term: 'diffusion', documents: 1 }, { term: 'WM', documents: 9, same_as: 'world models' }] },
-    groups: [
-      { id: 'top', name: '世界模型', keys: ['p1', 'p2'], parent: null, reason: '来自画像固定关键词「world models」' },
-      { id: 'kid', name: 'JEPA', keys: ['p1'], parent: 'top', reason: '放在其下' },
-      { id: 'grand', name: '<b>Video</b>', keys: ['p2'], parent: 'kid', reason: 'x' }] };
-  const html = ui.suggestionsHTML(preview, key => ({ title: key === 'p1' ? 'Paper <one>' : key }));
-  assert.match(html, /依据「世界模型&lt;项目&gt;」画像的固定关键词：world models、JEPA/);
-  assert.match(html, /未单独成类：diffusion（只有 1 篇提到）；WM（与「world models」基本是同一批论文）/);
-  assert.match(html, /3 个类别 · 1 篇没有共同短语/);
+  const html = ui.suggestionsHTML(reviewPreview(), key => ({ title: key === 'p1' ? 'Paper <one>' : key }), id => ({ d1: '机器人', d3: 'World <model>' }[id] || id));
+  for (const title of ['新增分类', '归入已有分类', '合并重复分类', '建议调整归属（默认不勾选）']) assert.match(html, new RegExp(`<h4>${title.replace(/[（）]/g, '.')}</h4>`));
   assert.equal((html.match(/class="org-suggestion is-child"/g) || []).length, 2);
-  assert.match(html, /data-suggestion="0" style="--depth:0"/);
   assert.match(html, /data-suggestion="1" style="--depth:1"><div class="org-suggestion-head"><input type="checkbox" data-enabled checked aria-label="采用此类别"><span class="org-suggestion-parent">世界模型 ›<\/span>/);
-  assert.match(html, /style="--depth:2"/);
   assert.match(html, /Paper &lt;one&gt;/);
-  assert.doesNotMatch(html, /<b>|<one>/);
+  assert.doesNotMatch(html, /<b>Video|<one>|<model>/);
+  assert.match(html, /范围：这个项目的论文/);
 });
 
-test('suggestion review reports pinned terms dropped over the category limit', () => {
+test('additions to an existing category cannot be renamed or recoloured; merges are ticked and moves are not', () => {
   const ui = fixture();
-  const html = ui.suggestionsHTML({ groups: [], profile: { project: 'P', pinned: ['a'],
-    unmatched: [{ term: '<late>', documents: 4, dropped: true }] } });
-  assert.match(html, /未单独成类：&lt;late&gt;（4 篇提到，超出 12 个一级类别上限）/);
+  const html = ui.suggestionsHTML(reviewPreview());
+  const add = html.slice(html.indexOf('data-suggestion="3"'), html.indexOf('</fieldset>', html.indexOf('data-suggestion="3"')));
+  assert.match(add, /data-name[^>]*readonly/);
+  assert.doesNotMatch(add, /type="color"/);
+  assert.match(add, /aria-label="加入这个类别"/);
+  assert.match(html, /data-merge-enabled checked/);
+  assert.match(html, /data-move-enabled aria-label/);
+  assert.doesNotMatch(html, /data-move-enabled checked/);
+  assert.match(html, /子类别和论文都会并入保留的那个/);
 });
 
-test('suggestion review without pinned terms says the groups are title phrases', () => {
+test('with nothing to change the review says so and lists nothing, not even what was checked', () => {
   const ui = fixture();
-  const html = ui.suggestionsHTML({ groups: [], profile: { project: 'Demo', pinned: [], unmatched: [] } });
-  assert.match(html, /「Demo」还没有固定关键词，先按标题里反复出现的短语分组/);
-  assert.match(html, /没有可应用的建议/);
+  const html = ui.suggestionsHTML({ fingerprint: 'f', groups: [], merges: [], moves: [], pending_keys: [], scope: null, profile: {} });
+  assert.match(html, /没有需要调整的内容/);
+  assert.doesNotMatch(html, /<fieldset|org-review-section|type="checkbox"|没有共同短语|暂不归类/);
+});
+
+test('papers nothing could be proposed for are listed, and the review does not claim that nothing needs doing', () => {
+  const ui = fixture();
+  const html = ui.suggestionsHTML({ fingerprint: 'f', groups: [], merges: [], moves: [], pending_keys: ['p1', 'p2'], scope: 'x', profile: {} }, key => ({ title: key === 'p1' ? 'Survey <of> Embodied AI' : key }));
+  assert.doesNotMatch(html, /没有需要调整的内容/);
+  assert.match(html, /没有可以自动提出的调整/);
+  assert.match(html, /还没有归类的论文/);
+  assert.match(html, /Survey &lt;of&gt; Embodied AI/);
+  assert.doesNotMatch(html, /<fieldset|type="checkbox"/);          // nothing to tick: it is a to-do for the person, not a proposal
+});
+
+test('a possible match is marked and not ticked, merges show each copy, moves can be dismissed on purpose', () => {
+  const ui = fixture();
+  const preview = reviewPreview();
+  preview.groups.push({ id: 'maybe-1', name: 'Embodied Intelligence', keys: ['p7'], parent: null, reason: '标题或摘要里有「embodied」，是类别「Embodied Intelligence」的一部分（可能相关，请核对）', kind: 'add', target: 'd2', weak: true, color: '#123456' });
+  preview.merges[0].copies = [{ id: 'd1', papers: 4, children: 1 }, { id: 'd2', papers: 2, children: 0 }];
+  const html = ui.suggestionsHTML(preview);
+  const weak = html.slice(html.indexOf('is-weak'), html.indexOf('</fieldset>', html.indexOf('is-weak')));
+  assert.match(weak, /可能相关/);
+  assert.doesNotMatch(weak.slice(0, weak.indexOf('aria-label')), /checked/);          // its box is not ticked
+  assert.match(weak, /data-member="p7" checked/);                                   // its papers are ticked, so ticking the category is enough to apply it
+  assert.match(html, /4 篇、1 个子类/);
+  assert.match(html, /data-move-dismiss/);
+  assert.match(html, /没勾选“调整”也没勾选“保持现状”的建议，下次还会出现/);
+  assert.match(html, /原类别如果因此没有任何论文，会一并删除/);
+  assert.match(html, /没勾选的新增分类、归入和合并，下次检查时还会再出现/);          // no false promise about what is remembered
+});
+
+test('an old preview without merges or moves still renders', () => {
+  const ui = fixture();
+  const html = ui.suggestionsHTML({ fingerprint: 'f', groups: [{ id: 'g', name: 'A', keys: ['p1'], parent: null, reason: 'r' }], profile: {} });
+  assert.match(html, /新增分类/);
+  assert.doesNotMatch(html, /合并重复分类|建议调整归属/);
 });
 
 test('undo button names the change it undoes and is absent when nothing visible can be undone', () => {

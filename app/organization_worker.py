@@ -23,8 +23,8 @@ def main(args=None):
         if args[4] != "stdin" or operation != "suggest":
             raise ValueError("only suggest reads a request body from stdin")
         request = json.loads(sys.stdin.read(1_000_001)[:1_000_000] or "{}")
-        if not isinstance(request, dict) or set(request) - {"profile"}:
-            raise ValueError("worker request must be an object with an optional profile")
+        if not isinstance(request, dict) or set(request) - {"profile", "scope_project"}:
+            raise ValueError("worker request must be an object with an optional profile and scope_project")
         body.update(request)
 
     def guard():

@@ -799,7 +799,9 @@ class Handler(BaseHTTPRequestHandler):
             operation = body.get("op", body.get("action")) if body else None
             if operation in {"suggest", "graph"}:
                 path = app.store.path.resolve()
-                request = {"profile": suggestion_profile(app, body.get("project_id"))} if operation == "suggest" else None
+                request = ({"profile": suggestion_profile(app, body.get("project_id")),
+                            "scope_project": None if body.get("scope") == "all" else (body.get("project_id") or app.get_default_project_id())}
+                           if operation == "suggest" else None)
                 job = _job_start("organization", lambda: organization_job(path, "default", operation, request))
                 return self._json({"job": job})
             self._json(organization.snapshot() if body is None else organization.action(body))

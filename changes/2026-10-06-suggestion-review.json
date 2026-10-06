@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-suggestion-review",
+  "class": "critical",
+  "summary": "整理建议 becomes a review instead of a redo: it looks at what is saved and lists only changes with a one-line reason each (new categories for unplaced papers, additions to existing categories, possible matches on part of a category name (not ticked), merges of same-name categories at one level, and moves of papers whose categories do not fit their text (not ticked, can be dismissed on purpose)); papers with nothing to propose are listed as not placed yet, never as 'nothing to change'. Organised papers are remembered as reviewed (signature of text + categories in the organization data, additive key `reviewed`), a review of a project tab looks only at that project's papers, the preview is bound to the shape of the shared categories, and one apply is one undo step. Deterministic, offline, zero model tokens.",
+  "tasks": [
+    "PROJECT-01",
+    "PROFILE-02"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/organization.py",
+    "app/organization_facets.py",
+    "app/organization_worker.py",
+    "app/server.py",
+    "app/static/i18n/en-US.json",
+    "app/static/organization.js",
+    "changes/2026-10-06-suggestion-review.json",
+    "docs/evidence/2026-10-06-suggestion-review-checks.txt",
+    "docs/evidence/2026-10-06-suggestion-review-review.md",
+    "docs/evidence/2026-10-06-suggestion-review-self-review.md",
+    "tests/test_organization.py",
+    "tests/test_organization_review.py",
+    "tests/test_organization_ui.cjs",
+    "tests/test_organization_undo.py",
+    "tests/test_organization_worker.py",
+    "tests/test_suggestion_apply.py",
+    "tests/test_suggestion_regroup.py"
+  ],
+  "scope_note": "Branch feature/route-mode on top of b0c4801. organization.py, organization_facets.py, organization_worker.py, server.py, organization.js; stage 4 of 4.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Deterministic local logic; no model call, no network. One additive key in the organization JSON.",
+    "before": "Every saved paper was re-suggested on every run, producing duplicate categories.",
+    "after": "Only changes are listed; reviewed papers are not repeated until they or their categories change.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-suggestion-review-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-suggestion-review-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-suggestion-review-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-06-suggestion-review-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "One separate read-only code-review agent (same model family, not a human); findings fixed afterwards, fixes not re-read by a reviewer.",
+      "evidence": "docs/evidence/2026-10-06-suggestion-review-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "The independent review's fixes (and the later possible-match and unplaced-list changes) were not re-read by a reviewer.",
+    "The move rule is lexical (stems and a glossary) and has only been tried on a copy of one real library; it stays unticked.",
+    "Not checked in the Tauri window, in dark mode or on a very large library.",
+    "Merges and additions the person leaves unticked come back at the next review by design; only a dismissed move is remembered."
+  ]
+}

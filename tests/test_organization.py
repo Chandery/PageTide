@@ -393,40 +393,40 @@ class OrganizationTests(unittest.TestCase):
             self.assertEqual(self.org.snapshot(), before)
 
     def test_suggest_releases_transaction_and_preserves_concurrent_edits(self):
-        from app.organization_facets import suggest_groups
+        from app.organization_facets import review
         second = Store(self.path)
         self.addCleanup(second.close)
         peer = Organization(second)
 
-        def during_compute(papers, **kwargs):
+        def during_compute(*args, **kwargs):
             self.assertFalse(self.org.conn.in_transaction)
             peer.action({"action": "direction-save", "name": "Concurrent", "color": "#123456"})
             peer.action({"action": "note", "key": "a", "text": "during compute", "version": 0})
-            return suggest_groups(papers, **kwargs)
+            return review(*args, **kwargs)
 
-        with patch("app.organization.suggest_groups", side_effect=during_compute):
+        with patch("app.organization.review_papers", side_effect=during_compute):
             result = self.org.action({"action": "suggest"})
         self.assertEqual(result["directions"][0]["name"], "Concurrent")
         self.assertEqual(self.item(result)["note"], "during compute")
         self.assertEqual(result["revision"], 3)
 
     def test_suggest_rechecks_corpus_and_explicit_revision_after_computation(self):
-        from app.organization_facets import suggest_groups
+        from app.organization_facets import review
 
-        def corpus_changed(papers, **kwargs):
+        def corpus_changed(*args, **kwargs):
             self.store.save_to_library("c")
-            return suggest_groups(papers, **kwargs)
+            return review(*args, **kwargs)
 
-        with patch("app.organization.suggest_groups", side_effect=corpus_changed), self.assertRaises(Conflict):
+        with patch("app.organization.review_papers", side_effect=corpus_changed), self.assertRaises(Conflict):
             self.org.action({"action": "suggest"})
         self.assertNotIn("suggestions", self.org.snapshot())
         self.assertEqual(self.org.snapshot()["revision"], 0)
 
-        def revision_changed(papers, **kwargs):
+        def revision_changed(*args, **kwargs):
             self.direction()
-            return suggest_groups(papers, **kwargs)
+            return review(*args, **kwargs)
 
-        with patch("app.organization.suggest_groups", side_effect=revision_changed), self.assertRaises(Conflict):
+        with patch("app.organization.review_papers", side_effect=revision_changed), self.assertRaises(Conflict):
             self.org.action({"action": "suggest", "revision": 0})
         self.assertNotIn("suggestions", self.org.snapshot())
         self.assertEqual(len(self.org.snapshot()["directions"]), 1)
@@ -437,11 +437,16 @@ class OrganizationTests(unittest.TestCase):
         self.assertEqual(self.item(preview)["directions"], [])
         fingerprint = preview["suggestions"]["fingerprint"]
         self.org.action({"action": "membership", "keys": ["a"], "add": [direction]})
+        with self.assertRaises(Conflict):   # the categories changed after the review: it must be run again
+            self.org.action({"action": "apply-suggestions", "fingerprint": fingerprint})
+        self.assertTrue(self.org.snapshot()["suggestions"]["stale"])
+        preview = self.org.action({"action": "suggest"})
+        fingerprint = preview["suggestions"]["fingerprint"]
         self.org.action({"action": "note", "key": "b", "text": "keep note", "version": 0})
         applied = self.org.action({"action": "apply-suggestions", "fingerprint": fingerprint})
         self.assertEqual(self.item(applied)["directions"], [direction])
         self.assertEqual(self.item(applied, "b")["note"], "keep note")
-        self.assertTrue(self.item(applied, "b")["directions"][0].startswith("facet-"))
+        self.assertEqual(self.item(applied, "b")["directions"], [direction])   # the paper joins the existing category that its title mentions instead of a duplicate being made
         self.org.action({"action": "undo"})
         self.assertEqual(self.item(key="b")["directions"], [])
         self.assertEqual(self.item(key="b")["note"], "keep note")

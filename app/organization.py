@@ -39,7 +39,7 @@ from urllib.parse import unquote
 
 from . import pathgraph
 from .clustering import cluster, corpus_fingerprint
-from .organization_facets import suggest_groups
+from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
 from .db import now
 
 
@@ -240,7 +240,9 @@ class Organization:
         if data.get("suggestions"):
             result["suggestions"] = data["suggestions"]
             result["suggestions"]["stale"] = (
-                corpus_fingerprint(self._corpus()) != data["suggestions"]["fingerprint"])
+                corpus_fingerprint(self._corpus(data["suggestions"].get("scope"))) != data["suggestions"]["fingerprint"]
+                or (data["suggestions"].get("structure") is not None
+                    and data["suggestions"]["structure"] != structure_hash(data["directions"], data["memberships"])))
         if archived:
             result.update({"format": "paperdig-organization-v1", "project": self.project,
                            "organization": data})
@@ -270,7 +272,12 @@ class Organization:
             AND (label IS NULL OR label NOT IN (?,?)) ORDER BY id DESC LIMIT 1""",
                                  (self.project,) + LAYOUT_LABELS).fetchone()
 
-    def _corpus(self):
+    def _corpus(self, scope=None):
+        """The saved papers; with `scope` (a project id) only the ones that project saved."""
+        if scope:
+            return [dict(row) for row in self.conn.execute("""SELECT p.* FROM papers p
+                JOIN library l ON p.key=l.paper_key
+                WHERE p.key IN (SELECT paper_key FROM project_library WHERE project_id=?) ORDER BY p.key""", (scope,))]
         return [dict(row) for row in self.conn.execute("""SELECT p.* FROM papers p
             JOIN library l ON p.key=l.paper_key ORDER BY p.key""")]
 
@@ -481,17 +488,29 @@ class Organization:
                 preview = data.get("suggestions")
                 if not preview or body.get("fingerprint") != preview["fingerprint"]:
                     raise Conflict("A matching stored suggestion preview is required")
-                if corpus_fingerprint(self._corpus()) != preview["fingerprint"]:
+                if corpus_fingerprint(self._corpus(preview.get("scope"))) != preview["fingerprint"]:
                     raise Conflict("Suggestion corpus is stale; recompute preview")
+                if preview.get("structure") is not None and preview["structure"] != structure_hash(data["directions"], data["memberships"]):
+                    raise Conflict("The categories changed since this review; run it again")
                 groups = self._selected_groups(body, preview)
                 mode = body.get("apply_mode")
                 if mode not in (None, "add"):
                     raise ValueError("Unknown suggestion application mode")
                 if mode == "add":
-                    if "suggestions" not in body or not groups:
+                    if "suggestions" not in body:
                         raise ValueError("请选择要应用的类别和论文")
-                    apply_result = self._add_selected_suggestions(data, groups)
-                    if not apply_result["added_memberships"]:
+                    merges = self._selected_items(body.get("merges"), preview.get("merges", []), "merge")
+                    moves = self._selected_items(body.get("moves"), preview.get("moves", []), "move")
+                    dismissed = self._selected_items(body.get("dismissed"), preview.get("moves", []), "dismissed move")
+                    if {m["id"] for m in moves} & {m["id"] for m in dismissed}:
+                        raise ValueError("A move cannot be both applied and dismissed")
+                    finish = body.get("finish") is True
+                    if not groups and not merges and not moves and not finish:
+                        raise ValueError("请选择要应用的类别和论文")
+                    apply_result = self._apply_review(data, groups, merges, moves, dismissed, preview)
+                    if merges or moves or not groups:
+                        label = "应用整理调整"
+                    if _dump(data) == before:   # nothing to add, merge or move and nothing newly reviewed
                         result = self._snapshot()
                         result["apply_result"] = apply_result
                         return result
@@ -506,6 +525,11 @@ class Organization:
                                     and (not data["memberships"].get(key) or
                                          (regroup and set(data["memberships"][key]) <= automatic))]
                         if not eligible:
+                            continue
+                        if group.get("target") in {d["id"] for d in data["directions"]}:
+                            for key in eligible:   # an addition to an existing category
+                                if group["target"] not in data["memberships"].setdefault(key, []):
+                                    data["memberships"][key].append(group["target"])
                             continue
                         existing = next((d for d in data["directions"] if d["id"] == group["id"]), None)
                         if existing and existing.get("manual"):
@@ -642,25 +666,41 @@ class Organization:
                 data["positions"].pop(node)
 
     @staticmethod
-    def _add_selected_suggestions(data, groups):
-        """Explicit user-selected additions: never erase existing memberships or labels."""
+    def _add_selected_suggestions(data, groups, redirect=None):
+        """Explicit user-selected additions: never erase existing memberships or labels.
+
+        A group may name an existing category (`target`: papers are added to it), and a new category is never made
+        beside an existing one of the same name at the same level: the existing one is used."""
         added, already, created, changed = 0, 0, 0, set()
         placed = {}  # suggestion id -> direction id, so children land under their parent
+        redirect = redirect or {}
+        norm = lambda text: " ".join(str(text or "").lower().split())
         for group in groups:
             if not group["keys"]:
                 raise ValueError("所选类别至少需要一篇论文")
-            target = next((d for d in data["directions"]
-                           if (d["id"] == group["id"] or d.get("source_suggestion") == group["id"])
-                           and d["name"] == group["name"]
-                           and d["color"].lower() == group.get("color", "#64748b").lower()), None)
+            wanted = redirect.get(group.get("target"), group.get("target"))
+            target = next((d for d in data["directions"] if wanted and d["id"] == wanted), None)
+            if target is None and group.get("target"):
+                continue   # the category this addition was for is gone: skip it, never make a new one in its place
+            if target is None:
+                target = next((d for d in data["directions"]
+                               if (d["id"] == group["id"] or d.get("source_suggestion") == group["id"])
+                               and d["name"] == group["name"]
+                               and d["color"].lower() == group.get("color", "#64748b").lower()), None)
+            if target is None:
+                level = placed.get(group.get("parent")) if group.get("parent") is not None else None
+                target = next((d for d in data["directions"]
+                               if norm(d["name"]) == norm(group["name"]) and (d.get("parent_id") or None) == (level or None)
+                               and (group.get("parent") is None or level is not None)), None)
             if target is None:
                 identifier = group["id"]
                 if any(d["id"] == identifier for d in data["directions"]):
                     identifier = uuid.uuid4().hex
                 parent = group.get("parent")
                 if parent is not None and parent not in placed:
-                    # An unselected parent may already exist from an earlier application.
-                    parent = next((d["id"] for d in data["directions"]
+                    # An unselected parent may already exist from an earlier application, or be an existing category.
+                    ptarget = redirect.get(group.get("parent_target"), group.get("parent_target"))
+                    parent = ptarget if ptarget and any(d["id"] == ptarget for d in data["directions"]) else next((d["id"] for d in data["directions"]
                                    if parent in (d["id"], d.get("source_suggestion"))), None)
                 else:
                     parent = placed.get(parent)
@@ -729,6 +769,97 @@ class Organization:
         raise ValueError("Node IDs must use paper: or direction: prefix")
 
     @staticmethod
+    def _selected_items(selected, available, name):
+        """The merge / move items the person ticked: ids of the stored preview only, each once."""
+        if selected is None:
+            return []
+        if not isinstance(selected, list) or len(selected) > len(available):
+            raise ValueError(name + "s must be a subset of the stored preview")
+        by_id = {item["id"]: item for item in available}
+        seen, items = set(), []
+        for identifier in selected:
+            if not isinstance(identifier, str) or identifier not in by_id or identifier in seen:
+                raise ValueError("Unknown or duplicate " + name)
+            seen.add(identifier)
+            items.append(by_id[identifier])
+        return items
+
+    def _apply_review(self, data, groups, merges, moves, dismissed, preview):
+        """Apply ticked additions, merges and moves in one change, then mark the papers looked at as reviewed.
+
+        A move proposal stays open (it is proposed again) until it is applied or dismissed on purpose; nothing is
+        inferred from a box left unticked. Everything is skipped, not guessed, when the shape it assumed has changed."""
+        known = lambda: {d["id"] for d in data["directions"]}
+        parent_of = lambda i: next((d.get("parent_id") for d in data["directions"] if d["id"] == i), None)
+
+        def related(a, b):   # one is the other or sits above it
+            for start, other in ((a, b), (b, a)):
+                up, guard = parent_of(start), 0
+                while up is not None and guard < 64:
+                    if up == other:
+                        return True
+                    up, guard = parent_of(up), guard + 1
+            return a == b
+        changed, redirect, merged, moved = set(), {}, 0, 0
+        for item in merges:   # merges first; later steps follow a dropped category to the one kept
+            keep = item["keep"]
+            if keep not in known():
+                continue
+            drop = [i for i in item["drop"] if i in known() and i != keep and parent_of(i) == parent_of(keep) and not related(i, keep)]
+            for identifier in drop:
+                redirect[identifier] = keep
+                for key, ids in data["memberships"].items():
+                    if identifier in ids:
+                        data["memberships"][key] = list(dict.fromkeys(keep if i == identifier else i for i in ids))
+                        changed.add(key)
+                for direction in data["directions"]:
+                    if direction.get("parent_id") == identifier and direction["id"] != keep:
+                        direction["parent_id"] = keep
+                merged += 1
+            self._remove_directions(data, set(drop))
+        apply_result = self._add_selected_suggestions(data, groups, redirect) if groups else {
+            "added_memberships": 0, "already_present": 0, "created_categories": 0, "changed_papers": 0}
+        emptied, applied_moves = set(), set()
+        for item in moves:
+            key = item["key"]
+            target = redirect.get(item["to"], item["to"])
+            if target not in known() or key not in data["memberships"]:
+                continue
+            current = data["memberships"][key]
+            leaving = [redirect.get(i, i) for i in item["from"] if redirect.get(i, i) in current and redirect.get(i, i) != target]
+            if not leaving:
+                continue
+            data["memberships"][key] = [i for i in current if i not in leaving] + ([target] if target not in current else [])
+            emptied.update(leaving)
+            applied_moves.add(item["id"])
+            changed.add(key)
+            moved += 1
+        if emptied:
+            # a category is dropped only when nobody at all holds it any more, archived papers included
+            holding = {i for ids in data["memberships"].values() for i in ids}
+            self._drop_emptied(data, emptied - holding)
+        data["protected"] = sorted(set(data["protected"]) | changed)
+        apply_result.update(merged_categories=merged, moved_papers=moved)
+        open_moves = {m["key"] for m in moves if m["id"] not in applied_moves} | {m["key"] for m in preview.get("moves", [])
+                      if m["id"] not in {x["id"] for x in moves} | {x["id"] for x in dismissed}}
+        self._mark_reviewed(data, preview, (set(preview.get("evaluated", [])) - open_moves) | changed, changed)
+        return apply_result
+
+    def _mark_reviewed(self, data, preview, keys, changed=()):
+        """Remember that these organised papers were looked at, so the next review does not repeat itself. A paper
+        whose categories did not change since the review keeps the signature the review computed."""
+        rows = {row["key"]: row for row in self._corpus(preview.get("scope"))}
+        live = {d["id"] for d in data["directions"]}
+        stored = preview.get("signatures") or {}
+        marks = {}
+        for key in keys:
+            ids = [i for i in data["memberships"].get(key, []) if i in live]
+            if key in rows and ids:
+                marks[key] = stored[key] if key in stored and key not in changed else paper_signature(rows[key], ids)
+        if marks:
+            data.setdefault("reviewed", {}).update(marks)
+
+    @staticmethod
     def _selected_groups(body, preview):
         if "suggestions" not in body:
             return preview["groups"]
@@ -753,30 +884,47 @@ class Organization:
             if not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
                 raise ValueError("color must be #RRGGBB")
             groups.append({"id": group_id, "keys": keys, "name": name, "color": color.lower(),
-                           "parent": original.get("parent"),
+                           "parent": original.get("parent"), "target": original.get("target"),
+                           "parent_target": (originals.get(original.get("parent")) or {}).get("target"),
                            "edited": name != original["name"] or color.lower() != "#64748b"})
         # Preview order lists parents first, so a child always finds its new parent.
         order = {group["id"]: index for index, group in enumerate(preview["groups"])}
         return sorted(groups, key=lambda group: order[group["id"]])
 
     def _suggest(self, body):
+        """Review what is saved and propose only changes (see organization_facets.review).
+
+        `scope_project` limits the review to the papers one project saved; the categories are shared. Nothing is
+        applied here. When there is nothing to change, the organised papers just looked at are marked reviewed."""
+        scope = body.get("scope_project")
+        if scope is not None and not isinstance(scope, str):
+            raise ValueError("scope_project must be a project id")
         with self._transaction(write=False):
-            revision, _ = self._load()
+            revision, data = self._load()
             if "revision" in body and _version(body["revision"], "revision") != revision:
                 raise Conflict("Organization revision conflict")
-            papers = self._corpus()
-        preview = suggest_groups(papers, profile=body.get("profile"))
+            papers = self._corpus(scope)
+            directions = [dict(d) for d in data["directions"]]
+            memberships = {k: list(v) for k, v in data["memberships"].items()}
+            reviewed = dict(data.get("reviewed") or {})
+        preview = review_papers(papers, directions, memberships, reviewed, body.get("profile"))
+        preview["scope"] = scope
         # The expensive computation owns neither a database transaction nor the
         # Store lock. Re-read state so concurrent manual edits are never lost.
         with self._transaction():
-            revision, data = self._load()
-            if "revision" in body and body["revision"] != revision:
+            now_revision, data = self._load()
+            if "revision" in body and body["revision"] != now_revision:
                 raise Conflict("Organization revision conflict")
-            if corpus_fingerprint(self._corpus()) != preview["fingerprint"]:
+            if corpus_fingerprint(self._corpus(scope)) != preview["fingerprint"]:
                 raise Conflict("Suggestion corpus changed during computation; retry preview")
             data["suggestions"] = preview
+            if not (preview.get("groups") or preview.get("merges") or preview.get("moves")) \
+                    and preview.get("structure") == structure_hash(data["directions"], data["memberships"]):
+                # Nothing to change (and the categories are as the review saw them): the organised papers just looked
+                # at are done until something about them changes.
+                self._mark_reviewed(data, preview, set(preview.get("evaluated", [])))
             self.conn.execute("UPDATE org_projects SET revision=?,data=? WHERE project=?",
-                              (revision + 1, _dump(data), self.project))
+                              (now_revision + 1, _dump(data), self.project))
             return self._snapshot()
 
     @staticmethod

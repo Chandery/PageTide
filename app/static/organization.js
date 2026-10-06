@@ -842,24 +842,38 @@
       draft.version = item(key).note_version; draft.dirty = true; draft.error = ''; storeDraft(key, draft); d.close(); renderDetail();
     });
   }
-  // Profile first: pinned terms are the top level, repeated title phrases subdivide them.
-  function suggestionsHTML(preview, lookup = item) {
-    const groups = preview.groups || [], profile = preview.profile || {}, index = new Map(groups.map((g, i) => [g.id, i]));
+  /* The review lists only what could change: new categories, additions to existing categories, duplicate categories
+     to merge, and papers that may sit in the wrong category. What needs no change is not mentioned. Each item has a
+     checkbox; unticked items stay as they are and are not proposed again until the paper or its categories change. */
+  function suggestionsHTML(preview, lookup = item, nameOf = id => categoryPath(id)) {
+    const groups = preview.groups || [], merges = preview.merges || [], moves = preview.moves || [], pending = preview.pending_keys || [];
+    const waiting = pending.length ? `<section class="org-review-section" data-kind="pending"><h4>还没有归类的论文</h4><p class="org-paper-meta">这些论文暂时没有找到合适的类别；可以在论文库里手动归类，或之后再来。</p><ul class="org-pending">${pending.map(k => `<li data-no-i18n>${h(lookup(k)?.title || k)}</li>`).join('')}</ul></section>` : '';
+    if (!groups.length && !merges.length && !moves.length) {
+      return `${waiting ? `<p class="org-review-empty" role="status">没有可以自动提出的调整。</p>${waiting}` : '<p class="org-review-empty" role="status">没有需要调整的内容。</p>'}<p class="org-paper-meta">${preview.scope ? '已检查这个项目里的论文；论文内容或类别有变化后，才会再次检查。' : '已检查全部论文；论文内容或类别有变化后，才会再次检查。'}</p>`;
+    }
+    const index = new Map(groups.map((g, i) => [g.id, i]));
     const depth = g => { let n = 0, p = g.parent; while (p != null && index.has(p) && n < 4) { n++; p = groups[index.get(p)].parent; } return n; };
-    const pinned = (profile.pinned || []).map(h).join('、');
-    const basis = pinned ? `<p class="org-paper-meta">依据${profile.project ? `「${h(profile.project)}」` : '当前项目'}画像的固定关键词：${pinned}。一级类别来自这些关键词；类别内部再按标题里反复出现的短语细分。</p>`
-      : `<p class="org-paper-meta">${profile.project ? `「${h(profile.project)}」` : '当前项目'}还没有固定关键词，先按标题里反复出现的短语分组。在“画像”页固定关键词后再生成，会以它们为一级类别。</p>`;
-    const unmatched = (profile.unmatched || []).map(u => u.same_as ? `${h(u.term)}（与「${h(u.same_as)}」基本是同一批论文）` : u.dropped ? `${h(u.term)}（${Number(u.documents) || 0} 篇提到，超出 12 个一级类别上限）` : `${h(u.term)}（${u.documents ? `只有 ${u.documents} 篇提到` : '没有论文提到'}）`);
-    const members = keys => `<details class="org-suggestion-members-wrap"><summary>${keys.length} 篇论文 · 查看或取消</summary><div class="org-suggestion-members">${keys.map(k => `<label><input type="checkbox" data-member="${h(k)}" checked><span>${h(lookup(k)?.title || k)}</span></label>`).join('')}</div></details>`;
-    const cards = groups.map((g, i) => { const level = depth(g), parent = level ? groups[index.get(g.parent)] : null;
-      return `<fieldset class="org-suggestion${level ? ' is-child' : ''}" data-suggestion="${i}" style="--depth:${level}"><div class="org-suggestion-head"><input type="checkbox" data-enabled checked aria-label="采用此类别">${parent ? `<span class="org-suggestion-parent">${h(parent.name)} ›</span>` : ''}<input data-name aria-label="类别名称" value="${h(g.name)}" required maxlength="120"><input type="color" data-color aria-label="类别颜色" value="${color(g.color || DEFAULT_COLOR)}"></div><p class="org-paper-meta">${h(g.reason || '请核对分组内容')}</p>${members(g.keys || [])}</fieldset>`; }).join('');
-    return `${basis}${unmatched.length ? `<p class="org-paper-meta">未单独成类：${unmatched.join('；')}</p>` : ''}<p class="org-paper-meta">${groups.length} 个类别 · ${(preview.pending_keys || []).length} 篇没有共同短语，暂不归类。取消勾选上级类别时，其子类会成为一级类别。应用后只添加类别，已有分类保留，可以撤销。</p>${cards || '<p>没有可应用的建议</p>'}`;
+    const members = (keys, on) => `<details class="org-suggestion-members-wrap"><summary>${keys.length} 篇论文 · 查看或取消</summary><div class="org-suggestion-members">${keys.map(k => `<label><input type="checkbox" data-member="${h(k)}" ${on ? 'checked' : ''}><span>${h(lookup(k)?.title || k)}</span></label>`).join('')}</div></details>`;
+    const groupCard = (g, i) => { const level = depth(g), parent = level ? groups[index.get(g.parent)] : null, existing = !!g.target, weak = !!g.weak;
+      return `<fieldset class="org-suggestion${level ? ' is-child' : ''}${weak ? ' is-weak' : ''}" data-suggestion="${i}" style="--depth:${level}"><div class="org-suggestion-head"><input type="checkbox" data-enabled ${weak ? '' : 'checked'} aria-label="${existing ? '加入这个类别' : '采用此类别'}">${parent ? `<span class="org-suggestion-parent">${h(parent.name)} ›</span>` : ''}${weak ? '<em class="org-maybe">可能相关</em>' : ''}<input data-name aria-label="类别名称" value="${h(g.name)}" required maxlength="120"${existing ? ' readonly' : ''}>${existing ? '' : `<input type="color" data-color aria-label="类别颜色" value="${color(g.color || DEFAULT_COLOR)}">`}</div><p class="org-paper-meta">${h(g.reason || '请核对分组内容')}</p>${members(g.keys || [], true)}</fieldset>`; };
+    const section = (kind, title, body) => body ? `<section class="org-review-section" data-kind="${kind}"><h4>${title}</h4>${body}</section>` : '';
+    const mergeCard = m => `<fieldset class="org-suggestion" data-merge="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-merge-enabled checked aria-label="合并这些类别"><strong data-no-i18n>${h(m.name)}</strong></div><p class="org-paper-meta">${h(m.reason)}</p><p class="org-paper-meta">${(m.copies || []).map(c => `<span>${c.children ? `${h(c.papers)} 篇、${h(c.children)} 个子类` : `${h(c.papers)} 篇`}</span>`).join(' · ')}</p><p class="org-paper-meta">子类别和论文都会并入保留的那个（第一个）；合并后可以撤销。</p></fieldset>`;
+    const moveCard = m => `<fieldset class="org-suggestion" data-move="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-move-enabled aria-label="调整这篇论文的类别"><span class="org-move-title" data-no-i18n>${h(lookup(m.key)?.title || m.key)}</span></div><p class="org-paper-meta">${(m.from || []).map(id => `「<span data-no-i18n>${h(nameOf(id))}</span>」`).join('')} → 「<span data-no-i18n>${h(m.name || nameOf(m.to))}</span>」</p><p class="org-paper-meta">${h(m.reason)}</p><label class="org-dismiss"><input type="checkbox" data-move-dismiss> 保持现状，不再提示</label></fieldset>`;
+    const created = groups.map((g, i) => ({ g, i })).filter(x => !x.g.target), added = groups.map((g, i) => ({ g, i })).filter(x => x.g.target);
+    return `<p class="org-paper-meta">${preview.scope ? '范围：这个项目的论文。只列出需要调整的内容，没变的不再重复。' : '范围：全部论文。只列出需要调整的内容，没变的不再重复。'}</p>`
+      + section('create', '新增分类', created.map(x => groupCard(x.g, x.i)).join(''))
+      + section('add', '归入已有分类', added.map(x => groupCard(x.g, x.i)).join(''))
+      + section('merge', '合并重复分类', merges.map(mergeCard).join(''))
+      + section('move', '建议调整归属（默认不勾选）', moves.length ? `<p class="org-paper-meta">原类别如果因此没有任何论文，会一并删除（可撤销）。没勾选“调整”也没勾选“保持现状”的建议，下次还会出现。</p>${moves.map(moveCard).join('')}` : '')
+      + waiting
+      + '<p class="org-paper-meta">没勾选的新增分类、归入和合并，下次检查时还会再出现；只有勾选“保持现状，不再提示”的调整建议，才会在论文和类别不变时不再出现。应用后可以撤销。</p>';
   }
   async function suggest() {
     const d = dialog('整理建议', '<p role="status">正在生成建议…</p>', null);
     try {
       await S.queue;
-      let result = await window.PDH.api('/api/organization', { action: 'suggest', revision: S.snapshot.revision, ...(window.PDH.state?.currentProject ? { project_id: window.PDH.state.currentProject } : {}) });
+      const asked = S.scope !== 'all' ? S.scope : window.PDH.state?.currentProject;   // the project tab's papers and profile; on the all tab, every paper with the current project's profile
+      let result = await window.PDH.api('/api/organization', { action: 'suggest', revision: S.snapshot.revision, ...(asked ? { project_id: asked } : {}), ...(S.scope === 'all' ? { scope: 'all' } : {}) });
       if (result.job) {
         let job = result.job;
         while (job.state !== 'done') {
@@ -873,16 +887,23 @@
       if (!d.isConnected) return;
       if (Array.isArray(result.items) && result.revision >= S.snapshot.revision) { accept(result); renderData(); }
       d.close();
-      const preview = result.suggestions || result.snapshot?.suggestions || {};
+      const preview = result.suggestions || result.snapshot?.suggestions;
+      if (!preview || !Array.isArray(preview.groups)) throw new Error('服务端没有返回整理建议，请重试');
       const proposals = preview.groups || (Array.isArray(preview) ? preview : []);
-      dialog('审核整理建议', suggestionsHTML(preview), '应用所选建议', async el => {
-        const suggestions = [...el.querySelectorAll('[data-suggestion]')].filter(f => f.querySelector('[data-enabled]').checked).map(f => ({ id: proposals[Number(f.dataset.suggestion)].id, name: f.querySelector('[data-name]').value.trim(), color: f.querySelector('[data-color]').value, keys: [...f.querySelectorAll('[data-member]:checked')].map(c => c.dataset.member) }));
-        if (!suggestions.length || suggestions.some(s => !s.name || !s.keys.length)) throw new Error('请选择至少一个有名称和论文的类别');
-        const result = await mutate({ action:'apply-suggestions', apply_mode:'add', fingerprint:preview.fingerprint, suggestions });
+      const nothing = !(preview.groups || []).length && !(preview.merges || []).length && !(preview.moves || []).length;
+      dialog('整理建议', suggestionsHTML(preview), nothing ? null : '应用所选', async el => {
+        const suggestions = [...el.querySelectorAll('[data-suggestion]')].filter(f => f.querySelector('[data-enabled]').checked).map(f => ({ id: proposals[Number(f.dataset.suggestion)].id, name: f.querySelector('[data-name]').value.trim(), color: f.querySelector('[data-color]')?.value || DEFAULT_COLOR, keys: [...f.querySelectorAll('[data-member]:checked')].map(c => c.dataset.member) }));
+        if (suggestions.some(s => !s.name || !s.keys.length)) throw new Error('每个所选类别都需要名称和至少一篇论文');
+        const merges = [...el.querySelectorAll('[data-merge]')].filter(f => f.querySelector('[data-merge-enabled]').checked).map(f => f.dataset.merge);
+        const moves = [...el.querySelectorAll('[data-move]')].filter(f => f.querySelector('[data-move-enabled]').checked).map(f => f.dataset.move);
+        const dismissed = [...el.querySelectorAll('[data-move]')].filter(f => f.querySelector('[data-move-dismiss]').checked && !f.querySelector('[data-move-enabled]').checked).map(f => f.dataset.move);
+        const result = await mutate({ action:'apply-suggestions', apply_mode:'add', fingerprint:preview.fingerprint, suggestions, merges, moves, dismissed, finish: true });
         const applied = result.apply_result;
         if (!applied) throw new Error('当前服务端未返回应用结果，请退出旧版并打开最新应用后重试');
         S.filter = '*'; renderData();
-        S.notice = applied.added_memberships ? `已为 ${applied.changed_papers} 篇论文新增 ${applied.added_memberships} 条类别归属（新建 ${applied.created_categories} 个类别），原有分类保留。` : '所选论文已属于这些类别，无需重复添加。';
+        // Sentences joined by " · ": the interface language layer translates each one whole.
+        const parts = [applied.added_memberships ? `为 ${applied.changed_papers} 篇论文新增了 ${applied.added_memberships} 条类别归属` : '', applied.created_categories ? `新建了 ${applied.created_categories} 个类别` : '', applied.merged_categories ? `合并了 ${applied.merged_categories} 个重复类别` : '', applied.moved_papers ? `调整了 ${applied.moved_papers} 篇论文的类别` : ''].filter(Boolean);
+        S.notice = parts.length ? [...parts, '其余保持原样，可以撤销'].join(' · ') : '没有改动任何类别';
         status(); window.PDH.toast(S.notice, 'ok', 6000);
       });
     } catch (error) { if (d.isConnected) d.querySelector('.org-dialog-body').textContent = `建议生成失败：${error.message}`; else report(error); }
