@@ -281,15 +281,16 @@ class BatchTests(Fixture):
         for c in out["cards"]:
             self.assertTrue(c["route"] is None or c["route"]["kind"] != "route" or c["route"]["node"] == self.cid["Crystal basics"])
 
-    def test_when_the_map_has_no_papers_at_all_the_batch_is_ordinary_and_says_so(self):
+    def test_when_the_map_has_no_papers_at_all_the_batch_keeps_its_path_labels_and_says_so(self):
         for key in [p["key"] for p in self.app.store.papers() if p["key"].startswith(("lat", "survey"))]:
             self.app.store.conn.execute("DELETE FROM project_papers WHERE project_id=? AND paper_key=?", (self.pid, key))
         self.app.store.conn.commit()
         self.enable()
         out = self.app.build_batch(limit=5, project_id=self.pid)
         self.assertTrue(out["cards"])
-        self.assertTrue(all(c["mode"] == "sparse" and c["route"] is None for c in out["cards"]))
-        self.assertIn("普通推荐", out["shortfall"]["reason"])
+        self.assertTrue(all(c["route"] is not None and c["route"]["kind"] in ("explore", "offroute") for c in out["cards"]))   # never a card without a path label
+        self.assertIn("offroute", {c["route"]["kind"] for c in out["cards"]})
+        self.assertIn("路径外", out["shortfall"]["reason"])
 
     def test_exploration_picks_are_outside_the_unlocked_frontier(self):
         self.enable(mastered=["Crystal basics", "Epitaxy", "Doping"])

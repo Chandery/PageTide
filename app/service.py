@@ -1896,9 +1896,22 @@ class App:
                 batch_id = self.store.create_batch(run_date, [k for k, _, _, _ in picks], project_id=project_id,
                                                    route={k: (node, kind) + (names.get(node, (None, None)) if label is None else (label, None)) for k, node, kind, label in picks})
                 return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
+            # The concepts the reader can read now have no unshown papers. The batch stays a path batch instead of silently
+            # turning into an ordinary one: the exploration papers keep their tag, and the rest are filled in by interest
+            # and marked "offroute" (with the concept they resemble, when there is one), so the page can say why.
             shortfall = {**(shortfall or {}), "requested": limit, "available": 0, "candidates": len(papers),
-                         "reason": ("There are no unshown papers for the concepts you can read now, so this is an ordinary batch"
-                                    if self.english() else "路径上你现在能读的概念没有未展示的论文，这一批是普通推荐")}
+                         "reason": ("The concepts you can read now have no unshown papers; the rest of this batch is filled in by your interests and marked as off the path. Fetch new papers to get path papers again"
+                                    if self.english() else "路径上你现在能读的概念暂时没有未展示的论文；这一批其余的论文按你的兴趣补上，标为“路径外”。抓取新论文后会回到路径上")}
+            kept = [k for k, _, _, _ in picks]
+            rest = [(k, v) for k, v in scored if k not in set(kept)]
+            fill = ranking.mmr_select(rest[:max(limit * 4, limit)], vectors, max(0, limit - len(kept))) if len(kept) < limit else []
+            active = {**route["graph"], "concepts": [c for c in route["graph"]["concepts"] if c.get("state", "active") == "active"]}
+            near = {k: ids[0] for k, ids in pathgrowth.assign(active, [p for p in pool if p["key"] in set(fill)]).items()}
+            names = {c["id"]: (c["name"], route["layers"][c["id"]]) for c in route["graph"]["concepts"]}
+            labelled = {k: (node, kind) + (names.get(node, (None, None)) if label is None else (label, None)) for k, node, kind, label in picks}
+            labelled.update({k: (near.get(k), "offroute") + names.get(near.get(k), (None, None)) for k in fill})
+            batch_id = self.store.create_batch(run_date, kept + fill, project_id=project_id, route=labelled)
+            return {"batch_id": batch_id, "cards": self.cards(batch_id, project_id), "shortfall": shortfall}
         shortlist = scored[:max(limit * 4, limit)]
         chosen = ranking.mmr_select(shortlist, vectors, limit)
         batch_id = self.store.create_batch(run_date, chosen, project_id=project_id)

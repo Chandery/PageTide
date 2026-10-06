@@ -107,6 +107,30 @@ class ExploreNewTests(Fixture):
         self.assertNotIn("explore_new", kinds.values())
         self.assertIn("explore", kinds.values())
 
+    def test_when_the_readable_concepts_run_out_of_papers_the_batch_stays_a_path_batch_and_says_so(self):
+        for i in range(6):
+            self.add(f"o{i}", f"Quantum dots and nanowires {i}", f"quantum dots nanowires photonics {i}", "journal-q")
+        self.app.build_batch(limit=5, project_id=self.pid)
+        self.app.build_batch(limit=5, project_id=self.pid)           # now every paper of the readable concept has been shown
+        out = self.app.build_batch(limit=5, project_id=self.pid)
+        kinds = self.kinds(out["cards"])
+        self.assertEqual(len(out["cards"]), 5)
+        self.assertNotIn(None, kinds.values())                         # no card loses its path label
+        self.assertNotIn("route", kinds.values())
+        self.assertIn("offroute", kinds.values())
+        self.assertIn("路径外", out["shortfall"]["reason"])
+        self.assertTrue(all(c["route"] is not None for c in out["cards"]))
+        self.assertEqual(sum(1 for v in kinds.values() if v in ("explore", "explore_new")), 1)   # the exploration slot keeps its own tag
+
+    def test_an_off_path_paper_names_the_concept_it_resembles_when_there_is_one(self):
+        for i in range(4):
+            self.add(f"e{i}", f"Epitaxial growth study {i}", "epitaxy epitaxial growth", "journal-e")
+        self.app.build_batch(limit=5, project_id=self.pid)
+        self.app.build_batch(limit=5, project_id=self.pid)
+        route = self.app.build_batch(limit=5, project_id=self.pid)["cards"]
+        named = [c["route"]["name"] for c in route if c["route"]["kind"] == "offroute"]
+        self.assertIn("Epitaxy", named)                                # "Epitaxy" is locked, so these are not on the readable path
+
     def test_every_batch_has_an_exploration_slot_when_the_pool_has_something_to_explore(self):
         first = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
         self.assertEqual(sum(1 for v in first.values() if v in ("explore", "explore_new")), 1)   # not "from the second batch on"

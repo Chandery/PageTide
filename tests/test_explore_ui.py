@@ -18,6 +18,18 @@ class ExploreBadgeTests(unittest.TestCase):
         self.assertIn("让 AI 判断", kinds)               # what the reader can do after collecting it
         self.assertIn("不在你现在能读的概念里", kinds)
 
+    def test_the_off_path_label_exists_and_says_why(self):
+        kinds = INDEX[INDEX.index("const ROUTE_KINDS"):INDEX.index("function routeBadge")]
+        self.assertIn("offroute: '路径外'", kinds)
+        self.assertIn("抓取新论文后，推荐会回到路径上", kinds)
+        panel = INDEX[INDEX.index("function exploreLine"):INDEX.index("$('#routePanel').addEventListener")]
+        self.assertIn("路径外的补充", panel)
+
+    def test_exploration_is_hard_to_miss(self):
+        self.assertRegex(THEME, r"\.kw-explore \.kw-k, \.kw-explore_new \.kw-k \{ background:var\(--ai-text\);")   # a solid, bold tag
+        self.assertIn(".card.is-explore", THEME)                                                                 # and the whole card is marked
+        self.assertIn("exploring ? ' is-explore' : ''", INDEX)
+
     def test_the_new_direction_badge_is_styled_like_the_other_kinds(self):
         self.assertRegex(THEME, r"\.kw-explore_new \.kw-k\s*\{")
 

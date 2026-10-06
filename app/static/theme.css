@@ -68,6 +68,10 @@ html[data-mode="dark"] {
 .kw-k { background:color-mix(in srgb, var(--accent-text) 9%, var(--surface-2)); color:var(--muted); border-right:1px solid color-mix(in srgb, var(--accent-text) 18%, var(--line)); }
 .kw-v { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .kw-remedial .kw-k { color:var(--warn); }
-.kw-explore .kw-k, .kw-explore_new .kw-k { color:var(--ai-text); }
+.kw-explore, .kw-explore_new { border-color:var(--ai-text); border-width:2px; font-size:calc(13px * var(--s)); }
+.kw-explore .kw-k, .kw-explore_new .kw-k { background:var(--ai-text); color:var(--base); font-weight:700; letter-spacing:.04em; }
+.kw-explore .kw-k::before, .kw-explore_new .kw-k::before { content:'✦ '; }
+.kw-offroute .kw-k { color:var(--muted); font-style:italic; }
+.card.is-explore { border-left:5px solid var(--ai-text); }
 .route-explore { margin-top:calc(6px * var(--s)); }
 .judge-ask { display:flex; flex-wrap:wrap; align-items:center; gap:calc(8px * var(--s)); margin-top:calc(10px * var(--s)); padding:calc(8px * var(--s)) calc(10px * var(--s)); border:1px dashed var(--line-strong); border-radius:var(--r-md); font-size:calc(12.5px * var(--s)); color:var(--muted); }
