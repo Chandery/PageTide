@@ -1,23 +1,206 @@
 {
   "schema_version": 1,
   "requirements": [
-    {"id":"R-REUSE","text":"先评估直接采用/改造开源推荐与画像系统，仅自建已验证的缺口","gates":["E-REUSE"]},
-    {"id":"R-DISCOVERY","text":"领域覆盖和兴趣排序分别验证；少量有用论文、去重、日期与理由可追溯","gates":["E-DATA","E-RANKING"]},
-    {"id":"R-PROFILE","text":"核心画像透明可编辑冻结撤销；显式反馈学习有效，不把未选/忙/难懂当不喜欢","gates":["E-PROFILE","E-FEEDBACK-VALUE"]},
-    {"id":"R-NODEBT","text":"没空/暂停/连续未读不制造阅读债务；只调整提醒与探索，不推断负反馈","gates":["E-NO-DEBT"]},
-    {"id":"R-LOCAL","text":"本地保存推荐/画像/反馈/笔记；离线可查看导出；新数据外发最小授权","gates":["E-PRIVACY","E-OFFLINE"]},
-    {"id":"R-LOWCOMPUTE","text":"默认不下载本地神经模型；按真实语料与设备测资源，不继承旧目标即算通过","gates":["E-PERFORMANCE"]},
-    {"id":"R-DURABILITY","text":"已确认的种子/画像/反馈/曝光/笔记可重启和隔离恢复，版本来源保留","gates":["E-RESTORE"]},
-    {"id":"R-BUDGET","text":"默认推荐画像路径离线可用且生成模型调用为0；显式启用的重排/速览/追问经唯一网关，日/月token与金额准入，未批准数值不执行","gates":["E-NO-MODEL","E-BUDGET"]},
-    {"id":"R-HARNESS","text":"结果可复现、假设/证据/历史和当前状态可区分；换agent可仅凭AGENTS→HANDOFF→任务接手","gates":["E-HARNESS","E-HANDOFF"]},
-    {"id":"R-RELEASE","text":"真实最小闭环试用、维护/许可/安全和用户批准后才分发","gates":["E-PILOT","E-SECURITY"]},
-    {"id":"R-CAPTURE","text":"本地论文整理与阅读捕获：目录式嵌套类别、类别编辑删除与论文多方向归属、版本化用户笔记；高亮锚点后续验收，用户文本与AI文本分离","gates":["E-CAPTURE","E-ORGANIZATION"]},
-    {"id":"R-PDF","text":"首版能把推荐/确认论文的PDF本地下载并归档、离线打开；只取允许来源，不绕过付费墙或使用他人凭证","gates":["E-PDF-ARCHIVE"]},
-    {"id":"R-READING-INTEGRATION","text":"可选后置：优先标准导出/原文链接/已有文献软件；Zotero只读且按实际版本验证","gates":["E-READING-OPTIONAL"]},
-    {"id":"R-AGENT","text":"AI速览/追问/划词有证据边界、有界上下文、不自动工具循环、不上传全部历史或笔记","gates":["E-AI-OPTIONAL","E-BUDGET"]},
-    {"id":"R-HYBRID","text":"允许显式启用的稀疏+大模型混合排序；可关闭、可对照、标注来源模式，模型不可用时回退确定性且不静默换模型","gates":["E-RANKING","E-NO-MODEL","E-BUDGET"]},
-    {"id":"R-GRAPH","text":"论文图谱与聚类：相似论文聚合、不同观点/子领域分开、分组标签可编辑；优先复用开源、本地优先","gates":["E-GRAPH","E-ORGANIZATION"]},
-    {"id":"R-EVAL-LABEL","text":"评估标签可由大模型预标且对排序不可见；硬门槛需人工抽检标签质量，且同一模型不得同时做重排与最终裁判","gates":["E-LLM-LABEL-VALIDITY","E-RANKING"]},
-    {"id":"R-WEEKLY","text":"周报只基于实际活动，统计本地零token，不制造未读债务","gates":["E-WEEKLY-OPTIONAL"]}
+    {
+      "id": "R-REUSE",
+      "text": "先评估直接采用/改造开源推荐与画像系统，仅自建已验证的缺口",
+      "gates": [
+        "E-REUSE"
+      ]
+    },
+    {
+      "id": "R-DISCOVERY",
+      "text": "领域覆盖和兴趣排序分别验证；少量有用论文、去重、日期与理由可追溯",
+      "gates": [
+        "E-DATA",
+        "E-RANKING"
+      ]
+    },
+    {
+      "id": "R-PROFILE",
+      "text": "核心画像透明可编辑冻结撤销；显式反馈学习有效，不把未选/忙/难懂当不喜欢",
+      "gates": [
+        "E-PROFILE",
+        "E-FEEDBACK-VALUE"
+      ]
+    },
+    {
+      "id": "R-NODEBT",
+      "text": "没空/暂停/连续未读不制造阅读债务；只调整提醒与探索，不推断负反馈",
+      "gates": [
+        "E-NO-DEBT"
+      ]
+    },
+    {
+      "id": "R-LOCAL",
+      "text": "本地保存推荐/画像/反馈/笔记；离线可查看导出；新数据外发最小授权",
+      "gates": [
+        "E-PRIVACY",
+        "E-OFFLINE"
+      ]
+    },
+    {
+      "id": "R-LOWCOMPUTE",
+      "text": "默认不下载本地神经模型；按真实语料与设备测资源，不继承旧目标即算通过",
+      "gates": [
+        "E-PERFORMANCE"
+      ]
+    },
+    {
+      "id": "R-DURABILITY",
+      "text": "已确认的种子/画像/反馈/曝光/笔记可重启和隔离恢复，版本来源保留",
+      "gates": [
+        "E-RESTORE"
+      ]
+    },
+    {
+      "id": "R-BUDGET",
+      "text": "默认推荐画像路径离线可用且生成模型调用为0；显式启用的重排/速览/追问经唯一网关，日/月token与金额准入，未批准数值不执行",
+      "gates": [
+        "E-NO-MODEL",
+        "E-BUDGET"
+      ]
+    },
+    {
+      "id": "R-HARNESS",
+      "text": "结果可复现、假设/证据/历史和当前状态可区分；换agent可仅凭AGENTS→HANDOFF→任务接手",
+      "gates": [
+        "E-HARNESS",
+        "E-HANDOFF"
+      ]
+    },
+    {
+      "id": "R-RELEASE",
+      "text": "真实最小闭环试用、维护/许可/安全和用户批准后才分发",
+      "gates": [
+        "E-PILOT",
+        "E-SECURITY"
+      ]
+    },
+    {
+      "id": "R-CAPTURE",
+      "text": "本地论文整理与阅读捕获：目录式嵌套类别、类别编辑删除与论文多方向归属、版本化用户笔记；高亮锚点后续验收，用户文本与AI文本分离",
+      "gates": [
+        "E-CAPTURE",
+        "E-ORGANIZATION"
+      ]
+    },
+    {
+      "id": "R-PDF",
+      "text": "首版能把推荐/确认论文的PDF本地下载并归档、离线打开；只取允许来源，不绕过付费墙或使用他人凭证",
+      "gates": [
+        "E-PDF-ARCHIVE"
+      ]
+    },
+    {
+      "id": "R-READING-INTEGRATION",
+      "text": "可选后置：优先标准导出/原文链接/已有文献软件；Zotero只读且按实际版本验证",
+      "gates": [
+        "E-READING-OPTIONAL"
+      ]
+    },
+    {
+      "id": "R-AGENT",
+      "text": "AI速览/追问/划词有证据边界、有界上下文、不自动工具循环、不上传全部历史或笔记",
+      "gates": [
+        "E-AI-OPTIONAL",
+        "E-BUDGET"
+      ]
+    },
+    {
+      "id": "R-HYBRID",
+      "text": "允许显式启用的稀疏+大模型混合排序；可关闭、可对照、标注来源模式，模型不可用时回退确定性且不静默换模型",
+      "gates": [
+        "E-RANKING",
+        "E-NO-MODEL",
+        "E-BUDGET"
+      ]
+    },
+    {
+      "id": "R-GRAPH",
+      "text": "论文图谱与聚类：相似论文聚合、不同观点/子领域分开、分组标签可编辑；优先复用开源、本地优先",
+      "gates": [
+        "E-GRAPH",
+        "E-ORGANIZATION"
+      ]
+    },
+    {
+      "id": "R-EVAL-LABEL",
+      "text": "评估标签可由大模型预标且对排序不可见；硬门槛需人工抽检标签质量，且同一模型不得同时做重排与最终裁判",
+      "gates": [
+        "E-LLM-LABEL-VALIDITY",
+        "E-RANKING"
+      ]
+    },
+    {
+      "id": "R-WEEKLY",
+      "text": "周报只基于实际活动，统计本地零token，不制造未读债务",
+      "gates": [
+        "E-WEEKLY-OPTIONAL"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-00",
+      "text": "默认库与显式测试目录隔离；默认启动兼容；阶段方案可追溯",
+      "gates": [
+        "E-ROUTE-V2-00"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-01",
+      "text": "理工科英文、文科允许语言；旧项目明确选择；全文核验绑定 PDF 版本",
+      "gates": [
+        "E-ROUTE-V2-01"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-02",
+      "text": "可用摘要或当前本地正文才可推荐；链接不等于正文；语言规则一致",
+      "gates": [
+        "E-ROUTE-V2-02"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-03",
+      "text": "目标及其前置决定完成；旁支不阻止完成；持续关注与掌握分别保存",
+      "gates": [
+        "E-ROUTE-V2-03"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-04",
+      "text": "路径、探索、新进展分别召回；每刷新最多三主题，不增加配额",
+      "gates": [
+        "E-ROUTE-V2-04"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-05",
+      "text": "保留未回答路径曝光轮转；发现最多两篇；完成后每日最多一篇；无普通回退",
+      "gates": [
+        "E-ROUTE-V2-05"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-06",
+      "text": "有用和选定种子形成证据；五类判断；用户预览确认才改变 Map",
+      "gates": [
+        "E-ROUTE-V2-06"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-07",
+      "text": "五字段需求、完整 Map 补丁、稳定身份和进度截止点、冲突保留草稿、预算前检",
+      "gates": [
+        "E-ROUTE-V2-07"
+      ]
+    },
+    {
+      "id": "R-ROUTE-V2-08",
+      "text": "分类与学习用途各有语义、共享论文入口；Route 关闭保留 Map；完整流程验收",
+      "gates": [
+        "E-ROUTE-V2-08"
+      ]
+    }
   ]
 }

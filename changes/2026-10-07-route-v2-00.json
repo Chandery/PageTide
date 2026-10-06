@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-00",
+  "class": "critical",
+  "summary": "Register the accepted Route Mode redesign and make desktop verification use an explicit isolated library.",
+  "tasks": [
+    "ROUTE-V2-00"
+  ],
+  "files": [
+    "app/desktop.py",
+    "changes/2026-10-07-route-v2-00.json",
+    "docs/HANDOFF.md",
+    "docs/ROUTE_MODE_REWORK.md",
+    "docs/evidence/2026-10-07-route-v2-00-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-00-review.md",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/tasks.json",
+    "tests/test_desktop_isolation.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Local desktop path selection and planning registration introduce no provider calls; expanded AI limits are a pending proposal in the plan only.",
+    "before": "Core daily minimum 0 model tokens; harness/budget.json unchanged.",
+    "after": "Same 0 model tokens and approved runtime contracts; no budget approval change.",
+    "developer_usage": "unknown; project JSON does not measure coding-agent usage"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "command": "for test_file in tests/*.cjs; do node --test \"$test_file\" || exit 1; done",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -p test_desktop_isolation.py -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    },
+    {
+      "command": "Run test_desktop_isolation against bundled backend using Popen executable substitution",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementing agent",
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/graph_edit (static re-review; independent execution not_run)",
+      "evidence": "docs/evidence/2026-10-07-route-v2-00-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Stages 01-08 remain planned.",
+    "No native window flow or human/model quality evaluation in stage 00.",
+    "Expanded AI operation budgets and input scopes require explicit approval before real requests."
+  ]
+}

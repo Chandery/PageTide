@@ -17,7 +17,9 @@ def main():
         from .organization_worker import main as run_worker
         return run_worker(sys.argv[2:])
     resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
-    root = Path.home() / "Library" / "Application Support" / "PaperDigHelper"
+    configured_data = os.environ.get("PAPERDIGHELPER_DATA")
+    root = (Path(configured_data).expanduser().resolve() if configured_data else
+            Path.home() / "Library" / "Application Support" / "PaperDigHelper")
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     harness = root / "harness"
     harness.mkdir(exist_ok=True)

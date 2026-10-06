@@ -186,6 +186,72 @@
       "activation": "Enable gate before reports/reminders are adopted/released.",
       "method": "No-activity/busy/pause/week boundaries: only actual activity, no private notes without consent, reminders capped, no invented work or reading debt.",
       "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-00",
+      "status": "passed",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-00. 真实桌面后端在临时目录启动并认证读取夹具，父进程退出后清理，默认目录兼容；建立失败回归和基线，方案登记，绿色桌面构建与独立审查，保留未完成发布门槛。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-00-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-00-review.md"
+      ]
+    },
+    {
+      "id": "E-ROUTE-V2-01",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-01. 迁移备份恢复与重复启动通过，旧历史可读，旧项目未选择策略不得生成新批次；元数据不冒充全文语言，PDF 版本变化使核验失效，项目隔离和策略变更测试通过。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-02",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-02. 普通、Route、维护共享本地资格判断，缺失原因可见，原始论文不删除；无摘要只有链接、空正文、有效正文、旧 PDF 正文、语言冲突与无候选测试通过。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-03",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-03. 范围、前沿、完成分开，多目标与旁支测试通过，无前沿不被一概当完成；关注、掌握、撤销、Route 关闭重开、重启与冲突保存保持字段完整。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-04",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-04. 多概念查询轮转、来源记录有界、跨主题去重，来源不改写论文永久归属；请求与重试上限、缓存失效、公共检索词隐私边界由离线夹具验证。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-05",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-05. 充足与各类短缺配额、相互补位、少推原因测试通过，路径不足不扩大探索；已满足仅持续关注有新进展，手动与维护一致，目标完成多次点击不能绕过每日上限。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-06",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-06. 非探索路径论文也能支持生长；导入、曝光、沉默和撤销后的收藏残留不算证据；完整有界 Map、图变更过期、近邻深化、前置缺口、不确定和人工编辑测试通过；真实 AI 质量另测。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-07",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-07. 创建最多12节点；修改40节点120边3前置；目标删除、引用、环、显式边与难度警告验证；增删改及拆分合并不错误继承掌握；完整消息预算和截断拒绝；并发反馈/撤销/409与原子撤销验证。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
+    },
+    {
+      "id": "E-ROUTE-V2-08",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-08. 多类别多概念与未匹配论文入口、双向导航、项目切换过期响应、关闭 Route 兼容测试通过；隔离临时库完成全链条与重启恢复，原生桌面验收、独立审查和绿色构建；AI 实测未运行如实保留。Automated fixtures do not establish human recommendation or model quality.",
+      "evidence": []
     }
   ]
 }
