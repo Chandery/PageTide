@@ -732,3 +732,22 @@ test('switching between library and graph only restyles the two view tabs, never
   ui.setMode();
   assert.deepEqual(seen.map(x => x[0]), ['library', 'graph']);
 });
+
+test('the detail pane shows the AI summary with its labels, escaped, and nothing when the paper has none', () => {
+  const ui = fixture();
+  const html = ui.aiSummaryHTML({ one_liner: 'Evaluates <b>agents</b>', why_relevant: 'Matches "world models"', caution: 'Preprint' });
+  assert.match(html, /AI 速览/);
+  assert.match(html, /相关：.*Matches &quot;world models&quot;/);
+  assert.match(html, /注意：.*Preprint/);
+  assert.ok(!html.includes('<b>agents</b>') && html.includes('&lt;b&gt;agents&lt;/b&gt;'));
+  assert.equal(ui.aiSummaryHTML(null), '');
+  assert.equal(ui.aiSummaryHTML({}), '');
+  assert.ok(!/注意：/.test(ui.aiSummaryHTML({ one_liner: 'x', why_relevant: 'y' })));
+  assert.ok(!/ · /.test(ui.aiSummaryHTML({ one_liner: 'x', caution: 'only caution' })));   // no dangling separator
+});
+
+test('the reading button icon is visible in both modes', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../app/static/organization.css'), 'utf8');
+  assert.match(css, /\.org-detail \.org-reading-tools button \.org-icon \{ filter:invert\(1\); \}/);
+  assert.match(css, /html\[data-mode="dark"\] \.org-detail \.org-reading-tools button \.org-icon \{ filter:none; \}/);
+});

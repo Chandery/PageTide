@@ -304,6 +304,26 @@
     const paperDirections = directions().filter(d => memberships(p).includes(String(d.id)));
     return `<section class="org-detail-categories" aria-label="所属类别"><div class="org-detail-categories-head"><span>所属类别</span><button type="button" class="org-link-button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div><div class="org-detail-badges">${paperDirections.length ? paperDirections.map(d => `<button type="button" class="org-detail-badge" data-action="filter" data-id="${h(d.id)}" title="查看类别：${h(categoryPath(d.id))}"><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</button>`).join('') : '<button type="button" class="org-detail-badge is-empty" data-action="filter" data-id="" title="查看未分类论文">未分类</button>'}</div></section>`;
   }
+  /* The AI summary the Today drawer shows. It is read from what the home page already loaded, or once from
+     /api/detail (stored text; no model call); `null` means the paper has none, and nothing is shown then. */
+  const summaryCache = new Map();
+  function aiSummaryHTML(s) {
+    if (!s || !(s.one_liner || s.why_relevant)) return '';
+    return `<section class="org-ai" aria-label="AI 速览"><b>AI 速览</b> <span data-no-i18n>${h(s.one_liner || '')}</span>${s.why_relevant || s.caution ? `<div class="org-ai-sub">${s.why_relevant ? `<span class="org-ai-label">相关：</span><span data-no-i18n>${h(s.why_relevant)}</span>` : ''}${s.caution ? `${s.why_relevant ? ' · ' : ''}<span class="org-ai-label">注意：</span><span data-no-i18n>${h(s.caution)}</span>` : ''}</div>` : ''}</section>`;
+  }
+  function summaryFor(key) {
+    if (summaryCache.has(key)) return summaryCache.get(key);
+    const known = window.PDH?.state?.summaries?.[key];
+    if (known) { summaryCache.set(key, known); return known; }
+    summaryCache.set(key, undefined);   // asked for: one request per paper
+    if (typeof window.PDH?.api === 'function') {
+      window.PDH.api('/api/detail', { key, project_id: currentProject() }).then(d => {
+        summaryCache.set(key, d && d.summary || null);
+        if (S.key === key && d && d.summary) renderDetail();
+      }).catch(() => summaryCache.set(key, null));
+    }
+    return undefined;
+  }
   function renderDetail() {
     const panel = $('.org-detail'), p = item(S.key);
     panel.classList.toggle('has-paper', !!p);
@@ -322,6 +342,8 @@
     const url = paperURL(p);
     if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开论文'; reading.append(link); }
     panel.querySelector('.org-detail-categories').after(reading);
+    const ai = aiSummaryHTML(summaryFor(p.key));
+    if (ai) reading.insertAdjacentHTML('afterend', ai);
     if (selection) { $('[data-note-editor]').focus(); $('[data-note-editor]').setSelectionRange(...selection); }
     noteStatus(p.key);
   }
@@ -1025,5 +1047,5 @@
     S.root.hidden = false; renderShell();
     try { await refresh(); } catch (error) { report(error); }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, positionWriter, bindGraphDrag, radialPositions };
 })();

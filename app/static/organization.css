@@ -238,3 +238,19 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .pdh-organization { --org-side:280px; }
 @media (max-width:1150px) { .pdh-organization { --org-side:240px; } }
 @media (max-width:900px) { .pdh-organization { --org-side:155px; } }
+
+/* suggestion review: a possible match is marked, the unplaced list and the dismiss tick are quiet */
+.org-maybe { font-style:normal; font-size:11px; padding:0 7px; border-radius:999px; border:1px dashed var(--org-border); color:var(--org-muted); white-space:nowrap; }
+.org-suggestion.is-weak { opacity:.92; border-style:dashed; }
+.org-pending { margin:6px 0 0; padding-left:18px; font-size:12.5px; color:var(--org-muted); }
+.org-dismiss { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:var(--org-muted); }
+.org-review-section h4 { margin:14px 0 6px; font-size:13px; }
+
+/* AI summary in the shared detail pane, and the reading button: its icon is dark art, so on the filled (dark) button in
+   light mode it is inverted to white; in dark mode the button is light and the icon stays dark (the dark-mode rule that
+   inverts every icon must not apply here). */
+.org-detail .org-ai { margin:0 0 18px; padding:12px 14px; border:1px solid var(--org-border); border-left:2px solid var(--ai); border-radius:4px 10px 10px 4px; background:var(--surface-2); font-size:13.5px; line-height:1.6; }
+.org-detail .org-ai b, .org-detail .org-ai-label { color:var(--ai-text); }
+.org-detail .org-ai-sub { margin-top:6px; color:var(--org-muted); font-size:12.5px; }
+.org-detail .org-reading-tools button .org-icon { filter:invert(1); }
+html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:none; }

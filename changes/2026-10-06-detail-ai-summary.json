@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-06-detail-ai-summary",
+  "class": "standard",
+  "summary": "Show the stored AI summary (一句话、相关、注意) in the shared right-hand detail pane, and make the reading button's icon visible (white on the dark button in light mode, unchanged in dark mode).",
+  "tasks": [
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-PROFILE"
+  ],
+  "files": [
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "changes/2026-10-06-detail-ai-summary.json",
+    "docs/evidence/2026-10-06-detail-ai-summary-checks.txt",
+    "docs/evidence/2026-10-06-detail-ai-summary-self-review.md",
+    "tests/test_organization_ui.cjs"
+  ],
+  "scope_note": "Branch feature/route-mode on top of 8361870. Front-end only; committed as hunks, gated in a clean worktree.",
+  "budget_impact": {
+    "runtime": "not_applicable",
+    "rationale": "Reads stored summaries; no model call, no network beyond the local server.",
+    "before": "Detail pane had no AI summary; reading button icon invisible in light mode.",
+    "after": "Summary shown; icon visible in both modes.",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-detail-ai-summary-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-detail-ai-summary-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-06-detail-ai-summary-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py && cargo tauri build --bundles app",
+      "exit_code": 0,
+      "scope": "PaperDigHelper.app rebuilt; window not clicked through"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-06-detail-ai-summary-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not checked in the Tauri window.",
+    "A summary created after a paper's pane was first opened shows from the next page load.",
+    "The pane still lacks the save toggle and add-to-project controls."
+  ]
+}

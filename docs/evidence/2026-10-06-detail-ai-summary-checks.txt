@@ -1,0 +1,7 @@
+2026-10-06 detail pane AI summary + reading button icon checks (sanitized)
+Owner request: move the AI summary into the right-hand detail pane (the shared one); the reading button's icon and button were both dark and unreadable.
+Summary: shown from the text the home page already loaded, otherwise read once from /api/detail (stored text, no model call); nothing is shown for a paper without one; text is escaped; the "相关 / 注意" labels follow the Today drawer.
+Icon: the SVG is dark art; on the filled dark button in light mode it is now inverted to white, in dark mode the button is light and the icon stays dark (the global dark-mode invert rule was turning it white-on-light).
+Browser preview on a consistent copy of the real database (1440 px): all 7 saved papers of the current project show their summary in the pane (checked one by one); with the home-page summaries cleared the on-demand path also shows it; light mode button rgb(28,34,48) / text rgb(251,248,242) / icon filter invert(1); dark mode button rgb(239,232,220) / text rgb(28,34,48) / icon filter none. Screenshot checked.
+node --test tests/test_organization_ui.cjs: new tests for the summary markup (labels, escaping, no dangling separator, nothing when absent) and the icon rules.
+Not run: the Tauri window; other window widths.
