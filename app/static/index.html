@@ -444,7 +444,11 @@
   .card h3 { font-size:calc(16px * var(--s)); line-height:1.38; margin-bottom:calc(8px * var(--s)); }
   .card .actions { padding-top:calc(16px * var(--s)); margin-top:auto; gap:calc(8px * var(--s)); }
   .card .actions button { font-size:calc(12px * var(--s)); padding:calc(7px * var(--s)) calc(12px * var(--s)); }
-  .card .actions .actions-end { margin-left:auto; display:flex; flex-wrap:wrap; gap:calc(8px * var(--s)); justify-content:flex-end; }
+  /* Two groups (your verdict on the paper, and what to do with it). They share a row while both fit; when the card is
+     too narrow each group takes a whole row and its buttons share it equally, so the edges always line up instead of
+     the second group being left hanging on the right. The test is the content width, so it holds at every screen size. */
+  .card .actions .actions-fb, .card .actions .actions-end { flex:1 1 auto; display:flex; gap:calc(8px * var(--s)); min-width:0; }
+  .card .actions .actions-fb button, .card .actions .actions-end button { flex:1 1 auto; display:inline-flex; align-items:center; justify-content:center; gap:calc(6px * var(--s)); }
   .card .actions .read-action { color:var(--accent-text); border-color:var(--accent-soft); }
   .card .actions .ai-action { color:var(--ai-text); border-color:color-mix(in srgb, var(--ai) 55%, var(--line)); }
   .card .actions .ai-action:disabled { opacity:.55; cursor:progress; }
@@ -868,10 +872,12 @@ function cardHTML(c, i) {
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
     <div class="actions">
-      <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
-        <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
-      <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
-      <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
+      <span class="actions-fb">
+        <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
+          <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
+        <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
+        <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
+      </span>
       <span class="actions-end">
         <button class="tiny ai-action" data-ai="${esc(c.key)}" ${state.triaging || state.triagingKeys.has(c.key) ? 'disabled' : ''} title="${c.summary ? '让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）' : '让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）'}"><i class="icon sparkles" aria-hidden="true"></i>${c.summary ? '重新速览' : 'AI 速览'}</button>
         <button class="tiny read-action" data-read="${esc(c.key)}" data-title="${esc(c.title)}"><i class="icon book" aria-hidden="true"></i>阅读 PDF</button>

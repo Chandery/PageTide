@@ -7,7 +7,7 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PDHGraph = api;
 })(typeof window !== 'undefined' ? window : this, function () {
-  const DEFAULTS = { nodeW: 176, nodeH: 66, gapX: 28, gapY: 54, dummyW: 10, pad: 16 };
+  const DEFAULTS = { nodeW: 176, nodeH: 72, gapX: 28, gapY: 54, dummyW: 10, pad: 16 };
   const SWEEPS = 12;
 
   /* The page's text scale (--s in theme.css): the drawing is laid out in real pixels, so on a large screen the nodes,
