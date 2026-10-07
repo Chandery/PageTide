@@ -43,4 +43,4 @@ def policy_from_row(row):
     return {'discipline': row['discipline'],
             'allowed_languages': json.loads(row['allowed_languages'] or '[]'),
             'revision': row['language_policy_revision'],
-            'status': 'ready' if row['discipline'] else 'pending'}
+            'status': 'ready' if row['discipline'] and row['language_policy_revision'] > 0 else 'pending'}

@@ -726,7 +726,10 @@
         "docs/evidence/2026-10-07-route-v2-01a-checks.txt",
         "docs/evidence/2026-10-07-route-v2-01a-review.md",
         "docs/evidence/2026-10-07-route-v2-02-checks.txt",
-        "docs/evidence/2026-10-07-route-v2-02-review.md"
+        "docs/evidence/2026-10-07-route-v2-02-review.md",
+        "docs/evidence/2026-10-07-legacy-language-launch-checks.txt",
+        "docs/evidence/2026-10-07-legacy-language-launch-review.md",
+        "docs/decisions/0025-legacy-discipline-migration.md"
       ]
     },
     {
@@ -902,6 +905,29 @@
         "docs/evidence/2026-10-07-route-v2-completion-audit.md",
         "docs/evidence/2026-10-07-route-v2-close-checks.txt",
         "docs/evidence/2026-10-07-route-v2-close-review.md"
+      ]
+    },
+    {
+      "id": "FIX-LEGACY-LANGUAGE-START",
+      "stage": "graph",
+      "title": "修复旧学科字段导致的原生加载失败",
+      "status": "done",
+      "depends_on": [
+        "ROUTE-V2-01"
+      ],
+      "requirements": [
+        "R-ROUTE-V2-01",
+        "R-LOCAL",
+        "R-HARNESS"
+      ],
+      "acceptance": [
+        "真实旧v8已有discipline升级保留原值/论文，备份/失败回滚/重试/重复启动通过，旧学科不能冒充已选语言",
+        "新包默认原生首页成功加载，原表数据保留，绿色构建和独立迁移审查，无新增模型调用"
+      ],
+      "evidence": [
+        "docs/decisions/0025-legacy-discipline-migration.md",
+        "docs/evidence/2026-10-07-legacy-language-launch-checks.txt",
+        "docs/evidence/2026-10-07-legacy-language-launch-review.md"
       ]
     }
   ]

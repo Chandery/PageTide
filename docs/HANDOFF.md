@@ -1,3 +1,11 @@
+# 当前工作单元：实际旧库启动失败修复完成（2026-10-07）
+
+分支codex/route-discovery-rework，基线a0cb9e2，最终commit/dirty以git核对。用户原生Load failed已实际复现并修复：v8旧discipline列重复添加失败，保留列/旧值/NOTNULL默认cs_ai，未指定策略创建省略列，revision0pending不冒充选择语言。FIX-LEGACY-LANGUAGE-START完成；新增nullable/回滚和真实历史NOTNULL回归，之前干净v8验收未覆盖此结构，不隐藏遗漏。
+
+最终1465Python/281Node通过；独立129Python/三类旧结构/3个实际源码desktop启动反例闭合，无剩余P1/P2；freshbackend/Tauri/sign/package全0。真实默认原生首页已加载项目和文献数量，无Load failed，旧项目提示明确语言选择。实际默认库自动升级9，既有论文/反馈/收藏/笔记/归属原行不删改；私有一致性备份.local/load-fix-20261007。运行期有新增记录和显式语言设置/组织变化，保留不回滚；不能虚称整库冻结不变。未按按钮生成/修改用户设置，无新增模型/付费请求。原全产品19gates和2budgetflags保留，releasecheck仍exit1。
+
+[ADR0025](decisions/0025-legacy-discipline-migration.md)、[checks](evidence/2026-10-07-legacy-language-launch-checks.txt)、[review](evidence/2026-10-07-legacy-language-launch-review.md)。最终11文件record/diff独立复核已通过，无剩余P1/P2；本地提交后commit/dirty以git核对，不推送不合并。10854/69038/1194都已terminal；1464run在P2前通过，1465首次仅验收引用在harness测试夹具中缺失，修正引用后最终全量通过，未改validator或降低gate。真实数据/备份/日志不入Git。
+
 # 当前工作单元：Route 方案最终实施验收（2026-10-07）
 
 - 分支 codex/route-discovery-rework，基线 f0f000c；本轮只更改验收证据/文档/ROUTE-V2-08和E08状态，无产品代码/提示/模型/预算改动；最终commit/dirty以git核对。00–08实现与验收完成，唯一任务表见harness/tasks.json。

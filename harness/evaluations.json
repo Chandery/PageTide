@@ -206,7 +206,10 @@
         "docs/evidence/2026-10-07-route-v2-01a-checks.txt",
         "docs/evidence/2026-10-07-route-v2-01a-review.md",
         "docs/evidence/2026-10-07-route-v2-02-checks.txt",
-        "docs/evidence/2026-10-07-route-v2-02-review.md"
+        "docs/evidence/2026-10-07-route-v2-02-review.md",
+        "docs/evidence/2026-10-07-legacy-language-launch-checks.txt",
+        "docs/evidence/2026-10-07-legacy-language-launch-review.md",
+        "docs/decisions/0025-legacy-discipline-migration.md"
       ]
     },
     {

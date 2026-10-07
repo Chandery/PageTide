@@ -38,12 +38,10 @@ class ProjectManager:
         project_id = str(uuid.uuid4())
         language_policy = validate_value(language_policy)
 
-        self.store.conn.execute("""
-            INSERT INTO projects
-            (id, name, creation_mode, creation_timestamp, keywords,
-             guidance_transcript, recommended_learning_path, discipline, allowed_languages, language_policy_revision)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
+        fields = ['id', 'name', 'creation_mode', 'creation_timestamp', 'keywords',
+                  'guidance_transcript', 'recommended_learning_path',
+                  'allowed_languages', 'language_policy_revision']
+        values = [
             project_id,
             name,
             creation_mode,
@@ -51,10 +49,16 @@ class ProjectManager:
             json.dumps(keywords or [], ensure_ascii=False),
             json.dumps(guidance_transcript or [], ensure_ascii=False) if guidance_transcript else None,
             json.dumps(learning_path or {}, ensure_ascii=False) if learning_path else None,
-            language_policy['discipline'] if language_policy else None,
             json.dumps(language_policy['allowed_languages'] if language_policy else []),
             1 if language_policy else 0,
-        ))
+        ]
+        # Omit an unspecified discipline so historical NOT NULL defaults survive.
+        # Revision 0 keeps that legacy default pending, never a chosen policy.
+        if language_policy:
+            fields.append('discipline')
+            values.append(language_policy['discipline'])
+        self.store.conn.execute(
+            f"INSERT INTO projects ({','.join(fields)}) VALUES ({','.join('?' for _ in fields)})", values)
         self.store.conn.commit()
 
         return project_id

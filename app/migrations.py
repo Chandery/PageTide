@@ -260,6 +260,7 @@ migrate_005_reserved_for_channels.reserved = True
 
 def migrate_009_project_languages(conn):
     """Add explicit policy and version-bound language evidence; infer no legacy values."""
+    legacy_project_columns = {row[1] for row in conn.execute('PRAGMA table_info(projects)')}
     for table, column, kind in (
             ('projects', 'discipline', 'TEXT'),
             ('projects', 'allowed_languages', "TEXT NOT NULL DEFAULT '[]'"),
@@ -267,6 +268,10 @@ def migrate_009_project_languages(conn):
             ('papers', 'metadata_language', 'TEXT'),
             ('papers', 'metadata_language_source', 'TEXT'),
             ('fulltext', 'source_pdf_sha256', 'TEXT')):
+        # Some shipped v8 libraries already have a discipline field. Keep its
+        # original values; revision 0 still requires an explicit language choice.
+        if table == 'projects' and column == 'discipline' and column in legacy_project_columns:
+            continue
         conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {kind}')
     conn.execute('''CREATE TABLE fulltext_languages (
         paper_key TEXT NOT NULL REFERENCES papers(key),

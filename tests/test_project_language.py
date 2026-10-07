@@ -8,6 +8,7 @@ from app import migrations
 from app.db import Store
 from app.service import App
 from app.sources import slim
+from app.paper_language import policy_from_row
 
 
 class ProjectLanguageTests(unittest.TestCase):
@@ -130,6 +131,81 @@ class ProjectLanguageTests(unittest.TestCase):
             self.assertEqual(migrations.get_schema_version(store.conn), 9)
         finally:
             store.close()
+
+    def test_legacy_discipline_column_is_preserved_and_upgrade_restarts(self):
+        path = Path(self.tmp.name) / 'legacy-discipline.sqlite'
+        with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
+            old = Store(path); old.init()
+            old.conn.execute('ALTER TABLE projects ADD COLUMN discipline TEXT')
+            old.conn.execute('UPDATE projects SET discipline=?', ('legacy research field',))
+            old.upsert_papers([{'key': 'legacy', 'title': 'Preserved paper'}])
+            old.close()
+        upgraded = Store(path)
+        try:
+            upgraded.init()
+            self.assertEqual(migrations.get_schema_version(upgraded.conn), 9)
+            row = upgraded.conn.execute('SELECT * FROM projects LIMIT 1').fetchone()
+            self.assertEqual(row['discipline'], 'legacy research field')
+            self.assertEqual(row['allowed_languages'], '[]')
+            self.assertEqual(row['language_policy_revision'], 0)
+            self.assertEqual(policy_from_row(row)['status'], 'pending')
+            self.assertEqual(upgraded.paper('legacy')['title'], 'Preserved paper')
+            upgraded.init()
+            self.assertEqual(upgraded.conn.execute('SELECT COUNT(*) FROM schema_version WHERE version=9').fetchone()[0], 1)
+            backup = sqlite3.connect(str(path.with_name(path.name + '.pre-v8.bak')))
+            try:
+                self.assertEqual(backup.execute('SELECT discipline FROM projects LIMIT 1').fetchone()[0], 'legacy research field')
+                self.assertNotIn('allowed_languages', [r[1] for r in backup.execute('PRAGMA table_info(projects)')])
+            finally:
+                backup.close()
+        finally:
+            upgraded.close()
+
+    def test_legacy_discipline_upgrade_failure_rolls_back_and_retries(self):
+        path = Path(self.tmp.name) / 'legacy-rollback.sqlite'
+        with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
+            old = Store(path); old.init()
+            old.conn.execute('ALTER TABLE projects ADD COLUMN discipline TEXT')
+            old.conn.execute("UPDATE projects SET discipline='stem'")
+            old.conn.commit(); old.close()
+        store = Store(path)
+        try:
+            real = migrations.set_schema_version
+            def fail_version(conn, version):
+                if version == 9:
+                    raise sqlite3.OperationalError('simulated disk full')
+                return real(conn, version)
+            with mock.patch.object(migrations, 'set_schema_version', side_effect=fail_version):
+                with self.assertRaises(sqlite3.OperationalError):
+                    store.init()
+            self.assertEqual(migrations.get_schema_version(store.conn), 8)
+            self.assertEqual(store.conn.execute('SELECT discipline FROM projects LIMIT 1').fetchone()[0], 'stem')
+            self.assertNotIn('allowed_languages', [r[1] for r in store.conn.execute('PRAGMA table_info(projects)')])
+            store.init()
+            self.assertEqual(policy_from_row(store.conn.execute('SELECT * FROM projects LIMIT 1').fetchone())['status'], 'pending')
+        finally:
+            store.close()
+
+    def test_legacy_nonnull_discipline_supports_pending_creation_and_default_rebuild(self):
+        path = Path(self.tmp.name) / 'nonnull' / 'paperdighelper.sqlite'
+        with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
+            old = Store(path); old.init()
+            old.conn.execute("ALTER TABLE projects ADD COLUMN discipline TEXT NOT NULL DEFAULT 'cs_ai'")
+            old.conn.commit(); old.close()
+        app = App(data_dir=path.parent)
+        try:
+            pid = app.create_project('Legacy pending project')['project_id']
+            policy = app.projects.get_project(pid)['language_policy']
+            self.assertEqual(policy['discipline'], 'cs_ai')
+            self.assertEqual(policy['status'], 'pending')
+            self.assertEqual(policy['allowed_languages'], [])
+            self.assertEqual(app.set_project_language(pid, 'stem', ['en'])['language_policy']['status'], 'ready')
+            app.store.conn.execute('DELETE FROM projects'); app.store.conn.commit()
+            rebuilt = app.get_default_project_id()
+            self.assertEqual(app.projects.get_project(rebuilt)['language_policy']['status'], 'pending')
+            self.assertEqual(app.projects.get_project(rebuilt)['language_policy']['discipline'], 'cs_ai')
+        finally:
+            app.store.close()
 
     def test_unversioned_extraction_does_not_invent_a_current_pdf_binding(self):
         store = self.app.store
