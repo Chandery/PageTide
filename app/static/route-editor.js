@@ -416,8 +416,23 @@
     const off = left <= 0 ? ' disabled title="今天的次数用完了，明天再试"' : (options && options.busy ? ' disabled' : '');
     return `<div class="growth-pending"><p>你明确认为有用或选作种子、还待判断的论文：<b>${list.length}</b></p>`
       + `<ul class="growth-papers">${list.slice(0, 3).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('')}</ul>`
-      + `<div class="row"><button type="button" class="small" data-growth="judge"${off} title="点一次调用一次 AI：发送最多 3 篇有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目">让 AI 判断</button>`
+      + `<div class="row"><button type="button" class="small" data-growth="judge"${off} title="点一次判断本项目全部待判断论文，自动依次分批，每批最多 3 篇；整次只计 1 次判断机会，可能有多次 AI 调用。只发送有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目">${options && options.busy ? `正在判断全部 ${list.length} 篇…` : '判断全部待判断论文'}</button>`
       + `<small>今天还能判断 ${left} 次</small></div></div>`;
+  }
+
+  /* A completed snapshot may have new pending papers. Saved partial results still need a continuation. */
+  function judgeProgress(out) {
+    if (!out || typeof out.complete !== 'boolean'
+      || ![out.requested, out.processed, out.pending].every((n) => Number.isInteger(n) && n >= 0)
+      || out.processed > out.requested) return null;   // older responses use the original result summary
+    const lines = [out.complete ? '本次队列已判断完毕' : '本次判断已停止',
+      `本次已判断 ${out.processed}/${out.requested} 篇`, `当前还有 ${out.pending} 篇待判断`];
+    if (out.complete && out.pending > 0) lines.push('当前待判断论文可以继续处理');
+    const warning = !out.complete || Boolean(out.reason_code || out.reason || out.usage_unknown);
+    if (out.reason) lines.push(out.complete ? `调用提示：${out.reason}` : `停止原因：${out.reason}`);
+    else if (warning && out.complete) lines.push('调用状态需要确认，请检查请求结果和计费状态');
+    lines.push(`今天还能判断 ${out.judges_left} 次`);
+    return {complete: out.complete, warning, message: lines.join(' · ')};
   }
 
   /* One line per judged group, in plain words, for the page to show after the model answered. */
@@ -508,5 +523,5 @@
     return `<label class="map-note"><input type="checkbox" data-route-watch ${watching ? 'checked' : ''}> 持续关注</label><p class="map-note">${satisfied ? '已满足的概念：开启后可推荐这个方向的新进展。' : '持续关注不改变掌握状态；满足这个概念后才推荐新进展。'}</p>`;
   }
 
-  return { setTarget, watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgementsHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  return { setTarget, watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgementsHTML, judgeSummary, judgeProgress, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

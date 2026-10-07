@@ -293,6 +293,16 @@
         "docs/evidence/2026-10-07-route-v2-close-checks.txt",
         "docs/evidence/2026-10-07-route-v2-close-review.md"
       ]
+    },
+    {
+      "id": "E-ROUTE-GROWTH-BATCH",
+      "status": "passed",
+      "blocks_release": true,
+      "method": "Synthetic20-paper whole-queue+multiple-direction coverage, one daily job, per-request/global budget, mid-job refusal/unknown/invalid/truncated reply, restart/claim/CAS/proposal-proof and new-interest/midnight semantics; shared UI progress/new prompt generation/billing warning; independent review and fresh app/package. Does not establish real model quality, tokenizer parity or user recommendation benefit.",
+      "evidence": [
+        "docs/evidence/2026-10-07-growth-whole-queue-checks.txt",
+        "docs/evidence/2026-10-07-growth-whole-queue-review.md"
+      ]
     }
   ]
 }

@@ -456,6 +456,14 @@
       "recheck_after_days": 30,
       "claim": "Unchanged Flash peak miss0.30/hit0.006/output1.20 USD/M, explicit thinking disabled. Three actual Route probes returned1885tokens, local peak-rate ledger0.0010254USD; not provider invoice or comprehensive parity.",
       "verification": "Official pricing/chat/token pages HTTP200 with previously recorded identical hashes; official tokenizer zip SHA e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495. Three complete wire offline token checks and three formal-ledger reconciled requests; see docs/evidence/2026-10-07-route-v2-08-native-acceptance.md."
+    },
+    {
+      "id": "DS-GROWTH-BATCH-20261007",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "verified_on": "2026-10-07",
+      "recheck_after_days": 30,
+      "claim": "Whole-queue arithmetic retains Flash peak miss input0.30/M output1.20/M;9000 tokens/$0.0036 per request; explicit thinking disabled and finish_reason length refusal.",
+      "verification": "Web fetch timed out; official pricing and chat-completion HTML read via urllib with200,23982/142966bytes. No paper/key/model request sent; private cached source under.local; no effective date inferred."
     }
   ]
 }

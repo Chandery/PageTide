@@ -201,6 +201,13 @@
       "gates": [
         "E-ROUTE-V2-08"
       ]
+    },
+    {
+      "id": "R-ROUTE-GROWTH-BATCH",
+      "text": "One explicit growth job judges the whole frozen queue with truthful partial counts, bounded gateway requests and no stale evidence revival",
+      "gates": [
+        "E-ROUTE-GROWTH-BATCH"
+      ]
     }
   ]
 }

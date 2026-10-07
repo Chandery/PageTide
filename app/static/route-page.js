@@ -434,12 +434,17 @@ function growthClick(event) {
 }
 async function judgeNow() {
   if (growth.judging) return;
-  growth.judging = true; renderGrowth(); notice('');
+  growth.judging = true; renderGrowth();
+  notice(growth.result && Array.isArray(growth.result.pending) ? `正在判断全部 ${growth.result.pending.length} 篇待判断论文…` : '正在判断全部待判断论文…', false);
   try {
     const out = await api({action: 'direction-judge'});
     await loadGrowth();
-    if (!out.ok) { notice(`未得到有效判断：${out.reason || 'AI 没有给出判断'} 今天还能判断 ${out.judges_left} 次。`); return; }
-    notice(`AI 判断完了：${R.judgeSummary(out.results)}。今天还能判断 ${out.judges_left} 次。`, false);
+    const progress = R.judgeProgress(out);
+    if (progress) notice(progress.message, progress.warning);
+    else {
+      if (!out.ok) { notice(`未得到有效判断：${out.reason || 'AI 没有给出判断'} 今天还能判断 ${out.judges_left} 次。`); return; }
+      notice(`AI 判断完了：${R.judgeSummary(out.results)}。今天还能判断 ${out.judges_left} 次。`, false);
+    }
     const made = (out.results || []).find((r) => r.direction && (r.verdict === 'new' || r.verdict === 'join'));
     if (made) { growth.selected = made.direction; state.selected = `ghost:${made.direction}`; render(); }
   } catch (error) { await refreshRoute(); await loadGrowth(); notice(error.message); }

@@ -44,10 +44,12 @@
 | 重试压力：速览2+追问10+划词4+周报2（需求量，不代表获准执行） / 上限 / 1天/1次周任务 | 63,600 | 17,800 | 81,400 | 81,400 | 0.040440 | 会拒绝部分请求：daily_total_tokens, daily_interactive_tokens |
 | 每日 5 篇速览 + 每周回顾 + 每日 2 次看图问答 / 参考 / 30天/5次周任务 | 416,000 | 69,500 | 485,500 | 19,100 | 0.208200 | 此场景内未超限（不代表已授权） |
 | 每日 5 篇速览 + 每周回顾 + 每日 2 次看图问答 / 上限 / 30天/5次周任务 | 627,000 | 110,500 | 737,500 | 29,000 | 0.320700 | 此场景内未超限（不代表已授权） |
-| 已批准额度：每月八次完整Map生长判断（算术，非账单） / 参考 / 30天/5次周任务 | 24,000 | 5,600 | 29,600 | 14,800 | 0.013920 | 此场景内未超限（不代表已授权） |
-| 已批准额度：每月八次完整Map生长判断（算术，非账单） / 上限 / 30天/5次周任务 | 64,000 | 8,000 | 72,000 | 36,000 | 0.028800 | 会拒绝部分请求：daily_interactive_tokens |
-| 已批准额度：月1创建4修改8判断（峰时缓存未命中算术，非账单） / 参考 / 30天/5次周任务 | 39,400 | 14,000 | 53,400 | 53,400 | 0.028620 | 会拒绝部分请求：daily_interactive_tokens |
-| 已批准额度：月1创建4修改8判断（峰时缓存未命中算术，非账单） / 上限 / 30天/5次周任务 | 99,200 | 25,800 | 125,000 | 125,000 | 0.060720 | 会拒绝部分请求：daily_total_tokens, daily_interactive_tokens |
+| Historical arithmetic: eight individual bounded growth requests, not eight whole-queue jobs / 参考 / 30天/5次周任务 | 24,000 | 5,600 | 29,600 | 14,800 | 0.013920 | 此场景内未超限（不代表已授权） |
+| Historical arithmetic: eight individual bounded growth requests, not eight whole-queue jobs / 上限 / 30天/5次周任务 | 64,000 | 8,000 | 72,000 | 36,000 | 0.028800 | 会拒绝部分请求：daily_interactive_tokens |
+| Historical arithmetic: one create/four revisions/eight individual growth requests / 参考 / 30天/5次周任务 | 39,400 | 14,000 | 53,400 | 53,400 | 0.028620 | 会拒绝部分请求：daily_interactive_tokens |
+| Historical arithmetic: one create/four revisions/eight individual growth requests / 上限 / 30天/5次周任务 | 99,200 | 25,800 | 125,000 | 125,000 | 0.060720 | 会拒绝部分请求：daily_total_tokens, daily_interactive_tokens |
+| Whole-queue example: eight 20-paper jobs/month, seven requests/job; cap demand not admitted guarantee / 参考 / 30天/5次周任务 | 168,000 | 39,200 | 207,200 | 207,200 | 0.097440 | 会拒绝部分请求：daily_total_tokens, daily_interactive_tokens |
+| Whole-queue example: eight 20-paper jobs/month, seven requests/job; cap demand not admitted guarantee / 上限 / 30天/5次周任务 | 448,000 | 56,000 | 504,000 | 504,000 | 0.201600 | 会拒绝部分请求：daily_total_tokens, daily_interactive_tokens, daily_usd |
 
 ## 准入阈值（owner 已批准；待应用网关实现）
 
