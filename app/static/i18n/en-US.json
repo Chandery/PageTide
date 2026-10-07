@@ -1,6 +1,7 @@
 {
  "language": "en-US",
  "messages": {
+  "方向代表可以单独学习的能力或知识单元。同一学习任务的论文优先补充已有节点或提议，不因方法、数据集或应用不同就另建方向。": "A direction represents a capability or knowledge unit you can learn independently. Papers for the same learning task first supplement existing nodes or proposals; different methods, datasets or applications do not automatically create another direction.",
   "分类与学习用途": "Categories and learning purpose",
   "收藏类别": "Saved categories",
   "对应学习单元": "Matching learning units",

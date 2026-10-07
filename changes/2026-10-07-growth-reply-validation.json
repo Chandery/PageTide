@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-growth-reply-validation",
+  "class": "critical",
+  "summary": "Complete valid growth replies, report concrete failures and judge reusable learning-task directions; record owner cost/test-rigor principle and independently verify real whole queues.",
+  "tasks": [
+    "FIX-GROWTH-REPLY-VALIDATION"
+  ],
+  "files": [
+    "AGENTS.md",
+    "app/gateway.py",
+    "app/growthproposal.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/route.html",
+    "changes/2026-10-07-growth-reply-validation.json",
+    "docs/BUDGET.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0028-growth-reply-validation.md",
+    "docs/evidence/2026-10-07-growth-reply-validation-checks.txt",
+    "docs/evidence/2026-10-07-growth-reply-validation-review.md",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/tasks.json",
+    "prompts/route-growth-judge.md",
+    "tests/test_gateway_budget.py",
+    "tests/test_growth_reply_validation.py",
+    "tests/test_route_growth.py"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "before": "053b7f9: SYSTEM1372UTF8bytes;8000input/1000output maximum$0.0036/request, explicit wholequeue withthree-paperbatches and originalaggregatecaps",
+    "after": "SYSTEM2388UTF8bytes(+1016,not tokenizer tokens); samecap/frequency/exposure and aggregate maximum; onlygrowth temperature0/JSON_object. Legal wholequeue batches can now pass removed12opinion refusal; actualcalls/input/spend vary and are measured in developerreceipts.",
+    "rationale": "Core mandatory dailyminimum0modeltokens. No new call trigger, retry, fallback, provider or exposed fields; registered request maximum unchanged. ActualAI inputs/spend are not zero: prompt larger and valid jobs can finish more previously authorizedbatches. Owner approved real tests and principle; one formal diagnostic1611tokens/$0.000670776 plus all subsequent isolated tests in existingdevledger/limits, no live user quota writes. Private receipts/failedversions are retained; peak-rateledger arithmetic is not providerinvoice. Coding-agent usage unknown.",
+    "developer_usage": "unknown",
+    "quantified": {
+      "period": "maximum per registered request (peak cache-miss arithmetic, caps unchanged; not actual usage)",
+      "before": {
+        "input_tokens": 8000,
+        "output_tokens": 1000,
+        "usd": "0.0036"
+      },
+      "after": {
+        "input_tokens": 8000,
+        "output_tokens": 1000,
+        "usd": "0.0036"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "reviewer": "root",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "/root/route_logic",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "/root/paper_quality",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "/root/graph_edit",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Unrecorded historical provider replies cannot be exactly reconstructed; actual diagnosed reply is newly reproduced and sanitized.",
+    "Final real tests repeat two current snapshots rather than a fresh holdout corpus; P3 scope/name ambiguity remains for nodes with empty introductions. No universal AI stability claim.",
+    "Provider invoice/tokenizer calibration, notarization, 8GB runtime and full-product recommendation/category quality gates remain unmeasured or unchanged; this work-unit acceptance does not certify the whole product."
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 scripts/i18n_extract.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": "CARGO_NET_OFFLINE=true cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": "codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": "codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    },
+    {
+      "command": "python3 .local/category-packaged-smoke.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-reply-validation-checks.txt"
+    }
+  ]
+}

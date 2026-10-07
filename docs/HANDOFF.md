@@ -1,3 +1,17 @@
+# 当前工作单元：完整生长回复与学习任务粒度已验收（2026-10-07）
+
+分支 `codex/growth-reply-validation`，基线 `053b7f9`；最终 commit/dirty 以 Git 核对。FIX-GROWTH-REPLY-VALIDATION done，E-GROWTH-REPLY-VALIDATION passed，仅代表本单元验收。
+
+已修回复字段歧义、严格 JSON/UTF8、12条提议阻断和具体错误诊断；unclear 合法相关节点仅校验，不保存为覆盖；两项实际观察到的空说明仅允许字面空字符串。潜在方向按任务动词、核心对象和明确方法约束归并；应用综述补充已有能力，不推断必需前置，独立能力无确证依赖先提无硬边分支。确认保留原目标和原边，历史提议不自动删除。仅本操作使用温度0/JSON模式；原 Flash、关闭思考、额度、公开字段及单网关/无重试不变，其他15操作 wire 与旧版一致。开发原则已按人类要求写入 AGENTS/BUDGET：日常使用节约预算；获得明确授权的开发测试充分验证，并独立记账。
+
+真实 v1–v7 格式/结构/语义失败保留。最终 v8 两轮两实际项目快照共22调用/62判断均完成、pending0；独立逐组审查未见剩余确定P1/P2，仍有空简介下范围/命名P3，不声称普适模型质量。所有148开发调用237029tokens/$0.070480680及1正式诊断1611tokens/$0.000670776均为峰费率账本算术，非invoice；测试只改私有数据库副本，不消耗真实项目次数、不改真实图。最终源码全量1599Python/451.480s和314Node通过，独立代码/语义/保留审查通过。
+
+常用 `/Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app` fresh重建，目录时间2026-10-07 18:08:38+0800。backend/Tauri构建、adhoc严格签名、实际包隔离Route及分类合成应用/重启撤销通过。用户解锁后CUA实际从同路径启动，两个项目均显示新粒度说明和“判断全部待判断论文”；A待判断16/剩余6次、B15/3保留。退出确认进程消失，再从同路径启动并见新入口。未代点真实付费判断或确认提议，应用留在新版A学习图。旧13:26包可恢复备份在.local；原Loadfail未在本次启动/重启复现。
+
+原19全产品gates、2 false budget flags、分类task review及其真实质量失败保留，整产品release不宣称通过。未验证providerinvoice/tokenizer、notarization、8GB和全产品推荐收益。单元记录验收与全产品发布批准保持区分。
+
+[本单元记录](../changes/2026-10-07-growth-reply-validation.json)、[分版本和最终包证据](evidence/2026-10-07-growth-reply-validation-checks.txt)、[独立审查](evidence/2026-10-07-growth-reply-validation-review.md)、[ADR0028](decisions/0028-growth-reply-validation.md)。以下历史阶段记录原样保留。
+
 # 当前工作单元：主入口整队列判断持久交付完成（2026-10-07）
 
 分支 `codex/route-growth-delivery`，基线 `1327828` 原样保存 38 路径分类工作；原分支保留。合并已审查 `cefc5fe` 的完整待判断队列修复到主目录，解决常用 12:50 应用仍每次处理 3 篇的交付遗漏。最终 commit/dirty 以 Git 核对。FIX-GROWTH-PRIMARY-DELIVERY done，E-ROUTE-GROWTH-DELIVERY passed，仅表示本单元交付验收。

@@ -1012,6 +1012,34 @@
         "docs/evidence/2026-10-07-growth-primary-delivery-checks.txt",
         "docs/evidence/2026-10-07-growth-primary-delivery-review.md"
       ]
+    },
+    {
+      "id": "FIX-GROWTH-REPLY-VALIDATION",
+      "stage": "graph",
+      "title": "Complete growth judgment replies and use reusable learning-task direction granularity",
+      "status": "done",
+      "depends_on": [
+        "FIX-GROWTH-PRIMARY-DELIVERY"
+      ],
+      "requirements": [
+        "R-GROWTH-REPLY-VALIDATION",
+        "R-ROUTE-GROWTH-BATCH",
+        "R-BUDGET",
+        "R-HARNESS",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "Sanitized complete real-reply shape with harmless nonjoin topic direction reproduces red then all pending papers complete in one job after fix",
+        "Prompt defines verdict-specific fields; true references, unknown aliases, duplicate/missing paper groups, cycle/cap and truncated replies remain guarded and give actionable local reasons",
+        "Per request and aggregate caps, approval flags, user data/quota and category scope unchanged; no auto retries or model fallback",
+        "Full tests, independent review and fresh same primary app build/sign/package/native verification pass with honest live/synthetic evidence",
+        "Real AI independent repeats of both current project snapshots complete all pending across batches; legacy12proposal refusal cannot block valid judgments. Cases/prior failures/usage ledger separation reported honestly",
+        "Existing nodes/proposals can absorb supplementary methods and multiple papers; distinct new capabilities remain possible from a single paper; downstream applications are not prerequisites; independently inspect final real outputs for grain and semantic fit without treating zero pending as proof of quality"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-07-growth-reply-validation-checks.txt",
+        "docs/evidence/2026-10-07-growth-reply-validation-review.md"
+      ]
     }
   ]
 }

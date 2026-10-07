@@ -288,16 +288,17 @@ class JudgeTests(Fixture):
         self.assertFalse(out['ok'])
         self.assertEqual(self.names(), [])
 
-    def test_when_twelve_directions_are_on_file_a_new_one_waits_instead_of_piling_up(self):
+    def test_twelve_existing_directions_do_not_discard_a_valid_thirteenth_judgment(self):
         self.app.store.set_setting(f"route_directions_{self.pid}", {"judged": {}, "directions": [
             {"id": f"d-{i}", "name": f"方向{i}", "terms": [f"alpha{i} beta{i}", f"gamma{i}"], "intro": "", "barrier": "", "needs": [], "papers": [], "created": "2026-10-01", "context": self.app._growth_context(self.pid, [])}
-            for i in range(App.MAX_VISIBLE_DIRECTIONS)]})
+            for i in range(12)]})
         self.shown("s1")
         self.say(("s1", "useful"))
         self.gateway(reply([new(["p1"], name="第十三个", terms=("strain relaxation", "dislocation glide"))]))
         out = self.app.route_direction_judge(self.pid)
-        self.assertEqual(out["results"][0]["verdict"], "full")
-        self.assertEqual([p["key"] for p in self.app._pending_explored(self.pid)], ["s1"])
+        self.assertEqual(out["results"][0]["verdict"], "new")
+        self.assertEqual(self.app._pending_explored(self.pid), [])
+        self.assertEqual(len(self.app._directions_store(self.pid)['directions']), 13)
 
     def test_a_direction_the_reader_turned_down_is_not_told_to_the_model_not_joined_and_not_proposed_again(self):
         cand = self.ready_direction()

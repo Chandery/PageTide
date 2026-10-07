@@ -215,6 +215,13 @@
       "gates": [
         "E-ROUTE-GROWTH-DELIVERY"
       ]
+    },
+    {
+      "id": "R-GROWTH-REPLY-VALIDATION",
+      "text": "Complete valid growth replies remain usable despite harmless non-reference display labels, invalid responses report concrete local causes, and potential directions represent reusable learning tasks instead of one topic per paper; reference/topology/budget guards remain strict.",
+      "gates": [
+        "E-GROWTH-REPLY-VALIDATION"
+      ]
     }
   ]
 }

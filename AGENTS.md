@@ -27,6 +27,10 @@ Read [HANDOFF](docs/HANDOFF.md), [DOMAIN](docs/DOMAIN.md), [ROADMAP](docs/ROADMA
 9. User approval fields cannot be self-approved by an agent. Treat provisional ceilings as unapproved.
 10. Never describe a target, mock, arithmetic estimate or skipped check as an actual product measurement.
 
+## Development principle: user cost and test rigor
+Minimize the user's routine model spend through bounded inputs, deterministic local work and reusable results. Do not sacrifice correctness to meet a token target.
+When the owner authorizes development testing, use real AI and enough independent cases/runs to establish stability and rigor; do not skip necessary tests to save development spend. Record test usage in the separate developer ledger, preserve shipped user caps and quotas, and keep every call behind the gateway. Report real failures and test limits honestly. See [BUDGET](docs/BUDGET.md#3b-测试模式不属于正式预算).
+
 ## Choose the relevant skill, not every file
 Skills use the Agent Skills format; discovery varies by client. If not auto-discovered, read them directly.
 - New feature or changed scope: [.agents/skills/plan-feature/SKILL.md](.agents/skills/plan-feature/SKILL.md).

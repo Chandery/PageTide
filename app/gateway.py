@@ -36,6 +36,14 @@ KEY_FILE_NAME = "deepseek.env"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 
 
+def request_envelope(operation, model, max_output, messages):
+    body = {"model": model, "thinking": {"type": "disabled"},
+            "max_tokens": max_output, "messages": messages}
+    if operation == "route_growth_judge":
+        body.update({"temperature": 0, "response_format": {"type": "json_object"}})
+    return body
+
+
 def load_budget(root="."):
     return json.loads((Path(root) / BUDGET).read_text())
 
@@ -301,8 +309,8 @@ class Gateway:
             except BudgetExceeded as exc:
                 return {"ok": False, "degraded": True, "reason": str(exc)}
             try:
-                body = json.dumps({"model": provider["model"], "thinking": {"type": "disabled"},
-                                   "max_tokens": cap_out, "messages": messages}, ensure_ascii=False).encode('utf-8')
+                body = json.dumps(request_envelope(operation, provider["model"], cap_out, messages),
+                                  ensure_ascii=False).encode('utf-8')
             except (UnicodeError, TypeError, ValueError, RecursionError):
                 return {"ok": False, "degraded": True, "invalid_input": True,
                         "usage_unknown": False, "reason": "invalid request text; nothing sent"}

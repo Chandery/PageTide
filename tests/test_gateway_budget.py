@@ -123,6 +123,24 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertEqual(body["thinking"], {"type": "disabled"})
         self.assertEqual(body["model"], self.gateway.config["provider"]["model"])
 
+    def test_growth_only_uses_json_format_and_zero_temperature_without_extra_attempt(self):
+        payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],
+                   "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}}
+        for operation in ["route_growth_judge", "daily_triage"]:
+            with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
+                result = self.gateway.call(operation, [{"role": "user", "content": "Return JSON."}])
+            self.assertTrue(result["ok"])
+            self.assertEqual(urlopen.call_count, 1)
+            body = json.loads(urlopen.call_args[0][0].data)
+            self.assertEqual(body["thinking"], {"type": "disabled"})
+            self.assertEqual(body["max_tokens"], self.gateway.config["operations"][operation]["cap"]["output"])
+            if operation == "route_growth_judge":
+                self.assertEqual(body["temperature"], 0)
+                self.assertEqual(body["response_format"], {"type": "json_object"})
+            else:
+                self.assertNotIn("temperature", body)
+                self.assertNotIn("response_format", body)
+
     def test_finish_reason_reaches_callers_with_known_and_unknown_usage(self):
         for usage in ({'prompt_tokens': 100, 'completion_tokens': 20, 'total_tokens': 120}, None):
             payload = {'choices': [{'message': {'content': '{}'}, 'finish_reason': 'length'}]}

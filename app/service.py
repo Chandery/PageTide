@@ -367,8 +367,6 @@ class App:
         return {"project_id": project_id, "available": True, "candidates": out, "watching": sum(1 for c in out if c["status"] != "ready"), "revision": revision,
                 "pending": pending, 'judgements': judgements, "judges_left": max(0, self.DIRECTION_JUDGES_PER_DAY - used)}
 
-    MAX_VISIBLE_DIRECTIONS = 12
-
     def _growth_context_data(self, project_id):
         """Build private per-paper proofs once, so queue checks are linear in the corpus."""
         _, route = read_route(self.store.conn, project_id)
@@ -444,7 +442,7 @@ class App:
         started = time.monotonic()
         outcomes, processed, calls, token_total = [], 0, 0, 0
         tokens_known, charged, ai_result = True, False, False
-        code, reason = None, None
+        code, reason, reply_error = None, None, None
         for start in range(0, len(queue), 3):
             batch = queue[start:start + 3]
             if start:
@@ -485,7 +483,10 @@ class App:
                 token_total += usage
             else:
                 tokens_known = False
-            parsed = [] if result.get('finish_reason') == 'length' else growthproposal.parse(result.get('content'))
+            if result.get('finish_reason') == 'length':
+                parsed, reply_error = [], 'truncated_reply'
+            else:
+                parsed, reply_error = growthproposal.parse_result(result.get('content'))
             with self.store._lock:
                 self.store.conn.execute('BEGIN IMMEDIATE')
                 try:
@@ -503,8 +504,11 @@ class App:
             processed += valid
             if valid != len(batch) or any(r['verdict'] in ('unusable', 'full') for r in saved):
                 code = 'bad_reply'
-                reason = ('Some papers received no valid judgment; remaining papers were kept.' if self.english()
-                          else '本次未保存全部有效判断，未完成的论文仍保留在待判断中。')
+                reply_error = reply_error or next((r.get('error_code') for r in saved
+                    if r['verdict'] in ('unusable', 'full')), None) or 'missing_papers'
+                reason = growthproposal.reply_reason(reply_error, self.english())
+                reason += (' Unfinished papers remain pending.' if self.english()
+                           else ' 未完成的论文仍保留在待判断中。')
                 break
             if result.get('usage_unknown'):
                 code, reason = growthproposal.degrade_reason({'usage_unknown': True}, self.english(), saved=processed)
@@ -527,7 +531,8 @@ class App:
         current_counter = self.store.get_setting(key) or {}
         current_attempts = int(current_counter.get('attempts') or 0) if current_counter.get('day') == current_day else 0
         return {'ok': processed > 0, 'mode': 'ai' if ai_result else 'local',
-                'reason_code': code, 'reason': reason, 'results': outcomes,
+                'reason_code': code, 'reason': reason, 'reply_error_code': reply_error if code == 'bad_reply' else None,
+                'results': outcomes,
                 'tokens': token_total if tokens_known and ai_result else None,
                 'elapsed_ms': int((time.monotonic() - started) * 1000),
                 'judges_left': max(0, self.DIRECTION_JUDGES_PER_DAY - current_attempts),
@@ -540,9 +545,15 @@ class App:
         outcomes, seen = [], set()
         fresh = {d['id']: d for d in self._visible_directions(project_id, route)}
         for raw in results:
-            item = growthproposal.validate(raw, batch, route['graph'], directions)
+            item, error = growthproposal.validate_result(raw, batch, route['graph'], directions)
             if item is None or seen.intersection(item['papers']):
-                outcomes.append({'verdict': 'unusable', 'titles': [], 'name': '', 'nearest': '', 'direction': None})
+                aliases = {f'p{i+1}': p['key'] for i, p in enumerate(batch)}
+                refs = raw.get('papers')
+                keys = [aliases[r] for r in refs if isinstance(r, str) and r in aliases] if isinstance(refs, list) else []
+                error = error or 'duplicate_papers'
+                outcomes.append({'verdict': 'unusable', 'titles': [title[k] for k in dict.fromkeys(keys)],
+                                 'name': '', 'nearest': '', 'direction': None, 'error_code': error,
+                                 'reason': growthproposal.reply_reason(error, self.english())})
                 continue
             seen.update(item['papers'])
             kind, direction_id = item['proposal_type'], None
@@ -554,9 +565,6 @@ class App:
                     verdict = 'declined'
                 elif twin:
                     direction_id, verdict = twin['id'], 'join'
-                elif len(fresh) >= self.MAX_VISIBLE_DIRECTIONS:
-                    outcomes.append({'verdict': 'full', 'titles': [title[k] for k in item['papers']], 'name': '', 'nearest': '', 'direction': None})
-                    continue
                 else:
                     direction_id = 'd-' + growthproposal.digest([identity, context])[:16]
                     candidate = {**item, 'id': direction_id, 'identity': identity, 'context': self._growth_context(project_id, item['papers']),
@@ -566,7 +574,9 @@ class App:
                         pathgrowth.merge_candidate(route['graph'], {**candidate,
                             'prereqs': [{'from': cid} for cid in item['needs']]})
                     except (ValueError, TypeError):
-                        outcomes.append({'verdict': 'unusable', 'titles': [title[k] for k in item['papers']], 'name': '', 'nearest': '', 'direction': None})
+                        outcomes.append({'verdict': 'unusable', 'titles': [title[k] for k in item['papers']],
+                                         'name': '', 'nearest': '', 'direction': None, 'error_code': 'invalid_topology',
+                                         'reason': growthproposal.reply_reason('invalid_topology', self.english())})
                         continue
                     store['directions'] = [d for d in store['directions'] if d['id'] != direction_id]
                     store['directions'].append(candidate)
@@ -574,7 +584,9 @@ class App:
             elif kind == 'join':
                 direction_id = item['direction']
                 if direction_id not in fresh:
-                    outcomes.append({'verdict': 'unusable', 'titles': [title[k] for k in item['papers']], 'name': '', 'nearest': '', 'direction': None})
+                    outcomes.append({'verdict': 'unusable', 'titles': [title[k] for k in item['papers']],
+                                     'name': '', 'nearest': '', 'direction': None, 'error_code': 'stale_direction',
+                                     'reason': growthproposal.reply_reason('stale_direction', self.english())})
                     continue
             if verdict == 'join':
                 target = next(d for d in store['directions'] if d['id'] == direction_id)

@@ -313,6 +313,16 @@
         "docs/evidence/2026-10-07-growth-primary-delivery-checks.txt",
         "docs/evidence/2026-10-07-growth-primary-delivery-review.md"
       ]
+    },
+    {
+      "id": "E-GROWTH-REPLY-VALIDATION",
+      "status": "passed",
+      "blocks_release": true,
+      "method": "Offline red/green regression from sanitized real reply shape, strict unsafe reference/cycle/cap/null/length/missing/duplicate tests, full tests and independent review, same primary app build/sign/packaged/native assets. Bound real diagnostic and final verification receipts remain distinguished from synthetic complete-queue tests. Reusable learning-unit covered/join/new contract, complete real two-project snapshots in independent repeats, separate developer receipts and independent semantic output review; retain prior real failures and do not claim universal model accuracy.",
+      "evidence": [
+        "docs/evidence/2026-10-07-growth-reply-validation-checks.txt",
+        "docs/evidence/2026-10-07-growth-reply-validation-review.md"
+      ]
     }
   ]
 }
