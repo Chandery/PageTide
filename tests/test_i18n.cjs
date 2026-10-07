@@ -14,6 +14,11 @@ test('graph navigation and distinct paper-purpose labels have English UI transla
   for(const line of ['分类与学习用途','收藏类别','对应学习单元','定位学习单元','对应关系来自标题与摘要检索词，不会改动收藏类别或掌握状态。','Route 已关闭；学习图仍保留。','本次推荐用途','不在本项目当前推荐批次','在论文关系图中定位','在学习图中定位','收藏到这个项目后，可在图中定位论文。','没有对应的学习单元','部分论文未画出，可在列表搜索后定位。']) assert.doesNotMatch(i18n.translate(line),/[㐀-鿿]/,line);
 });
 
+test('current body matching and pending verification labels translate in full',()=>{
+  const {i18n}=load('en-US',PACK);
+  for(const line of ['正文待核验，学习匹配未确定','对应关系使用标题与可用摘要；缺摘要时使用当前版本的正文。不改动类别或掌握。','3 篇正文待核验','标题或当前版本正文用到了检索词：epitaxy','重新核验学习匹配','论文正文或 PDF 版本已变化，请重新核验学习匹配']) assert.doesNotMatch(i18n.translate(line),/[㐀-鿿]/,line);
+});
+
 test('goal status and following labels translate complete rendered sentences', () => {
   const {i18n} = load('en-US', PACK);
   for (const line of ['当前目标已完成 · 目标范围已满足 3 / 3 个概念',

@@ -74,7 +74,7 @@ class App:
     def _route_org(self, project_id):
         return Organization(self.store, project=self._require_project(project_id))
 
-    def _route_inputs(self, project_id, graph, verification_budget=None):
+    def _route_inputs(self, project_id, graph, verification_budget=None, matching_rows=None):
         """Explicit events and shown counts per concept. A paper counts for the one concept it fits best, so
         a single paper cannot raise two concepts at once. Seeds are explicit positives chosen at creation.
         A frozen profile replays feedback only up to the freeze, and undone feedback is gone."""
@@ -89,7 +89,13 @@ class App:
         relevant=set(feedback)|set(full_familiarity)|set(self.seed_keys(project_id))|{row[0] for row in exposures}
         # Only evidence-bearing papers need their bounded, current PDF text.
         # Classification remains independent of recommendation language policy.
-        bodies={p['key']:p for p in self.recommendation_pool(project_id,paper_keys=relevant,retrieval_only=True,verification_budget=verification_budget)} if relevant else {}
+        missing = relevant if matching_rows is None else relevant - matching_rows.keys()
+        fresh = self.recommendation_pool(project_id,paper_keys=missing,retrieval_only=True,verification_budget=verification_budget) if missing else []
+        if matching_rows is not None:
+            matching_rows.update({p['key']:p for p in fresh})
+            bodies={key:matching_rows[key] for key in relevant if key in matching_rows}
+        else:
+            bodies={p['key']:p for p in fresh}
         papers=[bodies.get(p['key'],p) for p in papers]
         active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}
         best = {key: ids[0] for key, ids in pathgrowth.assign(active, papers).items()}
@@ -118,17 +124,17 @@ class App:
         for row in exposures:
             if row[0] in best:
                 shown[best[row[0]]] = shown.get(best[row[0]], 0) + 1
-        deferred=any(p['_eligibility']['reason']=='source_verification_deferred' for p in bodies.values())
+        deferred=any(not eligibility.usable_abstract(p.get('abstract')) and p['_eligibility']['reason']=='source_verification_deferred' for p in bodies.values())
         return events, shown, deferred
 
-    def route_get(self, project_id=None, verification_budget=None):
+    def route_get(self, project_id=None, verification_budget=None, *, matching_rows=None):
         """The project's learning map with per-concept progress, derived from explicit feedback only."""
         project_id = self._require_project(project_id)
         revision, route = read_route(self.store.conn, project_id)
         if not route:
             return {"enabled": False, "mode": "off", "graph": None, "revision": revision}
         graph, manual = route["graph"], route.get("manual") or {}
-        events, shown, deferred = self._route_inputs(project_id, graph,verification_budget)
+        events, shown, deferred = self._route_inputs(project_id, graph,verification_budget,matching_rows)
         start = route.get("start") or None
         prog = pathgraph.progress(graph, events, manual, shown, start=start)
         live = [i for i, s in prog.items() if s["status"] in ("locked", "unlocked", "satisfied")]
@@ -878,11 +884,19 @@ class App:
         """The library graph's second view (learning map + papers): its data (Organization.route_detail) with each unit's progress status."""
         if not isinstance(project_id, str) or not project_id:
             raise ValueError("project_id 必须是项目 id")
-        detail = read_route_detail(self.store.conn, project_id, focus_key)   # plain reads: creates no organization tables or row
+        detail = read_route_detail(self.store.conn, project_id, focus_key)   # validates scope/focus before file reads
         if detail["available"]:
-            progress = self.route_get(project_id)["progress"]
+            budget = {'remaining': eligibility.MAX_VERIFY_BYTES, 'deferred': False}
+            keys = {r[0] for r in self.store.conn.execute('SELECT paper_key FROM project_library WHERE project_id=?', (project_id,))}
+            rows = self.recommendation_pool(project_id, paper_keys=keys, retrieval_only=True, verification_budget=budget)
+            matching_rows = {p['key']:p for p in rows}
+            state = self.route_get(project_id, verification_budget=budget, matching_rows=matching_rows)
+            detail = read_route_detail(self.store.conn, project_id, focus_key, paper_rows=rows)
+            progress = state['progress']
+            detail['progress_verification_deferred'] = state['progress_verification_deferred']
             for unit in detail["units"]:
                 unit["status"] = (progress.get(unit["id"]) or {}).get("status", "locked")
+            self._check_matching_rows_current(matching_rows.values())
         return detail
 
     def route_manual(self, project_id, concept, value, revision=None):
@@ -2217,7 +2231,20 @@ class App:
         paper = self.store.paper(key)
         if not paper:
             return None
-        return {
+        budget = {'remaining': eligibility.MAX_VERIFY_BYTES, 'deferred': False}
+        language_row = self._recommendation_rows(paper_key=key)[0]
+        context_row = paper
+        if project_id:
+            self._require_project_id(project_id)
+            _, route = read_route(self.store.conn, project_id)
+            if any(c.get('state', 'active') != 'archived' for c in ((route or {}).get('graph') or {}).get('concepts', [])):
+                rows = self.recommendation_pool(project_id, paper_keys=[key], retrieval_only=True, verification_budget=budget)
+                if rows:
+                    context_row = language_row = rows[0]
+        # A prepared row already attempted the shared version check. An empty
+        # digest prevents the language label from retrying an exhausted check.
+        checked_digest = (context_row.get('_checked_pdf_sha256') or '') if '_eligibility' in context_row else None
+        result = {
             "key": paper["key"], "title": paper["title"], "abstract": paper["abstract"] or "",
             "published": paper["published"], "source": paper["source"],
             "doi": paper["doi"], "arxiv_id": paper["arxiv_id"],
@@ -2228,11 +2255,13 @@ class App:
             "projects": self.store.paper_projects(key),
             "summary": self.store.summaries().get(key),
             "topic": paper.get("topic"),
-            "context": paper_context(self.store.conn, paper, project_id) if project_id else None,
+            "context": paper_context(self.store.conn, context_row, project_id) if project_id else None,
             "why": self.explain(paper, project_id)["why"],
             "has_pdf": self.pdf_path(key) is not None,
-            'language': self._paper_language(self._recommendation_rows(paper_key=key)[0]),
+            'language': self._paper_language(language_row, digest=checked_digest, verification_budget=budget),
         }
+        self._check_matching_rows_current([context_row])
+        return result
 
     def _project_keywords(self, project_id):
         row = self.store.conn.execute("SELECT keywords FROM projects WHERE id=?", (project_id,)).fetchone()
@@ -2316,6 +2345,27 @@ class App:
                 'fulltext_language': paper.get('verified_language') if verified else None,
                 'fulltext_status': 'verified' if verified else 'unverified',
                 'verification_method': paper.get('verified_method') if verified else None}
+
+    def _check_matching_rows_current(self, rows):
+        """Reject a derived response if its captured body changed during this request.
+
+        This compares the bounded text and current file/version identity; it
+        does not perform another hash or expand the physical read budget.
+        """
+        for paper in rows:
+            if not paper.get('_local_body'):
+                continue
+            current = self._recommendation_rows(paper_key=paper['key'])
+            if not current or any(current[0].get(c) != paper.get(c) for c in ('title','abstract','current_pdf_path','current_pdf_sha256')):
+                raise ValueError('论文正文或 PDF 版本已变化，请重新核验学习匹配')
+            sha = paper.get('_checked_pdf_sha256')
+            if not sha or eligibility.file_identity(paper.get('current_pdf_path')) != paper.get('_checked_pdf_identity'):
+                raise ValueError('论文正文或 PDF 版本已变化，请重新核验学习匹配')
+            body = '\n'.join(r[0] for r in self.store.conn.execute('''SELECT substr(content,1,?)
+                FROM fulltext WHERE paper_key=? AND source_pdf_sha256=? AND page BETWEEN 1 AND ? ORDER BY page LIMIT ?''',
+                (eligibility.BODY_PAGE_CHARS,paper['key'],sha,eligibility.BODY_PAGES,eligibility.BODY_PAGES)))
+            if body != paper['_local_body']:
+                raise ValueError('论文正文或 PDF 版本已变化，请重新核验学习匹配')
 
     def _verified_pdf_digest(self, paper, identity, budget):
         """One local proof per current paper/PDF, independent of digest LRU.

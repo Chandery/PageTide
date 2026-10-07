@@ -176,6 +176,154 @@ class EligibilityTests(unittest.TestCase):
         self.app.store.conn.commit()
         self.assertEqual(self.app.home_route(self.pid)['goal_status'],'learning')
 
+    def test_learning_graph_and_paper_context_share_current_body_matches_with_progress(self):
+        self.policy()
+        route=self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        cid=route['graph']['concepts'][0]['id']
+        paths={}
+        for key in ['body-one','body-two']:
+            self.paper(key,abstract='No abstract available.',title='Generic publication')
+            path,sha=self.pdf(key); paths[key]=path
+            self.app.save_fulltext(key,[{'page':1,'text':'Epitaxy methods and measurement. '*20}],source_pdf_sha256=sha)
+            self.app.store.save_to_library(key,project_id=self.pid)
+            self.app.record_feedback(key,'understood',project_id=self.pid)
+        self.assertEqual(self.app.route_get(self.pid)['progress'][cid]['understood'],2)
+        detail=self.app.route_detail(self.pid)
+        self.assertEqual({(m['paper'],m['unit']) for m in detail['matches']},{('body-one',cid),('body-two',cid)})
+        self.assertTrue(all(m['source']=='local_body' and m['terms']==['epitaxy'] for m in detail['matches']))
+        context=self.app.paper_detail('body-one',self.pid)['context']
+        self.assertEqual(context['units'],[{'id':cid,'name':'Epitaxy'}])
+        self.assertEqual(context['matching_source'],'local_body')
+        self.app.set_project_language(self.pid,'humanities',['zh'])
+        self.assertEqual(self.app.paper_detail('body-one',self.pid)['context']['units'],context['units'])
+        self.app.route_mode(self.pid,'off')
+        self.assertEqual(self.app.paper_detail('body-one',self.pid)['context']['units'],context['units'])
+        paths['body-one'].write_bytes(b'%PDF-1.4\nchanged\n%%EOF')
+        self.assertEqual(self.app.paper_detail('body-one',self.pid)['context']['units'],[])
+        self.assertNotIn('body-one',{m['paper'] for m in self.app.route_detail(self.pid)['matches']})
+
+    def test_unverified_body_matches_are_pending_rather_than_unmatched_and_resume_boundedly(self):
+        from app import eligibility
+        self.policy()
+        route=self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        self.paper('pending-body',abstract='',title='Generic publication')
+        path,sha=self.pdf('pending-body')
+        self.app.save_fulltext('pending-body',[{'page':1,'text':'Epitaxy methods and measurement. '*20}],source_pdf_sha256=sha)
+        self.app.store.save_to_library('pending-body',project_id=self.pid)
+        eligibility._PDF_CACHE.clear()
+        with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',0):
+            graph=self.app.route_detail(self.pid)
+            context=self.app.paper_detail('pending-body',self.pid)['context']
+        self.assertEqual(graph['pending'],['pending-body'])
+        self.assertNotIn('pending-body',graph['unmatched'])
+        self.assertEqual(graph['unmatched_total'],0)
+        self.assertEqual(context['matching_status'],'pending')
+        self.assertEqual(context['units'],[])
+        self.assertEqual(self.app.route_detail(self.pid)['pending'],[])
+        self.assertEqual(self.app.paper_detail('pending-body',self.pid)['context']['matching_status'],'ready')
+
+    def test_learning_graph_progress_and_detail_language_share_a_physical_read_budget(self):
+        from app import eligibility
+        self.policy()
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        for key in ['budget-one','budget-two','budget-three']:
+            self.paper(key,abstract='',title='Generic publication')
+            path,sha=self.pdf(key)
+            self.app.save_fulltext(key,[{'page':1,'text':'Epitaxy methods and measurement. '*20}],source_pdf_sha256=sha)
+            self.app.store.record_fulltext_language(key,'en',sha,'manual')
+            if key != 'budget-three':
+                self.app.store.save_to_library(key,project_id=self.pid)
+            self.app.record_feedback(key,'too_hard' if key == 'budget-three' else 'understood',project_id=self.pid)
+        eligibility._PDF_CACHE.clear(); eligibility._SCAN_CURSOR.clear()
+        self.app.store.conn.execute("DELETE FROM settings WHERE key LIKE 'pdf_verification_%'"); self.app.store.conn.commit()
+        maximum=path.stat().st_size*2; used=[]; real=eligibility.pdf_digest
+        def measured(path,budget=None):
+            self.assertIsNotNone(budget)
+            before=budget['remaining']; result=real(path,budget)
+            used.append(before-budget['remaining']); return result
+        with mock.patch.object(eligibility,'MAX_CACHED_DIGESTS',1), mock.patch.object(eligibility,'MAX_VERIFY_BYTES',maximum), mock.patch.object(eligibility,'pdf_digest',side_effect=measured):
+            graph=self.app.route_detail(self.pid)
+        self.assertEqual(sum(used),maximum)
+        self.assertEqual(len(graph['matches']),2)
+        self.assertTrue(graph['progress_verification_deferred'])
+        self.assertEqual(graph['pending_total'],0)
+        # The remaining paper's detail checks once for both its matching text and language.
+        used.clear()
+        with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',path.stat().st_size), mock.patch.object(eligibility,'pdf_digest',side_effect=measured):
+            detail=self.app.paper_detail('budget-three',self.pid)
+        self.assertEqual(sum(used),path.stat().st_size)
+        self.assertEqual(detail['language']['fulltext_status'],'verified')
+        self.assertEqual(detail['context']['matching_source'],'local_body')
+
+    def test_usable_abstract_matches_survive_deferred_fulltext_language_check(self):
+        from app import eligibility
+        self.policy()
+        route=self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        cid=route['graph']['concepts'][0]['id']
+        self.paper('abstract',title='Generic publication',abstract='Epitaxy growth methods and measurement')
+        _,sha=self.pdf('abstract'); self.app.store.record_fulltext_language('abstract','en',sha,'manual')
+        self.app.store.save_to_library('abstract',project_id=self.pid)
+        self.app.record_feedback('abstract','understood',project_id=self.pid)
+        eligibility._PDF_CACHE.clear(); self.app.store.conn.execute("DELETE FROM settings WHERE key LIKE 'pdf_verification_%'"); self.app.store.conn.commit()
+        with mock.patch.object(eligibility,'MAX_VERIFY_BYTES',0):
+            graph=self.app.route_detail(self.pid); detail=self.app.paper_detail('abstract',self.pid)
+        self.assertEqual(graph['pending_total'],0)
+        self.assertFalse(graph['progress_verification_deferred'])
+        self.assertEqual(graph['matches'][0]['unit'],cid)
+        self.assertEqual(detail['context']['matching_status'],'ready')
+        self.assertEqual(detail['context']['units'][0]['id'],cid)
+        self.assertEqual(detail['language']['fulltext_status'],'unverified')
+
+    def test_graph_rejects_pdf_or_body_changes_between_matching_and_progress(self):
+        self.policy()
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        self.paper('changing',abstract='',title='Generic publication');path,sha=self.pdf('changing')
+        pages=[{'page':1,'text':'Epitaxy methods and measurement. '*20}]
+        self.app.save_fulltext('changing',pages,source_pdf_sha256=sha)
+        self.app.store.save_to_library('changing',project_id=self.pid)
+        self.app.record_feedback('changing','understood',project_id=self.pid)
+        original=self.app.route_get
+        def change_pdf(*args,**kwargs):
+            result=original(*args,**kwargs)
+            path.write_bytes(b'%PDF-1.4\nchanged during read\n%%EOF')
+            return result
+        with mock.patch.object(self.app,'route_get',side_effect=change_pdf):
+            with self.assertRaisesRegex(ValueError,'版本已变化'):
+                self.app.route_detail(self.pid)
+        path,sha=self.pdf('changing','new')
+        self.app.save_fulltext('changing',pages,source_pdf_sha256=sha)
+        def change_text(*args,**kwargs):
+            result=original(*args,**kwargs)
+            self.app.save_fulltext('changing',[{'page':1,'text':'Photonic calibration methods. '*20}],source_pdf_sha256=sha)
+            return result
+        with mock.patch.object(self.app,'route_get',side_effect=change_text):
+            with self.assertRaisesRegex(ValueError,'版本已变化'):
+                self.app.route_detail(self.pid)
+
+    def test_detail_rejects_pdf_change_after_capturing_matching_body(self):
+        self.policy()
+        self.app.route_save(self.pid,plan={'concepts':[{'id':'a','name':'Epitaxy','terms':['epitaxy'],'hint':1,'needs':[]}],'targets':['a']})
+        self.paper('changing',abstract='',title='Generic publication');path,sha=self.pdf('changing')
+        self.app.save_fulltext('changing',[{'page':1,'text':'Epitaxy methods and measurement. '*20}],source_pdf_sha256=sha)
+        original=self.app.recommendation_pool
+        def change_pdf(*args,**kwargs):
+            result=original(*args,**kwargs)
+            path.write_bytes(b'%PDF-1.4\nchanged during detail\n%%EOF')
+            return result
+        with mock.patch.object(self.app,'recommendation_pool',side_effect=change_pdf):
+            with self.assertRaisesRegex(ValueError,'版本已变化'):
+                self.app.paper_detail('changing',self.pid)
+        path,sha=self.pdf('changing','new')
+        self.app.save_fulltext('changing',[{'page':1,'text':'Epitaxy methods and measurement. '*20}],source_pdf_sha256=sha)
+        explanation=self.app.explain
+        def change_during_response(*args,**kwargs):
+            result=explanation(*args,**kwargs)
+            path.write_bytes(b'%PDF-1.4\nchanged after matching\n%%EOF')
+            return result
+        with mock.patch.object(self.app,'explain',side_effect=change_during_response):
+            with self.assertRaisesRegex(ValueError,'版本已变化'):
+                self.app.paper_detail('changing',self.pid)
+
     def test_changed_body_during_selection_cannot_save_a_stale_route_assignment(self):
         self.policy();self.paper('body',abstract='',title='Generic publication')
         _,sha=self.pdf('body')

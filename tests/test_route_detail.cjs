@@ -77,3 +77,14 @@ test('the summary says what was left out', () => {
   const out = plain(D.layout(detail(), null));
   assert.equal(D.summary(out.counts), '3 个学习单元 · 4 篇论文 · 1 篇没有对应的单元 · 另有 3 篇没有画出来');
 });
+
+test('pending body verification is a separate row and matching tooltips identify current body terms',()=>{
+  const d=detail();d.papers.push({key:'pending',title:'Pending paper'});d.pending=['pending'];
+  d.matches[0].source='local_body';
+  const out=plain(D.layout(d,null));
+  assert.equal(out.counts.matched,3);assert.equal(out.counts.unmatched,1);assert.equal(out.counts.pending,1);
+  const at=id=>out.nodes.find(n=>n.id===id);
+  assert.ok(at('rg:pending').y>at('rp:free').y);assert.ok(at('rp:pending').y>at('rg:pending').y);
+  assert.match(out.edges.find(e=>e.source==='rp:p1'&&e.kind==='matched_to').title,/标题或当前版本正文/);
+  assert.match(D.summary(out.counts),/1 篇正文待核验/);
+});

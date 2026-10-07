@@ -1310,7 +1310,7 @@ async function openDetail(key) {
     const close = closeDetail;
     $('#backBtn').onclick = close;
     $('.detail-scrim').onclick = close;
-    $('#dRead').onclick = () => window.PDH.openReader(d.key, d.title);
+    $('#dRead').onclick = () => { closeDetail(); window.PDH.openReader(d.key, d.title); };
     $('#dAddProject')?.addEventListener('click', async () => {
       const target = $('#dProjectTarget')?.value;
       if (!target || !current()) return;
@@ -1338,6 +1338,8 @@ async function openDetail(key) {
   }
 }
 $('#detail').addEventListener('click', (e) => {
+  const retry = e.target.closest('button[data-action="learning-match-retry"]');
+  if (retry) { if (retry.dataset.project === state.currentProject) { window.PDHOrganization?.invalidateLearning?.(retry.dataset.key)?.catch?.(e => toast(e.message, 'warn')); openDetail(retry.dataset.key); } return; }
   const graph = e.target.closest('button[data-action="graph-navigate"]');
   if (graph) {
     const target = {...graph.dataset}; closeDetail(); selectView('library', false);
@@ -1797,6 +1799,7 @@ async function extractFulltext(key, doc, sourcePages) {
       }
       if (!current()) return;
       const saved = await api('/api/fulltext', { key, pages, source_pdf_sha256:sourceHash });
+      window.PDHOrganization?.invalidateLearning?.(key)?.catch?.(e => toast(e.message, 'warn'));
       if (!current()) return;
       R.pageTexts = pages.map((p) => p.text);
       setFulltextBadge(saved.pages, saved.chars);
@@ -2230,7 +2233,7 @@ pagesBox.addEventListener('gestureend', (event) => {
   commitZoom();
 }, { passive: false });
 
-$('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false); };
+$('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false); window.PDHOrganization?.invalidateLearning?.(R.key, true)?.catch?.(e => toast(e.message, 'warn')); };
 $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sel]');

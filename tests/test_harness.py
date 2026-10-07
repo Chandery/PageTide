@@ -17,7 +17,9 @@ class HarnessTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         for source in harness.files(harness.ROOT):
             relative = source.relative_to(harness.ROOT)
-            if relative.parts[0] in ('tests', 'scripts', 'changes'):
+            if relative.parts[0] in ('scripts', 'changes'):
+                continue
+            if relative.parts[0] == 'tests' and str(relative) != 'tests/test_route_full_flow.py':
                 continue
             dest = self.root / relative
             dest.parent.mkdir(parents=True, exist_ok=True)

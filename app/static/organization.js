@@ -794,7 +794,8 @@
     renderFocus(); renderGraphLegend();
     if (!window.cytoscape) { container.innerHTML = '<p class="org-empty org-error">图谱组件未加载，请刷新重试</p>'; return; }
     const focusKey = S.key;
-    let detail = S.routeDetail && S.routeDetail.scope === scope && S.routeDetail.focusKey === focusKey ? S.routeDetail.data : null;
+    let detail = S.routeDetail && S.routeDetail.scope === scope && S.routeDetail.focusKey === focusKey
+      && !S.routeDetail.data.pending_total && !S.routeDetail.data.progress_verification_deferred ? S.routeDetail.data : null;
     try {
       if (!detail) {
         detail = await window.PDH.api('/api/organization', { action: 'route-detail', project_id: scope, ...(focusKey ? {focus_key: focusKey} : {}) });
@@ -819,7 +820,7 @@
     fitRouteGraph();
     const hint = $('.org-graph-hint');
     const say = text => { if (hint) hint.textContent = text; };
-    say(`${window.PDHRouteDetail.summary(built.counts)} · 点论文看详情，点学习单元看它的说明`);
+    say(`${window.PDHRouteDetail.summary(built.counts)} · 点论文看详情，点学习单元看它的说明${detail.progress_verification_deferred ? ' · 部分进度证据待核验' : ''}`);
     cy.on('tap', 'node[kind="paper"]', e => { S.navigationToken++; S.key = e.target.data('key'); cy.nodes().removeClass('org-current'); e.target.addClass('org-current'); renderSidebar(); renderDetail(); renderList(); });
     cy.on('tap', 'node[kind="unit"]', e => {
       const d = e.target.data(), kind = { topic: '主题', method: '方法', problem: '问题', foundation: '基础' }[d.type];
@@ -1125,7 +1126,9 @@
     box.hidden = S.graphView !== 'route' || !detail?.available;
     if (box.hidden) { box.innerHTML = ''; return; }
     const keys = detail.unmatched || [], total = detail.unmatched_total ?? keys.length;
-    box.innerHTML = `<summary>没有对应的学习单元 · ${h(total)} 篇</summary>${keys.map(key => `<button type="button" data-action="graph-paper-focus" data-key="${h(key)}"><span data-no-i18n>${h(item(key)?.title || key)}</span></button>`).join('')}${total > keys.length ? '<p>部分论文未画出，可在列表搜索后定位。</p>' : ''}`;
+    const pending = detail.pending || [], pendingTotal = detail.pending_total ?? pending.length;
+    const papers = keys => keys.map(key => `<button type="button" data-action="graph-paper-focus" data-key="${h(key)}"><span data-no-i18n>${h(item(key)?.title || key)}</span></button>`).join('');
+    box.innerHTML = `<summary>没有对应的学习单元 · ${h(total)} 篇</summary>${papers(keys)}${pendingTotal ? `<p>${h(pendingTotal)} 篇正文待核验</p>${papers(pending)}` : ''}<button type="button" data-action="route-verification-retry">重新核验学习匹配</button>${total + pendingTotal > keys.length + pending.length ? '<p>部分论文未画出，可在列表搜索后定位。</p>' : ''}`;
   }
   async function handle(action, b) {
     switch (action) {
@@ -1189,6 +1192,10 @@
       }
       case 'show-all-graph': S.showAll = true; renderGraph(false); break;
       case 'graph-navigate': navigatePaper(b.dataset); break;
+      case 'route-verification-retry': await invalidateLearning(null, true); break;
+      case 'learning-match-retry':
+        if (b.dataset.project !== (S.scope === 'all' ? currentProject() : S.scope) || b.dataset.key !== S.key) break;
+        await invalidateLearning(b.dataset.key, true); break;
       case 'read': { const p = item(b.dataset.key); if (p) await window.PDH.openReader(p.key, p.title); break; }
       case 'detail': S.key = b.dataset.key; S.navigationToken++; renderDetail(); renderList(); filterGraph(); break;
       case 'detail-close': S.navigationToken++; S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); if (S.focus.startsWith('paper')) { S.focus = 'all'; if (S.mode === 'graph') renderGraph(false); else renderFocus(); } break;
@@ -1289,7 +1296,13 @@
     S.focus = 'all'; S.showAll = false; S.showOther = false; S.scope = currentProject() || 'all'; S.scopeSet = true; S.notice = ''; S.transient = new Set();
     S.cy?.destroy(); S.cy = null;
   }
-  window.PDHOrganization = { cancelNavigation() { S.navigationToken++; S.routeToken++; }, reset() {
+  function invalidateLearning(key, refreshVisible = true) {
+    S.contextToken++; S.contexts.clear(); S.routeToken++; S.routeDetail = null; S.navigationToken++;
+    if (!refreshVisible || !S.root || S.root.hidden || S.root.classList?.contains('hidden')) return Promise.resolve();
+    if (S.key) renderDetail();
+    return S.mode === 'graph' && S.graphView === 'route' ? renderRouteGraph() : Promise.resolve();
+  }
+  window.PDHOrganization = { invalidateLearning, cancelNavigation() { S.navigationToken++; S.routeToken++; }, reset() {
     reset();
     return S.root && !S.root.classList.contains('hidden') ? this.open(S.mode) : Promise.resolve();
   }, async navigate(target) {

@@ -66,9 +66,9 @@ test('reader hashes the loaded bytes, independent of a later document or metadat
 function extractor(api){
   const source=fs.readFileSync('app/static/index.html','utf8');
   const body=source.slice(source.indexOf('async function extractFulltext('),source.indexOf('\nfunction setFulltextBadge('));
-  const doc={}, R={key:'p',doc,fulltext:false}, timers=[], badges=[];
-  const context={R,api,PDHReaderSource:{hash:async()=> 'a'.repeat(64)},setTimeout:fn=>timers.push(fn),toast(){},setFulltextBadge:(...args)=>badges.push(args)};
-  vm.runInNewContext(body,context);return {context,R,doc,timers,badges};
+  const doc={}, R={key:'p',doc,fulltext:false}, timers=[], badges=[], invalidations=[];
+  const context={R,api,window:{PDHOrganization:{invalidateLearning:key=>invalidations.push(key)}},PDHReaderSource:{hash:async()=> 'a'.repeat(64)},setTimeout:fn=>timers.push(fn),toast(){},setFulltextBadge:(...args)=>badges.push(args)};
+  vm.runInNewContext(body,context);return {context,R,doc,timers,badges,invalidations};
 }
 test('late cached text is ignored after switching to another paper',async()=>{
   let release;const f=extractor(()=>new Promise(resolve=>{release=resolve;}));
@@ -84,5 +84,15 @@ test('body extraction posts the captured source hash and ignores late save respo
   assert.match(calls[0][0],/source_pdf_sha256=aaa/);assert.equal(calls[1][1].source_pdf_sha256,'a'.repeat(64));
   assert.equal(calls[1][1].pages[0].text,'current body\n');
   f.R.key='next';f.R.doc={};save({pages:1,chars:10});await timer;
+  assert.deepEqual(f.invalidations,['p']);
   assert.equal(f.R.fulltext,false);assert.deepEqual(f.badges,[]);
+});
+
+test('closing the actual reader refreshes learning views after a version or text change',()=>{
+  const source=fs.readFileSync('app/static/index.html','utf8');
+  const line=source.split('\n').find(s=>s.startsWith("$('#readerBack').onclick ="));
+  const nodes=new Map(),calls=[];
+  const node=id=>{if(!nodes.has(id))nodes.set(id,{classList:{add(){}}});return nodes.get(id);};
+  vm.runInNewContext(line,{$:node,R:{key:'p'},document:{body:{classList:{remove(){}}}},dockPanel(){},toast(){},window:{PDHOrganization:{invalidateLearning:(...args)=>{calls.push(args);return Promise.resolve();}}}});
+  node('#readerBack').onclick();assert.deepEqual(calls,[['p',true]]);
 });

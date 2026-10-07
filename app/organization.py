@@ -37,7 +37,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import unquote
 
-from . import pathgraph, pathgrowth, route_revision
+from . import eligibility, pathgraph, pathgrowth, route_revision
 from .clustering import cluster, corpus_fingerprint
 from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
 from .db import now
@@ -64,11 +64,12 @@ def saved_corpus(conn, scope=None):
 ROUTE_DETAIL_MAX_PAPERS = 120   # the second view draws what can be read, and says how many it left out
 
 
-def route_detail(conn, project_id, focus_key=None):
+def route_detail(conn, project_id, focus_key=None, *, paper_rows=None):
     """The data of the library graph's second view (the learning map): one project's learning units and the papers it saved.
 
-    Read-only and derived. A paper is matched to the (at most two) units whose search terms its title or
-    abstract uses (pathgrowth.assign), and the terms that matched travel with the match so the line can be
+    Read-only and derived. A paper is matched to the (at most two) units whose terms its local retrieval text
+    uses (pathgrowth.assign); the service supplies bounded current-body rows when no usable abstract exists.
+    The terms and source travel with the match so the line can be
     explained. Nothing is stored: matches are not part of anyone's classification, and a paper that fits no
     unit is listed, not hidden. Unknown project: ValueError. No learning map: {"available": False}."""
     _text(project_id, "project_id", 200)
@@ -86,14 +87,18 @@ def route_detail(conn, project_id, focus_key=None):
     shown = {"concepts": live, "prereqs": edges, "targets": [t for t in graph.get("targets", []) if t in ids]}
     level = pathgraph.layers(shown)
     papers = saved_corpus(conn, project_id)
-    assigned = pathgrowth.assign(shown, papers)
+    prepared = {p['key']: p for p in (paper_rows or [])}
+    papers = [prepared.get(p['key'], p) for p in papers]
+    pending = {p['key'] for p in papers if not eligibility.usable_abstract(p.get('abstract')) and (p.get('_eligibility') or {}).get('reason') == 'source_verification_deferred'}
+    assigned = pathgrowth.assign(shown, [p for p in papers if p['key'] not in pending])
     by_id = {c["id"]: c for c in live}
     matches = []
     for paper in papers:
         for rank, unit in enumerate(assigned.get(paper["key"], [])):
-            text = f"{paper.get('title') or ''} {paper.get('abstract') or ''}"
+            text = eligibility.retrieval_text(paper)
             terms = [t for t in by_id[unit].get("terms", []) if pathgrowth.term_in_text(text, t)]
-            matches.append({"paper": paper["key"], "unit": unit, "rank": rank, "terms": terms})
+            matches.append({"paper": paper["key"], "unit": unit, "rank": rank, "terms": terms,
+                            "source": "local_body" if not eligibility.usable_abstract(paper.get('abstract')) and paper.get('_local_body') else "title_abstract"})
     matched = {m["paper"] for m in matches}
     ordered = [p for p in papers if p["key"] in matched] + [p for p in papers if p["key"] not in matched]
     kept = ordered[:ROUTE_DETAIL_MAX_PAPERS]
@@ -109,8 +114,9 @@ def route_detail(conn, project_id, focus_key=None):
             "prereqs": [{"from": e["from"], "to": e["to"], "state": e.get("state", "active")} for e in edges],
             "papers": [{"key": p["key"], "title": p.get("title") or p["key"], "published": p.get("published")} for p in kept],
             "matches": [m for m in matches if m["paper"] in kept_keys],
-            "unmatched": [p["key"] for p in kept if p["key"] not in matched],
-            "unmatched_total": len(papers) - len(matched),
+            "unmatched": [p["key"] for p in kept if p["key"] not in matched and p['key'] not in pending],
+            "unmatched_total": len(papers) - len(matched) - len(pending),
+            "pending": [p['key'] for p in kept if p['key'] in pending], "pending_total": len(pending),
             "omitted": len(ordered) - len(kept)}
 
 
@@ -128,7 +134,8 @@ def paper_context(conn, paper, project_id):
     _, route = read_route(conn, project_id)
     graph = (route or {}).get("graph") or {"concepts": []}
     live = [c for c in graph["concepts"] if c.get("state", "active") != "archived"]
-    assigned = pathgrowth.assign({"concepts": live}, [paper]).get(paper["key"], [])
+    pending = not eligibility.usable_abstract(paper.get('abstract')) and (paper.get('_eligibility') or {}).get('reason') == 'source_verification_deferred'
+    assigned = [] if pending else pathgrowth.assign({"concepts": live}, [paper]).get(paper["key"], [])
     by_id = {c["id"]: c for c in live}
     # Only the current project batch supplies a 'this recommendation' purpose. Old exposures remain history.
     exposure = conn.execute("""SELECT b.id, e.route_kind, e.route_name FROM batches b
@@ -136,6 +143,8 @@ def paper_context(conn, paper, project_id):
         AND e.paper_key=?""", (project_id, paper["key"])).fetchone()
     return {"project_id": project_id, "categories": categories,
             "units": [{"id": cid, "name": by_id[cid]["name"]} for cid in assigned],
+            "matching_status": "pending" if pending else "ready",
+            "matching_source": "local_body" if not eligibility.usable_abstract(paper.get('abstract')) and paper.get('_local_body') else "title_abstract",
             "map_available": bool(live), "route_enabled": bool(route and route.get("mode", "route") == "route"),
             "saved_in_project": bool(conn.execute("SELECT 1 FROM project_library WHERE project_id=? AND paper_key=?",
                                                    (project_id, paper["key"])).fetchone()),

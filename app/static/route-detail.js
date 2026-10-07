@@ -53,13 +53,18 @@
 
     // papers that fit no unit are listed, in a row of their own
     const free = (detail.unmatched || []).filter((key) => drawn.has(key));
-    if (free.length) {
-      nodes.push({ id: 'rg:unmatched', kind: 'group', label: '没有对应的学习单元', x: 0, y: y });
-      free.forEach((key, i) => {
-        const col = i % FREE_COLS, rowIndex = Math.floor(i / FREE_COLS), inRow = Math.min(FREE_COLS, free.length - rowIndex * FREE_COLS);
+    const pending = (detail.pending || []).filter((key) => drawn.has(key));
+    function detached(keys, id, label) {
+      if (!keys.length) return;
+      nodes.push({ id, kind: 'group', label, x: 0, y });
+      keys.forEach((key, i) => {
+        const col = i % FREE_COLS, rowIndex = Math.floor(i / FREE_COLS), inRow = Math.min(FREE_COLS, keys.length - rowIndex * FREE_COLS);
         nodes.push({ id: paperId(key), kind: 'paper', key, label: clip(title.get(key), 30), x: (col - (inRow - 1) / 2) * PAPER_GAP, y: y + 70 + rowIndex * PAPER_ROW });
       });
+      y += 70 + Math.ceil(keys.length / FREE_COLS) * PAPER_ROW + ROW_PAD;
     }
+    detached(free, 'rg:unmatched', '没有对应的学习单元');
+    detached(pending, 'rg:pending', '正文待核验，学习匹配未确定');
 
     const unitIds = new Set(units.map((u) => u.id));
     (detail.prereqs || []).forEach((e, i) => {
@@ -67,21 +72,23 @@
     });
     matches.forEach((m, i) => {
       if (drawn.has(m.paper) && unitIds.has(m.unit)) edges.push({ id: `rm:${i}`, source: paperId(m.paper), target: unitId(m.unit), kind: 'matched_to', rank: m.rank,
-        title: m.terms && m.terms.length ? `标题或摘要用到了检索词：${m.terms.join('、')}` : '标题或摘要用到了这个概念的检索词' });
+        title: m.source === 'local_body' ? `标题或当前版本正文用到了检索词：${(m.terms || []).join('、')}`
+          : m.terms && m.terms.length ? `标题或摘要用到了检索词：${m.terms.join('、')}` : '标题或摘要用到了这个概念的检索词' });
     });
     ((relations && relations.edges) || []).forEach((e, i) => {
       if (e.source !== e.target && drawn.has(e.source) && drawn.has(e.target)) {
         edges.push({ id: `rs:${i}`, source: paperId(e.source), target: paperId(e.target), kind: 'similarity', weight: e.weight, title: `内容相似度 ${Math.round((e.weight || 0) * 100)}%（非引用关系）` });
       }
     });
-    const matchedCount = papers.length - (detail.unmatched || []).length;
-    return { nodes, edges, counts: { units: units.length, papers: papers.length, matched: matchedCount, unmatched: (detail.unmatched || []).length, omitted: detail.omitted || 0 } };
+    const matchedCount = papers.length - free.length - pending.length;
+    return { nodes, edges, counts: { units: units.length, papers: papers.length, matched: matchedCount, unmatched: free.length, pending: pending.length, omitted: detail.omitted || 0 } };
   }
 
   /* One sentence under the graph: what is drawn, and what was left out. */
   function summary(counts) {
     const parts = [`${counts.units} 个学习单元`, `${counts.papers} 篇论文`];
     if (counts.unmatched) parts.push(`${counts.unmatched} 篇没有对应的单元`);
+    if (counts.pending) parts.push(`${counts.pending} 篇正文待核验`);
     if (counts.omitted) parts.push(`另有 ${counts.omitted} 篇没有画出来`);
     return parts.join(' · ');
   }

@@ -1,0 +1,44 @@
+Route stage08 current-body matching. Baseline deec31a; branch codex/route-discovery-rework. Final commit is given by git, not self-inferred. Critical scope: local current-version matching, progress/detail/graph consistency, async cache invalidation and packaged fixture checks. No model, real source, private-library or provider calls.
+
+Regression history:
+- Initial new graph/context tests failed (missing body matches and missing pending state), proving the old title/abstract-only mismatch. Both passed after shared retrieval integration.
+- Independent review found four P2, then two additional lifetime P2. All fixed and independently reprobed; details in review evidence.
+- First full Python:1458 tests, exit1 due existing test_harness isolated fixture missing newly registered tests/test_route_full_flow.py evidence. Fixture now copies that file; actual evidence existence validation retained.
+- A new async UI fixture initially omitted its known Map registry and expected2 calls while its own renderViewSeg changed to papers. Fixed fixture, no product rule weakened.
+
+Final current files:
+python3 -m unittest discover -s tests -v
+exit0,1461 tests in151.207s. Final response-currentness guard and regressions included.
+node --test tests/*.cjs
+exit0,280 tests,0 skipped/cancelled/failed.
+python3 scripts/budget.py --check
+exit0, arithmetic/generated parity only, no live API. Daily required model tokens0, new calls/input/output/USD0.
+python3 scripts/harness.py check
+exit0, repository evidence/traceability only, not runtime/AI/billing proof.
+git diff --check
+exit0.
+python3 scripts/i18n_extract.py --check
+exit0,0 missing of1157 phrases.
+
+.local/desktop-build-env/bin/python scripts/build_desktop.py
+exit0, fresh COLLECT completed and src-tauri/resources backend prepared.
+cargo tauri build --bundles app
+exit0, fresh src-tauri/target/release/bundle/macos/PaperDigHelper.app created.
+python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server
+exit0, actual freshly bundled backend in temporaryHOME/data and blocked outbound environment, AI disabled, default library marker untouched. New checks: missing-abstract paper matches Prediction via current body; graph/context agree on source/terms; same-project Routeoff retains match; actual PDF replacement removes graph/context match. Earlier stage fixtures/authentication/restart/undo/core fallback also passed.
+
+Initial codesign --verify --deep --strict ...App
+exit1: code has no resources but signature indicates they must be present. The build was linker-ad-hoc signed with no sealed resources. Build outputs only were locally ad-hoc signed, no repository signing configuration or certificate modified.
+codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PaperDigHelper.app
+exit0, replacing existing signature.
+codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app
+exit0, fresh local bundle verification; does not establish notarization/release approval.
+Packaged backend verifier repeated after signing:exit0.
+
+Independent final review:103 Python and128 Node passed, source/lifetime probes passed, no remainingP1/P2 in this unit. See separate evidence. Earlier broader128 Python/127 Node probes also passed; not substituted for final files.
+
+python3 scripts/harness.py check --release
+exit1.20 original blocking evaluations remain not_run includingE08, plus application-budget-enforcement and provider-counting calibration registration failures. Gates unchanged; no claim of release success.
+
+Native clicking:not_run. Prior browser policy rejected access because user denied permission; prior native snapshot Maclocked. No bypass/new-port/alternate-surface/rawbrowser workaround. Human unlock/authorization request still unanswered; time is not authorization.
+Real model quality, recommendation value, fulltext language accuracy, billing/tokenizer and8GB resources remain unmeasured. Stage08in_progress/E08not_run; overall goal unfinished.

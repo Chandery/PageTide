@@ -1,4 +1,15 @@
-# 当前工作单元：Route Mode 阶段08双图导航与本地完整流程（2026-10-07）
+# 当前工作单元：Route Mode 阶段08正文匹配一致性（2026-10-07）
+
+- 分支codex/route-discovery-rework，基线deec31a；最终commit/dirty用git核对。00–07done，08in_progress/E08not_run，整个goal未完成。
+- 学习图与今日/库详情共用标题+可用摘要，缺摘要用当前PDF有界正文。最多2关联；进度仍最强单元。语言变更/Routeoff不清学习证据，待核验与未匹配分开；摘要可用时语言延期不隐藏匹配。
+- 图与进度共享captured rows和256MiB物理核验预算，响应返回前比对当前identity/version/有界正文，变更拒绝旧结果；详情同guard，无第二hash。hover说明标题或正文，不虚构命中。正文不上卡片/context/外发。
+- 所有Map详情/图可显式重核验同时清图/context缓存。保存全文/reader返回更新视图，Today读前关drawer、重开重读；visible失效重发当前scope，迟到旧保存不让新图/context永久loading，hidden只清缓存，无轮询。独立6P2全部修并原探针闭合，无剩余P1/P2。
+- 最终1461Python/280Node通过；独立最终103Python/128Node及生产函数交错probe通过。freshbackend/TauriApp/实际新包临时后端通过。初次签名资源校验失败，构建输出本地adhoc签名后strictverify和签名后包后端复验通过；未改签名配置/证书，不等于notarization/发布批准。
+- 临时HOME/data、AI关闭、出站封锁、默认库未动。无模型/真实来源/真实库调用，核心每日token0，新AI未批准；agent本单元成本未知。releasecheck仍exit1（20原评估含E08not_run及预算登记阻断），不降低gates。
+- 之前browserpolicy因用户拒绝访问权限阻断，此前Maclocked；人类解锁/授权请求仍待答复，不重试/绕过、不以时间当许可。下一步获人类许可后做原生全流程，按计划补实际验收；不得提前08done/goalcomplete。真实AI质量、推荐价值、全文语言准确率、账单/tokenizer、8GB资源未测。
+- [ADR0023](decisions/0023-route-current-body-matches.md)、[checks](evidence/2026-10-07-route-v2-08-body-matches-checks.txt)、[review](evidence/2026-10-07-route-v2-08-body-matches-review.md)。任务唯一状态仍harness/tasks.json。
+
+# 上一工作单元：Route Mode 阶段08双图导航与本地完整流程（2026-10-07）
 
 - 分支codex/route-discovery-rework，基线6302862；最终commit/dirty用git核对。ROUTE-V2-00–07 done；08 in_progress，E08 not_run，原生验收与完整目标未完成。
 - 今日与论文库详情分别说明收藏类别、项目学习单元和当前批次用途；同paper双图定位与单元定位，未收藏先收藏，本项目120图上限内确保选中纸可达。未匹配显式入口及总数/省略说明；Routeoff保留Map。语义匹配只派生，不改分类/掌握。

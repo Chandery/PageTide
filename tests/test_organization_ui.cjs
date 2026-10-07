@@ -19,6 +19,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   ui.setDetail = open => { context.window.PDH.openDetail = open; };
   ui.setDocument = doc => { context.document = doc; };
   ui.setProject = project => { context.window.PDH.state = {currentProject: project}; };
+  ui.setAPI = api => { context.window.PDH.api = api; };
   ui.publicUI = context.window.PDHOrganization;
   ui.setCytoscape = factory => { context.window.cytoscape = factory; };
   ui.reduceMotion = enabled => { context.window.matchMedia = () => ({matches: enabled}); };
@@ -1079,4 +1080,65 @@ test('public pending navigation yields to a newer paper selection, closing or le
     release(true);await pending;
     assert.equal(ui.S.key,key,action);assert.equal(ui.S.graphView,view,action);
   }
+});
+
+test('pending learning-match details are retained without an automatic loop and explicit retry refreshes them',async()=>{
+  const ui=routeGraphFixture();ui.S.key='one';ui.S.mode='library';let calls=0;
+  ui.setAPI(async()=>({context:{project_id:'p1',categories:[],map_available:true,saved_in_project:true,route_enabled:true,
+    matching_status:++calls===1?'pending':'ready',units:calls===1?[]:[{id:'a',name:'New match'}]}}));
+  ui.contextFor('one');await new Promise(r=>setImmediate(r));
+  assert.equal(calls,1);assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/learning-match-retry/);
+  await ui.handle('learning-match-retry',{dataset:{project:'p1',key:'one'}});await new Promise(r=>setImmediate(r));
+  assert.equal(calls,2);assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/New match/);
+});
+
+test('a pending graph cache is reread on reopening instead of freezing uncertain matches',async()=>{
+  let calls=0;
+  const ui=fixture(async()=>{calls++;return {available:false};}),dom=routeBox();
+  ui.S.root=dom.root;ui.S.mode='graph';ui.S.graphView='route';ui.S.scope='p1';ui.setCytoscape(()=>({}));
+  ui.S.routeDetail={scope:'p1',focusKey:null,data:{available:true,pending_total:1}};
+  await ui.renderRouteGraph();assert.equal(calls,1);
+});
+
+test('ready learning matches can be explicitly reread after adding body text',async()=>{
+  const ui=routeGraphFixture();ui.S.key='one';ui.S.mode='library';let calls=0;
+  ui.setAPI(async()=>({context:{project_id:'p1',categories:[],map_available:true,saved_in_project:true,route_enabled:true,
+    matching_status:'ready',units:++calls===1?[]:[{id:'a',name:'Body-derived match'}]}}));
+  ui.contextFor('one');await new Promise(r=>setImmediate(r));
+  assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/没有对应的学习单元/);
+  assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/learning-match-retry/);
+  await ui.handle('learning-match-retry',{dataset:{project:'p1',key:'one'}});await new Promise(r=>setImmediate(r));
+  assert.equal(calls,2);assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/Body-derived match/);
+});
+
+test('fulltext invalidation clears ready graph and context caches and rejects older replies',async()=>{
+  const ui=routeGraphFixture();ui.S.key='one';ui.S.mode='library';let release;
+  ui.S.root.hidden=true;
+  ui.setAPI(()=>new Promise(r=>{release=r;}));
+  ui.contextFor('one');
+  ui.S.routeDetail={scope:'p1',focusKey:'one',data:{available:true,pending_total:0}};
+  const token=ui.S.routeToken;
+  await ui.publicUI.invalidateLearning('one');
+  assert.equal(ui.S.routeDetail,null);assert.equal(ui.S.contexts.size,0);assert.ok(ui.S.routeToken>token);
+  release({context:{project_id:'p1',categories:[],map_available:true,units:[]}});await new Promise(r=>setImmediate(r));
+  assert.equal(ui.S.contexts.size,0);
+});
+
+test('late fulltext saving restarts the visible current-project graph instead of abandoning its read',async()=>{
+  const replies=[];
+  const ui=fixture(()=>new Promise(resolve=>replies.push(resolve))),dom=routeBox();
+  ui.S.snapshot=snapshot({route_projects:['new-project'],projects:[{id:'new-project',name:'New'}]});
+  ui.S.root=dom.root;ui.S.mode='graph';ui.S.graphView='route';ui.S.scope='new-project';ui.setCytoscape(()=>({}));
+  const earlier=ui.renderRouteGraph();assert.equal(replies.length,1);
+  const replacement=ui.publicUI.invalidateLearning('old-project-paper');assert.equal(replies.length,2);
+  replies[0]({available:true});await earlier;
+  replies[1]({available:false});await replacement;
+  assert.doesNotMatch(dom.container.innerHTML,/正在读取学习图/);
+  assert.match(dom.container.innerHTML,/没有学习图/);assert.equal(ui.S.scope,'new-project');
+});
+
+test('graph retry remains available for deferred progress with no pending saved papers',()=>{
+  const ui=fixture(),box={hidden:true,innerHTML:''};ui.S.root={querySelector:()=>box};ui.S.graphView='route';
+  ui.renderUnmatched({available:true,unmatched:[],pending:[],pending_total:0,progress_verification_deferred:true});
+  assert.match(box.innerHTML,/route-verification-retry/);assert.match(box.innerHTML,/重新核验学习匹配/);
 });

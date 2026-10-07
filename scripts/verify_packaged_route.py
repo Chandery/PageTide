@@ -118,6 +118,10 @@ def main():
         pdf=data/'body.pdf'; raw=b'%PDF-1.4\nversioned fixture\n%%EOF';pdf.write_bytes(raw)
         sha=hashlib.sha256(raw).hexdigest();app.store.record_pdf('body',pdf,sha256=sha)
         app.save_fulltext('body',[{'page':1,'text':'Meaningful model learning and prediction. '*20}],source_pdf_sha256=sha)
+        body_pid=app.create_project('Body match fixture',language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        body_map=app.route_save(body_pid,plan={'concepts':[{'id':'a','name':'Prediction','terms':['prediction'],'hint':1,'needs':[]}],'targets':['a']})
+        body_unit=body_map['graph']['concepts'][0]['id']
+        app.store.save_to_library('body',project_id=body_pid)
         for key,pages in [('late-page',[{'page':7,'text':'Meaningful model learning. '*30}]),
                           ('late-text',[{'page':1,'text':'.'*2000+'Meaningful model learning. '*30}])]:
             app.store.upsert_papers([{'key':key,'title':key,'abstract':'','language':'en','published':'2026-01-01'}],pid)
@@ -203,8 +207,18 @@ def main():
             assert policy['project']['language_policy']['allowed_languages']==['zh']
             assert {p['key'] for p in call('/api/state?project_id='+pid)['cards']}=={'en','body'}
             assert [p['key'] for p in call('/api/daily',{'project_id':pid})['cards']]==['zh']
+            body_context=call('/api/detail',{'key':'body','project_id':body_pid})['context']
+            assert body_context['units']==[{'id':body_unit,'name':'Prediction'}] and body_context['matching_source']=='local_body'
+            body_graph=call('/api/organization',{'action':'route-detail','project_id':body_pid})
+            assert [(m['paper'],m['unit'],m['source'],m['terms']) for m in body_graph['matches']]==[('body',body_unit,'local_body',['prediction'])]
+            assert body_graph['pending']==[] and body_graph['unmatched']==[]
+            call('/api/route',{'action':'mode','project_id':body_pid,'mode':'off','revision':body_map['revision']})
+            assert call('/api/detail',{'key':'body','project_id':body_pid})['context']['units']==body_context['units']
             pdf.write_bytes(b'%PDF-1.4\nchanged externally\n%%EOF')
             assert call('/api/fulltext?key=body&text=1')['pages']==0
+            assert call('/api/detail',{'key':'body','project_id':body_pid})['context']['units']==[]
+            changed=call('/api/organization',{'action':'route-detail','project_id':body_pid})
+            assert changed['matches']==[] and changed['unmatched']==['body']
             plan={'concepts':[
                 {'id':'a','name':'Model basics','terms':['model basics'],'hint':1,'needs':[]},
                 {'id':'b','name':'Model prediction','terms':['model prediction'],'hint':2,'needs':['a']},
