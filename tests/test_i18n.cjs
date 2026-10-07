@@ -9,6 +9,11 @@ const path = require('node:path');
 const SOURCE = fs.readFileSync(path.join(__dirname, '../app/static/i18n.js'), 'utf8');
 const PACK = JSON.parse(fs.readFileSync(path.join(__dirname, '../app/static/i18n/en-US.json'), 'utf8')).messages;
 
+test('graph navigation and distinct paper-purpose labels have English UI translations', () => {
+  const {i18n}=load('en-US',PACK);
+  for(const line of ['分类与学习用途','收藏类别','对应学习单元','定位学习单元','对应关系来自标题与摘要检索词，不会改动收藏类别或掌握状态。','Route 已关闭；学习图仍保留。','本次推荐用途','不在本项目当前推荐批次','在论文关系图中定位','在学习图中定位','收藏到这个项目后，可在图中定位论文。','没有对应的学习单元','部分论文未画出，可在列表搜索后定位。']) assert.doesNotMatch(i18n.translate(line),/[㐀-鿿]/,line);
+});
+
 test('goal status and following labels translate complete rendered sentences', () => {
   const {i18n} = load('en-US', PACK);
   for (const line of ['当前目标已完成 · 目标范围已满足 3 / 3 个概念',

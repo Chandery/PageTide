@@ -18,7 +18,7 @@ from . import creation, eligibility, growthproposal, maintenance, operation_lock
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
-from .organization import Conflict, Organization, read_route, route_detail as read_route_detail
+from .organization import Conflict, Organization, read_route, route_detail as read_route_detail, paper_context
 from .project import ProjectManager
 from .sources import OpenAlex, SourceError, fetch_seed_work, pdf_availability, resolve_seed, slim, window_start
 
@@ -874,11 +874,11 @@ class App:
             return self._route_model_attempt(key, messages, route_revision.CREATE_OPERATION, limit, process,
                 daily=not bool(session_id), dry_run=dry_run, validate_state=validate_state)
 
-    def route_detail(self, project_id):
+    def route_detail(self, project_id, focus_key=None):
         """The library graph's second view (learning map + papers): its data (Organization.route_detail) with each unit's progress status."""
         if not isinstance(project_id, str) or not project_id:
             raise ValueError("project_id 必须是项目 id")
-        detail = read_route_detail(self.store.conn, project_id)   # plain reads: it must not create the library-organization tables (org_*) or a row
+        detail = read_route_detail(self.store.conn, project_id, focus_key)   # plain reads: creates no organization tables or row
         if detail["available"]:
             progress = self.route_get(project_id)["progress"]
             for unit in detail["units"]:
@@ -2228,6 +2228,7 @@ class App:
             "projects": self.store.paper_projects(key),
             "summary": self.store.summaries().get(key),
             "topic": paper.get("topic"),
+            "context": paper_context(self.store.conn, paper, project_id) if project_id else None,
             "why": self.explain(paper, project_id)["why"],
             "has_pdf": self.pdf_path(key) is not None,
             'language': self._paper_language(self._recommendation_rows(paper_key=key)[0]),

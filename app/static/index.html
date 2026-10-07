@@ -966,6 +966,7 @@ function renderProjectSelector() {
 }
 
 async function switchProject(projectId) {
+  closeDetail();
   if (profileUI) profileUI.invalidate();
   state.currentProject = projectId;
   localStorage.setItem('pdh-current-project', projectId);
@@ -1146,7 +1147,10 @@ $('#btnRefresh').onclick = async () => {
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
   finally { b.disabled = false; b.textContent = '抓取新论文'; }
 };
-document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+function selectView(view, openOrganization = true) {
+  closeDetail(); window.PDHOrganization?.cancelNavigation();
+  const t = [...document.querySelectorAll('.tab')].find(t => t.dataset.view === view);
+  if (!t) return;
   document.querySelectorAll('.tab').forEach(x => {
     x.classList.toggle('active', x === t);
     if (x === t) x.setAttribute('aria-current', 'page');
@@ -1162,8 +1166,9 @@ document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   $('#view-profile').classList.toggle('hidden', state.view !== 'profile');
   window.scrollTo(0,0);
   if (state.view === 'profile') load().catch(e=>toast(e.message,'err'));
-  if (organized) window.PDHOrganization.open(state.view).catch(e => toast(e.message, 'err'));
-});
+  if (organized && openOrganization) window.PDHOrganization.open(state.view).catch(e => toast(e.message, 'err'));
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => selectView(t.dataset.view));
 
 // --------------------------------------------------------------- feedback
 async function doFeedback(key, action) {
@@ -1251,11 +1256,16 @@ function hidePreview() {
 }
 
 // ------------------------------------------------------------ detail page
+let detailToken = 0;
+function closeDetail() { detailToken++; $('#detail').classList.add('hidden'); }
 async function openDetail(key) {
   hidePreview();
+  const token = ++detailToken, project = state.currentProject;
+  const current = () => token === detailToken && project === state.currentProject;
   try {
     // POST with the key in the body: no URL-encoding pitfalls for URL-shaped keys.
-    const d = await api('/api/detail', { key, project_id: state.currentProject });
+    const d = await api('/api/detail', { key, project_id: project });
+    if (!current()) return;
     const s = d.summary;
     const joinedProjectIds = new Set((d.projects || []).map(p => p.project_id));
     $('#detail').innerHTML = `
@@ -1290,40 +1300,49 @@ async function openDetail(key) {
           <div class="hint">共享论文元数据；收藏、反馈和画像仍按项目独立记录。</div>
           <div id="dProjectList" class="hint">${(d.projects || []).map(p => `${esc(p.name)} · ${esc(p.relation_kind || 'shared')}${p.source_project_name ? ` · 来源：${esc(p.source_project_name)}` : ''}`).join('<br>') || '尚未加入其他项目'}</div>
         </section>
+        ${window.PDHPaperContext.html(d.context, d.key)}
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
         <section class="detail-section"><h3>论文语言</h3><p>${esc(PaperPolicy.label(d.language))}</p></section>
         <section class="detail-section"><h3>摘要</h3><div class="full">${d.abstract ? `<div data-no-i18n>${md(d.abstract)}</div>` : '暂无摘要'}</div></section>
       </aside>`;
     $('#detail').classList.remove('hidden');
-    const close = () => $('#detail').classList.add('hidden');
+    const close = closeDetail;
     $('#backBtn').onclick = close;
     $('.detail-scrim').onclick = close;
     $('#dRead').onclick = () => window.PDH.openReader(d.key, d.title);
     $('#dAddProject')?.addEventListener('click', async () => {
       const target = $('#dProjectTarget')?.value;
-      if (!target) return;
+      if (!target || !current()) return;
       try {
-        await api('/api/project-papers', { project_id: target, paper_key: d.key, relation_kind: 'shared', source_project_id: state.currentProject });
+        await api('/api/project-papers', { project_id: target, paper_key: d.key, relation_kind: 'shared', source_project_id: project });
         const projects = await api(`/api/paper/${encodeURIComponent(d.key)}/projects`);
+        if (!current()) return;
         $('#dProjectList').innerHTML = (projects.projects || []).map(p => `${esc(p.name)} · ${esc(p.relation_kind || 'shared')}${p.source_project_name ? ` · 来源：${esc(p.source_project_name)}` : ''}`).join('<br>') || '尚未加入其他项目';
         toast('论文已加入项目', 'ok');
       } catch (e) { toast(`加入失败：${e.message}`, 'err'); }
     });
     window.PDH.setPetContext(d.key, d.title);
     $('#dToggle').onclick = async (ev) => {
+      if (!current()) return;
       const btn = ev.currentTarget, wasSaved = btn.dataset.saved === 'true';
       await doFeedback(d.key, wasSaved ? 'unsave' : 'useful');
+      if (!current()) return;
       const now = !wasSaved;
       btn.dataset.saved = String(now);
       btn.className = now ? 'saved' : 'outline';
       btn.textContent = now ? '✓ 已收藏' : '☆ 收藏到论文库';
     };
   } catch (e) {
-    toast(`打不开详情：${e.message}`, 'err', 6000);
+    if (current()) toast(`打不开详情：${e.message}`, 'err', 6000);
   }
 }
 $('#detail').addEventListener('click', (e) => {
+  const graph = e.target.closest('button[data-action="graph-navigate"]');
+  if (graph) {
+    const target = {...graph.dataset}; closeDetail(); selectView('library', false);
+    window.PDHOrganization.navigate(target).catch(x => toast(x.message, 'err')); return;
+  }
   const judge = e.target.closest('button[data-judge]');
   if (judge) {
     e.stopPropagation();
@@ -1389,7 +1408,7 @@ async function openSettings() {
   } catch (e) { toast(`打不开设置：${e.message}`, 'err'); }
 }
 $('#settingsBtn').onclick = () => { window.location.href = '/settings.html'; };
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('#detail').classList.add('hidden'); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDetail(); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
 document.addEventListener('scroll', hidePreview, { passive: true });
 
 // Load projects first, then load home
@@ -2229,6 +2248,7 @@ document.addEventListener('keydown', (e) => {
 <script src="/vendor/cytoscape/cytoscape.min.js"></script>
 <script src="/graph-motion.js"></script>
 <script src="/route-detail.js"></script>
+<script src="/paper-context.js"></script>
 <script src="/organization.js"></script>
 </body>
 </html>

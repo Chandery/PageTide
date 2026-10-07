@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), 'utf8');
-const handler = html.slice(html.indexOf("$('#btnRefresh').onclick ="), html.indexOf("document.querySelectorAll('.tab')"));
+const handler = html.slice(html.indexOf("$('#btnRefresh').onclick ="), html.indexOf("function selectView("));
 async function click(job) {
   const button = {}, notices = [], calls = [];
   const context = vm.createContext({$: () => button, state: {currentProject: 'p'},

@@ -9,7 +9,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   let clientCounter = 0;
   const context = vm.createContext({
     module: { exports: {} },
-    window: { PDH: { api, toast() {} }, addEventListener() {} },
+    window: { PDH: { api, toast() {} }, PDHPaperContext: require('../app/static/paper-context.js'), addEventListener() {} },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
     crypto: { randomUUID: () => `fresh-client-${++clientCounter}` }, setTimeout, clearTimeout, URL,
   });
@@ -18,6 +18,8 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   ui.setReader = reader => { context.window.PDH.openReader = reader; };
   ui.setDetail = open => { context.window.PDH.openDetail = open; };
   ui.setDocument = doc => { context.document = doc; };
+  ui.setProject = project => { context.window.PDH.state = {currentProject: project}; };
+  ui.publicUI = context.window.PDHOrganization;
   ui.setCytoscape = factory => { context.window.cytoscape = factory; };
   ui.reduceMotion = enabled => { context.window.matchMedia = () => ({matches: enabled}); };
   ui.createGraph = elements => {
@@ -611,8 +613,8 @@ test('every library row has a labelled detail button that opens the shared detai
   assert.ok(!/org-icon[^>]*pencil/.test(listHtml));                          // and no icon-only duplicate of the same button
   // the click handlers (no DOM here): the row button selects the paper for the shared pane, and the pane's × only clears the selection
   const source = fs.readFileSync(path.join(__dirname, '../app/static/organization.js'), 'utf8');
-  assert.match(source, /case 'detail': S\.key = b\.dataset\.key; renderDetail\(\);/);
-  assert.match(source, /case 'detail-close': S\.key = null;/);
+  assert.match(source, /case 'detail': S\.key = b\.dataset\.key; S\.navigationToken\+\+; renderDetail\(\);/);
+  assert.match(source, /case 'detail-close': S\.navigationToken\+\+; S\.key = null;/);
   assert.ok(!/openDetail/.test(source));                                      // the library never calls the Today drawer
 });
 
@@ -989,4 +991,92 @@ test('in the learning-map view the left list focuses the node instead of redrawi
   assert.equal(ui.S.focus, 'all');   // the paper graph's own focus mode is not touched
   await ui.handle('filter', { dataset: { id: 'd2' } });
   assert.deepEqual(dimmed(ui), ['e1', 'e3', 'rp:one', 'ru:a']);
+});
+
+test('actual navigation handler keeps the paper identity in both views and refuses another project', async () => {
+  const ui = routeGraphFixture();
+  await ui.handle('graph-navigate', {dataset:{key:'one', project:'p1', view:'papers'}});
+  assert.equal(ui.S.key, 'one'); assert.equal(ui.S.graphFocus, 'paper:one');
+  assert.equal(ui.S.graphView, 'papers'); assert.equal(ui.S.focus, 'paper1');
+  await ui.handle('graph-navigate', {dataset:{key:'one', project:'p1', view:'route', unit:'a'}});
+  assert.equal(ui.S.key, 'one'); assert.equal(ui.S.routeFocus, 'ru:a');
+  assert.equal(ui.S.graphView, 'route'); assert.equal(ui.S.focus, 'all');
+  await assert.rejects(ui.handle('graph-navigate', {dataset:{key:'one', project:'p2', view:'route'}}), /尚未收藏/);
+  assert.equal(ui.S.scope, 'p1');
+});
+
+test('reset drops a pending route read even when the same project is reopened', async () => {
+  let release;
+  const ui = fixture(() => new Promise(r => {release=r;})), dom=routeBox();
+  ui.S.root=dom.root; ui.S.mode='graph'; ui.S.graphView='route'; ui.S.scope='p1';
+  ui.setProject('p1'); ui.S.snapshot=snapshot({route_projects:['p1']});
+  ui.setCytoscape(() => {throw new Error('stale graph');});
+  const pending=ui.renderRouteGraph(); ui.reset();
+  ui.S.mode='graph'; ui.S.graphView='route'; ui.S.scope='p1'; dom.container.innerHTML='fresh';
+  release({available:true,units:[],papers:[],matches:[]}); await pending;
+  assert.equal(dom.container.innerHTML,'fresh'); assert.equal(ui.S.routeDetail,null);
+});
+
+test('reset ignores a pending snapshot without replacing the new project data', async () => {
+  let release;
+  const ui=fixture(() => new Promise(r=>{release=r;}));
+  const pending=ui.refresh(); await new Promise(r=>setImmediate(r));
+  ui.reset(); ui.accept(snapshot({items:[{key:'new',title:'New',directions:[]}]}));
+  release(snapshot()); await pending;
+  assert.equal(ui.S.snapshot.items[0].key,'new');
+});
+
+test('relations from an earlier project reset are ignored even for an identical corpus', async () => {
+  let release;
+  const ui=fixture(() => new Promise(r=>{release=r;})); ui.accept(snapshot());
+  const pending=ui.loadRelations(); ui.reset(); ui.accept(snapshot());
+  release({job:{state:'done',result:{relations:{edges:[{source:'a',target:'b'}]}}}});
+  await pending; assert.equal(ui.S.relations,null); assert.equal(ui.S.relationsLoading,false);
+});
+
+test('paper context cache is scoped to the project and drops pre-reset replies', async () => {
+  const replies=[];
+  const ui=fixture((url,body)=>new Promise(resolve=>replies.push({body,resolve})));
+  ui.S.scope='p1'; ui.contextFor('one');
+  ui.reset(); ui.S.scope='p2'; ui.contextFor('one');
+  replies[0].resolve({context:{project_id:'p1',categories:[],units:[],map_available:false,saved_in_project:false}});
+  await new Promise(r=>setImmediate(r));
+  assert.equal(ui.S.contexts.has(JSON.stringify(['p1','one'])),false);
+  replies[1].resolve({context:{project_id:'p2',categories:[],units:[],map_available:false,saved_in_project:false}});
+  await new Promise(r=>setImmediate(r));
+  assert.match(ui.S.contexts.get(JSON.stringify(['p2','one'])), /对应学习单元/);
+});
+
+test('explicit unmatched entry names papers and tells the user about omitted matches', () => {
+  const ui=fixture(), box={hidden:true,innerHTML:''};
+  ui.S.root={querySelector:()=>box};ui.S.graphView='route';ui.S.snapshot=snapshot();
+  ui.renderUnmatched({available:true,unmatched:['paper:one'],unmatched_total:150});
+  assert.equal(box.hidden,false); assert.match(box.innerHTML,/150 篇/);
+  assert.match(box.innerHTML,/data-key="paper:one"/);assert.match(box.innerHTML,/列表搜索后定位/);
+  ui.S.graphView='papers';ui.renderUnmatched(); assert.equal(box.hidden,true);
+});
+
+test('a new Map request clears unmatched papers before a failed or unavailable project reply',async()=>{
+  for(const result of [new Error('P2 error'),{available:false}]) {
+    let release;
+    const ui=fixture(()=>new Promise((resolve,reject)=>{release=()=>result instanceof Error?reject(result):resolve(result);}));
+    const dom=routeBox(), box={hidden:false,innerHTML:'old P1 paper'};
+    ui.S.root={querySelector:s=>s==='[data-route-unmatched]'?box:dom.root.querySelector(s)};
+    ui.S.mode='graph';ui.S.graphView='route';ui.S.scope='p2';ui.setCytoscape(()=>({}));
+    const pending=ui.renderRouteGraph();assert.equal(box.hidden,true);assert.equal(box.innerHTML,'');
+    release();await pending;assert.equal(box.hidden,true);assert.equal(box.innerHTML,'');
+  }
+});
+
+test('public pending navigation yields to a newer paper selection, closing or leaving the view',async()=>{
+  for(const action of ['detail','detail-close','leave']) {
+    const ui=routeGraphFixture();let release;
+    ui.publicUI.open=()=>new Promise(r=>{release=r;});
+    const pending=ui.publicUI.navigate({key:'one',project:'p1',view:'papers'});
+    if(action==='leave')ui.publicUI.cancelNavigation();
+    else await ui.handle(action,{dataset:{key:'two'}});
+    const key=ui.S.key,view=ui.S.graphView;
+    release(true);await pending;
+    assert.equal(ui.S.key,key,action);assert.equal(ui.S.graphView,view,action);
+  }
 });

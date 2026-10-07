@@ -275,7 +275,12 @@
       "status": "not_run",
       "blocks_release": true,
       "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-08. 多类别多概念与未匹配论文入口、双向导航、项目切换过期响应、关闭 Route 兼容测试通过；隔离临时库完成全链条与重启恢复，原生桌面验收、独立审查和绿色构建；AI 实测未运行如实保留。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-08-navigation-review.md",
+        "docs/decisions/0022-route-paper-navigation.md",
+        "tests/test_route_full_flow.py"
+      ]
     }
   ]
 }

@@ -1,4 +1,14 @@
-# 当前工作单元：Route Mode 阶段07共享需求与模型/UI合同完成（2026-10-07）
+# 当前工作单元：Route Mode 阶段08双图导航与本地完整流程（2026-10-07）
+
+- 分支codex/route-discovery-rework，基线6302862；最终commit/dirty用git核对。ROUTE-V2-00–07 done；08 in_progress，E08 not_run，原生验收与完整目标未完成。
+- 今日与论文库详情分别说明收藏类别、项目学习单元和当前批次用途；同paper双图定位与单元定位，未收藏先收藏，本项目120图上限内确保选中纸可达。未匹配显式入口及总数/省略说明；Routeoff保留Map。语义匹配只派生，不改分类/掌握。
+- reset使旧快照/关系/context/Map回复失效，同项目同语料亦失效。新选择/关闭/离开视图取消晚导航，失败/无Map先清旧未匹配名单。独立找到并复核修复这两项P2，无剩余P1/P2。
+- 最终1455Python/269Node通过，独立73Python104Node+最终1条全流程复核通过；新backend/Tauri .app和实际新包隔离后端通过。一个临时项目完成语言/手工图/3+1+1/Useful撤销/watch/完成/发现/409保留/重新预览确认/重启/undo恢复/当日额度复用/普通资格。证明本地合同，不等于原生点击或建议价值。
+- 无模型/来源/真实库调用，核心模型token0、新AI仍未批准；假HOME/出站封锁，默认库未改。之前browserpolicy因访问权限拒绝，Mac锁定，没有绕过；本轮人类解锁/授权请求待答复。不能以等待时间当许可。
+- 发布检查exit1：20个原有阻断评估含E08仍not_run，预算执行与校准登记仍未通过；不降gates。真实收益/全文语言/AI质量/tokenizer账单/8GB资源未测。
+- [ADR0022](decisions/0022-route-paper-navigation.md)、[checks](evidence/2026-10-07-route-v2-08-navigation-checks.txt)、[review](evidence/2026-10-07-route-v2-08-navigation-review.md)。下一步：人类解锁/许可后验证实际native页面与全流程、必要时修UI；按ROUTE_MODE_REWORK逐条审计最终gates。08不得提前done，goal不得complete；任务状态仅harness/tasks.json。
+
+# 上一工作单元：Route Mode 阶段07共享需求与模型/UI合同完成（2026-10-07）
 
 - 分支codex/route-discovery-rework，基线3ec94c0；最终commit/dirty用git核对。ROUTE-V2-00–07 done，E07 passed仅本地合同与新包后端；08 planned，完整目标未完成。
 - 创建/修改共用五字段，老师文字或MD只作需求。创建12，修改完整40/120/3紧凑Map与白名单补丁；预检完整请求、超预算不截图、length拒绝。新操作route_map_create3200/1800、route_map_revision8000/4000独立未批准；原全局额度保持，核心每日必需token0，无真实库/来源/模型调用。

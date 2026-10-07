@@ -258,6 +258,11 @@ html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:
 /* The graph view switch (papers / learning map + papers) sits where the focus bar is; the focus bar moves below it. */
 .org-view { position:absolute; top:10px; left:10px; z-index:3; background:var(--org-bg); }
 .org-graph-wrap.is-route .org-graph-tools [data-action="rearrange"] { display:none; }
+.org-route-unmatched { position:absolute; top:92px; left:12px; z-index:2; max-width:260px; max-height:40%; overflow:auto; padding:8px; background:var(--org-bg); border:1px solid var(--org-border); border-radius:8px; font-size:12px; }
+.org-route-unmatched button { display:block; width:100%; text-align:left; margin-top:6px; }
+.paper-context { padding:12px; margin:12px 0; border:1px solid var(--line, var(--org-border)); border-radius:8px; }
+.paper-context p { margin:6px 0; }
+.paper-context .org-tools { flex-wrap:wrap; }
 
 /* The two switches on the graph (which view; which papers) are one pill each: the page-wide button style
    (border, fill, 5px corners, 32px height) must not show through inside the pill, or the outline looks too big

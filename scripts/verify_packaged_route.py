@@ -140,6 +140,8 @@ def main():
         with mock.patch.object(app.gateway,'call',return_value={'ok':True,'content':json.dumps(fixture)}):
             proposal=app.route_direction_judge(growth_pid)
         growth_id=proposal['results'][0]['direction']
+        app.store.add_project_paper(route_pid,'en','shared')
+        app.store.save_to_library('en',project_id=route_pid)
         app.store.close()
         def refresh(call, expected):
             job=call('/api/refresh',{'project_id':recall_pid})
@@ -168,6 +170,16 @@ def main():
             refresh(call,recall_plans[0])
             full=call('/api/daily',{'project_id':batch_pid})
             assert Counter(c['route']['kind'] for c in full['cards'])=={'route':3,'explore':1,'watch':1},full
+            selected=next(c['key'] for c in full['cards'] if c['route']['kind']=='explore')
+            saved=call('/api/feedback',{'key':selected,'action':'useful','project_id':batch_pid})
+            detail=call('/api/detail',{'key':selected,'project_id':batch_pid})['context']
+            assert detail['saved_in_project'] and detail['units']==[] and detail['recommendation']['kind']=='explore'
+            drawn=call('/api/organization',{'action':'route-detail','project_id':batch_pid,'focus_key':selected})
+            assert selected in drawn['unmatched'] and drawn['unmatched_total']>=1
+            call('/api/undo',{'feedback_id':saved['feedback_id'],'project_id':batch_pid})
+            assert call('/api/detail',{'key':selected,'project_id':batch_pid})['context']['saved_in_project']
+            assert 'data-action="graph-navigate"' in call('/paper-context.js',raw=True)
+            assert '/paper-context.js' in call('/',raw=True)
             route=call('/api/route?project_id='+batch_pid)
             completed=call('/api/route',{'action':'manual','project_id':batch_pid,'concept':batch_ids['Epitaxy task'],'value':'mastered','revision':route['revision']})
             assert completed['goal_status']=='completed'
@@ -213,6 +225,9 @@ def main():
             assert undone['watch']==[cid]
             switched=call('/api/route',{'action':'mode','project_id':route_pid,'mode':'off','revision':undone['revision']})
             assert switched['watch']==[cid] and not switched['enabled']
+            context=call('/api/detail',{'key':'en','project_id':route_pid})['context']
+            assert context['map_available'] and context['saved_in_project'] and not context['route_enabled']
+            assert context['project_id']==route_pid
             assert 'data-route-watch' in call('/route-editor.js',raw=True)
             draft=call('/api/route',{'action':'revision-preview','project_id':route_pid,'revision':switched['revision'],
                 'brief':{'goal':'Revision fixture','structure':'Add a side task'},'patch':{'operations':[
@@ -283,6 +298,8 @@ def main():
             stored=call('/api/route',{'action':'undo','project_id':route_pid,'revision':changed['revision']})
             resumed=call('/api/route',{'action':'mode','project_id':route_pid,'mode':'route','revision':stored['revision']})
             assert resumed['goal_status']=='completed' and resumed['watch']==resumed['watched_satisfied']
+            org=call('/api/organization')
+            assert route_pid in org['route_projects'] and batch_pid in org['route_projects']
         launch(executable,data,home,restart)
         assert marker.read_bytes()==b'untouched default library'
         assert not (home/'Library/Application Support/PaperDigHelper').exists()

@@ -729,7 +729,10 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/detail":
             # POST body avoids URL-encoding issues entirely; the UI uses this first.
             app = self._app()
-            detail = app.paper_detail(body.get("key") or "", body.get("project_id"))
+            try:
+                detail = app.paper_detail(body.get("key") or "", body.get("project_id"))
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
             if not detail:
                 print(f"[404] paper key={body.get('key')!r} (POST)", file=sys.stderr)
             self._json(detail or {"error": "not found", "key": body.get("key")}, 200 if detail else 404)
@@ -874,7 +877,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("conflicting operation fields")
             operation = body.get("op", body.get("action")) if body else None
             if operation == "route-detail":   # read-only and derived: nothing is stored, nothing needs a revision
-                return self._json(app.route_detail(body.get("project_id")))
+                return self._json(app.route_detail(body.get("project_id"), body.get("focus_key")))
             if operation in {"suggest", "graph"}:
                 path = app.store.path.resolve()
                 request = ({"profile": suggestion_profile(app, body.get("project_id")),

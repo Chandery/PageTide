@@ -64,7 +64,7 @@ def saved_corpus(conn, scope=None):
 ROUTE_DETAIL_MAX_PAPERS = 120   # the second view draws what can be read, and says how many it left out
 
 
-def route_detail(conn, project_id):
+def route_detail(conn, project_id, focus_key=None):
     """The data of the library graph's second view (the learning map): one project's learning units and the papers it saved.
 
     Read-only and derived. A paper is matched to the (at most two) units whose search terms its title or
@@ -72,6 +72,8 @@ def route_detail(conn, project_id):
     explained. Nothing is stored: matches are not part of anyone's classification, and a paper that fits no
     unit is listed, not hidden. Unknown project: ValueError. No learning map: {"available": False}."""
     _text(project_id, "project_id", 200)
+    if focus_key is not None:
+        _text(focus_key, "focus_key", 2000)
     if not conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone():
         raise ValueError("项目不存在")
     _, route = read_route(conn, project_id)
@@ -95,6 +97,10 @@ def route_detail(conn, project_id):
     matched = {m["paper"] for m in matches}
     ordered = [p for p in papers if p["key"] in matched] + [p for p in papers if p["key"] not in matched]
     kept = ordered[:ROUTE_DETAIL_MAX_PAPERS]
+    # Keep a selected saved paper navigable even when the graph omits a large library's tail.
+    focused = next((p for p in ordered if p["key"] == focus_key), None)
+    if focused and focused not in kept:
+        kept[-1:] = [focused]
     kept_keys = {p["key"] for p in kept}
     return {"available": True, "project_id": project_id,
             "units": [{"id": c["id"], "name": c["name"], "terms": c.get("terms", []), "hint": c.get("hint", 2),
@@ -104,7 +110,37 @@ def route_detail(conn, project_id):
             "papers": [{"key": p["key"], "title": p.get("title") or p["key"], "published": p.get("published")} for p in kept],
             "matches": [m for m in matches if m["paper"] in kept_keys],
             "unmatched": [p["key"] for p in kept if p["key"] not in matched],
+            "unmatched_total": len(papers) - len(matched),
             "omitted": len(ordered) - len(kept)}
+
+
+def paper_context(conn, paper, project_id):
+    """Read-only facts for the same paper in both graphs; never writes categories or learning progress."""
+    _text(project_id, "project_id", 200)
+    if not conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone():
+        raise ValueError("项目不存在")
+    categories = []
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='org_projects'").fetchone():
+        row = conn.execute("SELECT data FROM org_projects WHERE project='default'").fetchone()
+        data = json.loads(row[0]) if row else {}
+        member_ids = set(data.get("memberships", {}).get(paper["key"], []))
+        categories = [{"id": d["id"], "name": d["name"]} for d in data.get("directions", []) if d["id"] in member_ids]
+    _, route = read_route(conn, project_id)
+    graph = (route or {}).get("graph") or {"concepts": []}
+    live = [c for c in graph["concepts"] if c.get("state", "active") != "archived"]
+    assigned = pathgrowth.assign({"concepts": live}, [paper]).get(paper["key"], [])
+    by_id = {c["id"]: c for c in live}
+    # Only the current project batch supplies a 'this recommendation' purpose. Old exposures remain history.
+    exposure = conn.execute("""SELECT b.id, e.route_kind, e.route_name FROM batches b
+        JOIN exposures e ON e.batch_id=b.id WHERE b.id=(SELECT MAX(id) FROM batches WHERE project_id=?)
+        AND e.paper_key=?""", (project_id, paper["key"])).fetchone()
+    return {"project_id": project_id, "categories": categories,
+            "units": [{"id": cid, "name": by_id[cid]["name"]} for cid in assigned],
+            "map_available": bool(live), "route_enabled": bool(route and route.get("mode", "route") == "route"),
+            "saved_in_project": bool(conn.execute("SELECT 1 FROM project_library WHERE project_id=? AND paper_key=?",
+                                                   (project_id, paper["key"])).fetchone()),
+            "recommendation": {"batch_id": exposure["id"], "kind": exposure["route_kind"] or "normal",
+                               "name": exposure["route_name"]} if exposure else None}
 
 
 class Conflict(ValueError):

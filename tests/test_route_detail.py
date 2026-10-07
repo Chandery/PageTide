@@ -166,6 +166,57 @@ class ContentTests(Fixture):
         self.assertGreater(out["omitted"], 0)
         self.assertEqual(len(out["papers"]) + out["omitted"], 254)
 
+    def test_selected_saved_paper_survives_graph_cap_and_unmatched_count_is_complete(self):
+        for i in range(130):
+            self.save(f"bulk{i}", f"Epitaxy study {i}", "epitaxy")
+        out = self.app.route_detail(self.pid, focus_key="poem")
+        self.assertEqual(len(out["papers"]), 120)
+        self.assertIn("poem", out["unmatched"])
+        self.assertEqual(out["unmatched_total"], 1)
+        self.save("foreign", "Other poem", pid=self.other)
+        self.assertNotIn("foreign", {p["key"] for p in self.app.route_detail(self.pid, focus_key="foreign")["papers"]})
+
+    def test_paper_context_separates_categories_units_and_current_batch_purpose(self):
+        org = Organization(self.app.store)
+        org.action({"action": "direction-save", "name": "Materials", "color": "#64748b"})
+        second = org.action({"action": "direction-save", "name": "Methods", "color": "#64748b"})
+        ids = [d["id"] for d in second["directions"]]
+        org.action({"action": "membership", "keys": ["ep"], "add": ids, "remove": []})
+        unit = self.unit(self.detail(), "Epitaxy")["id"]
+        batch = self.app.store.create_batch("2026-10-07", ["ep"], project_id=self.pid,
+                                            route={"ep": (unit, "route", "Historical epitaxy", 2)})
+        context = self.app.paper_detail("ep", self.pid)["context"]
+        self.assertEqual({c["name"] for c in context["categories"]}, {"Materials", "Methods"})
+        self.assertEqual([u["name"] for u in context["units"]], ["Epitaxy"])
+        self.assertEqual(context["recommendation"], {"batch_id": batch, "kind": "route", "name": "Historical epitaxy"})
+        self.app.route_mode(self.pid, "off")
+        off = self.app.paper_detail("ep", self.pid)["context"]
+        self.assertFalse(off["route_enabled"])
+        self.assertTrue(off["map_available"])
+        self.assertEqual(off["units"], context["units"])
+        self.app.store.create_batch("2026-10-07", ["cb"], project_id=self.pid)
+        self.assertIsNone(self.app.paper_detail("ep", self.pid)["context"]["recommendation"])
+
+    def test_unsaved_and_other_project_context_cannot_navigate_to_current_library_graph(self):
+        self.app.store.upsert_papers([{"key": "unsaved", "title": "epitaxy", "abstract": "epitaxy"}], self.pid)
+        ctx = self.app.paper_detail("unsaved", self.pid)["context"]
+        self.assertTrue(ctx["units"])
+        self.assertFalse(ctx["saved_in_project"])
+        other = self.app.paper_detail("ep", self.other)["context"]
+        self.assertFalse(other["map_available"])
+        self.assertEqual(other["units"], [])
+        self.assertFalse(other["saved_in_project"])
+
+    def test_multiple_learning_matches_do_not_create_or_change_categories(self):
+        self.save("multi", "Crystal lattice and epitaxy", "crystal growth epitaxial")
+        before = Organization(self.app.store).snapshot()
+        ctx = self.app.paper_detail("multi", self.pid)["context"]
+        self.assertEqual(len(ctx["units"]), 2)
+        self.assertEqual(ctx["categories"], [])
+        after = Organization(self.app.store).snapshot()
+        self.assertEqual(after["revision"], before["revision"])
+        self.assertEqual(after["directions"], before["directions"])
+
 
 class LifecycleTests(Fixture):
     def test_deleting_the_project_removes_the_view(self):
@@ -206,6 +257,7 @@ class HttpTests(Fixture):
             self.assertEqual([p["key"] for p in body["papers"]], ["ep"])
             self.assertEqual(self.post(port, {"action": "route-detail"})[0], 400)
             self.assertEqual(self.post(port, {"action": "route-detail", "project_id": "no-such"})[0], 400)
+            self.assertEqual(self.post(port, {"action": "route-detail", "project_id": self.pid, "focus_key": []})[0], 400)
 
 
 if __name__ == "__main__":

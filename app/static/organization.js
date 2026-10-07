@@ -2,6 +2,7 @@
   'use strict';
   const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', graphView: 'papers', routeFocus: null, rcy: null, routeDetail: null, routeToken: 0, showOther: false, showAll: false, transient: new Set() };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  S.epoch = 0; S.refreshToken = 0; S.relationsToken = 0; S.contextToken = 0; S.navigationToken = 0; S.contexts = new Map();
   const DEFAULT_COLOR = '#64748b';
   const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
   // Graph colours follow the page palette (index.html tokens) so light/dark stay in sync.
@@ -148,6 +149,7 @@
     if (S.relationsCorpus !== JSON.stringify(snap.items.map(p => [p.key,p.title,p.abstract,p.topic]))) S.relations = null;
     if (graphSignature(S.snapshot) !== graphSignature(snap)) S.positions = {};
     S.snapshot = snap;
+    S.contextToken++; S.contexts.clear(); S.routeToken++;
     S.routeDetail = null;   // the second graph view is read again after any change of the library or of a map
     S.collapsed = new Set((snap.collapsed || []).map(String));
     if (S.scope !== 'all' && Array.isArray(snap.projects) && !snap.projects.some(x => x.id === S.scope)) S.scope = 'all';   // that project was deleted
@@ -163,19 +165,20 @@
     S.selected = new Set([...S.selected].filter(key => item(key)));
   }
   function mutate(body, repaint = true) {
+    const epoch = S.epoch;
     const revision = body.revision ?? S.snapshot.revision;
     S.notice = ''; S.pending++; status();
     const task = S.queue.then(async () => {
       const draftAction = body.action === 'draft-save' || body.action === 'draft-clear';
       const data = await window.PDH.api('/api/organization', { ...body, ...(draftAction ? { version: body.version ?? S.drafts.get(body.key).serverVersion ?? 0 } : {}), ...(body.action === 'note' ? {} : { revision }) });
       if (draftAction) { S.drafts.get(body.key).serverVersion = data.draft.version; cacheDraft(body.key, S.drafts.get(body.key)); }
-      else accept(data);
-      S.error = '';
-      if (repaint) renderData();
+      else if (epoch === S.epoch) accept(data);
+      if (epoch === S.epoch) S.error = '';
+      if (repaint && epoch === S.epoch) renderData();
       return data;
     });
     S.queue = task.catch(() => {});
-    return task.catch(error => { report(error); throw error; }).finally(() => { S.pending--; status(); });
+    return task.catch(error => { if (epoch === S.epoch) report(error); throw error; }).finally(() => { S.pending--; status(); });
   }
   function draftFor(p) {
     if (!S.drafts.has(p.key)) {
@@ -244,7 +247,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文库</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">列表</button><button role="tab" data-action="graph">图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理分类</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><div class="org-graph-hint">${PAPER_HINT}</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文库</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">列表</button><button role="tab" data-action="graph">图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理分类</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><details class="org-route-unmatched" data-route-unmatched hidden></details><div class="org-graph-hint">${PAPER_HINT}</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -332,12 +335,33 @@
     if (known) { summaryCache.set(key, known); return known; }
     summaryCache.set(key, undefined);   // asked for: one request per paper
     if (typeof window.PDH?.api === 'function') {
+      const epoch = S.epoch;
       window.PDH.api('/api/detail', { key, project_id: currentProject() }).then(d => {
         summaryCache.set(key, d && d.summary || null);
-        if (S.key === key && d && d.summary) renderDetail();
+        if (S.epoch === epoch && S.key === key && d && d.summary) renderDetail();
       }).catch(() => summaryCache.set(key, null));
     }
     return undefined;
+  }
+  function contextFor(key) {
+    const project = S.scope === 'all' ? currentProject() : S.scope;
+    if (!project) return '';
+    const cacheKey = JSON.stringify([project, key]);
+    if (S.contexts.has(cacheKey)) return S.contexts.get(cacheKey);
+    const epoch = S.epoch, token = S.contextToken;
+    if (!summaryCache.has(key)) summaryCache.set(key, undefined);
+    S.contexts.set(cacheKey, '<p class="hint">正在读取学习用途…</p>');
+    window.PDH.api('/api/detail', {key, project_id: project}).then(d => {
+      if (epoch !== S.epoch || token !== S.contextToken) return;
+      summaryCache.set(key, d.summary || null);
+      S.contexts.set(cacheKey, window.PDHPaperContext.html(d.context, key, false));
+      if (S.key === key && (S.scope === 'all' ? currentProject() : S.scope) === project) renderDetail();
+    }).catch(() => {
+      if (epoch !== S.epoch || token !== S.contextToken) return;
+      S.contexts.set(cacheKey, '<p class="hint">学习用途未读取，刷新后可重试。</p>');
+      if (S.key === key && (S.scope === 'all' ? currentProject() : S.scope) === project) renderDetail();
+    });
+    return S.contexts.get(cacheKey);
   }
   function renderDetail() {
     const panel = $('.org-detail'), p = item(S.key);
@@ -357,6 +381,7 @@
     const url = paperURL(p);
     if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开论文'; reading.append(link); }
     panel.querySelector('.org-detail-categories').after(reading);
+    reading.insertAdjacentHTML('afterend', contextFor(p.key));
     const ai = aiSummaryHTML(summaryFor(p.key));
     if (ai) reading.insertAdjacentHTML('afterend', ai);
     if (selection) { $('[data-note-editor]').focus(); $('[data-note-editor]').setSelectionRange(...selection); }
@@ -367,7 +392,7 @@
     $('.org-list').hidden = graph; $('.org-graph-wrap').hidden = !graph;
     S.modeKept = S.mode;
     for (const el of S.root.querySelectorAll('.org-tabs [role=tab]')) { el.setAttribute('aria-selected', String(el.dataset.action === S.mode)); el.classList.toggle('is-active', el.dataset.action === S.mode); }
-    if (graph && !S.loading) renderGraph(); else { S.cy?.destroy(); S.cy = null; }
+    if (graph && !S.loading) renderGraph(); else { S.routeToken++; S.rcy?.destroy(); S.rcy = null; S.cy?.destroy(); S.cy = null; }
   }
   function capturePositions() {
     if (S.renderedSignature !== graphSignature(S.snapshot)) return;
@@ -526,21 +551,26 @@
     if (S.relations && S.relationsCorpus === corpus) return;
     S.relations = null;
     S.relationsLoading = true;
+    const epoch = S.epoch, token = ++S.relationsToken;
     try {
       let { job } = await window.PDH.api('/api/organization', { action: 'graph' });
       while (job.state === 'running') {
         await new Promise(resolve => setTimeout(resolve, 500));
+        if (epoch !== S.epoch || token !== S.relationsToken) return;
         job = await window.PDH.api(`/api/jobs/${encodeURIComponent(job.id)}`);
       }
+      if (epoch !== S.epoch || token !== S.relationsToken) return;
       if (job.state !== 'done') throw new Error(job.error || '相似关系计算失败');
       if (corpus !== JSON.stringify(S.snapshot.items.map(p => [p.key,p.title,p.abstract,p.topic]))) return;
       S.relations = job.result.relations; S.relationsCorpus = corpus;
       if (S.mode === 'graph' && !S.root.classList.contains('hidden')) {
         await S.positionQueue;
+        if (epoch !== S.epoch || token !== S.relationsToken) return;
         if(S.graphDragging) S.relationsPending=true; else renderGraph();
       }
-    } catch (error) { report(new Error(`相似关系未加载：${error.message}；现有分类关系仍可查看`)); }
+    } catch (error) { if (epoch === S.epoch && token === S.relationsToken) report(new Error(`相似关系未加载：${error.message}；现有分类关系仍可查看`)); }
     finally {
+      if (epoch !== S.epoch || token !== S.relationsToken) return;
       S.relationsLoading = false;
       const changed = corpus !== JSON.stringify(S.snapshot.items.map(p => [p.key,p.title,p.abstract,p.topic]));
       if (S.relationsReload || changed) {
@@ -583,7 +613,7 @@
     S.routeToken++;   // a second-view read still in flight must not draw over what is drawn now
     renderViewSeg();
     if (S.graphView === 'route') { renderRouteGraph(); return; }
-    S.rcy?.destroy(); S.rcy = null;
+    S.rcy?.destroy(); S.rcy = null; renderUnmatched();
     const hint = $('.org-graph-hint'); if (hint) hint.textContent = PAPER_HINT;   // the learning-map view writes its own line there
     capturePositions();
     S.relationsPending=false;
@@ -649,7 +679,7 @@
     S.cy.nodes().forEach(n => { if (S.selected.has(n.data('key'))) n.select(); });
     let before;
     S.cy.on('tap', 'node', e => {
-      if (e.target.data('key')) { S.key = e.target.data('key'); renderSidebar(); renderDetail(); renderList(); S.root.querySelector('.org-directory-paper.is-active')?.scrollIntoView?.({ block: 'nearest' }); }
+      if (e.target.data('key')) { S.navigationToken++; S.key = e.target.data('key'); renderSidebar(); renderDetail(); renderList(); S.root.querySelector('.org-directory-paper.is-active')?.scrollIntoView?.({ block: 'nearest' }); }
       else { S.filter = e.target.data('direction'); renderSidebar(); }
       filterGraph(); focusGraph(e.target.id());
     });
@@ -755,6 +785,7 @@
     cy.resize(); cy.animate({ fit: { eles: cy.nodes(), padding: 40 } }, { duration: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 200 });
   }
   async function renderRouteGraph() {
+    renderUnmatched();
     capturePositions();
     S.cy?.destroy(); S.cy = null; S.rcy?.destroy(); S.rcy = null;
     const container = $('.org-graph'); if (!container) return;
@@ -762,18 +793,20 @@
     container.innerHTML = '<p class="org-empty">正在读取学习图…</p>';
     renderFocus(); renderGraphLegend();
     if (!window.cytoscape) { container.innerHTML = '<p class="org-empty org-error">图谱组件未加载，请刷新重试</p>'; return; }
-    let detail = S.routeDetail && S.routeDetail.scope === scope ? S.routeDetail.data : null;
+    const focusKey = S.key;
+    let detail = S.routeDetail && S.routeDetail.scope === scope && S.routeDetail.focusKey === focusKey ? S.routeDetail.data : null;
     try {
       if (!detail) {
-        detail = await window.PDH.api('/api/organization', { action: 'route-detail', project_id: scope });
+        detail = await window.PDH.api('/api/organization', { action: 'route-detail', project_id: scope, ...(focusKey ? {focus_key: focusKey} : {}) });
         if (token !== S.routeToken || S.graphView !== 'route' || S.scope !== scope || S.mode !== 'graph') return;   // the person moved on while it was loading
-        S.routeDetail = { scope, data: detail };
+        S.routeDetail = { scope, focusKey, data: detail };
       }
     } catch (error) {
       if (token === S.routeToken && S.graphView === 'route' && S.scope === scope && S.mode === 'graph') container.innerHTML = `<p class="org-empty org-error">${h(`学习图没有读到：${error.message}`)}</p>`;
       return;
     }
     if (!detail.available) { container.innerHTML = '<p class="org-empty">这个项目还没有学习图。可以在项目的学习图页创建一张。</p>'; return; }
+    renderUnmatched(detail);
     if (!S.relations) loadRelations();   // similarity lines join in when the offline job is done
     const built = window.PDHRouteDetail.layout(detail, S.relations);
     if (!built.nodes.length) { container.innerHTML = '<p class="org-empty">学习图里还没有可画的单元</p>'; return; }
@@ -787,7 +820,7 @@
     const hint = $('.org-graph-hint');
     const say = text => { if (hint) hint.textContent = text; };
     say(`${window.PDHRouteDetail.summary(built.counts)} · 点论文看详情，点学习单元看它的说明`);
-    cy.on('tap', 'node[kind="paper"]', e => { S.key = e.target.data('key'); cy.nodes().removeClass('org-current'); e.target.addClass('org-current'); renderSidebar(); renderDetail(); renderList(); });
+    cy.on('tap', 'node[kind="paper"]', e => { S.navigationToken++; S.key = e.target.data('key'); cy.nodes().removeClass('org-current'); e.target.addClass('org-current'); renderSidebar(); renderDetail(); renderList(); });
     cy.on('tap', 'node[kind="unit"]', e => {
       const d = e.target.data(), kind = { topic: '主题', method: '方法', problem: '问题', foundation: '基础' }[d.type];
       say([d.name, UNIT_STATUS[d.status] || '', kind ? `类型：${kind}` : '', d.why ? `为什么在这里：${d.why}` : ''].filter(Boolean).join(' · '));   // text only
@@ -1065,10 +1098,38 @@
     if (!Array.isArray(snap.items)) throw new Error('导出数据缺少论文列表');
     return '# PaperDigHelper\n\n' + snap.items.map(p => `## ${String(p.title || p.key).replace(/\n/g, ' ')}\n\n${p.published || ''}\n\n${(snap.directions || []).filter(d => memberships(p).includes(String(d.id))).map(d => categoryPath(d.id, snap)).join(', ')}\n\n${p.abstract || ''}\n\n### Note\n\n${p.note || ''}\n`).join('\n');
   }
-  async function refresh() { await S.positionQueue; await S.queue; accept(await window.PDH.api('/api/organization')); S.loading = false; S.error = ''; S.positions = {}; S.cy?.destroy(); S.cy = null; if (S.mode === 'graph' && !scoped().some(p => p.key === S.key)) S.key = scoped()[0]?.key || null; renderData(); if (S.mode === 'graph') await loadRelations(); }
+  async function refresh() {
+    const epoch = S.epoch, token = ++S.refreshToken;
+    await S.positionQueue; await S.queue;
+    if (epoch !== S.epoch || token !== S.refreshToken) return false;
+    const data = await window.PDH.api('/api/organization');
+    if (epoch !== S.epoch || token !== S.refreshToken) return false;
+    accept(data); S.loading = false; S.error = ''; S.positions = {}; S.cy?.destroy(); S.cy = null;
+    if (S.mode === 'graph' && !scoped().some(p => p.key === S.key)) S.key = scoped()[0]?.key || null;
+    renderData(); if (S.mode === 'graph') await loadRelations();
+    return epoch === S.epoch && token === S.refreshToken;
+  }
+  function navigatePaper({key, project, view = 'papers', unit = ''}) {
+    const p = item(key);
+    if (!p || !owners(p).includes(project)) throw new Error('这篇论文尚未收藏到这个项目');
+    S.navigationToken++;
+    S.scope = project; S.key = key; S.filter = '*'; S.query = ''; S.selected.clear();
+    S.mode = 'graph'; S.graphView = view === 'route' && routeAvailable() ? 'route' : 'papers';
+    S.focus = S.graphView === 'papers' ? 'paper1' : 'all';
+    S.graphFocus = S.graphView === 'papers' ? paperNodeId(key) : null;
+    S.routeFocus = S.graphView === 'route' ? (unit ? `ru:${unit}` : `rp:${key}`) : null;
+    renderData();
+  }
+  function renderUnmatched(detail = null) {
+    const box = $('[data-route-unmatched]'); if (!box) return;
+    box.hidden = S.graphView !== 'route' || !detail?.available;
+    if (box.hidden) { box.innerHTML = ''; return; }
+    const keys = detail.unmatched || [], total = detail.unmatched_total ?? keys.length;
+    box.innerHTML = `<summary>没有对应的学习单元 · ${h(total)} 篇</summary>${keys.map(key => `<button type="button" data-action="graph-paper-focus" data-key="${h(key)}"><span data-no-i18n>${h(item(key)?.title || key)}</span></button>`).join('')}${total > keys.length ? '<p>部分论文未画出，可在列表搜索后定位。</p>' : ''}`;
+  }
   async function handle(action, b) {
     switch (action) {
-      case 'library': case 'graph': await S.positionQueue; capturePositions(); S.mode = action; renderSidebar(); setMode(); if (action === 'graph') await loadRelations(); break;
+      case 'library': case 'graph': S.navigationToken++; await S.positionQueue; capturePositions(); S.mode = action; renderSidebar(); setMode(); if (action === 'graph') await loadRelations(); break;
       case 'filter': {
         S.filter = b.dataset.id; S.graphFocus = null;
         if (S.graphView === 'route' && S.mode === 'graph') { renderSidebar(); renderList(); renderFocus(); focusRouteCategory(); break; }
@@ -1084,10 +1145,12 @@
         break;
       }
       case 'graph-paper-focus': {
+        S.navigationToken++;
         const p = item(b.dataset.key); if (!p) break;
         if (S.graphView === 'route' && S.mode === 'graph') {   // the learning-map view: locate the node, keep the paper graph's focus untouched
           S.key = p.key; renderSidebar(); renderDetail(); renderList();
-          S.rcy ? focusRoute(`rp:${p.key}`) : (S.routeFocus = `rp:${p.key}`);
+          S.routeFocus = `rp:${p.key}`;
+          if (S.rcy?.getElementById(S.routeFocus).length) focusRoute(S.routeFocus); else renderRouteGraph();
           S.notice = `${p.title || p.key} · 已定位`; status(); break;
         }
         if (!S.cy) {   // nothing is drawn yet (the overview): picking a paper draws it with its neighbours
@@ -1101,6 +1164,7 @@
       case 'project-tab': {
         const next = b.dataset.scope || 'all';
         if (next === S.scope) break;
+        S.navigationToken++;
         // Only the view changes: nothing is saved, no layout is touched, the shared tree is not edited.
         S.scope = next; S.selected.clear(); S.showOther = false; S.filter = '*'; S.focus = 'all'; S.showAll = false; S.graphFocus = null; S.routeFocus = null;
         if (S.key && !scoped().some(p => p.key === S.key)) S.key = null;
@@ -1112,6 +1176,7 @@
       case 'graph-view': {
         const next = b.dataset.view === 'route' ? 'route' : 'papers';
         if (next === S.graphView || (next === 'route' && !routeAvailable())) break;
+        S.navigationToken++;
         S.graphView = next; S.graphFocus = null; S.routeFocus = null;
         if (S.mode === 'graph') renderGraph(false); else renderFocus();
         break;
@@ -1123,9 +1188,10 @@
         break;
       }
       case 'show-all-graph': S.showAll = true; renderGraph(false); break;
+      case 'graph-navigate': navigatePaper(b.dataset); break;
       case 'read': { const p = item(b.dataset.key); if (p) await window.PDH.openReader(p.key, p.title); break; }
-      case 'detail': S.key = b.dataset.key; renderDetail(); renderList(); filterGraph(); break;
-      case 'detail-close': S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); if (S.focus.startsWith('paper')) { S.focus = 'all'; if (S.mode === 'graph') renderGraph(false); else renderFocus(); } break;
+      case 'detail': S.key = b.dataset.key; S.navigationToken++; renderDetail(); renderList(); filterGraph(); break;
+      case 'detail-close': S.navigationToken++; S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); if (S.focus.startsWith('paper')) { S.focus = 'all'; if (S.mode === 'graph') renderGraph(false); else renderFocus(); } break;
       case 'direction-new': editDirection(); break;
       case 'category-child': editDirection(undefined, b.dataset.id); break;
       case 'direction-edit': editDirection(b.dataset.id); break;
@@ -1215,14 +1281,21 @@
   window.addEventListener('beforeunload', event => { if ([...S.drafts.values()].some(d => d.dirty)) { event.preventDefault(); event.returnValue = ''; } });
   // Switching project: forget what was shown for the previous one (selection, focus, similarity relations) and reload.
   function reset() {
+    S.epoch++; S.refreshToken++; S.relationsToken++; S.contextToken++; S.navigationToken++; S.contexts.clear(); S.routeToken++;
+    S.routeDetail = null; S.rcy?.destroy(); S.rcy = null; S.routeFocus = null;
+    S.relationsLoading = false; S.relationsReload = false;
     S.snapshot = { directions: [], items: [], positions: {} }; S.relations = null; S.relationsCorpus = null;
     S.filter = '*'; S.key = null; S.graphFocus = null; S.selected.clear(); S.query = '';
     S.focus = 'all'; S.showAll = false; S.showOther = false; S.scope = currentProject() || 'all'; S.scopeSet = true; S.notice = ''; S.transient = new Set();
     S.cy?.destroy(); S.cy = null;
   }
-  window.PDHOrganization = { reset() {
+  window.PDHOrganization = { cancelNavigation() { S.navigationToken++; S.routeToken++; }, reset() {
     reset();
     return S.root && !S.root.classList.contains('hidden') ? this.open(S.mode) : Promise.resolve();
+  }, async navigate(target) {
+    const epoch = S.epoch, token = ++S.navigationToken;
+    const opened = await this.open('graph');
+    if (opened && epoch === S.epoch && token === S.navigationToken) navigatePaper(target);
   }, async open(mode = 'library') {
     S.root = document.getElementById('organizationRoot');
     if (!S.root) throw new Error('Missing #organizationRoot');
@@ -1230,7 +1303,8 @@
     S.loading = true; S.mode = mode === 'graph' ? 'graph' : (S.modeKept || 'library');   // the top bar has one entry; the page remembers whether the person was on the list or the graph
     if (S.mode === 'graph' && !localStorage.getItem('pdh-graph-layout-v3')) S.graphRadialPending = true;
     S.root.hidden = false; renderShell();
-    try { await refresh(); } catch (error) { report(error); }
+    const epoch = S.epoch;
+    try { return await refresh(); } catch (error) { if (epoch === S.epoch) report(error); return false; }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { contextFor, navigatePaper, renderUnmatched, refresh, loadRelations, renderDetail, aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
 })();

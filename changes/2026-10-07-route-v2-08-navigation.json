@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-08-navigation",
+  "class": "critical",
+  "summary": "Separate category/learning/purpose facts with shared paper navigation and stale-response guards; stage08 remains unfinished pending full/native acceptance.",
+  "tasks": [
+    "ROUTE-V2-08"
+  ],
+  "files": [
+    "app/organization.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "app/static/paper-context.js",
+    "changes/2026-10-07-route-v2-08-navigation.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0022-route-paper-navigation.md",
+    "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-08-navigation-review.md",
+    "harness/evaluations.json",
+    "harness/tasks.json",
+    "scripts/i18n_extract.py",
+    "scripts/verify_packaged_route.py",
+    "tests/test_i18n.cjs",
+    "tests/test_organization_ui.cjs",
+    "tests/test_paper_context.cjs",
+    "tests/test_refresh_status.cjs",
+    "tests/test_route_detail.py",
+    "tests/test_route_full_flow.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Derived local reads and view navigation, no model/source calls or new external scope. Required daily model tokens0.",
+    "before": "6302862, zero new calls/token/USD for navigation",
+    "after": "unchanged, zero new calls/token/USD for navigation",
+    "developer_usage": "unknown unless measured by agent host"
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementer; final diff/lifecycle/privacy/resource/local contract review",
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic; two P2 fixed and reprobed; final73Python104Node plus1flow test, no remainingP1/P2",
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Full isolated chain and actual native acceptance pending; explicit prior browser permission denial and locked Mac must not be bypassed.",
+    "Existing AI scopes remain unapproved; real quality/billing/resource release gates retained."
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt"
+    }
+  ],
+  "release_audit": {
+    "command": "python3 scripts/harness.py check --release",
+    "exit_code": 1,
+    "evidence": "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt",
+    "result": "retained blocking gates, not release success"
+  }
+}
