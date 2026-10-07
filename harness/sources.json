@@ -464,6 +464,14 @@
       "recheck_after_days": 30,
       "claim": "Flash peak cache-miss input0.30/M,output1.20/M,hit0.006/M;offpeakhalf. Category review8000/2000 cap=$0.0048, arithmetic only.",
       "verification": "Official web pricing page read and official pricing/protocol urllib HTML HTTP200; protocol contains finish_reason/length. No model request/tokenizer or billing measurement. Historical sources preserved."
+    },
+    {
+      "id": "DS-GROWTH-BATCH-20261007",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "verified_on": "2026-10-07",
+      "recheck_after_days": 30,
+      "claim": "Whole-queue arithmetic retains Flash peak miss input0.30/M output1.20/M;9000 tokens/$0.0036 per request; explicit thinking disabled and finish_reason length refusal.",
+      "verification": "Web fetch timed out; official pricing and chat-completion HTML read via urllib with200,23982/142966bytes. No paper/key/model request sent; private cached source under.local; no effective date inferred."
     }
   ]
 }

@@ -415,11 +415,32 @@ test('the waiting exploration papers are listed with the one button that asks th
   assert.match(html, /<b>4<\/b>/);
   assert.match(html, /data-growth="judge"/);
   assert.ok(!html.includes('<b>1</b>') && html.includes('T &lt;b&gt;1&lt;/b&gt;'));
-  assert.equal((html.match(/<li/g) || []).length, 3);                          // at most the three the model would see
+  assert.equal((html.match(/<li/g) || []).length, 3);                          // the first three are only a preview of the queue
   assert.match(html, /今天还能判断 7 次/);
+  assert.match(html, /判断全部待判断论文/);
+  assert.match(html, /每批最多 3 篇/);
+  assert.match(html, /整次只计 1 次判断机会/);
   assert.match(html, /不发送笔记、画像或其他项目/);
   assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 0 }, {}), /data-growth="judge" disabled/);
   assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 3 }, { busy: true }), /data-growth="judge" disabled/);
+  assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 3 }, { busy: true }), /正在判断全部/);
+});
+
+test('queue progress uses backend counts and distinguishes partial, complete and legacy responses', () => {
+ const R=load(), out={ok:true,requested:20,processed:20,pending:0,complete:true,model_calls:7,judges_left:9};
+ const complete=R.judgeProgress(out);assert.equal(complete.complete,true);
+ assert.match(complete.message,/20\/20 篇.*0 篇待判断.*9 次/);
+ const partial=R.judgeProgress({...out,processed:9,pending:11,complete:false,reason:'预算不足'});
+ assert.equal(partial.complete,false);assert.match(partial.message,/已停止.*9\/20 篇.*停止原因：预算不足/);
+ const newPending=R.judgeProgress({...out,pending:2});
+ assert.equal(newPending.complete,true);assert.match(newPending.message,/2 篇待判断.*当前待判断论文可以继续处理/);
+ assert.equal(complete.warning,false);assert.equal(partial.warning,true);
+ const uncertain=R.judgeProgress({...out,reason_code:'network',reason:'Request or billing status is unknown'});
+ assert.equal(uncertain.complete,true);assert.equal(uncertain.warning,true);
+ assert.match(uncertain.message,/Request or billing status is unknown/);
+ const noReason=R.judgeProgress({...out,reason_code:'network'});
+ assert.equal(noReason.warning,true);assert.match(noReason.message,/计费状态/);
+ assert.equal(R.judgeProgress({ok:true,results:[],judges_left:9}),null);
 });
 
 test('what the model said is put in plain words, one phrase per group, and never as a fact about the reader', () => {

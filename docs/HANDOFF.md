@@ -1,3 +1,15 @@
+# 当前工作单元：主入口整队列判断持久交付完成（2026-10-07）
+
+分支 `codex/route-growth-delivery`，基线 `1327828` 原样保存 38 路径分类工作；原分支保留。合并已审查 `cefc5fe` 的完整待判断队列修复到主目录，解决常用 12:50 应用仍每次处理 3 篇的交付遗漏。最终 commit/dirty 以 Git 核对。FIX-GROWTH-PRIMARY-DELIVERY done，E-ROUTE-GROWTH-DELIVERY passed，仅表示本单元交付验收。
+
+常用唯一交付路径 `/Users/chandery/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app` 已 fresh 重建，应用目录时间 2026-10-07 13:26:10 +0800。旧包在新接口验收中实际失败（缺 requested）；新包构建、adhoc 严格签名、实际包后端、分类合成应用/重启撤销均通过。原生从同一路径启动、退出并再次启动，均实际看到“判断全部待判断论文”和全队列提示；原 pending17/剩余4次保留，第二次窗口停在新按钮。未代点付费判断，不声称真实17篇已完成。
+
+联合完整 1577 Python（308.655s）和 314 Node 全通过；独立审查核对38哈希、30非共享分类路径、授权/预算/登记/翻译，108目标与合成并发预算准入通过，无剩余已发现P1/P2。用户明确授权跨任务协调，分类任务已安全停止写入。现有分类人类单独“批准”的8000/2000 scope原样保留，FIX-CATEGORY-STANDARDS仍review；其真实模型方案被严格拒绝的质量失败保留。原 provider/default-off/总额度、19全产品阻断评估和2预算flags不降低。
+
+无数据迁移、库或计数重置；本单元模型/付费请求0，核心强制每日模型最低0，developer用量未知。未核验真实多批AI质量、账单/tokenizer、notarization、8GB或全部产品收益。旧包可恢复备份在.local。原全产品release仍应失败；本单元record验收不等于全产品发布批准。
+
+[联合检查证据](evidence/2026-10-07-growth-primary-delivery-checks.txt)、[独立审查](evidence/2026-10-07-growth-primary-delivery-review.md)、[同单元记录](../changes/2026-10-07-growth-primary-delivery.json)。后续从常用路径使用新版；若实际预算/服务拒绝，保留已完成判断并提示剩余和原因，不自动重试。历史各单元记录以下原样保留。
+
 # 当前交接：分类范围已批准，联合验收接管（2026-10-07）
 
 用户本轮明确回复“批准”，已登记仅 `category_review.owner_approved=true`；保持8000/2000、60类/12篇标题80摘要160、显式触发/默认off、原总额度/其他授权不变。源码/SYSTEM未新增强化，prompt header和预算/文档授权已更新。`FIX-CATEGORY-STANDARDS`仍review，不能称最新包或模型质量完成。
@@ -19,6 +31,18 @@
 [ADR0027](decisions/0027-category-standards-review.md)、[检查证据](evidence/2026-10-07-category-standards-checks.txt)、[独立审查](evidence/2026-10-07-category-standards-review.md)。预算/harness/i18n/diff 检查均通过；首跑旧合同 fixture 的 2fail/1error 及修正保留；末次登记补查41项的1fail来自临时仓库未复制test证据路径，改用3份完整docs evidence后全1546再次通过，未改validator/test或降低验收。单批 8000/2000、60 类/12 篇，公开标题80/摘要160与临时引用，完整目录过大拒绝，无重试；单批最高 $0.0048 为峰费率算术，原总额度不增，核心最低0token，developer 用量未知。
 
 下一步只等待人类对已呈现的新 cap/privacy 选项答复；获得批准后登记本操作授权、重建内含预算的包，再做有界真实模型/原生验收。用户不批准则保持 AI 拒绝和显式本地检查；不得自设 true。原全产品19阻断评估和两个 budget flags 保留，`check --release` 实际仍 exit1。真实模型/真实库/账单/tokenizer/原生窗口/8GB 未测，不称整个产品发布通过。
+
+# Current work unit: whole-queue growth jobs completed (2026-10-07)
+
+Branch `codex/growth-whole-queue`, isolated managed worktree `/Users/chandery/.codex/worktrees/growth-whole-queue/PaperDigHelper`, baseline `ac814ca`; final commit/dirty state must be read from Git. The original checkout's concurrent owner category changes were preserved and excluded. FIX-GROWTH-WHOLE-QUEUE and E-ROUTE-GROWTH-BATCH are complete only for their synthetic contract/package acceptance.
+
+One click freezes all currently pending selected papers and runs sequential distinct batches of at most three, charging one daily job. Each request retains the full Map, bounded relevant proposal context and the existing 8000-input/1000-output ceiling. No retries or background continuation. Partial refusal/invalid/unknown/stale evidence stops further requests, retains completed opinions, and reports processed/requested/current pending plus the reason. New interest and renewed prompts wait for the next click. Directions still need explicit confirmation before Map growth. Canonical cross-process ledger admission locks close the independently reproduced reservation race; network calls remain outside the admission lock.
+
+Final full Python: 1492 tests/196.004s/exit0; Node:297 passed/0 skipped/exit0. Independent stable targets:142 Python,39 Python UI,100 Node passed; nine P2 findings reproduced and closed, including verifier host key-file inheritance. CUA served-page fixture with synthetic papers/mock Gateway: one click20/20,pending0,two directions,quota10→9. Fresh backend/Tauri .app, ad-hoc strict signature and actual frozen packaged-backend verification all exit0. Expanded packaged acceptance checks20 pending/AI-off/no charge/current served UI assets; rerun with inherited temporary fake-key override passes in isolated HOME with outbound network blocked. This is not a native-window AI run or real model quality evidence.
+
+Built app: `/Users/chandery/.codex/worktrees/growth-whole-queue/PaperDigHelper/src-tauri/target/release/bundle/macos/PaperDigHelper.app`. Existing build runtime/dependencies reused; no global installation. No real library/key/ledger access or model/paid request. Direct owner instruction authorizes whole-queue public metadata; global55k/day1.5M/month and $0.15/day/$1.50/month/default-off remain unchanged. Twenty papers need seven bounded requests: theoretical maximum63k tokens/$0.0252 is a demand estimate, not an admission guarantee or measured billing. Mandatory core model tokens remain0.
+
+[ADR0026](decisions/0026-whole-queue-growth-jobs.md), [checks](evidence/2026-10-07-growth-whole-queue-checks.txt), [independent review](evidence/2026-10-07-growth-whole-queue-review.md). Prior19 whole-product gates and two budget flags remain unchanged; product release audit remains blocked. Do not infer tokenizer parity, real AI quality, recommendation benefit or notarization from this unit. Final30-file record/diff review passed with no remaining P1/P2; final local commit/dirty state comes from Git. Keep this attached worktree/app for delivery; no push/merge and no edits to the owner category work.
 
 # 当前工作单元：实际旧库启动失败修复完成（2026-10-07）
 

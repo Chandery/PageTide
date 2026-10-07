@@ -236,3 +236,19 @@ test('fixed brief fields, preview and attempt status translate as rendered', () 
     assert.doesNotMatch(i18n.translate(line), /[㐀-鿿]/,line);
   }
 });
+
+test('whole-queue status, disclosure and busy text translate as actually rendered', () => {
+ const R=require('../app/static/route-editor.js'),{i18n}=load('en-US',PACK);
+ for(const out of [
+  {requested:20,processed:20,pending:0,complete:true,judges_left:9},
+  {requested:20,processed:9,pending:11,complete:false,judges_left:9,reason:'本次未保存全部有效判断，未完成的论文仍保留在待判断中。'},
+  {requested:11,processed:11,pending:2,complete:true,judges_left:8},
+  {requested:3,processed:3,pending:0,complete:true,judges_left:8,reason_code:'network',reason:'Request or billing status is unknown'},
+  {requested:3,processed:3,pending:0,complete:true,judges_left:8,reason_code:'network'}
+ ])assert.doesNotMatch(i18n.translate(R.judgeProgress(out).message),/[㐀-鿿]/);
+ for(const line of ['判断全部待判断论文','正在判断全部…','正在判断全部 20 篇…','正在判断全部待判断论文…','正在判断全部 20 篇待判断论文…',
+  '这篇你认为有用。要让 AI 判断本项目全部待判断论文的学习价值吗？',
+  '点一次判断本项目全部待判断论文，自动依次分批，每批最多 3 篇；整次只计 1 次判断机会，可能有多次 AI 调用。只发送有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目']){
+  assert.doesNotMatch(i18n.translate(line),/[㐀-鿿]/,line);
+ }
+});

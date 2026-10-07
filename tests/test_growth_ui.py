@@ -119,7 +119,10 @@ class PreviewAndJudgeTests(unittest.TestCase):
         self.assertIn("未得到有效判断：${out.reason", JS)                      # a refusal is said, not hidden
 
     def test_the_today_page_offers_after_useful_papers_with_a_map_and_sends_nothing_until_clicked(self):
-        self.assertIn("action === 'useful' && state.route && state.route.graph && state.currentProject) card.judgeAsk = true;", INDEX)
+        self.assertIn("action === 'useful' && state.route && state.route.graph && state.currentProject) {", INDEX)
+        feedback = INDEX[INDEX.index("async function doFeedback"):INDEX.index("$('#cards').addEventListener")]
+        self.assertIn("card.judgeAskGeneration = (card.judgeAskGeneration || 0) + 1;", feedback)
+        self.assertIn("card.judgeAsk = true;", feedback)
         self.assertEqual(INDEX.count("action: 'direction-judge'"), 1)
         doing = INDEX[INDEX.index("async function doJudge"):INDEX.index("function cardHTML")]
         self.assertIn("/api/route", doing)

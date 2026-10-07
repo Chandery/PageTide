@@ -201,6 +201,20 @@
       "gates": [
         "E-ROUTE-V2-08"
       ]
+    },
+    {
+      "id": "R-ROUTE-GROWTH-BATCH",
+      "text": "One explicit growth job judges the whole frozen queue with truthful partial counts, bounded gateway requests and no stale evidence revival",
+      "gates": [
+        "E-ROUTE-GROWTH-BATCH"
+      ]
+    },
+    {
+      "id": "R-ROUTE-GROWTH-DELIVERY",
+      "text": "The usual primary application entry ships whole-queue judgment after rebuild while preserving the existing category work and human grants.",
+      "gates": [
+        "E-ROUTE-GROWTH-DELIVERY"
+      ]
     }
   ]
 }

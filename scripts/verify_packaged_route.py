@@ -31,6 +31,8 @@ def launch(executable, data, home, check):
                http_proxy='http://127.0.0.1:9', https_proxy='http://127.0.0.1:9',
                HTTP_PROXY='http://127.0.0.1:9', HTTPS_PROXY='http://127.0.0.1:9',
                NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
+    # Never let a host key-file override escape the disposable HOME/data.
+    env.pop('PAPERDIGHELPER_KEY_FILE', None)
     with tempfile.TemporaryFile(mode='w+') as errors:
         process = subprocess.Popen([str(executable)], cwd=ROOT, env=env, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=errors, text=True)
@@ -146,6 +148,12 @@ def main():
         growth_id=proposal['results'][0]['direction']
         app.store.add_project_paper(route_pid,'en','shared')
         app.store.save_to_library('en',project_id=route_pid)
+        queue_pid=app.create_project('Whole queue fixture',language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        app.route_save(queue_pid,plan={'concepts':[{'id':'basis','name':'Queue basis','terms':['basis'],'hint':1,'needs':[]}], 'targets':['basis']})
+        for number in range(20):
+            key='queue-'+str(number)
+            app.store.upsert_papers([{'key':key,'title':'Queue paper '+str(number),'abstract':'Public synthetic study metadata','language':'en'}],queue_pid)
+            app.record_feedback(key,'useful',project_id=queue_pid)
         app.store.close()
         def refresh(call, expected):
             job=call('/api/refresh',{'project_id':recall_pid})
@@ -157,6 +165,12 @@ def main():
             assert result['errors']==[],result
             assert result['fetched']>0 and result['query_plan']==expected,result
         def first(call):
+            pending_queue=call('/api/route',{'action':'candidates','project_id':queue_pid})
+            assert len(pending_queue['pending'])==20 and pending_queue['judges_left']==10
+            refused_queue=call('/api/route',{'action':'direction-judge','project_id':queue_pid})
+            assert refused_queue['reason_code']=='ai_off'
+            assert (refused_queue['requested'],refused_queue['processed'],refused_queue['complete'],refused_queue['pending'],refused_queue['judges_left'])==(20,0,False,20,10)
+            assert 'judgeProgress' in call('/route-editor.js',raw=True)
             listed=call('/api/route',{'action':'candidates','project_id':growth_pid})
             candidate=next(c for c in listed['candidates'] if c['id']==growth_id)
             assert candidate['can_accept'] and candidate['goal_impact']=='adds_prerequisite'
@@ -325,7 +339,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/owner-approved new-operation AI-off and no-key no-call, assets, isolated HOME, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/owner-approved new-operation AI-off and no-key no-call, whole-queue20 AI-off pending/refund/current assets, isolated HOME, outbound network blocked')
 
 
 if __name__=='__main__': main()

@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-growth-whole-queue",
+  "class": "critical",
+  "summary": "Process the entire selected pending queue in one explicit growth job; bounded sequential requests and truthful partial status.",
+  "tasks": [
+    "FIX-GROWTH-WHOLE-QUEUE"
+  ],
+  "files": [
+    "app/gateway.py",
+    "app/growthproposal.py",
+    "app/operation_lock.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/route-editor.js",
+    "app/static/route-page.js",
+    "changes/2026-10-07-growth-whole-queue.json",
+    "docs/BUDGET.generated.md",
+    "docs/BUDGET.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0026-whole-queue-growth-jobs.md",
+    "docs/evidence/2026-10-07-growth-whole-queue-checks.txt",
+    "docs/evidence/2026-10-07-growth-whole-queue-review.md",
+    "harness/budget.json",
+    "harness/evaluations.json",
+    "harness/requirements.json",
+    "harness/sources.json",
+    "harness/tasks.json",
+    "prompts/route-growth-judge.md",
+    "scripts/verify_packaged_route.py",
+    "tests/test_gateway_process.py",
+    "tests/test_growth_actions.cjs",
+    "tests/test_growth_batch.py",
+    "tests/test_growth_ui.py",
+    "tests/test_i18n.cjs",
+    "tests/test_packaged_route_isolation.py",
+    "tests/test_route_editor.cjs"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "before": "ac814ca;one click at most3 papers/1request/1 daily attempt;8000+1000/$0.0036 peak miss per request",
+    "after": "one click freezes all pending;ceil(N/3) sequential bounded requests;1 daily job,each9000/$0.0036 reserved through unchanged gateway;global55k/day1.5M/month,$0.15/day$1.50/month unchanged",
+    "rationale": "User explicitly requires all pending papers per click. Exposure remains public metadata and complete bounded Map; aggregate/global caps still refuse later batches. Core daily minimum0. No paid test planned.",
+    "developer_usage": "unknown",
+    "quantified": {
+      "period": "Theoretical maximum per explicit click with20pending papers; demand before admission, not actual usage",
+      "before": {
+        "input_tokens": 8000,
+        "output_tokens": 1000,
+        "usd": "0.0036"
+      },
+      "after": {
+        "input_tokens": 56000,
+        "output_tokens": 7000,
+        "usd": "0.0252"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "/root; actual scoped diff, privacy/lifecycle/partial budget and new package contracts",
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic; independently reproduced nine P2 findings, verified fixes and passed final30file record/diff acceptance",
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Real multi-batch model quality and full product release gates are not established by synthetic tests."
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "command": "CARGO_NET_OFFLINE=true cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "command": "codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "command": "codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt"
+    }
+  ],
+  "release_audit": {
+    "command": "python3 scripts/harness.py check --release",
+    "exit_code": 1,
+    "evidence": "docs/evidence/2026-10-07-growth-whole-queue-checks.txt",
+    "result": "Original19not_run gates and2budgetflags unchanged; new whole-queue synthetic contract passed, not a whole-product release."
+  }
+}

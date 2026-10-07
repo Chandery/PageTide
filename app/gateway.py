@@ -13,6 +13,8 @@ import urllib.request
 from decimal import Decimal
 from pathlib import Path
 
+from . import operation_lock
+
 BUDGET = Path("harness/budget.json")
 # Runtime-state paths are relative to the user data directory (App Support on
 # desktop, .local/app in a checkout), never to the read-only application bundle.
@@ -69,8 +71,17 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
-# Admission and reservation must be atomic across the threaded local server.
+# Keep the existing process-wide thread admission guard as well as the
+# resource-specific kernel lock used below for independent app processes.
 _LEDGER_LOCK = threading.Lock()
+
+
+def _reset_admission_lock_after_fork():
+    global _LEDGER_LOCK
+    _LEDGER_LOCK = threading.Lock()
+
+
+os.register_at_fork(after_in_child=_reset_admission_lock_after_fork)
 
 
 class Gateway:
@@ -174,6 +185,12 @@ class Gateway:
         return self.enabled()
 
     # ------------------------------------------------------------ accounting
+    def _ledger_serial(self):
+        # Resolve aliases before deriving the lock so every Gateway using the
+        # same ledger joins the same cross-process admission/read/write section.
+        ledger = self.ledger.resolve()
+        return operation_lock.serial(ledger.parent, 'ledger:' + str(ledger))
+
     def _entries(self):
         """Effective ledger rows: one per legacy row or per reservation id.
 
@@ -181,60 +198,63 @@ class Gateway:
         reconciles it (actual usage) or releases it (provider rejected before
         generation). Unknown usage therefore keeps the reservation.
         """
-        if not self.ledger.exists():
-            return []
-        plain, by_id = [], {}
-        for line in self.ledger.read_text().splitlines():
-            if not line.strip():
-                continue
-            entry = json.loads(line)
-            rid = entry.get("id")
-            if not rid:
-                plain.append(entry)
-                continue
-            current = by_id.get(rid)
-            if current is None or current.get("status") in ("reserved", "unknown"):
-                if entry.get("status") == "unknown" and current is not None:
-                    continue  # unknown keeps the reserved values
-                by_id[rid] = entry
-        return plain + list(by_id.values())
+        with self._ledger_serial():
+            if not self.ledger.exists():
+                return []
+            plain, by_id = [], {}
+            for line in self.ledger.read_text().splitlines():
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                rid = entry.get("id")
+                if not rid:
+                    plain.append(entry)
+                    continue
+                current = by_id.get(rid)
+                if current is None or current.get("status") in ("reserved", "unknown"):
+                    if entry.get("status") == "unknown" and current is not None:
+                        continue  # unknown keeps the reserved values
+                    by_id[rid] = entry
+            return plain + list(by_id.values())
 
     def _usage(self, day, month):
         """Return ((day_tokens, day_usd), (month_tokens, month_usd))."""
-        day_tokens = month_tokens = 0
-        day_usd = month_usd = Decimal(0)
-        for entry in self._entries():
-            tokens = int(entry.get("input", 0)) + int(entry.get("output", 0))
-            usd = Decimal(str(entry.get("usd", "0")))
-            if entry["date"] == day:
-                day_tokens, day_usd = day_tokens + tokens, day_usd + usd
-            if entry["date"].startswith(month):
-                month_tokens, month_usd = month_tokens + tokens, month_usd + usd
-        return (day_tokens, day_usd), (month_tokens, month_usd)
+        with self._ledger_serial():
+            day_tokens = month_tokens = 0
+            day_usd = month_usd = Decimal(0)
+            for entry in self._entries():
+                tokens = int(entry.get("input", 0)) + int(entry.get("output", 0))
+                usd = Decimal(str(entry.get("usd", "0")))
+                if entry["date"] == day:
+                    day_tokens, day_usd = day_tokens + tokens, day_usd + usd
+                if entry["date"].startswith(month):
+                    month_tokens, month_usd = month_tokens + tokens, month_usd + usd
+            return (day_tokens, day_usd), (month_tokens, month_usd)
 
     def admit(self, operation, day, month):
         """Return reservation (input, output, usd) or raise BudgetExceeded."""
-        provider = self.config["provider"]
-        if provider is None:
-            raise BudgetExceeded("no provider configured")
-        op = self.config["operations"].get(operation)
-        if op is None:
-            raise BudgetExceeded(f"operation not registered: {operation}")
-        if op.get("owner_approved") is False:
-            raise BudgetExceeded(f"operation awaiting owner approval: {operation}")
-        cap_in, cap_out = op["cap"]["input"], op["cap"]["output"]
-        reserve_usd = _cost(provider, cap_in, cap_out)
-        (day_tokens, day_usd), (month_tokens, month_usd) = self._usage(day, month)
-        policy = self.limits()
-        if day_tokens + cap_in + cap_out > policy["daily_total_tokens"]:
-            raise BudgetExceeded(f"daily token ceiling ({day_tokens:,}/{policy['daily_total_tokens']:,} used)")
-        if month_tokens + cap_in + cap_out > policy["monthly_total_tokens"]:
-            raise BudgetExceeded(f"monthly token ceiling ({month_tokens:,}/{policy['monthly_total_tokens']:,} used)")
-        if day_usd + reserve_usd > Decimal(str(policy["daily_usd"])):
-            raise BudgetExceeded(f"daily USD ceiling (${day_usd:.4f}/${policy['daily_usd']} used)")
-        if month_usd + reserve_usd > Decimal(str(policy["monthly_usd"])):
-            raise BudgetExceeded(f"monthly USD ceiling (${month_usd:.4f}/${policy['monthly_usd']} used)")
-        return cap_in, cap_out, reserve_usd
+        with self._ledger_serial():
+            provider = self.config["provider"]
+            if provider is None:
+                raise BudgetExceeded("no provider configured")
+            op = self.config["operations"].get(operation)
+            if op is None:
+                raise BudgetExceeded(f"operation not registered: {operation}")
+            if op.get("owner_approved") is False:
+                raise BudgetExceeded(f"operation awaiting owner approval: {operation}")
+            cap_in, cap_out = op["cap"]["input"], op["cap"]["output"]
+            reserve_usd = _cost(provider, cap_in, cap_out)
+            (day_tokens, day_usd), (month_tokens, month_usd) = self._usage(day, month)
+            policy = self.limits()
+            if day_tokens + cap_in + cap_out > policy["daily_total_tokens"]:
+                raise BudgetExceeded(f"daily token ceiling ({day_tokens:,}/{policy['daily_total_tokens']:,} used)")
+            if month_tokens + cap_in + cap_out > policy["monthly_total_tokens"]:
+                raise BudgetExceeded(f"monthly token ceiling ({month_tokens:,}/{policy['monthly_total_tokens']:,} used)")
+            if day_usd + reserve_usd > Decimal(str(policy["daily_usd"])):
+                raise BudgetExceeded(f"daily USD ceiling (${day_usd:.4f}/${policy['daily_usd']} used)")
+            if month_usd + reserve_usd > Decimal(str(policy["monthly_usd"])):
+                raise BudgetExceeded(f"monthly USD ceiling (${month_usd:.4f}/${policy['monthly_usd']} used)")
+            return cap_in, cap_out, reserve_usd
 
     def usage_today(self):
         import datetime
@@ -244,9 +264,10 @@ class Gateway:
                 "ceiling": self.limits()["daily_total_tokens"], "dev": self.dev, "enabled": self.enabled()}
 
     def _append(self, entry):
-        self.ledger.parent.mkdir(parents=True, exist_ok=True)
-        with self.ledger.open("a") as handle:
-            handle.write(json.dumps(entry) + "\n")
+        with self._ledger_serial():
+            self.ledger.parent.mkdir(parents=True, exist_ok=True)
+            with self.ledger.open("a") as handle:
+                handle.write(json.dumps(entry) + "\n")
 
     def _record(self, date, operation, usage, usd, model, rid=None, status=None):
         entry = {
@@ -274,7 +295,7 @@ class Gateway:
         today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
         month = today[:7]
         provider = self.config["provider"]
-        with _LEDGER_LOCK:
+        with _LEDGER_LOCK, self._ledger_serial():
             try:
                 cap_in, cap_out, reserve_usd = self.admit(operation, today, month)
             except BudgetExceeded as exc:

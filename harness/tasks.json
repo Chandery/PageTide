@@ -960,6 +960,58 @@
         "docs/evidence/2026-10-07-category-standards-checks.txt",
         "docs/evidence/2026-10-07-category-standards-review.md"
       ]
+    },
+    {
+      "id": "FIX-GROWTH-WHOLE-QUEUE",
+      "stage": "graph",
+      "title": "Process the complete pending growth queue in one explicit job",
+      "status": "done",
+      "depends_on": [
+        "ROUTE-V2-06"
+      ],
+      "requirements": [
+        "R-ROUTE-V2-06",
+        "R-BUDGET",
+        "R-LOCAL",
+        "R-HARNESS",
+        "R-ROUTE-GROWTH-BATCH"
+      ],
+      "acceptance": [
+        "Twenty pending papers finish in one click and one daily job, with multiple directions; full Map and per-request caps retained",
+        "No retries; only completely unpaid jobs refund; partial failure preserves completed opinions and pending papers with accurate counts",
+        "Freeze queue; new interest waits; map/selected evidence changes reject stale results; cross-process claim spans job; independent review, full tests and fresh app pass",
+        "Global ledger admission/reservation/read/write serialized across processes; independent unknown-usage billing and midnight/prompt-generation regressions pass"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-07-growth-whole-queue-checks.txt",
+        "docs/evidence/2026-10-07-growth-whole-queue-review.md"
+      ]
+    },
+    {
+      "id": "FIX-GROWTH-PRIMARY-DELIVERY",
+      "stage": "graph",
+      "title": "Deliver whole-queue judgment in the usual primary app entry",
+      "status": "done",
+      "depends_on": [
+        "FIX-GROWTH-WHOLE-QUEUE"
+      ],
+      "requirements": [
+        "R-ROUTE-GROWTH-BATCH",
+        "R-ROUTE-GROWTH-DELIVERY",
+        "R-BUDGET",
+        "R-HARNESS",
+        "R-LOCAL"
+      ],
+      "acceptance": [
+        "Preserve all38 frozen category paths, approvedoperation/scenarios/translations and review status;no grant or globalcap changes",
+        "Merge reviewedwholequeue code into primarysource; oldpackaged20paperregression fails before freshusualpathbuild",
+        "CombinedfullPython/Node tests,independentreview and actualprimaryappbackend/sign/packagechecks pass",
+        "Quit old process;launch from usualprimarypath and relaunch;nativewholequeuebutton/tooltip,pending/quota preserved;no paid click or userdatareset"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-07-growth-primary-delivery-checks.txt",
+        "docs/evidence/2026-10-07-growth-primary-delivery-review.md"
+      ]
     }
   ]
 }

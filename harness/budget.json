@@ -302,7 +302,7 @@
     },
     "route_growth_judge": {
       "owner_approved": true,
-      "approval_note": "2026-10-07 pending: old direction_judge exploration-only grant does not authorize Useful/seed evidence or a complete Map. Offline contracts only until explicit owner approval. 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical.",
+      "approval_note": "2026-10-07 pending: old direction_judge exploration-only grant does not authorize Useful/seed evidence or a complete Map. Offline contracts only until explicit owner approval. 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical. 2026-10-07 owner explicitly requires one click to judge ALL current pending papers. Authorizes frozen whole-queue batches of the same public fields; at most10 complete jobs/project/local day, each may contain ceil(N/3) distinct gateway requests. Legacy counter retained. Per-request8000/1000 and global caps unchanged; no retries or unlimited spend. This changes frequency per click, not per-request ceilings.",
       "prompt": "prompts/route-growth-judge.md",
       "trigger": "interactive",
       "enabled_by_default": false,
@@ -320,7 +320,7 @@
         "three_public_papers_and_three_proposals": 1500,
         "protocol_framing_margin": 500
       },
-      "scope": "One explicit click; at most10 attempts/project/local day shared with historic judge counter, one gateway attempt, no retry/fallback. Up to3 Useful/chosen-seed public paper titles80/abstract180 characters; complete Map max40nodes/120edges incl names/terms/intros/hints/type/state/side/targets/prereqs under ephemeral aliases; up to3 existing proposal names/intros/types. No private IDs, notes, profile, raw feedback, other projects, full text or history. Refuse full messages above8000 conservative estimated tokens instead of truncating Map. Proposal preview and atomic user confirmation required; changed Map/relevant effective evidence invalidates old opinions. Manual editing available without AI. Expanded exposure owner-approved2026-10-07; output1000, finish_reason length refused. Tokenizer parity/billing unmeasured."
+      "scope": "One explicit whole-queue job freezes all current Useful/chosen-seed pending papers. At most10 jobs/project/local day shared with historical counter. Each sequential unretried gateway request sends up to3 public titles80/abstract180, complete bounded Map40nodes/120edges with names/terms/intros/hints/type/state/side/targets/prereqs, and up to3 current proposals under ephemeral p/c/d aliases. New interest waits for next click. No private IDs, notes, profile, feedback text, other projects, full text or history. Per-request8000 conservative input estimate/1000output; refuse oversized Map and length/invalid/missing results. Every request separately admitted/reserved/reconciled under unchanged global55k/day1.5M/month,$0.15/day$1.50/month. No aggregate guarantee; stop on failure, budget refusal, unknown billing, stale context or incomplete batch; retain prior saves and unfinished queue. Completely unpaid job refunded, otherwise one daily job retained. Atomic user preview/confirmation before Map change. Human whole-queue instruction2026-10-07 authorizes expanded frequency/scope; tokenizer/billing/real multi-batch quality unmeasured."
     },
     "route_map_create": {
       "owner_approved": true,
@@ -471,7 +471,7 @@
     },
     {
       "id": "route_growth_proposal_pending",
-      "label": "已批准额度：每月八次完整Map生长判断（算术，非账单）",
+      "label": "Historical arithmetic: eight individual bounded growth requests, not eight whole-queue jobs",
       "days": 30,
       "weekly_runs": 5,
       "daily_calls": {},
@@ -484,7 +484,7 @@
     },
     {
       "id": "route_map_revision_pending",
-      "label": "已批准额度：月1创建4修改8判断（峰时缓存未命中算术，非账单）",
+      "label": "Historical arithmetic: one create/four revisions/eight individual growth requests",
       "days": 30,
       "weekly_runs": 5,
       "daily_calls": {},
@@ -504,6 +504,17 @@
       "weekly_calls": {},
       "one_off_calls": {
         "category_review": 8
+      }
+    },
+    {
+      "id": "route_growth_whole_queue_20",
+      "label": "Whole-queue example: eight 20-paper jobs/month, seven requests/job; cap demand not admitted guarantee",
+      "days": 30,
+      "weekly_runs": 5,
+      "daily_calls": {},
+      "weekly_calls": {},
+      "one_off_calls": {
+        "route_growth_judge": 56
       }
     }
   ],

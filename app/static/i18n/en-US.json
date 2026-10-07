@@ -1537,6 +1537,22 @@
   "没有选择需要应用的整理方案": "No organization plan was selected.",
   "已整理 {0} 篇论文；改名 {1}、合并 {2}、删除 {3} 个标签，可以撤销": "Organized {0} papers; renamed {1}, merged {2}, and deleted {3} labels. You can undo.",
   "周报将 {0} 组同义类别按一个方向统计；论文库原类别与归属保留。": "The weekly report counts {0} groups of equivalent categories as one direction. The original library categories and memberships are preserved.",
-  "已审阅 {0} / {1} 篇，完成 {2} / {3} 批；剩余 {4} 篇未处理。此次没有保存或应用 AI 整理方案。": "Reviewed {0} / {1} papers and completed {2} / {3} batches; {4} papers remain. No AI organization plan was saved or applied."
+  "已审阅 {0} / {1} 篇，完成 {2} / {3} 批；剩余 {4} 篇未处理。此次没有保存或应用 AI 整理方案。": "Reviewed {0} / {1} papers and completed {2} / {3} batches; {4} papers remain. No AI organization plan was saved or applied.",
+  "这篇你认为有用。要让 AI 判断本项目全部待判断论文的学习价值吗？": "You found this paper useful. Ask AI to judge the learning value of all pending papers in this project?",
+  "正在判断全部…": "Judging all pending papers…",
+  "正在判断全部 {0} 篇…": "Judging all {0} pending papers…",
+  "判断全部待判断论文": "Judge all pending papers",
+  "点一次判断本项目全部待判断论文，自动依次分批，每批最多 3 篇；整次只计 1 次判断机会，可能有多次 AI 调用。只发送有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目": "One click judges all pending papers in this project in sequential batches of up to 3. The whole job uses 1 judgment attempt and may make several AI calls. Only useful or selected seed titles and abstract excerpts, concept descriptions and prerequisites/targets from the complete bounded map, and existing proposals are sent. Notes, profile and other projects are excluded.",
+  "本次队列已判断完毕": "This queue is complete",
+  "本次已判断 {0}/{1} 篇": "Judged {0}/{1} papers in this job",
+  "当前还有 {0} 篇待判断": "{0} papers are currently pending",
+  "停止原因：{0}": "Stopped: {0}",
+  "正在判断全部待判断论文…": "Judging all pending papers…",
+  "正在判断全部 {0} 篇待判断论文…": "Judging all {0} pending papers…",
+  "本次未保存全部有效判断，未完成的论文仍保留在待判断中。": "Some papers received no valid judgment; remaining papers were kept.",
+  "调用提示：{0}": "Request notice: {0}",
+  "调用状态需要确认，请检查请求结果和计费状态": "The request status needs checking; review the result and billing status",
+  "当前待判断论文可以继续处理": "You can continue processing the current pending papers",
+  "本次判断已停止": "This judgment job stopped"
  }
 }

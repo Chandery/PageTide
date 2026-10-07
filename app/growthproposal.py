@@ -2,7 +2,7 @@
 import hashlib
 import json
 
-from . import creation, pathgraph
+from . import creation, pathgraph, ranking
 
 OPERATION = 'route_growth_judge'
 INPUT_CAP = 8000
@@ -20,6 +20,7 @@ SYSTEM = ('你是学习路线助手。输入是明确兴趣论文、完整有界
           'new_branch不自动修改目标。三种新增提议写name不超过40字、terms最多2个检索词每个60字、'
           'intro/barrier/reason各不超过140字，needs最多3个活动c节点。'
           'join只能引用已有d编号，补充同一提议的证据。引用必须来自输入。'
+          '每篇输入论文必须恰好出现在一组结果中，不得遗漏或重复；相同学习任务合成一组，不同任务分别判断。'
           '不输出私有标识、工具调用或整图。不能因论文少而禁止用户主动编辑。')
 
 
@@ -34,6 +35,22 @@ def map_semantics(graph):
     return {'concepts': [{k: c.get(k) for k in fields} for c in sorted(graph['concepts'], key=lambda c: c['id'])],
             'prereqs': sorted([(e['from'], e['to'], e.get('state', 'active')) for e in graph['prereqs']]),
             'targets': sorted(graph['targets'])}
+
+
+def select_directions(papers, directions):
+    """Pick up to three relevant current opinions; recent opinions break ties.
+
+    Lexical overlap only selects bounded public context; it does not judge value
+    or merge learning tasks. Newly created opinions cannot be hidden by FIFO.
+    """
+    terms = set(ranking.tokenize(' '.join(str(p.get('title') or '') + ' ' + str(p.get('abstract') or '') for p in papers)))
+    def relevance(pair):
+        index, direction = pair
+        words = set(ranking.tokenize(' '.join([direction.get('name') or '', direction.get('intro') or '',
+                                               *direction.get('terms', [])])))
+        score = len(terms & words) / max(1, len(terms | words))
+        return score, index
+    return [direction for _, direction in sorted(enumerate(directions), key=relevance, reverse=True)[:3]]
 
 
 def messages(papers, graph, directions, english=False, model='deepseek-flash'):
@@ -79,7 +96,8 @@ def validate(item, batch, graph, directions):
         return None
     labels = {f'p{i+1}': p['key'] for i, p in enumerate(batch)}
     refs = item.get('papers')
-    if not isinstance(refs, list) or not refs or any(not isinstance(r, str) or r not in labels for r in refs):
+    if (not isinstance(refs, list) or not refs or any(not isinstance(r, str) or r not in labels for r in refs)
+            or len(set(refs)) != len(refs)):
         return None
     kind = item.get('verdict')
     # Older local fixture callers may use 'new'; persisted legacy opinions still have no snapshot.
@@ -150,7 +168,7 @@ def validate(item, batch, graph, directions):
     return out
 
 
-def degrade_reason(result, english=False):
+def degrade_reason(result, english=False, saved=0):
     code, _ = creation.degrade_reason(result, english)
     if result.get('usage_unknown'):
         code = 'network'
@@ -165,5 +183,5 @@ def degrade_reason(result, english=False):
                     'The request result or billing status is unknown; its attempt and reservation are retained.'),
         'error': ('本次判断失败。', 'The judgment failed.')}
     reason = texts.get(code, texts['error'])[int(bool(english))]
-    reason += (' No judgment was saved; you can edit manually.' if english else ' 未保存判断，仍可手动编辑。')
+    reason += ((f' {saved} paper judgments were saved; unfinished papers remain pending.' if english else f' 已保存 {saved} 篇论文的判断，未完成论文仍在待判断中。') if saved else (' No judgment was saved; you can edit manually.' if english else ' 未保存判断，仍可手动编辑。'))
     return code, reason

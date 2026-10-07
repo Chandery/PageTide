@@ -152,7 +152,7 @@ class App:
         project_id = self._require_project(project_id)
         return self._with_undo(project_id, self.route_get(project_id))
 
-    DIRECTION_JUDGES_PER_DAY = 10   # explicit paid growth attempts per project per local day
+    DIRECTION_JUDGES_PER_DAY = 10   # explicit whole-queue growth jobs per project/local day
 
     def _positive_evidence(self, project_id, seeds=True):
         """Effective growth interest: Useful or an explicitly chosen seed, never familiarity.
@@ -401,7 +401,7 @@ class App:
             return self._route_direction_judge(project_id, dry_run)
 
     def _route_direction_judge(self, project_id, dry_run=False):
-        """One explicitly requested full-Map judgment through the separately approved gateway operation."""
+        """One explicit job visits the frozen queue in bounded, unretried requests."""
         project_id = self._require_project(project_id)
         with self.store._lock:
             self.store.conn.execute('BEGIN')
@@ -409,29 +409,31 @@ class App:
                 _, route = read_route(self.store.conn, project_id)
                 if not route or not route.get('graph'):
                     raise ValueError('这个项目还没有学习图')
-                batch = self._pending_growth(project_id)[:3]
-                if not batch:
+                queue = self._pending_growth(project_id)
+                if not queue:
                     raise ValueError('现在没有待判断的论文：明确有用或选定种子后才会出现')
-                visible = self._visible_directions(project_id, route)[:3]
-                context = self._growth_context(project_id)
+                selected = [p['key'] for p in queue]
+                context = self._growth_context(project_id, selected, include_rejected=True)
+                visible = growthproposal.select_directions(queue[:3], self._visible_directions(project_id, route))
+                proposal_context = self._growth_context(project_id, [k for d in visible for k in d.get('papers', [])], include_rejected=True)
                 previous = self._directions_store(project_id)
-                messages = growthproposal.messages(batch, route['graph'], visible, self.english(),
+                messages = growthproposal.messages(queue[:3], route['graph'], visible, self.english(),
                                                     self.gateway.config['provider']['model'])
                 self.store.conn.commit()
             except BaseException:
                 self.store.conn.rollback()
                 raise
-        key, busy, today = f'direction_judge_{project_id}', f'judge:{project_id}', time.strftime('%Y-%m-%d')
-        with self._ROUTE_LOCK, self.store._lock:
-            if busy in self._ROUTE_BUSY:
-                raise ValueError('AI 正在判断，请稍候')
+        key, today = f'direction_judge_{project_id}', time.strftime('%Y-%m-%d')
+        with self.store._lock:
             self.store.conn.execute('BEGIN IMMEDIATE')
             try:
                 state = self.store.get_setting(key) or {}
                 attempts = int(state.get('attempts') or 0) if state.get('day') == today else 0
                 if attempts >= self.DIRECTION_JUDGES_PER_DAY and not dry_run:
                     raise ValueError(f'这个项目今天已经让 AI 判断过 {self.DIRECTION_JUDGES_PER_DAY} 次，请明天再试')
-                if self._growth_context(project_id) != context:
+                if (self._growth_context(project_id, selected, include_rejected=True) != context
+                        or self._growth_context(project_id, [k for d in visible for k in d.get('papers', [])], include_rejected=True) != proposal_context
+                        or self._directions_store(project_id) != previous):
                     raise Conflict('Growth evidence changed; refresh the proposals')
                 if not dry_run:
                     self._growth_write_setting(key, {'day': today, 'attempts': attempts + 1})
@@ -440,48 +442,97 @@ class App:
                 self.store.conn.rollback()
                 raise
         started = time.monotonic()
-        left = lambda n: max(0, self.DIRECTION_JUDGES_PER_DAY - n)
-        try:
+        outcomes, processed, calls, token_total = [], 0, 0, 0
+        tokens_known, charged, ai_result = True, False, False
+        code, reason = None, None
+        for start in range(0, len(queue), 3):
+            batch = queue[start:start + 3]
+            if start:
+                with self.store._lock:
+                    self.store.conn.execute('BEGIN')
+                    try:
+                        if self._growth_context(project_id, selected, include_rejected=True) != context:
+                            raise Conflict('Map or selected evidence changed during judgment; refresh')
+                        visible = growthproposal.select_directions(batch, self._visible_directions(project_id, route))
+                        proposal_context = self._growth_context(project_id, [k for d in visible for k in d.get('papers', [])], include_rejected=True)
+                        previous = self._directions_store(project_id)
+                        try:
+                            messages = growthproposal.messages(batch, route['graph'], visible, self.english(),
+                                                               self.gateway.config['provider']['model'])
+                        except ValueError as exc:
+                            code, reason = 'invalid_input', str(exc)
+                        self.store.conn.commit()
+                    except BaseException:
+                        self.store.conn.rollback()
+                        raise
+                if code:
+                    break
+            calls += 1
             try:
                 result = self.gateway.call(growthproposal.OPERATION, messages, dry_run=dry_run) or {}
             except Exception as exc:
-                result = {'ok': False, 'reason': str(exc)}
-            elapsed = int((time.monotonic() - started) * 1000)
+                result = {'ok': False, 'reason': str(exc), 'usage_unknown': True}
             if dry_run or not result.get('ok'):
-                code, reason = growthproposal.degrade_reason(result, self.english())
-                refunded = code in self._ROUTE_UNPAID
-                if refunded and not dry_run:
-                    with self.store._lock:
-                        self.store.conn.execute('BEGIN IMMEDIATE')
-                        try:
-                            current = self.store.get_setting(key) or {}
-                            if current.get('day') == today:
-                                self._growth_write_setting(key, {**current, 'attempts': max(0, int(current.get('attempts') or 0) - 1)})
-                            self.store.conn.commit()
-                        except BaseException:
-                            self.store.conn.rollback()
-                            raise
-                return {'ok': False, 'mode': 'local', 'reason_code': code, 'reason': reason, 'results': [],
-                        'elapsed_ms': elapsed, 'judges_left': left(attempts + (0 if dry_run or refunded else 1))}
+                code, reason = growthproposal.degrade_reason(result, self.english(), saved=processed)
+                if result.get('usage_unknown'):
+                    tokens_known = False
+                if not dry_run and code not in self._ROUTE_UNPAID:
+                    charged = True
+                break
+            charged, ai_result = True, True
+            usage = (result.get('usage') or {}).get('total_tokens')
+            if isinstance(usage, int) and not isinstance(usage, bool):
+                token_total += usage
+            else:
+                tokens_known = False
             parsed = [] if result.get('finish_reason') == 'length' else growthproposal.parse(result.get('content'))
             with self.store._lock:
                 self.store.conn.execute('BEGIN IMMEDIATE')
                 try:
-                    if self._growth_context(project_id) != context or self._directions_store(project_id) != previous:
+                    if (self._growth_context(project_id, selected, include_rejected=True) != context
+                        or self._growth_context(project_id, [k for d in visible for k in d.get('papers', [])], include_rejected=True) != proposal_context
+                        or self._directions_store(project_id) != previous):
                         raise Conflict('Map, evidence or proposals changed during judgment; refresh')
-                    outcomes = self._apply_growth_judgement(project_id, route, batch, visible, parsed, context)
+                    saved = self._apply_growth_judgement(project_id, route, batch, visible, parsed, context)
                     self.store.conn.commit()
                 except BaseException:
                     self.store.conn.rollback()
                     raise
-            good = any(r['verdict'] not in ('unusable', 'full') for r in outcomes)
-            return {'ok': good, 'mode': 'ai', 'reason_code': None if good else 'bad_reply',
-                    'reason': None if good else ('No valid learning judgment was saved; request another judgment or edit manually.' if self.english() else '本次未保存有效的学习判断；可重新判断或手动编辑。'),
-                    'results': outcomes, 'tokens': (result.get('usage') or {}).get('total_tokens'),
-                    'elapsed_ms': elapsed, 'judges_left': left(attempts + 1), 'pending': len(self._pending_growth(project_id))}
-        finally:
-            with self._ROUTE_LOCK:
-                self._ROUTE_BUSY.discard(busy)
+            outcomes.extend(saved)
+            valid = sum(len(r['titles']) for r in saved if r['verdict'] not in ('unusable', 'full'))
+            processed += valid
+            if valid != len(batch) or any(r['verdict'] in ('unusable', 'full') for r in saved):
+                code = 'bad_reply'
+                reason = ('Some papers received no valid judgment; remaining papers were kept.' if self.english()
+                          else '本次未保存全部有效判断，未完成的论文仍保留在待判断中。')
+                break
+            if result.get('usage_unknown'):
+                code, reason = growthproposal.degrade_reason({'usage_unknown': True}, self.english(), saved=processed)
+                tokens_known = False
+                break
+        if not charged and not dry_run:
+            with self.store._lock:
+                self.store.conn.execute('BEGIN IMMEDIATE')
+                try:
+                    current = self.store.get_setting(key) or {}
+                    if current.get('day') == today:
+                        self._growth_write_setting(key, {**current, 'attempts': max(0, int(current.get('attempts') or 0) - 1)})
+                    self.store.conn.commit()
+                except BaseException:
+                    self.store.conn.rollback()
+                    raise
+        # The job belongs to its starting local day; UI quota describes the day
+        # at completion, which can differ during a long multi-request job.
+        current_day = time.strftime('%Y-%m-%d')
+        current_counter = self.store.get_setting(key) or {}
+        current_attempts = int(current_counter.get('attempts') or 0) if current_counter.get('day') == current_day else 0
+        return {'ok': processed > 0, 'mode': 'ai' if ai_result else 'local',
+                'reason_code': code, 'reason': reason, 'results': outcomes,
+                'tokens': token_total if tokens_known and ai_result else None,
+                'elapsed_ms': int((time.monotonic() - started) * 1000),
+                'judges_left': max(0, self.DIRECTION_JUDGES_PER_DAY - current_attempts),
+                'requested': len(queue), 'processed': processed, 'complete': processed == len(queue),
+                'model_calls': calls, 'pending': len(self._pending_growth(project_id))}
 
     def _apply_growth_judgement(self, project_id, route, batch, directions, results, context):
         store = self._directions_store(project_id)
@@ -522,6 +573,9 @@ class App:
                     fresh[direction_id] = candidate
             elif kind == 'join':
                 direction_id = item['direction']
+                if direction_id not in fresh:
+                    outcomes.append({'verdict': 'unusable', 'titles': [title[k] for k in item['papers']], 'name': '', 'nearest': '', 'direction': None})
+                    continue
             if verdict == 'join':
                 target = next(d for d in store['directions'] if d['id'] == direction_id)
                 target['papers'] = list(dict.fromkeys([*target.get('papers', []), *item['papers']]))
