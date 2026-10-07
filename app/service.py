@@ -100,8 +100,9 @@ class App:
         active = {**graph, "concepts": [c for c in graph["concepts"] if c.get("state", "active") == "active"]}
         best = {key: ids[0] for key, ids in pathgrowth.assign(active, papers).items()}
         events = {}
+        imported = self.import_seed_keys(project_id)   # an import is not evidence of progress on the map either
         for key in self.seed_keys(project_id):
-            if key in best and feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins
+            if key in best and key not in imported and feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins
                 events.setdefault(best[key], []).append("useful")
         labels = sorted(((item["id"], key, item["action"]) for key, item in feedback.items()
                          if item["action"] in pathgraph.INTEREST_EVENTS), key=lambda t: t[0])
@@ -170,8 +171,9 @@ class App:
         if seeds:
             added = {r["paper_key"]: str(r["added_at"] or "")[:10] or None for r in self.store.conn.execute(
                 "SELECT paper_key, added_at FROM project_papers WHERE project_id=?", (project_id,))}
+            imported = self.import_seed_keys(project_id)   # "start from these" from an import: profile only, never growth
             for key in self.seed_keys(project_id):
-                if feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins over the seed
+                if key not in imported and feedback.get(key, {}).get("action") not in INTEREST_ACTIONS:   # the reader's own label wins over the seed
                     positive.setdefault(key, added.get(key))   # the day they chose it
         return positive, feedback
 
@@ -1897,6 +1899,12 @@ class App:
     def import_pdf(self, data, filename=""):
         return creation.import_pdf(self.data, data, filename)
 
+    @property
+    def library_import(self):
+        """Importing an existing PDF library into a project (staging batches, matching, one commit)."""
+        from .library_import import LibraryImport
+        return LibraryImport(self.data, self.store, self.source)
+
     def cancel_guidance(self, session_id):
         with operation_lock.claim(self.data, 'session-terminal:' + str(session_id)):
             return self._cancel_guidance(session_id)
@@ -1964,6 +1972,63 @@ class App:
     def seeds(self, project_id=None):
         """Get seeds from harness/seeds.json. Global for now, will be project-scoped later."""
         return json.loads((self.root / "harness" / "seeds.json").read_text())["seeds"]
+
+    IMPORT_SEEDS_PER_CALL = 20
+    MAX_SEEDS = 40   # per project, the same ceiling as project creation
+
+    def import_seed_keys(self, project_id):
+        """Seeds that came from a library import. They shape the profile and ranking like any seed, but are not growth
+        evidence and not progress on the learning map: importing a library says what the person owns, not where to grow."""
+        return set(self.store.get_setting(f"import_seed_keys_{project_id}", []) or [])
+
+    def add_import_seeds(self, project_id, keys, batch_id=None):
+        project_id = self._require_project_id(project_id)
+        if not isinstance(keys, list) or not keys or any(not isinstance(k, str) for k in keys):
+            raise ValueError("请选择要设为种子的论文")
+        keys = list(dict.fromkeys(keys))
+        if len(keys) > self.IMPORT_SEEDS_PER_CALL:
+            raise ValueError(f"一次最多设 {self.IMPORT_SEEDS_PER_CALL} 篇种子")
+        allowed = None
+        if batch_id is not None:
+            batch = self.library_import.batch(batch_id, limit=0)
+            if batch["project_id"] != project_id:
+                raise ValueError("这个导入批次不属于这个项目")
+            allowed = {placement["key"] for placement in self.library_import.placements(batch_id)}
+        saved = self.saved_keys(project_id)
+        for key in keys:
+            if key.startswith("pdf:"):
+                raise ValueError("还没有识别出元数据的 PDF 不能设为种子")
+            if key not in saved:
+                raise ValueError("只能把本项目论文库里的论文设为种子")
+            if allowed is not None and key not in allowed:
+                raise ValueError("这篇论文不是这次导入的")
+        current = self.seed_keys(project_id)
+        new = [key for key in keys if key not in current]
+        if new and len(current) + len(new) > self.MAX_SEEDS:
+            raise ValueError(f"一个项目最多 {self.MAX_SEEDS} 篇种子（现有 {len(current)} 篇）")
+        if new:
+            with self.store._lock:
+                for key in new:
+                    self.store.add_project_paper(project_id, key, "seed", commit=False)
+                self.store.set_setting(f"import_seed_keys_{project_id}", sorted(self.import_seed_keys(project_id) | set(new)))
+                self.store.set_setting(f"seed_keys_{project_id}", current + new)   # commits the links with it
+        return {"added": len(new), "already": len(keys) - len(new), "seeds": len(current) + len(new)}
+
+    def remove_import_seeds(self, project_id, keys):
+        """Take back seeds that came from an import. A seed chosen at project creation is never touched."""
+        project_id = self._require_project_id(project_id)
+        if not isinstance(keys, list) or any(not isinstance(k, str) for k in keys):
+            raise ValueError("请选择论文")
+        origin = self.import_seed_keys(project_id)
+        gone = [key for key in dict.fromkeys(keys) if key in origin]
+        if gone:
+            with self.store._lock:
+                for key in gone:
+                    self.store.conn.execute("UPDATE project_papers SET relation_kind='imported' WHERE project_id=? AND paper_key=? AND relation_kind='seed'",
+                                            (project_id, key))
+                self.store.set_setting(f"import_seed_keys_{project_id}", sorted(origin - set(gone)))
+                self.store.set_setting(f"seed_keys_{project_id}", [k for k in self.store.get_setting(f"seed_keys_{project_id}", []) if k not in gone])
+        return {"removed": len(gone), "seeds": len(self.seed_keys(project_id))}
 
     def seed_keys(self, project_id=None):
         """Get seed keys for a project. Currently stored in settings, will be project-scoped."""
@@ -2137,7 +2202,10 @@ class App:
         older = sorted((f for f in path.parent.glob(f"{glob.escape(path.name)}.pre-delete-*.bak") if f != backup), key=lambda f: f.name)
         for stale in older[:max(0, len(older) - (self.KEEP_DELETE_BACKUPS - 1))]:
             stale.unlink()
+        imports = self.library_import
+        staged = imports.batch_ids(project_id)   # their rows go with the project (cascade); their staged files do not
         self.projects.delete_project(project_id)
+        imports.remove_staging(staged)
         return {"deleted": project_id, "name": name, "backup": backup.name,
                 "remaining": [p["id"] for p in self.projects.list_projects()]}
 
@@ -2571,6 +2639,12 @@ class App:
                       else '论文、路线、反馈或语言设置已变化，请重新生成')
             return {'batch_id': None, 'cards': [], 'reason': reason, 'reason_code': 'recommendation_changed'}
 
+    def saved_keys(self, project_id):
+        """Papers in this project's library. They stay in the retrieval corpus and the profile's reference texts,
+        but are not recommendation candidates: an imported library would otherwise come back as "new" papers."""
+        return {r[0] for r in self.store.conn.execute(
+            'SELECT paper_key FROM project_library WHERE project_id=?', (project_id,))}
+
     def _build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None,verification_budget=None):
         """Build a recommendation batch for a specific project."""
         if not project_id:
@@ -2622,7 +2696,8 @@ class App:
             seen = set()
 
         feedback = self.latest_feedback(project_id)
-        readable = lambda p: p['_eligibility']['eligible']
+        saved = self.saved_keys(project_id)   # the person's own library is never offered back as new
+        readable = lambda p: p['_eligibility']['eligible'] and p['key'] not in saved
         fresh = [p for p in papers if p["key"] not in seen and p["key"] not in feedback and readable(p)]    # never shown, never rated
         route = self._route_state(project_id,verification_budget=verification_budget)
         if route and route.get('progress_verification_deferred'):

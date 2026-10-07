@@ -315,7 +315,7 @@ class Store:
 
     # -------------------------------------------------------------------- pdf
     def record_pdf(self, paper_key, path, source_url=None, sha256=None, size=None,
-                   source_kind=None, license=None):
+                   source_kind=None, license=None, commit=True):
         self.conn.execute('DELETE FROM settings WHERE key=?',('pdf_verification_'+paper_key,))
         self.conn.execute(
             """INSERT INTO pdfs (paper_key, path, source_url, fetched_at, sha256, bytes, source_kind, license)
@@ -329,7 +329,8 @@ class Store:
                SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS
                (SELECT 1 FROM (SELECT path,sha256 FROM pdf_versions WHERE paper_key=? ORDER BY id DESC LIMIT 1) WHERE path=? AND sha256 IS ?)""",
             (paper_key, str(path), source_url, sha256, size, source_kind, license, now(), paper_key, str(path), sha256))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def pdf_history(self, paper_key):
         """Every archived copy of a paper's PDF, oldest first, with where each one came from. The last entry is the current one."""
@@ -398,8 +399,9 @@ class Store:
         return {r["paper_key"]: dict(r) for r in self.conn.execute("SELECT * FROM summaries")}
 
     # --------------------------------------------------------------- library
-    def save_to_library(self, paper_key, note=None, project_id=None):
-        """Idempotent: saving the same paper twice is a no-op."""
+    def save_to_library(self, paper_key, note=None, project_id=None, commit=True):
+        """Idempotent: saving the same paper twice is a no-op. `commit=False` leaves the write inside the caller's
+        transaction (library import saves hundreds of papers atomically)."""
         if project_id:
             self.add_project_paper(project_id, paper_key, "shared", commit=False)
             self.conn.execute(
@@ -410,7 +412,8 @@ class Store:
             self.conn.execute(
                 "INSERT OR IGNORE INTO library (paper_key, saved_at, note) VALUES (?,?,?)",
                 (paper_key, now(), note))
-            self.conn.commit()
+            if commit:
+                self.conn.commit()
             return
         # Older integrations did not pass a project.  Mirror the save into the
         # owning project when one can be determined, while retaining the legacy
@@ -424,7 +427,8 @@ class Store:
         self.conn.execute(
             "INSERT OR IGNORE INTO library (paper_key, saved_at, note) VALUES (?,?,?)",
             (paper_key, now(), note))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def remove_from_library(self, paper_key, project_id=None):
         if project_id:

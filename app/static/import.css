@@ -1,0 +1,69 @@
+/* Library import page. Colours come from theme.css only; layout classes shared with the creation page live in project-creation.css. */
+.notice.warn{color:var(--warn)}
+.notice.bad{color:var(--bad)}
+.steps{display:flex;gap:calc(6px * var(--s));list-style:none;margin:calc(14px * var(--s)) 0 calc(16px * var(--s));padding:0;font-size:calc(13px * var(--s));color:var(--muted)}
+.steps li{padding:calc(4px * var(--s)) calc(12px * var(--s));border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+.steps li.on{color:var(--accent-ink);background:var(--accent);border-color:var(--accent);font-weight:600}
+.steps li.past{color:var(--text)}
+
+.picker{display:flex;gap:calc(10px * var(--s));flex-wrap:wrap}
+.dropzone{margin-bottom:calc(14px * var(--s))}
+.zotero{margin:calc(6px * var(--s)) 0 calc(14px * var(--s));font-size:calc(13px * var(--s))}
+.zotero summary{cursor:pointer;color:var(--muted)}
+.zotero ol{margin:calc(8px * var(--s)) 0;padding-left:calc(22px * var(--s))}
+.summary{font-size:calc(14px * var(--s));margin:calc(10px * var(--s)) 0}
+.summary strong{font-variant-numeric:tabular-nums}
+.skipped{margin:calc(6px * var(--s)) 0;padding-left:calc(20px * var(--s));font-size:calc(12px * var(--s));color:var(--muted);max-height:calc(120px * var(--s));overflow:auto}
+.skipped li{overflow-wrap:anywhere}
+
+.options{border:1px solid var(--line);border-radius:var(--r-lg);padding:calc(12px * var(--s)) calc(16px * var(--s));margin:calc(14px * var(--s)) 0}
+.options legend{font-weight:600;font-size:calc(13px * var(--s));padding:0 calc(6px * var(--s))}
+.check{display:flex;gap:calc(8px * var(--s));align-items:flex-start;font-weight:400;margin:calc(8px * var(--s)) 0 0}
+.check input{width:auto;margin-top:calc(4px * var(--s))}
+.opt-hint{margin:calc(2px * var(--s)) 0 0 calc(24px * var(--s))}
+.resume{border:1px solid var(--line);border-radius:var(--r-md);background:var(--base);padding:calc(10px * var(--s)) calc(12px * var(--s));margin-bottom:calc(14px * var(--s));font-size:calc(13px * var(--s))}
+.resume .line{display:flex;gap:calc(10px * var(--s));align-items:center;flex-wrap:wrap;margin:calc(4px * var(--s)) 0}
+
+.stage{margin-bottom:calc(18px * var(--s))}
+.stage-head{display:flex;justify-content:space-between;align-items:baseline}
+.stage-count{font-variant-numeric:tabular-nums;color:var(--muted);font-size:calc(13px * var(--s))}
+.bar{height:calc(8px * var(--s));background:var(--panel2);border-radius:999px;overflow:hidden;margin:calc(6px * var(--s)) 0}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s var(--ease-out)}
+.counts{display:flex;flex-wrap:wrap;gap:calc(6px * var(--s)) calc(16px * var(--s));font-size:calc(13px * var(--s));color:var(--muted);font-variant-numeric:tabular-nums}
+.counts b{color:var(--text)}
+
+.tabs{display:flex;gap:calc(6px * var(--s));flex-wrap:wrap;margin:calc(10px * var(--s)) 0}
+.tabs button{border-radius:999px;font-size:calc(13px * var(--s));padding:calc(4px * var(--s)) calc(12px * var(--s))}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.rows{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--r-md);background:var(--base)}
+.rows:empty{display:none}
+.row{padding:calc(10px * var(--s)) calc(14px * var(--s));border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row-file{font-size:calc(12px * var(--s));color:var(--muted);overflow-wrap:anywhere}
+.row-paper{font-weight:600;overflow-wrap:anywhere;margin:calc(2px * var(--s)) 0}
+.row-meta{display:flex;flex-wrap:wrap;gap:calc(8px * var(--s));align-items:center;font-size:calc(12px * var(--s));color:var(--muted)}
+.row-actions{display:flex;flex-wrap:wrap;gap:calc(8px * var(--s));align-items:center;margin-top:calc(8px * var(--s))}
+.row-actions input{width:min(calc(320px * var(--s)),100%);padding:calc(5px * var(--s)) calc(10px * var(--s));font-size:calc(13px * var(--s))}
+.row .err{color:var(--bad);font-size:calc(12px * var(--s))}
+.cand{display:flex;gap:calc(10px * var(--s));align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:var(--r-md);padding:calc(7px * var(--s)) calc(10px * var(--s));margin-top:calc(6px * var(--s));background:var(--panel)}
+.cand-title{overflow-wrap:anywhere;font-size:calc(13px * var(--s))}
+.cand-meta{font-size:calc(12px * var(--s));color:var(--muted)}
+.tag{display:inline-block;font-size:calc(11px * var(--s));border:1px solid var(--line-strong);border-radius:999px;padding:0 calc(8px * var(--s));color:var(--muted)}
+.tag.unresolved{color:var(--warn);border-color:var(--warn)}
+
+.cats{margin:calc(14px * var(--s)) 0;border:1px solid var(--line);border-radius:var(--r-md);padding:calc(8px * var(--s)) calc(14px * var(--s));background:var(--panel)}
+.cats summary{cursor:pointer;font-weight:600;font-size:calc(14px * var(--s))}
+.cat-line{font-size:calc(13px * var(--s));margin:calc(2px * var(--s)) 0;overflow-wrap:anywhere}
+.cat-line .n{color:var(--muted);font-variant-numeric:tabular-nums;margin-left:calc(6px * var(--s))}
+.commitbar{position:sticky;bottom:0;display:flex;gap:calc(12px * var(--s));align-items:center;padding:calc(12px * var(--s)) 0;background:var(--bg);border-top:1px solid var(--line);margin-top:calc(14px * var(--s))}
+
+.done-title{font-family:var(--serif);font-size:calc(22px * var(--s));margin:0 0 calc(6px * var(--s))}
+.card{border:1px solid var(--line);border-radius:var(--r-lg);padding:calc(14px * var(--s)) calc(16px * var(--s));margin:calc(14px * var(--s)) 0;background:var(--base)}
+.card h3{white-space:normal;margin-bottom:calc(4px * var(--s))}
+.seedlist{list-style:none;margin:calc(8px * var(--s)) 0;padding:0;max-height:calc(260px * var(--s));overflow:auto}
+.seedlist li{display:flex;gap:calc(8px * var(--s));align-items:flex-start;padding:calc(4px * var(--s)) 0;font-size:calc(13px * var(--s))}
+.seedlist input{width:auto;margin-top:calc(4px * var(--s))}
+.linkbutton{display:inline-block;border:1px solid var(--line-strong);border-radius:var(--r-md);padding:calc(8px * var(--s)) calc(15px * var(--s));color:var(--text);background:var(--panel2);text-decoration:none}
+.linkbutton:hover{background:var(--surface-3)}
+.linkbutton.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.linkbutton:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

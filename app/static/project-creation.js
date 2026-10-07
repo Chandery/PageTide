@@ -27,6 +27,13 @@ async function api(path, options = {}) {
 }
 const post = (path, body) => api(path, {method: 'POST', body: JSON.stringify(body)});
 
+// Where to go once a project exists: its home, or the import page when the person has a library of their own to bring in.
+function afterCreate(projectId) {
+  const id = encodeURIComponent(projectId);
+  const box = $('#importAfter');
+  return box && box.checked ? `/import.html?project_id=${id}&from=creation` : `/?project_id=${id}`;
+}
+
 /* ------------------------------------------------------------------ activity line */
 function makeActivity(el) {
   const text = $('.act-text', el), time = $('.act-time', el);
@@ -497,7 +504,7 @@ async function finalize({draft, selectedKeys, route}) {
   try { result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route, language_policy}); }
   finally { policyEditor.disabled(false); }
   localStorage.removeItem(SESSION_KEY);
-  location.href = `/?project_id=${encodeURIComponent(result.project_id)}`;
+  location.href = afterCreate(result.project_id);
 }
 
 async function createSession(name, goal, creationMode) {
@@ -835,37 +842,8 @@ const seedRemoveByKey = (key) => { const item = seeds.find((s) => s.paper && s.p
 $('#seedSearchClose').onclick = () => { searchToken += 1; searchAct.stop(); $('#seedSearch').hidden = true; };
 
 /* ---- dropped PDFs */
-let pdfjs = null;
-async function loadPdfjs() {
-  if (pdfjs) return pdfjs;
-  pdfjs = await import('/vendor/pdfjs/pdf.min.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
-  return pdfjs;
-}
-
-async function extractHints(file) {
-  const lib = await loadPdfjs();
-  const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer()), standardFontDataUrl: '/vendor/pdfjs/standard_fonts/'}).promise;
-  try {
-    const texts = [];
-    let items = [], pageHeight = 0;
-    for (let n = 1; n <= Math.min(2, doc.numPages); n += 1) {
-      const page = await doc.getPage(n);
-      const viewport = page.getViewport({scale: 1});
-      const content = await page.getTextContent();
-      texts.push(content.items.map((i) => i.str).join(' '));
-      if (n === 1) {
-        pageHeight = viewport.height;
-        items = content.items.filter((i) => i.str && i.str.trim())
-          .map((i) => ({str: i.str, height: Math.abs(i.transform[3]) || i.height, y: viewport.height - i.transform[5]}));
-      }
-    }
-    let info = null;
-    try { info = (await doc.getMetadata()).info; } catch (error) { /* metadata is optional */ }
-    return PDF.identify({pageTexts: texts, items, pageHeight, info, filename: file.name});
-  } finally { doc.destroy(); }
-}
-const withTimeout = (promise, ms) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('读取超时')), ms))]);
+// Reading a PDF's first pages for an identifier or title is shared with library import (pdf-hints.js).
+const {extractHints, withTimeout} = window.PDHPdfHints;
 
 async function uploadPdf(file) {
   let response;
@@ -1003,7 +981,7 @@ $('#manualCreate').onclick = async () => {
     manualAct.fail(error.message); manualRefresh(); return;
   } finally { policyEditor.disabled(false); }
   manualAct.stop();
-  const go = `/?project_id=${encodeURIComponent(result.project_id)}`;
+  const go = afterCreate(result.project_id);
   const problems = (result.seed_results || []).filter((r) => !['resolved', 'duplicate'].includes(r.status) || r.pdf_attached === false);
   if (!problems.length) { location.href = go; return; }
   const box = $('#manualResult');

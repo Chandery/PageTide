@@ -71,8 +71,13 @@ class ProjectCreationUITests(unittest.TestCase):
         for marker in ('id="seedInput"', 'id="dropzone"', 'id="pdfPick"', "PDF 文件本身不离开这台电脑"):
             self.assertIn(marker, self.html)
         for marker in ("/api/seeds/resolve", "/api/seeds/search", "/api/seeds/pdf", "pdf_id",
-                       "getTextContent", "PDF.identify", "looksLikeIdentifier"):
+                       "PDHPdfHints", "looksLikeIdentifier"):
             self.assertIn(marker, self.js)
+        # Reading the first pages is shared with library import: one reader, loaded before the page script.
+        reader = (STATIC / "pdf-hints.js").read_text(encoding="utf-8")
+        for marker in ("getTextContent", "PDHCreationPdf.identify"):
+            self.assertIn(marker, reader)
+        self.assertLess(self.html.index('/pdf-hints.js'), self.html.index('/project-creation.js'))
         self.assertIn("creation_mode: 'manual'", self.js)
 
     def test_seed_failures_stay_on_screen_with_a_way_forward(self):

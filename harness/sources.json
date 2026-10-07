@@ -472,6 +472,14 @@
       "recheck_after_days": 30,
       "claim": "Whole-queue arithmetic retains Flash peak miss input0.30/M output1.20/M;9000 tokens/$0.0036 per request; explicit thinking disabled and finish_reason length refusal.",
       "verification": "Web fetch timed out; official pricing and chat-completion HTML read via urllib with200,23982/142966bytes. No paper/key/model request sent; private cached source under.local; no effective date inferred."
+    },
+    {
+      "id": "ZOTERO-EXPORT",
+      "url": "https://forums.zotero.org/discussion/10825/export-to-bibtex-including-attachment-file-information",
+      "verified_on": "2026-10-07",
+      "recheck_after_days": 60,
+      "claim": "Zotero's BibTeX export writes attachments as file = {description:path:type}, several joined by ';'. With 'Export Files' ticked the attachments are copied into a files folder next to the .bib and the field points there; with it unticked the field may hold absolute paths into Zotero's own storage. Whether files/ always contains numbered subfolders, the RIS L1 attachment line and the absence of attachment paths in CSL-JSON are assumptions taken from the format, not checked against the owner's installed Zotero.",
+      "verification": "2026-10-07 web search of the Zotero forum thread and zotero/zotero issue 1416 (both old; current behaviour may differ). Nothing was read from the owner's Zotero library. The importer is tested on synthetic samples that follow this format; a sanitized real export is still required (E-LIBRARY-IMPORT)."
     }
   ]
 }

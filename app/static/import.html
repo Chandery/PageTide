@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script>document.documentElement.dataset.mode=localStorage.getItem('pdh-mode')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')</script>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/project-creation.css">
+<link rel="stylesheet" href="/import.css">
+<title>导入论文 · PaperDigHelper</title>
+</head>
+<body>
+<div class="container">
+<a class="back" id="back" href="/">← 返回主页</a>
+<h1>导入已有论文库</h1>
+<p class="lead">把你已经整理好的 PDF 带进来：几篇、整个文件夹，或 Zotero 导出的文件夹。原文件不会被改动，应用会复制一份归档；导入的论文只进论文库，不会被当作你的兴趣信号。</p>
+<div class="hint" id="target" role="status"></div>
+<div class="notice bad" id="error" role="alert" hidden></div>
+
+<ol class="steps" id="steps" aria-label="导入进度">
+  <li data-step="source" class="on">选择</li><li data-step="working">读取与匹配</li><li data-step="review">确认</li><li data-step="done">完成</li>
+</ol>
+
+<!-- ===================================================================== 1 选择 -->
+<section class="panel active" id="stepSource" aria-label="选择要导入的论文">
+  <div id="resumeBox" class="resume" hidden></div>
+  <div class="resume" id="continueBox" hidden><span id="continueText"></span> <button type="button" class="small" id="continueSkip">直接匹配已有的文件</button></div>
+  <div class="picker">
+    <button type="button" class="primary" id="pickFiles">选择 PDF 文件…</button>
+    <button type="button" id="pickFolder">选择文件夹…</button>
+    <input type="file" id="filesInput" accept="application/pdf,.pdf" multiple hidden>
+    <input type="file" id="folderInput" webkitdirectory multiple hidden>
+  </div>
+  <div class="dropzone" id="drop" tabindex="0" role="button" aria-label="拖入 PDF 或文件夹">
+    <strong>或把 PDF、文件夹拖到这里</strong>
+    <span class="hint">子文件夹会按层级整理成分类；以点开头的隐藏文件和系统文件会被忽略。</span>
+  </div>
+  <details class="zotero">
+    <summary>从 Zotero 导入</summary>
+    <ol>
+      <li>在 Zotero 里右键要导入的分类（collection），选「导出分类…」。</li>
+      <li>格式选 BibTeX 或 RIS，勾选「导出文件」，保存到一个文件夹。</li>
+      <li>回到这里，点「选择文件夹…」选这个导出文件夹。元数据直接读导出文件，不需要打开 Zotero，也不会碰 Zotero 的数据库。</li>
+    </ol>
+    <p class="hint">导出文件夹本身会作为一个分类；每个 collection 请分别导出一次。</p>
+  </details>
+
+  <div id="picked" hidden>
+    <div class="summary" id="pickedSummary"></div>
+    <div class="notice warn" id="pickedWarn" hidden></div>
+    <ul class="skipped" id="pickedSkipped" hidden></ul>
+  </div>
+
+  <fieldset class="options" id="options">
+    <legend>导入选项</legend>
+    <label class="check"><input type="checkbox" id="optOnline" checked><span>联网补全元数据</span></label>
+    <p class="hint opt-hint">会把从 PDF 里识别出的 DOI、arXiv 编号和论文题目发送给 OpenAlex，用来查找标题、作者、摘要等公开元数据；PDF 文件本身和你的论文库不会上传。关闭后，导入本身不会联网，没有导出文件的论文都按 PDF 原样入库；之后你在确认页里主动「查找」时，输入的文字才会发给 OpenAlex。</p>
+    <label class="check"><input type="checkbox" id="optFolders" checked><span>把子文件夹整理成分类</span></label>
+    <label class="check"><input type="checkbox" id="optRoot"><span>把所选文件夹本身也作为一个顶级分类</span></label>
+    <label class="check"><input type="checkbox" id="optReplace"><span>已经有 PDF 的论文，用这份文件替换当前 PDF</span></label>
+    <p class="hint opt-hint">替换时旧的 PDF 会留在这篇论文的文件历史里，不会删除。</p>
+    <label class="check" id="filelessRow" hidden><input type="checkbox" id="optFileless"><span>也导入没有 PDF 的条目（只有题录信息）</span></label>
+    <p class="hint opt-hint" id="filelessHint" hidden>Zotero 里有些条目只有题录、没有附件。勾选后它们也会进论文库，但没有 PDF 可读。</p>
+  </fieldset>
+  <div class="actions"><span class="spacer"></span><button type="button" class="primary" id="start" disabled>开始导入</button></div>
+</section>
+
+<!-- ===================================================================== 2 读取与匹配 -->
+<section class="panel" id="stepWorking" aria-label="读取与匹配">
+  <div class="stage" id="stageUpload">
+    <div class="stage-head"><strong>读取并保存 PDF</strong><span class="stage-count" id="uploadCount"></span></div>
+    <div class="bar"><i id="uploadBar"></i></div>
+    <div class="hint" id="sidecarNote"></div>
+    <div class="hint" id="uploadNow" data-no-i18n></div>
+    <ul class="skipped" id="uploadFailed" hidden></ul>
+  </div>
+  <div class="stage" id="stageResolve" hidden>
+    <div class="stage-head"><strong>匹配论文信息</strong><span class="stage-count" id="resolveCount"></span></div>
+    <div class="bar"><i id="resolveBar"></i></div>
+    <div class="counts" id="resolveCounts"></div>
+    <div class="hint" id="quota"></div>
+    <div class="notice warn" id="paused" hidden></div>
+  </div>
+  <div class="actions"><button type="button" class="ghost" id="stop">暂停</button><span class="spacer"></span><button type="button" class="primary" id="resume" hidden>继续</button><button type="button" id="toReview" hidden>先看已有结果</button><button type="button" id="settle" hidden>不再联网，按原样导入剩下的</button></div>
+</section>
+
+<!-- ===================================================================== 3 确认 -->
+<section class="panel" id="stepReview" aria-label="确认导入">
+  <div class="notice warn" id="failedBox" hidden>
+    <div id="failedText"></div>
+    <ul class="skipped" id="failedList"></ul>
+    <button type="button" class="small" id="addMore">补传这些文件</button>
+  </div>
+  <div class="summary" id="reviewSummary"></div>
+  <div class="tabs" id="tabs" role="tablist" aria-label="分组"></div>
+  <ul class="rows" id="rows"></ul>
+  <div class="actions"><button type="button" class="ghost" id="more" hidden>显示更多</button></div>
+  <details class="cats" id="cats" open>
+    <summary id="catsSummary">分类预览</summary>
+    <div id="catsBody"></div>
+  </details>
+  <div class="commitbar">
+    <button type="button" class="ghost" id="discard">放弃这次导入</button>
+    <span class="spacer"></span>
+    <span class="hint" id="commitNote"></span>
+    <button type="button" class="primary" id="commit" disabled>导入到论文库</button>
+  </div>
+</section>
+
+<!-- ===================================================================== 4 完成 -->
+<section class="panel" id="stepDone" aria-label="导入完成">
+  <h2 class="done-title">导入完成</h2>
+  <div class="summary" id="doneSummary"></div>
+  <div class="card" id="catsDone" hidden></div>
+  <div class="card" id="seedsCard" hidden>
+    <h3>设为种子（可选）</h3>
+    <p class="hint">种子会让推荐更贴近这些论文，也会出现在画像里；但它们不会作为学习地图生长的依据，也不会推进学习地图的进度。一次最多 20 篇，一个项目最多 40 篇。</p>
+    <ul class="seedlist" id="seedList"></ul>
+    <div class="actions"><span class="hint" id="seedCount"></span><span class="spacer"></span><button type="button" id="seedGo" disabled>设为种子</button></div>
+  </div>
+  <div class="card" id="aiCard" hidden></div>
+  <div class="actions"><a class="linkbutton" id="again" href="#">再导入一批</a><span class="spacer"></span><a class="linkbutton primary" id="toLibrary" href="/">去论文库</a></div>
+</section>
+</div>
+
+<script src="/creation-pdf.js"></script>
+<script src="/pdf-hints.js"></script>
+<script src="/import-files.js"></script>
+<script src="/import.js"></script>
+</body>
+</html>

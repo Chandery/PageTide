@@ -209,6 +209,10 @@ ROUTE_OPS = {"route-save", "route-manual", "route-watch", "route-start", "route-
 ROUTE_SAVE_LABELS = {"candidate": "加入新方向"}   # what the undo button says when a save adds a proposed direction
 MAX_REJECTED = 100
 ROUTE_MARKS = {"mastered", "unlocked", "demoted"}
+IMPORT_MAX_GROUPS = 5000   # folders in one import
+IMPORT_MAX_DEPTH = 3       # deeper folders fold into their third-level ancestor
+IMPORT_NAME_MAX = 60
+IMPORT_COLORS = ("#167b70", "#3b6fb6", "#b5651d", "#8a4fb0", "#c0392b", "#5b7f2b", "#a8325e", "#4a5568")
 MAX_PLAN_CONCEPTS = 200   # a plan from an AI or a person is a dozen concepts; this only bounds hostile input
 
 
@@ -399,6 +403,11 @@ class Organization:
     def _corpus(self, scope=None):
         return saved_corpus(self.conn, scope)
 
+    def directions(self):
+        """The category tree only ([{id, name, parent_id}]): cheap enough for a page that polls."""
+        with self._transaction(write=False):
+            return [{"id": d["id"], "name": d["name"], "parent_id": d.get("parent_id")} for d in self._load()[1]["directions"]]
+
     def snapshot(self):
         with self._transaction(write=False):
             return self._snapshot()
@@ -421,7 +430,7 @@ class Organization:
             op = "suggest-apply"
         if op not in {"direction-save", "direction-delete", "membership", "note", "history",
                       "positions", "collapse", "undo", "export", "suggest", "suggest-apply", "apply-ai-review",
-                      "drafts", "draft-save", "draft-clear"} | ROUTE_OPS:
+                      "drafts", "draft-save", "draft-clear", "import-categories"} | ROUTE_OPS:
             raise ValueError("Unknown organization operation")
         if op == "suggest":
             return self._suggest(body)
@@ -570,6 +579,13 @@ class Organization:
                         (set(data["memberships"].get(key, [])) | set(add)) - set(remove))
                 data["protected"] = sorted(set(data["protected"]) | set(keys))
                 self._drop_emptied(data, remove)
+            elif op == "import-categories":
+                label = "导入分类"
+                apply_result = self._import_categories(data, body.get("groups"))
+                if _dump(data) == before:   # every folder and placement was already there: no revision, no undo step
+                    result = self._snapshot()
+                    result["apply_result"] = apply_result
+                    return result
             elif op == "collapse":
                 label = LAYOUT_LABELS[1]
                 identifier = body.get("id")
@@ -935,6 +951,61 @@ class Organization:
         data["protected"] = sorted(set(data["protected"]) | changed)
         return {"added_memberships": added, "already_present": already,
                 "created_categories": created, "changed_papers": len(changed)}
+
+    def _import_categories(self, data, groups):
+        """Folders of an imported library as categories: [{path: [names], keys: [paper keys]}].
+
+        Each name is looked up at its level by category identity (case and known aliases) and reused, else created;
+        the papers join the deepest one. Memberships are only ever added, so nothing the person organised moves, and
+        every placed paper is marked protected so automatic regrouping leaves the person's own folders alone."""
+        if not isinstance(groups, list) or len(groups) > IMPORT_MAX_GROUPS:
+            raise ValueError("groups must be a list of at most %d folders" % IMPORT_MAX_GROUPS)
+        parsed = []
+        for group in groups:
+            if not isinstance(group, dict):
+                raise ValueError("Each folder must be an object")
+            path, keys = group.get("path"), group.get("keys")
+            if not isinstance(path, list) or not isinstance(keys, list) or not keys or len(keys) > 20000:
+                raise ValueError("Each folder needs a path list and a non-empty keys list")
+            names = []
+            for part in path:
+                name = re.sub(r"\s+", " ", part).strip()[:IMPORT_NAME_MAX].strip() if isinstance(part, str) else ""
+                if not name:
+                    raise ValueError("Category names must be non-empty text")
+                names.append(name)
+            for key in keys:
+                self._paper_key(key, saved=True)
+            parsed.append((names[:IMPORT_MAX_DEPTH], keys))
+        created, reused, added, already, changed = set(), set(), 0, 0, set()
+        for names, keys in parsed:
+            parent = leaf = None
+            for name in names:
+                leaf = next((d for d in data["directions"] if category_identity(d["name"]) == category_identity(name)
+                             and (d.get("parent_id") or None) == parent), None)
+                if leaf is None:
+                    leaf = {"id": uuid.uuid4().hex, "name": name, "parent_id": parent, "rank": len(data["directions"]),
+                            "color": IMPORT_COLORS[len(data["directions"]) % len(IMPORT_COLORS)], "manual": True,
+                            "source": "import"}
+                    data["directions"].append(leaf)
+                    created.add(leaf["id"])
+                elif leaf["id"] not in created:
+                    reused.add(leaf["id"])
+                parent = leaf["id"]
+            if leaf is None:
+                continue   # files at the top of the chosen folder stay unclassified
+            for key in keys:
+                current = data["memberships"].setdefault(key, [])
+                if leaf["id"] in current:
+                    already += 1
+                else:
+                    current.append(leaf["id"])
+                    added += 1
+                    changed.add(key)
+        data["protected"] = sorted(set(data["protected"]) | changed)
+        from .category_review import MAX_CATEGORIES   # the AI review refuses a tree larger than this
+        return {"created_categories": len(created), "reused_categories": len(reused), "added_memberships": added,
+                "already_present": already, "changed_papers": len(changed),
+                "total_categories": len(data["directions"]), "over_ai_limit": len(data["directions"]) > MAX_CATEGORIES}
 
     def _drafts(self, key=None):
         sql = """SELECT paper_key AS key,client,text,version,updated_at FROM org_drafts

@@ -222,6 +222,13 @@
       "gates": [
         "E-GROWTH-REPLY-VALIDATION"
       ]
+    },
+    {
+      "id": "R-LIBRARY-IMPORT",
+      "text": "用户可把已有 PDF 库（单篇、文件夹、Zotero 导出文件夹）导入项目：原件不改、复制归档；导入本身零模型 token，不是兴趣信号也不是学习地图生长证据；按文件夹结构整理分类并可撤销；联网补全只发送 DOI/arXiv/题目并明示，额度不足/断网时暂停而非失败；已在论文库的论文不再当作新推荐",
+      "gates": [
+        "E-LIBRARY-IMPORT"
+      ]
     }
   ]
 }

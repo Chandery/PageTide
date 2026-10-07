@@ -30,6 +30,9 @@
   </button>
 </div>
 
+<label class="import-after"><input type="checkbox" id="importAfter"><span>创建后导入我已有的论文库</span></label>
+<p class="hint import-after-hint">已经有一批整理好的 PDF（或 Zotero 导出）时勾选：项目创建好后会直接进入导入页，不需要再用 AI 或学习模式重新搭建。</p>
+
 <!-- ===================================================================== 快速创建 -->
 <section id="quickForm" class="panel" aria-label="快速创建">
   <div id="quickStart">
@@ -168,6 +171,7 @@
 </template>
 
 <script src="/creation-pdf.js"></script>
+<script src="/pdf-hints.js"></script>
 <script src="/route-editor.js"></script>
 <script src="/route-brief.js"></script>
 <script src="/route-graph.js"></script>

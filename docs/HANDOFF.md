@@ -1,3 +1,17 @@
+# 当前工作单元：导入已有论文库（实现完成，在 worktree，未构建、未合并、未提交）（2026-10-07）
+
+分支 `library-import`，worktree `.claude/worktrees/library-import`，基线 `93d3ecd`。业主说另有 agent 正在测当前版本，所以所有修改只在 worktree：**没有**运行 `build_desktop.py` / `cargo tauri build`，主检出 `git status` 干净；没有 commit/push。合并和重建正式包由业主决定。IMPORT-01 `in_progress`，E-LIBRARY-IMPORT `not_run` 且阻断发布。
+
+做了什么（ADR [0029](decisions/0029-library-import.md)）：论文库工具栏「导入论文」和新建项目页「创建后导入我已有的论文库」进入 `import.html`；选 PDF/选文件夹/拖入文件夹/Zotero 导出文件夹（BibTeX、RIS、CSL-JSON）。页面用 pdf.js 读首页线索并逐个流式上传到暂存批次；服务端后台线程按节奏匹配 OpenAlex（进度写库，额度不足/断网时暂停，可“不再联网，按原样导入剩下的”）；审阅（选候选、手动查找、排除）后一次事务提交；文件夹结构成为分类（一条可撤销事件）；完成页可把已识别论文设为种子（20/40）。已在本项目论文库的论文不再是今日/路线候选。运行期模型 token 为 0；新增文件 `app/library_import.py`、`app/reference_files.py`、`app/static/import*.{html,js,css}`、`pdf-hints.js`，新表惰性创建（不占迁移号）。
+
+验证（开发证据，非 gate）：Python 1871、全部 Node 文件 fail 0，预算/i18n/harness check 通过；失败先行 + 变异检查；浏览器里用真实 pdf.js 走过离线、断网暂停、候选、Zotero 导出、英文界面、暂停/补传。独立审查（只读 agent）无 P1，P2 全部修复，修复未再独立复审：[审查与处置](evidence/2026-10-07-library-import-review.md)、[检查证据](evidence/2026-10-07-library-import-checks.txt)、[自审](evidence/2026-10-07-library-import-self-review.md)、[变更记录](../changes/2026-10-07-library-import.json)。
+
+**待业主决定/确认**：(1) 导入来源的种子也不推进学习地图进度（我对 ROUTE-V2-06 的延伸）；(2) E-LIBRARY-IMPORT 是否阻断发布（暂按阻断）；(3) 种子仍会用其公开标题/主题词做路线召回检索；(4) 何时合并并重建正式包。
+
+**未做/未验证**：原生 `.app` 内选文件夹/拖入（wry 源码核对过 `NSOpenPanel` 可选目录，未实测）；真实网络命中率与 OpenAlex 额度消耗（沙箱连不上 API）；业主 Zotero 版本的真实导出 fixture（格式按公开资料+合成样例）；未识别 PDF 的重新匹配、撤销整次导入、AI 复审前预算预检。
+
+**事故（已修复）**：用 `preview_start` 的 `app-ui` 配置起服务时，它在**主检出**目录运行，把 `.local/ui-redesign-data`（git 忽略的 UI 测试库）迁到 v9 并多了个测试项目；已用应用自己写的 `pre-v8.bak` 还原并核对（5 个原项目、schema v8、完整性 ok）。之后改用 worktree 里自己的服务器和临时数据目录。后来者：不要用预览配置测 worktree 代码。
+
 # 当前交接：已合并到本地 main（2026-10-07）
 
 用户明确要求合并。原main `850f9fc` 是已验收 `11969c5` 的祖先，没有独有提交；已 `--ff-only` 快进，原main历史完整保留，无冲突。合并当下tree `148c073cfe24719930e7c5a8d297c75d848fd86f` 与已审源码完全一致。本轮后续只补本记录/证据/HANDOFF三路径文档，最终main commit/dirty以Git核对。原工作分支保留，本次未fetch或push；origin/main只是本地缓存。

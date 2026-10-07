@@ -5,6 +5,7 @@ identifier or an explicit user-typed title. No model is called from this module.
 """
 import hashlib
 import re
+import shutil
 import threading
 import time
 from collections import OrderedDict
@@ -173,6 +174,32 @@ def take_imported_pdf(data_dir, pdf_id):
         source.unlink()
     else:
         source.replace(target)
+    return target
+
+
+def archive_pdf(data_dir, sha256, source):
+    """Copy a staged PDF into the library's pdfs folder, named by its content, and return the path.
+
+    The copy is verified against `sha256` first, so a wrong or tampered staging file is never archived. An
+    already archived file is left as it is (same content, same name), which makes a repeated commit safe.
+    The staged source is not touched; the caller removes its staging folder once the import is committed."""
+    if not isinstance(sha256, str) or not _PDF_ID.fullmatch(sha256):
+        raise ValueError("PDF 标识无效")
+    source = Path(source)
+    digest = hashlib.sha256()
+    with source.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != sha256:
+        raise ValueError("PDF 内容与记录的校验值不一致")
+    target_dir = Path(data_dir) / "pdfs"
+    target = target_dir / f"import-{sha256[:24]}.pdf"
+    if target.exists():
+        return target
+    target_dir.mkdir(parents=True, exist_ok=True)
+    partial = target.with_suffix(".pdf.part")
+    shutil.copyfile(source, partial)
+    partial.replace(target)
     return target
 
 

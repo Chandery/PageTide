@@ -89,6 +89,19 @@ def title_key(text):
     return re.sub(r"[\W_]+", " ", str(text or "").lower(), flags=re.UNICODE).strip()
 
 
+def similarity(a, b):
+    """Word-set overlap, 0..1: how sure a search hit is the title that was looked for.
+
+    The same measure as creation-pdf.js, so the page and the importer agree on what counts as a match.
+    A run of CJK characters is one word, exactly as there."""
+    left = set(re.findall(r"[a-z0-9\u4e00-\u9fff]+", str(a or "").lower()))
+    right = set(re.findall(r"[a-z0-9\u4e00-\u9fff]+", str(b or "").lower()))
+    if not left or not right:
+        return 0.0
+    shared = len(left & right)
+    return shared / (len(left) + len(right) - shared)
+
+
 def normalize_title(text):
     import re
     text = (text or "").lower()
@@ -405,6 +418,44 @@ class OpenAlex:
         if not results:
             raise SourceError(f"OpenAlex has no arXiv record: {arxiv_id}", "not_found")
         return results[0]
+
+    @staticmethod
+    def _wrong_request(exc):
+        """An HTTP 4xx answer (other than being rate limited) says the request itself was wrong, not that the network is
+        down: pausing and retrying the same request would stall an import for ever on one odd identifier."""
+        text = str(exc)
+        if exc.kind == "network_error" and re.search(r"HTTP Error 4\d\d\b", text) and "HTTP Error 429" not in text:
+            return SourceError(text, "invalid_input")
+        return exc
+
+    def works_by_dois(self, dois):
+        """Works for a list of DOI URLs in one request (OR filter). Callers pass at most 50 DOIs, none of which
+        contains ',' or '|' (those would change the filter); a DOI OpenAlex does not know is simply absent."""
+        dois = [d for d in dict.fromkeys(dois) if d and "," not in d and "|" not in d]
+        if not dois:
+            return []
+        params = {"filter": "doi:" + "|".join(dois), "per-page": min(max(len(dois), 1), 200), "mailto": MAILTO}
+        try:
+            return self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=WORK_TTL_SECONDS).get("results") or []
+        except SourceError as exc:
+            raise self._wrong_request(exc) from None
+
+    def title_lookup(self, title, per_page=5):
+        """Works whose title matches a title read from a PDF: one title filter request, and a relevance search
+        only when the filter finds nothing (a noisy extracted title rarely contains every word of the real one).
+        Only the title text leaves the machine, as a public metadata query."""
+        text = clean_query(title)
+        if not text:
+            return []
+        exact = {"filter": f"title.search:{text}", "per-page": per_page, "mailto": MAILTO}
+        relevance = {"search": text, "per-page": per_page, "mailto": MAILTO}
+        try:
+            found = self._fetch(f"{API}?{urllib.parse.urlencode(exact)}", ttl=SEARCH_TTL_SECONDS).get("results") or []
+            if found:
+                return found
+            return self._fetch(f"{API}?{urllib.parse.urlencode(relevance)}", ttl=SEARCH_TTL_SECONDS).get("results") or []
+        except SourceError as exc:
+            raise self._wrong_request(exc) from None
 
 
 def fetch_seed_work(client, identifier, arxiv_id=None):

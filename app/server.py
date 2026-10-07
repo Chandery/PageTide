@@ -188,6 +188,65 @@ def _job_get(job_id):
         return dict(JOBS.get(job_id) or {"error": "unknown job"})
 
 
+# Library-import resolvers: one background thread per batch. Progress lives in the database (item states), so
+# the registry only knows which threads are alive and how to ask one to stop.
+IMPORT_WORKERS = {}
+IMPORT_WORKERS_LOCK = threading.Lock()
+
+
+def _import_worker_alive(batch_id):
+    with IMPORT_WORKERS_LOCK:
+        entry = IMPORT_WORKERS.get(batch_id)
+        return bool(entry and entry[0].is_alive())
+
+
+def _import_start(root, batch_id):
+    """Start the resolver for a batch unless one is already running; True when a new thread was started."""
+    with IMPORT_WORKERS_LOCK:
+        entry = IMPORT_WORKERS.get(batch_id)
+        if entry and entry[0].is_alive():
+            return False
+        cancel = threading.Event()
+
+        def run():
+            app = make_app(root)
+            from .library_import import ResolveBusy
+            try:
+                app.library_import.resolve(batch_id, cancel=cancel)
+            except ResolveBusy:
+                pass   # another import holds OpenAlex; this batch was paused with that reason
+            except Exception:  # the batch is left paused with its reason; the traceback is for the developer
+                traceback.print_exc()
+            finally:
+                app.store.close()
+        thread = threading.Thread(target=run, daemon=True)
+        IMPORT_WORKERS[batch_id] = (thread, cancel)
+        thread.start()
+        return True
+
+
+def _import_cancel(batch_id):
+    with IMPORT_WORKERS_LOCK:
+        entry = IMPORT_WORKERS.get(batch_id)
+        if entry and entry[0].is_alive():
+            entry[1].set()
+            return True
+        return False
+
+
+class _CountedStream:
+    """The request body, read at most `length` bytes; `remaining` says whether the caller left any unread."""
+
+    def __init__(self, stream, length):
+        self.stream, self.remaining = stream, length
+
+    def read(self, size=-1):
+        size = self.remaining if size is None or size < 0 else min(size, self.remaining)
+        data = self.stream.read(size) if size else b""
+        self.remaining -= len(data)
+        return data
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "PaperDigHelper/0.6"
     protocol_version = "HTTP/1.1"
@@ -293,6 +352,145 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError as exc:
             self._json({"error": str(exc)}, 400)
 
+    # ----------------------------------------------------------- library import
+    def _import_batch_pdf(self, route):
+        """One PDF of an import batch as raw bytes (streamed to disk, never held whole in memory)."""
+        from . import library_import
+        parts = route.split("/")  # '', 'api', 'import', 'batches', <id>, 'pdf'
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > library_import.MAX_FILE_BYTES:
+            self.close_connection = True
+            return self._json({"error": "PDF 大小必须在 60 MB 以内"}, 413 if length > 0 else 400)
+        body = _CountedStream(self.rfile, length)
+        app = self._app()
+        try:
+            path = unquote(self.headers.get("X-Relative-Path", ""))
+            try:
+                modified = int(self.headers.get("X-Last-Modified") or 0)
+            except ValueError:
+                modified = 0
+            hints = None
+            raw_hints = unquote(self.headers.get("X-Import-Hints", ""))
+            if raw_hints and len(raw_hints) <= 4096:
+                try:
+                    hints = json.loads(raw_hints)
+                except ValueError:
+                    hints = None
+            self._json(app.library_import.add_pdf(parts[4], path, body, length, modified, hints))
+        except ValueError as exc:
+            self.close_connection = True
+            self._json({"error": str(exc)}, 400)
+        finally:
+            if body.remaining:
+                self.close_connection = True  # an unread body would be mistaken for the next request
+            app.store.close()
+
+    def _import_batch_sidecar(self, route):
+        """The export file of a reference manager (a few MB of text at most), read whole and parsed in memory."""
+        from . import reference_files
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > reference_files.MAX_BYTES:
+            self.close_connection = True
+            return self._json({"error": "导出文件大小必须在 20 MB 以内"}, 413 if length > 0 else 400)
+        data = self.rfile.read(length)
+        app = self._app()
+        try:
+            self._json(app.library_import.add_sidecar(route.split("/")[4], unquote(self.headers.get("X-Filename", "")), data))
+        except ValueError as exc:
+            self._json({"error": str(exc)}, 400)
+        finally:
+            app.store.close()
+
+    def _import_get(self, route, query):
+        app = self._app()
+        try:
+            imp = app.library_import
+            if route == "/api/import/batches":
+                project_id = query.get("project_id", [None])[0]
+                if not project_id:
+                    raise ValueError("缺少项目")
+                return self._json({"batches": imp.list_batches(project_id)})
+            batch_id = route[len("/api/import/batches/"):]
+
+            if query.get("resume", [None])[0]:
+                return self._json({"files": imp.resume_index(batch_id)})
+
+            def number(name, default):
+                try:
+                    return int(query.get(name, [default])[0])
+                except (TypeError, ValueError):
+                    return default
+            detail = imp.batch(batch_id, state=query.get("state", [None])[0], offset=number("offset", 0),
+                               limit=number("limit", 200))
+            detail["worker_alive"] = _import_worker_alive(batch_id)
+            detail["openalex"] = app.openalex_status()
+            if query.get("categories", [None])[0]:
+                from .organization import Organization
+                detail["categories"] = imp.category_preview(batch_id, Organization(app.store, project="default").directions())
+            self._json(detail)
+        except ValueError as exc:
+            self._json({"error": str(exc)}, 400)
+        finally:
+            app.store.close()
+
+    def _import_post(self, route, body):
+        app = self._app()
+        try:
+            imp = app.library_import
+            parts = route.split("/")  # '', 'api', 'import', 'batches', [<id>, <action>, [<item>]]
+            if route == "/api/import/batches":
+                project_id, source = body.get("project_id"), body.get("source")
+                if not isinstance(project_id, str) or not isinstance(source, str):
+                    raise ValueError("缺少项目或导入来源")
+                return self._json(imp.create_batch(project_id, source, body.get("root_name"), body.get("options")))
+            if len(parts) < 6 or parts[3] != "batches":
+                return self._json({"error": "unknown route"}, 404)
+            batch_id, action = parts[4], parts[5]
+            if action == "resolve":
+                imp.ensure_open(batch_id)
+                _import_start(getattr(self.server, "root", "."), batch_id)
+                return self._json({"started": True, "worker_alive": _import_worker_alive(batch_id)})
+            if action == "cancel":
+                return self._json({"cancelling": _import_cancel(batch_id)})
+            if action == "commit":
+                return self._json({"result": imp.commit(batch_id)})
+            if action in ("discard", "settle") and _import_worker_alive(batch_id):
+                raise ValueError("正在匹配，请先暂停再操作")   # a running resolver would write over the change
+            if action == "discard":
+                imp.discard(batch_id)
+                return self._json({"discarded": True})
+            if action == "settle":
+                return self._json({"counts": imp.settle_rest(batch_id)})
+            if action == "categories":
+                from .organization import Organization
+                return self._json({"result": imp.apply_categories(batch_id, Organization(app.store, project="default"))})
+            if action == "seeds":
+                keys, how = body.get("keys"), body.get("action")
+                batch = imp.batch(batch_id, limit=0)
+                if how == "add":
+                    return self._json({"result": app.add_import_seeds(batch["project_id"], keys, batch_id=batch_id)})
+                if how == "remove":
+                    return self._json({"result": app.remove_import_seeds(batch["project_id"], keys)})
+                raise ValueError("操作无效")
+            if action == "items" and len(parts) == 7:
+                try:
+                    item_id = int(parts[6])
+                except ValueError:
+                    raise ValueError("导入条目不存在") from None
+                return self._json({"item": imp.act(batch_id, item_id, body.get("action"), index=body.get("index"),
+                                                   text=body.get("text"))})
+            self._json({"error": "unknown route"}, 404)
+        except ValueError as exc:
+            self._json({"error": str(exc)}, 400)
+        finally:
+            app.store.close()
+
     def _body(self):
         length = int(self.headers.get("Content-Length") or 0)
         strict_route = urlparse(self.path).path == '/api/route' or (
@@ -375,6 +573,8 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app()
             detail = app.paper_detail(unquote(route[len("/api/paper/"):]), query.get("project_id", [None])[0])
             self._json(detail or {"error": "not found"}, 200 if detail else 404)
+        elif route == "/api/import/batches" or route.startswith("/api/import/batches/"):
+            self._import_get(route, query)
         elif route.startswith("/api/jobs/"):
             self._json(_job_get(route[len("/api/jobs/"):]))
         elif route == "/api/library":
@@ -473,12 +673,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "request too large"}, 413)
         if route == "/api/seeds/pdf":
             return self._import_pdf()
+        if route.startswith("/api/import/batches/") and route.endswith("/pdf") and route.count("/") == 5:
+            return self._import_batch_pdf(route)
+        if route.startswith("/api/import/batches/") and route.endswith("/sidecar") and route.count("/") == 5:
+            return self._import_batch_sidecar(route)
         try:
             body = self._body()
         except (ValueError, json.JSONDecodeError, RecursionError):
             return self._json({"error": "invalid JSON"}, 400)
         if not isinstance(body, dict):
             return self._json({"error": "request must be an object"}, 400)
+        if route == "/api/import/batches" or route.startswith("/api/import/batches/"):
+            return self._import_post(route, body)
         if route == "/api/organization":
             if not isinstance(body, dict):
                 return self._json({"error": "request must be an object"}, 400)

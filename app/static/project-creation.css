@@ -316,3 +316,8 @@ body.busy .map-detail button,body.busy .map-actions button{opacity:.6;pointer-ev
 .map-summary{gap:calc(16px * var(--s)) calc(24px * var(--s))}
 
 .brief-field{display:block;margin:12px 0}.brief-field>span{display:block;font-size:.8125rem;margin-bottom:6px}.brief-field textarea{width:100%;box-sizing:border-box}.revision-table{border-collapse:collapse;width:100%;margin:12px 0}.revision-table th,.revision-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}.revision-table th{min-width:90px}
+
+/* ------------------------------------------------------------ import an existing library */
+.import-after{display:flex;gap:calc(8px * var(--s));align-items:flex-start;font-weight:400;margin:calc(4px * var(--s)) 0 0;cursor:pointer}
+.import-after input{width:auto;margin-top:calc(5px * var(--s))}
+.import-after-hint{margin:calc(2px * var(--s)) 0 calc(18px * var(--s)) calc(24px * var(--s))}

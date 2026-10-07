@@ -323,6 +323,13 @@
         "docs/evidence/2026-10-07-growth-reply-validation-checks.txt",
         "docs/evidence/2026-10-07-growth-reply-validation-review.md"
       ]
+    },
+    {
+      "id": "E-LIBRARY-IMPORT",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "Source/unit/HTTP/browser checks exist as development evidence only (docs/evidence/2026-10-07-library-import-checks.txt); they are not this gate. To pass: (1) native folder pick and folder drop in the fresh packaged .app on macOS (WKWebView); (2) a real run on a sanitized sample of the owner's own library with a real network, reporting the actual identifier/title match rate, OpenAlex credits spent and pauses, never an estimate; (3) a sanitized real export from the owner's installed Zotero version (BibTeX, RIS, CSL-JSON; attachment layout) kept as a fixture; (4) restart/crash recovery of a half-committed batch on a copy of a real database; (5) independent review of the table creation, the recommendation-pool change and the seed exclusions; (6) the owner decides whether import-origin seeds also stay out of learning-map progress (implemented) and whether this gate blocks release. Keep failures; do not claim a hit rate from synthetic fixtures.",
+      "evidence": []
     }
   ]
 }

@@ -181,7 +181,8 @@ class ProjectManager:
             if table in existing:
                 self.store.conn.execute(f"DELETE FROM {table} WHERE project=?", (project_id,))
         names = ("seed_keys", "profile_freeze", "project_default_terms", "last_refresh", "last_attempt", "last_error",
-                 "route_plan_project", "recommendation_eligibility", "route_recall", "route_revision", "route_revision_attempt")
+                 "route_plan_project", "recommendation_eligibility", "route_recall", "route_revision", "route_revision_attempt",
+                 "import_seed_keys")
         self.store.conn.execute(
             f"DELETE FROM settings WHERE key IN ({','.join('?' * len(names))})", tuple(f"{n}_{project_id}" for n in names))
         self.store.conn.commit()

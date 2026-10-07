@@ -400,7 +400,7 @@
         "划词翻译/解释是单次有界调用，不整篇上传；结果标注AI生成并可关闭",
         "划词功能关闭时不产生模型调用"
       ],
-      "blocked_reason": "用户首版只要下载 PDF；Zotero 写入与划词翻译均需单独授权、版本验证和验收",
+      "blocked_reason": "用户首版只要下载 PDF；Zotero 本地 API、写回与划词翻译均需单独授权、版本验证和验收。（Zotero 导出文件夹导入已由 IMPORT-01 提供，不依赖本任务。）",
       "evidence": []
     },
     {
@@ -1039,6 +1039,39 @@
       "evidence": [
         "docs/evidence/2026-10-07-growth-reply-validation-checks.txt",
         "docs/evidence/2026-10-07-growth-reply-validation-review.md"
+      ]
+    },
+    {
+      "id": "IMPORT-01",
+      "stage": "reading",
+      "title": "导入已有论文库：单篇/文件夹/Zotero 导出，复制归档，按文件夹整理分类",
+      "status": "in_progress",
+      "depends_on": [
+        "PDF-01"
+      ],
+      "requirements": [
+        "R-LIBRARY-IMPORT",
+        "R-PDF",
+        "R-LOCAL",
+        "R-DURABILITY",
+        "R-READING-INTEGRATION",
+        "R-ROUTE-V2-06",
+        "R-BUDGET"
+      ],
+      "acceptance": [
+        "页面读 PDF 首页线索，逐个流式上传到暂存批次；服务端按节奏匹配，进度写库，关页/重启后可继续；OpenAlex 额度不足、限流、断网时暂停而不是失败或误标",
+        "审阅后一次事务提交：论文以 imported 关联并保存，PDF 按内容复制归档且不覆盖已有 PDF；失败整体回滚；不写 feedback/exposure，不改种子",
+        "文件夹结构整理成分类（同层同名复用、只追加、一次可撤销）；Zotero 的 files/ 与 storage 目录不成为分类；同内容副本合并并落在每个文件夹",
+        "BibTeX/RIS/CSL-JSON 导出文件优先于 PDF 线索，按路径对上 PDF，不按标题检索；无 PDF 的条目可选导入；不读 zotero.sqlite、不写回",
+        "已在本项目论文库的论文不再是今日/路线候选；导入来源的种子进画像但不是生长证据也不推进学习地图进度",
+        "运行期模型 token 为 0；联网补全默认开启并写明发送内容，关闭时零网络",
+        "原生 .app 内选择/拖入文件夹、真实网络命中率、业主 Zotero 版本的真实导出 fixture 与独立审查另行验证（E-LIBRARY-IMPORT，未运行）"
+      ],
+      "evidence": [
+        "docs/decisions/0029-library-import.md",
+        "app/library_import.py",
+        "app/reference_files.py",
+        "docs/evidence/2026-10-07-library-import-checks.txt"
       ]
     }
   ]

@@ -83,7 +83,7 @@ def _has_unseen(app, project_id):
     verification_budget={'remaining':eligibility.MAX_VERIFY_BYTES,'deferred':False}
     seen = {r[0] for r in app.store.conn.execute('''SELECT e.paper_key FROM exposures e
         JOIN batches b ON b.id=e.batch_id WHERE b.project_id=?''', (project_id,))}
-    answered = set(app.latest_feedback(project_id))
+    answered = set(app.latest_feedback(project_id)) | app.saved_keys(project_id)   # the library is not "unseen" news
     route=app._route_state(project_id,verification_budget=verification_budget)
     if route and (route['goal_status']=='needs_review' or route.get('progress_verification_deferred')):return False
     if route and route['goal_status']=='completed' and app._completed_batch(project_id,app.batch_day()):return False
