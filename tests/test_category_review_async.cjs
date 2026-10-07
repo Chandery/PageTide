@@ -1,0 +1,105 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const tick = () => new Promise(resolve => setImmediate(resolve));
+function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return {promise, resolve}; }
+const snap = revision => ({directions: [{id:'d',name:'Owner label'}],items:[],positions:{},projects:[{id:'p1',name:'One'},{id:'p2',name:'Two'}],revision});
+const aiPreview = () => ({groups:[],ai_token:'old-token',fingerprint:'old-fingerprint',ai_plan:{categories:[{id:'d',action:'rename',name:'Research',reason:'Synthetic review'}],new_categories:[],papers:[]}});
+const localPreview = () => ({groups:[],fingerprint:'old-fingerprint',merges:[{id:'m',target:'d',name:'Owner label',copies:[{id:'copy',name:'Alias'}],reason:'Synthetic review'}],moves:[]});
+
+// Run the shipped function in a fresh VM. The fake DOM tracks view writes and lets
+// the actual modal submit/close callbacks run; no network, store or model is used.
+function fixture(api) {
+  const writes = [], dialogs = [], toasts = [], nodes = new Map();
+  function node(label) {
+    let html = '', text = '';
+    return {dataset:{},checked:true,disabled:false,hidden:false,listeners:{},
+      get innerHTML() { return html; }, set innerHTML(value) { html = value; writes.push([label,'html',value]); },
+      get textContent() { return text; }, set textContent(value) { text = value; writes.push([label,'text',value]); },
+      classList:{add(){},remove(){},toggle(){},contains(){return false;}},setAttribute(){},
+      querySelector(){return null;},querySelectorAll(){return [];},
+      addEventListener(kind,fn){(this.listeners[kind] ||= []).push(fn);},focus(){}};
+  }
+  function get(selector) { if (!nodes.has(selector)) nodes.set(selector,node(selector)); return nodes.get(selector); }
+  const host = node('dialog-host');
+  host.querySelector = () => dialogs.findLast(d => d.isConnected) || null;
+  host.querySelectorAll = () => dialogs.filter(d => d.isConnected);
+  Object.defineProperty(host,'innerHTML',{set(html){
+    const children = new Map(), d = node('dialog'); d.html = html; d.isConnected = true;
+    d.querySelector = selector => { if (!children.has(selector)) children.set(selector,node(`modal:${selector}`)); return children.get(selector); };
+    const merge = node('merge'); merge.dataset.merge = 'm'; merge.querySelector = () => ({checked:true});
+    d.querySelectorAll = selector => selector === '[data-merge]' ? [merge] : [];
+    d.showModal = () => {};
+    d.remove = () => { d.isConnected = false; };
+    d.close = () => { if (!d.isConnected) return; d.isConnected = false; for (const fn of d.listeners.close || []) fn(); };
+    dialogs.push(d);
+  }});
+  const state = {currentProject:'p1'};
+  const context = vm.createContext({module:{exports:{}},window:{PDH:{api,state,toast:(...args)=>toasts.push(args)},addEventListener(){}},document:{activeElement:null},
+    localStorage:{getItem(){return null;},setItem(){}},crypto:{randomUUID:()=> 'synthetic-client'},setTimeout,clearTimeout,URL});
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../app/static/organization.js'),'utf8'),context);
+  const ui = context.module.exports;
+  ui.S.root = {querySelector: selector => selector === '.org-dialog-host' ? host : get(selector),querySelectorAll:()=>[]};
+  ui.S.scope = 'p1'; ui.S.snapshot = snap(1);
+  return {ui,state,dialogs,writes,toasts};
+}
+
+for (const kind of ['scope','project','reset']) {
+  test(`late initial AI preview is discarded after ${kind} change`, async () => {
+    const response = deferred(), f = fixture(() => response.promise);
+    const run = f.ui.suggest(); await tick();
+    if (kind === 'reset') f.ui.reset();
+    else if (kind === 'scope') f.ui.S.scope = 'p2';
+    else f.state.currentProject = 'p2';
+    const currentSnapshot = f.ui.S.snapshot;
+    response.resolve({suggestions:aiPreview(),...snap(2)}); await run;
+    assert.equal(f.dialogs.length,1,'a late response must not open a preview in the next view');
+    assert.equal(f.ui.S.snapshot,currentSnapshot,'a late response must not replace the current snapshot');
+    assert.equal(f.writes.some(([selector]) => selector === '.org-sidebar'),false);
+    assert.equal(f.toasts.length,0);
+  });
+}
+
+test('closing before the initial job ID arrives cancels that job and never opens its result', async () => {
+  const response = deferred(), calls = [];
+  const f = fixture((url,body) => {calls.push([url,body]); return body?.action === 'cancel-category-review' ? Promise.resolve({cancelled:true}) : response.promise;});
+  const run = f.ui.suggest(); await tick();
+  f.dialogs[0].close();
+  response.resolve({job:{id:'late-job',state:'running'}}); await run;
+  assert.equal(f.dialogs.length,1);
+  assert.equal(calls.filter(([,body])=>body?.action === 'cancel-category-review').length,1);
+  assert.equal(calls.find(([,body])=>body?.action === 'cancel-category-review')[1].job_id,'late-job');
+  assert.equal(calls.some(([url])=>url.startsWith('/api/jobs/')),false);
+});
+
+for (const mode of ['ai','local']) for (const kind of ['scope','project','reset']) {
+  test(`late ${mode} application preserves the next ${kind} view and its notice`, async () => {
+    const application = deferred(), calls = [];
+    const preview = mode === 'ai' ? aiPreview() : localPreview();
+    const f = fixture((url,body) => {
+      calls.push([url,body]);
+      if (body?.action === 'apply-ai-review' || body?.action === 'apply-suggestions') return application.promise;
+      return Promise.resolve({suggestions:preview});
+    });
+    await f.ui.suggest(mode);
+    assert.equal(f.dialogs.length,2);
+    const applying = f.dialogs[1].querySelector('form').onsubmit({preventDefault(){}}); await tick();
+    assert.equal(calls.filter(([,body])=>body?.action === (mode === 'ai' ? 'apply-ai-review' : 'apply-suggestions')).length,1);
+    if (kind === 'reset') f.ui.reset();
+    else if (kind === 'scope') f.ui.S.scope = 'p2';
+    else f.state.currentProject = 'p2';
+    f.ui.S.snapshot = snap(9); f.ui.S.filter = 'd'; f.ui.S.notice = 'Current view notice';
+    const currentSnapshot = f.ui.S.snapshot, writesBefore = f.writes.length;
+    application.resolve({...snap(2),apply_result:{changed_papers:3,renamed_categories:1,merged_categories:1}}); await applying;
+    assert.equal(f.ui.S.snapshot,currentSnapshot,'the old application response cannot replace a new view snapshot');
+    assert.equal(f.ui.S.filter,'d'); assert.equal(f.ui.S.notice,'Current view notice');
+    assert.equal(f.toasts.length,0,'the old application cannot announce success in a new view');
+    const lateViewWrites = f.writes.slice(writesBefore).filter(([selector])=>!selector.startsWith('modal:') && selector !== '[data-status]');
+    assert.deepEqual(lateViewWrites,[],'the old application cannot redraw the next view');
+    assert.equal(f.ui.S.pending,0);
+  });
+}

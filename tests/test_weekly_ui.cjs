@@ -50,6 +50,25 @@ test('a direction shows last week and this week, its papers and a neutral status
   assert.doesNotMatch(html, /下降|不感兴趣|冷淡|流失|放弃|落后/);
 });
 
+test('the directions section discloses canonical alias counting before cards or an empty result', () => {
+  const message = '周报将 2 组同义类别按一个方向统计；论文库原类别与归属保留。';
+  for (const extra of [{}, { directions: [] }]) {
+    const html = W.directions(report({ ...extra, category_normalization: { message, merged_groups: 2 } }));
+    assert.ok(html.includes(`<p class="wk-note wk-normalization">${message}</p>`));
+    const result = html.indexOf(extra.directions ? '本周没有哪个方向' : '<div class="wk-dirs">');
+    assert.ok(html.indexOf(message) < result);
+  }
+  assert.doesNotMatch(W.directions(report()), /wk-normalization/);
+  assert.doesNotMatch(W.directions(report({ category_normalization: { message: '' } })), /wk-normalization/);
+  assert.doesNotMatch(W.directions(report({ category_normalization: { message: { text: 'wrong type' } } })), /wk-normalization|object Object/);
+});
+
+test('category normalization disclosure treats the server message as text', () => {
+  const html = W.weeklyHTML(report({ category_normalization: { message: '<img src=x onerror=1> & "details"' } }));
+  assert.match(html, /&lt;img src=x onerror=1&gt; &amp; &quot;details&quot;/);
+  assert.doesNotMatch(html, /<img src=x/);
+});
+
 test('titles, names and reasons are text, never markup', () => {
   const html = W.weeklyHTML(report());
   assert.ok(!html.includes('<b>A</b>') && html.includes('Paper &lt;b&gt;A&lt;/b&gt;'));

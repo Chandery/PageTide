@@ -119,7 +119,7 @@ class EnglishSuggestionTests(unittest.TestCase):
         chinese = suggest_groups(self.PAPERS, {"pinned": ["world models"]})
         english = suggest_groups(self.PAPERS, {"pinned": ["world models"], "language": "en-US"})
         self.assertIn("世界模型", [g["name"] for g in chinese["groups"]])
-        self.assertIn("world models", [g["name"] for g in english["groups"]])
+        self.assertIn("World Model", [g["name"] for g in english["groups"]])
         for group in english["groups"]:
             self.assertFalse(HAN.search(group["name"] + group["reason"]), group)
 

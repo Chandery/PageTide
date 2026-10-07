@@ -4,6 +4,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from . import ranking
+from .organization_terms import category_identity, category_label
 
 KINDS = {'saved', 'positive', 'negative', 'too_hard', 'understood', 'seed', 'term', 'feedback', 'week', 'exposed'}
 LABELS = {'positive': '有用', 'negative': '不相关', 'too_hard': '太难', 'understood': '已读懂', 'saved': '收藏', 'exposed': '曝光'}
@@ -64,8 +65,12 @@ def context(app, project_id):
 
 
 def library_tree(conn, papers):
-    """{names: {direction id: "Parent / Child"}, by_paper: {paper key: [direction ids]}} from the shared library
-    categories, plain reads only. Only this project's papers are looked up; the tree itself is shared."""
+    """Read canonical category paths for reports, preserving the stored shared library.
+
+    Explicit aliases are grouped only when their entire ancestor paths match. A paper's
+    duplicate alias memberships then contribute each original event once to that bucket.
+    The representative IDs remain real stored direction IDs; no category is written or deleted.
+    """
     try:
         row = conn.execute("SELECT data FROM org_projects WHERE project='default'").fetchone()
         data = json.loads(row[0]) if row else {}
@@ -74,11 +79,28 @@ def library_tree(conn, papers):
         members = data.get('memberships', {})
     except (sqlite3.OperationalError, ValueError, KeyError, TypeError, AttributeError):   # no tables, or a record that is not what we wrote
         parent, name, members = {}, {}, {}
-    def path(identifier, seen=()):
-        up = parent.get(identifier)
-        return (path(up, seen + (identifier,)) + ' / ' if up in name and up not in seen else '') + name[identifier]
-    return dict(names={i: path(i) for i in name},
-                by_paper={k: [i for i in members.get(k, []) if i in name] for k in papers})
+    groups, canonical, names, counts = {}, {}, {}, Counter()
+    for identifier in name:
+        nodes, seen, current = [], set(), identifier
+        while current in name and current not in seen:
+            nodes.append(current)
+            seen.add(current)
+            current = parent.get(current)
+        nodes.reverse()
+        signature = tuple(category_identity(name[i]) for i in nodes)
+        representative = groups.setdefault(signature, identifier)
+        canonical[identifier] = representative
+        names.setdefault(representative, ' / '.join(category_label(name[i]) for i in nodes))
+        counts[representative] += 1
+    merged_groups = sum(count > 1 for count in counts.values())
+    merged_categories = sum(count - 1 for count in counts.values())
+    normalization = dict(merged_groups=merged_groups, merged_categories=merged_categories,
+                         message=(f'周报将 {merged_groups} 组同义类别按一个方向统计；论文库原类别与归属保留。'
+                                  if merged_groups else ''))
+    return dict(names=names,
+                by_paper={k: list(dict.fromkeys(canonical[i] for i in members.get(k, []) if i in canonical))
+                          for k in papers},
+                category_normalization=normalization)
 
 
 def learning_map(app, project_id, papers, keys):
@@ -156,7 +178,7 @@ def _by_direction(ctx, events):
     for e in events:
         if e['kind'] not in WEEK_KINDS:
             continue
-        for d in tree['by_paper'].get(e['key']) or ['']:
+        for d in dict.fromkeys(tree['by_paper'].get(e['key']) or ['']):
             group = out.setdefault(d, {'events': [], 'keys': set(), 'signal': set()})
             group['events'].append(e)
             if e['kind'] != 'exposed':
@@ -182,8 +204,8 @@ def _direction_status(now, before, acted):
 
 
 def weekly_directions(ctx, current, previous):
-    """What moved in each library category (a paper in two categories counts in both): this week's and last week's
-    explicit records, the papers behind them and a neutral word for the change. Counts of the person's own records."""
+    """What moved in each canonical library path (a paper in two distinct categories counts in both): this week's
+    and last week's explicit records, their papers and a neutral word for the change. Counts remain event counts."""
     a, b = _by_direction(ctx, current), _by_direction(ctx, previous)
     rows = []
     for d in a.keys() | b.keys():
@@ -287,6 +309,7 @@ def weekly(ctx):
     return dict(week_start=start.isoformat(), week_end=end.isoformat(), previous_start=prev.isoformat(),
                 stats=counts(current_events), previous_stats=counts(previous_events),
                 has_activity=bool(current_events), comparable=bool(current_events and previous_events),
+                category_normalization=ctx['tree'].get('category_normalization', {}),
                 daily=weekly_days(start, current_events), directions=directions, more_directions=len(all_directions) - len(directions), units=units,
                 highlights=weekly_highlights(ctx, current_events, previous_events, all_directions, units),
                 picks=weekly_picks(ctx, current_events),

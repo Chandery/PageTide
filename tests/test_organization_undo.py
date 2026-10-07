@@ -175,10 +175,12 @@ class NestedApplyTests(unittest.TestCase):
         self.assertEqual(self.parents(snap), {"世界模型": None, "JEPA": top})
         self.assertEqual(snap["undo"]["label"], "应用建议")
 
-    def test_child_finds_parent_applied_earlier_or_becomes_top_level(self):
+    def test_child_requires_parent_and_finds_parent_applied_earlier(self):
         self.suggest()
-        self.assertEqual(self.parents(self.apply({"facet-kid"})), {"JEPA": None})
-        self.org.action({"action": "undo"})
+        before = self.org.snapshot()
+        with self.assertRaisesRegex(ValueError, "父类别"):
+            self.apply({"facet-kid"})
+        self.assertEqual(self.org.snapshot(), before)
         self.suggest()
         first = self.apply({"facet-top"})
         top = first["directions"][0]["id"]

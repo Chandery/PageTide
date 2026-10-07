@@ -85,7 +85,7 @@ class DirectionTests(Fixture):
         self.say("m1", "useful"); self.say("m2", "understood"); self.say("m3", "irrelevant")
         self.say("v1", "useful", days_ago=9); self.say("v2", "useful", days_ago=9)
         report = self.report()
-        models = self.direction_row(report, "World models")
+        models = self.direction_row(report, "世界模型")
         self.assertEqual((models["current"]["positive"], models["current"]["understood"], models["current"]["negative"]), (1, 1, 1))
         self.assertEqual(models["current"]["papers"], 3)
         vision = self.direction_row(report, "Vision")
@@ -94,13 +94,13 @@ class DirectionTests(Fixture):
     def test_a_subdirectory_is_named_with_its_path(self):
         self.say("l1", "useful")
         names = [d["name"] for d in self.report()["directions"]]
-        self.assertIn("World models / Latent dynamics", names)
+        self.assertIn("世界模型 / Latent dynamics", names)
 
     def test_status_words_never_say_the_person_lost_interest(self):
         self.say("m1", "useful")                                   # new this week
         self.say("v1", "useful", days_ago=9)                       # last week only
         report = self.report()
-        self.assertEqual(self.direction_row(report, "World models")["status"], "new")
+        self.assertEqual(self.direction_row(report, "世界模型")["status"], "new")
         self.assertEqual(self.direction_row(report, "Vision")["status"], "quiet")
         statuses = {d["status"] for d in report["directions"]}
         self.assertTrue(statuses <= {"new", "more", "same", "fewer", "quiet", "other"})
@@ -117,12 +117,12 @@ class DirectionTests(Fixture):
         self.say("m3", "useful", days_ago=9)
         self.say("v1", "useful"); self.say("v2", "useful", days_ago=9); self.say("m3", "understood", days_ago=9)
         report = self.report()
-        self.assertEqual(self.direction_row(report, "World models")["status"], "more")
+        self.assertEqual(self.direction_row(report, "世界模型")["status"], "more")
         self.assertEqual(self.direction_row(report, "Vision")["status"], "same")
 
     def test_the_papers_behind_a_direction_are_listed_with_what_happened(self):
         self.say("m1", "useful"); self.say("m1", "understood")
-        row = self.direction_row(self.report(), "World models")
+        row = self.direction_row(self.report(), "世界模型")
         self.assertEqual([(p["key"], p["title"], sorted(p["kinds"])) for p in row["papers"]], [("m1", "Paper m1", ["positive", "saved", "understood"])])
 
     def test_papers_outside_every_direction_are_reported_as_unsorted(self):

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_id": "2026-09-11-ai-approved-incl-rerank",
   "approved_by_owner": true,
-  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003). 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical.",
+  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003). 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical. 2026-10-07 owner 在本会话对新增 category_review 范围与上限问题明确回复“批准”：完整共享目录最多60类、每批最多12篇标题80/摘要160片段及临时 c/p 归属别名；输入8000、输出2000，每批一次无重试，沿用全局55k/day、1.5M/month、$0.15/day、$1.50/month。明确显式审阅才调用、完整预览确认才改分类；不发PDF、笔记、反馈、画像、私有ID或历史，不自动打开AI总开关，不扩大其他操作。初始登记为false等待答复，现按此次人类批准登记true；不是agent自行批准。",
   "pending_approval": [],
   "measurement_status": "owner_approved_planning_envelopes_no_runtime_or_tokenizer_measurement",
   "provider": {
@@ -364,6 +364,27 @@
         "protocol_framing_and_margin": 600
       },
       "scope": "Explicit revision click: same five fields plus complete bounded40node/120edge/3incoming Map with per-request aliases, all names/terms/hint/type/why/intro/state and targets/edges. No library/profile/raw feedback/cutoffs/private IDs/other projects/history/tools. Complete wire UTF8 bytes +256 precheck; never truncate Map. One attempt/click, max2/project/local day, no retry; valid reply saved as preview with authoritative snapshot; confirmation revalidates/atomic undo. Unpaid refusals refund, unknown usage retains; prior preview/input/manual edit fallback. New external scope explicitly owner-approved2026-10-07."
+    },
+    "category_review": {
+      "owner_approved": true,
+      "approval_note": "2026-10-07 owner 在本会话对新增 category_review 范围与上限问题明确回复“批准”：完整共享目录最多60类、每批最多12篇标题80/摘要160片段及临时 c/p 归属别名；输入8000、输出2000，每批一次无重试，沿用全局55k/day、1.5M/month、$0.15/day、$1.50/month。明确显式审阅才调用、完整预览确认才改分类；不发PDF、笔记、反馈、画像、私有ID或历史，不自动打开AI总开关，不扩大其他操作。初始登记为false等待答复，现按此次人类批准登记true；不是agent自行批准。",
+      "prompt": "prompts/category-review.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 4500,
+        "output": 1200
+      },
+      "cap": {
+        "input": 8000,
+        "output": 2000
+      },
+      "input_cap_components": {
+        "instructions_schema": 2000,
+        "complete_directory_and_public_papers": 5500,
+        "protocol_framing_margin": 500
+      },
+      "scope": "One explicit review freezes all current-scope saved papers and the entire shared directory (max60); sequential unretried batches of at most12 public titles80/abstract160 fragments and memberships under temporary c/p aliases. No PDF, notes, feedback, profile, private IDs or history. Complete wire UTF8bytes+256 checked before gateway admission; oversize directory refused, never cut. Every request goes through unchanged global55k/day1.5M/month,$0.15/day$1.50/month. Full successful consensus preview only, failure/unknown usage stops later requests; no partial unsafe plan and no automatic rejudgment. Explicit atomic apply/undo before edits; deletes require all remaining links handled. Price/tokenizer/actual AI quality arithmetic, not product measurement."
     }
   },
   "scenarios": [
@@ -472,6 +493,17 @@
         "route_map_create": 1,
         "route_map_revision": 4,
         "route_growth_judge": 8
+      }
+    },
+    {
+      "id": "category_review_optional",
+      "label": "分类 AI 审阅（owner 已批准，可选显式调用）",
+      "days": 30,
+      "weekly_runs": 5,
+      "daily_calls": {},
+      "weekly_calls": {},
+      "one_off_calls": {
+        "category_review": 8
       }
     }
   ],

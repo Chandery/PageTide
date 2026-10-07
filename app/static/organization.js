@@ -2,7 +2,7 @@
   'use strict';
   const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', graphView: 'papers', routeFocus: null, rcy: null, routeDetail: null, routeToken: 0, showOther: false, showAll: false, transient: new Set() };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  S.epoch = 0; S.refreshToken = 0; S.relationsToken = 0; S.contextToken = 0; S.navigationToken = 0; S.contexts = new Map();
+  S.reviewToken = 0; S.epoch = 0; S.refreshToken = 0; S.relationsToken = 0; S.contextToken = 0; S.navigationToken = 0; S.contexts = new Map();
   const DEFAULT_COLOR = '#64748b';
   const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
   // Graph colours follow the page palette (index.html tokens) so light/dark stay in sync.
@@ -164,21 +164,22 @@
     if (S.filter && S.filter !== '*' && !snap.directions.some(d => String(d.id) === S.filter)) S.filter = '*';
     S.selected = new Set([...S.selected].filter(key => item(key)));
   }
-  function mutate(body, repaint = true) {
+  function mutate(body, repaint = true, scopeCurrent = null) {
     const epoch = S.epoch;
+    const current = () => epoch === S.epoch && (!scopeCurrent || scopeCurrent());
     const revision = body.revision ?? S.snapshot.revision;
     S.notice = ''; S.pending++; status();
     const task = S.queue.then(async () => {
       const draftAction = body.action === 'draft-save' || body.action === 'draft-clear';
       const data = await window.PDH.api('/api/organization', { ...body, ...(draftAction ? { version: body.version ?? S.drafts.get(body.key).serverVersion ?? 0 } : {}), ...(body.action === 'note' ? {} : { revision }) });
       if (draftAction) { S.drafts.get(body.key).serverVersion = data.draft.version; cacheDraft(body.key, S.drafts.get(body.key)); }
-      else if (epoch === S.epoch) accept(data);
-      if (epoch === S.epoch) S.error = '';
-      if (repaint && epoch === S.epoch) renderData();
+      else if (current()) accept(data);
+      if (current()) S.error = '';
+      if (repaint && current()) renderData();
       return data;
     });
     S.queue = task.catch(() => {});
-    return task.catch(error => { if (epoch === S.epoch) report(error); throw error; }).finally(() => { S.pending--; status(); });
+    return task.catch(error => { if (current()) report(error); throw error; }).finally(() => { S.pending--; status(); });
   }
   function draftFor(p) {
     if (!S.drafts.has(p.key)) {
@@ -1021,10 +1022,13 @@
      to merge, and papers that may sit in the wrong category. What needs no change is not mentioned. Each item has a
      checkbox; unticked items stay as they are and are not proposed again until the paper or its categories change. */
   function suggestionsHTML(preview, lookup = item, nameOf = id => categoryPath(id)) {
+    if (preview.ai_plan) return aiReviewHTML(preview, lookup, nameOf);
     const groups = preview.groups || [], merges = preview.merges || [], moves = preview.moves || [], pending = preview.pending_keys || [];
+    const standards = '<p class="org-paper-meta">分类采用明确的研究术语；中英文同义名称归为同一类，优先沿用已有分类，证据不足的论文保留待分类。</p>'
+      + '<p class="org-paper-meta">父级表示研究方向，子类表示更细的方向或方法；方法细分类不会自动变成一级方向，父级与子类不按同义分类合并。</p>';
     const waiting = pending.length ? `<section class="org-review-section" data-kind="pending"><h4>还没有归类的论文</h4><p class="org-paper-meta">这些论文暂时没有找到合适的类别；可以在论文库里手动归类，或之后再来。</p><ul class="org-pending">${pending.map(k => `<li data-no-i18n>${h(lookup(k)?.title || k)}</li>`).join('')}</ul></section>` : '';
     if (!groups.length && !merges.length && !moves.length) {
-      return `${waiting ? `<p class="org-review-empty" role="status">没有可以自动提出的调整。</p>${waiting}` : '<p class="org-review-empty" role="status">没有需要调整的内容。</p>'}<p class="org-paper-meta">${preview.scope ? '已检查这个项目里的论文；论文内容或类别有变化后，才会再次检查。' : '已检查全部论文；论文内容或类别有变化后，才会再次检查。'}</p>`;
+      return standards + `${waiting ? `<p class="org-review-empty" role="status">没有可以自动提出的调整。</p>${waiting}` : '<p class="org-review-empty" role="status">没有需要调整的内容。</p>'}<p class="org-paper-meta">${preview.scope ? '已检查这个项目里的论文；论文内容或类别有变化后，才会再次检查。' : '已检查全部论文；论文内容或类别有变化后，才会再次检查。'}</p>`;
     }
     const index = new Map(groups.map((g, i) => [g.id, i]));
     const depth = g => { let n = 0, p = g.parent; while (p != null && index.has(p) && n < 4) { n++; p = groups[index.get(p)].parent; } return n; };
@@ -1032,10 +1036,10 @@
     const groupCard = (g, i) => { const level = depth(g), parent = level ? groups[index.get(g.parent)] : null, existing = !!g.target, weak = !!g.weak;
       return `<fieldset class="org-suggestion${level ? ' is-child' : ''}${weak ? ' is-weak' : ''}" data-suggestion="${i}" style="--depth:${level}"><div class="org-suggestion-head"><input type="checkbox" data-enabled ${weak ? '' : 'checked'} aria-label="${existing ? '加入这个类别' : '采用此类别'}">${parent ? `<span class="org-suggestion-parent">${h(parent.name)} ›</span>` : ''}${weak ? '<em class="org-maybe">可能相关</em>' : ''}<input data-name aria-label="类别名称" value="${h(g.name)}" required maxlength="120"${existing ? ' readonly' : ''}>${existing ? '' : `<input type="color" data-color aria-label="类别颜色" value="${color(g.color || DEFAULT_COLOR)}">`}</div><p class="org-paper-meta">${h(g.reason || '请核对分组内容')}</p>${members(g.keys || [], true)}</fieldset>`; };
     const section = (kind, title, body) => body ? `<section class="org-review-section" data-kind="${kind}"><h4>${title}</h4>${body}</section>` : '';
-    const mergeCard = m => `<fieldset class="org-suggestion" data-merge="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-merge-enabled checked aria-label="合并这些类别"><strong data-no-i18n>${h(m.name)}</strong></div><p class="org-paper-meta">${h(m.reason)}</p><p class="org-paper-meta">${(m.copies || []).map(c => `<span>${c.children ? `${h(c.papers)} 篇、${h(c.children)} 个子类` : `${h(c.papers)} 篇`}</span>`).join(' · ')}</p><p class="org-paper-meta">子类别和论文都会并入保留的那个（第一个）；合并后可以撤销。</p></fieldset>`;
+    const mergeCard = m => `<fieldset class="org-suggestion" data-merge="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-merge-enabled checked aria-label="合并这些类别"><strong data-no-i18n>${h(m.name)}</strong></div><p class="org-paper-meta">${h(m.reason)}</p><p class="org-paper-meta">${(m.copies || []).map(c => `<span>「<span data-no-i18n>${h(c.name || nameOf(c.id))}</span>」：<span>${c.children ? `${h(c.papers)} 篇、${h(c.children)} 个子类` : `${h(c.papers)} 篇`}</span></span>`).join(' · ')}</p><p class="org-paper-meta">子类别和论文都会并入保留的那个（第一个）；合并后可以撤销。</p></fieldset>`;
     const moveCard = m => `<fieldset class="org-suggestion" data-move="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-move-enabled aria-label="调整这篇论文的类别"><span class="org-move-title" data-no-i18n>${h(lookup(m.key)?.title || m.key)}</span></div><p class="org-paper-meta">${(m.from || []).map(id => `「<span data-no-i18n>${h(nameOf(id))}</span>」`).join('')} → 「<span data-no-i18n>${h(m.name || nameOf(m.to))}</span>」</p><p class="org-paper-meta">${h(m.reason)}</p><label class="org-dismiss"><input type="checkbox" data-move-dismiss> 保持现状，不再提示</label></fieldset>`;
     const created = groups.map((g, i) => ({ g, i })).filter(x => !x.g.target), added = groups.map((g, i) => ({ g, i })).filter(x => x.g.target);
-    return `<p class="org-paper-meta">${preview.scope ? '范围：这个项目的论文。只列出需要调整的内容，没变的不再重复。' : '范围：全部论文。只列出需要调整的内容，没变的不再重复。'}</p>`
+    return standards + `<p class="org-paper-meta">${preview.scope ? '范围：这个项目的论文。只列出需要调整的内容，没变的不再重复。' : '范围：全部论文。只列出需要调整的内容，没变的不再重复。'}</p>`
       + section('create', '新增分类', created.map(x => groupCard(x.g, x.i)).join(''))
       + section('add', '归入已有分类', added.map(x => groupCard(x.g, x.i)).join(''))
       + section('merge', '合并重复分类', merges.map(mergeCard).join(''))
@@ -1043,36 +1047,73 @@
       + waiting
       + '<p class="org-paper-meta">没勾选的新增分类、归入和合并，下次检查时还会再出现；只有勾选“保持现状，不再提示”的调整建议，才会在论文和类别不变时不再出现。应用后可以撤销。</p>';
   }
-  async function suggest() {
-    const d = dialog('整理分类', '<p role="status">正在生成建议…</p>', null);
+  function aiReviewHTML(preview, lookup = item, nameOf = id => categoryPath(id)) {
+    const plan = preview.ai_plan, created = new Map((plan.new_categories || []).map(c => [c.id, c]));
+    const name = id => created.get(id)?.name || nameOf(id);
+    const action = {rename: '改名', merge: '合并', delete: '删除标签'};
+    const categoryChanges = (plan.categories || []).filter(c => c.action !== 'keep').map(c => `<li><b>${action[c.action] || '调整'}</b> <span data-no-i18n>${h(nameOf(c.id))}</span>${c.action === 'rename' ? ` → <span data-no-i18n>${h(c.name)}</span>` : c.action === 'merge' ? ` → <span data-no-i18n>${h(name(c.target))}</span>` : ''}<p class="org-paper-meta" data-no-i18n>${h(c.reason)}</p></li>`).join('');
+    const newCategories = (plan.new_categories || []).map(c => `<li><span data-no-i18n>${c.parent_id ? `${h(name(c.parent_id))} › ` : ''}${h(c.name)}</span><p class="org-paper-meta" data-no-i18n>${h(c.reason)}</p></li>`).join('');
+    const changes = (plan.papers || []).filter(p => JSON.stringify([...(lookup(p.key)?.directions || [])].sort()) !== JSON.stringify([...p.categories].sort()));
+    const papers = changes.map(p => `<li><span data-no-i18n>${h(lookup(p.key)?.title || p.key)}</span><p class="org-paper-meta">${p.categories.length ? p.categories.map(id => `<span data-no-i18n>${h(name(id))}</span>`).join(' · ') : '保留为未分类'}<br><span data-no-i18n>${h(p.reason)}</span></p></li>`).join('');
+    const changed = categoryChanges || newCategories || papers;
+    return `<p class="org-paper-meta">AI 已审阅当前范围内的已有分类、已分类和未分类论文。只显示建议改变的内容。</p>${changed ? '<label><input type="checkbox" data-ai-plan checked> 应用这份完整整理方案</label><p class="org-paper-meta">删除标签与论文重新归类一起应用，不删除论文或笔记；应用后可以撤销。</p>' : '<p role="status">AI 审阅完成，没有需要调整的内容。</p>'}${categoryChanges ? `<section class="org-review-section"><h4>调整现有分类</h4><ul>${categoryChanges}</ul></section>` : ''}${newCategories ? `<section class="org-review-section"><h4>新增分类</h4><ul>${newCategories}</ul></section>` : ''}${papers ? `<section class="org-review-section"><h4>重新归类论文</h4><ul>${papers}</ul></section>` : ''}`;
+  }
+  async function suggest(mode = 'ai') {
+    const epoch = S.epoch, scope = S.scope, project = currentProject(), token = ++S.reviewToken;
+    const current = () => token === S.reviewToken && epoch === S.epoch && scope === S.scope && project === currentProject();
+    let jobId = null, completed = false;
+    const cancel = () => { if (jobId && !completed) window.PDH.api('/api/organization', {action:'cancel-category-review',job_id:jobId}).catch(() => {}); };
+    S.cancelReview?.(); S.cancelReview = cancel;
+    const d = dialog('整理分类', `<p role="status">${mode === 'local' ? '正在进行本地检查…' : '正在用 AI 审阅已有分类和全部论文，分批处理…'}</p>`, null);
+    d.addEventListener('close', cancel);
     try {
       await S.queue;
+      if (!current() || !d.isConnected) return;
       const asked = S.scope !== 'all' ? S.scope : window.PDH.state?.currentProject;   // the project tab's papers and profile; on the all tab, every paper with the current project's profile
-      let result = await window.PDH.api('/api/organization', { action: 'suggest', revision: S.snapshot.revision, ...(asked ? { project_id: asked } : {}), ...(S.scope === 'all' ? { scope: 'all' } : {}) });
+      let result = await window.PDH.api('/api/organization', { action: mode === 'local' ? 'suggest' : 'review-categories', revision: S.snapshot.revision, ...(asked ? { project_id: asked } : {}), ...(S.scope === 'all' ? { scope: 'all' } : {}) });
       if (result.job) {
         let job = result.job;
+        jobId = job.id;
         while (job.state !== 'done') {
-          if (!d.isConnected) return;
+          if (!current() || !d.isConnected) { cancel(); return; }
           if (job.state === 'failed') throw new Error(job.error || '整理分类生成失败');
           await new Promise(resolve => setTimeout(resolve, 1200));
           job = await window.PDH.api(`/api/jobs/${encodeURIComponent(job.id)}`);
         }
+        completed = true;
         result = job.result;
       }
-      if (!d.isConnected) return;
+      if (!current() || !d.isConnected) { cancel(); return; }
       if (Array.isArray(result.items) && result.revision >= S.snapshot.revision) { accept(result); renderData(); }
       d.close();
       const preview = result.suggestions || result.snapshot?.suggestions;
       if (!preview || !Array.isArray(preview.groups)) throw new Error('服务端没有返回整理分类的结果，请重试');
+      if (mode === 'ai' && !preview.ai_plan) {
+        const stats = result.ai_review || {};
+        const failure = dialog('整理分类', `<p role="status">${h(stats.error || stats.reason || 'AI 审阅未完成，本次没有修改分类。')}</p><p class="org-paper-meta">已审阅 ${Number(stats.processed_papers) || 0} / ${Number(stats.total_papers) || 0} 篇，完成 ${Number(stats.completed_batches) || 0} / ${Number(stats.total_batches) || 0} 批；剩余 ${Number(stats.remaining_papers) || 0} 篇未处理。此次没有保存或应用 AI 整理方案。</p><p class="org-paper-meta">本地检查可以合并明确同义类别、提供归类建议；不会替代 AI 对分类合理性的判断。</p><button type="button" data-local-review>只做本地检查</button>`, null);
+        failure.querySelector('[data-local-review]').addEventListener('click', () => { failure.close(); suggest('local'); });
+        return;
+      }
       const proposals = preview.groups || (Array.isArray(preview) ? preview : []);
-      const nothing = !(preview.groups || []).length && !(preview.merges || []).length && !(preview.moves || []).length;
+      const nothing = preview.ai_plan ? !aiReviewHTML(preview).includes('data-ai-plan') : !(preview.groups || []).length && !(preview.merges || []).length && !(preview.moves || []).length;
       dialog('整理分类', suggestionsHTML(preview), nothing ? null : '应用所选', async el => {
+        if (!current()) throw new Error('论文范围已变化，请重新审阅');
+        if (preview.ai_plan) {
+          if (!el.querySelector('[data-ai-plan]')?.checked) throw new Error('没有选择需要应用的整理方案');
+          const result = await mutate({action:'apply-ai-review', ai_token:preview.ai_token, fingerprint:preview.fingerprint}, false, current);
+          if (!current()) return;
+          const a = result.apply_result || {};
+          S.filter = '*'; renderData();
+          S.notice = `已整理 ${Number(a.changed_papers) || 0} 篇论文；改名 ${Number(a.renamed_categories) || 0}、合并 ${Number(a.merged_categories) || 0}、删除 ${Number(a.deleted_categories) || 0} 个标签，可以撤销`;
+          status(); window.PDH.toast(S.notice, 'ok', 6000); return;
+        }
         const suggestions = [...el.querySelectorAll('[data-suggestion]')].filter(f => f.querySelector('[data-enabled]').checked).map(f => ({ id: proposals[Number(f.dataset.suggestion)].id, name: f.querySelector('[data-name]').value.trim(), color: f.querySelector('[data-color]')?.value || DEFAULT_COLOR, keys: [...f.querySelectorAll('[data-member]:checked')].map(c => c.dataset.member) }));
         if (suggestions.some(s => !s.name || !s.keys.length)) throw new Error('每个所选类别都需要名称和至少一篇论文');
         const merges = [...el.querySelectorAll('[data-merge]')].filter(f => f.querySelector('[data-merge-enabled]').checked).map(f => f.dataset.merge);
         const moves = [...el.querySelectorAll('[data-move]')].filter(f => f.querySelector('[data-move-enabled]').checked).map(f => f.dataset.move);
         const dismissed = [...el.querySelectorAll('[data-move]')].filter(f => f.querySelector('[data-move-dismiss]').checked && !f.querySelector('[data-move-enabled]').checked).map(f => f.dataset.move);
-        const result = await mutate({ action:'apply-suggestions', apply_mode:'add', fingerprint:preview.fingerprint, suggestions, merges, moves, dismissed, finish: true });
+        const result = await mutate({ action:'apply-suggestions', apply_mode:'add', fingerprint:preview.fingerprint, suggestions, merges, moves, dismissed, finish: true }, false, current);
+        if (!current()) return;
         const applied = result.apply_result;
         if (!applied) throw new Error('当前服务端未返回应用结果，请退出旧版并打开最新应用后重试');
         S.filter = '*'; renderData();
@@ -1081,7 +1122,7 @@
         S.notice = parts.length ? [...parts, '其余保持原样，可以撤销'].join(' · ') : '没有改动任何类别';
         status(); window.PDH.toast(S.notice, 'ok', 6000);
       });
-    } catch (error) { if (d.isConnected) d.querySelector('.org-dialog-body').textContent = `建议生成失败：${error.message}`; else report(error); }
+    } catch (error) { if (!current()) return; if (d.isConnected) d.querySelector('.org-dialog-body').textContent = `建议生成失败：${error.message}`; else report(error); }
   }
   async function exportData() {
     const result = await window.PDH.api('/api/organization', { action: 'export' });
@@ -1288,6 +1329,7 @@
   window.addEventListener('beforeunload', event => { if ([...S.drafts.values()].some(d => d.dirty)) { event.preventDefault(); event.returnValue = ''; } });
   // Switching project: forget what was shown for the previous one (selection, focus, similarity relations) and reload.
   function reset() {
+    S.cancelReview?.(); S.cancelReview = null;
     S.epoch++; S.refreshToken++; S.relationsToken++; S.contextToken++; S.navigationToken++; S.contexts.clear(); S.routeToken++;
     S.routeDetail = null; S.rcy?.destroy(); S.rcy = null; S.routeFocus = null;
     S.relationsLoading = false; S.relationsReload = false;
@@ -1319,5 +1361,5 @@
     const epoch = S.epoch;
     try { return await refresh(); } catch (error) { if (epoch === S.epoch) report(error); return false; }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { contextFor, navigatePaper, renderUnmatched, refresh, loadRelations, renderDetail, aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggestionsHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { contextFor, navigatePaper, renderUnmatched, refresh, loadRelations, renderDetail, aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggest, suggestionsHTML, aiReviewHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
 })();

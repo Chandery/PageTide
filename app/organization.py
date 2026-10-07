@@ -39,6 +39,7 @@ from urllib.parse import unquote
 
 from . import eligibility, pathgraph, pathgrowth, route_revision
 from .clustering import cluster, corpus_fingerprint
+from .organization_terms import category_identity, category_term
 from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
 from .db import now
 
@@ -419,7 +420,7 @@ class Organization:
         if op == "apply-suggestions":
             op = "suggest-apply"
         if op not in {"direction-save", "direction-delete", "membership", "note", "history",
-                      "positions", "collapse", "undo", "export", "suggest", "suggest-apply",
+                      "positions", "collapse", "undo", "export", "suggest", "suggest-apply", "apply-ai-review",
                       "drafts", "draft-save", "draft-clear"} | ROUTE_OPS:
             raise ValueError("Unknown organization operation")
         if op == "suggest":
@@ -608,6 +609,21 @@ class Organization:
                            for v in point.values()):
                         raise ValueError("Coordinates must be finite numbers within +/-10000000")
                     data["positions"][node] = dict(point)
+            elif op == "apply-ai-review":
+                preview = data.get("suggestions") or {}
+                if not preview.get("ai_token") or body.get("ai_token") != preview["ai_token"]:
+                    raise Conflict("AI 审阅预览已变化，请重新审阅")
+                if preview.get("ai_applied"):
+                    result = self._snapshot()
+                    result["apply_result"] = {"changed_papers": 0, "created_categories": 0, "merged_categories": 0, "deleted_categories": 0, "renamed_categories": 0}
+                    return result
+                if body.get("fingerprint") != preview.get("fingerprint") or corpus_fingerprint(self._corpus(preview.get("scope"))) != preview.get("fingerprint"):
+                    raise Conflict("论文已变化，请重新审阅")
+                if structure_hash(data["directions"], data["memberships"]) != preview.get("structure"):
+                    raise Conflict("类别或归属已变化，请重新审阅")
+                apply_result = self._apply_ai_review(data, preview.get("ai_plan"))
+                preview["ai_applied"] = True
+                label = "应用 AI 分类审阅"
             elif op == "suggest-apply":
                 label = "应用建议"
                 preview = data.get("suggestions")
@@ -869,7 +885,7 @@ class Organization:
         added, already, created, changed = 0, 0, 0, set()
         placed = {}  # suggestion id -> direction id, so children land under their parent
         redirect = redirect or {}
-        norm = lambda text: " ".join(str(text or "").lower().split())
+        norm = category_identity
         for group in groups:
             if not group["keys"]:
                 raise ValueError("所选类别至少需要一篇论文")
@@ -878,12 +894,14 @@ class Organization:
             if target is None and group.get("target"):
                 continue   # the category this addition was for is gone: skip it, never make a new one in its place
             if target is None:
-                target = next((d for d in data["directions"]
-                               if (d["id"] == group["id"] or d.get("source_suggestion") == group["id"])
-                               and d["name"] == group["name"]
-                               and d["color"].lower() == group.get("color", "#64748b").lower()), None)
-            if target is None:
-                level = placed.get(group.get("parent")) if group.get("parent") is not None else None
+                parent = group.get("parent")
+                level = placed.get(parent) if parent is not None else None
+                if parent is not None and level is None:
+                    ptarget = redirect.get(group.get("parent_target"), group.get("parent_target"))
+                    level = ptarget if ptarget and any(d["id"] == ptarget for d in data["directions"]) else next((d["id"] for d in data["directions"]
+                                    if parent in (d["id"], d.get("source_suggestion"))), None)
+                    if level is None:
+                        raise ValueError("请同时选择此子类别的父类别")
                 target = next((d for d in data["directions"]
                                if norm(d["name"]) == norm(group["name"]) and (d.get("parent_id") or None) == (level or None)
                                and (group.get("parent") is None or level is not None)), None)
@@ -996,6 +1014,10 @@ class Organization:
                     up, guard = parent_of(up), guard + 1
             return a == b
         changed, redirect, merged, moved = set(), {}, 0, 0
+        selected_merges = {item["id"] for item in merges}
+        for item in merges:
+            if not set(item.get("depends_on", [])) <= selected_merges:
+                raise ValueError("请同时选择此重复子类所依赖的父类别合并")
         for item in merges:   # merges first; later steps follow a dropped category to the one kept
             keep = item["keep"]
             if keep not in known():
@@ -1121,6 +1143,123 @@ class Organization:
             self.conn.execute("UPDATE org_projects SET revision=?,data=? WHERE project=?",
                               (now_revision + 1, _dump(data), self.project))
             return self._snapshot()
+
+    def store_ai_review(self, plan, revision, corpusfp, structure, scope):
+        """Install only a complete, locally validated model preview; never edit the library here."""
+        with self._transaction():
+            now, data = self._load()
+            if now != revision or corpus_fingerprint(self._corpus(scope)) != corpusfp or structure_hash(data['directions'], data['memberships']) != structure:
+                raise Conflict("审阅期间论文或分类已变化，请重新审阅")
+            if {p.get("key") for p in plan.get("papers", [])} != {p["key"] for p in self._corpus(scope)}:
+                raise ValueError("AI 审阅必须覆盖当前范围所有论文")
+            candidate = json.loads(_dump(data))
+            self._apply_ai_review(candidate, plan)  # Full validation on a private copy, without persistence.
+            data['suggestions'] = {'groups': [], 'merges': [], 'moves': [], 'pending_keys': [],
+                                  'fingerprint': corpusfp, 'structure': structure, 'scope': scope,
+                                  'source': 'ai', 'algorithm': 'ai-category-review-v1',
+                                  'ai_plan': plan, 'ai_token': uuid.uuid4().hex}
+            self.conn.execute('UPDATE org_projects SET revision=?,data=? WHERE project=?',
+                              (now + 1, _dump(data), self.project))
+            return self._snapshot()
+
+    def _apply_ai_review(self, data, plan):
+        """Apply the entire reviewed plan atomically. Deletes require every retained link to be handled."""
+        if not isinstance(plan, dict) or not isinstance(plan.get('categories'), list) or not isinstance(plan.get('papers'), list) or not isinstance(plan.get('new_categories'), list):
+            raise ValueError('分类审阅方案缺失')
+        existing = {d['id']: d for d in data['directions']}
+        operations = {item.get('id'): item for item in plan['categories'] if isinstance(item, dict)}
+        if len(operations) != len(plan['categories']) or set(operations) != set(existing):
+            raise ValueError('审阅必须覆盖全部现有类别')
+        redirect, removed, renamed = {}, set(), 0
+        for identifier, item in operations.items():
+            action = item.get('action')
+            if action == 'rename':
+                name = _text(item.get('name'), 'category name').strip()
+                if not name:
+                    raise ValueError('类别名称不能为空')
+                if existing[identifier]['name'] != name:
+                    existing[identifier].update(name=name, manual=True)
+                    renamed += 1
+            elif action == 'merge':
+                target = item.get('target')
+                if target not in existing or target == identifier or operations[target].get('action') not in {'keep', 'rename'}:
+                    raise ValueError('合并目标必须为保留的现有类别')
+                source_term = category_term(existing[identifier]['name'])
+                target_name = operations[target].get('name', existing[target]['name'])
+                if source_term and category_term(target_name) and category_identity(existing[identifier]['name']) != category_identity(target_name):
+                    raise ValueError('已知不同研究概念不能作为重复类别合并')
+                redirect[identifier] = target
+                removed.add(identifier)
+            elif action == 'delete':
+                removed.add(identifier)
+            elif action != 'keep':
+                raise ValueError('未知类别审阅操作')
+        fresh = set()
+        for item in plan['new_categories']:
+            if not isinstance(item, dict):
+                raise ValueError('新增类别必须为对象')
+            identifier = _text(item.get('id'), 'new category id')
+            name = _text(item.get('name'), 'category name').strip()
+            if not name or identifier in existing or identifier in fresh:
+                raise ValueError('新增类别名称或身份重复')
+            fresh.add(identifier)
+            data['directions'].append({'id': identifier, 'name': name, 'color': '#64748b',
+                                       'rank': len(data['directions']), 'parent_id': item.get('parent_id'),
+                                       'manual': True, 'source': 'ai-review'})
+        live = {d['id'] for d in data['directions']} - removed
+        for direction in data['directions']:
+            parent = direction.get('parent_id')
+            direction['parent_id'] = redirect.get(parent, parent)
+            if direction['id'] in live and direction.get('parent_id') is not None and direction['parent_id'] not in live:
+                raise ValueError('删除父类别前必须处理子类别')
+        by_id = {d['id']: d for d in data['directions'] if d['id'] in live}
+        for identifier, direction in by_id.items():
+            term = category_term(direction['name'])
+            if (identifier in fresh or operations.get(identifier, {}).get('action') == 'rename') and term and term['kind'] == 'method' and direction.get('parent_id') is None:
+                raise ValueError('方法类别必须归于明确研究方向下')
+        for identifier in live:
+            seen, current = set(), identifier
+            while current is not None:
+                if current in seen:
+                    raise ValueError('审阅方案不能产生类别循环')
+                seen.add(current)
+                current = by_id[current].get('parent_id')
+        changed, paper_ids = set(), set()
+        for key, ids in data['memberships'].items():
+            updated = list(dict.fromkeys(redirect.get(i, i) for i in ids))
+            if updated != ids:
+                changed.add(key)
+                data['memberships'][key] = updated
+        for item in plan['papers']:
+            if not isinstance(item, dict):
+                raise ValueError('论文审阅必须为对象')
+            key = self._paper_key(item.get('key'), saved=True)
+            ids = self._list(item.get('categories'), 'review categories')
+            ids = list(dict.fromkeys(redirect.get(i, i) for i in ids))
+            if key in paper_ids or not set(ids) <= live:
+                raise ValueError('重复论文或无效目标类别')
+            paper_ids.add(key)
+            if data['memberships'].get(key, []) != ids:
+                data['memberships'][key] = ids
+                changed.add(key)
+        deleted = removed - set(redirect)
+        if any(set(ids) & deleted for ids in data['memberships'].values()):
+            raise ValueError('待删除类别仍有未审阅论文（可能在其他项目或已归档），请审阅全部范围后再删除')
+        supported = {i for item in plan['papers'] for i in item['categories']}
+        for identifier in list(supported):
+            parent = by_id[identifier].get('parent_id')
+            while parent is not None and parent not in supported:
+                supported.add(parent)
+                parent = by_id[parent].get('parent_id')
+        if not fresh <= supported:
+            raise ValueError('新增类别必须有本次论文证据支持')
+        if any(category_identity(a['name']) == category_identity(b['name']) and a.get('parent_id') == b.get('parent_id')
+               for index, a in enumerate(by_id.values()) for b in list(by_id.values())[index + 1:]):
+            raise ValueError('审阅方案仍有同级同义类别')
+        self._remove_directions(data, removed)
+        data['protected'] = sorted(set(data['protected']) | changed)
+        return {'changed_papers': len(changed), 'created_categories': len(fresh),
+                'renamed_categories': renamed, 'merged_categories': len(redirect), 'deleted_categories': len(deleted)}
 
     @staticmethod
     def _list(value, name):

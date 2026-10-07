@@ -77,7 +77,9 @@
   function directions(r) {
     const list = r.directions || [];
     const head = `<div class="wk-head"><h3>方向的变动</h3><span class="wk-note">按论文库的类别；一篇论文在两个类别里就两边都算</span></div>`;
-    if (!list.length) return `<section class="wk-card">${head}${empty('本周没有哪个方向上有收藏、反馈或已读懂的记录。')}</section>`;
+    const message = r.category_normalization?.message;
+    const normalization = typeof message === 'string' && message ? `<p class="wk-note wk-normalization">${esc(message)}</p>` : '';
+    if (!list.length) return `<section class="wk-card">${head}${normalization}${empty('本周没有哪个方向上有收藏、反馈或已读懂的记录。')}</section>`;
     const widest = Math.max(1, ...list.flatMap((d) => [n(d.current.papers), n(d.previous.papers)]));
     const cards = list.map((d) => {
       const counts = KINDS.filter((k) => n(d.current[k])).map((k) => `<span class="k-${k}"><i></i>${LABEL[k]} ${n(d.current[k])}</span>`).join('');
@@ -91,7 +93,7 @@
         + '</article>';
     }).join('');
     const rest = n(r.more_directions) ? `<p class="wk-note">另有方向没有列出：${n(r.more_directions)}</p>` : '';
-    return `<section class="wk-card">${head}<div class="wk-dirs">${cards}</div>${rest}</section>`;
+    return `<section class="wk-card">${head}${normalization}<div class="wk-dirs">${cards}</div>${rest}</section>`;
   }
 
   function units(r) {

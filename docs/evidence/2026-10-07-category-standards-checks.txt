@@ -1,0 +1,63 @@
+2026-10-07 category standards / full review — sanitized check evidence
+Branch: codex/route-discovery-rework. Implementation baseline: ac814ca.
+Scope: coherent critical prompt/gateway/IPC/classification unit. No real user library changes or model request.
+New operation category_review remains owner_approved=false; implementation authorization is distinct.
+
+Regression and final checks (actually run by root)
+- Before implementation tests/test_category_standards.py: 4 failures / 6 passes, including bilingual duplicates, direction/method distinction and arbitrary phrase labels.
+- First full Python run: 1546 tests, 2 failures / 1 error from prior-contract fixtures. Retained private log .local/category-full-python-first.txt.
+  Child-only JEPA now rejects missing parent atomically; canonical English World Model replaces raw pinned spelling; added explicit AI-failure dialog changes title-count 2 to 3.
+  The independent reviewer inspected all three updates and reran all 34 tests, retaining their original coverage.
+- python3 -m unittest discover -s tests -v: exit 0; 1546 tests in 323.881s; OK.
+- node --test tests/*.cjs: exit 0; 298 tests, 298 passed, 0 failures/cancelled/skipped.
+- python3 scripts/budget.py --check: exit 0; registry arithmetic/generated file parity only, not billing calibration.
+- python3 scripts/harness.py check: exit 0; traceability/local Markdown links only, not product quality.
+- python3 scripts/i18n_extract.py --check: exit 0; 0 missing of 1178 detected UI strings.
+- git diff --check: exit 0.
+Full/private intermediate logs remain .local/category-*; no private data or secrets in this artifact.
+
+Fresh desktop artifact (actually run)
+- .local/desktop-build-env/bin/python scripts/build_desktop.py: exit 0; prepared backend with new category modules, UI and budget registry.
+- cargo tauri build --bundles app: exit 0; arm64 release compiled in 14.44s, bundled PaperDigHelper.app.
+- Initial codesign --verify --deep --strict failed: code has no resources but signature indicates they must be present.
+  Locally repaired the built artifact using codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PaperDigHelper.app (exit 0).
+- codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app: exit 0 after repair.
+- python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server: exit 0 after signing. Existing route/auth/assets/restart/fallback checks passed.
+- python3 .local/category-packaged-smoke.py: exit 0, actual signed packaged backend HTTP with synthetic temporary Store:
+  isolated HOME/data, outbound proxy blocked, key empty, dev disabled; unapproved review job refused before billing/ledger, readonly local fallback not applicable;
+  prepared synthetic complete AI-format preview applied atomically; unreasonable label removed; two papers and owner's synthetic note preserved;
+  backend restart then undo restored old label and both memberships; bundled JS has review/cancel/AI preview paths.
+  The preview was a fixture, not a real model reply. This checks the actual package/backend, not native window interaction or AI judgment.
+Artifact: src-tauri/target/release/bundle/macos/PaperDigHelper.app. Local adhoc signing, not notarization/distribution approval.
+
+Self-review (root)
+Final identity, parent dependency, shared scope, strict response/write-boundary validation, atomic apply and single undo event, readonly failure, unknown-usage stop and cancellation were inspected with actual diffs and regressions.
+No original paper/note/source deletion, migration or runtime provider substitution. Explicit confirmation is required for the full subjective AI proposal; stale token/corpus/structure cannot apply.
+New budget op only: 8000 input / 2000 output per batch, max 60 directory labels / 12 papers; no retry. Existing approved caps/approvals unchanged, mandatory core minimum 0 model tokens.
+Public metadata fragments + ephemeral aliases only. Complete directory cannot silently be truncated. UTF-8 bytes + 256 preflight is conservative arithmetic, not measured tokenizer parity.
+Independent scope and found/fixed defects: docs/evidence/2026-10-07-category-standards-review.md. UI notice helpers authored by that reviewer were separately examined by weekly_categories.
+
+Pending and preserved failures
+- New cap/privacy question has no human answer at this check. category_review.owner_approved=false; no key/provider/real-model access.
+- Single-batch peak miss ceiling $0.0048, monthly eight-batch ceiling $0.03840 are arithmetic only, not model or developer usage measurements.
+- Real model category quality, provider tokenizer/billing, actual user-library effect, native-window flow and 8GB resources: not_run.
+- python3 scripts/harness.py check --release: exit 1, actual run after green build. Original 19 blocking evaluations remain not_run and runtime_enforcement_implemented/tokenizer_parity_verified remain false.
+  No evaluation/budget release flag was relaxed. This unit's green package does not grant whole-product release approval.
+- FIX-CATEGORY-STANDARDS remains review pending the new owner cap/privacy decision; implementation and deterministic tests passed.
+
+Final documentation check follow-up
+After adding six test-file references to task evidence, python3 -m unittest tests.test_harness tests.test_budget -q ran 41 tests in 256.760s and exited 1 with one failure. HarnessTests intentionally copies no tests except its historic route fixture to its temporary repository; the six new paths therefore did not exist there. Removed those task evidence links and retained the three complete sanitized docs/ADR evidence artifacts; did not weaken validator or change tests. New behavior test paths remain listed in the exact change record and this evidence/review. Final full-suite rerun follows this correction.
+Final post-registration full-suite rerun: python3 -m unittest discover -s tests -v > .local/category-full-python-final.txt 2>&1, exit 0, 1546 tests in 184.401s, OK. This includes the previously failing harness task-evidence fixture. No validator/test weakening and no product changes after the prior green package. Root also reran the signed packaged category HTTP smoke with exact two-paper membership assertions for apply and restart/undo: exit 0.
+
+2026-10-07 owner approval continuation and stable integration handoff
+- Human replied “批准” in this conversation to the category_review bounded-scope question. Registered ONLY category_review owner_approved=true, interactive/default-off, 8000/2000, original policy/caps unchanged. Existing grants did not change. Prompt status/PRODUCT/ADR/BUDGET/generated updated; runtime SYSTEM unchanged.
+- category_audit added four authorization regressions only in tests/test_budget.py and tests/test_gateway_budget.py. Actual two-module run: 45/45 passed after grant registration (initial two false-grant failures retained by reviewer). These assert own current grant, one mocked gateway call, reservation and reconciled usage, explicitly revoked fixture and AI-off normal/dryrun zero key/network/ledger. Current complete full suite after these additions: not_run. Prior pre-grant complete suite remains 1546/184.401s and 298 Node passed; not labelled 1550 passed.
+- python3 scripts/budget.py --write then --check: exit0; no envelope/global policy increase. Final repository check and diff check exit0 after grant.
+- Actual .local/route-native-20261007/tokenizer-env/bin/python .local/category-approved-20261007/real-probe.py: exit1 (quality/parse failure). One call only, no retry, production Gateway dev=False and original formal ledger, seven synthetic categories/six synthetic public academic metadata papers; no real library/notes/profile/PDF/private IDs sent.
+  Full wire bytes+256=4691; fixed official tokenizer SHA256 89085f12ef79460ac5f66d1119325ddfc694b4ab209d80bbd81d35f081dc9614 counted1137 wire tokens; provider prompt943/output301/total1244, finish stop, cache-hit0, usage reconciled, USD0.0006441 at registered peak prices. Offline JSON wire and provider chat prompt differ, not parity proof or invoice calibration.
+  The model deleted same-meaning c1 and title-fragment c3 but assigned p6 to both c2 and deleted c1. Parser rejected: 论文归属引用未知、被移除或重复类别. Service failed/stored=false/no ai_token; assertions verified all synthetic classes/memberships and note unchanged. Real model subjective quality for this example: failed. Deterministic failure guard: passed.
+  Receipts/raw synthetic response/fixture source remain .local/category-approved-20261007; new marker prevents rerunning the same paid attempt. No open process/session.
+- Native fixture .local/category-native-20261007/{data,home,fixture.json} prepared with AI_DISABLED, synthetic 4 papers/2 alias labels/one note. No app was started, native acceptance not_run.
+- Main-workspace integration coordinator asked this task to finish current records then stop source writes/new model calls/builds before integrating another approved queue fix. Obeyed; proposed stronger same-meaning-group/term-kind/final-reference prompt context was NOT implemented, no second paid call. Current shipped/built package still contains pre-grant owner_approved=false; no post-grant build performed. Joint full tests/build/sign/native and any explicitly bounded subsequent quality evaluation remain to the receiving task.
+- Task remains review, not done. Final change record distinguishes earlier green full checks/build from current unrun joint gates. Original 19 release gates/two flags preserved.
+Final handoff checks after grant/records: budget --check exit0; harness check exit0; git diff --check exit0. harness review changes/2026-10-07-category-standards.json exit1 because current tests evidence exit_code is intentionally null/not_run after the four new grant regressions, rather than copying old full-suite pass as fresh. Receiving task must replace that unrun full-suite gate with actual joint results and rebuild before closing; not a hidden checker failure or changed validator.

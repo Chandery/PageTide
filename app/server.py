@@ -31,6 +31,7 @@ VERSION = "0.12"
 JOBS = {}
 JOBS_LOCK = threading.Lock()
 JOB_SEQ = [0]
+CATEGORY_REVIEW_CANCEL = {}
 ORGANIZATION_JOB_LOCK = threading.Lock()
 ORGANIZATION_PROCESSES_LOCK = threading.Lock()
 ORGANIZATION_PROCESSES = set()
@@ -115,6 +116,18 @@ def suggestion_profile(app, project_id=None):
             "interest": [item["term"] for item in keywords(context(app, project_id), PROFILE_STOPWORDS)
                          if isinstance(item.get("term"), str) and 0 < len(item["term"]) <= 100][:40],
             "language": app.language()}
+
+
+def category_review_job(root, project_id, all_papers=False, cancelled=None):
+    """One explicit AI review job with its own short-lived connection."""
+    from .category_review_service import run_review
+    app = make_app(root)
+    try:
+        profile = suggestion_profile(app, project_id)
+        scope = None if all_papers else (project_id or app.get_default_project_id())
+        return run_review(app, scope, profile, cancelled=cancelled)
+    finally:
+        app.store.close()
 
 
 # Keys and budget ceilings are owned by the gateway, not the cosmetic settings file.
@@ -878,6 +891,29 @@ class Handler(BaseHTTPRequestHandler):
             operation = body.get("op", body.get("action")) if body else None
             if operation == "route-detail":   # read-only and derived: nothing is stored, nothing needs a revision
                 return self._json(app.route_detail(body.get("project_id"), body.get("focus_key")))
+            if operation == "review-categories":
+                # Validate the selected project before dispatch; the job reopens its own app.
+                suggestion_profile(app, body.get('project_id'))
+                cancelled = threading.Event()
+                def run_category_review():
+                    try:
+                        return category_review_job(getattr(self.server, 'root', '.'), body.get('project_id'), body.get('scope') == 'all', cancelled.is_set)
+                    finally:
+                        with JOBS_LOCK:
+                            for identifier, flag in list(CATEGORY_REVIEW_CANCEL.items()):
+                                if flag is cancelled:
+                                    CATEGORY_REVIEW_CANCEL.pop(identifier, None)
+                job = _job_start('category-review', run_category_review)
+                with JOBS_LOCK:
+                    if JOBS[job['id']]['state'] == 'running':
+                        CATEGORY_REVIEW_CANCEL[job['id']] = cancelled
+                return self._json({'job': job})
+            if operation == 'cancel-category-review':
+                with JOBS_LOCK:
+                    flag = CATEGORY_REVIEW_CANCEL.get(body.get('job_id'))
+                    if flag is not None:
+                        flag.set()
+                return self._json({'cancel_requested': flag is not None})
             if operation in {"suggest", "graph"}:
                 path = app.store.path.resolve()
                 request = ({"profile": suggestion_profile(app, body.get("project_id")),

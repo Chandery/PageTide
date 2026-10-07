@@ -230,6 +230,60 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertEqual(json.loads(urlopen.call_args[0][0].data)["max_tokens"], 1500)
         self.assertEqual([r["operation"] for r in self._rows()], ["learning_path_plan", "learning_path_plan"])
 
+    def test_approved_category_review_sends_once_with_its_own_cap_and_reconciles_usage(self):
+        from app import category_review as cr
+        self.assertIs(self.gateway.config['operations'][cr.OPERATION]['owner_approved'], True)
+        prepared = cr.prepare([{'id':'local-world-id','name':'世界模型','parent_id':None}],
+                              [{'key':'local-paper-id','title':'World Model Planning','categories':['local-world-id']}])
+        reply = {'categories':[{'id':'c1','action':'keep','reason':'明确研究方向'}],
+                 'papers':[{'id':'p1','categories':['c1'],'reason':'公开标题支持'}], 'new_categories':[]}
+        payload = {'model':'deepseek-flash','choices':[{'message':{'content':json.dumps(reply)},'finish_reason':'stop'}],
+                   'usage':{'prompt_tokens':200,'completion_tokens':100,'total_tokens':300}}
+        observed = []
+        def fake(request, timeout):
+            observed.extend(self._rows())
+            return _ok(payload)
+        with mock.patch('app.gateway.urllib.request.urlopen', side_effect=fake) as opened:
+            result = self.gateway.call(cr.OPERATION, prepared['messages'])
+        self.assertTrue(result['ok']); opened.assert_called_once()
+        wire = json.loads(opened.call_args[0][0].data)
+        self.assertEqual(wire['max_tokens'], 2000)
+        self.assertEqual(wire['thinking'], {'type':'disabled'})
+        self.assertEqual(wire['messages'], prepared['messages'])
+        self.assertNotIn('local-world-id', json.dumps(wire)); self.assertNotIn('local-paper-id', json.dumps(wire))
+        self.assertEqual([(r['operation'],r['status'],r['input'],r['output']) for r in observed],
+                         [('category_review','reserved',8000,2000)])
+        self.assertEqual(observed[0]['usd'], '0.0048')
+        rows = self._rows()
+        self.assertEqual([(r['operation'],r['status']) for r in rows],
+                         [('category_review','reserved'),('category_review','reconciled')])
+        self.assertEqual(rows[0]['id'], rows[1]['id'])
+        self.assertEqual((rows[1]['input'],rows[1]['output'],rows[1]['total']), (200,100,300))
+        self.assertEqual(self.gateway.usage_today()['tokens'], 300)
+        self.assertEqual(cr.parse(result['content'],prepared['context'],finish_reason=result['finish_reason'])['papers'][0]['key'],
+                         'local-paper-id')
+
+    def test_category_review_revoked_fixture_refuses_before_key_or_network_and_writes_no_ledger(self):
+        operations = self.gateway.config['operations']
+        operations['category_review'] = {**operations['category_review'], 'owner_approved':False}
+        with mock.patch.object(self.gateway,'_load_key') as load_key, mock.patch('app.gateway.urllib.request.urlopen') as opened:
+            result = self.gateway.call('category_review', [])
+        load_key.assert_not_called(); opened.assert_not_called()
+        self.assertFalse(result['ok']); self.assertIn('owner approval',result['reason'])
+        self.assertEqual(self._rows(), [])
+        self.assertFalse(self.gateway.ledger.exists())
+
+    def test_category_review_ai_off_blocks_normal_and_dry_run_before_key_or_network(self):
+        self.gateway.set_enabled(False)
+        with mock.patch.object(self.gateway,'_load_key') as load_key, mock.patch('app.gateway.urllib.request.urlopen') as opened:
+            for dry_run in (False, True):
+                with self.subTest(dry_run=dry_run):
+                    result = self.gateway.call('category_review', [], dry_run=dry_run)
+                    self.assertFalse(result['ok']); self.assertTrue(result['disabled'])
+        load_key.assert_not_called(); opened.assert_not_called()
+        self.assertEqual(self._rows(), [])
+        self.assertFalse(self.gateway.ledger.exists())
+
     def test_learning_path_plan_is_refused_when_unapproved(self):
         ops = self.gateway.config["operations"]
         ops["learning_path_plan"] = {**ops["learning_path_plan"], "owner_approved": False}

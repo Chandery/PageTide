@@ -1,3 +1,25 @@
+# 当前交接：分类范围已批准，联合验收接管（2026-10-07）
+
+用户本轮明确回复“批准”，已登记仅 `category_review.owner_approved=true`；保持8000/2000、60类/12篇标题80摘要160、显式触发/默认off、原总额度/其他授权不变。源码/SYSTEM未新增强化，prompt header和预算/文档授权已更新。`FIX-CATEGORY-STANDARDS`仍review，不能称最新包或模型质量完成。
+
+批准后新增4个授权回归，两模块45/45通过；最新全量1550、重建内含true预算的新包、原生分类点击尚未运行。此前全1546/298和旧包构建/签名/合成恢复通过，仅证明批准前版本，旧包中category_review仍false。实际仅一次非dev正式网关合成7类/6纸：1244token（943/301）、$0.0006441峰费率本地计费、reconciled；wire4691bytes+256、固定官方tokenizer1137，计数对象不同不宣称parity。AI把已删c1留在paper归属，严格拒绝方案，classes/memberships/笔记未改，single-model质量failed、拒绝防线passed，无重试。真实用户库未改，只有已批准正式模型账本新增此usage。
+
+接管任务要求本目录源文件/切分支/重建/新模型请求在安全边界后停止，本任务按要求收尾；所有子代理均停止产品源码写入。加强同义组/term-kind/最终ref上下文仅建议，未实施、无第二模型调用。原生AI_OFF隔离资料 `.local/category-native-20261007`准备完、应用未启动；第一次真实receipt/fixture/marker留 `.local/category-approved-20261007`，不得自动重复付费。
+
+[同工作单元记录](../changes/2026-10-07-category-standards.json)、[最终检查及真实失败](evidence/2026-10-07-category-standards-checks.txt)、[独立审查](evidence/2026-10-07-category-standards-review.md)。稳定交接标记 `.local/category-integration-ready.json`；接收任务原样保存全部分类源改动与本轮人类批准，再负责联合完整测试、构建、签名和原生入口。原19gates/2flags不降；不继承授权为全产品release/无限预算。
+
+# 上一阶段：完整分类审阅已实现，新增 AI 范围待批准（2026-10-07）
+
+分支 `codex/route-discovery-rework`，实现基线 `ac814ca`；最终 commit/dirty 以 Git 核对。`FIX-CATEGORY-STANDARDS` 为 review：用户授权完整 AI 审阅实现，但新增 `category_review` 范围/上限提问尚未答复，`owner_approved=false` 保留。未执行模型请求或修改真实论文库；不能借其他操作已有批准。初始其他 growth 工作未被本任务重置、丢弃或覆盖。
+
+默认“整理分类”审阅完整共享目录和当前范围全部已收藏论文，已分类/未分类都检查。AI 提 keep/rename/merge/delete、新类及每篇最终归属，完整预览确认后原子应用、单事件可撤销和重启恢复。中英文明确别名统一身份；同路径双语父子有依赖，方向不按共现错误嵌套，未知标题残片不自动立类。周报只读归并别名及论文归属，保留真实反馈事件次数。失败不能存部分/假 AI 方案，另点本地检查；跨项目迟到、取消、未知用量停后续批次，scope 外或归档持有者阻止删除标签。
+
+最终 1546 Python（登记修正后 fresh 184.401s）/298 Node 全通过；独立审查发现并复核未知用量、缺父复用、方法根、跨 scope 迟到应用等防线，无剩余已发现 P1/P2。fresh backend/Tauri `.app` 构建通过；初次严格签名失败后对产物 adhoc 签名，严格验证与签名后包后端复验通过。实际隔离新包 HTTP 合成 fixture 完成未批准 AI 拒绝、完整预览应用、标签删除、论文笔记保留、重启撤销。不是原生窗口验收、模型质量或 notarization。
+
+[ADR0027](decisions/0027-category-standards-review.md)、[检查证据](evidence/2026-10-07-category-standards-checks.txt)、[独立审查](evidence/2026-10-07-category-standards-review.md)。预算/harness/i18n/diff 检查均通过；首跑旧合同 fixture 的 2fail/1error 及修正保留；末次登记补查41项的1fail来自临时仓库未复制test证据路径，改用3份完整docs evidence后全1546再次通过，未改validator/test或降低验收。单批 8000/2000、60 类/12 篇，公开标题80/摘要160与临时引用，完整目录过大拒绝，无重试；单批最高 $0.0048 为峰费率算术，原总额度不增，核心最低0token，developer 用量未知。
+
+下一步只等待人类对已呈现的新 cap/privacy 选项答复；获得批准后登记本操作授权、重建内含预算的包，再做有界真实模型/原生验收。用户不批准则保持 AI 拒绝和显式本地检查；不得自设 true。原全产品19阻断评估和两个 budget flags 保留，`check --release` 实际仍 exit1。真实模型/真实库/账单/tokenizer/原生窗口/8GB 未测，不称整个产品发布通过。
+
 # 当前工作单元：实际旧库启动失败修复完成（2026-10-07）
 
 分支codex/route-discovery-rework，基线a0cb9e2，最终commit/dirty以git核对。用户原生Load failed已实际复现并修复：v8旧discipline列重复添加失败，保留列/旧值/NOTNULL默认cs_ai，未指定策略创建省略列，revision0pending不冒充选择语言。FIX-LEGACY-LANGUAGE-START完成；新增nullable/回滚和真实历史NOTNULL回归，之前干净v8验收未覆盖此结构，不隐藏遗漏。

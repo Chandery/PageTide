@@ -63,6 +63,14 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(budget.cost(config, 0, 0), 0)
         self.assertGreater(budget.cost(config, 1, 0), 0)
 
+    def test_category_review_has_its_own_human_grant_and_bounded_interactive_cap(self):
+        operation = budget.load()['operations']['category_review']
+        self.assertIs(operation['owner_approved'], True)
+        self.assertIn('批准', operation['approval_note'])
+        self.assertIs(operation['enabled_by_default'], False)
+        self.assertEqual(operation['trigger'], 'interactive')
+        self.assertEqual(operation['cap'], {'input': 8000, 'output': 2000})
+
     def test_registered_proposal_daily_minimum_and_stress(self):
         config = budget.load()
         starter = next(s for s in config['scenarios'] if s['id'] == 'daily_triage_starter')

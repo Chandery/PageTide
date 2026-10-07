@@ -929,6 +929,37 @@
         "docs/evidence/2026-10-07-legacy-language-launch-checks.txt",
         "docs/evidence/2026-10-07-legacy-language-launch-review.md"
       ]
+    },
+    {
+      "id": "FIX-CATEGORY-STANDARDS",
+      "stage": "graph",
+      "title": "完整 AI 分类审阅、统一中英文标准及周报归并",
+      "status": "review",
+      "depends_on": [],
+      "requirements": [
+        "R-CAPTURE",
+        "R-GRAPH",
+        "R-WEEKLY",
+        "R-LOCAL",
+        "R-LOWCOMPUTE",
+        "R-DURABILITY",
+        "R-BUDGET",
+        "R-HARNESS"
+      ],
+      "acceptance": [
+        "默认审阅现有完整目录及当前范围全部已收藏论文，已有分类与未分类同等覆盖；每批完整目录、严格 c/p 白名单和全部覆盖校验，意见冲突及不完整回复不能保存方案",
+        "AI 提议 keep/rename/merge/delete/new 与每篇最终归属；完整预览确认后一次事务应用，删除旧标签但保留论文、笔记和来源，支持重启撤销、幂等与陈旧方案拒绝",
+        "同级中英文明确别名按完整祖先身份合并，预览展示原名；子合并依赖父合并；不同概念、不同父级与自定义类别保持独立，不能凭论文覆盖重叠合并",
+        "匹配、候选、已有类别复用、应用查重和周报使用同一术语身份；不直接以任意标题短语立类，新方法须有相关方向父类及论文支持，固定自定义关键词仍可用",
+        "周报同路径中英文别名按论文归属去重，保留真实反馈事件口径并显示归并说明",
+        "唯一 Gateway 有界批处理，无重试、无 PDF/笔记/反馈/画像/私有 ID 外发；预算拒绝、未知用量、取消及跨项目迟到结果不能导致后续调用或部分方案应用；失败另点本地检查",
+        "离线回归、独立审查及 fresh backend/Tauri .app 构建和隔离新包 apply/restart/undo 通过；新 category_review cap/privacy 需 owner 批准，真实 AI 质量与真实库验收不冒充通过"
+      ],
+      "evidence": [
+        "docs/decisions/0027-category-standards-review.md",
+        "docs/evidence/2026-10-07-category-standards-checks.txt",
+        "docs/evidence/2026-10-07-category-standards-review.md"
+      ]
     }
   ]
 }

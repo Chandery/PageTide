@@ -53,7 +53,7 @@ class LibraryEntryTests(unittest.TestCase):
 
     def test_the_category_review_button_and_its_dialogs_say_the_same_thing(self):
         self.assertIn("整理分类</button>", ORG)
-        self.assertEqual(ORG.count("dialog('整理分类',"), 2)
+        self.assertEqual(ORG.count("dialog('整理分类',"), 3)  # waiting, complete preview, explicit AI failure
 
 
 if __name__ == "__main__":

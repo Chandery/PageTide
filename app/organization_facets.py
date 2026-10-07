@@ -16,10 +16,10 @@ import re
 from collections import Counter, defaultdict
 
 from .clustering import MAX_PAPERS, MAX_TEXT, corpus_fingerprint, _corpus
-from .organization_terms import LABELS
+from .organization_terms import LABELS, TERMS, category_identity, category_label, category_aliases, category_term
 
-ALGORITHM = "profile-facets-v1"
-REVIEW_ALGORITHM = "organization-review-v1"
+ALGORITHM = "category-standards-v2"
+REVIEW_ALGORITHM = "organization-review-v2"
 MIN_GROUP = 2
 MAX_TOP = 12
 MAX_CHILDREN = 6
@@ -94,16 +94,12 @@ def _label(phrase_stems):
 
 
 def _variants(term):
-    """Stem sequences for a pinned term; Chinese glossary names map back to English.
-
-    A term with Chinese characters is never reduced to its Latin words ("LLM 推理"
-    is not "LLM"): it matches its exact text, or the English of an exact glossary name.
-    """
-    stems = _stems(term)
-    variants = [stems] if stems and not CJK.search(term) else []
-    for english, label in LABELS.items():
-        if label == term.strip() and _stems(english) not in variants:
-            variants.append(_stems(english))
+    """Match exact vocabulary aliases; never reduce a mixed custom name to Latin words."""
+    variants = []
+    for alias in category_aliases(term):
+        sequence = _stems(alias)
+        if sequence and not CJK.search(alias) and sequence not in variants:
+            variants.append(sequence)
     return variants
 
 
@@ -127,21 +123,25 @@ def _clean_terms(values):
 
 
 def _phrases(rows, keys, exclude):
-    """Title phrases shared by >= MIN_GROUP of `keys`: {stems: (docs, surface)}."""
-    surfaces, titles, index = defaultdict(Counter), {}, defaultdict(set)
-    for key in keys:
-        titles[key] = [_count_grams(original, exclude, surfaces)
-                       for original in map(words, CLAUSE.split(rows[key]["title"])) if original]
-        for segment in titles[key]:
-            for token in segment:
-                index[token].add(key)
-    # Membership tolerates one inserted word, as for pinned terms: "World Action
-    # Model" belongs to "world model" too. Only titles holding the first stem are checked.
+    """Only supported complete terms with explicit title/abstract evidence become suggestions."""
     found = {}
-    for gram, forms in surfaces.items():
-        members = {key for key in index[gram[0]] if _contains(titles[key], gram)}
+    for term in TERMS:
+        if term.get('auto') is False:
+            continue
+        variants = _variants(term['en'])
+        if not variants:
+            continue
+        gram = tuple(variants[0])
+        if any(set(gram) <= set(ex) for ex in exclude):
+            continue
+        members = set()
+        for key in keys:
+            text = rows[key]['title'] + ' ' + rows[key]['abstract']
+            doc = _segments(rows[key]['title']) + _segments(rows[key]['abstract'])
+            if any(_contains(doc, v, gap=0) for v in variants) or any(CJK.search(alias) and alias.casefold() in text.casefold() for alias in term['aliases']):
+                members.add(key)
         if len(members) >= MIN_GROUP:
-            found[gram] = (members, sorted(forms, key=lambda s: (-forms[s], s))[0])
+            found[gram] = (members, term['en'])
     return found
 
 
@@ -198,15 +198,15 @@ def _group(kind, basis, keys, parent, name, reason, terms):
 # Suggestion reasons in the interface language (profile["language"], set by the server).
 REASONS = {
     "zh-CN": {"nested": "固定关键词「%s」的论文大多也属于「%s」，放在其下",
-              "phrase": "「%s」中 %d 篇标题都出现 “%s”%s", "echo": "；含画像兴趣词 ", "sep": "、",
+              "phrase": "「%s」中 %d 篇标题或摘要都出现 “%s”%s", "echo": "；含画像兴趣词 ", "sep": "、",
               "pinned": "来自画像固定关键词「%s」：标题或摘要提到它的论文",
-              "rest": "不含画像固定关键词；%d 篇标题都出现 “%s”",
-              "rest_unpinned": "当前项目还没有固定关键词；%d 篇标题都出现 “%s”"},
+              "rest": "不含画像固定关键词；%d 篇标题或摘要都出现 “%s”",
+              "rest_unpinned": "当前项目还没有固定关键词；%d 篇标题或摘要都出现 “%s”"},
     "en-US": {"nested": "Most papers with the pinned keyword “%s” also belong to “%s”, so it sits under it",
-              "phrase": "In “%s”, %d titles contain “%s”%s", "echo": "; includes profile interest words ", "sep": ", ",
+              "phrase": "In “%s”, %d titles or abstracts contain “%s”%s", "echo": "; includes profile interest words ", "sep": ", ",
               "pinned": "From the pinned profile keyword “%s”: papers whose title or abstract mention it",
-              "rest": "No pinned profile keyword; %d titles contain “%s”",
-              "rest_unpinned": "This project has no pinned keywords yet; %d titles contain “%s”"},
+              "rest": "No pinned profile keyword; %d titles or abstracts contain “%s”",
+              "rest_unpinned": "This project has no pinned keywords yet; %d titles or abstracts contain “%s”"},
 }
 
 
@@ -233,8 +233,8 @@ def suggest_groups(papers, profile=None):
     english = profile.get("language") == "en-US"
     text_of = REASONS["en-US" if english else "zh-CN"]
     # The glossary gives Chinese display names; an English interface keeps the paper's wording.
-    display = (lambda term: term) if english else (lambda term: LABELS.get(term.lower(), term))
-    phrase_name = (lambda gram, surface: surface) if english else _phrase_name
+    display = lambda term: category_label(term, "en-US" if english else "zh-CN")
+    phrase_name = lambda gram, surface: display(surface)
     pinned = _clean_terms(profile.get("pinned"))
     interest = {stem(t.lower()) for t in _clean_terms(profile.get("interest")) if not CJK.search(t)}
     rows = {row["key"]: row for row in rows_list}
@@ -254,14 +254,21 @@ def suggest_groups(papers, profile=None):
         else:
             unmatched.append({"term": term, "documents": len(members)})
     matched.sort(key=lambda m: (-len(m["keys"]), m["order"]))
-    tops, children = [], defaultdict(list)
+    tops, children, accepted_terms = [], defaultdict(list), {}
     for entry in matched:
-        if any(_jaccard(entry["keys"], top["keys"]) >= DUPLICATE for top in tops):
+        identity = category_identity(entry["term"])
+        if identity in accepted_terms:
             unmatched.append({"term": entry["term"], "documents": len(entry["keys"]),
-                              "same_as": next(t["term"] for t in tops
-                                              if _jaccard(entry["keys"], t["keys"]) >= DUPLICATE)})
+                              "same_as": accepted_terms[identity]})
             continue
-        parent = next((top for top in tops if len(top["keys"]) > len(entry["keys"])
+        accepted_terms[identity] = entry["term"]
+        child_term = category_term(entry['term'])
+        def eligible_parent(top):
+            top_term = category_term(top['term'])
+            if child_term and top_term:
+                return child_term.get('parent') == top_term['id'] or child_term['kind'] == 'method'
+            return child_term is None  # Custom pinned terms are explicit owner choices.
+        parent = next((top for top in tops if eligible_parent(top) and len(top["keys"]) > len(entry["keys"])
                        and len(entry["keys"] & top["keys"]) >= NEST * len(entry["keys"])), None)
         if parent:
             children[parent["term"]].append(entry)
@@ -285,7 +292,9 @@ def suggest_groups(papers, profile=None):
                                  [child["term"]]))
         candidates = {gram: value for gram, value in _phrases(rows, members, exclude).items()
                       if len(value[0]) < len(members)
-                      and not any(_jaccard(value[0], t) >= DUPLICATE for t in taken)}
+                      and not any(_jaccard(value[0], t) >= DUPLICATE for t in taken)
+                      and (category_term(value[1])["kind"] == "method"
+                           or category_term(value[1]).get("parent") == (category_term(parent_group["name"]) or {}).get("id"))}
         for gram, share, surface in _pick(candidates, members, MAX_CHILDREN - len(reserved), interest):
             # Only name interest words the parent does not already say.
             echo = sorted(set(gram) & interest - WEAK - {s for ex in exclude for s in ex})
@@ -306,7 +315,9 @@ def suggest_groups(papers, profile=None):
     # 2. Papers no pinned term covers: repeated title phrases, never discipline labels.
     covered = set().union(*(top["keys"] for top in tops)) if tops else set()
     rest = [key for key in keys if key not in covered]
-    phrase_tops = _pick(_phrases(rows, rest, []), rest + ["\0"], MAX_TOP - len(tops), interest) if len(rest) >= MIN_GROUP else []
+    top_candidates = {g: v for g, v in _phrases(rows, rest, []).items()
+                      if category_term(v[1])["kind"] == "direction" and category_term(v[1])["parent"] is None}
+    phrase_tops = _pick(top_candidates, rest + ["\0"], MAX_TOP - len(tops), interest) if len(rest) >= MIN_GROUP else []
     for gram, members, surface in phrase_tops:
         reason = text_of["rest" if pinned else "rest_unpinned"] % (len(members), surface)
         group = _group("phrase", " ".join(gram), members, None, phrase_name(gram, surface), reason, [surface])
@@ -330,10 +341,10 @@ def suggest_groups(papers, profile=None):
 # fit), each with a reason; what needs no change is not listed. Deterministic, offline, zero model tokens.
 
 REVIEW_REASONS = {
-    "zh-CN": {"add": "标题或摘要提到「%s」", "merge": "同一层级有 %d 个同名类别「%s」，合并后论文都在一个类别里",
+    "zh-CN": {"add": "标题或摘要提到「%s」", "merge": "同一层级有 %d 个同义类别「%s」，合并后论文都在一个类别里",
               "move": "它所在的类别「%s」没有出现在标题或摘要里，而「%s」出现了",
               "partial": "标题或摘要里有「%s」，是类别「%s」的一部分（可能相关，请核对）"},
-    "en-US": {"add": "The title or abstract mentions “%s”", "merge": "%d categories named “%s” sit at the same level; merging puts their papers in one",
+    "en-US": {"add": "The title or abstract mentions “%s”", "merge": "%d equivalent categories for “%s” sit at the same level; merging puts their papers in one",
               "move": "The category “%s” does not appear in its title or abstract, while “%s” does",
               "partial": "The title or abstract has “%s”, part of the category “%s” (possibly related; please check)"},
 }
@@ -349,7 +360,7 @@ def paper_signature(row, member_ids):
 
 
 def _normal(name):
-    return " ".join(str(name or "").lower().split())
+    return category_identity(name)
 
 
 def structure_hash(directions, memberships):
@@ -430,23 +441,35 @@ def review(papers, directions, memberships, reviewed, profile=None):
     for ids in memberships.values():
         for identifier in {str(i) for i in ids}:
             everyone[identifier] += 1
+    def identity_path(identifier):
+        path, seen = [], set()
+        while identifier in by_id and identifier not in seen:
+            seen.add(identifier)
+            path.append(_normal(by_id[identifier]['name']))
+            parent = by_id[identifier].get('parent_id')
+            identifier = str(parent) if parent is not None else None
+        return tuple(reversed(path))
+
     clusters = defaultdict(list)
-    for d in directions:
-        parent = None if d.get("parent_id") is None else str(d["parent_id"])
-        clusters[(parent if parent in by_id else None, _normal(d["name"]))].append(str(d["id"]))
+    for identifier in by_id:
+        clusters[identity_path(identifier)].append(identifier)
     order = lambda j: (-everyone[j], by_id[j].get("rank", 0), j)
-    merges = []
-    for (parent, name), ids in sorted(clusters.items(), key=lambda kv: (str(kv[0][0]), kv[0][1])):
-        if len(ids) < 2 or not name or not any(members_of[i] for i in ids):
+    merges, merge_for_path = [], {}
+    for path, ids in sorted(clusters.items(), key=lambda kv: (len(kv[0]), kv[0])):
+        in_scope = any(members_of[i] or any(members_of[c] for c in descendants(i)) for i in ids)
+        if len(ids) < 2 or not path[-1] or not in_scope:
             continue
         keep = sorted(ids, key=order)[0]
         drop = [i for i in ids if i != keep]
         moved = sorted(set().union(*(members_of[i] for i in drop)) - members_of[keep])
-        merges.append({"id": "merge-" + hashlib.sha256(json.dumps([keep, sorted(drop)]).encode()).hexdigest()[:20],
-                       "keep": keep, "drop": sorted(drop), "keys": moved, "name": by_id[keep]["name"],
-                       "copies": [{"id": i, "papers": everyone[i], "children": len(children.get(i, []))} for i in sorted(ids, key=order)],
+        merge_id = "merge-" + hashlib.sha256(json.dumps([keep, sorted(drop)]).encode()).hexdigest()[:20]
+        dependencies = [merge_for_path[path[:n]] for n in range(1, len(path)) if path[:n] in merge_for_path]
+        merges.append({"id": merge_id, "keep": keep, "drop": sorted(drop), "keys": moved, "name": by_id[keep]["name"],
+                       "depends_on": dependencies,
+                       "copies": [{"id": i, "name": by_id[i]["name"], "papers": everyone[i], "children": len(children.get(i, []))} for i in sorted(ids, key=order)],
                        "reason": text_of["merge"] % (len(ids), by_id[keep]["name"])})
-    canonical = {i: sorted(ids, key=order)[0] for ids in clusters.values() for i in ids}   # a copy of a duplicated category stands for the one a merge keeps
+        merge_for_path[path] = merge_id
+    canonical = {i: sorted(ids, key=order)[0] for ids in clusters.values() for i in ids}
 
     # 1. Unplaced papers: add to an existing category they mention (firm), suggest a category that shares part of its
     # name (weak: not ticked), then propose new categories for what is left.
@@ -507,8 +530,9 @@ def review(papers, directions, memberships, reviewed, profile=None):
         mapped = {}
         for group in fresh["groups"]:
             parent_dir = mapped.get(group["parent"]) if group["parent"] else None
+            parent_resolved = group["parent"] is None or parent_dir is not None
             wanted = _normal(group["name"])
-            existing = next((i for i in by_id if _normal(by_id[i]["name"]) == wanted
+            existing = next((canonical[i] for i in by_id if parent_resolved and _normal(by_id[i]["name"]) == wanted
                              and (None if by_id[i].get("parent_id") is None else str(by_id[i]["parent_id"])) == parent_dir), None)
             mapped[group["id"]] = existing
             groups.append({**group, "target": existing, "kind": "add" if existing else "create"})

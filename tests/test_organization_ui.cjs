@@ -523,6 +523,50 @@ test('additions to an existing category cannot be renamed or recoloured; merges 
   assert.match(html, /子类别和论文都会并入保留的那个/);
 });
 
+test('category review explains aliases, existing categories and the distinction between directions and methods even with no changes', () => {
+  const ui = fixture();
+  for (const preview of [reviewPreview(), { groups: [], merges: [], moves: [], pending_keys: [], scope: 'p1' }]) {
+    const html = ui.suggestionsHTML(preview);
+    assert.match(html, /明确的研究术语/);
+    assert.match(html, /中英文同义名称归为同一类/);
+    assert.match(html, /优先沿用已有分类/);
+    assert.match(html, /证据不足的论文保留待分类/);
+    assert.match(html, /方法细分类不会自动变成一级方向/);
+    assert.match(html, /父级与子类不按同义分类合并/);
+    const firstResult = html.indexOf(preview.groups.length ? '范围：' : '没有需要调整的内容');
+    assert.ok(html.indexOf('明确的研究术语') < firstResult);
+  }
+});
+
+test('merge preview shows each real alias name safely and keeps legacy copy names readable', () => {
+  const ui = fixture(), preview = reviewPreview();
+  preview.merges[0].copies = [
+    { id: 'd1', name: 'World Models', papers: 4, children: 1 },
+    { id: 'd2', name: '世界模型', papers: 2, children: 0 },
+    { id: 'd3', name: '<img src=x onerror=alert(1)>', papers: 1, children: 0 },
+    { id: 'legacy', papers: 3, children: 0 },
+  ];
+  const html = ui.suggestionsHTML(preview, key => ({ title: key }), id => id === 'legacy' ? '手工<类别>' : id);
+  for (const label of ['World Models', '世界模型', '&lt;img src=x onerror=alert(1)&gt;', '手工&lt;类别&gt;']) {
+    assert.ok(html.includes(`<span data-no-i18n>${label}</span>`), label);
+  }
+  assert.doesNotMatch(html, /<img src=x|手工<类别>/);
+  assert.ok(html.indexOf('World Models') < html.indexOf('4 篇、1 个子类'));
+  assert.match(html, /data-merge-enabled checked/);
+  assert.match(html, /合并后可以撤销/);
+});
+
+test('the category standards explanation has complete English UI translations', () => {
+  const pack = JSON.parse(fs.readFileSync(path.join(__dirname, '../app/static/i18n/en-US.json'), 'utf8')).messages;
+  for (const source of [
+    '分类采用明确的研究术语；中英文同义名称归为同一类，优先沿用已有分类，证据不足的论文保留待分类。',
+    '父级表示研究方向，子类表示更细的方向或方法；方法细分类不会自动变成一级方向，父级与子类不按同义分类合并。',
+  ]) {
+    assert.equal(typeof pack[source], 'string', source);
+    assert.doesNotMatch(pack[source], /[㐀-鿿]/);
+  }
+});
+
 test('with nothing to change the review says so and lists nothing, not even what was checked', () => {
   const ui = fixture();
   const html = ui.suggestionsHTML({ fingerprint: 'f', groups: [], merges: [], moves: [], pending_keys: [], scope: null, profile: {} });
@@ -1141,4 +1185,21 @@ test('graph retry remains available for deferred progress with no pending saved 
   const ui=fixture(),box={hidden:true,innerHTML:''};ui.S.root={querySelector:()=>box};ui.S.graphView='route';
   ui.renderUnmatched({available:true,unmatched:[],pending:[],pending_total:0,progress_verification_deferred:true});
   assert.match(box.innerHTML,/route-verification-retry/);assert.match(box.innerHTML,/重新核验学习匹配/);
+});
+
+test('AI review shows existing label deletion together with paper reassignment and escapes reasons', () => {
+  const ui = fixture();
+  ui.accept(snapshot());
+  const preview = {scope:'project', ai_plan:{categories:[{id:'d1',action:'delete',reason:'<script>bad</script>'}],
+    new_categories:[{id:'new',name:'世界模型',parent_id:null,reason:'标题依据'}],
+    papers:[{key:'paper:one',categories:['new'],reason:'明确方向'}]}};
+  const html = ui.suggestionsHTML(preview);
+  assert.match(html,/删除标签/); assert.match(html,/重新归类论文/); assert.match(html,/data-ai-plan checked/);
+  assert.match(html,/不删除论文或笔记/); assert.match(html,/&lt;script&gt;/); assert.doesNotMatch(html,/<script>/);
+});
+
+test('AI keep plan with unchanged paper links has no apply choice', () => {
+  const ui = fixture(); ui.accept(snapshot());
+  const html=ui.suggestionsHTML({ai_plan:{categories:[{id:'d1',action:'keep'}],new_categories:[],papers:[{key:'paper:one',categories:['d1'],reason:''}]}});
+  assert.match(html,/没有需要调整/); assert.doesNotMatch(html,/data-ai-plan/);
 });

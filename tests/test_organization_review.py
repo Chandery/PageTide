@@ -498,8 +498,8 @@ class PureReviewTests(unittest.TestCase):
         directions = [{"id": "d1", "name": "World model", "parent_id": None, "rank": 0}, {"id": "d2", "name": "world model", "parent_id": None, "rank": 1}]
         zh = review(PAPERS, directions, {"w1": ["d1"]}, {}, {})["merges"][0]["reason"]
         en = review(PAPERS, directions, {"w1": ["d1"]}, {}, {"language": "en-US"})["merges"][0]["reason"]
-        self.assertIn("同名", zh)
-        self.assertIn("named", en)
+        self.assertIn("同义", zh)
+        self.assertIn("equivalent", en)
 
 
 if __name__ == "__main__":

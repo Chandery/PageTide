@@ -43,11 +43,11 @@ class ProfileFacetTests(unittest.TestCase):
         children = [g for g in result["groups"] if g["parent"] == top["id"]]
         self.assertLessEqual(len(children), MAX_CHILDREN)
         phrases = {g["name"] for g in children if g["source"] == "phrase"}
-        self.assertIn("World Action Model", phrases)
-        wam = groups["World Action Model"]["reason"]
+        self.assertIn("世界动作模型", phrases)
+        wam = groups["世界动作模型"]["reason"]
         self.assertIn("含画像兴趣词 action", wam)
         self.assertNotIn("world", wam.split("兴趣词")[-1])
-        video = next(g for g in children if g["name"].startswith("Video"))
+        video = next(g for g in children if g["name"] == "视频世界模型")
         self.assertLessEqual({"vwm1", "vwm2"}, set(video["keys"]))
         # Discipline labels never become categories.
         self.assertFalse({"Robotics", "GAN", "Multimodal"} & set(groups))
