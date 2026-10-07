@@ -264,7 +264,7 @@ def main():
             brief={'goal':'Learn latent models','known':'Teacher says background is strong','structure':'Probability before latent models'}
             session=call('/api/project-guidance/sessions',{'name':'Brief fixture','goal':'Learn latent models'})['session']
             endpoint='/api/project-guidance/sessions/'+session['id']+'/route'
-            for disabled,reason in [(True,'ai_off'),(False,'not_approved')]:
+            for disabled,reason in [(True,'ai_off'),(False,'no_key')]:
                 if disabled:(data/'AI_DISABLED').touch()
                 else:(data/'AI_DISABLED').unlink()
                 refused=call(endpoint,{'brief':brief})
@@ -325,7 +325,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/new-operation AI-off and unapproved no-call, assets, isolated HOME, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/owner-approved new-operation AI-off and no-key no-call, assets, isolated HOME, outbound network blocked')
 
 
 if __name__=='__main__': main()

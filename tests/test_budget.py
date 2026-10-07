@@ -44,12 +44,15 @@ class BudgetTests(unittest.TestCase):
         config = budget.load()
         budget.validate(config)
         # Ceilings are owner-approved including the raised hybrid-rerank scope, but the runtime
-        # gateway and tokenizer parity do not exist yet, and llm_rerank stays default-off.
+        # enforcement release evidence and tokenizer parity remain unverified; llm_rerank stays default-off.
         self.assertIsNotNone(config['provider'])
         self.assertTrue(config['operations'])
         self.assertIs(config['approved_by_owner'], True)
-        self.assertTrue(config['pending_approval'])
-        self.assertFalse(config['operations']['route_growth_judge']['owner_approved'])
+        self.assertEqual(config['pending_approval'], [])
+        for name in ('route_growth_judge','route_map_create','route_map_revision'):
+            self.assertTrue(config['operations'][name]['owner_approved'])
+            self.assertIn('授权啊，全都授权',config['operations'][name]['approval_note'])
+            self.assertFalse(config['operations'][name]['enabled_by_default'])
         self.assertIn('llm_rerank', config['operations'])
         self.assertIs(config['operations']['llm_rerank']['enabled_by_default'], False)
         self.assertIs(config['policy']['runtime_enforcement_implemented'], False)

@@ -147,6 +147,11 @@ class App:
                 "done": done, "total": len(live), "progress_verification_deferred":deferred,
                 "batch_policy": route_batch.policy(goal["goal_status"] == "completed")}
 
+    def route_page(self, project_id=None):
+        """Read the native Map page with its persisted, revision-bound undo offer."""
+        project_id = self._require_project(project_id)
+        return self._with_undo(project_id, self.route_get(project_id))
+
     DIRECTION_JUDGES_PER_DAY = 10   # explicit paid growth attempts per project per local day
 
     def _positive_evidence(self, project_id, seeds=True):
@@ -565,7 +570,8 @@ class App:
 
     def _with_undo(self, project_id, state):
         """The map with the step the person can still take back ({id, label} or None), for a page that offers it."""
-        return {**state, "undo": self._route_org(project_id).snapshot()["undo"]}
+        snapshot = self._route_org(project_id).snapshot()
+        return {**state, "undo": snapshot["undo"] if snapshot["revision"] == state["revision"] else None}
 
     def route_undo(self, project_id, revision=None, event=None):
         """Take back the project's latest map step (adding or turning down a direction, a save, a mark). When the

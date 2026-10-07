@@ -886,7 +886,7 @@
       ],
       "acceptance": [
         "多类别多概念与未匹配论文入口、双向导航、项目切换过期响应、关闭 Route 兼容测试通过",
-        "隔离临时库完成全链条与重启恢复，原生桌面验收、独立审查和绿色构建；AI 实测未运行如实保留"
+        "隔离临时库完成全链条与重启恢复，原生桌面验收、独立审查和绿色构建；AI 实测、失败与未运行项目如实保留"
       ],
       "evidence": [
         "docs/evidence/2026-10-07-route-v2-08-navigation-checks.txt",
@@ -895,7 +895,10 @@
         "tests/test_route_full_flow.py",
         "docs/decisions/0023-route-current-body-matches.md",
         "docs/evidence/2026-10-07-route-v2-08-body-matches-checks.txt",
-        "docs/evidence/2026-10-07-route-v2-08-body-matches-review.md"
+        "docs/evidence/2026-10-07-route-v2-08-body-matches-review.md",
+        "docs/decisions/0024-route-native-approval-and-undo.md",
+        "docs/evidence/2026-10-07-route-v2-08-native-acceptance.md",
+        "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
       ]
     }
   ]

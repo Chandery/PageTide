@@ -1,6 +1,6 @@
 ---
 operation: route_map_revision
-status: unapproved_expanded_scope_offline_contract
+status: owner_approved_bounded_scope_2026_10_07
 ---
 # Fixed-brief Route Map contract
 
@@ -10,7 +10,7 @@ status: unapproved_expanded_scope_offline_contract
 
 ## Complete input and lifecycle
 
-Five validated fields plus entire compact bounded Map. Per-request c/n aliases; no private IDs/feedback/cutoffs/library.2 paid attempts/project/local day. Invalid/length replies retain previous preview. Context checked after call and at confirmation, effective undo included. One local atomic graph+brief+cutoffs+marker event and undo. Complete request model/messages/thinking-disabled/max_tokens envelope UTF8-byte estimate plus256 framing must fit8000. All fields are included without silent truncation; per-field maximum does not guarantee all maxima fit together. This is conservative estimation, not tokenizer parity. Output4000, one request/click, no tool/history/fallback/retry. finish_reason=length is refused even for complete JSON. New operation owner_approved=false; old authorizations never reused. AI-off/unapproved/no-key/budget/explicit4xx retain input and refund attempt;5xx/timeouts/unknown usage retain attempt+gateway reservation. Manual creation/editing remains available.
+Five validated fields plus entire compact bounded Map. Per-request c/n aliases; no private IDs/feedback/cutoffs/library.2 paid attempts/project/local day. Invalid/length replies retain previous preview. Context checked after call and at confirmation, effective undo included. One local atomic graph+brief+cutoffs+marker event and undo. Complete request model/messages/thinking-disabled/max_tokens envelope UTF8-byte estimate plus256 framing must fit8000. All fields are included without silent truncation; per-field maximum does not guarantee all maxima fit together. This is conservative estimation, not tokenizer parity. Output4000, one request/click, no tool/history/fallback/retry. finish_reason=length is refused even for complete JSON. New operation directly owner-approved2026-10-07 (“授权啊，全都授权”); old authorizations remain separate. AI-off/unapproved/no-key/budget/explicit4xx retain input and refund attempt;5xx/timeouts/unknown usage retain attempt+gateway reservation. Manual creation/editing remains available.
 
 ## Official source recheck
 

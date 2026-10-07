@@ -73,3 +73,11 @@ test('confirmation keeps any newer teacher text dirty and restores controls',asy
   assert.equal(p.read().structure,'newer teacher text');
   assert.equal(p.part('briefFields').querySelectorAll().every(el=>!el.disabled),true);
 });
+
+test('restart restores the persisted current undo identity and clears an absent one',async()=>{
+  const p=page(body=>body?{draft:null}:{graph,revision:7,undo:{id:42,label:'修改学习图'}});
+  await vm.runInContext('load()',p.context);
+  assert.deepEqual(JSON.parse(JSON.stringify(p.context.growth.undo)),{id:42,label:'修改学习图',revision:7});
+  const q=page(body=>body?{draft:null}:{graph,revision:8,undo:null});q.context.growth.undo={id:42,revision:7};
+  await vm.runInContext('load()',q.context);assert.equal(q.context.growth.undo,null);
+});

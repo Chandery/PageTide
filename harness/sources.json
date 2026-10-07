@@ -448,6 +448,14 @@
       "recheck_after_days": 30,
       "claim": "Route stage07 new-operation arithmetic uses unchanged peak Flash miss input0.30/M and output1.20/M; off-peak half, hit0.006/M. Explicit thinking disabled/max_tokens/finish_reason length; complete wire estimate is not tokenizer parity.",
       "verification": "Official pricing/chat/token-usage pages opened with web tool, current lines read at local2026-10-07/UTC2026-10-06. No effective date inferred, no paid model/tokenizer/usage measurement. Previous sources retained."
+    },
+    {
+      "id": "DS-ROUTE-LIVE-20261007",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "verified_on": "2026-10-07",
+      "recheck_after_days": 30,
+      "claim": "Unchanged Flash peak miss0.30/hit0.006/output1.20 USD/M, explicit thinking disabled. Three actual Route probes returned1885tokens, local peak-rate ledger0.0010254USD; not provider invoice or comprehensive parity.",
+      "verification": "Official pricing/chat/token pages HTTP200 with previously recorded identical hashes; official tokenizer zip SHA e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495. Three complete wire offline token checks and three formal-ledger reconciled requests; see docs/evidence/2026-10-07-route-v2-08-native-acceptance.md."
     }
   ]
 }

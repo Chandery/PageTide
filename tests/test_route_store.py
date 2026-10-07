@@ -48,6 +48,19 @@ class Fixture(unittest.TestCase):
 
 
 class StoreTests(Fixture):
+    def test_restarted_route_returns_current_undo_identity_and_restores_map(self):
+        first=self.app.route_save(self.pid,plan=PLAN)
+        original=first['graph']
+        draft=json.loads(json.dumps(original));draft['concepts'][0]['name']='Revised crystal basics'
+        saved=self.app.route_save(self.pid,graph=draft,revision=first['revision'])
+        restarted=App(root=self.root,data_dir=self.app.data)
+        self.addCleanup(restarted.store.close)
+        route=restarted.route_page(self.pid)
+        self.assertEqual(route['undo'],self.app._route_org(self.pid).snapshot()['undo'])
+        self.assertIsNotNone(route['undo'])
+        restored=restarted.route_undo(self.pid,revision=route['revision'],event=route['undo']['id'])
+        self.assertEqual(restored['graph'],original)
+
     def test_a_project_has_no_route_until_one_is_saved(self):
         empty = self.app.route_get(self.pid)
         self.assertEqual((empty["enabled"], empty["mode"], empty["graph"]), (False, "off", None))

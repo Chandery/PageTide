@@ -1,3 +1,14 @@
+# 当前工作单元：Route 阶段08原生与真实网关验收（2026-10-07）
+
+- 分支codex/route-discovery-rework，基线f20e2f4。人类本轮明确“授权啊，全都授权”，登记三项新增Route scope/caps；不再等待访问/付费范围批准。原global55k日/150万月/$0.15日/$1.50月、default-off、核心日最低0不变。
+- 实际新Tauri原生窗口验收：手工五字段图、前置/显式掌握/关注、3+1+1、Useful/撤销收藏保留、同纸双图定位、完成后1发现、409保留/禁旧确认、AI-off保留、修改确认/旧掌握隔离、普通模式质量入口通过。手工预览和并发fixture由local service准备，不冒充AI或全部native生成。
+- 原生发现P2：确认修改重启后撤销入口丢失，已修GET page读取持久且revision绑定undo、loader恢复/清除；core事务route_get不变。新增失败回归并freshbackend/Tauri后，实际原生重启→按钮出现→点击恢复原名及2/2完成通过。独立146Python/71Node及双连接/HTTP/loader交错探针通过，无剩余P1/P2。
+- 3次真实DeepSeek网关各1次、非dev、串行、同既有正式账本合计1885token/$0.0010254峰费率本地计算，均reconciled。创建返回why/intro超长被拒，无自动重试；另手工4节点fallback后修改新增Evaluation/目标正确，growthcovered定位DreamerV3。不能称3项质量全通过或invoice校准。官方tokenizer仅校验3完整wire+中英fixture，全面parity/runtime评估false保留。
+- native有意修改均隔离data/HOME、AI关/无key/出站代理；初次quit后CUA观察自动重开默认路径load failed，立即终止并隔离重启，未操作默认库UI；真实账本含付费探针。秘密/原始响应留.local/App Support。
+- 文科选项可见，但最后保存及额外native项目创建未完成：Mac验收中自动锁定，已发手动解锁请求；不是授权缺失，不重问批准。08/E08仍in_progress/not_run，goal active不提前complete。可继续独立证据/检查；下一步只需解锁后实际完成这两项。
+- 首次全1461的2fail是授权后dry-run旧断言，已更正并保留false授权fixture；第二全1462遇构建并行删除target文件的复制竞态，代码目标通过但整run失败。最终停止构建后串行全量1462Python通过（317.353s/exit0），281Node通过。无运行session；budget/harness/i18n/strict签名/实际新包后端过。原release仍20not_run和2预算登记阻断，不降gates。
+- [ADR0024](decisions/0024-route-native-approval-and-undo.md)、[实际原生/付费证据](evidence/2026-10-07-route-v2-08-native-acceptance.md)。全量与实际新包检查已完成；[独立脱敏审查](evidence/2026-10-07-route-v2-08-native-review.md)通过，创建失败/修改/覆盖解析与用量数学复核一致，无新增P1/P2。最终record review --release通过（只审本单元记录，不代表整体release通过）；最终dirty/commit以git核对。
+
 # 当前工作单元：Route Mode 阶段08正文匹配一致性（2026-10-07）
 
 - 分支codex/route-discovery-rework，基线deec31a；最终commit/dirty用git核对。00–07done，08in_progress/E08not_run，整个goal未完成。

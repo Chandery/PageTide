@@ -330,7 +330,7 @@ class Handler(BaseHTTPRequestHandler):
                         "latest_jobs": list(JOBS.values())[-3:]})
         elif route == "/api/route":
             try:
-                self._json(self._app().route_get(query.get("project_id", [None])[0]))
+                self._json(self._app().route_page(query.get("project_id", [None])[0]))
             except ValueError as exc:
                 self._json({"error": str(exc)}, 400)
         elif route == "/api/settings":

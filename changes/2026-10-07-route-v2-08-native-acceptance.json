@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-08-native-acceptance",
+  "class": "critical",
+  "summary": "Record direct human approval of bounded Route AI scopes; actual isolated native acceptance and bounded real gateway probes; retain original release gates.",
+  "tasks": [
+    "ROUTE-V2-08"
+  ],
+  "files": [
+    "app/server.py",
+    "app/service.py",
+    "app/static/route-page.js",
+    "changes/2026-10-07-route-v2-08-native-acceptance.json",
+    "docs/BUDGET.generated.md",
+    "docs/BUDGET.md",
+    "docs/HANDOFF.md",
+    "docs/ROUTE_MODE_REWORK.md",
+    "docs/decisions/0024-route-native-approval-and-undo.md",
+    "docs/evidence/2026-10-07-route-v2-08-native-acceptance.md",
+    "docs/evidence/2026-10-07-route-v2-08-native-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-08-native-review.md",
+    "harness/budget.json",
+    "harness/evaluations.json",
+    "harness/sources.json",
+    "harness/tasks.json",
+    "prompts/route-growth-judge.md",
+    "prompts/route-map-create.md",
+    "prompts/route-map-revision.md",
+    "scripts/verify_packaged_route.py",
+    "tests/test_budget.py",
+    "tests/test_growth_proposals.py",
+    "tests/test_route_brief_page.cjs",
+    "tests/test_route_growth.py",
+    "tests/test_route_map_model.py",
+    "tests/test_route_store.py"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "Human-approved three existing capped optional Route operations; no new scopes beyond registered plan, no global cap increase. Required core tokens0.",
+    "before": "Three operations denied by owner_approved=false; caps3200/1800,8000/4000,8000/1000.",
+    "after": "Same original caps/global ceilings; owner-authorized2026-10-07, default off. Actual3requests1885tokens/$0.0010254local peak-rate ledger, all reconciled; no invoice/global parity claim. Required core0.",
+    "developer_usage": "unknown",
+    "quantified": {
+      "period": "Three explicitly approved real probes on 2026-10-07; before equivalent operations were denied, not a daily scenario or provider invoice",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 1374,
+        "output_tokens": 511,
+        "usd": "0.0010254"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementer; scoped native/real-probe failure/privacy/budget records and persistent undo diff",
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-acceptance.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic; independent scoped code, contract probes, sanitized receipts and state/privacy/approval review",
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-review.md"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "Mac physically locked during last native humanities save; additional native project creation awaits manual unlock. Stage08/E08 remain in_progress/not_run, goal incomplete.",
+    "Creation real response failed strict lengths;2other probe scenarios do not establish overall model quality or invoice/tokenizer parity.",
+    "Original quality/privacy/restore/resource/budget release gates retained; undo page reads full organization snapshot, large-library cost unmeasured."
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "command": "codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "command": "codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+    }
+  ],
+  "release_audit": {
+    "command": "python3 scripts/harness.py check --release",
+    "exit_code": 1,
+    "evidence": "docs/evidence/2026-10-07-route-v2-08-native-checks.txt",
+    "result": "20 original unrun evaluations plus2budget registry gates preserved; not a release success"
+  }
+}

@@ -356,7 +356,7 @@ class JudgeTests(Fixture):
         self.shown("s1")
         self.say(("s1", "useful"))
         out = self.app.route_direction_judge(self.pid, dry_run=True)
-        self.assertEqual((out["ok"], out["reason_code"], out["judges_left"]), (False, "not_approved", App.DIRECTION_JUDGES_PER_DAY))
+        self.assertEqual((out["ok"], out["reason_code"], out["judges_left"]), (False, "dry_run", App.DIRECTION_JUDGES_PER_DAY))
 
     def test_ten_a_day_per_project_and_then_it_says_so(self):
         self.shown("s1")
@@ -593,7 +593,7 @@ class HttpTests(Fixture):
             status, body = self.post(port, {"action": "candidates", "project_id": self.pid})
             self.assertEqual((status, body["candidates"], len(body["pending"])), (200, [], 3))
             status, out = self.post(port, {"action": "direction-judge", "project_id": self.pid, "dry_run": True})
-            self.assertEqual((status, out["ok"], out["reason_code"]), (200, False, "not_approved"))
+            self.assertEqual((status, out["ok"], out["reason_code"]), (200, False, "dry_run"))
             self.assertEqual(self.post(port, {"action": "direction-judge", "project_id": "no-such"})[0], 400)
             with mock.patch("app.service.Gateway.call", return_value=reply([new(list(labels.values()))])):
                 status, out = self.post(port, {"action": "direction-judge", "project_id": self.pid})

@@ -2,12 +2,8 @@
   "schema_version": 1,
   "baseline_id": "2026-09-11-ai-approved-incl-rerank",
   "approved_by_owner": true,
-  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003).",
-  "pending_approval": [
-    "route_growth_judge: complete bounded Map and explicit Useful/seed evidence; input8000/output1000, max10/project/local day, no global ceiling increase",
-    "route_map_create: 3200/1800, new five-field/full-Map scope; original global ceilings unchanged",
-    "route_map_revision: 8000/4000, new five-field/full-Map scope; original global ceilings unchanged"
-  ],
+  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003). 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical.",
+  "pending_approval": [],
   "measurement_status": "owner_approved_planning_envelopes_no_runtime_or_tokenizer_measurement",
   "provider": {
     "name": "DeepSeek",
@@ -305,8 +301,8 @@
       "scope": "one explicit click on the learning-map page or on an exploration card the reader just collected, at most 10 paid attempts per project per local day: up to three papers the reader collected from the exploration slots (title up to 80 characters and the first 180 characters of the abstract, sent as p1..p3 without any id), up to ten names of the map's concepts (20 characters each) and up to three already proposed directions (name and a short line); no notes, profile, other feedback, seeds, other projects or full text; the reply is an opinion that is validated locally and stored as a potential direction, which the reader must still add to the map"
     },
     "route_growth_judge": {
-      "owner_approved": false,
-      "approval_note": "2026-10-07 pending: old direction_judge exploration-only grant does not authorize Useful/seed evidence or a complete Map. Offline contracts only until explicit owner approval.",
+      "owner_approved": true,
+      "approval_note": "2026-10-07 pending: old direction_judge exploration-only grant does not authorize Useful/seed evidence or a complete Map. Offline contracts only until explicit owner approval. 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical.",
       "prompt": "prompts/route-growth-judge.md",
       "trigger": "interactive",
       "enabled_by_default": false,
@@ -324,11 +320,11 @@
         "three_public_papers_and_three_proposals": 1500,
         "protocol_framing_margin": 500
       },
-      "scope": "One explicit click; at most10 attempts/project/local day shared with historic judge counter, one gateway attempt, no retry/fallback. Up to3 Useful/chosen-seed public paper titles80/abstract180 characters; complete Map max40nodes/120edges incl names/terms/intros/hints/type/state/side/targets/prereqs under ephemeral aliases; up to3 existing proposal names/intros/types. No private IDs, notes, profile, raw feedback, other projects, full text or history. Refuse full messages above8000 conservative estimated tokens instead of truncating Map. Proposal preview and atomic user confirmation required; changed Map/relevant effective evidence invalidates old opinions. Manual editing available without AI. Expanded exposure UNAPPROVED; output1000, finish_reason length refused. Tokenizer parity/billing unmeasured."
+      "scope": "One explicit click; at most10 attempts/project/local day shared with historic judge counter, one gateway attempt, no retry/fallback. Up to3 Useful/chosen-seed public paper titles80/abstract180 characters; complete Map max40nodes/120edges incl names/terms/intros/hints/type/state/side/targets/prereqs under ephemeral aliases; up to3 existing proposal names/intros/types. No private IDs, notes, profile, raw feedback, other projects, full text or history. Refuse full messages above8000 conservative estimated tokens instead of truncating Map. Proposal preview and atomic user confirmation required; changed Map/relevant effective evidence invalidates old opinions. Manual editing available without AI. Expanded exposure owner-approved2026-10-07; output1000, finish_reason length refused. Tokenizer parity/billing unmeasured."
     },
     "route_map_create": {
-      "owner_approved": false,
-      "approval_note": "2026-10-07 local implementation and arithmetic only. Owner has not approved expanded five-field/full-Map exposure or these caps; preserve old approvals separately.",
+      "owner_approved": true,
+      "approval_note": "2026-10-07 local implementation and arithmetic only. Owner has not approved expanded five-field/full-Map exposure or these caps; preserve old approvals separately. 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical.",
       "prompt": "prompts/route-map-create.md",
       "trigger": "interactive",
       "enabled_by_default": false,
@@ -345,11 +341,11 @@
         "five_fields": 1000,
         "protocol_framing_and_margin": 600
       },
-      "scope": "Explicit five-field creation only: goal250/known150/include150/exclude150/structure500 characters. No history, project/library/profile IDs, keywords, papers or tools. Complete UTF8 wire estimate +256 framing precheck; refusal instead of shortening. Max12 explicit nodes; user confirms. Max3 paid attempts/session or project/local day shared with old creation counters; no retries; cached session only for identical brief; invalidation on changed brief/session status; manual fallback. New scope unapproved; old approvals do not authorize it."
+      "scope": "Explicit five-field creation only: goal250/known150/include150/exclude150/structure500 characters. No history, project/library/profile IDs, keywords, papers or tools. Complete UTF8 wire estimate +256 framing precheck; refusal instead of shortening. Max12 explicit nodes; user confirms. Max3 paid attempts/session or project/local day shared with old creation counters; no retries; cached session only for identical brief; invalidation on changed brief/session status; manual fallback. New scope explicitly owner-approved2026-10-07; old approvals remain separate."
     },
     "route_map_revision": {
-      "owner_approved": false,
-      "approval_note": "2026-10-07 local implementation and arithmetic only. Owner has not approved expanded five-field/full-Map exposure or these caps; preserve old approvals separately.",
+      "owner_approved": true,
+      "approval_note": "2026-10-07 local implementation and arithmetic only. Owner has not approved expanded five-field/full-Map exposure or these caps; preserve old approvals separately. 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical.",
       "prompt": "prompts/route-map-revision.md",
       "trigger": "interactive",
       "enabled_by_default": false,
@@ -367,7 +363,7 @@
         "complete_compact_map": 4400,
         "protocol_framing_and_margin": 600
       },
-      "scope": "Explicit revision click: same five fields plus complete bounded40node/120edge/3incoming Map with per-request aliases, all names/terms/hint/type/why/intro/state and targets/edges. No library/profile/raw feedback/cutoffs/private IDs/other projects/history/tools. Complete wire UTF8 bytes +256 precheck; never truncate Map. One attempt/click, max2/project/local day, no retry; valid reply saved as preview with authoritative snapshot; confirmation revalidates/atomic undo. Unpaid refusals refund, unknown usage retains; prior preview/input/manual edit fallback. New external scope unapproved."
+      "scope": "Explicit revision click: same five fields plus complete bounded40node/120edge/3incoming Map with per-request aliases, all names/terms/hint/type/why/intro/state and targets/edges. No library/profile/raw feedback/cutoffs/private IDs/other projects/history/tools. Complete wire UTF8 bytes +256 precheck; never truncate Map. One attempt/click, max2/project/local day, no retry; valid reply saved as preview with authoritative snapshot; confirmation revalidates/atomic undo. Unpaid refusals refund, unknown usage retains; prior preview/input/manual edit fallback. New external scope explicitly owner-approved2026-10-07."
     }
   },
   "scenarios": [
@@ -454,7 +450,7 @@
     },
     {
       "id": "route_growth_proposal_pending",
-      "label": "待批准：每月八次完整Map生长判断（算术，非账单）",
+      "label": "已批准额度：每月八次完整Map生长判断（算术，非账单）",
       "days": 30,
       "weekly_runs": 5,
       "daily_calls": {},
@@ -467,7 +463,7 @@
     },
     {
       "id": "route_map_revision_pending",
-      "label": "待批准：月1创建4修改8判断（峰时缓存未命中算术，非账单）",
+      "label": "已批准额度：月1创建4修改8判断（峰时缓存未命中算术，非账单）",
       "days": 30,
       "weekly_runs": 5,
       "daily_calls": {},

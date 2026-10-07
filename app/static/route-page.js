@@ -54,6 +54,7 @@ async function load() {
     const route = await api();
     if (sequence !== state.loadSequence) return;
     state.route = route;
+    growth.undo = route.undo ? {...route.undo, revision: route.revision} : null;
     state.draft = route.graph ? JSON.parse(JSON.stringify(route.graph)) : null;
     state.dirty = false; state.annotated = false; state.creationBrief = null;
     render();

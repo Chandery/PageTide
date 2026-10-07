@@ -101,6 +101,7 @@ class GrowthProposalTests(Fixture):
         self.assertEqual(self.app.route_candidates(self.pid)['candidates'], [])
 
     def test_new_scope_is_unapproved_and_cannot_borrow_the_old_grant(self):
+        self.app.gateway.config['operations']['route_growth_judge']['owner_approved'] = False
         self.say(('s1', 'useful'))
         with mock.patch('urllib.request.urlopen') as network:
             out = self.app.route_direction_judge(self.pid)

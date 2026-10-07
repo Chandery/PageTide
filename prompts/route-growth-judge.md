@@ -1,6 +1,6 @@
 ---
 operation: route_growth_judge
-status: unapproved_expanded_scope_offline_contract
+status: owner_approved_bounded_scope_2026_10_07
 ---
 # 完整 Map 生长判断
 
@@ -12,7 +12,7 @@ status: unapproved_expanded_scope_offline_contract
 
 Exactly one system and one user message, no history/tools. Public metadata for up to3 explicitly Useful or chosen-seed papers (titles80, abstracts180); entire compact Map40nodes/120edges with goal targets and every node name/terms/intro/hint/type/state/side and prerequisite relation. Per-request p/c/d aliases never private IDs. Up to3 current proposal names/intros/types. No notes, profile, raw feedback, full text, other projects, IDs, history. Count complete protocol envelope and framing in a conservative UTF8-byte estimate; reject above8000, never truncate Map. This is not verified tokenizer parity.
 
-Response is one JSON object with results. Covered, new task under a node, missing prerequisite, new branch, uncertain; join adds evidence to an existing current proposal. Validate references/structure locally. Similarity and counts are explanations, not manual-edit gates. Snapshot Map and effective evidence, reject concurrent change before storing or accepting, retain old opinions visibly stale with no automatic rejudgment. User confirms a preview before Map changes. One attempt/click, max10/project/local day including old counter, output1000; truncated responses rejected even if JSON parses. Expanded scope and budget owner_approved=false; offline fixtures only, manual edit fallback.
+Response is one JSON object with results. Covered, new task under a node, missing prerequisite, new branch, uncertain; join adds evidence to an existing current proposal. Validate references/structure locally. Similarity and counts are explanations, not manual-edit gates. Snapshot Map and effective evidence, reject concurrent change before storing or accepting, retain old opinions visibly stale with no automatic rejudgment. User confirms a preview before Map changes. One attempt/click, max10/project/local day including old counter, output1000; truncated responses rejected even if JSON parses. Expanded scope and caps owner-approved2026-10-07 (“授权啊，全都授权”); unchanged global ceilings, manual edit fallback.
 
 ## Official source recheck (2026-10-07)
 
