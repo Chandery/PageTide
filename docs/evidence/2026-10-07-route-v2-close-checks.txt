@@ -1,0 +1,34 @@
+2026-10-07 Route remaining native cases and completion audit, baseline f0f000c.
+No product/prompt/budget/provider code change; no new paid requests. Actual native observations in completion-audit.md; old native/paid failures retained.
+Native humanities en+zh persistence after leaving/reopening, zh-only generation1paper/18en-filtered, native STEM/en project creation, manual two-node graph with known-not-mastery0/2 passed.
+Isolated app PID49668/backend49681 terminal after native quit; ps no entries. No CUA auto-reopen afterwards.
+Command: python3 -m unittest discover -s tests -v
+Exit0,1462 tests passed,311.503s; live session19609 resumed after tool abort, was not restarted. Final source .local/route-native-20261007/python-close.log.
+Command: node --test tests/*.cjs
+Exit0,281passed/0fail/0skip,786.286ms;node-close.log.
+Command: .local/desktop-build-env/bin/python scripts/build_desktop.py
+Exit0; backend freshCOLLECT prepared;build-close.log.
+Command: cargo tauri build --bundles app
+Exit0,14.45s; new src-tauri/target/release/bundle/macos/PaperDigHelper.app;tauri-close.log.
+Command: codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PaperDigHelper.app
+Exit0,local ad-hoc signature replaced. No notarization/distribution approval.
+Command: codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app
+Exit0, separately rechecked after build and signing.
+Command: python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server
+Exit0,new package backend complete isolated flow;AI-disabled/no-key/outboundblocked;package-close.log. CLI/package evidence does not replace recorded native actions.
+Command: python3 scripts/budget.py --check
+Exit0, arithmetic/generated parity; no model call.
+Command: python3 scripts/harness.py check
+Exit0,repository consistency only.
+Command: python3 scripts/i18n_extract.py --check
+Exit0,0of1157.
+Command: git diff --check
+Exit0.
+Original-gate comparison: all24 baseline evaluation status/blocks fields byte-equivalent values.20original BLOCKING gates=19not_run+1passed;4nonblockingnot_run retained. Original budget/runtime exact bytes f0f000c,main850f9fc.
+First comparison script counted all23not_run as if only19blocking ones, assertionfailed; corrected filter blocks_release and passed. No gate was edited to satisfy it.
+Command: python3 scripts/harness.py check --release
+Exit1,19original unrun blockers plus2budgetflags false;release-close.log. E-ROUTE-V2-08 is now passed based on plan coverage; its method/blocks_release unchanged. Whole-product release remains blocked.
+Independent:315Python/129Node/4restore regressions passed;initial restore test-name error corrected,see close-review.md. Original20blocking gates/flags untouched independently checked.
+Final independent9-file diff review passed, noP1/P2;harness/budget/i18n/diff0,independent release1(62907c). Final unit record review --release executed below. Tests and builds above completed, no active process session.
+Command: python3 scripts/harness.py review changes/2026-10-07-route-v2-close.json --release
+Exit0, unit evidence/class/independent review consistency only. Not a whole-product release success.

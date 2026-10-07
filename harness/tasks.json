@@ -874,7 +874,7 @@
       "id": "ROUTE-V2-08",
       "stage": "graph",
       "title": "统一图视图与端到端验收",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "ROUTE-V2-07"
       ],
@@ -898,7 +898,10 @@
         "docs/evidence/2026-10-07-route-v2-08-body-matches-review.md",
         "docs/decisions/0024-route-native-approval-and-undo.md",
         "docs/evidence/2026-10-07-route-v2-08-native-acceptance.md",
-        "docs/evidence/2026-10-07-route-v2-08-native-checks.txt"
+        "docs/evidence/2026-10-07-route-v2-08-native-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-completion-audit.md",
+        "docs/evidence/2026-10-07-route-v2-close-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-close-review.md"
       ]
     }
   ]

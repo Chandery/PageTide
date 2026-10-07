@@ -2,6 +2,8 @@
 
 2026-10-07；基线 f20e2f4，分支 codex/route-discovery-rework。人类原话“授权啊，全都授权”，回应此前原生验收及三项 Route 新范围/既定上限内付费测试。默认关闭和全局额度不变；授权不使发布门槛自动通过。
 
+补充：本表 pending 是此前锁屏时的真实记录。本轮解锁后已完成文科保存及额外原生项目创建，详见[完成审计](2026-10-07-route-v2-completion-audit.md)，不删除历史失败。
+
 ## 实际原生界面
 
 使用新 Tauri .app 的真实 macOS WebView，CUA 读取原生 AX/截图、点击和填写。初始项目和19篇合成元数据在 .local/route-native-20261007/data 创建。AI_DISABLED、无key、隔离 HOME、出站失败代理。所有有意验收修改在此库；合成内容不能证明真实推荐价值。

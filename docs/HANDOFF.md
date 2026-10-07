@@ -1,3 +1,12 @@
+# 当前工作单元：Route 方案最终实施验收（2026-10-07）
+
+- 分支 codex/route-discovery-rework，基线 f0f000c；本轮只更改验收证据/文档/ROUTE-V2-08和E08状态，无产品代码/提示/模型/预算改动；最终commit/dirty以git核对。00–08实现与验收完成，唯一任务表见harness/tasks.json。
+- Mac已解锁。native完成文科en+zh保存/离开再读、仅zh生成1篇并过滤18英文、STEM/en手动项目创建和同新项目五字段两节点图保存；known仍0/2，人工简介与前置/目标正确。此前native主fixture与本轮新项目区别明确，单项目完整回归另有证据；不声称所有native点击都是同一项目。隔离app/backend原生quit后PID消失，没有CUA默认重开。
+- 最终全量1462Python通过（311.503s/exit0）、281Node通过；独立315Python/129Node及4项真实恢复回归通过，未见剩余P1/P2。新增状态只凭实际覆盖，不改原验收标准。fresh backend/Tauri .app构建、adhoc严格签名和新包隔离后端通过。不是notarization/分发批准。
+- 三项已授权Route AI和原global/day/month/default-off不变；本轮新增模型token/费用0。此前3次真实1885token/$0.0010254峰费率本地计算保留，创建超长拒存的质量失败保留；不能称总体模型质量通过或提供商账单校准。
+- 本方案执行完成与全产品发布分开。原19项全产品阻断评估not_run、PDF archive已passed、runtime enforcement/tokenizer parity两个false及blocks_release全保留；check --release仍应失败。真实推荐/反馈增益、AI总体质量、全文语言准确率、资源8GB、全面隐私/恢复/安全与预算测量不能靠本次合成测试替代。
+- [逐项审计](evidence/2026-10-07-route-v2-completion-audit.md)、[收尾checks](evidence/2026-10-07-route-v2-close-checks.txt)、[独立审查](evidence/2026-10-07-route-v2-close-review.md)。独立最终9文件diff已通过；本单元record review --release通过，本地提交以git核对，不推送不合并。无在运行测试session，之前19609已经exit0完成。后续全产品发布须独立落实原gates，不继承本次Route完成为全产品done。
+
 # 当前工作单元：Route 阶段08原生与真实网关验收（2026-10-07）
 
 - 分支codex/route-discovery-rework，基线f20e2f4。人类本轮明确“授权啊，全都授权”，登记三项新增Route scope/caps；不再等待访问/付费范围批准。原global55k日/150万月/$0.15日/$1.50月、default-off、核心日最低0不变。
