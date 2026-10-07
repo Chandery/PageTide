@@ -1,6 +1,10 @@
-# 当前工作单元：导入已有论文库（实现完成，在 worktree，未构建、未合并、未提交）（2026-10-07）
+# 当前工作单元：导入已有论文库已合并到本地 main 并重建正式包（2026-10-08）
 
-分支 `library-import`，worktree `.claude/worktrees/library-import`，基线 `93d3ecd`。业主说另有 agent 正在测当前版本，所以所有修改只在 worktree：**没有**运行 `build_desktop.py` / `cargo tauri build`，主检出 `git status` 干净；没有 commit/push。合并和重建正式包由业主决定。IMPORT-01 `in_progress`，E-LIBRARY-IMPORT `not_run` 且阻断发布。
+业主说“现在可以合并到正式的构建里了”。worktree 的改动提交为 `27a2fbe`（无 co-author 行），已在本地 `main` 上 `--ff-only` 快进（main 此前仍是 `93d3ecd`，无冲突）；**没有 push/fetch**。主检出上重跑全量：Python 1871、全部 Node 文件 fail 0、预算和 harness check 通过；随后 `build_desktop.py` 与 `cargo tauri build --bundles app` 均退出 0，新包 `src-tauri/target/release/bundle/macos/PaperDigHelper.app`（目录时间 2026-10-08 02:36）。构建后的 Tauri 包只有链接器签名、严格校验失败，已按既有做法 `codesign --force --deep --sign -` 重签，`--verify --deep --strict` 退出 0（ad-hoc，不是公证）。旧包备份在 `.local/app-backups/PaperDigHelper-before-library-import.app`（git 忽略）。证据：[合并与构建证据](evidence/2026-10-08-library-import-merge-checks.txt)、[变更记录](../changes/2026-10-08-library-import-merge.json)。IMPORT-01 仍 `in_progress`，E-LIBRARY-IMPORT 仍 `not_run`。
+
+打包后的验证：项目自带的 `scripts/verify_packaged_route.py` 通过（隔离 HOME、外网屏蔽，原有路线/增长/重启行为未被破坏）；另用打包后的后端在隔离临时数据目录里跑通一次完整导入（登录、5 个导入资源 200、建批次、上传、同内容副本合并、离线匹配、提交、分类、论文库）。**我没有启动原生窗口**（沙箱禁止 `open`），所以“在 .app 里点选文件夹/拖入文件夹”仍未实测：请你启动新包后试一次，这是 E-LIBRARY-IMPORT 的第一项。正在运行的旧进程需要退出重开才会用新包。
+
+以下是功能本身的原始交接记录（合并前写的，“未构建/未合并”已过时，以上文为准）：
 
 做了什么（ADR [0029](decisions/0029-library-import.md)）：论文库工具栏「导入论文」和新建项目页「创建后导入我已有的论文库」进入 `import.html`；选 PDF/选文件夹/拖入文件夹/Zotero 导出文件夹（BibTeX、RIS、CSL-JSON）。页面用 pdf.js 读首页线索并逐个流式上传到暂存批次；服务端后台线程按节奏匹配 OpenAlex（进度写库，额度不足/断网时暂停，可“不再联网，按原样导入剩下的”）；审阅（选候选、手动查找、排除）后一次事务提交；文件夹结构成为分类（一条可撤销事件）；完成页可把已识别论文设为种子（20/40）。已在本项目论文库的论文不再是今日/路线候选。运行期模型 token 为 0；新增文件 `app/library_import.py`、`app/reference_files.py`、`app/static/import*.{html,js,css}`、`pdf-hints.js`，新表惰性创建（不占迁移号）。
 

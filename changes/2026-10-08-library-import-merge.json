@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-08-library-import-merge",
+  "class": "docs",
+  "summary": "Fast-forward the reviewed library-import work (27a2fbe) into local main and rebuild the primary desktop package. Records the merge, the fresh build, the ad-hoc re-signing the fresh bundle needed, the packaged-backend checks, and what is still unverified. No application source differs from 27a2fbe.",
+  "tasks": [
+    "IMPORT-01"
+  ],
+  "files": [
+    "changes/2026-10-08-library-import-merge.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0029-library-import.md",
+    "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Git fast-forward, a rebuild of unchanged source, and documentation; no new call trigger, provider, cap or prompt. The feature itself makes no model call.",
+    "before": "main 93d3ecd; required daily model tokens 0",
+    "after": "main 27a2fbe plus this record; required daily model tokens 0",
+    "developer_usage": "unknown; host does not expose complete aggregate developer token accounting"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "python3 -m unittest discover -s tests (1871 tests, OK) and node --test each tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    },
+    {
+      "command": "codesign --force --deep --sign - src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    },
+    {
+      "command": "codesign --verify --deep --strict src-tauri/target/release/bundle/macos/PaperDigHelper.app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-08-library-import-merge-checks.txt"
+    }
+  ],
+  "owner_approved": true,
+  "open_risks": [
+    "The native window was not launched: folder pick/drop in the packaged WKWebView and a click-through of the real app are unverified (E-LIBRARY-IMPORT stays not_run).",
+    "Local integration only: nothing was pushed or fetched. The old package is backed up in .local/app-backups/; a running old process keeps the old code until restarted.",
+    "A test backend started for the packaged check could not be killed from the sandbox; it exits on its own within 5 minutes."
+  ]
+}
