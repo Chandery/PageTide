@@ -1,3 +1,11 @@
+# 当前交接：已合并到本地 main（2026-10-07）
+
+用户明确要求合并。原main `850f9fc` 是已验收 `11969c5` 的祖先，没有独有提交；已 `--ff-only` 快进，原main历史完整保留，无冲突。合并当下tree `148c073cfe24719930e7c5a8d297c75d848fd86f` 与已审源码完全一致。本轮后续只补本记录/证据/HANDOFF三路径文档，最终main commit/dirty以Git核对。原工作分支保留，本次未fetch或push；origin/main只是本地缓存。
+
+沿用相同源码的1599Python、314Node及两轮真实AI副本语义证据，没有冒充本轮重跑。main下新跑backend/Tauri构建、adhoc严格签名及实际包隔离Route/重启/撤销/整队列AI-off检查均通过；常用app目录时间18:21:17+0800。原生已从常用路径重新启动，新backend63396；本轮未代点付费判断、确认提议或重置用户数据。预算/模型/权限/默认设置不变，原分类review质量失败、19全产品gates与2false标记保留，不宣称整产品发布通过。
+
+[合并记录](../changes/2026-10-07-main-merge.json)、[合并与新包证据](evidence/2026-10-07-main-merge-checks.txt)。以下原分支验收记录作为历史保留。
+
 # 当前工作单元：完整生长回复与学习任务粒度已验收（2026-10-07）
 
 分支 `codex/growth-reply-validation`，基线 `053b7f9`；最终 commit/dirty 以 Git 核对。FIX-GROWTH-REPLY-VALIDATION done，E-GROWTH-REPLY-VALIDATION passed，仅代表本单元验收。
