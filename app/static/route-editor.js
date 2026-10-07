@@ -67,16 +67,18 @@
     return g.concepts.every(c => state[c.id] === 2 || visit(c.id));
   }
 
-  function check(g) {
+  function check(g, {targets = true} = {}) {
     if (!g || !Array.isArray(g.concepts) || !g.concepts.some(c => (c.state || 'active') === 'active')) return { ok: false, reason: '至少需要一个概念' };
     if (g.concepts.length > MAX_NODES) return { ok: false, reason: '图太大了' };
     const hint = Object.fromEntries(g.concepts.map(c => [c.id, c.hint]));
-    if (g.prereqs.some(e => hint[e.from] > hint[e.to])) return { ok: false, reason: '前置概念必须比依赖它的概念更基础' };
+    const known = new Set(g.concepts.map(c => c.id));
+    if (!Array.isArray(g.prereqs) || g.prereqs.some(e => !known.has(e.from) || !known.has(e.to))) return {ok: false, reason: '前置概念不存在'};
+    if (targets && (!(g.targets || []).length || g.targets.some(id => !g.concepts.some(c => c.id === id && (c.state || 'active') === 'active')))) return {ok: false, reason: '请明确选择活动学习目标'};
     const fan = {};
     g.prereqs.forEach(e => { fan[e.to] = (fan[e.to] || 0) + 1; });
     if (Object.values(fan).some(n => n > MAX_FAN_IN)) return { ok: false, reason: `一个概念最多 ${MAX_FAN_IN} 个前置` };
     if (!acyclic(g)) return { ok: false, reason: '前置关系不能成环' };
-    return { ok: true, reason: '' };
+    return { ok: true, reason: '', warnings: g.prereqs.some(e => hint[e.from] > hint[e.to]) ? ['前置难度提示高于后续概念'] : [] };
   }
 
   let identitySequence = 0;
@@ -109,12 +111,11 @@
     needs = unique(needs);
     needs.forEach(n => {
       if (!known[n]) throw new Error('前置概念不存在');
-      if (known[n].hint > hint) throw new Error('前置概念必须比依赖它的概念更基础');
     });
     const intro = String(item.intro || '').replace(/\s+/g, ' ').trim().slice(0, INTRO_LIMIT);
     next.concepts.push({ id, name, terms: terms(item.terms), hint, origin: 'user', state: 'active', side: false, ...(intro ? { intro, intro_by: item.intro_by === 'ai' ? 'ai' : 'user' } : {}) });
     needs.forEach(n => next.prereqs.push({ from: n, to: id, support: null, origin: 'user', state: 'active' }));
-    const verdict = check(next);
+    const verdict = check(next, {targets: false});
     if (!verdict.ok) throw new Error(verdict.reason);
     return next;
   }
@@ -131,8 +132,16 @@
     const next = copy(g);
     next.prereqs = next.prereqs.filter(e => e.to !== id);
     unique(needs).forEach(n => next.prereqs.push({ from: n, to: id, support: null, origin: 'user', state: 'active' }));
-    const verdict = check(next);
+    const verdict = check(next, {targets: false});
     if (!verdict.ok) throw new Error(verdict.reason);
+    return next;
+  }
+
+  function setTarget(g, id, value) {
+    if (!g.concepts.some(c => c.id === id && (c.state || 'active') === 'active')) throw new Error('目标概念必须活动');
+    const next = copy(g), existing = new Set(next.targets || []);
+    value ? existing.add(id) : existing.delete(id);
+    next.targets = [...existing];
     return next;
   }
 
@@ -499,5 +508,5 @@
     return `<label class="map-note"><input type="checkbox" data-route-watch ${watching ? 'checked' : ''}> 持续关注</label><p class="map-note">${satisfied ? '已满足的概念：开启后可推荐这个方向的新进展。' : '持续关注不改变掌握状态；满足这个概念后才推荐新进展。'}</p>`;
   }
 
-  return { watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgementsHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  return { setTarget, watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgementsHTML, judgeSummary, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

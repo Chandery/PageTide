@@ -261,10 +261,14 @@
     },
     {
       "id": "E-ROUTE-V2-07",
-      "status": "not_run",
+      "status": "passed",
       "blocks_release": true,
-      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-07. 创建最多12节点；修改40节点120边3前置；目标删除、引用、环、显式边与难度警告验证；增删改及拆分合并不错误继承掌握；完整消息预算和截断拒绝；并发反馈/撤销/409与原子撤销验证。Automated fixtures do not establish human recommendation or model quality.",
-      "evidence": []
+      "method": "See docs/ROUTE_MODE_REWORK.md stage ROUTE-V2-07. 创建最多12节点；修改40节点120边3前置；目标删除、引用、环、显式边与难度警告验证；增删改及拆分合并不错误继承掌握；完整消息预算和截断拒绝；并发反馈/撤销/409与原子撤销验证。Automated fixtures do not establish human recommendation or model quality. Passed offline deterministic/service/HTTP/actual-handler and freshly packaged backend contracts; this does not establish native-window interaction or real AI suitability/tokenizer/billing.",
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-07-model-ui-review.md",
+        "docs/decisions/0021-route-shared-brief-model-ui.md"
+      ]
     },
     {
       "id": "E-ROUTE-V2-08",

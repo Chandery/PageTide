@@ -216,3 +216,13 @@ test('growth contract disclosure and complete summaries translate into English',
     assert.doesNotMatch(i18n.translate(line), /[㐀-鿿]/, line);
   }
 });
+
+test('fixed brief fields, preview and attempt status translate as rendered', () => {
+  const {i18n}=load('en-US',PACK);
+  for (const line of ['学习目标（必填） · 最多 250 字','已知基础 · 最多 150 字','希望包含 · 最多 150 字',
+    '希望排除 · 最多 150 字','结构意见 · 最多 500 字','修改预览','作为学习目标',
+    '预览已生成；今天还能修改 1 次。请检查后确认。','创建草稿已生成；今天还能创建 2 次。检查并保存才生效。',
+    '学习图或有效反馈已变化，草稿保留；请重新生成预览后确认。']) {
+    assert.doesNotMatch(i18n.translate(line), /[㐀-鿿]/,line);
+  }
+});

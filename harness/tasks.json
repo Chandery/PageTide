@@ -850,7 +850,7 @@
       "id": "ROUTE-V2-07",
       "stage": "graph",
       "title": "固定五字段创建和原子修改预览",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "ROUTE-V2-06"
       ],
@@ -864,7 +864,11 @@
         "创建最多12节点；修改40节点120边3前置；目标删除、引用、环、显式边与难度警告验证",
         "增删改及拆分合并不错误继承掌握；完整消息预算和截断拒绝；并发反馈/撤销/409与原子撤销验证"
       ],
-      "evidence": []
+      "evidence": [
+        "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt",
+        "docs/evidence/2026-10-07-route-v2-07-model-ui-review.md",
+        "docs/decisions/0021-route-shared-brief-model-ui.md"
+      ]
     },
     {
       "id": "ROUTE-V2-08",

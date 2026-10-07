@@ -440,6 +440,14 @@
       "recheck_after_days": 30,
       "claim": "Explicit thinking disabled and max_tokens supported; finish_reason length means incomplete generation, even parseable JSON may be truncated. No live model probe.",
       "verification": "Official HTML HTTP 200, bytes=142966, SHA256=e7133a7c2a7c2662567cca2e2392b503f97c2fb583009ff85f878744e0a36ba7; after web timeout via stdlib urllib. No documented effective date or real billing/tokenizer measurement. Historical source records preserved. Checked at local2026-10-07/UTC2026-10-06; registry date uses UTC."
+    },
+    {
+      "id": "DS-ROUTE-MAP-20261006",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "verified_on": "2026-10-06",
+      "recheck_after_days": 30,
+      "claim": "Route stage07 new-operation arithmetic uses unchanged peak Flash miss input0.30/M and output1.20/M; off-peak half, hit0.006/M. Explicit thinking disabled/max_tokens/finish_reason length; complete wire estimate is not tokenizer parity.",
+      "verification": "Official pricing/chat/token-usage pages opened with web tool, current lines read at local2026-10-07/UTC2026-10-06. No effective date inferred, no paid model/tokenizer/usage measurement. Previous sources retained."
     }
   ]
 }

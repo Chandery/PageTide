@@ -314,3 +314,5 @@ body.busy .map-detail button,body.busy .map-actions button{opacity:.6;pointer-ev
 
 .mode-pick{display:inline-flex;align-items:center;gap:calc(12px * var(--s));flex-wrap:wrap}
 .map-summary{gap:calc(16px * var(--s)) calc(24px * var(--s))}
+
+.brief-field{display:block;margin:12px 0}.brief-field>span{display:block;font-size:.8125rem;margin-bottom:6px}.brief-field textarea{width:100%;box-sizing:border-box}.revision-table{border-collapse:collapse;width:100%;margin:12px 0}.revision-table th,.revision-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}.revision-table th{min-width:90px}

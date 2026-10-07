@@ -66,16 +66,18 @@ class NoLayersWordingTests(unittest.TestCase):
 
 
 class AiOnlyOnClickTests(unittest.TestCase):
-    def test_the_page_asks_the_model_only_from_the_draft_button(self):
+    def test_the_page_asks_only_explicit_creation_or_revision_requests(self):
         js = read("route-page.js")
-        self.assertEqual(len(re.findall(r"action:\s*'plan'", js)), 1)
-        handler = js[js.index("part('aiGo').onclick"):]
-        self.assertLess(handler.index("action: 'plan'"), handler.index("beforeunload"))
-        self.assertTrue("action: 'plan'" not in js[:js.index("function defaultGoal")], "nothing before the button handler may call plan")
+        generation = js[js.index("async function generateBrief()"):js.index("async function confirmRevision()")]
+        self.assertEqual(generation.count("action: 'revision-generate'"), 1)
+        self.assertEqual(generation.count("action: 'brief-plan'"), 1)
+        self.assertIn("guarded(generateBrief)", generation)
+        self.assertNotIn("action: 'plan'", js)
+        self.assertNotIn("generateBrief()", js[:js.index("function defaultGoal")])
 
-    def test_the_disclosure_says_what_is_sent_and_that_nothing_is_saved_before_save(self):
+    def test_the_disclosure_explains_full_map_scope_and_confirmation(self):
         html = read("route.html")
-        for needle in ("前 5 个关键词", "不发送论文、笔记、画像或别的项目", "每个项目每天最多 3 次", "保存之前，现在的学习图不会改变"):
+        for needle in ("五字段", "完整有界学习图", "不发送论文、笔记、画像、反馈或其他项目", "本地日", "预览确认"):
             self.assertIn(needle, html)
 
     def test_the_server_only_plans_on_post(self):
@@ -93,15 +95,16 @@ class DraftSafetyTests(unittest.TestCase):
         self.assertIn("state.busy", change)
         self.assertIn("!state.busy", js[js.index("part('discard').onclick"):js.index("part('save').onclick")])
 
-    def test_an_ai_draft_reuses_the_ids_of_same_named_concepts_so_marks_survive_saving(self):
+    def test_existing_map_uses_patch_preview_and_draft_id_confirmation(self):
         js = read("route-page.js")
-        self.assertIn("R.reuseIds(out.graph, state.route.graph)", js)
-        self.assertIn("只会保留给名字相同的概念", js)
+        self.assertNotIn("R.reuseIds(out.graph", js)
+        self.assertIn("action: 'revision-confirm', draft_id: preview.draft_id", js)
+        self.assertIn("state.preview = out.preview", js)
 
-    def test_a_refusal_for_missing_approval_is_explained_not_shown_as_a_failure_of_the_ai(self):
+    def test_unapproved_scope_is_explained_and_teacher_input_retained(self):
         js = read("route-page.js")
         self.assertIn("reason_code === 'not_approved'", js)
-        self.assertIn("learning_path_plan_project", js)
+        self.assertIn("需求和草稿已保留", js)
 
     def test_a_redraw_keeps_zoom_scroll_and_focus_and_does_not_drop_a_half_typed_edit(self):
         for name, holder in (("route-page.js", "state"), ("project-creation.js", "map")):

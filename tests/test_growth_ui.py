@@ -22,7 +22,7 @@ class GrowthPageTests(unittest.TestCase):
     def test_directions_are_read_when_the_page_opens_and_after_each_change_to_the_map_never_by_surprise_elsewhere(self):
         self.assertEqual(JS.count("action: 'candidates'"), 1)            # one request site, in loadGrowth
         calls = [i for i in range(len(JS)) if JS.startswith("loadGrowth()", i)]
-        self.assertEqual(len(calls), 7)   # declaration, load(), save, the refresh button, after add / reject / undo and after the judge response or Conflict
+        self.assertEqual(len(calls), 8)   # declaration, load(), save, the refresh button, after add / reject / undo and after the judge response or Conflict, and revision confirmation
         load = JS[JS.index("async function load()"):JS.index("function render()")]
         self.assertIn("loadGrowth();", load)
         save = JS[JS.index("part('save').onclick"):JS.index("part('modeSeg').onclick")]

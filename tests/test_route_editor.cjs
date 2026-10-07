@@ -122,13 +122,13 @@ test('deleting and adding never reuses watched identity, including a reloaded dr
   assert.notEqual(reloaded.concepts.at(-1).id, id);
 });
 
-test('adding a concept picks a fresh id and refuses a cycle, a harder prerequisite, a full map', () => {
+test('adding a concept picks a fresh id and refuses a cycle or full map and warns on harder prerequisites', () => {
   const R = load();
   const g = R.addConcept(graph(), { name: 'Strain', terms: ['strain'], hint: 3 }, ['c2']);
   assert.equal(g.concepts.length, 5);
   assert.match(g.concepts[4].id, /^r-/);
   assert.ok(!graph().concepts.some(c => c.id === g.concepts[4].id));
-  assert.throws(() => R.addConcept(graph(), { name: 'Loop', terms: ['loop'], hint: 1 }, ['c4']), (e) => /更基础/.test(e.message));
+  assert.equal(R.check(R.addConcept(graph(), { name: 'Loop', terms: ['loop'], hint: 1 }, ['c4'])).warnings.length, 1);
   const cyclic = graph();
   assert.throws(() => R.setNeeds(cyclic, 'c1', ['c4']), (e) => /更基础|环/.test(e.message));
   let full = graph();
@@ -158,7 +158,10 @@ test('check reports the reason a graph would be refused by the server', () => {
   assert.equal(R.check(graph()).ok, true);
   const bad = graph();
   bad.concepts[0].hint = 3;   // c1 -> c2 now has a prerequisite harder than its dependent
-  assert.match(R.check(bad).reason, /更基础/);
+  assert.equal(R.check(bad).ok, true);
+  assert.equal(R.check(bad).warnings.length, 1);
+  assert.equal(R.check({...graph(), targets: []}).ok, false);
+  assert.equal(R.check(R.setTarget({...graph(), targets: []}, 'c4', true)).ok, true);
   const cyc = graph();
   cyc.concepts.forEach(c => { c.hint = 2; });
   cyc.prereqs.push({ from: 'c4', to: 'c1' });

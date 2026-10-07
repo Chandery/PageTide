@@ -170,20 +170,21 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   }
 
   /* ---- learning map: AI proposes concepts and their order, the page lets you edit, check and confirm */
-  const R = window.PDHRoute;
-  const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null};
+  const R = window.PDHRoute, Brief = window.PDHBrief;
+  const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null, briefDirty: false, generating: false, cachedPlan: false, discarded: false};
   const mapAct = makeActivity(part('mapActivity'));
-  part('mapBoundary').innerHTML = R.boundaryHTML('map');   // optional: where the reader starts and how deep to go
+  Brief.mount(part('mapBrief'));
+  part('mapBrief').addEventListener('input', () => { map.briefDirty = true; });
   const mapNotice = (message, isError = true) => {
     const el = part('mapNotice');
     el.hidden = !message; el.textContent = message || ''; el.classList.toggle('error', isError);
   };
-  const GROUNDING = {ok: '', none: '（公开文献里没找到）', no_terms: '（没有英文检索词）', unavailable: '（这次没能核对）', skipped: '（被限流，未核对）'};
+  const GROUNDING = {ok: '', none: '（公开文献里没找到）', no_terms: '（没有检索词）', unavailable: '（这次没能核对）', skipped: '（被限流，未核对）'};
 
   function renderMap() {
     const g = map.graph;
     part('mapActions').hidden = !g;
-    part('mapRegen').hidden = !g || !sessionId();
+    part('mapRegen').hidden = (!g && !map.cachedPlan) || !sessionId();
     part('mapGenerate').hidden = !!g;
     part('mapLayout').hidden = !g;
     part('mapShape').hidden = !g;
@@ -230,28 +231,33 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       <div class="row"><label><input type="checkbox"${mastered ? ' checked' : ''}> 已掌握（作为起点）</label>
         <button type="button" class="ghost small" data-act="edit">编辑</button><button type="button" class="ghost small" data-act="del">删除</button></div>`;
     $('input[type=checkbox]', holder).onchange = () => {
+      if (map.generating || map.checking || busy) { renderDetail(); return; }
       map.mastered = R.toggleMastered(map.mastered, concept.id, g); renderMap();
       const again = $('input[type=checkbox]', part('mapDetail'));
       if (again) again.focus();   // the re-draw replaced the checkbox the person was on
     };
     $('[data-act=del]', holder).onclick = () => {
+      if (map.generating || map.checking || busy) return;
       map.graph = R.removeConcept(g, concept.id); map.mastered = map.mastered.filter((i) => i !== concept.id);
       map.selected = map.editing = null; renderMap();
     };
-    $('[data-act=edit]', holder).onclick = () => { map.editing = concept.id; renderDetail(); };
+    $('[data-act=edit]', holder).onclick = () => { if (map.generating || map.checking || busy) return; map.editing = concept.id; renderDetail(); };
   }
 
   function editConcept(holder, g, concept) {
     holder.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
-      <input class="edit" data-role="t" maxlength="130" placeholder="两个英文检索词，用 / 分隔" aria-label="英文检索词">
+      <input class="edit" data-role="t" maxlength="130" placeholder="两个检索词，用 / 分隔" aria-label="检索词">
+      <label class="map-note"><input type="checkbox" data-role="target"${(g.targets || []).includes(concept.id) ? ' checked' : ''}> 作为学习目标</label>
       ${R.needsEditorHTML(g, concept.id)}
       <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>`;
     $('[data-role=n]', holder).value = concept.name;
     $('[data-role=t]', holder).value = (concept.terms || []).join(' / ');
     $('[data-act=no]', holder).onclick = () => { map.editing = null; renderDetail(); };
     $('[data-act=ok]', holder).onclick = () => {
+      if (map.generating || map.checking || busy) return;
       try {
         let next = R.rename(g, concept.id, $('[data-role=n]', holder).value, $('[data-role=t]', holder).value.split('/'));
+        next = R.setTarget(next, concept.id, $('[data-role=target]', holder).checked);
         next = R.setNeeds(next, concept.id, R.readNeeds(holder));
         map.graph = next; map.editing = null; mapNotice(''); renderMap();
       } catch (error) { mapNotice(error.message); }
@@ -259,7 +265,9 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   }
 
   part('mapAdd').onclick = () => {
+    if (map.generating || map.checking || busy) return;
     try {
+      if (map.graph.concepts.length >= 12) throw new Error('创建学习图最多12个概念');
       let name = '新概念', n = 1;
       while (map.graph.concepts.some((c) => c.name === name)) name = `新概念 ${++n}`;
       map.graph = R.addConcept(map.graph, {name, terms: [], hint: 2}, []);
@@ -267,22 +275,33 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       mapNotice(''); renderMap();
     } catch (error) { mapNotice(error.message); }
   };
-  part('mapDrop').onclick = () => { map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice(''); renderMap(); };
+  part('mapStart').onclick = () => {
+    if (map.generating || map.checking || busy) return;
+    map.graph = {concepts: [{id: 'c1', name: '第一个概念', terms: [], hint: 1, origin: 'user', state: 'active'}], prereqs: [], targets: ['c1']};
+    map.mastered = []; map.selected = 'c1'; map.editing = null; renderMap();
+  };
+  part('mapDrop').onclick = () => { if (map.generating || map.checking || busy) return; map.discarded = true; map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice(''); renderMap(); };
 
   async function generateMap(regenerate) {
+    if (map.generating || map.checking || busy) return;
     if (!sessionId()) { mapNotice('请先开始创建会话。'); return; }
+    let brief;
+    try { brief = Brief.read(part('mapBrief')); } catch (error) { mapNotice(error.message); return; }
+    if (map.editing) { mapNotice('先确定或取消概念编辑。'); return; }
+    const sentSession = sessionId(); map.generating = true;
+    part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
     mapNotice(''); mapAct.start('正在请 AI 规划学习路径（约 10–30 秒）…');
     part('mapGenerate').disabled = true; part('mapRegen').disabled = true;
     try {
-      const boundary = R.readBoundary(part('mapBoundary'));
-      const out = await post(`/api/project-guidance/sessions/${sessionId()}/route`, {regenerate, ...(boundary ? {boundary} : {})});
-      if (!out.ok) { mapNotice(`没有使用 AI：${out.reason || 'AI 没有给出学习图'}。可以点“添加概念”自己搭学习图，或不使用学习图。`); return; }
-      map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
-      const fixed = out.report ? out.report.dropped_edges.length + out.report.merged.length + out.report.dropped_concepts.length : 0;
-      mapNotice(`AI 已回复${out.tokens ? ` · 约 ${out.tokens} token` : ''}${fixed ? ` · 已自动修复 ${fixed} 处（重复概念、成环或多余的边）` : ''}。请检查后再创建。`, false);
+      const out = await post(`/api/project-guidance/sessions/${sentSession}/route`, {regenerate, brief});
+      if (sessionId() !== sentSession) return;
+      if (!out.ok) { mapNotice(`未得到有效学习图：${out.reason || 'AI 没有给出学习图'}。还可尝试 ${out.attempts_left} 次；可以点“自己搭一张”手动编辑，或不使用学习图。`); return; }
+      map.discarded = false; map.cachedPlan = true; map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
+      const warnings = (out.report?.warnings || []).join('；');
+      mapNotice(`AI 已回复${out.tokens ? ` · 约 ${out.tokens} token` : ''}${warnings ? ` · ${warnings}` : ''}。请检查后再创建。`, false);
       renderMap();
     } catch (error) { mapNotice(error.message); }
-    finally { mapAct.stop(); part('mapGenerate').disabled = false; part('mapRegen').disabled = false; }
+    finally { map.generating = false; part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); mapAct.stop(); part('mapGenerate').disabled = false; part('mapRegen').disabled = false; }
   }
   part('mapGenerate').onclick = () => generateMap(false);
   part('mapRegen').onclick = () => {
@@ -290,7 +309,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   };
 
   part('mapCheck').onclick = async () => {
-    if (!map.graph || map.checking) return;
+    if (!map.graph || map.checking || map.generating || busy) return;
     map.checking = true; mapNotice(''); mapAct.start('正在用公开文献核对每个概念（OpenAlex，只发送检索词）…');
     part('mapCheck').disabled = true;
     try {
@@ -301,7 +320,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     } catch (error) { mapNotice(error.message); }
     finally { mapAct.stop(); map.checking = false; part('mapCheck').disabled = false; }
   };
-  const mapPayload = () => (map.graph && R.check(map.graph).ok ? R.payload(map.graph, map.mastered) : null);
+  const mapPayload = () => (map.graph && R.check(map.graph).ok ? {...R.payload(map.graph, map.mastered), brief: Brief.read(part('mapBrief'))} : null);
 
   function addPathItem(item = {}) {
     const holder = part('path');
@@ -336,7 +355,9 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     part('path').innerHTML = '';
     (d.learning_path || []).forEach(addPathItem);
     syncPath();
-    if (d.route_plan && d.route_plan.graph && !map.graph) { map.graph = d.route_plan.graph; renderMap(); }
+    if (!map.briefDirty) Brief.set(part('mapBrief'), d.route_plan?.brief || {goal: String(d.goal || '')});
+    if (d.route_plan?.graph) map.cachedPlan = true;
+    if (d.route_plan && d.route_plan.graph && !map.graph && !map.discarded) { map.graph = d.route_plan.graph; renderMap(); }
     if (d.candidates && d.candidates.length && !candidates.size) addCandidates(d.candidates.map((p) => ({...p, url: p.url || (p.arxiv_id ? `https://arxiv.org/abs/${p.arxiv_id}` : null)})));
     refresh();
   }
@@ -411,7 +432,9 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     refresh();
   };
   part('create').onclick = async () => {
+    if (map.generating || map.checking || map.editing) { mapNotice('先完成当前学习图操作再创建项目。'); return; }
     busy = true; refresh();
+    part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
     createAct.start('正在创建项目…');
     try {
       if (map.graph && !R.check(map.graph).ok) { mapNotice(`学习图还不能保存：${R.check(map.graph).reason}`); createAct.stop(); busy = false; refresh(); return; }
@@ -419,7 +442,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     } catch (error) {
       createAct.fail(error.message);
       busy = false; refresh();
-    }
+    } finally { part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); }
   };
   refresh();
   return {setDraft, draft, search, refresh, root: view,

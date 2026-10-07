@@ -279,6 +279,12 @@ class Gateway:
                 cap_in, cap_out, reserve_usd = self.admit(operation, today, month)
             except BudgetExceeded as exc:
                 return {"ok": False, "degraded": True, "reason": str(exc)}
+            try:
+                body = json.dumps({"model": provider["model"], "thinking": {"type": "disabled"},
+                                   "max_tokens": cap_out, "messages": messages}, ensure_ascii=False).encode('utf-8')
+            except (UnicodeError, TypeError, ValueError, RecursionError):
+                return {"ok": False, "degraded": True, "invalid_input": True,
+                        "usage_unknown": False, "reason": "invalid request text; nothing sent"}
             if dry_run:
                 return {"ok": True, "dry_run": True, "operation": operation,
                         "reservation": {"input": cap_in, "output": cap_out, "usd": str(reserve_usd)}}
@@ -288,12 +294,6 @@ class Gateway:
             rid = uuid.uuid4().hex
             self._record(today, operation, {"prompt_tokens": cap_in, "completion_tokens": cap_out},
                          reserve_usd, provider["model"], rid, "reserved")
-        body = json.dumps({
-            "model": provider["model"],
-            "thinking": {"type": "disabled"},
-            "max_tokens": cap_out,
-            "messages": messages,
-        }).encode()
         request = urllib.request.Request(
             DEEPSEEK_URL, data=body,
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",

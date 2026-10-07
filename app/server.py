@@ -282,8 +282,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self):
         length = int(self.headers.get("Content-Length") or 0)
+        strict_route = urlparse(self.path).path == '/api/route' or (
+            urlparse(self.path).path.startswith('/api/project-guidance/sessions/') and urlparse(self.path).path.endswith('/route'))
+        limit = 1_000_000 if urlparse(self.path).path == '/api/route' else 131072
+        if length < 0 or (strict_route and length > limit):
+            raise ValueError('Route request body exceeds local limit')
         raw = self.rfile.read(length) or b"{}"
-        if urlparse(self.path).path == '/api/route':
+        if strict_route:
             from .route_revision import strict_json
             return strict_json(raw)
         return json.loads(raw)
@@ -542,6 +547,7 @@ class Handler(BaseHTTPRequestHandler):
             if len(parts) < 5:
                 return self._json({"error": "invalid guidance route"}, 404)
             session_id, action = parts[4], parts[5] if len(parts) > 5 else "turn"
+            from .organization import Conflict
             try:
                 if action == "turn":
                     self._json(app.guidance_turn(session_id, body.get("message"), bool(body.get("dry_run")),
@@ -551,12 +557,22 @@ class Handler(BaseHTTPRequestHandler):
                 elif action == "preview":
                     self._json(app.guidance_preview(session_id, body.get("draft")))
                 elif action == "route":
-                    self._json(app.route_plan(session_id, regenerate=bool(body.get("regenerate")), dry_run=bool(body.get("dry_run")), boundary=body.get("boundary")))
+                    if 'brief' in body:
+                        if set(body) - {'brief', 'regenerate', 'dry_run'}:
+                            raise ValueError('固定需求创建请求包含未知字段')
+                        if any(field in body and type(body[field]) is not bool for field in ('regenerate', 'dry_run')):
+                            raise ValueError('创建选项必须是布尔值')
+                        self._json(app.route_brief_plan(body['brief'], session_id=session_id,
+                            regenerate=bool(body.get('regenerate')), dry_run=bool(body.get('dry_run'))))
+                    else:
+                        self._json(app.route_plan(session_id, regenerate=bool(body.get("regenerate")), dry_run=bool(body.get("dry_run")), boundary=body.get("boundary")))
                 elif action == "finalize":
                     self._json(app.finalize_guidance(session_id, body.get("draft"), body.get("selected_keys"), route=body.get("route"),
                                                      language_policy=body.get('language_policy')))
                 else:
                     return self._json({"error": "unknown guidance action"}, 404)
+            except Conflict as exc:
+                return self._json({'error': str(exc)}, 409)
             except (ValueError, TypeError) as exc:
                 return self._json({"error": str(exc)}, 400)
         elif route == "/api/refresh":
@@ -574,6 +590,8 @@ class Handler(BaseHTTPRequestHandler):
                     'revision-preview': {'action', 'project_id', 'revision', 'brief', 'patch'},
                     'revision-confirm': {'action', 'project_id', 'draft_id'},
                     'revision-draft': {'action', 'project_id'},
+                    'revision-generate': {'action', 'project_id', 'revision', 'brief', 'dry_run'},
+                    'brief-plan': {'action', 'project_id', 'brief', 'dry_run'},
                 }
                 if action in revision_fields and set(body) - revision_fields[action]:
                     raise ValueError('修改预览请求包含未知字段')
@@ -585,6 +603,16 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(app.route_revision_confirm(project_id, body.get('draft_id')))
                 elif action == 'revision-draft':
                     return self._json({'draft': app.route_revision_draft(project_id)})
+                elif action == 'revision-generate':
+                    if 'dry_run' in body and type(body['dry_run']) is not bool:
+                        raise ValueError('dry_run必须是布尔值')
+                    return self._json(app.route_revision_generate(project_id, body.get('brief'), revision=revision,
+                        dry_run=bool(body.get('dry_run'))))
+                elif action == 'brief-plan':
+                    if 'dry_run' in body and type(body['dry_run']) is not bool:
+                        raise ValueError('dry_run必须是布尔值')
+                    return self._json(app.route_brief_plan(body.get('brief'), project_id=project_id,
+                        dry_run=bool(body.get('dry_run'))))
                 elif action == "manual":
                     result = app.route_manual(project_id, body.get("concept"), body.get("value"), revision=revision)
                 elif action == "watch":

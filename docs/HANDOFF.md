@@ -1,3 +1,13 @@
+# 当前工作单元：Route Mode 阶段07共享需求与模型/UI合同完成（2026-10-07）
+
+- 分支codex/route-discovery-rework，基线3ec94c0；最终commit/dirty用git核对。ROUTE-V2-00–07 done，E07 passed仅本地合同与新包后端；08 planned，完整目标未完成。
+- 创建/修改共用五字段，老师文字或MD只作需求。创建12，修改完整40/120/3紧凑Map与白名单补丁；预检完整请求、超预算不截图、length拒绝。新操作route_map_create3200/1800、route_map_revision8000/4000独立未批准；原全局额度保持，核心每日必需token0，无真实库/来源/模型调用。
+- UI区分创建和修改；现有图先预览结构/目标/掌握影响，再draft_id确认。重启恢复/409保留/需求更改禁旧确认/迟到session回复忽略；人工简介/稳定关注/兴趣历史保留，known不授予掌握。手动建图、明确目标、难度警告保持可用。
+- 新旧创建共享flock/计数。取消原子、生命周期核对、短事务退款不复活删除key、确认拒绝同连接重入、reservation failure可重试。Gateway编码先于预留，非法Unicode不留账；未知5xx保留次数与预算。Route raw请求仍1000000字节，131072只限session/model回应，不阻断合法大身份图保存。
+- 最终1450Python/257Node全过；独立最终70Python/90Node及实际探针过，无剩余P1/P2。新backend/Tauri .app和实际新包隔离后端验收过，默认HOME未改、出站网络封锁；不等同原生窗口/真实AI质量/推荐收益/全文语言准确率/账单tokenizer/8GB资源测量。
+- 实际浏览器被policy明确拒绝（用户拒绝访问权限），Mac锁定；没有绕过。原生与实际浏览器点击验收未完成，留在08及原发布gates。当前新AI范围不借旧批准，不做实付调用。
+- [ADR0021](decisions/0021-route-shared-brief-model-ui.md)、[checks](evidence/2026-10-07-route-v2-07-model-ui-checks.txt)、[review](evidence/2026-10-07-route-v2-07-model-ui-review.md)。下一步08：类别与学习任务共享paper身份、双向导航/未匹配入口、Routeoff保留Map、多项目/视图迟到回复；隔离全链条+原生完整验收和发布gates审计。任务唯一状态在harness/tasks.json。
+
 # 当前工作单元：Route Mode 阶段07后端修改预览（2026-10-07）
 
 - 分支 `codex/route-discovery-rework`，本单元基线 `d78d589`；ROUTE-V2-07仍in_progress，E07 not_run，08未开始。实际最终commit和dirty用git核对；完整方案未完成。

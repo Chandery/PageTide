@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-07-route-v2-07-model-ui",
+  "class": "critical",
+  "summary": "Shared five-field Route creation and full-Map patch preview UI; separately unapproved budgeted model contracts and safe creation lifecycle.",
+  "tasks": [
+    "ROUTE-V2-07"
+  ],
+  "files": [
+    "app/creation.py",
+    "app/gateway.py",
+    "app/project.py",
+    "app/route_revision.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/project-creation.css",
+    "app/static/project-creation.js",
+    "app/static/project_creation.html",
+    "app/static/route-brief.js",
+    "app/static/route-editor.js",
+    "app/static/route-page.js",
+    "app/static/route.html",
+    "changes/2026-10-07-route-v2-07-model-ui.json",
+    "docs/BUDGET.generated.md",
+    "docs/BUDGET.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0021-route-shared-brief-model-ui.md",
+    "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt",
+    "docs/evidence/2026-10-07-route-v2-07-model-ui-review.md",
+    "harness/budget.json",
+    "harness/evaluations.json",
+    "harness/sources.json",
+    "harness/tasks.json",
+    "prompts/route-map-create.md",
+    "prompts/route-map-revision.md",
+    "scripts/verify_packaged_route.py",
+    "tests/test_boundary_ui.py",
+    "tests/test_creation_brief_page.cjs",
+    "tests/test_gateway_budget.py",
+    "tests/test_growth_ui.py",
+    "tests/test_i18n.cjs",
+    "tests/test_project_creation_ui.py",
+    "tests/test_route_brief.cjs",
+    "tests/test_route_brief_page.cjs",
+    "tests/test_route_editor.cjs",
+    "tests/test_route_graph_page.py",
+    "tests/test_route_map_model.py",
+    "tests/test_weekly_detail.py"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "Core daily required model tokens0; new optional operations remain owner_approved=false/default-off. Creation complete brief cap3200/1800; revision complete bounded Map+brief8000/4000;3 creation attempts/session or project localday shared legacy counters,2 revision/project localday; no retry/fallback/history/private IDs. Real calls this unit0.",
+    "before": "3ec94c0 registered operations/authorizations; existing global55000/day1500000/month tokens,$0.15/day$1.50/month unchanged.",
+    "after": "Added unapproved route_map_create reference1400/1200 cap3200/1800($0.00312/call), route_map_revision reference3500/1800 cap8000/4000($0.00720/call); pending monthly1create4revision8growth cap125000token/$0.06072, arithmetic proposal only.",
+    "developer_usage": "unknown; host usage not measured by project ledger",
+    "quantified": {
+      "period": "one proposed creation plus one proposed revision using new scopes at registered caps; these scopes absent before and remain unapproved after, arithmetic proposal not actual usage",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 11200,
+        "output_tokens": 5800,
+        "usd": "0.01032"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "implementer; final local contracts/lifecycle/cost/diff and fresh package evidence",
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "/root/route_logic; final70Python90Node and actual reprobes; all P2 findings fixed, no remainingP1/P2",
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Phase08 unified graph navigation and full native acceptance remain unfinished.",
+    "Browser access explicitly denied by policy and Mac locked; no actual UI click/native flow measurement.",
+    "Expanded AI operations unapproved; real model quality/tokenizer/billing, recommendation value, language accuracy and reference-machine resources unmeasured."
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt"
+    },
+    {
+      "command": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt"
+    },
+    {
+      "command": "cargo tauri build --bundles app",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-07-route-v2-07-model-ui-checks.txt"
+    }
+  ]
+}

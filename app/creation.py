@@ -198,13 +198,15 @@ def degrade_reason(result, english=False):
         code = "dry_run"
     elif result.get("disabled"):
         code = "ai_off"
+    elif result.get("invalid_input"):
+        code = "invalid_input"
     elif raw == "no API key":
         code = "no_key"
     elif "awaiting owner approval" in raw:
         code = "not_approved"
     elif "ceiling" in raw:
         code = "budget"
-    elif raw.startswith("HTTPError"):
+    elif raw.startswith("HTTPError") and not result.get("usage_unknown"):
         code = "http"
     elif result.get("usage_unknown") or raw.startswith(("URLError", "TimeoutError", "OSError")):
         code = "network"
@@ -215,5 +217,7 @@ def degrade_reason(result, english=False):
 
 
 def reason_text(code, english=False):
+    if code == 'invalid_input':
+        return '请求文字格式无效，未发送请求。' if not english else 'Invalid request text; nothing was sent.'
     zh, en = _REASONS.get(code, _REASONS["error"])
     return en if english else zh

@@ -122,10 +122,11 @@
   </section>
   <section class="rv-block" data-role="mapBlock">
     <header><h3>学习图</h3><span class="hint">AI 只提议概念和先后顺序，你来确认；之后每个概念按你的反馈各自推进</span>
-      <button type="button" class="ghost small" data-role="mapGenerate">生成学习路径（1 次 AI）</button></header>
+      <button type="button" class="ghost small" data-role="mapGenerate">生成学习路径（1 次 AI）</button><button type="button" class="ghost small" data-role="mapRegen" hidden>重新生成</button><button type="button" class="ghost small" data-role="mapStart">自己搭一张</button></header>
     <div class="activity" data-role="mapActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
-    <div data-role="mapBoundary"></div>
-    <div class="map-note">背景和想学到的程度可以跳过；跳过时按“能读论文 + 最少前置”生成。只有选了“未知”才会补充基础概念，并写明原因。AI 只会收到这两个选项值，不会收到别的。</div>
+    <div data-role="mapBrief"></div>
+  <div class="map-note">仅学习目标必填；其他项可以跳过。已知基础留空表示未说明。</div>
+    <div class="map-note">只发送五字段需求，不发送论文、笔记、画像或其他项目。老师的文字或 MD 内容可粘贴到结构意见；已知基础不自动标记掌握。创建最多 12 个初始概念，新范围未批准时仍可手动搭图。</div>
     <div class="notice" data-role="mapNotice" hidden></div>
     <div class="map-note" data-role="mapNote" hidden></div>
     <div class="map-shape" data-role="mapShape" hidden></div>
@@ -136,7 +137,6 @@
     <div class="map-actions" data-role="mapActions" hidden>
       <button type="button" class="ghost small" data-role="mapAdd">+ 添加概念</button>
       <button type="button" class="ghost small" data-role="mapCheck">用公开文献核对</button>
-      <button type="button" class="ghost small" data-role="mapRegen" hidden>重新生成</button>
       <button type="button" class="ghost small" data-role="mapDrop">不使用学习图</button>
     </div>
   </section>
@@ -169,6 +169,7 @@
 
 <script src="/creation-pdf.js"></script>
 <script src="/route-editor.js"></script>
+<script src="/route-brief.js"></script>
 <script src="/route-graph.js"></script>
 <script src="/paper-policy.js"></script>
 <script src="/project-creation.js"></script>

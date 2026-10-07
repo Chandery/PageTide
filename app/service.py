@@ -428,7 +428,6 @@ class App:
             except BaseException:
                 self.store.conn.rollback()
                 raise
-            self._ROUTE_BUSY.add(busy)
         started = time.monotonic()
         left = lambda n: max(0, self.DIRECTION_JUDGES_PER_DAY - n)
         try:
@@ -625,7 +624,7 @@ class App:
                 'watch': [i for i in (route.get('watch') or []) if i in known],
                 'brief': brief, 'progress': progress, **pathgraph.goal_state(graph, progress)}
 
-    def route_revision_preview(self, project_id, brief, patch, revision=None):
+    def route_revision_preview(self, project_id, brief, patch, revision=None, *, expected_context=None, expected_draft=None):
         """Local patch preview; no AI and no mutation of the saved Map/undo."""
         project_id = self._require_project_id(project_id)
         brief = route_revision.validate_brief(brief)
@@ -637,6 +636,10 @@ class App:
             if revision is not None and (type(revision) is not int or revision != current):
                 raise Conflict('学习图版本已变化，请重新预览')
             signature, cutoff = self._route_revision_context(project_id)
+            if expected_context is not None and expected_context != signature:
+                raise Conflict('生成期间学习图或有效反馈已变化；原草稿保留，请重新预览')
+            if expected_draft is not None and expected_draft != growthproposal.digest(self.store.get_setting('route_revision_' + project_id)):
+                raise Conflict('生成期间已有新预览；较新草稿保留，请检查后重新生成')
             result = route_revision.apply_patch(stored['graph'], patch, through_feedback_id=cutoff)
             before = self.route_get(project_id)
             if before.get('progress_verification_deferred'):
@@ -711,6 +714,166 @@ class App:
             return {**self._with_undo(project_id, self.route_get(project_id)), 'duplicate': True}
         return self._with_undo(project_id, self.route_get(project_id))
 
+    def _route_model_attempt(self, key, messages, operation, limit, process, *, daily=True, dry_run=False, validate_state=None):
+        """Caller holds a cross-process claim; never hold SQLite during network I/O."""
+        today = time.strftime('%Y-%m-%d') if daily else None
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError('Route AI attempt requires an idle connection')
+            self.store.conn.execute('BEGIN IMMEDIATE')
+            try:
+                if validate_state is not None:
+                    validate_state()
+                previous = self.store.get_setting(key) or {}
+                attempts = int(previous.get('attempts') or 0) if not daily or previous.get('day') == today else 0
+                if attempts >= limit and not dry_run:
+                    raise ValueError('今天AI次数已用完，请手动编辑或下一个本地日再试' if daily else '这个创建会话的AI次数已用完，请手动编辑')
+                if not dry_run:
+                    self._growth_write_setting(key, {**previous, 'day': today, 'attempts': attempts + 1})
+                self.store.conn.commit()
+            except BaseException:
+                self.store.conn.rollback()
+                raise
+        started = time.monotonic()
+        try:
+            result = self.gateway.call(operation, messages, dry_run=dry_run) or {}
+        except Exception as exc:
+            result = {'ok': False, 'usage_unknown': True, 'reason': type(exc).__name__}
+        used = attempts + (0 if dry_run else 1)
+        elapsed = int((time.monotonic() - started) * 1000)
+        base = {'elapsed_ms': elapsed, 'tokens': None, 'attempts_left': max(0, limit - used)}
+        if dry_run or not result.get('ok'):
+            code, text = creation.degrade_reason(result, self.english())
+            if result.get('usage_unknown'):
+                code = 'network'
+                text = '请求结果或计费状态未知；保留本次次数和预算预留，需求与原图不变。'
+            if code in self._ROUTE_UNPAID and not dry_run:
+                self._route_refund(key, today, attempts)
+                base['attempts_left'] = max(0, limit - attempts)
+            return {'ok': False, 'mode': 'local', 'reason_code': code, 'reason': text, **base}
+        try:
+            value = process(result)
+        except Conflict:
+            raise
+        except ValueError as exc:
+            return {'ok': False, 'mode': 'local', 'reason_code': 'bad_reply',
+                    'reason': 'AI回复未通过完整校验；原图与先前草稿不变。' + str(exc), **base}
+        return {'ok': True, 'mode': 'ai', 'tokens': (result.get('usage') or {}).get('total_tokens'),
+                'usage_unknown': bool(result.get('usage_unknown')), **{k:v for k,v in base.items() if k != 'tokens'}, **value}
+
+    def _route_setting_transaction(self, work):
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError('Route creation requires an idle connection')
+            self.store.conn.execute('BEGIN IMMEDIATE')
+            try:
+                result = work()
+                self.store.conn.commit()
+                return result
+            except BaseException:
+                self.store.conn.rollback()
+                raise
+
+    def _route_refund(self, key, day, attempts):
+        # Read and update under the same write transaction. Cancellation/deletion
+        # cannot slip between them, and a deleted key is never re-created.
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError('Route AI refund requires an idle connection')
+            self.store.conn.execute('BEGIN IMMEDIATE')
+            try:
+                current = self.store.get_setting(key) or {}
+                if current and current.get('day') == day:
+                    self._growth_write_setting(key, {**current, 'attempts': attempts})
+                self.store.conn.commit()
+            except BaseException:
+                self.store.conn.rollback()
+                raise
+
+    def route_revision_generate(self, project_id, brief, revision=None, dry_run=False):
+        project_id = self._require_project_id(project_id)
+        brief = route_revision.validate_brief(brief)
+        with operation_lock.claim(self.data, 'revision:' + project_id):
+            org = self._route_org(project_id)
+            with org._transaction(write=False):
+                current, route = read_route(self.store.conn, project_id)
+                if not route:
+                    raise ValueError('请先创建学习图')
+                if revision is not None and (type(revision) is not int or revision != current):
+                    raise Conflict('学习图版本已变化，请重新打开需求表')
+                context, _ = self._route_revision_context(project_id)
+                prior_draft = growthproposal.digest(self.store.get_setting('route_revision_' + project_id))
+                messages = route_revision.model_messages(brief, route['graph'], english=self.english(),
+                    model=self.gateway.config['provider']['model'])
+            def process(result):
+                patch = route_revision.parse(result.get('content'), finish_reason=result.get('finish_reason'))
+                return {'preview': self.route_revision_preview(project_id, brief, patch, revision=current,
+                    expected_context=context, expected_draft=prior_draft)}
+            def validate_state():
+                if self._route_revision_context(project_id)[0] != context:
+                    raise Conflict('学习图或有效反馈已变化；未发送请求，请重新预览')
+                if growthproposal.digest(self.store.get_setting('route_revision_' + project_id)) != prior_draft:
+                    raise Conflict('已有较新预览；未发送请求，请检查当前草稿')
+            return self._route_model_attempt('route_revision_attempt_' + project_id, messages,
+                route_revision.REVISION_OPERATION, 2, process, dry_run=dry_run, validate_state=validate_state)
+
+    def route_brief_plan(self, brief, *, project_id=None, session_id=None, regenerate=False, dry_run=False):
+        """New five-field creation scope; never reuse an old approved operation."""
+        brief = route_revision.validate_brief(brief)
+        if bool(project_id) == bool(session_id):
+            raise ValueError('必须指定一个项目或创建会话')
+        if session_id:
+            if not isinstance(session_id, str):
+                raise ValueError('创建会话无效')
+            scope, key, limit = 'brief-session:' + session_id, 'route_plan_' + session_id, 1 + routeplan.MAX_REGENERATIONS
+        else:
+            project_id = self._require_project_id(project_id)
+            scope, key, limit = 'brief-create:' + project_id, 'route_plan_project_' + project_id, self.PROJECT_PLANS_PER_DAY
+        with operation_lock.claim(self.data, scope):
+            with self.store._lock:
+                if session_id:
+                    session = self.store.guidance_session(session_id)
+                    if not session or session['status'] != 'draft':
+                        raise ValueError('引导会话不存在或已结束')
+                    previous = (self.store.get_setting(key) or {}).get('plan')
+                    if previous and not regenerate:
+                        if previous.get('operation') != route_revision.CREATE_OPERATION or previous.get('brief') != brief:
+                            raise ValueError('需求已改变，请点击重新生成；之前草稿保留')
+                        return {'ok': True, 'mode': 'kept', **previous}
+                elif read_route(self.store.conn, project_id)[1]:
+                    raise ValueError('已有学习图请使用修改预览，不能重新创建覆盖')
+                messages = route_revision.model_messages(brief, english=self.english(),
+                    model=self.gateway.config['provider']['model'])
+            def process(result):
+                value = route_revision.parse_creation(result.get('content'), finish_reason=result.get('finish_reason'))
+                stored = {**value, 'brief': brief, 'operation': route_revision.CREATE_OPERATION,
+                          'tokens': (result.get('usage') or {}).get('total_tokens')}
+                with self.store._lock:
+                    if self.store.conn.in_transaction:
+                        raise RuntimeError('Creation draft requires an idle connection')
+                    self.store.conn.execute('BEGIN IMMEDIATE')
+                    try:
+                        validate_state()
+                        if session_id:
+                            counter = self.store.get_setting(key) or {}
+                            self._growth_write_setting(key, {**counter, 'plan': stored})
+                        self.store.conn.commit()
+                    except BaseException:
+                        self.store.conn.rollback()
+                        raise
+                return stored
+            def validate_state():
+                if session_id:
+                    current = self.store.guidance_session(session_id)
+                    if not current or current['status'] != 'draft':
+                        raise Conflict('创建会话已结束；没有发送请求或保存新草稿')
+                else:
+                    self._require_project_id(project_id)
+                    if read_route(self.store.conn, project_id)[1]:
+                        raise Conflict('已经创建学习图；没有替换当前图')
+            return self._route_model_attempt(key, messages, route_revision.CREATE_OPERATION, limit, process,
+                daily=not bool(session_id), dry_run=dry_run, validate_state=validate_state)
+
     def route_detail(self, project_id):
         """The library graph's second view (learning map + papers): its data (Organization.route_detail) with each unit's progress status."""
         if not isinstance(project_id, str) or not project_id:
@@ -739,7 +902,7 @@ class App:
     # otherwise wipe them, which re-bills a "kept" plan and resets the limit.
     _ROUTE_LOCK = threading.Lock()
     _ROUTE_BUSY = set()
-    _ROUTE_UNPAID = {"dry_run", "ai_off", "no_key", "not_approved", "budget", "http"}   # refused or rejected before generating
+    _ROUTE_UNPAID = {"dry_run", "ai_off", "no_key", "not_approved", "budget", "http", "invalid_input"}   # refused or rejected before generating
 
     def route_plan_state(self, session_id):
         state = self.store.get_setting(f"route_plan_{session_id}") or {}
@@ -753,6 +916,10 @@ class App:
         return session
 
     def route_plan(self, session_id, regenerate=False, dry_run=False, boundary=None):
+        with operation_lock.claim(self.data, 'brief-session:' + str(session_id)):
+            return self._legacy_route_plan(session_id, regenerate, dry_run, boundary)
+
+    def _legacy_route_plan(self, session_id, regenerate=False, dry_run=False, boundary=None):
         """Ask the model for a concept graph for this creation session (operation learning_path_plan).
 
         One explicit call per click. A plan already made is returned without a call. `regenerate` asks again;
@@ -773,9 +940,14 @@ class App:
         messages = routeplan.messages(draft["goal"], draft["keywords"], english, boundary)   # built before an attempt is reserved
         limit = 1 + routeplan.MAX_REGENERATIONS
         key = f"route_plan_{session_id}"
-        with self._ROUTE_LOCK:
+        def reserve():
+            current = self.store.guidance_session(session_id)
+            if not current or current['status'] != 'draft':
+                raise Conflict('创建会话已结束')
             state = self.store.get_setting(key) or {}
             plan, attempts = state.get("plan"), int(state.get("attempts") or 0)
+            if plan and not regenerate and plan.get('operation', 'learning_path_plan') != 'learning_path_plan':
+                raise ValueError('需求合同已改变，请明确重新生成；之前草稿保留')
             if plan and not regenerate:
                 return {"ok": True, "mode": "kept", "graph": plan["graph"], "report": plan.get("report"), "tokens": None,
                         "elapsed_ms": plan.get("elapsed_ms")}
@@ -783,21 +955,28 @@ class App:
                 raise ValueError("正在生成学习路径，请稍候")
             if attempts >= limit and not dry_run:
                 raise ValueError("这个会话已经生成过足够多次，请直接编辑路径")
-            self._ROUTE_BUSY.add(session_id)
             if not dry_run:
-                self.store.set_setting(key, {"plan": plan, "attempts": attempts + 1})   # reserved before the call
+                self._growth_write_setting(key, {"plan": plan, "attempts": attempts + 1})
+            return plan, attempts, None
+        with self._ROUTE_LOCK:
+            reserved = self._route_setting_transaction(reserve)
+        if isinstance(reserved, dict):
+            return reserved
+        plan, attempts, _ = reserved
         try:
             response, stored = self._route_ask("learning_path_plan", messages, english, dry_run, boundary)
             if stored is None:
                 if response.get("reason_code") in self._ROUTE_UNPAID:
-                    with self._ROUTE_LOCK:
-                        current = self.store.get_setting(key) or {}
-                        if not dry_run:
-                            self.store.set_setting(key, {"plan": current.get("plan"), "attempts": max(0, int(current.get("attempts") or 1) - 1)})
+                    if not dry_run:
+                        self._route_refund(key, None, attempts)
                 return response
-            with self._ROUTE_LOCK:
+            def keep():
+                current_session = self.store.guidance_session(session_id)
+                if not current_session or current_session['status'] != 'draft':
+                    raise Conflict('创建会话已结束；新草稿没有保存')
                 current = self.store.get_setting(key) or {}
-                self.store.set_setting(key, {"plan": stored, "attempts": int(current.get("attempts") or 1)})
+                self._growth_write_setting(key, {**current, "plan": {**stored, 'operation': 'learning_path_plan'}})
+            self._route_setting_transaction(keep)
             return response
         finally:
             with self._ROUTE_LOCK:
@@ -938,6 +1117,11 @@ class App:
         return {"ok": True, "examples": examples, "reason_code": None if examples else "none", "concept": concept_id}
 
     def route_plan_project(self, project_id, goal, dry_run=False, boundary=None):
+        project_id = self._require_project_id(project_id)
+        with operation_lock.claim(self.data, 'brief-create:' + project_id):
+            return self._legacy_route_plan_project(project_id, goal, dry_run, boundary)
+
+    def _legacy_route_plan_project(self, project_id, goal, dry_run=False, boundary=None):
         """Ask for a concept graph for an existing project (operation learning_path_plan_project, which the owner
         approves separately), one explicit call per click. The model sees the goal the person typed and the project's first five keywords, nothing else. The
         reply is a proposal: it is returned for the page to show and edit, and nothing is saved until the person
@@ -961,16 +1145,18 @@ class App:
                 raise ValueError("正在生成学习图，请稍候")
             if attempts >= self.PROJECT_PLANS_PER_DAY and not dry_run:
                 raise ValueError(f"这个项目今天已经生成过 {self.PROJECT_PLANS_PER_DAY} 次，请直接编辑学习图，或明天再试")
-            self._ROUTE_BUSY.add(busy)
             if not dry_run:
-                self.store.set_setting(key, {"day": today, "attempts": attempts + 1})
+                def reserve():
+                    self._require_project_id(project_id)
+                    self._growth_write_setting(key, {"day": today, "attempts": attempts + 1})
+                self._route_setting_transaction(reserve)
         try:
             response, stored = self._route_ask("learning_path_plan_project", messages, english, dry_run, boundary)
             refunded = stored is None and response.get("reason_code") in self._ROUTE_UNPAID   # refused before anything was sent
             used = attempts + (0 if dry_run or refunded else 1)
             if refunded and not dry_run:
-                with self._ROUTE_LOCK:
-                    self.store.set_setting(key, {"day": today, "attempts": attempts})
+                self._route_refund(key, today, attempts)
+            self._require_project_id(project_id)
             return {**response, "attempts_left": max(0, self.PROJECT_PLANS_PER_DAY - used)}
         finally:
             with self._ROUTE_LOCK:
@@ -983,7 +1169,7 @@ class App:
         the corpus agrees with each prerequisite direction. Public metadata queries only (the concept's own
         first search term); at most one search per concept; the first outage or rate limit, or the overall
         deadline, stops the rest (they come back as "skipped"). Returns a copy."""
-        graph = pathgraph.validate(graph)
+        graph = pathgraph.validate(graph, explicit=True)
         docs, stop = {}, False
         deadline = time.monotonic() + self.GROUND_DEADLINE_SECONDS
         for concept in graph["concepts"]:
@@ -1323,11 +1509,15 @@ class App:
         keywords = [str(k).strip()[:120] for k in (keywords or []) if str(k).strip()][:40]
         from .paper_language import validate_value
         language_policy = validate_value(language_policy)
-        route_graph, route_marks = None, {}
+        route_graph, route_marks, route_brief = None, {}, None
         if route is not None:   # validated before anything is created: a bad map must not leave a half-made project
             if not isinstance(route, dict):
                 raise ValueError("学习图格式无效")
-            route_graph = pathgraph.validate(route.get("graph"))
+            if 'brief' in route:
+                route_brief = route_revision.validate_brief(route['brief'])
+            route_graph = pathgraph.validate(route.get("graph"), explicit=route_brief is not None)
+            if route_brief is not None and len(route_graph['concepts']) > 12:
+                raise ValueError('创建学习图最多12个概念')
             known = {c["id"] for c in route_graph["concepts"]}
             mastered = route.get("mastered") or []
             if not isinstance(mastered, list) or any(not isinstance(i, str) or i not in known for i in mastered):
@@ -1404,7 +1594,8 @@ class App:
                 results.append({"input": seed, "status": "failed", "error": str(exc)[:200]})
         if route_graph is not None:
             org = Organization(self.store, project=project_id)
-            org.action({"action": "route-save", "graph": route_graph})
+            org.action({"action": "route-save", "graph": route_graph,
+                        **({'brief': route_brief} if route_brief is not None else {})})
             for concept in route_marks:
                 org.action({"action": "route-manual", "concept": concept, "value": "mastered"})
         return {"project_id": project_id, "name": name, "seed_results": results}
@@ -1621,13 +1812,26 @@ class App:
         return creation.import_pdf(self.data, data, filename)
 
     def cancel_guidance(self, session_id):
-        session = self.store.guidance_session(session_id)
-        if not session:
-            raise LookupError("引导会话不存在")
-        if session["status"] != "draft":
-            raise ValueError("只有未确认的草稿可以取消")
-        self.store.update_guidance_session(session_id, status="cancelled")
-        self._forget_route_plan(session_id)
+        with operation_lock.claim(self.data, 'session-terminal:' + str(session_id)):
+            return self._cancel_guidance(session_id)
+
+    def _cancel_guidance(self, session_id):
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError('Session cancellation requires an idle connection')
+            self.store.conn.execute('BEGIN IMMEDIATE')
+            try:
+                session = self.store.guidance_session(session_id)
+                if not session:
+                    raise LookupError('引导会话不存在')
+                if session['status'] != 'draft':
+                    raise ValueError('只有未确认的草稿可以取消')
+                self.store.conn.execute("UPDATE project_guidance_sessions SET status='cancelled',updated_at=? WHERE id=?", (now(), session_id))
+                self.store.conn.execute('DELETE FROM settings WHERE key=?', ('route_plan_' + session_id,))
+                self.store.conn.commit()
+            except BaseException:
+                self.store.conn.rollback()
+                raise
         return {"cancelled": True, "session_id": session_id}
 
     def _forget_route_plan(self, session_id):
@@ -1635,6 +1839,13 @@ class App:
         self.store.conn.commit()
 
     def finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None, language_policy=None):
+        with operation_lock.claim(self.data, 'brief-session:' + str(session_id)), operation_lock.claim(self.data, 'session-terminal:' + str(session_id)):
+            with self.store._lock:
+                if self.store.conn.in_transaction:
+                    raise RuntimeError('Session confirmation requires an idle connection')
+                return self._finalize_guidance(session_id, draft, selected_keys, route, language_policy)
+
+    def _finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None, language_policy=None):
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
             raise ValueError("引导会话不存在或已结束")

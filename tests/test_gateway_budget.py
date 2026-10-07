@@ -43,6 +43,28 @@ class GatewayBudgetTests(unittest.TestCase):
         self.addCleanup(env.stop)
         self.gateway = Gateway(root=ROOT, data_dir=self.data, dev=False)
 
+    def test_invalid_unicode_serialization_refuses_before_reservation_or_network(self):
+        with mock.patch('app.gateway.urllib.request.urlopen') as opened:
+            out=self.gateway.call('paper_qa',[{'role':'user','content':'\ud800'}])
+        opened.assert_not_called()
+        self.assertFalse(out['ok']);self.assertTrue(out['invalid_input']);self.assertFalse(out['usage_unknown'])
+        self.assertFalse(self.gateway.ledger.exists())
+
+    def test_new_map_request_wire_matches_complete_estimate(self):
+        from app import route_revision as rr
+        self.gateway.config['operations'][rr.CREATE_OPERATION]['owner_approved']=True
+        messages=rr.model_messages({'goal':'理解模型'},model=self.gateway.config['provider']['model'])
+        seen=[]
+        def fake(request,**kw):
+            seen.append(request.data)
+            return _ok({'choices':[{'message':{'content':'{}'},'finish_reason':'stop'}],
+                        'usage':{'prompt_tokens':10,'completion_tokens':2,'total_tokens':12}})
+        with mock.patch('app.gateway.urllib.request.urlopen',side_effect=fake):
+            out=self.gateway.call(rr.CREATE_OPERATION,messages)
+        self.assertTrue(out['ok']);self.assertEqual(len(seen),1)
+        self.assertEqual(len(seen[0])+256,rr.message_estimate(messages,1800,self.gateway.config['provider']['model']))
+        self.assertIn('理解模型',seen[0].decode('utf-8'))
+
     def _ledger(self, *entries):
         with self.gateway.ledger.open("a") as handle:
             for entry in entries:

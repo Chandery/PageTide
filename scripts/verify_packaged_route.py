@@ -231,6 +231,32 @@ def main():
             call('/api/route',{'action':'revision-preview','project_id':route_pid,'revision':restored['revision'],
                 'brief':{'goal':'Persist pending revision'},'patch':{'operations':[]}})
         launch(executable,data,home,first)
+        def brief_contract(call):
+            brief={'goal':'Learn latent models','known':'Teacher says background is strong','structure':'Probability before latent models'}
+            session=call('/api/project-guidance/sessions',{'name':'Brief fixture','goal':'Learn latent models'})['session']
+            endpoint='/api/project-guidance/sessions/'+session['id']+'/route'
+            for disabled,reason in [(True,'ai_off'),(False,'not_approved')]:
+                if disabled:(data/'AI_DISABLED').touch()
+                else:(data/'AI_DISABLED').unlink()
+                refused=call(endpoint,{'brief':brief})
+                assert not refused['ok'] and refused['reason_code']==reason
+                refused=call('/api/route',{'action':'revision-generate','project_id':route_pid,'brief':brief})
+                assert not refused['ok'] and refused['reason_code']==reason
+            (data/'AI_DISABLED').touch()
+            graph={'concepts':[{'id':'manual-one','name':'Probability','terms':['probability'],'hint':2,'state':'active'},
+                               {'id':'manual-two','name':'Latent model','terms':['latent model'],'hint':1,'state':'active'}],
+                   'prereqs':[{'from':'manual-one','to':'manual-two'}],'targets':['manual-two']}
+            created=call('/api/project-guidance/sessions/'+session['id']+'/finalize',
+                         {'selected_keys':[],'route':{'graph':graph,'mastered':[],'brief':brief}})
+            saved=call('/api/route?project_id='+created['project_id'])
+            assert saved['brief']['known']==brief['known'] and saved['manual']=={}
+            assert len(saved['graph']['prereqs'])==1 and saved['graph']['targets']==['manual-two']
+            assert 'data-brief' in call('/route-brief.js',raw=True)
+            page=call('/route-page.js',raw=True)
+            assert "action: 'revision-generate'" in page and "action: 'brief-plan'" in page
+            assert "action: 'plan'" not in page and "action: 'revision-confirm', draft_id: preview.draft_id" in page
+            assert 'mapBrief' in call('/project_creation.html',raw=True)
+        launch(executable,data,home,brief_contract)
         def restart(call):
             stale=call('/api/route',{'action':'candidates','project_id':growth_pid})['candidates'][0]
             assert stale['stale'] and not stale['can_accept']
@@ -268,7 +294,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, assets, isolated HOME, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/new-operation AI-off and unapproved no-call, assets, isolated HOME, outbound network blocked')
 
 
 if __name__=='__main__': main()

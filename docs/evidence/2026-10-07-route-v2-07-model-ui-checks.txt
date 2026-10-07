@@ -1,0 +1,22 @@
+Route-V2-07 shared brief/model/UI checks — final local contract and package evidence
+Baseline 3ec94c0; branch codex/route-discovery-rework.
+Clean baseline new 12 model behavior tests failed before implementation (expected regression witness).
+Targeted model/HTTP/Gateway/UI/English cases pass in local fixtures; no real models/sources/library.
+Initial full suite:1446 run,5 failures (obsolete boundary3, growth refresh count1, UTC midnight fixture1). All five corrected; final exact-code rerun passed.
+Actual browser interaction not_run: browser policy explicitly denied local test URL, Mac native surfaces locked. No workaround.
+Real AI tokens/billing/quality/tokenizer/reference-machine resources not_run.
+
+Current related checks:37 model/HTTP tests after body/type fixes passed(exit0);33 creation/English tests after in-flight guards passed(exit0); final257 Node passed(exit0). Full1450 Python passed before final typed-request guard; final exact-code full rerun subsequently passed.
+Fresh backend build:exit0;cargo tauri build --bundles app:exit0. Output src-tauri/target/release/bundle/macos/PaperDigHelper.app. Actual fresh packaged backend check passed; no native window claim.
+Independent final70Python/90Node and budget/harness/diff checks:exit0,no remainingP1/P2.
+
+Final exact-code results:
+python3 -m unittest discover -s tests -v:1450 passed,149.617s,exit0.
+node --test tests/*.cjs:257 passed,exit0.
+.local/desktop-build-env/bin/python scripts/build_desktop.py:exit0 after final code.
+cargo tauri build --bundles app:exit0,PaperDigHelper.app built.
+python3 scripts/verify_packaged_route.py src-tauri/target/release/bundle/macos/PaperDigHelper.app/Contents/Resources/backend/paperdighelper-server:exit0. Fresh package covers prior language/quality/goal/quota/growth contracts and new brief/manual creation/known-not-mastery/AI-off/unapproved/revision restart/409/confirm/undo. Isolated HOME marker preserved; outbound network blocked.
+Actual model tokens/provider calls0; fixture reply usage is synthetic and never a billing measurement. UI browser/native remains not_run due explicit browser-policy denial/Mac lock.
+Phase07 evaluation passed only bounded offline contracts and actual package backend; phase08 and original real release gates not lowered.
+
+Final metadata budget/harness/diff exit0. First record review failed because changed runtime lacked structured quantified before/after fields; added proposed create+revision pair0→11200input/5800output/$0.01032, after still unapproved, rerun passed exit0. This was evidence-schema validation, not an app/test failure.

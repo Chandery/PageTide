@@ -16,14 +16,18 @@
 <div class="notice" data-role="notice" hidden></div>
 
 <div class="ai-draft" data-role="aiBox" hidden>
-  <b>让 AI 起草学习图</b>
-  <label class="hint" for="aiGoal">你想学什么、学到什么程度？</label>
-  <textarea id="aiGoal" data-role="goal" maxlength="250" placeholder="例如：想系统了解半导体晶体生长，能读懂 MBE 方向的论文"></textarea>
-  <div data-role="aiBoundary"></div>
-  <div class="map-note">背景和想学到的程度可以跳过；跳过时按“能读论文 + 最少前置”生成，不会从无关的基础开始。只有选了“未知”才会补充基础概念，并写明原因。</div>
+  <b data-role="briefTitle">学习需求</b>
+  <div data-role="briefFields"></div>
+  <div class="map-note">仅学习目标必填；其他项可以跳过。已知基础留空表示未说明。</div>
+  <div class="map-note">创建和修改使用同一份五字段。可以把老师的文字或 MD 内容粘贴到结构意见，只把它当作需求。已知基础不自动标记掌握。</div>
   <div class="map-note" data-role="aiWarn"></div>
-  <div class="map-note">只会发送上面这段目标、你选的这两个选项和这个项目的前 5 个关键词，不发送论文、笔记、画像或别的项目。一次调用约 10–30 秒；每个项目每天最多 3 次。AI 给的只是草稿：你点保存之前，现在的学习图不会改变。</div>
-  <div class="row"><button type="button" class="primary small" data-role="aiGo">让 AI 起草（1 次调用）</button><button type="button" class="ghost small" data-role="aiCancel">取消</button><span class="map-note" data-role="aiActivity" role="status" aria-live="polite"></span></div>
+  <div class="map-note">创建只发送这五字段；修改再发送完整有界学习图的名称、检索词、简介和前置关系，不发送论文、笔记、画像、反馈或其他项目。新范围需要单独批准；未批准或 AI 关闭时仍可手动编辑。每个项目本地日最多 3 次创建或 2 次修改尝试。AI 草稿必须通过预览确认才改变现有学习图。</div>
+  <div class="row"><button type="button" class="primary small" data-role="aiGo">生成草稿（1 次调用）</button><button type="button" class="ghost small" data-role="aiCancel">关闭需求</button><span class="map-note" data-role="aiActivity" role="status" aria-live="polite"></span></div>
+  <section data-role="revisionPreview" hidden>
+    <div data-role="revisionSummary"></div>
+    <div data-role="revisionGraph"></div>
+    <button type="button" class="primary small" data-role="revisionConfirm">确认这次修改</button>
+  </section>
 </div>
 
 <section data-role="empty" hidden>
@@ -48,7 +52,7 @@
   </div>
   <div class="map-actions">
     <button type="button" class="ghost small" data-role="add">+ 添加概念</button>
-    <button type="button" class="ghost small" data-role="aiOpen2">让 AI 重新起草</button>
+    <button type="button" class="ghost small" data-role="aiOpen2">按需求修改学习图</button>
     <button type="button" class="ghost small" data-role="check">用公开文献核对</button>
     <button type="button" class="primary small" data-role="save" hidden>保存对学习图的修改</button>
     <button type="button" class="ghost small" data-role="discard" hidden>放弃修改</button>
@@ -62,6 +66,7 @@
 </section>
 </div>
 <script src="/route-editor.js"></script>
+<script src="/route-brief.js"></script>
 <script src="/route-graph.js"></script>
 <script src="/route-page.js"></script>
 </body>

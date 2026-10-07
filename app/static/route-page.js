@@ -1,19 +1,19 @@
 /* The learning-map page: the map drawn as a graph, progress per concept, marks that can be undone, and edits to the
    map itself. Reads and writes /api/route only. The one model-backed action is the explicit "draft with AI" click
-   (action 'plan'); it returns a draft that changes nothing until the person saves. */
+   with separate creation and revision contracts; an existing map changes only after preview confirmation. */
 'use strict';
-const R = window.PDHRoute;
+const R = window.PDHRoute, Brief = window.PDHBrief;
 const $ = (s, r = document) => r.querySelector(s);
 const part = (role) => $(`[data-role="${role}"]`);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const projectId = new URLSearchParams(location.search).get('project_id') || localStorage.getItem('pdh-current-project') || '';
-const state = {pendingIntro: null, route: null, draft: null, dirty: false, checking: false, busy: false, annotated: false, selected: null, editing: null, graph: null, project: null};
+const state = {pendingIntro: null, route: null, draft: null, dirty: false, checking: false, busy: false, annotated: false, selected: null, editing: null, graph: null, project: null, preview: null, previewGraph: null, briefReady: false, briefDirty: false, creationBrief: null, loadSequence: 0};
 
 async function api(body) {
   const options = body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({project_id: projectId, ...body})} : {};
   const res = await fetch(body ? '/api/route' : `/api/route?project_id=${encodeURIComponent(projectId)}`, options);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) { const error = new Error(data.error || `HTTP ${res.status}`); error.status = res.status; throw error; }
   return data;
 }
 
@@ -41,19 +41,32 @@ async function guarded(action) {
   state.busy = true; document.body.classList.add('busy');
   try { await action(); }
   catch (error) {
+    if (error.status === 409 && state.preview) state.preview.stale = true;
     notice(/revision conflict/i.test(error.message) ? CONFLICT : error.message);
     await refreshRoute();
     render();
-  } finally { state.busy = false; document.body.classList.remove('busy'); }
+  } finally { state.busy = false; document.body.classList.remove('busy'); if (typeof renderRevision === 'function') renderRevision(); }
 }
 
 async function load() {
+  const sequence = ++state.loadSequence;
   try {
-    state.route = await api();
-    state.draft = state.route.graph ? JSON.parse(JSON.stringify(state.route.graph)) : null;
-    state.dirty = false; state.annotated = false;
+    const route = await api();
+    if (sequence !== state.loadSequence) return;
+    state.route = route;
+    state.draft = route.graph ? JSON.parse(JSON.stringify(route.graph)) : null;
+    state.dirty = false; state.annotated = false; state.creationBrief = null;
     render();
-    loadGrowth();   // the forming directions are on the page from the start; the map itself does not wait for them
+    loadGrowth();
+    if (route.graph) {
+      const preview = (await api({action: 'revision-draft'})).draft;
+      if (sequence !== state.loadSequence) return;
+      state.preview = preview?.draft_id ? preview : null;
+      if (state.preview && !state.preview.confirmed && !state.briefDirty) {
+        openAi(); Brief.set(part('briefFields'), state.preview.brief);
+      }
+      renderRevision();
+    }
   } catch (error) { notice(error.message); }
 }
 
@@ -62,6 +75,7 @@ function render() {
   part('back').href = projectId ? `/?project_id=${encodeURIComponent(projectId)}` : '/';
   part('empty').hidden = !!graph;
   part('main').hidden = !graph;
+  renderRevision();
   if (!graph) return;
   part('summary').textContent = state.dirty ? '学习图有未保存的修改，目标状态在保存后重新计算。' : R.summaryText(route);
   const saved = !!(state.route && state.route.graph);   // nothing to switch before the first save
@@ -217,9 +231,10 @@ function change(next) {
 
 function editConcept(holder, graph, concept) {
   holder.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
-    <input class="edit" data-role="t" maxlength="130" placeholder="两个英文检索词，用 / 分隔" aria-label="英文检索词">
+    <input class="edit" data-role="t" maxlength="130" placeholder="两个检索词，用 / 分隔" aria-label="检索词">
     <textarea class="edit" data-role="i" maxlength="140" rows="2" placeholder="简单说明这个概念是什么、门槛在哪（最多 140 字，可以不写）" aria-label="简介"></textarea>
     <p class="map-note" data-role="introNote"></p>
+    <label class="map-note"><input type="checkbox" data-role="target"${(graph.targets || []).includes(concept.id) ? ' checked' : ''}> 作为学习目标</label>
     ${R.needsEditorHTML(graph, concept.id)}
     <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>
     <section class="concept-papers" data-concept-papers></section>`;
@@ -234,6 +249,7 @@ function editConcept(holder, graph, concept) {
   $('[data-act=ok]', holder).onclick = () => {
     try {
       let next = R.rename(graph, concept.id, $('[data-role=n]', holder).value, $('[data-role=t]', holder).value.split('/'));
+      next = R.setTarget(next, concept.id, $('[data-role=target]', holder).checked);
       next = R.setNeeds(next, concept.id, R.readNeeds(holder));
       const text = $('[data-role=i]', holder).value;
       next = R.setIntro(next, concept.id, text, proposed !== null && text.trim() === proposed ? 'ai' : (concept.intro_by === 'ai' && text.trim() === concept.intro ? 'ai' : 'user'));
@@ -253,6 +269,8 @@ part('add').onclick = () => {
   } catch (error) { notice(error.message); }
 };
 part('startEmpty').onclick = () => {
+  if (state.busy || state.checking) return;
+  openAi(); state.creationBrief = true;
   state.draft = {concepts: [{id: 'c1', name: '第一个概念', terms: [], hint: 1, origin: 'user', state: 'active', side: false}], prereqs: [], targets: ['c1']};
   state.route = {...(state.route || {}), progress: {}, total: 1, done: 0, exploration_share: 0.2, enabled: true};
   state.dirty = true; state.selected = 'c1'; state.editing = null; render();
@@ -261,7 +279,7 @@ part('discard').onclick = () => { if (!state.checking && !state.busy) load(); };
 part('save').onclick = () => guarded(async () => {
   const verdict = R.check(state.draft);
   if (!verdict.ok) { notice(`学习图还不能保存：${verdict.reason}`); return; }
-  state.route = await api({action: 'save', graph: state.draft, revision: state.route.revision ?? 0});
+  state.route = await api({action: 'save', graph: state.draft, revision: state.route.revision ?? 0, ...(state.creationBrief ? {brief: Brief.read(part('briefFields'))} : {})});
   state.draft = JSON.parse(JSON.stringify(state.route.graph)); state.dirty = false; state.annotated = false;
   notice('已保存。', false); render();
   loadGrowth();
@@ -296,37 +314,76 @@ function defaultGoal() {
   return [project.name, ...((project.keywords || []).slice(0, 5))].filter(Boolean).join('，').slice(0, 250);
 }
 function openAi() {
+  if (state.dirty || state.editing || state.checking || state.busy) { notice('先保存或放弃手动修改，再按需求生成草稿。'); return; }
   part('aiBox').hidden = false;
-  if (!part('aiBoundary').firstChild) part('aiBoundary').innerHTML = R.boundaryHTML('plan');   // built once, so a choice survives re-opening the box
-  part('aiWarn').textContent = [state.dirty ? '你有没保存的修改，AI 草稿会替换掉它们。' : '',
-    state.route && state.route.graph ? '保存草稿时，你在现在这张图上做的“已掌握 / 手动解锁”标记和你自己写的简介只会保留给名字相同的概念。' : ''].filter(Boolean).join(' ');
-  if (!part('goal').value) part('goal').value = defaultGoal();
-  part('goal').focus();
+  if (!state.briefReady) {
+    Brief.mount(part('briefFields'), state.preview?.brief || state.route?.brief || {goal: defaultGoal()});
+    state.briefReady = true;
+  }
+  part('briefTitle').textContent = state.route?.graph ? '修改学习需求' : '创建学习需求';
+  part('aiWarn').textContent = state.route?.graph ? '生成仅保存预览；请核对目标、结构和掌握影响后确认。' : '生成后可手动修改，保存才创建学习图。';
+  renderRevision();
+  $('[data-brief=goal]', part('briefFields')).focus();
 }
+function renderRevision() {
+  const preview = state.preview;
+  part('revisionPreview').hidden = !preview;
+  if (!preview) return;
+  if (!preview.confirmed && state.route && state.route.revision !== preview.revision) preview.stale = true;
+  let matching = false;
+  try { matching = state.briefReady && JSON.stringify(Brief.read(part('briefFields'))) === JSON.stringify(preview.brief); } catch (_) { /* invalid brief */ }
+  part('revisionSummary').innerHTML = Brief.previewHTML(preview)
+    + (!matching && !preview.confirmed ? '<p class="map-note">需求已编辑，请重新生成预览。</p>' : '');
+  part('revisionConfirm').disabled = preview.stale || preview.confirmed || !matching || state.dirty || state.busy;
+  if (state.previewGraph) state.previewGraph.destroy();
+  state.previewGraph = window.PDHGraph.mount(part('revisionGraph'), preview.after.graph, {
+    maxHeight: '50vh', statusOf: concept => R.nodeStatus(concept, preview.after.progress, true),
+  });
+}
+part('briefFields').addEventListener('input', () => { state.briefDirty = true; renderRevision(); });
 part('aiOpen').onclick = part('aiOpen2').onclick = openAi;
 part('aiCancel').onclick = () => { if (!state.busy) part('aiBox').hidden = true; };
-part('aiGo').onclick = () => guarded(async () => {
-  const goal = part('goal').value.trim();
-  if (!goal) { notice('请先写下你想学什么。'); return; }
+async function generateBrief() {
+  if (state.dirty || state.editing || state.checking) { notice('先保存或放弃手动修改，再生成草稿。'); return; }
+  const brief = Brief.read(part('briefFields'));
+  const revision = state.route?.revision ?? 0, revising = !!state.route?.graph;
+  part('briefFields').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
   part('aiGo').disabled = true; part('aiActivity').textContent = 'AI 正在起草（约 10–30 秒）…'; notice('');
   try {
-    const boundary = R.readBoundary(part('aiBoundary'));
-    const out = await api({action: 'plan', goal, ...(boundary ? {boundary} : {})});
-    if (!out.ok) {
-      notice(out.reason_code === 'not_approved'
-        ? '“为已有项目起草学习图”这项 AI 调用还在等你批准（harness/budget.json 里的 learning_path_plan_project）。批准之前，可以自己搭学习图。'
-        : `没有使用 AI：${out.reason || 'AI 没有给出学习图'}。可以自己搭，或稍后再试。`);
-      return;
+    const out = await api(revising ? {action: 'revision-generate', brief, revision} : {action: 'brief-plan', brief});
+    if (!out.ok) { notice(out.reason_code === 'not_approved' ? '这项 AI 范围尚未批准；需求和草稿已保留，可以继续手动编辑。' : `${out.reason || 'AI 没有给出有效草稿'} 可以继续手动编辑。`); return; }
+    if (revising) {
+      state.preview = out.preview;
+      renderRevision();
+      notice(`预览已生成；今天还能修改 ${out.attempts_left} 次。请检查后确认。`, false);
+    } else {
+      state.draft = out.graph; state.creationBrief = brief; state.dirty = true; state.annotated = false;
+      state.selected = state.editing = null;
+      notice(`创建草稿已生成；今天还能创建 ${out.attempts_left} 次。检查并保存才生效。`, false);
+      render();
     }
-    state.route = {...(state.route || {}), progress: (state.route && state.route.progress) || {}, enabled: state.route ? state.route.enabled : true};
-    if (!state.route.graph) Object.assign(state.route, {total: out.graph.concepts.length, done: 0, exploration_share: 0.2});
-    state.draft = R.reuseIds(out.graph, state.route.graph); state.dirty = true; state.annotated = false; state.selected = state.editing = null;
-    part('aiBox').hidden = true;
-    const fixed = out.report ? ((out.report.dropped_edges || []).length + (out.report.merged || []).length) : 0;
-    notice(`AI 已回复${out.tokens ? ` · 约 ${out.tokens} token` : ''}${fixed ? ` · 已自动修复 ${fixed} 处（重复概念、成环或多余的边）` : ''}。这是草稿，点“保存”才会生效；今天这个项目还能再生成 ${out.attempts_left} 次。`, false);
-    render();
-  } finally { part('aiGo').disabled = false; part('aiActivity').textContent = ''; }
-});
+  } finally { part('briefFields').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); part('aiGo').disabled = false; part('aiActivity').textContent = ''; }
+}
+part('aiGo').onclick = () => guarded(generateBrief);
+async function confirmRevision() {
+  const preview = state.preview;
+  if (!preview || preview.stale || preview.confirmed || state.dirty || state.editing) return;
+  if (JSON.stringify(Brief.read(part('briefFields'))) !== JSON.stringify(preview.brief)) { renderRevision(); return; }
+  part('briefFields').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
+  try {
+    const out = await api({action: 'revision-confirm', draft_id: preview.draft_id});
+    state.route = out; state.draft = JSON.parse(JSON.stringify(out.graph)); state.dirty = false;
+    try { state.briefDirty = JSON.stringify(Brief.read(part('briefFields'))) !== JSON.stringify(preview.brief); } catch (_) { state.briefDirty = true; }
+    preview.confirmed = true;
+    if (out.undo) growth.undo = {...out.undo, revision: out.revision};
+    notice('修改已确认；可以在潜在方向区域撤销。', false);
+    render(); await loadGrowth();
+  } catch (error) {
+    if (error.status === 409) { preview.stale = true; renderRevision(); }
+    throw error;
+  } finally { part('briefFields').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); }
+}
+part('revisionConfirm').onclick = () => guarded(confirmRevision);
 /* ---- directions that are forming: from what the reader explicitly responded to; only a click adds one */
 const growth = {result: null, undo: null, error: '', selected: null, judging: false};
 function renderGrowth() {
@@ -389,7 +446,7 @@ async function judgeNow() {
 }
 part('growthList').onclick = growthClick;
 part('detail').addEventListener('click', growthClick);   // the same buttons in a direction's own panel
-window.addEventListener('beforeunload', (event) => { if (state.dirty) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('beforeunload', (event) => { if (state.dirty || state.briefDirty) { event.preventDefault(); event.returnValue = ''; } });
 
 (async () => {
   if (!projectId) { notice('没有指定项目。请从今日推荐页进入。'); return; }
