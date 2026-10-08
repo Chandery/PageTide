@@ -142,7 +142,7 @@ class ProjectWorkflowTests(unittest.TestCase):
         result = self.app.finalize_guidance(session["id"], {
             "keywords": ["injected"],
             "candidates": [self.paper("injected-paper")],
-        }, ["injected-paper"])
+        }, ["injected-paper"], skip_route=True)
         self.assertEqual(result["selected"], 0)
         self.assertEqual(self.app.store.project_papers(result["project_id"]), [])
 

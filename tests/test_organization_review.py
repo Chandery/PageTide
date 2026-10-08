@@ -63,6 +63,15 @@ class Fixture(unittest.TestCase):
 
 
 class UnplacedTests(Fixture):
+    def test_pending_reasons_identify_missing_metadata_and_single_paper_local_limit(self):
+        blank = review([{'key':'missing','title':'','abstract':''}], [], {}, {})
+        self.assertEqual(blank['pending_details'], [{'key':'missing','code':'metadata_missing'}])
+        single = review([{'key':'single','title':'World models for planning','abstract':''}], [], {}, {})
+        self.assertEqual(single['pending_details'], [{'key':'single','code':'insufficient_group'}])
+        unknown = review([{'key':'one','title':'Novel chemistry','abstract':''},
+                          {'key':'two','title':'Unknown mineral','abstract':''}], [], {}, {})
+        self.assertEqual({p['code'] for p in unknown['pending_details']}, {'no_matching_terms'})
+
     def test_first_review_proposes_new_categories_and_a_second_review_after_applying_proposes_nothing(self):
         first = self.suggest()
         self.assertTrue(first["groups"])

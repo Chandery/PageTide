@@ -6,18 +6,23 @@ const i18nSource=fs.readFileSync(require('node:path').join(__dirname,'../app/sta
 const english=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../app/static/i18n/en-US.json'),'utf8')).messages;
 const generation=source.slice(source.indexOf('  async function generateMap('),source.indexOf("  part('mapCheck').onclick"));
 const manual=source.slice(source.indexOf("  part('mapStart').onclick"),source.indexOf('  async function generateMap('));
+const readBrief=source.slice(source.indexOf('function readCreationBrief('),source.indexOf('// Where to go once a project exists:'));
+const fieldError=source.slice(source.indexOf('function creationFieldError('),source.indexOf('function readCreationPolicy('));
+const changedMap=source.slice(source.indexOf('  const changedMap = '),source.indexOf('  const mapNotice = '));
 const brief={goal:'study',known:'',include:'',exclude:'',structure:'# teacher\nprobability first'};
 function page(response,lang='zh-CN') {
   const controls=new Map(),parts=new Map(),calls=[],messages=[];let sid='first';
   function part(role){if(!parts.has(role))parts.set(role,{hidden:false,disabled:false,querySelectorAll(){return [...controls.values()];},querySelector(s){if(!controls.has(s))controls.set(s,{value:'',disabled:false});return controls.get(s);}});return parts.get(role);}
   Brief.mount(part('mapBrief'),brief);
   const map={graph:{concepts:[{id:'saved',name:'Old',terms:['old'],state:'active'}],prereqs:[],targets:['saved']},mastered:['saved'],checking:false,generating:false};
-  const context=vm.createContext({Brief,R,map,part,busy:false,sessionId:()=>sid,mapNotice:m=>messages.push(m),mapAct:{start(){},stop(){}},renderMap(){},confirm:()=>true,
+  const context=vm.createContext({Brief,PDHBrief:Brief,R,map,part,MAX_PATH:8,busy:false,sessionId:()=>sid,mapNotice:m=>messages.push(m),mapAct:{start(){},stop(){}},renderMap(){},refresh(){},confirm:()=>true,
+    // Stage DOM rendering is outside this fixed-brief test; generation and validation are shipped functions.
+    addPathItem(){},syncPath(){},bindPathConcepts(){},
     PDH_I18N:{lang,messages:english},document:{documentElement:{},addEventListener(){}},MutationObserver:class{observe(){}},
     post:async(path,body)=>{calls.push({path,body});return response(()=>{sid='second';});}});
   context.window=context;
   vm.runInContext(i18nSource,context);
-  vm.runInContext(manual+generation,context);
+  vm.runInContext(fieldError+readBrief+changedMap+manual+generation,context);
   return {context,calls,map,part,messages};
 }
 test('creation sends fixed complete teacher requirements and preserves original draft on refusals',async()=>{

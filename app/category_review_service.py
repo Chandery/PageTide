@@ -9,6 +9,7 @@ import json
 
 from . import category_review, operation_lock
 from .clustering import corpus_fingerprint
+from .creation import degrade_reason
 from .organization import Conflict, Organization
 from .organization_facets import review, structure_hash
 from .organization_terms import category_identity
@@ -173,7 +174,8 @@ def run_review(app, scope_project, profile, dry_run=False, cancelled=None):
         frozen = _capture(org, scope_project)
         stats = dict(source='ai', status='in_progress', total_papers=len(frozen['papers']),
                      processed_papers=0, remaining_papers=len(frozen['papers']), completed_batches=0,
-                     total_batches=0, calls=0, total_tokens=0, tokens_known=True, error=None)
+                     total_batches=0, calls=0, total_tokens=0, tokens_known=True, error=None,
+                     error_code=None, usage_unknown=False)
         try:
             _check_cancel(cancelled)
             model = (app.gateway.config.get('provider') or {}).get('model', 'deepseek-flash')
@@ -195,13 +197,27 @@ def run_review(app, scope_project, profile, dry_run=False, cancelled=None):
                     result = app.gateway.call(category_review.OPERATION, prepared['messages'], dry_run=dry_run) or {}
                 except Exception as exc:
                     result = {'ok': False, 'reason': str(exc), 'usage_unknown': True}
-                if result.get('usage_unknown'):
-                    stats.update(tokens_known=False, total_tokens=None)
+                # The gateway can reconcile usage before rejecting reply content.
+                # Preserve that measurement even though this batch has no plan.
+                if not result.get('ok') and not (result.get('usage_unknown') or result.get('usage_reserved')):
+                    usage = (result.get('usage') or {}).get('total_tokens')
+                    if isinstance(usage, int) and not isinstance(usage, bool) and usage >= 0 and stats['tokens_known']:
+                        stats['total_tokens'] += usage
+                if result.get('usage_unknown') or not result.get('ok'):
+                    if result.get('usage_unknown'):
+                        stats.update(tokens_known=False, total_tokens=None, usage_unknown=True)
+                    code, message = degrade_reason(result, profile.get('language') == 'en-US')
+                    if result.get('ok') and result.get('usage_unknown'):
+                        code = 'usage_unknown'
+                        message = ('The AI usage is not confirmed; the reserved budget is retained.'
+                                   if profile.get('language') == 'en-US' else 'AI 分类审阅的用量尚未确认；预算预留保留。')
+                    elif result.get('usage_unknown') and '预留' not in message and 'reserved' not in message.lower():
+                        message += (' The reserved budget is retained until usage is confirmed.'
+                                    if profile.get('language') == 'en-US' else ' 用量尚未确认，预算预留保留。')
+                    stats.update(error_code=code, http_status=result.get('http_status'),
+                                 usage_reserved=bool(result.get('usage_reserved') or result.get('usage_unknown')))
                     _check_cancel(cancelled)
-                    raise ValueError('AI 分类审阅的用量尚未确认；预算预留保留，本次已停止后续批次，方案未保存')
-                if not result.get('ok'):
-                    _check_cancel(cancelled)
-                    raise ValueError(result.get('reason') or 'AI 没有完成分类审阅')
+                    raise ValueError(message)
                 if dry_run or result.get('dry_run'):
                     _check_cancel(cancelled)
                     stats.update(status='dry_run', error='仅检查预算和输入；没有调用模型或生成 AI 方案')
@@ -211,11 +227,15 @@ def run_review(app, scope_project, profile, dry_run=False, cancelled=None):
                     if stats['tokens_known']:
                         stats['total_tokens'] += usage
                 else:
-                    stats.update(tokens_known=False, total_tokens=None)
+                    stats.update(tokens_known=False, total_tokens=None, usage_unknown=True, error_code='usage_unknown')
                     _check_cancel(cancelled)
                     raise ValueError('AI 分类审阅没有返回实际用量，本次已停止后续批次，方案未保存')
                 _check_cancel(cancelled)
-                parsed = category_review.parse(result.get('content'), prepared['context'], finish_reason=result.get('finish_reason'))
+                try:
+                    parsed = category_review.parse(result.get('content'), prepared['context'], finish_reason=result.get('finish_reason'))
+                except ValueError:
+                    stats['error_code'] = 'bad_reply'
+                    raise
                 batch = _stable_batch(parsed, frozen['directions'])
                 if actions is not None and {i: _action_identity(op) for i, op in actions.items()} != {op['id']: _action_identity(op) for op in batch['categories']}:
                     raise ValueError('不同批次对同一已有类别的修改建议冲突，整份 AI 方案未保存')
@@ -245,8 +265,9 @@ def run_review(app, scope_project, profile, dry_run=False, cancelled=None):
             snapshot['ai_review'] = dict(stats)
             return snapshot
         except _ReviewCancelled as exc:
-            stats.update(status='cancelled', error=str(exc))
+            stats.update(status='cancelled', error=str(exc), error_code='cancelled')
             return _offline(org, scope_project, profile, stats)
         except ValueError as exc:
-            stats.update(status='failed', error=str(exc))
+            stats.update(status='failed', error=str(exc), error_code=stats.get('error_code') or
+                         ('invalid_input' if not stats['calls'] else 'error'))
             return _offline(org, scope_project, profile, stats)

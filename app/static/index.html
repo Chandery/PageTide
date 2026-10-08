@@ -644,6 +644,7 @@
         <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label><span class="sub" id="autoAiHint"></span>
       </div>
       <div class="sub" id="maintainNote" style="margin-top:8px"></div>
+      <div class="sub err" id="triageFailure" role="alert" hidden style="margin-top:8px"></div>
       <div class="sub" id="eligibilityNote" style="margin-top:8px"></div>
       <div class="route-panel" id="routePanel" hidden></div>
     </section>
@@ -713,7 +714,7 @@
 <script src="/save-file.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
-const state = { triagingKeys:new Set(), view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
+const state = { triagingKeys:new Set(), aiFailures:{}, view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
                 currentProject:null, projects:[], maintained:new Set() };
 
 // ------------------------------------------------------------ appearance
@@ -779,10 +780,12 @@ function renderStats() {
 
 // ------------------------------------------------------------------ cards
 function aiSlot(c) {
+  const text = state.aiFailures?.[`${state.currentProject || 'default'}:${c.key}`];
+  const failure = text ? `<div class="sub err" role="alert">${esc(text)} <a href="/settings.html">打开设置</a></div>` : '';
   if (c.summary) return `<div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
-    ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>`;
+    ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>${failure}`;
   if (state.triaging || state.triagingKeys.has(c.key)) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
-  return `<div class="ai-off">（尚未速览）</div>`;
+  return failure || `<div class="ai-off">（尚未速览）</div>`;
 }
 // The learning map: where the reader stands and why each card was chosen. Plain words, no counts of what was missed.
 // How many of today's papers are exploration (outside what can be read now), and why there are none when there are none.
@@ -1006,6 +1009,7 @@ async function switchProject(projectId) {
   closeDetail();
   if (profileUI) profileUI.invalidate();
   state.currentProject = projectId;
+  showTriageFailure(null, null, projectId);
   localStorage.setItem('pdh-current-project', projectId);
   renderProjectSelector();
   window.PDHOrganization?.reset?.().catch?.(() => {});   // the library page follows the project
@@ -1144,6 +1148,18 @@ function aiFailure(reason) {
     return `AI 未配置（${detail}）。点击右上角设置填入 API 密钥即可；在此之前保持本地模式。`;
   return `AI 不可用（${detail}），保持本地模式。`;
 }
+function showTriageFailure(reason, key, projectId) {
+  const text = reason ? aiFailure(reason) : '';
+  if (key) {
+    const id = `${projectId || 'default'}:${key}`;
+    if (text) state.aiFailures[id] = text;
+    else delete state.aiFailures[id];
+  }
+  if (state.currentProject !== projectId) return;
+  const banner = $('#triageFailure');
+  banner.hidden = !text;
+  banner.innerHTML = text ? `${esc(text)} <a href="/settings.html">打开设置</a>` : '';
+}
 async function generate() {
   const b = $('#btnDaily'); b.disabled = true; b.textContent = '生成中…';
   try {
@@ -1163,28 +1179,34 @@ async function generate() {
 async function autoTriage() {
   if (state.triaging) return;
   state.triaging = true; renderCards();
+  const projectId = state.currentProject;
+  showTriageFailure(null, null, projectId);
   try {
     const body = { dry_run: false };
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/triage', body);
-    if (!r.ok) toast(aiFailure(r.reason), 'warn', 6000);
+    if (state.currentProject !== projectId) return;
+    if (!r.ok) { showTriageFailure(r.reason || '没有返回失败原因，请重新尝试', null, projectId); toast(aiFailure(r.reason), 'warn', 6000); }
     else toast(`AI 已速览 ${r.items.length} 条 · ${aiUsageText(r)}`, 'ai');
     await load();
-  } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
+  } catch (e) { if (state.currentProject === projectId) { showTriageFailure(e.message, null, projectId); toast(`AI 速览失败：${e.message}`, 'err'); } }
   finally { state.triaging = false; renderCards(); }
 }
 // One paper, one explicit click, one call: only this card's title and abstract are sent.
 async function triageOne(key) {
   if (state.triaging || state.triagingKeys.has(key)) return;
   state.triagingKeys.add(key); renderCards();
+  const projectId = state.currentProject;
+  showTriageFailure(null, key, projectId);
   try {
     const body = { dry_run: false, keys: [key] };
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/triage', body);
-    if (!r.ok) toast(aiFailure(r.reason), 'warn', 6000);
+    if (state.currentProject !== projectId) return;
+    if (!r.ok) { showTriageFailure(r.reason || '没有返回失败原因，请重新尝试', key, projectId); toast(aiFailure(r.reason), 'warn', 6000); }
     else toast(`AI 已速览 · ${aiUsageText(r)}`, 'ai');
     await load();
-  } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
+  } catch (e) { if (state.currentProject === projectId) { showTriageFailure(e.message, key, projectId); toast(`AI 速览失败：${e.message}`, 'err'); } }
   finally { state.triagingKeys.delete(key); renderCards(); }
 }
 $('#btnDaily').onclick = generate;

@@ -1104,6 +1104,36 @@
         "docs/decisions/0030-audit-repairs.md",
         "docs/evidence/2026-10-08-fixes-matrix.md"
       ]
+    },
+    {
+      "id": "FIX-CREATION-AI-UX",
+      "stage": "delivery",
+      "title": "修复项目创建学习图、主动AI引导和就地失败诊断",
+      "status": "review",
+      "depends_on": [],
+      "requirements": [
+        "R-PROFILE",
+        "R-GRAPH",
+        "R-LOCAL",
+        "R-DURABILITY",
+        "R-BUDGET",
+        "R-HARNESS",
+        "R-ROUTE-V2-07"
+      ],
+      "acceptance": [
+        "快速/引导创建审阅页显示可编辑学习图，学习路径阶段成为真实持久节点，普通确认与重启后图仍存在；不猜硬前置或掌握 同次引导回复可提出最多3节点的真实AI起始图，概念检索词/简介/前置/目标直接在右侧编辑，原结构合法性校验和作者区分保留。",
+        "独立轻量brainstorm运行时skill帮助新手拟定方向：目标→范围→起点/投入→产出→确认；每轮建议/取舍和一个问题加2–3选项，在原1200/500及最多六轮内带当前草稿及有界上下文；无额外自动调用",
+        "创建缺学科等错误在对应字段附近显示、滚动和聚焦；失败保留草稿及恢复入口",
+        "分类AI完整空目录/未分类链路可提出新类，失败保留原始故障和独立计费状态；本地保守未归类解释具体并可手工恢复",
+        "离线失败先行回归、独立审查、全量测试及fresh主目录backend/Tauri签名/包检查；真实模型/真人质量未测明确保留，意外隔离模型调用如实记账且后续禁网，不改正式用户库"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-08-creation-ai-ux-checks.txt",
+        "docs/evidence/2026-10-08-creation-ai-ux-review-backend.md",
+        "docs/evidence/2026-10-08-creation-ai-ux-review-frontend.md",
+        "docs/evidence/2026-10-08-creation-ai-ux-review-creation.md"
+      ],
+      "authorization_note": "2026-10-08 owner reports four issues and asks for their repair. Authorizes these bug/UX fixes within existing operation scope/caps. No new paid tests, global budget change, automatic AI trigger, user-data migration, push or general release approval. Owner further explicitly requests a lightweight brainstorm-like skill connected to project guidance, 2026-10-08."
     }
   ]
 }

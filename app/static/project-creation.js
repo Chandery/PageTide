@@ -31,6 +31,85 @@ async function api(path, options = {}) {
 }
 const post = (path, body) => api(path, {method: 'POST', body: JSON.stringify(body)});
 
+// A stage is a real learning unit, but stage order alone is not proof of a prerequisite.
+function updateStageGraph(graph, item, id, keywords) {
+  const R = window.PDHRoute;
+  const title = String(item.title || '').trim();
+  if (!title) throw new Error('请填写阶段标题');
+  const termList = /^[\x20-\x7e]+$/.test(title) ? [title.slice(0, 60)] : (keywords || []).slice(0, 2);
+  let next;
+  if (id && graph?.concepts.some(c => c.id === id)) {
+    const previous = graph.concepts.find(c => c.id === id);
+    next = R.rename(graph, id, title, previous.terms?.length ? previous.terms : termList);
+  } else {
+    if ((graph?.concepts.length || 0) >= 12) throw new Error('创建学习图最多12个概念');
+    next = R.addConcept(graph || {concepts: [], prereqs: [], targets: []}, {name: title, terms: termList, intro: item.purpose, hint: 2}, []);
+    id = next.concepts[next.concepts.length - 1].id;
+    next = R.setTarget(next, id, true);
+  }
+  const concept = next.concepts.find(c => c.id === id);
+  const purpose = String(item.purpose || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const previous = graph?.concepts.find(c => c.id === id);
+  concept.intro = purpose;
+  concept.intro_by = previous && (previous.intro || '') === purpose ? (previous.intro_by || 'user') : 'user';
+  return {graph: next, id};
+}
+
+function creationFieldError(field, message, focus = true) {
+  if (!field) return;
+  let error = field._creationError;
+  if (!error) {
+    error = field.ownerDocument.createElement('p');
+    error.id = `${field.id || `creation-field-${creationFieldError.serial = (creationFieldError.serial || 0) + 1}`}-error`;
+    error.className = 'field-error'; error.setAttribute('role', 'alert');
+    field.parentElement.appendChild(error); field._creationError = error;
+    const clear = () => creationFieldError(field, '', false);
+    field.addEventListener('input', clear); field.addEventListener('change', clear);
+  }
+  error.textContent = message; error.hidden = !message;
+  if (message) {
+    field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', error.id);
+    if (focus) { field.scrollIntoView({behavior: 'smooth', block: 'center'}); field.focus({preventScroll: true}); }
+  } else { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); }
+}
+
+function readCreationPolicy() {
+  const container = $('#creationPaperPolicy'), select = container.querySelector('select');
+  const firstLanguage = container.querySelector('input[type=checkbox]');
+  try {
+    const value = policyEditor.read();
+    creationFieldError(select, '', false); creationFieldError(firstLanguage, '', false);
+    return value;
+  } catch (error) {
+    creationFieldError(select.value === 'humanities' ? firstLanguage : select, error.message);
+    return null;
+  }
+}
+
+function validateCreationStart(nameField, goalField) {
+  let first = null;
+  for (const [field, message] of [[nameField, '请填写项目名称'], [goalField, '请填写研究目标']]) {
+    if (!field) continue;
+    const missing = !field.value.trim(); creationFieldError(field, missing ? message : '', false);
+    if (missing && !first) first = field;
+  }
+  if (first) { first.scrollIntoView({behavior: 'smooth', block: 'center'}); first.focus({preventScroll: true}); return false; }
+  return !!readCreationPolicy();
+}
+
+function readCreationBrief(holder) {
+  const Brief = window.PDHBrief;
+  try { return Brief.read(holder); }
+  catch (error) {
+    const failed = Brief.FIELDS.find(([key, , cap]) => {
+      const value = holder.querySelector(`[data-brief="${key}"]`).value;
+      return (key === 'goal' && !value.trim()) || Array.from(value).length > cap;
+    });
+    creationFieldError(holder.querySelector(`[data-brief="${failed?.[0] || 'goal'}"]`), error.message);
+    return null;
+  }
+}
+
 // Where to go once a project exists: its home, or the import page when the person has a library of their own to bring in.
 function afterCreate(projectId) {
   const id = encodeURIComponent(projectId);
@@ -55,7 +134,7 @@ function makeActivity(el) {
     },
     set(message) { text.textContent = message; },
     stop() { clear(); el.hidden = true; },
-    fail(message) { clear(); el.classList.add('error'); text.textContent = message; time.textContent = ''; el.hidden = false; },
+    fail(message) { clear(); el.classList.add('error'); text.textContent = message; time.textContent = ''; el.hidden = false; el.scrollIntoView({behavior: 'smooth', block: 'center'}); },
   };
 }
 
@@ -178,14 +257,22 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     part('create').disabled = busy || !count;
     part('create').title = count ? '' : '至少需要 1 个关键词';
     part('search').disabled = searching || busy;
+    const locked = busy || map.generating || map.checking;
+    $$('input, textarea, button', part('path')).forEach(el => { el.disabled = locked; });
+    $$('textarea', part('mapBrief')).forEach(el => { el.disabled = locked; });
+    $$('input, button', part('keywords')).forEach(el => { el.disabled = busy; });
+    part('queries').disabled = busy;
+    part('addPath').disabled = locked || $$('.path-item', part('path')).length >= MAX_PATH;
+    part('mapConfirm').disabled = locked;
   }
 
   /* ---- learning map: AI proposes concepts and their order, the page lets you edit, check and confirm */
   const R = window.PDHRoute, Brief = window.PDHBrief;
-  const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null, briefDirty: false, generating: false, cachedPlan: false, discarded: false};
+  const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null, briefDirty: false, generating: false, cachedPlan: false, discarded: false, userEdited: false};
   const mapAct = makeActivity(part('mapActivity'));
   Brief.mount(part('mapBrief'));
-  part('mapBrief').addEventListener('input', () => { map.briefDirty = true; });
+  part('mapBrief').addEventListener('input', () => { map.briefDirty = true; part('mapConfirm').checked = false; });
+  const changedMap = () => { map.userEdited = true; map.discarded = false; part('mapConfirm').checked = false; };
   const mapNotice = (message, isError = true) => {
     const el = part('mapNotice');
     el.hidden = !message; el.textContent = message || ''; el.classList.toggle('error', isError);
@@ -195,10 +282,11 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   function renderMap() {
     const g = map.graph;
     part('mapActions').hidden = !g;
-    part('mapRegen').hidden = (!g && !map.cachedPlan) || !sessionId();
-    part('mapGenerate').hidden = !!g;
+    part('mapRegen').hidden = !map.cachedPlan || !sessionId();
+    part('mapGenerate').hidden = !!g && map.cachedPlan;
     part('mapLayout').hidden = !g;
     part('mapShape').hidden = !g;
+    part('mapConfirmWrap').hidden = !g;
     const keep = map.view ? map.view.view() : undefined;   // a re-draw keeps the zoom, the scroll position and the focus
     const focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.rg-node') : null;
     if (map.view) { map.view.destroy(); map.view = null; }
@@ -243,13 +331,14 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
         <button type="button" class="ghost small" data-act="edit">编辑</button><button type="button" class="ghost small" data-act="del">删除</button></div>`;
     $('input[type=checkbox]', holder).onchange = () => {
       if (map.generating || map.checking || busy) { renderDetail(); return; }
-      map.mastered = R.toggleMastered(map.mastered, concept.id, g); renderMap();
+      changedMap(); map.mastered = R.toggleMastered(map.mastered, concept.id, g); renderMap();
       const again = $('input[type=checkbox]', part('mapDetail'));
       if (again) again.focus();   // the re-draw replaced the checkbox the person was on
     };
     $('[data-act=del]', holder).onclick = () => {
       if (map.generating || map.checking || busy) return;
-      map.graph = R.removeConcept(g, concept.id); map.mastered = map.mastered.filter((i) => i !== concept.id);
+      changedMap(); map.graph = R.removeConcept(g, concept.id); map.mastered = map.mastered.filter((i) => i !== concept.id);
+      $$('.path-item', part('path')).filter(row => row.dataset.conceptId === concept.id).forEach(row => row.remove()); syncPath();
       map.selected = map.editing = null; renderMap();
     };
     $('[data-act=edit]', holder).onclick = () => { if (map.generating || map.checking || busy) return; map.editing = concept.id; renderDetail(); };
@@ -270,7 +359,10 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
         let next = R.rename(g, concept.id, $('[data-role=n]', holder).value, $('[data-role=t]', holder).value.split('/'));
         next = R.setTarget(next, concept.id, $('[data-role=target]', holder).checked);
         next = R.setNeeds(next, concept.id, R.readNeeds(holder));
-        map.graph = next; map.editing = null; mapNotice(''); renderMap();
+        changedMap(); map.graph = next; map.editing = null; mapNotice('');
+        const row = $$('.path-item', part('path')).find(row => row.dataset.conceptId === concept.id);
+        if (row) $('input', row).value = next.concepts.find(c => c.id === concept.id).name;
+        renderMap();
       } catch (error) { mapNotice(error.message); }
     };
   }
@@ -282,25 +374,27 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       const baseName = window.PDHi18n?.t('新概念') || '新概念';
       let name = baseName, n = 1;
       while (map.graph.concepts.some((c) => c.name === name)) name = `${baseName} ${++n}`;
-      map.graph = R.addConcept(map.graph, {name, terms: [], hint: 2}, []);
+      changedMap(); map.graph = R.addConcept(map.graph, {name, terms: [], hint: 2}, []);
       map.selected = map.editing = map.graph.concepts[map.graph.concepts.length - 1].id;
       mapNotice(''); renderMap();
     } catch (error) { mapNotice(error.message); }
   };
   part('mapStart').onclick = () => {
     if (map.generating || map.checking || busy) return;
-    map.graph = {concepts: [{id: 'c1', name: (window.PDHi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active'}], prereqs: [], targets: ['c1']};
+    changedMap(); map.graph = {concepts: [{id: 'c1', name: (window.PDHi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active'}], prereqs: [], targets: ['c1']};
+    part('path').innerHTML = ''; part('addPath').disabled = false;
     map.mastered = []; map.selected = 'c1'; map.editing = null; renderMap();
   };
-  part('mapDrop').onclick = () => { if (map.generating || map.checking || busy) return; map.discarded = true; map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice(''); renderMap(); };
+  part('mapDrop').onclick = () => { if (map.generating || map.checking || busy) return; map.discarded = true; map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice('已选择不使用学习图；项目只按关键词推荐。', false); renderMap(); };
 
   async function generateMap(regenerate) {
     if (map.generating || map.checking || busy) return;
     if (!sessionId()) { mapNotice('请先开始创建会话。'); return; }
-    let brief;
-    try { brief = Brief.read(part('mapBrief')); } catch (error) { mapNotice(error.message); return; }
+    const brief = readCreationBrief(part('mapBrief'));
+    if (!brief) return;
     if (map.editing) { mapNotice('先确定或取消概念编辑。'); return; }
     const sentSession = sessionId(); map.generating = true;
+    refresh();
     part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
     mapNotice(''); mapAct.start('正在请 AI 规划学习路径（约 10–30 秒）…');
     part('mapGenerate').disabled = true; part('mapRegen').disabled = true;
@@ -308,12 +402,17 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       const out = await post(`/api/project-guidance/sessions/${sentSession}/route`, {regenerate, brief});
       if (sessionId() !== sentSession) return;
       if (!out.ok) { mapNotice(`未得到有效学习图：${out.reason || 'AI 没有给出学习图'}。还可尝试 ${out.attempts_left} 次；可以点“自己搭一张”手动编辑，或不使用学习图。`); return; }
-      map.discarded = false; map.cachedPlan = true; map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
+      changedMap(); map.cachedPlan = true; map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
+      // The AI concept plan replaces the local stage-derived map. Its stage rows must refer
+      // to that plan, otherwise submission would silently re-add the old stage concepts.
+      part('path').innerHTML = '';
+      map.graph.concepts.slice(0, MAX_PATH).forEach(concept => addPathItem({title: concept.name, purpose: concept.intro || ''}));
+      syncPath(); bindPathConcepts();
       const warnings = (out.report?.warnings || []).join('；');
       mapNotice(`AI 已回复${out.usage_unknown || out.usage_reserved ? ' · 计费未确认，暂按上限占用' : (out.tokens ? ` · 约 ${out.tokens} token` : '')}${warnings ? ` · ${warnings}` : ''}。请检查后再创建。`, false);
       renderMap();
     } catch (error) { mapNotice(error.message); }
-    finally { map.generating = false; part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); mapAct.stop(); part('mapGenerate').disabled = false; part('mapRegen').disabled = false; }
+    finally { map.generating = false; part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); mapAct.stop(); part('mapGenerate').disabled = false; part('mapRegen').disabled = false; refresh(); }
   }
   part('mapGenerate').onclick = () => generateMap(false);
   let mapConfirming = false;
@@ -328,6 +427,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   part('mapCheck').onclick = async () => {
     if (!map.graph || map.checking || map.generating || busy) return;
     map.checking = true; mapNotice(''); mapAct.start('正在用公开文献核对每个概念（OpenAlex，只发送检索词）…');
+    refresh();
     part('mapCheck').disabled = true;
     try {
       const out = await post('/api/route', {action: 'ground', graph: map.graph});
@@ -335,19 +435,50 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       const missing = map.graph.concepts.filter((c) => c.grounding === 'none').length;
       mapNotice(missing ? `有 ${missing} 个概念在公开文献里没找到，可以改检索词或删除。` : '核对完成。', !!missing);
     } catch (error) { mapNotice(error.message); }
-    finally { mapAct.stop(); map.checking = false; part('mapCheck').disabled = false; }
+    finally { mapAct.stop(); map.checking = false; part('mapCheck').disabled = false; refresh(); }
   };
   const mapPayload = () => (map.graph && R.check(map.graph).ok ? {...R.payload(map.graph, map.mastered), brief: Brief.read(part('mapBrief'))} : null);
+
+  function bindPathConcepts(stageIds = []) {
+    const used = new Set();
+    $$('.path-item', part('path')).forEach((row, index) => {
+      const concept = map.graph?.concepts.find(c => !used.has(c.id) && (c.id === stageIds[index] || c.name === $('input', row).value.trim()));
+      row.dataset.conceptId = concept?.id || ''; if (concept) used.add(concept.id);
+    });
+  }
 
   function addPathItem(item = {}) {
     const holder = part('path');
     if ($$('.path-item', holder).length >= MAX_PATH) return;
     const row = document.createElement('div');
     row.className = 'path-item';
-    row.innerHTML = `<div class="path-head"><input placeholder="阶段标题" maxlength="160"><button type="button" class="ghost small">删除</button></div><textarea placeholder="目的" maxlength="300"></textarea>`;
+    row.innerHTML = `<div class="path-head"><input placeholder="阶段标题" aria-label="学习阶段标题" maxlength="60"><button type="button" class="ghost small">删除</button></div><textarea placeholder="目的" aria-label="学习阶段目的" maxlength="140"></textarea>`;
     $('input', row).value = item.title || '';
     $('textarea', row).value = item.purpose || '';
-    $('button', row).onclick = () => { row.remove(); syncPath(); };
+    $('button', row).onclick = () => {
+      if (map.generating || map.checking || busy) return;
+      const id = row.dataset.conceptId;
+      if (id && map.graph) { changedMap(); map.graph = R.removeConcept(map.graph, id); map.mastered = map.mastered.filter(i => i !== id); renderMap(); }
+      row.remove(); syncPath();
+    };
+    const update = () => {
+      if (map.generating || map.checking || busy) return false;
+      const title = $('input', row).value.trim(), purpose = $('textarea', row).value.replace(/\s+/g, ' ').trim().slice(0, 140);
+      if (!title) {
+        if (purpose || row.dataset.conceptId) { creationFieldError($('input', row), '请填写阶段标题'); return false; }
+        return true;
+      }
+      const previous = map.graph?.concepts.find(c => c.id === row.dataset.conceptId);
+      if (previous && previous.name === title && (previous.intro || '') === purpose) return true;
+      try {
+        const next = updateStageGraph(map.graph, {title, purpose}, row.dataset.conceptId, keywords.get());
+        changedMap(); map.graph = next.graph; row.dataset.conceptId = next.id; mapNotice(''); renderMap();
+        creationFieldError($('input', row), '', false); return true;
+      } catch (error) { creationFieldError($('input', row), error.message); return false; }
+    };
+    row.commit = update;
+    $('input', row).addEventListener('input', changedMap); $('textarea', row).addEventListener('input', changedMap);
+    $('input', row).addEventListener('change', update); $('textarea', row).addEventListener('change', update);
     holder.appendChild(row);
     syncPath();
     if (!item.title) $('input', row).focus();
@@ -369,12 +500,18 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   function setDraft(d, options = {}) {
     keywords.set(d.keywords || [], options);
     part('queries').value = (d.search_queries || []).join('\n');
-    part('path').innerHTML = '';
-    (d.learning_path || []).forEach(addPathItem);
-    syncPath();
-    if (!map.briefDirty) Brief.set(part('mapBrief'), d.route_plan?.brief || {goal: String(d.goal || '')});
+    const plan = d.route_plan || d.route_draft;
+    if (!map.briefDirty) Brief.set(part('mapBrief'), plan?.brief || {goal: Array.from(String(d.goal || '')).slice(0, 250).join('')});
     if (d.route_plan?.graph) map.cachedPlan = true;
-    if (d.route_plan && d.route_plan.graph && !map.graph && !map.discarded) { map.graph = d.route_plan.graph; renderMap(); }
+    if (plan?.graph && !map.userEdited && !map.discarded) {
+      map.graph = plan.graph; part('mapConfirm').checked = false;
+      const modelGraph = !!d.route_plan || plan.source === 'ai_guidance';
+      const stages = modelGraph ? map.graph.concepts.slice(0, MAX_PATH).map(concept => ({title: concept.name, purpose: concept.intro || ''})) : (d.learning_path || []);
+      part('path').innerHTML = ''; stages.forEach(addPathItem); syncPath();
+      bindPathConcepts(modelGraph ? map.graph.concepts.slice(0, MAX_PATH).map(concept => concept.id) : plan.stage_ids);
+      renderMap();
+      mapNotice(modelGraph ? 'AI 已根据确认的方向提出学习概念和前置关系；请检查检索词、目标与顺序，确认后用于学习推荐。' : '学习阶段已加入本地学习图；阶段顺序不会自动当作前置关系。请检查目标与检索词，确认后会用于学习推荐。', false);
+    }
     if (d.candidates && d.candidates.length && !candidates.size) addCandidates(d.candidates.map((p) => ({...p, url: p.url || (p.arxiv_id ? `https://arxiv.org/abs/${p.arxiv_id}` : null)})));
     refresh();
   }
@@ -449,7 +586,19 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     refresh();
   };
   part('create').onclick = async () => {
+    if (busy) return;
+    if (!readCreationPolicy()) return;
     if (map.generating || map.checking || map.editing) { mapNotice('先完成当前学习图操作再创建项目。'); return; }
+    if (!map.discarded && $$('.path-item', part('path')).some(row => row.commit && !row.commit())) return;
+    if (map.graph && !part('mapConfirm').checked) {
+      mapNotice('请检查学习图，并勾选“确认使用这张学习图”；也可以明确选择“不使用学习图”。');
+      part('mapConfirm').scrollIntoView({behavior: 'smooth', block: 'center'}); part('mapConfirm').focus(); return;
+    }
+    if (!map.graph && !map.discarded) {
+      mapNotice('还没有学习图，请添加学习阶段或自己搭图；也可以明确选择不使用学习图。');
+      part('mapBlock').scrollIntoView({behavior: 'smooth', block: 'center'}); part('mapStart').focus(); return;
+    }
+    if (map.graph && !readCreationBrief(part('mapBrief'))) return;
     busy = true; refresh();
     part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
     createAct.start('正在创建项目…');
@@ -515,10 +664,11 @@ document.addEventListener('click', (event) => {
 });
 
 async function finalize({draft, selectedKeys, route}) {
-  const language_policy=policyEditor.read();
+  const language_policy=readCreationPolicy();
+  if (!language_policy) throw new Error('请先完成上方的论文语言设置');
   policyEditor.disabled(true);
   let result;
-  try { result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route, language_policy}); }
+  try { result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route, skip_route: !route, language_policy}); }
   finally { policyEditor.disabled(false); }
   localStorage.removeItem(SESSION_KEY);
   creationLeaving = true; location.href = afterCreate(result.project_id);
@@ -598,7 +748,7 @@ async function quickTurn({retry = false} = {}) {
 
 $('#quickGo').onclick = async () => {
   const name = $('#quickName').value.trim(), goal = $('#quickGoal').value.trim();
-  if (!name || !goal) { window.PDHDialogs.notice('请填写项目名称和研究目标',{kind:'error'}); return; }
+  if (!validateCreationStart($('#quickName'), $('#quickGoal'))) return;
   $('#quickGo').disabled = true;
   $('#quickStart').hidden = true; $('#quickWork').hidden = false;
   review = makeReview($('#quickReview'), {sessionId: () => session && session.id, onCreate: finalize});
@@ -620,6 +770,7 @@ function stopGuided() {
   guidedAct.stop();
   $('#guidedStart').hidden = false; $('#guidedWork').hidden = true;
   $('#guideChat').replaceChildren(); $('#guidedReview').replaceChildren(); $('#guidedGo').disabled = false;
+  $('#guideQuestion').hidden = true; $('#guideQuestion').replaceChildren();
   guidedBusy = false;
 }
 
@@ -627,6 +778,7 @@ function setComposer(enabled) {
   guidedBusy = !enabled;
   $('#guideSend').disabled = !enabled;
   $('#guideMessage').disabled = !enabled;
+  $$('#guideQuestion button').forEach(button => { button.disabled = !enabled || (session?.turn_count || 0) >= 6; });
   if (review) review.setBusy(!enabled);
 }
 
@@ -666,6 +818,16 @@ function renderChat(live) {
   const used = session.turn_count || 0;
   $('#turnCounter').textContent = `AI 对话已用 ${used}/6 轮`;
   $('#guideSend').disabled = guidedBusy || used >= 6;
+  const question = $('#guideQuestion'), draft = session.draft || {};
+  question.hidden = !(draft.next_question || draft.summary || draft.ready);
+  question.innerHTML = `${draft.summary ? `<p class="hint"><b>目前确认：</b><span data-no-i18n>${esc(draft.summary)}</span></p>` : ''}
+    ${draft.next_question ? `<p data-no-i18n>${esc(draft.next_question)}</p>` : ''}
+    ${draft.ready ? '<p class="hint">方向已经足够清楚，可以检查右侧学习图并创建项目；也可以继续补充。</p>' : ''}`;
+  for (const choice of Array.isArray(draft.choices) ? draft.choices.slice(0, 3) : []) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'ghost small';
+    button.textContent = choice; button.setAttribute('data-no-i18n', ''); button.disabled = guidedBusy || used >= 6;
+    button.onclick = () => guidedTurn({message: choice}); question.appendChild(button);
+  }
   if (used >= 6) $('#guideMessage').placeholder = '6 轮 AI 对话已用完，请直接编辑右侧草稿后创建';
 }
 
@@ -717,7 +879,7 @@ function openGuidedWorkspace() {
 
 $('#guidedGo').onclick = async () => {
   const name = $('#guidedName').value.trim(), goal = $('#guidedGoal').value.trim();
-  if (!name || !goal) { window.PDHDialogs.notice('请填写项目名称和研究目标',{kind:'error'}); return; }
+  if (!validateCreationStart($('#guidedName'), $('#guidedGoal'))) return;
   $('#guidedGo').disabled = true;
   try {
     await createSession(name, goal, 'ai_guided');
@@ -1009,7 +1171,7 @@ function manualRefresh() {
 $('#manualCreate').onclick = async () => {
   const name = $('#manualName').value.trim();
   seedKeywords.commit();
-  if (!name) { window.PDHDialogs.notice('请填写项目名称',{kind:'error'}); $('#manualName').focus(); return; }
+  if (!validateCreationStart($('#manualName'))) return;
   const payload = seeds.filter((s) => s.status === 'resolved')
     .map((s) => (s.pdfId ? {identifier: s.paper.openalex_id, pdf_id: s.pdfId} : s.paper.openalex_id));
   $('#manualCreate').disabled = true;

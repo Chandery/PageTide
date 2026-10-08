@@ -76,6 +76,79 @@ test('closing before the initial job ID arrives cancels that job and never opens
   assert.equal(calls.some(([url])=>url.startsWith('/api/jobs/')),false);
 });
 
+test('AI failure modal keeps the real cause and offers explicit settings, retry and local actions', async () => {
+  const calls = [];
+  const f = fixture((url,body) => {
+    calls.push([url,body]);
+    return Promise.resolve({suggestions:{groups:[],source:'local',stored:false},
+      ai_review:{status:'failed',error_code:'no_key',error:'还没有配置 DeepSeek key，请到设置页填写',
+        total_papers:2,remaining_papers:2}});
+  });
+  await f.ui.suggest();
+  const html = f.dialogs.at(-1).html;
+  assert.match(html,/还没有配置 DeepSeek key/);
+  assert.match(html,/href="\/settings.html"/);
+  assert.match(html,/data-retry-review/);
+  assert.match(html,/data-local-review/);
+  assert.equal(calls.length,1,'recovery actions must never retry automatically');
+});
+
+test('failed asynchronous job shows recoverable inline cause rather than disappearing into a toast', async () => {
+  const f = fixture(() => Promise.resolve({job:{id:'failed-job',state:'failed',error:'分类目录正被修改，请稍后重试'}}));
+  await f.ui.suggest();
+  const html = f.dialogs.at(-1).html;
+  assert.match(html,/分类目录正被修改/);
+  assert.match(html,/data-retry-review/);
+  assert.equal(f.toasts.length,0);
+});
+
+test('local unclassified preview offers AI classification and manual category creation with a concrete reason', async () => {
+  const f = fixture(() => Promise.resolve({suggestions:{groups:[],pending_keys:['new-paper'],
+    pending_details:[{key:'new-paper',code:'insufficient_group'}],scope:'p1',source:'local'}}));
+  await f.ui.suggest('local');
+  const html = f.dialogs.at(-1).html;
+  assert.match(html,/data-review-ai/);
+  assert.match(html,/data-review-create/);
+  assert.match(html,/本地检查至少需要两篇/);
+});
+
+test('clicking AI from an unclassified local preview dispatches one explicit AI review for the same scope', async () => {
+  const calls = [];
+  const f = fixture((url,body) => {
+    calls.push([url,body]);
+    return Promise.resolve(body.action === 'suggest' ? {suggestions:{groups:[],pending_keys:['a'],scope:'p1'}}
+      : {suggestions:{groups:[],source:'local'},ai_review:{error:'AI 总开关已关闭',error_code:'ai_off'}});
+  });
+  await f.ui.suggest('local');
+  assert.deepEqual(calls.map(([,body])=>body.action), ['suggest']);
+  f.dialogs.at(-1).querySelector('[data-review-ai]').listeners.click[0](); await tick();
+  assert.deepEqual(calls.map(([,body])=>body.action), ['suggest','review-categories']);
+  assert.equal(calls[1][1].project_id,'p1');
+  assert.equal(calls[1][1].scope,undefined);
+});
+
+test('clicking manual category creation opens the real editor without an AI or apply request', async () => {
+  const calls=[];
+  const f = fixture((url,body) => {calls.push([url,body]);return Promise.resolve({suggestions:{groups:[],pending_keys:['a'],scope:'p1'}});});
+  await f.ui.suggest('local');
+  f.dialogs.at(-1).querySelector('[data-review-create]').listeners.click[0](); await tick();
+  assert.match(f.dialogs.at(-1).html,/新建类别/);
+  assert.match(f.dialogs.at(-1).html,/name="name"/);
+  assert.deepEqual(calls.map(([,body])=>body.action), ['suggest']);
+});
+
+test('failure retry only dispatches after clicking and stale recovery controls cannot change another scope', async () => {
+  const calls=[];
+  const f = fixture((url,body) => {calls.push([url,body]);return Promise.resolve({suggestions:{groups:[],source:'local'},ai_review:{error:'AI 总开关已关闭',error_code:'ai_off'}});});
+  await f.ui.suggest();
+  assert.equal(calls.length,1);
+  f.dialogs.at(-1).querySelector('[data-retry-review]').listeners.click[0](); await tick();
+  assert.equal(calls.length,2);
+  const oldDialog=f.dialogs.at(-1); f.ui.S.scope='p2';
+  oldDialog.querySelector('[data-local-review]').listeners.click[0](); await tick();
+  assert.equal(calls.length,2);
+});
+
 for (const mode of ['ai','local']) for (const kind of ['scope','project','reset']) {
   test(`late ${mode} application preserves the next ${kind} view and its notice`, async () => {
     const application = deferred(), calls = [];

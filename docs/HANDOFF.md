@@ -1,3 +1,13 @@
+# 当前工作单元：创建学习图与 brainstorm 引导体验修复（2026-10-08）
+
+基线 main `48bfc63`，初始工作树干净；当前修改保留在本地 main 工作树，未提交/推送。用户四项问题及追加“轻量 brainstorm skill”“确认细节后输出右侧结构”已实现，`FIX-CREATION-AI-UX` review，待用户体验复核；不自行批准整产品发布。记录见 [工作单元](../changes/2026-10-08-creation-ai-ux.json)，脱敏检查与限制见 [检查证据](evidence/2026-10-08-creation-ai-ux-checks.txt)。
+
+快速/引导创建均显示并保存真实可编辑图；同次引导可输出最多3概念/3前置/明确目标，路径行绑定实际节点，不推断掌握或凭行序造前置。轻量规则主动建议/取舍、确认一个缺口、给选项，允许早确认，原1200/500、quick1/guided6上限不变。人工改图受保护，提交需明确确认图或放弃。学科等字段就地报错；分类空目录/未分类可提新类、预览/确认/撤销；AI失败原因与未知计费分开显示，未知/预留保留尝试与预算。独立审查P1计数及P2图/界面/作者/输入缺陷均已修复并复验。
+
+最终源码串行全量 Python 2057 passed（370.819s），含最后分类已确认用量统计修复；最终 Node 445 passed、受影响 Python 51 passed、独立创建复验22 passed、独立分类复验25 passed。一次并行构建导致harness复制被替换target文件的setup错误，串行重跑通过，未弱化断言；后续全量测试不要与cargo构建并行。budget/harness/i18n（0/1457缺漏）/diff检查通过。新 backend + Tauri 构建、ad-hoc签名深度验证、原有包内Route链路与新增quick/guided创建/重启持久链路全绿。可打开 `src-tauri/target/release/bundle/macos/PaperDigHelper.app`；未替换正式运行进程或正式用户数据，旧bundle备份在私有 `.local/app-backups/`。最终app/prompts/budget源hash `3f11d479a53990e604fbdb7239fe990ae6727307c21306c96e77900a84724e83`，包内backendhash见检查证据。原生最终窗口、真实brainstorm/分类科学质量、500输出充分性仍未测，ad-hoc签名不代表公证或整产品发布通过。
+
+每日本地搜索/去重/排序/画像/归档/维护最低0模型token；原请求/全局预算与次数不提高，图兜底不新增AI。界面测试曾因临时data仍读取checkout key意外调用1次project_guidance，provider报告345token（157/188），本地费率算术$0.0002727，原临时runtime账本reconciled且私有留档，没有改正式账本；不得称为developer模式或充分质量验收。随后停止server，独立root、显式AI关闭且阻断外网，全量回归保护实际DeepSeek传输。真实模型测试没有追加授权。下一步用户重开新bundle体验该闭环；需要真实模型/原生质量验收时单独确认范围，保持现有预算与发布门槛。
+
 # 当前交付：按用户要求收拢修复并合入本地 main（2026-10-08）
 
 用户先授权逐项修复 B01–B29 / I01–I12 和系统英文遗漏，随后明确要求“结束吧，把现在的合并到 main 我看看”。已停止新增付费 AI、扩展原生与科学实验；本次提交交付当前修复快照，不宣称全部学科/个人价值或整产品发布通过。

@@ -17,6 +17,11 @@ h3{margin:0;font-size:calc(14px * var(--s));font-weight:600;white-space:nowrap}
 .paper-language-choices[hidden]{display:none}
 .paper-language-choices label{display:flex;align-items:center;gap:6px}
 .paper-language-choices input{width:auto}
+.field-error{color:var(--danger);font-size:calc(13px * var(--s));margin:calc(6px * var(--s)) 0;white-space:normal}
+[aria-invalid="true"]{border-color:var(--danger)}
+input,textarea,select,.rv-block{scroll-margin-top:calc(24px * var(--s))}
+.paper-language-choices label:has(.field-error){flex-wrap:wrap}
+.paper-language-choices label .field-error{flex-basis:100%}
 
 .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(12px * var(--s));margin-bottom:calc(20px * var(--s))}
 .mode-card{white-space:normal;display:flex;flex-direction:column;align-items:flex-start;gap:calc(6px * var(--s));text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-lg);padding:calc(16px * var(--s)) calc(18px * var(--s));cursor:pointer;color:var(--text);font:inherit;transition:border-color .15s,background .15s}
@@ -95,6 +100,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .msg.failed{border-color:var(--danger)}
 .composer{display:flex;gap:calc(8px * var(--s));align-items:flex-end;margin-top:calc(8px * var(--s))}
 .composer textarea{min-height:56px}
+.guide-question{padding:calc(10px * var(--s));margin:calc(8px * var(--s)) 0;border:1px solid var(--ai);border-radius:var(--r-md);background:var(--panel2)}
+.guide-question p{margin:0 0 calc(8px * var(--s));white-space:pre-wrap;overflow-wrap:anywhere}
+.guide-question button{white-space:normal;text-align:left;margin:calc(3px * var(--s)) calc(5px * var(--s)) calc(3px * var(--s)) 0;border-color:var(--line)}
+.map-confirm{display:flex;gap:calc(8px * var(--s));align-items:center;margin:calc(12px * var(--s)) 0;padding:calc(10px * var(--s));border:1px solid var(--line);border-radius:var(--r-md);background:var(--panel2)}
+.map-confirm input{width:auto}
 .ai-note{border-left:3px solid var(--ai);background:var(--base);border-radius:var(--r-md);padding:calc(10px * var(--s)) calc(12px * var(--s));margin:calc(12px * var(--s)) 0}
 .ai-note>div:first-child>span:last-child{white-space:pre-wrap}
 .ai-note .meta{display:flex;flex-wrap:wrap;gap:calc(8px * var(--s));align-items:center;margin-top:calc(7px * var(--s));font-size:calc(12px * var(--s));color:var(--muted)}

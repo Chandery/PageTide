@@ -539,6 +539,8 @@ def review(papers, directions, memberships, reviewed, profile=None):
             groups.append({**group, "target": existing, "kind": "add" if existing else "create"})
             found.update(group["keys"])
     pending = [key for key in left if key not in weakly]   # unplaced papers nothing could be proposed for: the owner has to place them
+    pending_details = [{'key': key, 'code': 'metadata_missing' if not (rows[key]['title'].strip() or rows[key]['abstract'].strip())
+                        else 'insufficient_group' if len(rest) < MIN_GROUP else 'no_matching_terms'} for key in pending]
 
     # 3. Placed papers that changed: only when none of their categories fits the text and another one clearly does.
     moves = []
@@ -557,6 +559,7 @@ def review(papers, directions, memberships, reviewed, profile=None):
                       "key": key, "from": sorted(current), "to": target, "name": by_id[target]["name"],
                       "reason": text_of["move"] % ("」「".join(by_id[i]["name"] for i in sorted(current)) if not english else "”, “".join(by_id[i]["name"] for i in sorted(current)), by_id[target]["name"])})
     return {"fingerprint": corpus_fingerprint(rows_list), "algorithm": REVIEW_ALGORITHM,
+            "pending_details": pending_details,
             "structure": structure_hash(directions, memberships),
             "groups": groups, "merges": merges, "moves": moves, "pending_keys": pending,
             "evaluated": sorted(todo_placed), "signatures": {key: signature[key] for key in todo_placed}, "scope_size": len(keys),

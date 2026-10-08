@@ -408,19 +408,6 @@ def reply_reason(code, english=False):
 
 
 def degrade_reason(result, english=False, saved=0):
-    code, _ = creation.degrade_reason(result, english)
-    if result.get('usage_unknown'):
-        code = 'network'
-    texts = {
-        'dry_run': ('试算未发送请求。', 'Dry run; no request sent.'),
-        'ai_off': ('AI已关闭。', 'AI is disabled.'),
-        'no_key': ('没有配置API密钥。', 'No API key is configured.'),
-        'not_approved': ('新的生长判断范围尚未批准。', 'The new growth scope is awaiting approval.'),
-        'budget': ('本次请求超过预算。', 'The request exceeds the budget.'),
-        'http': ('服务明确拒绝了本次请求。', 'The provider rejected the request.'),
-        'network': ('请求结果或计费状态未知，保留本次次数和预算预留。',
-                    'The request result or billing status is unknown; its attempt and reservation are retained.'),
-        'error': ('本次判断失败。', 'The judgment failed.')}
-    reason = texts.get(code, texts['error'])[int(bool(english))]
+    code, reason = creation.degrade_reason(result, english)
     reason += ((f' {saved} paper judgments were saved; unfinished papers remain pending.' if english else f' 已保存 {saved} 篇论文的判断，未完成论文仍在待判断中。') if saved else (' No judgment was saved; you can edit manually.' if english else ' 未保存判断，仍可手动编辑。'))
     return code, reason

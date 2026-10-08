@@ -1053,7 +1053,11 @@
     const groups = preview.groups || [], merges = preview.merges || [], moves = preview.moves || [], pending = preview.pending_keys || [];
     const standards = '<p class="org-paper-meta">分类采用明确的研究术语；中英文同义名称归为同一类，优先沿用已有分类，证据不足的论文保留待分类。</p>'
       + '<p class="org-paper-meta">父级表示研究方向，子类表示更细的方向或方法；方法细分类不会自动变成一级方向，父级与子类不按同义分类合并。</p>';
-    const waiting = pending.length ? `<section class="org-review-section" data-kind="pending"><h4>还没有归类的论文</h4><p class="org-paper-meta">这些论文暂时没有找到合适的类别；可以在论文库里手动归类，或之后再来。</p><ul class="org-pending">${pending.map(k => `<li data-no-i18n>${h(lookup(k)?.title || k)}</li>`).join('')}</ul></section>` : '';
+    const pendingDetails = new Map((preview.pending_details || []).map(p => [p.key, p.code]));
+    const pendingReason = key => ({metadata_missing:'缺少可用于判断的标题和摘要，请先补充论文信息。',
+      insufficient_group:'本地检查至少需要两篇有共同术语的论文，才会建议新类别。',
+      no_matching_terms:'标题和摘要没有匹配到已有类别或可重复验证的研究术语。'}[pendingDetails.get(key)] || '本地检查暂时没有足够证据提出类别。');
+    const waiting = pending.length ? `<section class="org-review-section" data-kind="pending"><h4>还没有归类的论文</h4><p class="org-paper-meta">这是本地术语检查的结果；AI 可以从论文标题和摘要建议已有归属或新类别，完整预览后由你确认。</p><ul class="org-pending">${pending.map(k => `<li><span data-no-i18n>${h(lookup(k)?.title || k)}</span><p class="org-paper-meta">${h(pendingReason(k))}</p></li>`).join('')}</ul><button type="button" data-review-ai>用 AI 帮我归类</button> <button type="button" data-review-create>手动新建类别</button></section>` : '';
     if (!groups.length && !merges.length && !moves.length) {
       return standards + `${waiting ? `<p class="org-review-empty" role="status">没有可以自动提出的调整。</p>${waiting}` : '<p class="org-review-empty" role="status">没有需要调整的内容。</p>'}<p class="org-paper-meta">${preview.scope ? '已检查这个项目里的论文；论文内容或类别有变化后，才会再次检查。' : '已检查全部论文；论文内容或类别有变化后，才会再次检查。'}</p>`;
     }
@@ -1093,6 +1097,13 @@
     S.cancelReview?.(); S.cancelReview = cancel;
     const d = dialog('整理分类', `<p role="status">${mode === 'local' ? '正在进行本地检查…' : '正在用 AI 审阅已有分类和全部论文，分批处理…'}</p>`, null);
     d.addEventListener('close', cancel);
+    const failureDialog = stats => {
+      const progress = Number.isFinite(stats.total_papers) ? `<p class="org-paper-meta">已审阅 ${Number(stats.processed_papers) || 0} / ${Number(stats.total_papers) || 0} 篇，完成 ${Number(stats.completed_batches) || 0} / ${Number(stats.total_batches) || 0} 批；剩余 ${Number(stats.remaining_papers) || 0} 篇未处理。此次没有保存或应用 AI 整理方案。</p>` : '<p class="org-paper-meta">此次没有保存或应用整理方案，论文和类别保持原样。</p>';
+      const failure = dialog('整理分类', `<p class="org-danger" role="alert">${h(stats.error || stats.reason || 'AI 审阅未完成，本次没有修改分类。')}</p>${progress}${mode === 'ai' ? '<p class="org-paper-meta">本地检查可以合并明确同义类别、提供归类建议；不会替代 AI 对分类合理性的判断。</p><a href="/settings.html">检查 AI 设置</a> ' : ''}<button type="button" data-retry-review>${mode === 'ai' ? '重试 AI 审阅' : '重试本地检查'}</button>${mode === 'ai' ? ' <button type="button" data-local-review>只做本地检查</button>' : ''}`, null);
+      failure.querySelector('[data-retry-review]').addEventListener('click', () => { if (!current()) return; failure.close(); suggest(mode); });
+      if (mode === 'ai') failure.querySelector('[data-local-review]').addEventListener('click', () => { if (!current()) return; failure.close(); suggest('local'); });
+      return failure;
+    };
     try {
       await S.queue;
       if (!current() || !d.isConnected) return;
@@ -1117,13 +1128,12 @@
       if (!preview || !Array.isArray(preview.groups)) throw new Error('服务端没有返回整理分类的结果，请重试');
       if (mode === 'ai' && !preview.ai_plan) {
         const stats = result.ai_review || {};
-        const failure = dialog('整理分类', `<p role="status">${h(stats.error || stats.reason || 'AI 审阅未完成，本次没有修改分类。')}</p><p class="org-paper-meta">已审阅 ${Number(stats.processed_papers) || 0} / ${Number(stats.total_papers) || 0} 篇，完成 ${Number(stats.completed_batches) || 0} / ${Number(stats.total_batches) || 0} 批；剩余 ${Number(stats.remaining_papers) || 0} 篇未处理。此次没有保存或应用 AI 整理方案。</p><p class="org-paper-meta">本地检查可以合并明确同义类别、提供归类建议；不会替代 AI 对分类合理性的判断。</p><button type="button" data-local-review>只做本地检查</button>`, null);
-        failure.querySelector('[data-local-review]').addEventListener('click', () => { failure.close(); suggest('local'); });
+        failureDialog(stats);
         return;
       }
       const proposals = preview.groups || (Array.isArray(preview) ? preview : []);
       const nothing = preview.ai_plan ? !aiReviewHTML(preview).includes('data-ai-plan') : !(preview.groups || []).length && !(preview.merges || []).length && !(preview.moves || []).length;
-      dialog('整理分类', suggestionsHTML(preview), nothing ? null : '应用所选', async el => {
+      const reviewed = dialog('整理分类', suggestionsHTML(preview), nothing ? null : '应用所选', async el => {
         if (!current()) throw new Error('论文范围已变化，请重新审阅');
         if (preview.ai_plan) {
           if (!el.querySelector('[data-ai-plan]')?.checked) throw new Error('没有选择需要应用的整理方案');
@@ -1149,7 +1159,11 @@
         S.notice = parts.length ? [...parts, '其余保持原样，可以撤销'].join(' · ') : '没有改动任何类别';
         status(); window.PDH.toast(S.notice, 'ok', 6000);
       });
-    } catch (error) { if (!current()) return; if (d.isConnected) d.querySelector('.org-dialog-body').textContent = `建议生成失败：${error.message}`; else report(error); }
+      if ((preview.pending_keys || []).length && !preview.ai_plan) {
+        reviewed.querySelector('[data-review-ai]').addEventListener('click', () => { if (!current()) return; reviewed.close(); suggest('ai'); });
+        reviewed.querySelector('[data-review-create]').addEventListener('click', () => { if (!current()) return; reviewed.close(); editDirection(); });
+      }
+    } catch (error) { if (!current()) return; if (d.isConnected) d.close(); failureDialog({error:`建议生成失败：${error.message}`}); }
   }
   async function exportData() {
     const result = await window.PDH.api('/api/organization', { action: 'export' });

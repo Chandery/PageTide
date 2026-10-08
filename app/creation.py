@@ -221,7 +221,7 @@ _REASONS = {
     "budget": ("已达到每日或每月的额度上限", "A daily or monthly budget ceiling was reached"),
     "http": ("DeepSeek 拒绝了这次请求", "DeepSeek rejected the request"),
     "network": ("请求没有成功（网络或超时）；这次预留的额度仍会计入", "The request did not complete (network or timeout); the reserved budget still counts"),
-    "bad_reply": ("模型的回复不是有效的草稿，已改用本地整理", "The model's reply was not a valid draft; local terms were used"),
+    "bad_reply": ("AI 回复为空或格式无效；请重新尝试，原有内容已保留", "The AI reply is empty or invalid; try again. Existing content was preserved"),
     "error": ("调用出现意外错误", "The call failed unexpectedly"),
     "dry_run": ("试运行：只预留额度，没有发送", "Dry run: budget reserved, nothing was sent"),
 }
@@ -231,6 +231,10 @@ def degrade_reason(result, english=False):
     """(code, text) for why a gateway result did not produce an AI answer."""
     result = result or {}
     raw = str(result.get("reason") or "")
+    status = result.get('http_status')
+    if type(status) is not int:
+        match = re.fullmatch(r'HTTPError: (\d{3})', raw)
+        status = int(match.group(1)) if match else None
     if result.get("dry_run"):
         code = "dry_run"
     elif result.get("disabled"):
@@ -241,16 +245,42 @@ def degrade_reason(result, english=False):
         code = "no_key"
     elif "awaiting owner approval" in raw:
         code = "not_approved"
-    elif "ceiling" in raw:
+    elif "ceiling" in raw or "budget exceeded" in raw:
         code = "budget"
-    elif raw.startswith("HTTPError") and not result.get("usage_unknown"):
+    elif status is not None:
         code = "http"
+    elif result.get('bad_reply'):
+        code = 'bad_reply'
     elif result.get("usage_unknown") or raw.startswith(("URLError", "TimeoutError", "OSError")):
         code = "network"
     else:
         code = "error"
-    return code, reason_text(code, english) + (f"（{raw}）" if code == "http" and raw and not english
-                                                else f" ({raw})" if code == "http" and raw else "")
+    text = reason_text(code, english)
+    if code == 'http':
+        details = {
+            401: ('API 密钥无效，请在设置中检查或更换', 'The API key is invalid; check or replace it in Settings'),
+            402: ('服务账户余额不足，请检查 DeepSeek 账户', 'The provider account has insufficient balance; check your DeepSeek account'),
+            403: ('服务拒绝访问，请检查密钥权限', 'Access was denied; check the API key permissions'),
+            429: ('请求频率过高或服务繁忙，请稍后重新尝试', 'The request rate is too high or the provider is busy; try again later'),
+        }
+        pair = details.get(status, ('AI 服务暂时不可用，请稍后重新尝试', 'The AI service is temporarily unavailable; try again later') if status >= 500
+                           else ('服务拒绝请求，请检查设置或缩短输入后重新尝试', 'The provider rejected the request; check Settings or shorten the input and try again'))
+        text = pair[int(bool(english))] + f' (HTTP {status})'
+    elif code == 'invalid_input' and result.get('input_too_large'):
+        text = ('The complete request exceeds its input limit; shorten the input or start a new session. Nothing was sent.' if english
+                else '完整请求超过本次输入上限；请缩短输入或开始新会话。未发送请求。')
+    elif code == 'bad_reply' and result.get('finish_reason') == 'length':
+        text = ('The AI reply was truncated; try again with a shorter input. Existing content was preserved.' if english
+                else 'AI 回复被截断；请缩短输入后重新尝试，原有内容已保留。')
+    elif code == 'budget':
+        period = ('daily' if raw.startswith('daily') else 'monthly' if raw.startswith('monthly') else '')
+        if period:
+            resource = ('amount' if 'USD' in raw else 'token') if english else ('金额' if 'USD' in raw else 'token')
+            text = (f'The {period} {resource} budget ceiling was reached; check usage in Settings or wait for the next budget period.' if english
+                    else f'已达到{"每日" if period == "daily" else "每月"}{resource}额度上限；请在设置中查看用量，或等待额度周期更新。')
+    if result.get('usage_unknown') or result.get('usage_reserved'):
+        text += (' Billing is unknown; the budget reservation is retained.' if english else ' 计费状态未知，本次预算预留仍保留。')
+    return code, text
 
 
 def reason_text(code, english=False):

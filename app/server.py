@@ -798,7 +798,7 @@ class Handler(BaseHTTPRequestHandler):
                         self._json(app.route_plan(session_id, regenerate=bool(body.get("regenerate")), dry_run=bool(body.get("dry_run")), boundary=body.get("boundary")))
                 elif action == "finalize":
                     self._json(app.finalize_guidance(session_id, body.get("draft"), body.get("selected_keys"), route=body.get("route"),
-                                                     language_policy=body.get('language_policy')))
+                                                     language_policy=body.get('language_policy'), skip_route=body.get('skip_route', False)))
                 else:
                     return self._json({"error": "unknown guidance action"}, 404)
             except Conflict as exc:

@@ -135,7 +135,8 @@ class CategoryReviewServiceTests(unittest.TestCase):
         self.assertEqual((result['ai_review']['processed_papers'], result['ai_review']['remaining_papers']), (12, 13))
         self.assertEqual(result['suggestions']['source'], 'local')
         self.assertFalse(result['suggestions']['stored'])
-        self.assertIn('daily budget', result['ai_review']['error'])
+        self.assertEqual(result['ai_review']['error_code'], 'budget')
+        self.assertIn('额度', result['ai_review']['error'])
         self.assertEqual(self.org.data['reviewed'], {})
 
     def test_category_action_conflicts_across_batches_reject_the_entire_plan(self):
@@ -176,6 +177,49 @@ class CategoryReviewServiceTests(unittest.TestCase):
         self.assertEqual(len(self.app.gateway.calls), 1)
         self.assertEqual(self.org.stored, [])
         self.assertIn('截断', result['ai_review']['error'])
+
+    def test_gateway_bad_reply_preserves_confirmed_first_batch_usage(self):
+        self.app.gateway.response = lambda *args: {
+            'ok': False, 'bad_reply': True, 'finish_reason': 'length',
+            'usage_unknown': False, 'usage_reserved': False,
+            'usage': {'prompt_tokens': 80, 'completion_tokens': 120, 'total_tokens': 200}}
+        failure = self.review()['ai_review']
+        self.assertEqual(failure['status'], 'failed')
+        self.assertEqual(failure['error_code'], 'bad_reply')
+        self.assertEqual(failure['total_tokens'], 200)
+        self.assertTrue(failure['tokens_known'])
+        self.assertFalse(failure['usage_unknown'])
+        self.assertFalse(failure['usage_reserved'])
+        self.assertEqual(len(self.app.gateway.calls), 1)
+        self.assertEqual(self.org.stored, [])
+
+    def test_gateway_bad_reply_adds_confirmed_usage_to_completed_batches(self):
+        self.app.gateway.response = lambda index, *args: {
+            'ok': False, 'bad_reply': True, 'finish_reason': 'length',
+            'usage_unknown': False, 'usage_reserved': False,
+            'usage': {'prompt_tokens': 80, 'completion_tokens': 120, 'total_tokens': 200}} if index == 2 else None
+        failure = self.review()['ai_review']
+        self.assertEqual(failure['status'], 'failed')
+        self.assertEqual(failure['error_code'], 'bad_reply')
+        self.assertEqual(failure['total_tokens'], 300)
+        self.assertTrue(failure['tokens_known'])
+        self.assertEqual(failure['completed_batches'], 1)
+        self.assertEqual(failure['processed_papers'], 12)
+        self.assertEqual(len(self.app.gateway.calls), 2)
+        self.assertEqual(self.org.stored, [])
+
+    def test_gateway_bad_reply_unknown_usage_keeps_reservation_out_of_totals(self):
+        self.app.gateway.response = lambda index, *args: {
+            'ok': False, 'bad_reply': True, 'usage_unknown': True, 'usage_reserved': True,
+            'usage': {'total_tokens': 10000}, 'reservation': {'input': 8000, 'output': 2000}} if index == 2 else None
+        failure = self.review()['ai_review']
+        self.assertEqual(failure['error_code'], 'bad_reply')
+        self.assertIsNone(failure['total_tokens'])
+        self.assertFalse(failure['tokens_known'])
+        self.assertTrue(failure['usage_unknown'])
+        self.assertTrue(failure['usage_reserved'])
+        self.assertEqual(len(self.app.gateway.calls), 2)
+        self.assertEqual(self.org.stored, [])
 
     def test_concurrent_edit_invalidates_a_completed_reply_and_stops_more_calls(self):
         def change(index, request, value):
@@ -228,6 +272,36 @@ class CategoryReviewServiceTests(unittest.TestCase):
         self.assertEqual(len(self.app.gateway.calls), 1)
         self.assertEqual(self.org.stored, [])
 
+    def test_network_failure_keeps_cause_and_budget_reservation_as_separate_information(self):
+        self.app.gateway.response = lambda *args: {'ok': False, 'reason': 'TimeoutError: timed out',
+                                                   'usage_unknown': True, 'usage_reserved': True}
+        result = self.review()
+        failure = result['ai_review']
+        self.assertEqual(failure['error_code'], 'network')
+        self.assertIn('超时', failure['error'])
+        self.assertIn('预留', failure['error'])
+        self.assertIsNone(failure['total_tokens'])
+        self.assertFalse(failure['tokens_known'])
+        self.assertEqual(len(self.app.gateway.calls), 1)
+        self.assertEqual(self.org.stored, [])
+
+    def test_provider_status_keeps_http_cause_even_when_usage_is_unknown(self):
+        self.app.gateway.response = lambda *args: {'ok': False, 'reason': 'HTTPError: 503',
+                                                   'http_status': 503, 'usage_unknown': True}
+        failure = self.review()['ai_review']
+        self.assertEqual(failure['error_code'], 'http')
+        self.assertEqual(failure['http_status'], 503)
+        self.assertIn('503', failure['error'])
+        self.assertIn('预算', failure['error'])
+
+    def test_disabled_ai_is_reported_as_disabled_instead_of_successful_local_review(self):
+        self.app.gateway.response = lambda *args: {'ok': False, 'disabled': True, 'reason': 'AI 已关闭'}
+        result = self.review()
+        self.assertEqual(result['ai_review']['error_code'], 'ai_off')
+        self.assertIn('开关', result['ai_review']['error'])
+        self.assertEqual(result['ai_review']['status'], 'failed')
+        self.assertFalse(result['suggestions']['stored'])
+
     def test_dry_run_never_parses_a_response_or_stores_an_ai_plan(self):
         result = self.review(dry_run=True)
         self.assertEqual(result['ai_review']['status'], 'dry_run')
@@ -257,6 +331,43 @@ class CategoryReviewServiceTests(unittest.TestCase):
         self.assertEqual(len(self.app.gateway.calls), 1)
         self.assertEqual(self.org.stored, [])
         self.assertEqual(result['ai_review']['total_tokens'], 100)
+
+
+class UnclassifiedPipelineTests(unittest.TestCase):
+    def test_empty_directory_can_create_a_complete_ai_preview_then_apply_and_undo_in_real_sqlite(self):
+        from app.db import Store
+        from app.organization import Organization
+        tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
+        store = Store(Path(tmp.name) / 'synthetic.sqlite'); store.init(); self.addCleanup(store.close)
+        store.upsert_papers([{'key':'unclassified-a','title':'World models for planning'},
+                             {'key':'unclassified-b','title':'World models for video prediction'}])
+        for key in ('unclassified-a', 'unclassified-b'): store.save_to_library(key)
+        org = Organization(store)
+        org.action({'action':'note','key':'unclassified-a','text':'Private owner note', 'version':0})
+        before = org.snapshot()
+        self.assertEqual(before['directions'], [])
+        self.assertTrue(all(not p['directions'] for p in before['items']))
+        def propose(index, request, value):
+            self.assertEqual(request['categories'], [])
+            value['new_categories'] = [{'id':'n1','name':'世界模型','reason':'题名明确支持研究方向'}]
+            for paper in value['papers']: paper['categories'] = ['n1']
+        gateway = FakeGateway(propose)
+        app = SimpleNamespace(data=Path(tmp.name), store=store, gateway=gateway)
+        result = run_review(app, None, {})
+        self.assertEqual(result['ai_review']['status'], 'complete')
+        self.assertEqual(len(gateway.calls), 1)
+        self.assertNotIn('Private owner note', json.dumps(gateway.calls))
+        self.assertEqual(org.snapshot()['directions'], [])
+        self.assertTrue(all(not p['directions'] for p in org.snapshot()['items']))
+        preview = result['suggestions']
+        applied = org.action({'action':'apply-ai-review','ai_token':preview['ai_token'],
+                              'fingerprint':preview['fingerprint']})
+        self.assertEqual([d['name'] for d in applied['directions']], ['世界模型'])
+        self.assertTrue(all(len(p['directions']) == 1 for p in applied['items']))
+        self.assertEqual(next(p['note'] for p in applied['items'] if p['key'] == 'unclassified-a'), 'Private owner note')
+        undone = org.action({'action':'undo'})
+        self.assertEqual(undone['directions'], [])
+        self.assertTrue(all(not p['directions'] for p in undone['items']))
 
 
 if __name__ == '__main__':

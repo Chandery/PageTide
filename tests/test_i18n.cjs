@@ -276,7 +276,8 @@ test('actual manual map default localizes only newly created system name',()=>{
  const {context}=load('en-US',PACK);context.map={generating:false,checking:false,graph:{concepts:[{name:'我的原名'}]}};context.busy=false;
  const actions={};context.part=key=>actions[key]??={};context.renderMap=()=>{};
  const src=fs.readFileSync(path.join(__dirname,'../app/static/project-creation.js'),'utf8');
- vm.runInContext(src.slice(src.indexOf("  part('mapStart').onclick = "),src.indexOf("  part('mapDrop').onclick = ")),context);
+ vm.runInContext(src.slice(src.indexOf('  const changedMap = '),src.indexOf('  const mapNotice = '))+
+   src.slice(src.indexOf("  part('mapStart').onclick = "),src.indexOf("  part('mapDrop').onclick = ")),context);
  context.part('mapStart').onclick();assert.equal(context.map.graph.concepts[0].name,'First concept');
  const userName='我的原名';assert.equal(context.PDHi18n.exact(userName),userName);
 });

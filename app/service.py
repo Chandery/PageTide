@@ -62,7 +62,7 @@ def _ai_receipt(result):
     """Carry billing certainty; unknown usage values are reservations, not measurements."""
     unknown = bool(result.get('usage_unknown'))
     return {'usage': result.get('usage'), 'usd': result.get('usd'),
-            'usage_unknown': unknown, 'usage_reserved': unknown,
+            'usage_unknown': unknown, 'usage_reserved': unknown or bool(result.get('usage_reserved')),
             'reservation': result.get('reservation')}
 
 
@@ -507,7 +507,7 @@ class App:
                 code, reason = growthproposal.degrade_reason(result, self.english(), saved=processed)
                 if result.get('usage_unknown'):
                     tokens_known = False
-                if not dry_run and code not in self._ROUTE_UNPAID:
+                if not dry_run and not self._route_unpaid(result, code):
                     charged = True
                 break
             charged, ai_result = True, True
@@ -867,10 +867,7 @@ class App:
         base = {'elapsed_ms': elapsed, 'tokens': None, 'attempts_left': max(0, limit - used)}
         if dry_run or not result.get('ok'):
             code, text = creation.degrade_reason(result, self.english())
-            if result.get('usage_unknown'):
-                code = 'network'
-                text = '请求结果或计费状态未知；保留本次次数和预算预留，需求与原图不变。'
-            if code in self._ROUTE_UNPAID and not dry_run:
+            if self._route_unpaid(result, code) and not dry_run:
                 self._route_refund(key, today, attempts)
                 base['attempts_left'] = max(0, limit - attempts)
             return {'ok': False, 'mode': 'local', 'reason_code': code, 'reason': text, **base, **_ai_receipt(result)}
@@ -1035,6 +1032,20 @@ class App:
     _ROUTE_BUSY = set()
     _ROUTE_UNPAID = {"dry_run", "ai_off", "no_key", "not_approved", "budget", "http", "invalid_input"}   # refused or rejected before generating
 
+    @classmethod
+    def _route_unpaid(cls, result, code=None):
+        """Refund only known unsent/rejected calls, independent of the UI cause."""
+        code = code or result.get('reason_code')
+        if result.get('usage_unknown') or result.get('usage_reserved') or code not in cls._ROUTE_UNPAID:
+            return False
+        if code != 'http':
+            return True
+        status = result.get('http_status')
+        if type(status) is not int:
+            match = re.search(r'(?:HTTPError:|HTTP) (\d{3})', str(result.get('reason') or ''))
+            status = int(match.group(1)) if match else None
+        return status is not None and 400 <= status < 500
+
     @staticmethod
     def _legacy_plan_view(plan):
         """Review an unconfirmed old AI draft without rewriting its stored source."""
@@ -1071,6 +1082,8 @@ class App:
     def guidance_session_view(self, session_id):
         """The session for the page, with the kept learning-map plan attached to the draft at read time."""
         session = self.store.guidance_session(session_id)
+        if session:
+            session['draft'] = self._bounded_guidance_draft(session['draft'])
         if session and self.route_plan_state(session_id)["plan"]:
             session["draft"] = {**session["draft"], "route_plan": self.route_plan_state(session_id)["plan"]}
         return session
@@ -1127,7 +1140,7 @@ class App:
         try:
             response, stored = self._route_ask("learning_path_plan", messages, english, dry_run, boundary)
             if stored is None:
-                if response.get("reason_code") in self._ROUTE_UNPAID:
+                if self._route_unpaid(response):
                     if not dry_run:
                         self._route_refund(key, None, attempts)
                 return response
@@ -1232,7 +1245,7 @@ class App:
             elapsed_ms = int((time.monotonic() - started) * 1000)
             if dry_run or not result.get("ok"):
                 code, text = creation.degrade_reason(result, english)
-                refunded = code in self._ROUTE_UNPAID   # refused before anything was sent
+                refunded = self._route_unpaid(result, code)   # refused before anything was sent
                 if refunded and not dry_run:
                     with self._ROUTE_LOCK:
                         self.store.set_setting(key, {"day": today, "attempts": attempts})
@@ -1332,7 +1345,7 @@ class App:
                 self._route_setting_transaction(reserve)
         try:
             response, stored = self._route_ask("learning_path_plan_project", messages, english, dry_run, boundary)
-            refunded = stored is None and response.get("reason_code") in self._ROUTE_UNPAID   # refused before anything was sent
+            refunded = stored is None and self._route_unpaid(response)   # refused before anything was sent
             used = attempts + (0 if dry_run or refunded else 1)
             if refunded and not dry_run:
                 self._route_refund(key, today, attempts)
@@ -1650,6 +1663,13 @@ class App:
     @staticmethod
     def _bounded_guidance_draft(draft):
         draft = draft if isinstance(draft, dict) else {}
+        for field in ('keywords', 'search_queries', 'learning_path', 'choices'):
+            if draft.get(field) is not None and not isinstance(draft[field], list):
+                raise ValueError('引导草稿的 %s 必须是列表' % field)
+        if draft.get('summary') is not None and not isinstance(draft['summary'], str):
+            raise ValueError('引导确认摘要必须是文本')
+        if 'ready' in draft and not isinstance(draft['ready'], bool):
+            raise ValueError('引导确认状态必须是布尔值')
         keywords = []
         for value in draft.get("keywords") or []:
             value = str(value).strip()
@@ -1667,15 +1687,26 @@ class App:
                 purpose = str(item.get("purpose") or "").strip()[:300]
                 if title:
                     path.append({"title": title, "purpose": purpose})
-        return {
+        out = {
             "goal": str(draft.get("goal") or "").strip()[:4000],
             "creation_mode": draft.get("creation_mode") if draft.get("creation_mode") in {"quick", "ai_guided"} else "ai_guided",
             "keywords": keywords[:20],
             "search_queries": queries[:6],
             "learning_path": path[:8],
             "next_question": str(draft.get("next_question") or "").strip()[:500],
+            "choices": [choice.strip()[:60] for choice in (draft.get('choices') or [])[:3]
+                        if isinstance(choice, str) and choice.strip()],
+            "summary": str(draft.get('summary') or '').strip()[:160],
+            "ready": draft.get('ready') is True,
+            "learning_path_origin": 'ai' if draft.get('learning_path_origin') == 'ai' else 'user',
+            "brainstorm_phase": draft.get('brainstorm_phase') if draft.get('brainstorm_phase') in {'goal', 'scope', 'start', 'output', 'review', 'confirm'} else None,
             "candidates": draft.get("candidates") or [],
         }
+        if draft.get('learning_graph') is not None:
+            out['learning_graph'] = pathgraph.validate(draft['learning_graph'], explicit=True)
+        from .ai_guide import local_route_draft
+        out['route_draft'] = local_route_draft(out)
+        return out
 
     def create_project(self, name, creation_mode="manual", keywords=None, seeds=None,
                        guidance_transcript=None, learning_path=None, route=None, language_policy=None):
@@ -1799,7 +1830,7 @@ class App:
         draft = self._bounded_guidance_draft({"goal": goal, "keywords": self._guidance_terms(goal),
                                                "search_queries": [goal], "creation_mode": creation_mode})
         self.store.create_guidance_session(session_id, name, [{"role": "user", "content": goal}], draft)
-        return self.store.guidance_session(session_id)
+        return self.guidance_session_view(session_id)
 
     def _local_guidance(self, session, message):
         draft = self._bounded_guidance_draft(session["draft"])
@@ -1810,9 +1841,9 @@ class App:
             if term not in terms:
                 terms.append(term)
         query = " ".join(terms[:8]) or message[:180]
+        from .project_brainstorm import local_followup
         draft.update({"keywords": terms[:20], "search_queries": [query],
-                      "next_question": ("Do you want to narrow the application, method or time range?" if en
-                                        else "还需要限定应用场景、方法路线或时间范围吗？")})
+                      **local_followup(draft, message, en)})
         if not terms:
             # The local tokenizer is English-only and OpenAlex titles are mostly English.
             if en:
@@ -1840,6 +1871,9 @@ class App:
             for field in ("keywords", "search_queries", "learning_path"):
                 if field in draft_edits:
                     draft[field] = edits[field]
+            if 'learning_path' in draft_edits and edits['learning_path'] != session['draft'].get('learning_path', []):
+                draft['learning_path_origin'] = 'user'
+                draft.pop('learning_graph', None)
         cap = GUIDANCE_QUICK_MAX_TURNS if draft["creation_mode"] == "quick" else GUIDANCE_MAX_TURNS
         if session["turn_count"] >= cap:
             raise ValueError("快速创建只调用一次 AI，请直接编辑草稿后创建" if cap == GUIDANCE_QUICK_MAX_TURNS
@@ -1867,12 +1901,16 @@ class App:
         from . import guidance_contract
         messages = guidance_contract.messages(draft.get('goal', ''), draft.get('keywords', []), message,
                     self.english(), (self.gateway.config.get('provider') or {}).get('model', 'deepseek-flash')
-                    if hasattr(self.gateway, 'config') else 'deepseek-flash')
+                    if hasattr(self.gateway, 'config') else 'deepseek-flash',
+                    last_question=draft.get('next_question', ''), summary=draft.get('summary', ''),
+                    turn=session['turn_count'] + 1, quick=draft['creation_mode'] == 'quick')
         excerpt = json.loads(messages[-1]['content'])
         sent_message = excerpt.get('message', excerpt.get('goal', '') if message == draft.get('goal') else '')
         context_limits = {'goal_truncated': excerpt.get('goal', '') != draft.get('goal', ''),
                           'message_truncated': sent_message != message,
-                          'keywords_truncated': excerpt.get('keywords', []) != draft.get('keywords', [])}
+                          'keywords_truncated': excerpt.get('keywords', []) != draft.get('keywords', []),
+                          'question_truncated': excerpt.get('last_question', '') != draft.get('next_question', ''),
+                          'summary_truncated': excerpt.get('summary', '') != draft.get('summary', '')}
         scope_notice = None
         if any(context_limits.values()):
             scope_notice = ("AI used only the excerpts shown below; the full goal and messages remain saved locally. Check the omitted constraints before confirming, or shorten the input."
@@ -1894,13 +1932,21 @@ class App:
                 mode, reason_code = "local", "bad_reply"
                 reason = creation.reason_text(reason_code, self.english())
             else:
-                draft = self._bounded_guidance_draft({**draft, **payload["draft"]})
+                if ('learning_path' in payload['draft'] and 'learning_graph' not in payload['draft']
+                        and payload['draft']['learning_path'] != draft['learning_path']):
+                    draft.pop('learning_graph', None)
+                draft = self._bounded_guidance_draft({**draft, **payload["draft"],
+                    'choices': payload['draft'].get('choices', []),
+                    'ready': payload['draft'].get('ready', False) or session['turn_count'] + 1 >= cap,
+                    'learning_path_origin': 'ai' if ('learning_path' in payload['draft'] or 'learning_graph' in payload['draft'])
+                                            else draft.get('learning_path_origin', 'user')})
                 reply = payload['reply'].strip() or (
                     "Draft updated; please check the keywords and learning path." if self.english()
                     else "已更新项目草稿，请检查关键词和学习路径。")
         if mode == "local":
             reply, draft = self._local_guidance({**session, "draft": draft}, message)
             scope_notice = None
+            draft = self._bounded_guidance_draft(draft)
         tokens = (result.get("usage") or {}).get("total_tokens") if mode == "ai" else None
         entry = {"role": "assistant", "content": reply, "mode": mode}
         entry.update(_ai_receipt(result))
@@ -1913,7 +1959,7 @@ class App:
         self.store.update_guidance_session(
             session_id, transcript=transcript, draft=draft,
             turn_count=session["turn_count"] + (1 if mode == "ai" else 0))
-        return {"session": self.store.guidance_session(session_id), "reply": reply,
+        return {"session": self.guidance_session_view(session_id), "reply": reply,
                 "mode": mode, "degraded": mode == "local",
                 "reason_code": reason_code,
                 "reason": reason,
@@ -1962,7 +2008,11 @@ class App:
             raise ValueError("引导会话不存在或已结束")
         if draft is not None and not isinstance(draft, dict):
             raise ValueError("草稿格式无效")
-        draft = self._bounded_guidance_draft(draft or session["draft"])
+        incoming = {**session['draft'], **(draft or {})}
+        if incoming.get('learning_path') != session['draft'].get('learning_path'):
+            incoming['learning_path_origin'] = 'user'
+            incoming.pop('learning_graph', None)
+        draft = self._bounded_guidance_draft(incoming)
         self.store.update_guidance_session(session_id, draft={**draft, "candidates": session["draft"].get("candidates") or []})
         queries = draft["search_queries"] or draft["keywords"][:3] or [draft["goal"]]
         papers, errors, seen = [], [], set()
@@ -1976,7 +2026,7 @@ class App:
                 if paper["key"] not in seen:
                     seen.add(paper["key"])
                     papers.append(paper)
-        return {"session": self.store.guidance_session(session_id), "items": papers[:30], "errors": errors}
+        return {"session": self.guidance_session_view(session_id), "items": papers[:30], "errors": errors}
 
     # ------------------------------------------------------- manual creation helpers
     def seed_lookup(self, text):
@@ -2021,14 +2071,14 @@ class App:
         self.store.conn.execute("DELETE FROM settings WHERE key=?", (f"route_plan_{session_id}",))
         self.store.conn.commit()
 
-    def finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None, language_policy=None):
+    def finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None, language_policy=None, skip_route=False):
         with operation_lock.claim(self.data, 'brief-session:' + str(session_id)), operation_lock.claim(self.data, 'session-terminal:' + str(session_id)):
             with self.store._lock:
                 if self.store.conn.in_transaction:
                     raise RuntimeError('Session confirmation requires an idle connection')
-                return self._finalize_guidance(session_id, draft, selected_keys, route, language_policy)
+                return self._finalize_guidance(session_id, draft, selected_keys, route, language_policy, skip_route)
 
-    def _finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None, language_policy=None):
+    def _finalize_guidance(self, session_id, draft=None, selected_keys=None, route=None, language_policy=None, skip_route=False):
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
             raise ValueError("引导会话不存在或已结束")
@@ -2036,8 +2086,23 @@ class App:
             raise ValueError("草稿格式无效")
         if selected_keys is not None and not isinstance(selected_keys, list):
             raise ValueError("候选选择格式无效")
-        incoming = self._bounded_guidance_draft(draft or session["draft"])
+        if not isinstance(skip_route, bool) or (skip_route and route is not None):
+            raise ValueError('放弃学习图的选择无效')
         stored = self._bounded_guidance_draft(session["draft"])
+        if draft is not None:
+            draft = {key: value for key, value in draft.items() if key != 'learning_graph'}
+        incoming = self._bounded_guidance_draft({**stored, **(draft or {})})
+        if route is None and not skip_route:
+            if any(incoming[field] != stored[field] for field in ('goal', 'keywords', 'learning_path')):
+                raise Conflict('创建草稿已改变，请刷新并确认当前学习图后再创建')
+            kept = (self.route_plan_state(session_id).get('plan') or {}).get('graph')
+            kept_plan = self.route_plan_state(session_id).get('plan') if kept else None
+            proposal = kept_plan or stored['route_draft']
+            route = {'graph': proposal['graph'], 'mastered': [], **({'brief': proposal['brief']} if proposal.get('brief') else {})}
+        if incoming['learning_path'] != stored['learning_path']:
+            incoming['learning_path_origin'] = 'user'
+            incoming.pop('learning_graph', None)
+            incoming = self._bounded_guidance_draft(incoming)
         draft = {**stored, **incoming, "candidates": stored.get("candidates") or []}
         selected = {str(key) for key in (selected_keys or []) if isinstance(key, str)}
         candidates = {p.get("key"): p for p in draft.get("candidates") or [] if isinstance(p, dict) and p.get("key")}
@@ -3377,7 +3442,8 @@ class App:
         result = self.gateway.call(operation, messages, dry_run=dry_run)
         reading.assert_session(self.store, paper_key, project_id, session)
         if dry_run or not result.get("ok"):
-            return {"ok": False, "degraded": True, "reason": result.get("reason"),
+            code, reason = creation.degrade_reason(result, self.english())
+            return {"ok": False, "degraded": True, "reason_code": code, "reason": reason,
                     "mode": "vision" if image else "text", "pages": pages,
                     **_ai_receipt(result), "dry_run": bool(dry_run)}
         content = result.get('content')
@@ -3447,7 +3513,8 @@ class App:
                      "把下面这段论文文字翻译成中文，术语保留英文原词，只输出译文：\n\n" + text}]
         result = self.gateway.call("selection_translate", messages, dry_run=dry_run)
         if dry_run or not result.get("ok"):
-            return {"ok": False, "degraded": True, "reason": result.get("reason"),
+            code, reason = creation.degrade_reason(result, self.english())
+            return {"ok": False, "degraded": True, "reason_code": code, "reason": reason,
                     **_ai_receipt(result), "dry_run": bool(dry_run)}
         return {"ok": True, "translation": (result.get("content") or "").strip(),
                 **_ai_receipt(result)}
@@ -3601,7 +3668,8 @@ class App:
         }]
         result = self.gateway.call("daily_triage", messages, dry_run=dry_run)
         if dry_run or not result.get("ok"):
-            return {"ok": False, "degraded": True, "reason": result.get("reason"),
+            code, reason = creation.degrade_reason(result, self.english())
+            return {"ok": False, "degraded": True, "reason_code": code, "reason": reason,
                     "items": [], "mode": "sparse", **_ai_receipt(result)}
         try:
             items = route_revision.strict_json(result.get('content')) if result.get('finish_reason') != 'length' else None
