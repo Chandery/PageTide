@@ -7,8 +7,9 @@ Named thresholds below are descriptive proposals, not measured product quality.
 import functools
 import math
 import re
+import sys
 
-from . import eligibility, pathgraph, ranking
+from . import eligibility, learning_scope, pathgraph, ranking
 
 MIN_STRENGTH = 0.25
 MIN_MEMBERS = 3          # distinct papers in the cluster
@@ -22,30 +23,102 @@ _INTRO_CJK = ("综述", "教程", "入门", "概述", "导论", "综论")
 
 
 # ------------------------------------------------------------------ matching
-@functools.lru_cache(maxsize=2048)
+@functools.lru_cache(maxsize=256)
 def _pattern(term):
+    if len(term) > 256:
+        return re.compile(r"(?!)")
     parts = [re.escape(p) for p in re.split(r"[\s\-]+", term) if p]
     if not parts:
         return re.compile(r"(?!)")   # a term of separators only matches nothing
-    return re.compile(r"(?<![a-z0-9])" + r"[\s\-]+".join(parts) + r"s?(?![a-z0-9])")
+    # One explicit scientific modifier can specialize a phrase without making
+    # arbitrary intervening text, a negation, or another sentence a match.
+    modifier = r"(?:solid|graph|state|feature|learned|neural|nonlinear|stochastic|conditional|conditioned)"
+    separator = ranking.PHRASE_SEPARATOR + r"(?:" + modifier + ranking.PHRASE_SEPARATOR + r")?"
+    pattern = re.compile(r"(?<![a-z0-9])" + separator.join(parts) + r"s?(?![a-z0-9])", re.I)
+    # Cache object <= 8 KiB and key <= 256 Unicode codepoints: < 2.4 MiB
+    # including a conservative 512-byte entry allowance for 256 entries.
+    if sys.getsizeof(pattern) + sys.getsizeof(pattern.pattern) <= 8192:
+        return pattern
+    literal = re.compile(r"(?<![a-z0-9])" + ranking.PHRASE_SEPARATOR.join(parts) + r"s?(?![a-z0-9])", re.I)
+    return literal if sys.getsizeof(literal) + sys.getsizeof(literal.pattern) <= 8192 else re.compile(r"(?!)")
 
 
 def term_in_text(text, term):
-    """Whole-word match (case, hyphen/space and a plural 's' tolerated); Chinese terms match as substrings."""
-    term = re.sub(r"\s+", " ", str(term or "").strip().lower())
-    if not term:
-        return False
-    text = str(text or "").lower()
-    if ranking.cjk_tokens(term):
-        return term in text
-    return _pattern(term).search(text) is not None
+    """Scientific identities and one named modifier; never an arbitrary word gap."""
+    if ranking.term_in_text(text, term):
+        return True
+    query = ranking.scientific_text(term).casefold().strip()
+    return bool(query and len(query) <= 256 and _pattern(query).search(ranking.scientific_text(text)))
+
+
+_VISUAL_ENCODING = re.compile(r"\b(?:visual[ -]+(?:states?|representations?|features?|embeddings?|inputs?|observations?|information|world[ -]+models?)|images?|pixels?|videos?|vision[ -]+based)\b|视觉|图像", re.I)
+_VISUAL_SURFACES = {
+    'visual representation': ('visual features', 'visual embedding', 'image representation'),
+    'latent state': ('latent space', 'latent representation'),
+}
+_SCIENTIFIC_SURFACES = {
+    # Explicit named cytokine subtypes, never a bare ambiguous acronym.
+    'interferon': ('IFN alpha', 'IFN beta', 'IFN gamma'),
+    # A stabilization intervention is material evidence of interface stability;
+    # generic cycling stability and impedance are not interchangeable here.
+    'interfacial stability': ('interface stability', 'interfacial stabilization', 'interface stabilization'),
+}
+
+
+def _visual_concept(concept):
+    name = str(concept.get('name') or '').casefold()
+    return ('视觉' in name or 'visual' in name or
+            any(str(t).casefold() == 'visual representation' for t in concept.get('terms') or []))
+
+
+def _quote(text, surface):
+    """A substring of the original visible material, never a normalized reconstruction."""
+    match = _pattern(surface.casefold()).search(text)
+    if match:
+        return text[max(0, match.start()-72):min(len(text), match.end()+72)]
+    # Science spellings may change offsets (Greek, subscripts, PD1). Each
+    # bounded original window is checked again before being called evidence.
+    for start in range(0, len(text), 256):
+        part = text[start:start+512]
+        if term_in_text(part, surface):
+            return part
+    return None
+
+
+def match_evidence(concept, paper, scope=None):
+    """Local material compatibility with original quotes; it grants no mastery.
+
+    A visual representation unit cannot use bare psychological latent states.
+    Equivalent encoding surfaces need explicit visual input/encoding evidence.
+    This is not a general semantic classifier or an inferred prerequisite.
+    """
+    if scope and not learning_scope.check(scope, paper)['compatible']:
+        return []
+    text, title = _text(paper), str(paper.get('title') or '')
+    visual = _visual_concept(concept)
+    encoding = bool(_VISUAL_ENCODING.search(text))
+    out = []
+    for term in concept.get('terms') or []:
+        key = ranking.scientific_text(term).casefold().strip()
+        if visual and key == 'latent state' and not encoding:
+            continue
+        surfaces = ((term,) + _SCIENTIFIC_SURFACES.get(key, ()) +
+                    (_VISUAL_SURFACES.get(key, ()) if visual and encoding else ()))
+        for surface in surfaces:
+            if term_in_text(text, surface):
+                quote = _quote(text, surface)
+                if quote:
+                    out.append({'term': term, 'matched_via': surface, 'quote': quote,
+                                'title_hit': term_in_text(title, surface)})
+                break
+    return out
 
 
 def _text(paper):
     return eligibility.retrieval_text(paper)
 
 
-def assign(graph, papers):
+def assign(graph, papers, scope=None):
     """{paper_key: [concept ids]}: the (at most two) concepts whose terms a paper uses, best first.
     Title hits count double. Derived, never stored: it must not rewrite anyone's own classification."""
     out = {}
@@ -53,12 +126,11 @@ def assign(graph, papers):
     for paper in papers:
         if not paper.get("key"):
             continue
-        text, title = _text(paper), paper.get("title") or ""
         scored = []
         for index, c in enumerate(concepts):
-            hits = sum(term_in_text(text, t) for t in c["terms"])
-            if hits:
-                scored.append((-(hits + sum(term_in_text(title, t) for t in c["terms"])), index, c["id"]))
+            evidence = match_evidence(c, paper, scope)
+            if evidence:
+                scored.append((-(len(evidence) + sum(e['title_hit'] for e in evidence)), index, c["id"]))
         if scored:
             out[paper["key"]] = [cid for _, _, cid in sorted(scored)[:2]]
     return out
@@ -67,7 +139,7 @@ def assign(graph, papers):
 def paper_role(paper):
     """"intro" for surveys, tutorials and primers (read first inside a concept), else "advanced"."""
     title = str(paper.get("title") or "").lower()
-    return "intro" if _INTRO.search(title) or any(w in title for w in _INTRO_CJK) else "advanced"
+    return "intro" if paper.get("work_type") == "review" or _INTRO.search(title) or any(w in title for w in _INTRO_CJK) else "advanced"
 
 
 # ------------------------------------------------------------------- support

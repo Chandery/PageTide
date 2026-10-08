@@ -123,10 +123,11 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertEqual(body["thinking"], {"type": "disabled"})
         self.assertEqual(body["model"], self.gateway.config["provider"]["model"])
 
-    def test_growth_only_uses_json_format_and_zero_temperature_without_extra_attempt(self):
+    def test_structured_operations_use_json_format_and_zero_temperature_without_extra_attempt(self):
         payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],
                    "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}}
-        for operation in ["route_growth_judge", "daily_triage"]:
+        structured = ['route_growth_judge', 'daily_triage', 'project_guidance', 'route_map_create', 'route_map_revision', 'category_review']
+        for operation in structured + ['paper_qa']:
             with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
                 result = self.gateway.call(operation, [{"role": "user", "content": "Return JSON."}])
             self.assertTrue(result["ok"])
@@ -134,7 +135,7 @@ class GatewayBudgetTests(unittest.TestCase):
             body = json.loads(urlopen.call_args[0][0].data)
             self.assertEqual(body["thinking"], {"type": "disabled"})
             self.assertEqual(body["max_tokens"], self.gateway.config["operations"][operation]["cap"]["output"])
-            if operation == "route_growth_judge":
+            if operation in structured:
                 self.assertEqual(body["temperature"], 0)
                 self.assertEqual(body["response_format"], {"type": "json_object"})
             else:
@@ -148,7 +149,7 @@ class GatewayBudgetTests(unittest.TestCase):
                 payload['usage'] = usage
             with mock.patch('app.gateway.urllib.request.urlopen', return_value=_ok(payload)):
                 out = self.gateway.call('daily_triage', [{'role': 'user', 'content': 'x'}])
-            self.assertTrue(out['ok'])
+            self.assertFalse(out['ok']); self.assertTrue(out['bad_reply'])
             self.assertEqual(out['finish_reason'], 'length')
             self.assertEqual(out.get('usage_unknown', False), usage is None)
 

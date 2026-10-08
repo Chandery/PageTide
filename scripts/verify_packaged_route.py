@@ -27,12 +27,13 @@ from app import route_recall
 
 
 def launch(executable, data, home, check):
-    env = dict(os.environ, HOME=str(home), PAPERDIGHELPER_DATA=str(data), DEEPSEEK_API_KEY='', PDH_DEV='0',
+    env = dict(os.environ, PAPERDIGHELPER_DATA=str(data), PAPERDIGHELPER_KEY_FILE=str(home/'missing-key.env'), DEEPSEEK_API_KEY='', PDH_DEV='0',
                http_proxy='http://127.0.0.1:9', https_proxy='http://127.0.0.1:9',
                HTTP_PROXY='http://127.0.0.1:9', HTTPS_PROXY='http://127.0.0.1:9',
                NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
-    # Never let a host key-file override escape the disposable HOME/data.
-    env.pop('PAPERDIGHELPER_KEY_FILE', None)
+    # Preserve HOME and replace the inherited KEY_FILE with a private absent path.
+    # The private data/bundled resources also contain no keys; AI_DISABLED blocks calls.
+    assert env.get('HOME') == os.environ.get('HOME')
     with tempfile.TemporaryFile(mode='w+') as errors:
         process = subprocess.Popen([str(executable)], cwd=ROOT, env=env, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=errors, text=True)
@@ -77,7 +78,7 @@ def main():
         pending=app.create_project('Legacy pending')['project_id']
         route_pid=app.create_project('Goal fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         recall_pid=app.create_project('Recall fixture',keywords=['recall topic'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
-        batch_pid=app.create_project('Batch fixture',keywords=['epitaxy'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
+        batch_pid=app.create_project('Batch fixture',keywords=['epitaxy','photonic calibration'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         batch_route=app.route_save(batch_pid,plan={'concepts':[
             {'id':'a','name':'Crystal foundation','terms':['crystal lattice'],'hint':1,'needs':[]},
             {'id':'b','name':'Epitaxy task','terms':['epitaxy'],'hint':2,'needs':['a']}], 'targets':['b']})
@@ -86,6 +87,20 @@ def main():
         app.route_watch(batch_pid,batch_ids['Crystal foundation'],True)
         app.store.upsert_papers([{'key':kind+str(i),'title':term+' study '+str(i),'abstract':term+' methods and measurement',
                  'language':'en','published':'2026-01-01'} for kind,term in [('bp','epitaxy'),('bx','photonic calibration'),('bw','crystal lattice')] for i in range(6)],batch_pid)
+        def cache_batch_exploration(fixture_app):
+            # Synthetic cached public query results, rather than purposeless fillers.
+            state={}
+            public=[dict(fixture_app.store.paper('bx'+str(i))) for i in range(6)]
+            for _ in range(8):
+                planned=fixture_app._route_recall_plan(batch_pid,fixture_app.route_get(batch_pid),state)
+                results=[(q,public if q['query']=='photonic calibration' else []) for q in planned['queries']]
+                state=route_recall.record(planned,state,results,time.time())
+                if any(q['query']=='photonic calibration' for q in planned['queries']):
+                    fixture_app.store.set_setting('route_recall_'+batch_pid,state)
+                    assert fixture_app.route_recall_sources(batch_pid)['bx0'][0]['query']=='photonic calibration'
+                    return
+            raise AssertionError('Synthetic public exploration query was not planned')
+        cache_batch_exploration(app)
         recall=app.route_save(recall_pid,plan={'concepts':[
             {'id':'a','name':'Recall foundations','terms':['recall foundations'],'hint':1,'needs':[]},
             {'id':'b','name':'Recall methods','terms':['recall methods'],'hint':2,'needs':['a']},
@@ -117,6 +132,7 @@ def main():
         app.store.upsert_papers(papers,pid)
         app.store.add_project_paper(pending,'link','imported')
         app.store.create_batch('2026-01-01',['link'],project_id=pending)
+        # Internal version/fulltext fixtures bypass the import boundary; they do not test valid PDF acceptance.
         pdf=data/'body.pdf'; raw=b'%PDF-1.4\nversioned fixture\n%%EOF';pdf.write_bytes(raw)
         sha=hashlib.sha256(raw).hexdigest();app.store.record_pdf('body',pdf,sha256=sha)
         app.save_fulltext('body',[{'page':1,'text':'Meaningful model learning and prediction. '*20}],source_pdf_sha256=sha)
@@ -135,6 +151,10 @@ def main():
             {'id':'a','name':'Growth basis','terms':['growth basis'],'hint':1,'needs':[]},
             {'id':'b','name':'Growth goal','terms':['growth goal'],'hint':2,'needs':['a']}], 'targets':['b']})
         for concept in growth_map['graph']['concepts']:
+            if concept['name']=='Growth goal':
+                concept.update(intro='Calibration task is required before Growth goal.',intro_by='user')
+        growth_map=app.route_save(growth_pid,graph=growth_map['graph'])
+        for concept in growth_map['graph']['concepts']:
             app.route_manual(growth_pid,concept['id'],'mastered')
         app.store.upsert_papers([{'key':'growth-proof','title':'Calibration method',
             'abstract':'Calibration method and measurement techniques','language':'en'}],growth_pid)
@@ -142,10 +162,23 @@ def main():
         # Public fixture answer creates a local proposal; no claim of real model quality.
         fixture={'results':[{'papers':['p1'],'verdict':'missing_prerequisite','name':'Calibration task',
             'terms':['calibration'],'intro':'A prerequisite calibration task','barrier':'Measurement basics',
-            'needs':[],'required_by':['c2'],'reason':'Fixture prerequisite'}]}
-        with mock.patch.object(app.gateway,'call',return_value={'ok':True,'content':json.dumps(fixture)}):
+            'needs':[],'required_by':['c2'],'reason':'Fixture prerequisite',
+            'necessity':[{'node':'c2','quote':'Calibration task is required before Growth goal.'}]}]}
+        def public_fixture_reply(operation,messages,**kwargs):
+            assert operation == 'route_growth_judge'
+            body = json.loads(messages[-1]['content'])
+            result = dict(fixture['results'][0])
+            result['evidence'] = {}
+            for alias in result['papers']:
+                record = body['papers'][alias]
+                sid = next(sid for sid, option in record['snippets'].items()
+                           if option['field'] == 'abstract' and option['text'] == record['abstract'])
+                result['evidence'][alias] = {'snippet':sid,'type':'unknown'}
+            return {'ok':True,'content':json.dumps({'results':[result]})}
+        with mock.patch.object(app.gateway,'call',side_effect=public_fixture_reply):
             proposal=app.route_direction_judge(growth_pid)
         growth_id=proposal['results'][0]['direction']
+        assert proposal['ok'] and growth_id, proposal
         app.store.add_project_paper(route_pid,'en','shared')
         app.store.save_to_library('en',project_id=route_pid)
         queue_pid=app.create_project('Whole queue fixture',language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
@@ -173,7 +206,7 @@ def main():
             assert 'judgeProgress' in call('/route-editor.js',raw=True)
             listed=call('/api/route',{'action':'candidates','project_id':growth_pid})
             candidate=next(c for c in listed['candidates'] if c['id']==growth_id)
-            assert candidate['can_accept'] and candidate['goal_impact']=='adds_prerequisite'
+            assert candidate['can_accept'] and candidate['goal_impact']=='adds_prerequisite', candidate
             accepted=call('/api/route',{'action':'candidate-accept','project_id':growth_pid,'candidate':growth_id,'revision':listed['revision']})
             assert accepted['goal_status']=='learning' and accepted['goal_total']==3
             restored=call('/api/route',{'action':'undo','project_id':growth_pid,'revision':accepted['revision']})
@@ -189,6 +222,8 @@ def main():
             full=call('/api/daily',{'project_id':batch_pid})
             assert Counter(c['route']['kind'] for c in full['cards'])=={'route':3,'explore':1,'watch':1},full
             selected=next(c['key'] for c in full['cards'] if c['route']['kind']=='explore')
+            selected_card=next(c for c in full['cards'] if c['key']==selected)
+            assert selected_card['route']['exploration_evidence']['query']=='photonic calibration'
             saved=call('/api/feedback',{'key':selected,'action':'useful','project_id':batch_pid})
             detail=call('/api/detail',{'key':selected,'project_id':batch_pid})['context']
             assert detail['saved_in_project'] and detail['units']==[] and detail['recommendation']['kind']=='explore'
@@ -201,6 +236,11 @@ def main():
             route=call('/api/route?project_id='+batch_pid)
             completed=call('/api/route',{'action':'manual','project_id':batch_pid,'concept':batch_ids['Epitaxy task'],'value':'mastered','revision':route['revision']})
             assert completed['goal_status']=='completed'
+            fixture_app=App(data_dir=data)
+            try:
+                cache_batch_exploration(fixture_app)
+            finally:
+                fixture_app.store.close()
             discovery=call('/api/daily',{'project_id':batch_pid})
             assert len(discovery['cards'])==1 and discovery['cards'][0]['route']['kind']=='explore'
             repeated=call('/api/daily',{'project_id':batch_pid,'run_date':'2099-01-01'})
@@ -339,7 +379,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/owner-approved new-operation AI-off and no-key no-call, whole-queue20 AI-off pending/refund/current assets, isolated HOME, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/owner-approved new-operation AI-off and no-key no-call, whole-queue20 AI-off pending/refund/current assets, isolated DATA and absent key, HOME preserved, outbound network blocked')
 
 
 if __name__=='__main__': main()

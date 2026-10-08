@@ -1,3 +1,4 @@
+from tests.pdf_fixture import minimal_pdf
 """Committing a reviewed batch: one transaction writes papers, links, library saves and archived PDFs.
 
 What an import must NOT do is as important as what it does: no feedback, no seeds, no overwritten PDFs."""
@@ -17,7 +18,7 @@ from app.project import ProjectManager
 
 
 def pdf(n):
-    return b"%PDF-1.7\n" + f"paper {n}".encode() * 40
+    return minimal_pdf(f"paper {n}")
 
 
 def paper(n, title=None):
@@ -145,10 +146,14 @@ class CommitTests(Base):
         self.batch()
         self.matched(1)
         self.settle(self.add(), "needs_choice", candidates=[])
-        self.settle(self.add(), "failed", error="bad reply")
+        failed = self.add()
+        self.settle(failed, "failed", error="bad reply")
         self.settle(self.add(), "excluded")
+        with self.assertRaisesRegex(ValueError, "失败项"):
+            self.imp.commit(self.batch_id)
+        self.imp.act(self.batch_id, failed["id"], "exclude")
         result = self.imp.commit(self.batch_id)
-        self.assertEqual((result["new_papers"], result["skipped_needs_choice"], result["skipped_failed"], result["excluded"]), (1, 1, 1, 1))
+        self.assertEqual((result["new_papers"], result["skipped_needs_choice"], result["skipped_failed"], result["excluded"]), (1, 1, 0, 2))
         self.assertEqual(self.count("SELECT COUNT(*) FROM project_library"), 1)
 
     def test_two_different_pdfs_of_one_paper_do_not_replace_each_other(self):
@@ -216,14 +221,18 @@ class CommitTests(Base):
         with self.assertRaises(ValueError):
             self.imp.commit(self.batch_id)
 
-    def test_a_staged_file_that_no_longer_matches_its_hash_fails_only_that_item(self):
+    def test_a_staged_file_that_no_longer_matches_its_hash_keeps_the_batch_recoverable(self):
         self.batch()
         good, bad = self.matched(1), self.matched(2)
         (self.data / "imports" / "batches" / self.batch_id / f"{bad['sha256']}.pdf").write_bytes(b"%PDF-1.7 tampered")
-        result = self.imp.commit(self.batch_id)
-        self.assertEqual((result["new_papers"], result["skipped_failed"]), (1, 1))
+        with self.assertRaisesRegex(ValueError, "归档失败"):
+            self.imp.commit(self.batch_id)
         self.assertEqual(self.imp.item(self.batch_id, bad["id"])["state"], "failed")
-        self.assertEqual(self.count("SELECT COUNT(*) FROM project_library"), 1)
+        self.assertEqual(self.count("SELECT COUNT(*) FROM project_library"), 0)
+        self.assertEqual(self.imp.batch(self.batch_id)["status"], "review")
+        self.assertTrue(self.imp._staging(self.batch_id).is_dir())
+        self.imp.act(self.batch_id, bad["id"], "exclude")
+        self.assertEqual(self.imp.commit(self.batch_id)["new_papers"], 1)
 
     def test_identical_copies_share_one_paper_and_remember_every_folder(self):
         self.batch()

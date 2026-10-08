@@ -2,26 +2,26 @@
 import json
 import io
 from unittest import mock
-from test_route_growth import Fixture, reply, new
+from test_route_growth import Fixture, reply, new, grounded_fixture
 from app.organization import Conflict
 
 
 class GrowthBatchTests(Fixture):
     def queue(self, count):
         for i in range(count):
-            self.add(f'b{i}', f'Paper {i}', 'Public abstract', 'synthetic')
+            self.add(f'b{i}', f'Paper {i}', 'Synthetic study of Epitaxy, strain relaxation and dislocation glide.', 'synthetic')
             self.say((f'b{i}', 'useful'))
         return [p['key'] for p in self.app._pending_growth(self.pid)]
 
     def cover(self, messages):
         body = json.loads(messages[1]['content'])
-        return reply([{'papers': list(body['papers']), 'verdict': 'covered', 'nearest': 'c2'}])
+        return grounded_fixture(reply([{'papers': list(body['papers']), 'verdict': 'covered', 'nearest': 'c2'}]), body)
 
     def dynamic_gateway(self, respond):
         calls=[]
         def fake(operation, messages, dry_run=False):
             calls.append(messages)
-            return respond(messages, len(calls))
+            return grounded_fixture(respond(messages, len(calls)), json.loads(messages[1]['content']))
         self.app.gateway.call = fake
         return calls
 

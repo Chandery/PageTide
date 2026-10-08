@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<script>document.documentElement.dataset.mode=localStorage.getItem('pdh-mode')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')</script>
+<script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/project-creation.css">
 <link rel="stylesheet" href="/import.css">
 <title>导入论文 · PaperDigHelper</title>
-</head>
+<script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
 <div class="container">
 <a class="back" id="back" href="/">← 返回主页</a>
@@ -24,7 +24,7 @@
 <!-- ===================================================================== 1 选择 -->
 <section class="panel active" id="stepSource" aria-label="选择要导入的论文">
   <div id="resumeBox" class="resume" hidden></div>
-  <div class="resume" id="continueBox" hidden><span id="continueText"></span> <button type="button" class="small" id="continueSkip">直接匹配已有的文件</button></div>
+  <div class="resume" id="continueBox" hidden><span id="continueText"></span> <button type="button" class="small" id="continueSkip">直接匹配已有的文件</button> <button type="button" class="small ghost" id="continueBack" hidden>返回查看失败记录</button></div>
   <div class="picker">
     <button type="button" class="primary" id="pickFiles">选择 PDF 文件…</button>
     <button type="button" id="pickFolder">选择文件夹…</button>
@@ -58,7 +58,7 @@
     <label class="check"><input type="checkbox" id="optFolders" checked><span>把子文件夹整理成分类</span></label>
     <label class="check"><input type="checkbox" id="optRoot"><span>把所选文件夹本身也作为一个顶级分类</span></label>
     <label class="check"><input type="checkbox" id="optReplace"><span>已经有 PDF 的论文，用这份文件替换当前 PDF</span></label>
-    <p class="hint opt-hint">替换时旧的 PDF 会留在这篇论文的文件历史里，不会删除。</p>
+    <p class="hint opt-hint">替换时旧的 PDF 会留在文件历史里。论文在多个项目共享时，各项目的当前 PDF 都会使用这份文件；请先核对题名与文件。</p>
     <label class="check" id="filelessRow" hidden><input type="checkbox" id="optFileless"><span>也导入没有 PDF 的条目（只有题录信息）</span></label>
     <p class="hint opt-hint" id="filelessHint" hidden>Zotero 里有些条目只有题录、没有附件。勾选后它们也会进论文库，但没有 PDF 可读。</p>
   </fieldset>
@@ -86,6 +86,13 @@
 
 <!-- ===================================================================== 3 确认 -->
 <section class="panel" id="stepReview" aria-label="确认导入">
+  <div class="notice warn" id="reviewWarnings" hidden></div>
+  <div class="notice warn" id="emptyImport" role="status" hidden>
+    <strong id="emptyImportTitle"></strong>
+    <p id="emptyImportText"></p>
+    <p class="hint" id="emptyImportOptions"></p>
+    <button type="button" id="emptyReselect">重新选择文件后重试</button>
+  </div>
   <div class="notice warn" id="failedBox" hidden>
     <div id="failedText"></div>
     <ul class="skipped" id="failedList"></ul>

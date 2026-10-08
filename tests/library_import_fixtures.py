@@ -1,9 +1,10 @@
 """Shared fakes for the library-import tests: staged PDF bytes, OpenAlex works, and a client that never touches the network."""
 from app.sources import SourceError
+from tests.pdf_fixture import minimal_pdf
 
 
 def pdf(n):
-    return b"%PDF-1.7\n" + f"paper {n}".encode() * 40
+    return minimal_pdf(f"paper {n}")
 
 
 def work(n, title=None, doi=None, date="2020-05-01"):

@@ -1,3 +1,4 @@
+from tests.pdf_fixture import minimal_pdf
 """Manual creation: identifier parsing, paper-name search, dropped PDFs. No test reaches the network."""
 import hashlib
 import tempfile
@@ -9,7 +10,7 @@ from app import creation
 from app.service import App
 from app.sources import SourceError, slim
 
-PDF = b"%PDF-1.7\n1 0 obj<<>>endobj\n%%EOF\n"
+PDF = minimal_pdf("creation")
 
 
 def work(wid="W1", title="Latent World Models", doi="https://doi.org/10.48550/arxiv.2401.00001"):
@@ -112,7 +113,7 @@ class ImportedPdfTests(unittest.TestCase):
         stale = self.dir / "imports" / f"{old}.pdf"
         import os, time
         os.utime(stale, (time.time() - 3 * 24 * 3600,) * 2)
-        creation.import_pdf(self.dir, PDF + b"x")
+        creation.import_pdf(self.dir, minimal_pdf("fresh"))
         self.assertFalse(stale.exists())
 
 

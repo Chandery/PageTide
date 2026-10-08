@@ -138,7 +138,24 @@ function exactly(text) {
   return exact.has(key) ? pick(exact.get(key), []) : text;
 }
 
-global.PDHi18n = {lang, t, translate, exact: exactly, misses: () => [...missed]};
+// App-generated parser errors contain raw bibliography keys/snippets. Format
+// their known system frame while retaining those values verbatim, even when a
+// key equals a UI label. Call this only for typed system notices/errors, never
+// for titles, notes, names, quotes or model prose.
+function systemText(text) {
+  const value = String(text ?? '');
+  let match = value.match(/^条目 (.+) 没有标题$/);
+  if (match) return t('条目 {entry} 没有标题', {entry:match[1]});
+  match = value.match(/^有一个条目没有结束：([\s\S]*)$/);
+  if (match) return t('有一个条目没有结束：{snippet}', {snippet:match[1]});
+  match = value.match(/^条目 (.+)：(字段没有结束|字段格式不对)$/);
+  if (match) return t('条目 {entry}：{reason}', {entry:match[1],reason:t(match[2])});
+  match = value.match(/^第 (\d+) 项没有读取：([\s\S]+)$/);
+  if (match) return t('第 {entry} 项没有读取：{reason}', {entry:match[1],reason:t(match[2])});
+  return t(value);
+}
+
+global.PDHi18n = {lang, t, translate, exact: exactly, system: systemText, misses: () => [...missed]};
 if (lang !== 'en-US') return;
 
 document.documentElement.lang = 'en';

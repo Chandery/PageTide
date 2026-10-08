@@ -18,6 +18,11 @@ class BatchTests(Fixture):
         if watched: self.app.route_watch(self.pid,self.cid['Crystal basics'],True)
         for i in range(path): self.paper('p'+str(i),'Epitaxy methods '+str(i),'epitaxy epitaxial growth methods')
         for i in range(explore): self.paper('x'+str(i),'Photonic calibration '+str(i),'photonic calibration instruments')
+        if explore:
+            # Exploration is a sourced, visibly matching clue, not an unmatched filler.
+            patcher=mock.patch.object(self.app,'route_recall_sources',return_value={
+                'x'+str(i):[{'kinds':['explore'],'query':'photonic calibration','observed_at':1}] for i in range(explore)})
+            patcher.start();self.addCleanup(patcher.stop)
         for i in range(watch): self.paper('w'+str(i),'Crystal lattice update '+str(i),'crystal lattice measurement')
         english_papers(self.app,self.pid)
 
@@ -36,16 +41,21 @@ class BatchTests(Fixture):
         papers=[dict(p) for p in self.app.store.papers()]
         picks=route_batch.choose(self.app._route_state(self.pid),papers,
              [('w0',1.0),('x0',0.1)]+[('p'+str(i),0) for i in range(3)],5,
-             sources={'w0':[{'kinds':['explore'],'query':'novel lattice task'}]},today='2026-10-07',recent_since='2021-01-01')
+             sources={'w0':[{'kinds':['explore'],'query':'crystal lattice update'}],
+                      'x0':[{'kinds':['explore'],'query':'photonic calibration'}]},today='2026-10-07',recent_since='2021-01-01')
         self.assertEqual(Counter(p[2] for p in picks),{'route':3,'explore':1,'watch':1})
         self.assertEqual([p[0] for p in picks if p[2]=='watch'],['w0'])
 
     def test_path_does_not_consume_unique_exploration_when_three_alternatives_exist(self):
         self.prepare(path=4,explore=0,watch=1)
+        # Construct the dual-role public-query fixture before selection.
+        self.app.store.conn.execute('UPDATE papers SET title=?,abstract=? WHERE key=?',
+            ('Epitaxy methods with photonic calibration','epitaxy methods and photonic calibration','p0'))
+        self.app.store.conn.commit()
         papers=[dict(p) for p in self.app.store.papers()]
         picks=route_batch.choose(self.app._route_state(self.pid),papers,
              [('p0',1.0),('p1',.8),('p2',.6),('p3',.4),('w0',.2)],5,
-             sources={'p0':[{'kinds':['explore'],'query':'novel epitaxy task'}]},today='2026-10-07',recent_since='2021-01-01')
+             sources={'p0':[{'kinds':['explore'],'query':'photonic calibration'}]},today='2026-10-07',recent_since='2021-01-01')
         self.assertEqual(Counter(p[2] for p in picks),{'route':3,'explore':1,'watch':1})
         self.assertEqual([p[0] for p in picks if p[2]=='explore'],['p0'])
 
@@ -247,8 +257,14 @@ app.store.close()
             first=self.result(run_date='2099-01-01')
         row=self.app.store.conn.execute('SELECT run_date FROM batches WHERE id=?',(first['batch_id'],)).fetchone()
         self.assertEqual(row[0],'2026-10-08')
-        with mock.patch.object(self.app,'batch_day',side_effect=['2026-10-09','2026-10-09','2026-10-09','2026-10-10']):
-            result=self.result()
+        clock = ['2026-10-09']
+        commit = self.app._create_eligible_batch
+        def midnight_before_commit(*args, **kwargs):
+            clock[0] = '2026-10-10'
+            return commit(*args, **kwargs)
+        with mock.patch.object(self.app, 'batch_day', side_effect=lambda: clock[0]), mock.patch.object(
+                self.app, '_create_eligible_batch', side_effect=midnight_before_commit):
+            result = self.result()
         self.assertEqual(result['reason_code'],'recommendation_changed')
 
     def test_failed_atomic_exposure_write_does_not_consume_completed_cap(self):

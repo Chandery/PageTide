@@ -54,6 +54,10 @@ button.small{padding:calc(3px * var(--s)) calc(9px * var(--s));font-size:calc(12
 button:disabled{opacity:.45;cursor:not-allowed}
 .actions{display:flex;gap:calc(10px * var(--s));align-items:center;justify-content:flex-end;margin-top:calc(14px * var(--s))}
 .spacer{flex:1}
+.route-quit{max-width:min(38rem,calc(100vw - 32px));background:var(--surface-1);color:var(--text);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px}
+.route-quit::backdrop{background:rgba(0,0,0,.45)}
+.route-quit .actions{flex-wrap:wrap;justify-content:flex-start}
+.route-quit button{white-space:normal}
 
 /* ------------------------------------------------------------ live feedback */
 .activity{display:flex;align-items:center;gap:calc(10px * var(--s));padding:calc(9px * var(--s)) calc(12px * var(--s));margin:calc(12px * var(--s)) 0;border:1px solid var(--line);border-radius:var(--r-md);background:var(--base);font-size:calc(13px * var(--s))}
@@ -321,3 +325,5 @@ body.busy .map-detail button,body.busy .map-actions button{opacity:.6;pointer-ev
 .import-after{display:flex;gap:calc(8px * var(--s));align-items:flex-start;font-weight:400;margin:calc(4px * var(--s)) 0 0;cursor:pointer}
 .import-after input{width:auto;margin-top:calc(5px * var(--s))}
 .import-after-hint{margin:calc(2px * var(--s)) 0 calc(18px * var(--s)) calc(24px * var(--s))}
+
+.creation-quit-actions{flex-wrap:wrap}

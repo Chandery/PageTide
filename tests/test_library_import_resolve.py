@@ -263,7 +263,7 @@ class OfflineAndExistingTests(Base):
     def test_a_file_already_archived_for_a_paper_is_linked_to_it(self):
         self.batch()
         data = pdf(99)
-        item = self.add({"titles": ["Some long enough title"]}, data=data)
+        item = self.add({"titles": ["Archived paper"]}, data=data)
         self.store.upsert_papers([{"key": "k1", "title": "Archived paper"}], project_id=self.project)
         self.store.record_pdf("k1", "/x/a.pdf", "user-import", sha256=item["sha256"], size=len(data))
         self.imp.resolve(self.batch_id)

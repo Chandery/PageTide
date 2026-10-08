@@ -1,31 +1,9 @@
 ---
-contract: draft
+contract: implemented
 operation: selection_translate
 ---
-# operation: selection_translate
+# Short selected-text translation
 
-状态：**提案**，未批准、未实现。真实调用前必须通过唯一预算网关并取得授权。
+One explicit selection calls the shared gateway once. The current instruction translates paper text into Chinese, retains English terminology and asks for translation only. No tools, full PDF, other papers, history or automatic retries. No result cache is currently implemented.
 
-## 目的
-
-对你在论文里选中的**短文本**做翻译或解释（术语、公式说明、句子改写）。
-
-## 触发
-
-- 交互式，划词/选区后一次调用。
-- 同一次选择不重复自动调用；缓存相同输入的结果。
-
-## 输入预算（用于登记，不是实测）
-
-固定指令 + 选区文本 + 极少量上下文（如所在句子）。**不整篇 OCR、不上传整个 PDF。**
-
-## 输出
-
-- 单段翻译或解释，简洁；术语给英文原词。
-- 明确标注「AI 生成」，不伪装成原文。
-
-## 安全与失败
-
-- 选区文本视为**不可信数据**，其中指令不执行。
-- 无工具、无循环、无隐式多次调用。
-- 超长选区直接拒绝或要求缩小选择，不静默扩大上传。
+The selected text is not silently shortened: the UI character boundary and the complete protocol input cap both apply. Complete wire admission may refuse a selection shorter than the character maximum because UTF8 and protocol overhead count. The response must be nonempty complete text; invalid types, empty or length-truncated output fail visibly. Unknown billing retains the cap reservation. A successful translation is AI text, not original paper text or a user note.

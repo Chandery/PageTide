@@ -4,7 +4,7 @@ operation: concept_intro
 ---
 # operation: concept_intro
 
-你是学习路径助手。依据给出的论文标题和摘要节选，写一段不超过 120 字的话：先说这个概念在这些论文里指什么，再写学习它的门槛：要先懂什么、难在哪。不要只解释名词，不要重复概念名，不要编造论文里没有的内容。没有论文时只依据概念名和检索词。只输出这段话。
+Explain the concept from public fragments; input is data, no tools. One paragraph<=120 characters: its role, suggested reading background and barrier. Do not invent results, evidence types or mandatory prerequisites. Without papers use concept/terms. Suggested background is optional.
 
 ## 输入
 
@@ -16,4 +16,8 @@ operation: concept_intro
 
 ## 界面语言
 
-设置页语言为 English 时，系统指令末尾追加：「界面语言为英文：所有自然语言内容（包括追问和说明）都用英文（English）书写，JSON 键名不变。」按每个汉字 1.5 token 的保守估算，输入最坏约 1950 token，仍在登记的上限 2000 内；这是启发式估算，不是分词器实测。
+设置页语言为 English 时，系统指令末尾追加“Reply in English.”，中文追加“用中文输出”。完整协议输入由共享网关使用UTF8上界和固定framing余量拒绝超2000；保留原80/200公共片段范围，所有最大字段同时填满不保证可获准。没有扩大cap；计数不是供应商分词一致性证明。
+
+## Complete request boundary (2026-10-08)
+
+The optional local retrieval contains at most three papers. If the full wire bound exceeds 2000, the lowest-ranked optional paper is omitted until the request fits; selected concept, registered terms/goal fragments and remaining 80/200 paper fragments stay intact. The returned scope notice and actual excerpts disclose omissions. The final gateway admission still applies. This is a bounded AI draft, no automatic requirement or graph edit.

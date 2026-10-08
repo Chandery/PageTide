@@ -20,6 +20,7 @@ UA = "PaperDigHelper/0.1 (local research; read-only metadata)"
 MAILTO = "owner@example.invalid"  # OpenAlex ignores mailto since 2026-02 (API keys replaced the polite pool); kept so cached URLs stay valid
 GAP_SECONDS = 2.0
 KEYED_GAP_SECONDS = 0.3  # with an API key the allowance is 10x and the limit is 100 requests/second
+ALLOWED_DISCOVERY_TYPES = ("article", "preprint", "review", "conference-paper")
 STRICT_MIN_RESULTS = 3          # fewer strict matches than this are topped up by a relevance search
 SEARCH_TTL_SECONDS = 24 * 3600  # search results older than this are refetched (the old copy is used if offline)
 WORK_TTL_SECONDS = 7 * 24 * 3600  # open-access status changes over time
@@ -80,8 +81,10 @@ def has_cjk(text):
 
 
 def clean_query(text, limit=180):
-    """A search phrase that cannot change the structure of an OpenAlex filter (',' '|' ':' and quotes)."""
-    return re.sub(r"\s+", " ", re.sub(r"[,|:!\"\\]", " ", str(text or ""))).strip()[:limit]
+    """Public scientific spelling, bounded and unable to inject OpenAlex filters."""
+    from .ranking import scientific_text
+    normalized=scientific_text(text).replace("element_", "")
+    return re.sub(r"\s+", " ", re.sub(r'[,|:!"\\]', " ", normalized)).strip()[:limit]
 
 
 def title_key(text):
@@ -152,7 +155,7 @@ def slim(work, group="field"):
     return {
         "key": key_of(work), "openalex_id": ids["openalex_id"], "doi": ids["doi"],
         "arxiv_id": ids["arxiv_id"], "title": work.get("title"), "abstract": abstract,
-        "published": work.get("publication_date"),
+        "published": work.get("publication_date"), "work_type": work.get("type"),
         "source": ((work.get("primary_location") or {}).get("source") or {}).get("display_name"),
         "topic": topic,
         "authors": [name for name in ((a.get("author") or {}).get("display_name")
@@ -177,6 +180,7 @@ class OpenAlex:
         self.cache = Path(cache_dir)
         self.cache.mkdir(parents=True, exist_ok=True)
         self.api_key = api_key
+        self.rejected_publications = []
 
     def _request(self, url):
         """The key goes in a header, only to the OpenAlex API host over https. It is an unredirected
@@ -266,7 +270,23 @@ class OpenAlex:
         busy = isinstance(last, urllib.error.HTTPError) and last.code in (429, 503)
         raise SourceError(f"OpenAlex fetch failed: {url}: {last}", "unavailable" if busy else "network_error")
 
-    def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance", prefer_pdf=True, page=1):
+    def _publication_ok(self, work, to_date=None):
+        """Defend even when a cached/upstream answer ignores the date filter; retain raw evidence."""
+        published = str(work.get("publication_date") or "")
+        cutoff = min(str(to_date or datetime.date.today().isoformat()), datetime.date.today().isoformat())
+        try:
+            future = datetime.date.fromisoformat(published) > datetime.date.fromisoformat(cutoff)
+        except ValueError:
+            future = False
+        if future:
+            self.rejected_publications.append({"key": key_of(work), "published": published,
+                                               "reason": "future_publication_date", "source": "OpenAlex"})
+            del self.rejected_publications[:-100]
+            return False
+        return True
+
+    def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance", prefer_pdf=True, page=1,
+                       source_arxiv=True, source_openalex=True):
         """Candidate papers for a research topic, for project creation and per-project refresh.
 
         English phrases are matched against title AND abstract (every word must appear), in any source
@@ -279,7 +299,11 @@ class OpenAlex:
         text = clean_query(query)
         if not text:
             return []
-        base = ["type:article|preprint"]
+        if not source_arxiv and not source_openalex:return []
+        to_date = min(str(to_date or datetime.date.today().isoformat()), datetime.date.today().isoformat())
+        base = ["type:" + "|".join(ALLOWED_DISCOVERY_TYPES)]
+        if not source_openalex:base.append("primary_location.source.id:" + ARXIV_SOURCE_ID)
+        elif not source_arxiv:base.append("primary_location.source.id:!" + ARXIV_SOURCE_ID)
         if from_date:
             base.append(f"from_publication_date:{from_date}")
         if to_date:
@@ -288,6 +312,11 @@ class OpenAlex:
 
         def add(works, mode):
             for work in works:
+                if not self._publication_ok(work, to_date):continue
+                source = ((work.get("primary_location") or {}).get("source") or {}).get("id", "")
+                is_arxiv = str(source).endswith(ARXIV_SOURCE_ID) or bool(ids_of(work)["arxiv_id"])
+                if (is_arxiv and not source_arxiv) or (not is_arxiv and not source_openalex):continue
+                if work.get("type") and work["type"] not in ALLOWED_DISCOVERY_TYPES:continue
                 paper = slim(work, group="field")
                 title = title_key(work.get("title")) or paper["key"]
                 if not work.get("title") or paper["key"] in seen or title in seen:
@@ -324,12 +353,12 @@ class OpenAlex:
         Stops early on the first persistent failure so a hot shared API cannot hang the app.
         """
         import datetime
-        to_date = to_date or datetime.date.today().isoformat()
+        to_date = min(str(to_date or datetime.date.today().isoformat()), datetime.date.today().isoformat())
         works, seen = [], set()
         for page in range(1, pages + 1):
             params = {
-                "filter": (f"primary_location.source.id:{source_id},title.search:{search},"
-                           f"from_publication_date:{from_date},to_publication_date:{to_date}"),
+                "filter": (f"primary_location.source.id:{source_id},title.search:{search}," +
+                           (f"from_publication_date:{from_date}," if from_date else "") + f"to_publication_date:{to_date}"),
                 "sort": "publication_date:desc", "per-page": per_page, "page": page, "mailto": MAILTO,
             }
             payload = self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS)
@@ -338,17 +367,17 @@ class OpenAlex:
                 if title in seen:
                     continue
                 seen.add(title)
-                works.append(slim(work, group="field"))
+                if self._publication_ok(work, to_date):works.append(slim(work, group="field"))
         return works
 
     def distractors(self, from_date="2024-01-01", to_date=None, per_query=40, source_id=ARXIV_SOURCE_ID):
         import datetime
-        to_date = to_date or datetime.date.today().isoformat()
+        to_date = min(str(to_date or datetime.date.today().isoformat()), datetime.date.today().isoformat())
         works, errors = [], []
         for query in DISTRACTOR_QUERIES:
             params = {
-                "filter": (f"primary_location.source.id:{source_id},title.search:{query},"
-                           f"from_publication_date:{from_date},to_publication_date:{to_date}"),
+                "filter": (f"primary_location.source.id:{source_id},title.search:{query}," +
+                           (f"from_publication_date:{from_date}," if from_date else "") + f"to_publication_date:{to_date}"),
                 "sort": "publication_date:desc", "per-page": per_query, "page": 1, "mailto": MAILTO,
             }
             try:
@@ -357,7 +386,7 @@ class OpenAlex:
                 errors.append({"query": query, "error": str(exc)[-120:]})
                 break  # hot API: stop instead of stacking retries
             for work in payload.get("results", []):
-                works.append(slim(work, group="distractor"))
+                if self._publication_ok(work, to_date):works.append(slim(work, group="distractor"))
         return works, errors
 
     def work(self, identifier):

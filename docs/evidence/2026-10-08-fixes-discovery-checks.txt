@@ -1,0 +1,226 @@
+Discovery/profile subgroup, baseline 8e5cfd7; temporary synthetic data only.
+Environment: Python 3.9.6; Node v23.11.0 (not a Node LTS release).
+Initial failure-first: 8 assertion failures + 1 runner AttributeError (wrong fixture Store.save_library; corrected to save_to_library). Original failure log below.
+Early rounds preserved: expected source filter contract changed from exact two filters to exact search/type/today three; no relaxed injection assertion. One targeted command used nonexistent test_migrations and another lacked PYTHONPATH=tests; those are runner errors, not product evidence. New direct old-schema backup regression passed. While AI subgroup rewrote guidance, old guidance sentence assertion also failed; sent to its owner, not silently removed.
+Final exact focused command:
+PYTHONPATH=tests python3 -m unittest test_discovery_audit_fixes test_ranking_foundation test_profile_insights test_profile_redesign test_pathgrowth test_route_recall test_candidate_quality test_organization_facets test_maintenance test_profile_core_chain test_organization_worker test_app_core.ServiceTests.test_explain_is_specific_and_names_a_reference test_i18n.EnglishServiceTests.test_explanations_follow_the_interface_language -v
+Exit 0; Ran 219 tests in 4.382s; OK.
+Final theme integration: pdh-mode event broadcasts actual saved light/dark to the existing organization graph; cold-origin regression asserts these emitted values. 11 Node still pass.
+Node command: node --test tests/test_settings_audit_fixes.cjs tests/test_profile_dashboard.cjs
+Exit 0; tests 11; pass 11; fail/cancelled/skipped/todo 0.
+python3 -m py_compile app/user_settings.py app/ranking.py app/sources.py app/profile_insights.py app/pathgrowth.py app/organization_terms.py app/organization_facets.py
+Exit 0 at syntax-check stage; changes after that covered by Python suite imports.
+git diff --check: exit 0 at subgroup self-review stage.
+English keys: 30 keys appended; i18n extractor 0 missing at that stage. Concurrent reader/import edits later introduced their own keys, delegated to their owners; final all-file language check remains root responsibility.
+No OpenAlex metadata API or model gateway requests from this subgroup. Official Work-types help page read only.
+No production data writes, new .app build or native UI manipulation by this subgroup.
+Late integration: two old save-only explanation tests expected an interest reference. Updated fixtures to explicit Useful and exact title/source-language assertions; separate inventory regression proves save-only does not become nearest interest reference. Added fail-before-alter and existing-backup preservation tests; both pass in final 219.
+
+--- INITIAL ASSERTION/TEST-RUNNER OUTPUT ---
+test_date_preference_and_future_filters (tests.test_discovery_audit_fixes.DiscoveryServiceTests) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Applying migration 6: migrate_006_pdf_acquisition
+Migration 6 applied successfully
+Applying migration 7: migrate_007_pdf_versions
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+FAIL
+test_inventory_is_not_interest_evidence (tests.test_discovery_audit_fixes.DiscoveryServiceTests) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Applying migration 6: migrate_006_pdf_acquisition
+Migration 6 applied successfully
+Applying migration 7: migrate_007_pdf_versions
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+ERROR
+test_multiword_science_reason (tests.test_discovery_audit_fixes.DiscoveryServiceTests) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Applying migration 6: migrate_006_pdf_acquisition
+Migration 6 applied successfully
+Applying migration 7: migrate_007_pdf_versions
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+FAIL
+test_saved_count_and_seed_exclusion (tests.test_discovery_audit_fixes.DiscoveryServiceTests) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Applying migration 6: migrate_006_pdf_acquisition
+Migration 6 applied successfully
+Applying migration 7: migrate_007_pdf_versions
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+FAIL
+test_sources_off_produce_no_calls (tests.test_discovery_audit_fixes.DiscoveryServiceTests) ... Applying migration 1: migrate_001_multi_project
+Migration 1 applied successfully
+Applying migration 2: migrate_002_shared_papers
+Migration 2 applied successfully
+Applying migration 3: migrate_003_project_guidance
+Migration 3 applied successfully
+Applying migration 4: migrate_004_project_scoped_qa
+Migration 4 applied successfully
+Applying migration 6: migrate_006_pdf_acquisition
+Migration 6 applied successfully
+Applying migration 7: migrate_007_pdf_versions
+Migration 7 applied successfully
+Applying migration 8: migrate_008_exposure_route
+Migration 8 applied successfully
+Applying migration 9: migrate_009_project_languages
+Migration 9 applied successfully
+Database migrated from version 0 to 9
+FAIL
+test_category_identity_preserves_science_aliases (tests.test_discovery_audit_fixes.ScienceLexicalTests) ... FAIL
+test_material_and_medical_fine_groups_are_available (tests.test_discovery_audit_fixes.ScienceLexicalTests) ... FAIL
+test_science_spellings_share_identity_without_lowercase_element_false_positive (tests.test_discovery_audit_fixes.ScienceLexicalTests) ... FAIL
+test_review_conference_are_allowed_and_future_rejected_locally (tests.test_discovery_audit_fixes.SourcePolicyTests) ... FAIL
+
+======================================================================
+ERROR: test_inventory_is_not_interest_evidence (tests.test_discovery_audit_fixes.DiscoveryServiceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 81, in test_inventory_is_not_interest_evidence
+    self.app.store.save_library('inventory',project_id=self.pid)
+AttributeError: 'Store' object has no attribute 'save_library'
+
+======================================================================
+FAIL: test_date_preference_and_future_filters (tests.test_discovery_audit_fixes.DiscoveryServiceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 74, in test_date_preference_and_future_filters
+    self.assertEqual([c['key'] for c in cards],['fresh'])
+AssertionError: Lists differ: ['future', 'fresh', 'old'] != ['fresh']
+
+First differing element 0:
+'future'
+'fresh'
+
+First list contains 2 additional elements.
+First extra element 1:
+'fresh'
+
+- ['future', 'fresh', 'old']
++ ['fresh']
+
+======================================================================
+FAIL: test_multiword_science_reason (tests.test_discovery_audit_fixes.DiscoveryServiceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 78, in test_multiword_science_reason
+    self.assertEqual(why['matched_terms'],['visual planning','PD1','Li₆PS₅Cl'])
+AssertionError: Lists differ: [] != ['visual planning', 'PD1', 'Li₆PS₅Cl']
+
+Second list contains 3 additional elements.
+First extra element 0:
+'visual planning'
+
+- []
++ ['visual planning', 'PD1', 'Li₆PS₅Cl']
+
+======================================================================
+FAIL: test_saved_count_and_seed_exclusion (tests.test_discovery_audit_fixes.DiscoveryServiceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 63, in test_saved_count_and_seed_exclusion
+    self.assertEqual(len(cards),1);self.assertNotEqual(cards[0]['key'],'seed')
+AssertionError: 5 != 1
+
+======================================================================
+FAIL: test_sources_off_produce_no_calls (tests.test_discovery_audit_fixes.DiscoveryServiceTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 67, in test_sources_off_produce_no_calls
+    self.assertEqual(self.app.refresh_candidates(project_id=self.pid)['fetched'],0)
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/app/service.py", line 2436, in refresh_candidates
+    found = self.source.discover_topic(keyword, per_page=min(int(per_page), 50), order="recent",
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 1093, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 1097, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/unittest/mock.py", line 1152, in _execute_mock_call
+    raise effect
+AssertionError: source disabled
+
+======================================================================
+FAIL: test_category_identity_preserves_science_aliases (tests.test_discovery_audit_fixes.ScienceLexicalTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 26, in test_category_identity_preserves_science_aliases
+    self.assertEqual(category_identity('硫化物固态电解质'),category_identity('Sulfide Solid Electrolytes'))
+AssertionError: 'custom:硫化物固态电解质' != 'custom:sulfide solid electrolytes'
+- custom:硫化物固态电解质
++ custom:sulfide solid electrolytes
+
+
+======================================================================
+FAIL: test_material_and_medical_fine_groups_are_available (tests.test_discovery_audit_fixes.ScienceLexicalTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 32, in test_material_and_medical_fine_groups_are_available
+    self.assertTrue(any(expected in n for n in names),names)
+AssertionError: False is not true : []
+
+======================================================================
+FAIL: test_science_spellings_share_identity_without_lowercase_element_false_positive (tests.test_discovery_audit_fixes.ScienceLexicalTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 19, in test_science_spellings_share_identity_without_lowercase_element_false_positive
+    self.assertEqual(ranking.tokenize(a),ranking.tokenize(b),(a,b))
+AssertionError: Lists differ: [] != ['li6ps5cl']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'li6ps5cl'
+
+- []
++ ['li6ps5cl'] : ('Li₆PS₅Cl', 'Li6PS5Cl')
+
+======================================================================
+FAIL: test_review_conference_are_allowed_and_future_rejected_locally (tests.test_discovery_audit_fixes.SourcePolicyTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/chandery/.codex/worktrees/audit-bug-fixes/PaperDigHelper/tests/test_discovery_audit_fixes.py", line 41, in test_review_conference_are_allowed_and_future_rejected_locally
+    self.assertEqual(len(found),2)
+AssertionError: 3 != 2
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.043s
+
+FAILED (failures=8, errors=1)

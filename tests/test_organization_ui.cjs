@@ -99,8 +99,18 @@ test('library paper action opens PDF directly without changing note selection', 
   let opened;
   ui.setReader((...args)=>{opened=args;});
   await ui.handle('read',{dataset:{key:'paper:one'}});
-  assert.deepEqual(opened,['paper:one','Models']);
+  assert.deepEqual(opened,['paper:one','Models',null]);
   assert.equal(ui.S.key,null);
+});
+
+test('library PDF carries its chosen scope while the top project stays unrelated', async () => {
+  const ui = fixture(); ui.accept(snapshot({items:[{key:'a',title:'A',projects:['cs']},{key:'shared',title:'Shared',projects:['cs','materials']}] }));
+  ui.setProject('medicine'); ui.S.scope = 'cs';
+  const opened=[]; ui.setReader((...args)=>opened.push(args));
+  await ui.handle('read',{dataset:{key:'a'}});
+  await ui.handle('read',{dataset:{key:'shared'}});
+  assert.deepEqual(opened,[['a','A','cs'],['shared','Shared','cs']]);
+  assert.equal(ui.S.scope,'cs');
 });
 
 test('Cytoscape constructor positions never alias saved snapshot coordinates',()=>{

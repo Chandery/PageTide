@@ -252,3 +252,31 @@ test('whole-queue status, disclosure and busy text translate as actually rendere
   assert.doesNotMatch(i18n.translate(line),/[㐀-鿿]/,line);
  }
 });
+
+test('actual eligibility renderer keeps system counts translatable in separate nodes',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'../app/static/index.html'),'utf8');
+ const fn=html.slice(html.indexOf('function renderEligibility('),html.indexOf('\nfunction ',html.indexOf('function renderEligibility(')+1));
+ const {i18n,context}=load('en-US',PACK),note={children:[],replaceChildren(){this.children=[];},append(...nodes){this.children.push(...nodes);}};
+ context.$=()=>note;context.state={currentProject:'p',projects:[{id:'p',language_policy:{status:'ready',revision:1}}]};
+ context.document.createElement=()=>({children:[],textContent:'',append(...nodes){this.children.push(...nodes);}});
+ vm.runInContext(fn,context);context.renderEligibility({policy_revision:1,excluded:{fixed_scope_conflict:2,language_unknown:1},examples:[]});
+ assert.equal(note.children.filter(n=>typeof n==='object').length,3);
+ for(const n of note.children.filter(n=>typeof n==='object'))assert.doesNotMatch(i18n.translate(n.textContent),/[㐀-鿿]/);
+});
+test('import PDF validation errors and undone categories translate without changing a filename',()=>{
+ const {i18n,context}=load('en-US',PACK);
+ const src=fs.readFileSync(path.join(__dirname,'../app/static/import.js'),'utf8');
+ vm.runInContext(src.match(/const systemError = [^\n]+/)[0]+';globalThis.errorText=systemError;',context);
+ assert.doesNotMatch(context.errorText('PDF 不完整或缺少有效结尾，请重新下载或选择完整文件'),/[㐀-鿿]/);
+ assert.equal(context.errorText('私人论文名.pdf'),'私人论文名.pdf');
+ assert.doesNotMatch(i18n.translate('已撤销这次导入的分类。论文仍在论文库里，只是回到未分类。'),/[㐀-鿿]/);
+ assert.equal(i18n.translate('删除'),'Remove');
+});
+test('actual manual map default localizes only newly created system name',()=>{
+ const {context}=load('en-US',PACK);context.map={generating:false,checking:false,graph:{concepts:[{name:'我的原名'}]}};context.busy=false;
+ const actions={};context.part=key=>actions[key]??={};context.renderMap=()=>{};
+ const src=fs.readFileSync(path.join(__dirname,'../app/static/project-creation.js'),'utf8');
+ vm.runInContext(src.slice(src.indexOf("  part('mapStart').onclick = "),src.indexOf("  part('mapDrop').onclick = ")),context);
+ context.part('mapStart').onclick();assert.equal(context.map.graph.concepts[0].name,'First concept');
+ const userName='我的原名';assert.equal(context.PDHi18n.exact(userName),userName);
+});

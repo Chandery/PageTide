@@ -89,7 +89,7 @@ test('falling terms are not shown when the two weeks are not comparable', () => 
   assert.doesNotMatch(html, /↓/);
   assert.match(html, /这不表示兴趣下降/);
   const comparable = P.trendHTML({ ...report, comparable: true, has_activity: true });
-  assert.match(comparable, /↓ action/);
+  assert.match(comparable, /↓ <span data-no-i18n>action<\/span>/);
 });
 
 test('KPI markup escapes nothing unsafe and keeps the evidence action', () => {

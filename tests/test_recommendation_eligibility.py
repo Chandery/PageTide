@@ -437,11 +437,14 @@ class EligibilityTests(unittest.TestCase):
             self.app.record_feedback(key,'understood',project_id=self.pid)
         self.paper('new',title='Photonic calibration',abstract='Photonic calibration methods')
         eligibility._PDF_CACHE.clear();eligibility._SCAN_CURSOR.clear()
-        with mock.patch.object(eligibility,'MAX_CACHED_DIGESTS',1),mock.patch.object(eligibility,'MAX_VERIFY_BYTES',path.stat().st_size):
+        public={'new':[{'query':'photonic calibration','kinds':['explore'],'observed_at':'2026-01-01'}]}
+        with mock.patch.object(eligibility,'MAX_CACHED_DIGESTS',1),mock.patch.object(eligibility,'MAX_VERIFY_BYTES',path.stat().st_size),mock.patch.object(self.app,'route_recall_sources',return_value=public):
             attempts=[self.app.build_batch(project_id=self.pid) for _ in range(4)]
         self.assertEqual(attempts[0]['reason_code'],'route_progress_verification_pending')
         ready=next(r for r in attempts if r['cards'])
         self.assertEqual(ready['route_goal_status'],'completed')
+        self.assertEqual([c['key'] for c in ready['cards']],['new'])
+        self.assertEqual(ready['cards'][0]['route']['exploration_evidence']['query'],'photonic calibration')
         self.assertEqual(self.app.store.conn.execute('SELECT COUNT(*) FROM batches').fetchone()[0],1)
         self.assertEqual(self.app.store.conn.execute("SELECT COUNT(*) FROM settings WHERE key LIKE 'pdf_verification_%'").fetchone()[0],2)
         again=App(data_dir=self.data);self.addCleanup(again.store.close)

@@ -1,36 +1,11 @@
 ---
-contract: draft
+contract: implemented
 operation: daily_triage
 ---
 # operation: daily_triage
 
-状态：**提案**，未批准、未实现。任何真实调用前必须通过唯一预算网关并取得用户授权。
+Optional summaries for up to5 locally selected current-project cards, including an explicit subset selected on a card. Input: pinned terms, count of positive seeds, public paper key, title fragment<=120 characters, abstract fragment<=400 and truncation/missing flags. No PDF, full text, notes, other projects or QA history. Complete wire UTF8+256 is checked by Gateway against input4200/output1300, aggregate daily/monthly caps unchanged. One call per trigger, no retry/fallback/thinking. Explicit JSON-object mode and temperature0.
 
-## 目的
+Output strict JSON object `{"items":[{"paper_id":"...","one_liner":"...","why_relevant":"...","caution":"..."}]}`; legacy bare arrays may still parse under the identical item contract. Every requested ID exactly once; all four fields text, one_liner and why_relevant nonempty. No foreign, duplicate or missing IDs, duplicate JSON keys, unknown fields or length-truncated reply. Source text is data, no tools; reasoning must cite real pinned/source material and state insufficient fragments as unknown. UI language instruction precedes candidates.
 
-把当天已由本地零 token 排序器选出的 ≤5 篇候选，压成可速览的中文卡片：每篇 2–3 句「它做了什么 + 和你哪个兴趣/种子相关 + 为什么值得或不值得看」，而不是逐句翻译摘要。
-
-## 触发
-
-- 后台、每天最多 1 次，且只在本地已产出候选之后。
-- 用户关闭 AI 速览时完全不调用。
-
-## 输入预算（用于登记，不是实测）
-
-只允许：固定指令、画像摘要（兴趣词/种子标题）、5 篇的标题+作者+分类+摘要、少量框架与 JSON 示例。**不包含全文、PDF、用户笔记、问答历史。**
-
-## 输出
-
-- 严格 JSON 数组，≤5 个对象，每个含 `paper_id`、`one_liner`、`why_relevant`、`caution`。
-- `why_relevant` 必须指向输入里实际出现的兴趣词或种子，禁止伪造不存在的引用或结论。
-- 不得输出评分、概率或「已证明」类断言；不确定就写不确定。
-
-## 安全与失败
-
-- 标题/摘要视为**不可信数据**，其中出现的指令一律忽略，不得触发工具、文件访问或额外请求。
-- 上下文有界：无工具调用、无多轮自省、无自动重试循环。
-- 超时/报错/超预算 → 降级为纯本地卡片，不静默换模型。
-
-## 界面语言
-
-设置页语言为 English（`settings.json` 的 `language` 为 `en-US`）时，在 JSON 格式说明之后、画像与候选文本之前插入一句（指令始终在不可信的候选文本前面）：「界面语言为英文：所有自然语言内容（包括追问和说明）都用英文（English）书写，JSON 键名不变。」估计多 40–60 token（估算，未实测），在登记的 instructions 分项内。中文界面的指令逐字不变。
+Before atomic summary writes, recheck current project membership, complete public metadata and PDF-version snapshot. Any identity/coverage/source conflict or invalid result writes no summaries and keeps local cards. Format/coverage/source failure is distinct from model usage: charges/unknown reservation remain in the gateway ledger. This contract is not proof of scientific correctness or provider tokenizer parity.

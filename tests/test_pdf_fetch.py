@@ -1,3 +1,4 @@
+from tests.pdf_fixture import minimal_pdf
 """PDF acquisition: OA fields kept from OpenAlex, ordered sources, guarded fetch, visible failures.
 
 No test touches the network: the fetcher's single `_open` seam and `time.sleep` are patched,
@@ -22,8 +23,8 @@ from app import migrations, pdf_fetch, sources
 from app.db import Store
 from app.service import App
 
-PDF = b"%PDF-1.7\n" + b"x" * 200
-PDF_B = b"%PDF-1.4\n" + b"y" * 300
+PDF = minimal_pdf("x" * 200)
+PDF_B = minimal_pdf("y" * 300)
 
 WORK = {
     "id": "https://openalex.org/W1", "doi": "https://doi.org/10.1234/abc", "title": "An OA paper",

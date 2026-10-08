@@ -314,6 +314,7 @@
   .phead b, .phead .ppaper { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .phead .ppaper { font-size:11.5px; color:var(--muted); }
   #transPop { position:fixed; z-index:97; display:none; width:min(400px,92vw); padding:14px 16px;
+              box-sizing:border-box; max-height:calc(100vh - 20px); overflow:auto; overflow-wrap:anywhere;
               background:var(--base); box-shadow:var(--sh-out); border-radius:var(--r-md); }
   #transPop.show { display:block; animation:pop .16s ease both; }
   #transPop .tlabel { font-size:11.5px; color:var(--muted); margin-bottom:6px; }
@@ -501,6 +502,7 @@
   .fol { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; }
   .fol button { font-size:12px; padding:5px 11px; background:var(--surface-1); }
   .fol button:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .fol button { white-space:normal; overflow-wrap:anywhere; text-align:left; max-width:100%; }
   .refcard { border-radius:6px; border:1px solid var(--line); background:var(--surface-2); box-shadow:none; }
 
   /* — toasts & misc — */
@@ -597,7 +599,7 @@
 </style>
 <link rel="stylesheet" href="/organization.css">
 <link rel="stylesheet" href="/profile.css">
-</head>
+<script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
 <header class="top">
   <div class="brand"><img class="brand-mark" src="/brand-mark.svg" alt="" aria-hidden="true"><span class="wordmark">Paper<em>Dig</em>Helper</span></div>
@@ -653,7 +655,7 @@
 <section id="organizationRoot" class="hidden"></section>
 <footer id="foot"></footer>
 
-<div id="reader" class="reader hidden">
+<div id="reader" class="reader hidden" role="dialog" aria-modal="true" aria-labelledby="readerTitle" tabindex="-1">
   <div class="rbar">
     <button class="ghost" id="readerBack">← 返回</button>
     <button class="tiny ghost" id="readerToggleSide" title="页面缩略图">☰</button>
@@ -676,7 +678,7 @@
 <div class="petpanel" id="petPanel">
   <header>
     <div class="phead"><b id="petTitle">阅读助手</b><span class="ppaper" id="petPaper">未选择论文</span></div>
-    <button class="tiny ghost" id="petClear" title="清空对话">清空</button>
+    <button class="tiny ghost" id="petClear" title="开始新会话；旧记录保留，但不再用于接下来的回答">新会话</button>
     <button class="tiny ghost" id="petClose" title="关闭">✕</button>
   </header>
   <div class="plog" id="petLog" aria-live="polite"></div>
@@ -706,6 +708,9 @@
 <script src="/paper-policy.js"></script>
 <script src="/reader-source.js"></script>
 <script src="/route-editor.js"></script>
+<script src="/theme.js"></script>
+<script src="/reader-identity.js"></script>
+<script src="/save-file.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { triagingKeys:new Set(), view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
@@ -716,7 +721,10 @@ function setMode(m){ document.documentElement.dataset.mode = m; localStorage.set
   window.dispatchEvent(new CustomEvent('pdh-mode', { detail:m })); }
 setMode(localStorage.getItem('pdh-mode') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
 localStorage.removeItem('pdh-accent');   // accent picker retired with the PaperDig palette
-$('#modeBtn').onclick = () => setMode(document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark');
+$('#modeBtn').onclick = async () => {
+  try { await window.PDHTheme.set(document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'); }
+  catch (e) { toast(e.message, 'err'); }
+};
 
 // ------------------------------------------------------------------ utils
 function toast(msg, kind='ok', ms=3600) {
@@ -843,6 +851,13 @@ function routeBadge(c) {
   if (!kind) return '';
   return `<span class="kw kw-${esc(c.route.kind)}" title="${esc(ROUTE_TITLES[c.route.kind])}"><span class="kw-k">${kind}</span>${c.route.name ? `<span class="kw-v" data-no-i18n>${esc(c.route.name)}</span>` : ''}</span>`;
 }
+function explorationEvidence(c) {
+  if (!['explore','explore_new'].includes(c.route?.kind)) return '';
+  const e=c.route.exploration_evidence;
+  if(!e) return '<div class="whyline">该历史探索未保存用途依据，请重新生成或自行核对。</div>';
+  const purposes={public_query:'用途：核对公开探索检索带来的新线索，学习价值待审核。',side_branch:'用途：补充未满足的侧枝单元，暂不计入当前目标进度。',direction_proposal:'用途：核对与明确正向资料相近的潜在方向，尚待审核。'};
+  return `<details class="whyline"><summary>探索用途与原文依据</summary><p>${purposes[e.kind] || ''}</p><p data-no-i18n>${esc(e.query || e.name || '')}</p>${e.quote ? `<q data-no-i18n>${esc(e.quote)}</q>` : ''}${(e.positive_basis || []).map(p=>`<p>正向资料：<span data-no-i18n>${esc(p.title)}</span></p>`).join('')}</details>`;
+}
 
 const PDF_BADGES = {
   direct: ['直链 PDF', '已知合法的 PDF 下载链接（arXiv 或开放获取）'],
@@ -898,6 +913,9 @@ async function doJudge(key) {
     if (state.currentProject === projectId) renderCards();
   }
 }
+function workTypeLabel(value) {
+  return ({review:'综述', 'conference-paper':'会议论文', article:'期刊文章', preprint:'预印本'})[value] || value || '';
+}
 function cardHTML(c, i) {
   const saved = c.saved || c.feedback === 'useful';
   const exploring = c.route && /^explore/.test(c.route.kind || '');
@@ -908,6 +926,7 @@ function cardHTML(c, i) {
     <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
+      ${c.work_type ? `<span>${esc(workTypeLabel(c.work_type))}</span>` : ''}
       ${pdfBadge(c.pdf_status)}
       ${saved ? '<span class="st st-saved"><i class="icon bookmark" aria-hidden="true"></i>已收藏</span>' : ''}
     </div>
@@ -916,6 +935,9 @@ function cardHTML(c, i) {
     <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '暂无摘要'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
+    ${explorationEvidence(c)}
+    ${c.task_scope?.conflicts?.length ? `<details class="whyline"><summary>当前固定目标与这篇历史推荐冲突，请重新生成</summary>${c.task_scope.conflicts.map(e => `<p>论文对象：<q data-no-i18n>${esc(e.paper_quote)}</q></p>${e.constraint.source.map(s => `<p>固定目标：<q data-no-i18n>${esc(s.quote)}</q></p>`).join('')}`).join('')}</details>` : ''}
+    ${c.route?.matching_evidence?.length ? `<details class="whyline"><summary>当前原文匹配依据（不代表掌握）</summary>${c.route.matching_evidence.map(e => `<p><span data-no-i18n>${esc(e.term)}</span> · <q data-no-i18n>${esc(e.quote)}</q></p>`).join('')}</details>` : ''}
     ${c.judgeAsk ? judgeAskHTML(c) : ''}
     <div class="actions">
       <span class="actions-fb">
@@ -1040,7 +1062,10 @@ async function load() {
   state.maintenance = data.maintenance; state.route = data.route; renderStats(); renderCards(); renderProfile(); renderMaintenance(data.maintenance); renderRoute(data.route);
   renderEligibility(data.recommendation_eligibility);
   const u = state.usage;
-  $('#foot').replaceChildren(`本地运行 · 数据在 .local/app · 服务端版本 ${state.version}`,   // two phrases, two pack entries
+  const location = await api('/api/data-location');
+  const localLabel = document.createElement('span'); localLabel.textContent = '本地数据位置：';
+  const localPath = document.createElement('span'); localPath.dataset.noI18n = ''; localPath.textContent = location.data_dir;
+  $('#foot').replaceChildren(localLabel, localPath, ` · 服务端版本 ${state.version}`,
     u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
 }
 // Opening-time upkeep: the server refreshes the candidate pool and builds today's batch when they are due.
@@ -1063,9 +1088,22 @@ function renderEligibility(snapshot) {
     link.href='/project.html?project_id='+encodeURIComponent(state.currentProject || ''); note.append(link); return;
   }
   if (!snapshot || snapshot.policy_revision!==project.language_policy.revision) return;
-  const names={source_version_changed:n=>`PDF 版本变化 ${n} 篇`,source_verification_deferred:n=>`文件核验暂缓（可再次生成） ${n} 篇`,language_unknown:n=>`语言未知 ${n} 篇`,language_not_allowed:n=>`语言不符合设置 ${n} 篇`,no_readable_content:n=>`缺少可用摘要或当前正文 ${n} 篇`};
+  const names={fixed_scope_conflict:n=>`固定目标冲突 ${n} 篇`,source_version_changed:n=>`PDF 版本变化 ${n} 篇`,source_verification_deferred:n=>`文件核验暂缓（可再次生成） ${n} 篇`,language_unknown:n=>`语言未知 ${n} 篇`,language_not_allowed:n=>`语言不符合设置 ${n} 篇`,no_readable_content:n=>`缺少可用摘要或当前正文 ${n} 篇`};
   const parts=Object.entries(snapshot.excluded || {}).filter(([,n])=>n).map(([key,n])=>names[key] ? names[key](n) : `${key} ${n}`);
-  if (parts.length) note.textContent='上次生成时过滤：'+parts.join('；');
+  if (parts.length) {
+    const prefix=document.createElement('span'); prefix.textContent='上次生成时过滤：'; note.append(prefix);
+    parts.forEach((part,index)=>{if(index)note.append('；');const span=document.createElement('span');span.textContent=part;note.append(span);});
+  }
+  const conflicts=(snapshot.examples || []).filter(e=>e.task_scope?.conflicts?.length);
+  if(conflicts.length) {
+    const details=document.createElement('details'), summary=document.createElement('summary');
+    summary.textContent='查看固定目标过滤的原文依据'; details.append(summary);
+    for(const entry of conflicts) for(const conflict of entry.task_scope.conflicts) {
+      const paper=document.createElement('p'); paper.dataset.noI18n=''; paper.textContent=conflict.paper_quote; details.append(paper);
+      for(const source of conflict.constraint.source) { const row=document.createElement('p'), label=document.createElement('span'), quote=document.createElement('q'); label.textContent='固定目标：'; quote.dataset.noI18n=''; quote.textContent=source.quote; row.append(label,quote); details.append(row); }
+    }
+    note.append(details);
+  }
 }
 async function autoMaintain() {
   const key = state.currentProject || 'default';
@@ -1091,6 +1129,15 @@ async function refreshStats() {   // the counts in the top bar follow a save mad
 }
 
 // ------------------------------------------------------------- generation
+function aiUsageText(result) {
+  if (result.usage_unknown || result.usage_reserved) return '计费未确认，暂按上限占用';
+  const usage = result.usage || {};
+  const tokens = Number.isInteger(usage.total_tokens) ? usage.total_tokens
+    : (Number.isInteger(usage.prompt_tokens) && Number.isInteger(usage.completion_tokens)
+      ? usage.prompt_tokens + usage.completion_tokens : null);
+  if (tokens === null || result.usd == null) return '用量或费用未返回';
+  return `${tokens} token · $${result.usd}`;
+}
 function aiFailure(reason) {
   const detail = reason || '未知';
   if (/no API key|no provider/i.test(detail))
@@ -1100,7 +1147,7 @@ function aiFailure(reason) {
 async function generate() {
   const b = $('#btnDaily'); b.disabled = true; b.textContent = '生成中…';
   try {
-    const body = { limit: 5 };
+    const body = {};
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/daily', body);
     renderEligibility(r.eligibility);
@@ -1121,7 +1168,7 @@ async function autoTriage() {
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/triage', body);
     if (!r.ok) toast(aiFailure(r.reason), 'warn', 6000);
-    else toast(`AI 已速览 ${r.items.length} 条 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+    else toast(`AI 已速览 ${r.items.length} 条 · ${aiUsageText(r)}`, 'ai');
     await load();
   } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
   finally { state.triaging = false; renderCards(); }
@@ -1135,7 +1182,7 @@ async function triageOne(key) {
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/triage', body);
     if (!r.ok) toast(aiFailure(r.reason), 'warn', 6000);
-    else toast(`AI 已速览 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
+    else toast(`AI 已速览 · ${aiUsageText(r)}`, 'ai');
     await load();
   } catch (e) { toast(`AI 速览失败：${e.message}`, 'err'); }
   finally { state.triagingKeys.delete(key); renderCards(); }
@@ -1296,6 +1343,7 @@ async function openDetail(key) {
         <h2 data-no-i18n>${esc(d.title)}</h2>
         <div class="detail-meta">
           ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}
+          ${d.work_type ? `<span>${esc(workTypeLabel(d.work_type))}</span>` : ''}
           ${d.arxiv_id ? `<span>arXiv:${esc(d.arxiv_id)}</span>` : ''}
           ${d.doi ? `<span>DOI</span>` : ''}${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
         </div>
@@ -1431,7 +1479,7 @@ async function openSettings() {
   } catch (e) { toast(`打不开设置：${e.message}`, 'err'); }
 }
 $('#settingsBtn').onclick = () => { window.location.href = '/settings.html'; };
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDetail(); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode!==229 && !document.querySelector('dialog[open]')) { closeDetail(); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
 document.addEventListener('scroll', hidePreview, { passive: true });
 
 // Load projects first, then load home
@@ -1455,18 +1503,52 @@ document.addEventListener('scroll', hidePreview, { passive: true });
 })();
 
 // Cross-script bridge for the ES-module reader/assistant below.
-window.PDH = { api, toast, esc, md, state, openDetail, setPetContext: (k, t) => window.PDHSetContext?.(k, t) };
+window.PDH = { api, toast, esc, md, state, openDetail, workTypeLabel, setPetContext: (k, t, project) => window.PDHSetContext?.(k, t, project) };
 </script>
 <script type="module">
 const { api, toast } = window.PDH;
 const $ = (s) => document.querySelector(s);
-const pet = { key: null, title: null, selection: null, selPage: null, busy: false, attachPage: false };
-window.PDHSetContext = (key, title) => {
-  pet.key = key; pet.title = title;
+const pet = { key: null, title: null, project:null, selection: null, selPage: null, busy: false, attachPage: false, epoch:0, session:'legacy', sessionToken:0 };
+// Unsent questions belong to a paper in a project. Keep them only in this
+// window's memory; changing context must not silently send an old question
+// against the newly selected paper. Empty drafts need no retained entry.
+const questionDrafts = new Map();
+function questionDraftKey(key, project) {
+  return JSON.stringify(key == null ? [null, null] : [project ?? null, key]);
+}
+function switchQuestionDraft(key, project) {
+  const input = $('#petInput'), previous = questionDraftKey(pet.key, pet.project);
+  if (input.value) questionDrafts.set(previous, input.value);
+  else questionDrafts.delete(previous);
+  input.value = questionDrafts.get(questionDraftKey(key, project)) || '';
+  growInput();
+}
+async function loadReadingSession() {
+  const key = pet.key, project = pet.project, epoch = pet.epoch, token = ++pet.sessionToken;
+  const result = await api('/api/qa/session?key=' + encodeURIComponent(key) + (project ? '&project_id=' + encodeURIComponent(project) : ''));
+  if (epoch !== pet.epoch || token !== pet.sessionToken) return;
+  pet.session = result.session.id;
+  $('#petLog').innerHTML = ''; lastFol = null; addIntro();
+  if (result.history?.length) {
+    addMsg('sys', '已载入当前会话最近的记录；后续回答只使用该会话的最近上下文');
+    for (const row of result.history) addMsg(row.role === 'assistant' ? 'ai' : 'user', row.content);
+  }
+}
+window.PDHSetContext = (key, title, project = state.currentProject) => {
+  const changed = pet.key !== key || pet.project !== project;
+  if (changed) {
+    switchQuestionDraft(key, project);
+    if (R.key && (R.key !== key || R.project !== project) && !$('#reader').classList.contains('hidden')) closeReader();
+    pet.epoch++; setReference(null); setAttachPage(false); hideSel(); $('#transPop').classList.remove('show');
+    $('#petLog').innerHTML = ''; lastFol = null; addIntro();
+  }
+  pet.key = key; pet.title = title; pet.project = project;
+  if (changed && key) { pet.sessionPromise = loadReadingSession(); pet.sessionPromise.catch(() => {}); }
   const el = $('#petPaper');
   el.toggleAttribute('data-no-i18n', !!title);   // a title is the paper's own text
-  el.textContent = title || '未选择论文';
-  el.title = title || '';
+  const projectName = state.projects.find(p => p.id === project)?.name;
+  el.textContent = title ? `${title}${projectName ? ' · ' + projectName : ''}` : '未选择论文';
+  el.title = el.textContent;
 };
 /* A quote shows two lines with its page and length; clicking the text expands it in place. */
 function refCard(text, page, removable) {
@@ -1504,6 +1586,7 @@ function refCard(text, page, removable) {
 function setReference(text, page) {
   pet.selection = text || null;
   pet.selPage = text ? (page || null) : null;
+  pet.referenceIdentity = text ? {key:pet.key, project_id:pet.project, pdf_sha256:page ? R.sha256 : null, kind:page ? 'pdf' : 'metadata'} : null;
   const box = $('#petRef');
   box.innerHTML = '';
   if (text) box.appendChild(refCard(text, pet.selPage, true));
@@ -1517,7 +1600,53 @@ async function lib() {
   pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
   return pdfjs;
 }
-const R = { doc:null, pages:[], scale:null, fit:true, side:false, observer:null, jobs:new Map(), url:null, current:1 };
+const R = { doc:null, pages:[], scale:null, fit:true, side:false, observer:null, jobs:new Map(), url:null, current:1, epoch:0, project:null, sha256:null };
+let readerFocus = null;
+const readerBackground = new Map();
+function lockReaderBackground() {
+  for (const node of document.body.children) {
+    if (['SCRIPT','STYLE'].includes(node.tagName) || ['reader','selbar','transPop','toasts'].includes(node.id)) continue;
+    if (!readerBackground.has(node)) readerBackground.set(node, node.inert);
+    node.inert = true;
+  }
+}
+function closeReader() {
+  R.epoch++; R.loading = false; $('#petSend').disabled = pet.busy;
+  setPetOpen(false, false); $('#transPop').classList.remove('show');
+  $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false);
+  for (const [node, wasInert] of readerBackground) node.inert = wasInert;
+  readerBackground.clear(); setReference(null); setAttachPage(false); hideSel();
+  if (readerFocus?.isConnected && !readerFocus.inert) readerFocus.focus();
+  window.PDHOrganization?.invalidateLearning?.(R.key, true)?.catch?.(e => toast(e.message, 'warn'));
+}
+function readerControls() {
+  return [...$('#reader').querySelectorAll('button, a[href], input, textarea, select, iframe, [tabindex]')]
+    .filter(el => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length && !el.closest('[inert]'));
+}
+document.addEventListener('keydown', event => {
+  if (event.defaultPrevented || event.isComposing || event.keyCode===229 || window.PDHDialogs?.active() || document.querySelector('dialog[open]')) return;
+  if (event.key === 'Escape') {
+    if ($('#transPop').classList.contains('show')) { $('#transPop').classList.remove('show'); (readerControls()[0] || $('#reader')).focus(); }
+    else if ($('#selbar').classList.contains('show')) { hideSel(); window.getSelection()?.removeAllRanges(); (readerControls()[0] || $('#reader')).focus(); }
+    else if ($('#petPanel').classList.contains('open')) setPetOpen(false);
+    else if (!$('#reader').classList.contains('hidden')) closeReader();
+    else return;
+    event.preventDefault(); event.stopImmediatePropagation(); return;
+  }
+  if ($('#reader').classList.contains('hidden')) return;
+  if (event.key === 'Tab') {
+    const controls = readerControls(), first = controls[0], last = controls.at(-1);
+    if (!first) { event.preventDefault(); $('#reader').focus(); return; }
+    if ((event.shiftKey && (document.activeElement === first || !$('#reader').contains(document.activeElement))) ||
+        (!event.shiftKey && (document.activeElement === last || !$('#reader').contains(document.activeElement)))) {
+      event.preventDefault(); (event.shiftKey ? last : first).focus();
+    }
+  }
+}, true);
+document.addEventListener('focusin', event => {
+  if (!window.PDHDialogs?.active() && !document.querySelector('dialog[open]') && !$('#reader').classList.contains('hidden') && !$('#reader').contains(event.target) && !event.target.closest('#transPop,#selbar'))
+    (readerControls()[0] || $('#reader')).focus();
+}, true);
 
 const PDF_REASONS = {
   no_oa_source: '没有找到可合法下载的开放获取 PDF 来源。',
@@ -1534,7 +1663,7 @@ const PDF_REASONS = {
 const pdfReason = (code) => PDF_REASONS[code] || '无法获取 PDF。';
 
 // No PDF could be fetched: say why, link the paper's page when known, and let the user attach their own copy.
-function showPdfFailure(box, key, title, result) {
+function showPdfFailure(box, key, title, result, project, current = () => true) {
   const link = result.landing_page
     ? `<a class="btn tiny" href="${esc(result.landing_page)}" target="_blank" rel="noreferrer">打开原文页面</a>` : '';
   box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
@@ -1543,21 +1672,25 @@ function showPdfFailure(box, key, title, result) {
   const input = box.querySelector('input[type=file]'), note = box.querySelector('.pdf-fail-note');
   input.onchange = async () => {
     const file = input.files[0];
-    if (!file) return;
+    if (!file || !current()) return;
     note.textContent = '正在附加…';
     try {
       const response = await fetch('/api/seeds/pdf', { method: 'POST', body: file,
         headers: { 'Content-Type': 'application/pdf', 'X-Filename': encodeURIComponent(file.name) } });
       const uploaded = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(uploaded.error || `HTTP ${response.status}`);
+      if (!current()) return;
       await api('/api/pdf/attach', { key, pdf_id: uploaded.pdf_id });
-      openReader(key, title);
+      if (current()) openReader(key, title, project);
     } catch (e) { note.textContent = `附加失败：${e.message}`; }
   };
 }
 
-async function openReader(key, title) {
-  window.PDHSetContext(key, title);
+async function openReader(key, title, project = state.currentProject) {
+  window.PDHSetContext(key, title, project);
+  const epoch = ++R.epoch, current = () => epoch === R.epoch && R.key === key;
+  if ($('#reader').classList.contains('hidden')) readerFocus = document.activeElement;
+  setReference(null);
   setAttachPage(false);   // a pending 附本页图 belongs to the paper it was pressed on
   const box = $('#readerPages'), side = $('#readerSide'), reader = $('#reader');
   $('#readerTitle').textContent = title || '';
@@ -1568,32 +1701,48 @@ async function openReader(key, title) {
   reader.classList.add('side');   // page thumbnails visible by default, like the native viewer
   document.body.classList.add('reader-open');
   dockPanel(true);
+  lockReaderBackground(); $('#readerBack').focus();
   R.side = true;
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
   R.pendingZoom = null; R.renderedScale = null; R.zoomBase = null;
-  const url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
-  R.url = url; R.key = key;
+  let url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
+  R.url = url; R.key = key; R.project = project; R.sha256 = null;
+  R.loading = true; $('#petSend').disabled = true;
   let prepared = null;
   try { prepared = await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
+  if (!current()) return;
+  if (prepared?.sha256) { R.sha256 = prepared.sha256; url += '&sha256=' + encodeURIComponent(prepared.sha256); R.url = url; }
   if (prepared && prepared.ok === false) {
-    showPdfFailure(box, key, title, prepared);
+    showPdfFailure(box, key, title, prepared, project, current);
     $('#readerInfo').textContent = '没有可用的 PDF';
+    R.loading = false; $('#petSend').disabled = pet.busy;
     return;
   }
   try {
+    pet.sessionPromise = loadReadingSession(); await pet.sessionPromise;
+    if (!current()) return;
     const L = await lib();
-    R.doc = await L.getDocument({ url, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' }).promise;
-    R.pages = [];
-    for (let n = 1; n <= R.doc.numPages; n++) R.pages.push(await R.doc.getPage(n));
+    const doc = await L.getDocument({ url, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' }).promise;
+    if (!current()) { doc.destroy(); return; }
+    const actualHash = await PDHReaderSource.hash(doc);
+    if (!current()) { doc.destroy(); return; }
+    if (R.sha256 && actualHash !== R.sha256) throw new Error('PDF 版本已变化，请重新打开论文');
+    R.sha256 = actualHash;
+    const pages = [];
+    for (let n = 1; n <= doc.numPages; n++) { pages.push(await doc.getPage(n)); if (!current()) { doc.destroy(); return; } }
+    R.doc = doc; R.pages = pages;
     $('#readerInfo').textContent = `${R.doc.numPages} 页`;
     await layoutPages();
     buildThumbs();
     extractFulltext(key, R.doc, [...R.pages]);
   } catch (e) {
+    if (!current()) return;
     box.innerHTML = `<iframe src="${url}" style="width:min(1200px,96vw);height:calc(100vh - 120px);border:0;background:#fff"></iframe>`;
     $('#readerInfo').textContent = '内置预览（无法划词）';
     toast(`pdf.js 加载失败，改用浏览器内置预览：${e.message}`, 'warn', 6000);
+  } finally {
+    if (current()) { R.loading = false; $('#petSend').disabled = pet.busy; }
   }
 }
 
@@ -1604,6 +1753,7 @@ function pageScale(page) {
 }
 
 async function layoutPages() {
+  const layoutEpoch=R.epoch, sourceDoc=R.doc;
   const box = $('#readerPages');
   const pendingBeforeLayout = R.pendingZoom;
   // Remember exactly where we are (page + offset inside it) so re-layout never jumps.
@@ -1684,15 +1834,22 @@ async function layoutPages() {
   // Keep the old surface visible while the new canvas is being prepared. Swap
   // only after the anchor page is ready, so a release never exposes a blank
   // frame between two render trees.
-  await renderPage(keepPage, stage, nextJobs);
+  const rendered = await renderPage(keepPage, stage, nextJobs);
+  const currentLayout = () => R.epoch===layoutEpoch && R.doc===sourceDoc && R.jobs===nextJobs && stage.isConnected;
+  if (!currentLayout()) { stage.remove(); return; }
+  if (!rendered) { stage.remove(); if (!oldStage) throw new Error('PDF 页面渲染失败'); return; }
   await afterPaints(2);
+  if (!currentLayout()) { stage.remove(); return; }
   stage.style.visibility = 'visible';
+  for(const loading of box.querySelectorAll(':scope > .rload'))loading.remove();
   await afterPaints(1);
+  if (!currentLayout()) { stage.remove(); return; }
   if (oldStage && oldStage.parentNode === box) oldStage.remove();
   // Restore the reading position after the rebuild. The old formula reduced to
   // "jump to the top of the page" (within cancels out), which is why zooming and
   // 适宽 both felt like a jump; keep the fraction of the page instead.
   requestAnimationFrame(() => {
+    if(!currentLayout())return;
     const pending = R.pendingZoom;
     if (pending) {
       R.pendingZoom = null;
@@ -1734,9 +1891,14 @@ function contentLeftOf(wrap, box = $('#readerPages')) {
 }
 
 function afterPaints(count = 2) {
+  // An inactive native window may pause animation frames. This wait controls
+  // presentation timing only; canvas/text rendering must finish separately.
   return new Promise((resolve) => {
-    const tick = () => count-- <= 0 ? resolve() : requestAnimationFrame(tick);
-    requestAnimationFrame(tick);
+    let frame = null, finished = false;
+    const finish = () => { if(finished)return; finished=true; clearTimeout(timer); if(frame!==null)cancelAnimationFrame(frame); resolve(); };
+    const timer = setTimeout(finish, 250);
+    const tick = () => { if(finished)return; if(--count<=0)finish(); else frame=requestAnimationFrame(tick); };
+    frame=requestAnimationFrame(tick);
   });
 }
 
@@ -1781,7 +1943,8 @@ function renderPage(n, root = document, jobs = R.jobs) {
     textDiv.style.setProperty('--total-scale-factor', String(vp.scale));
     const textLayer = new L.TextLayer({ textContentSource: await page.streamTextContent(), container: textDiv, viewport: vp });
     await textLayer.render();
-  })().catch((e) => toast(`第 ${n} 页渲染失败：${e.message}`, 'err'));
+    return true;
+  })().catch((e) => { toast(`第 ${n} 页渲染失败：${e.message}`, 'err'); return false; });
   jobs.set(n, job);
   return job;
 }
@@ -1942,11 +2105,22 @@ function dockPanel(dock) {
   if (dock) { $('#reader').querySelector('.rbody').appendChild(panel); panel.classList.add('docked'); }
   else { document.body.appendChild(panel); panel.classList.remove('docked'); }
 }
-function setPetOpen(open) {
-  $('#petPanel').classList.toggle('open', open);
+let petFocus = null;
+function setPetOpen(open, restoreFocus = true) {
+  const panel=$('#petPanel'), wasOpen=panel.classList.contains('open');
+  const fitReader=!$('#reader').classList.contains('hidden') && Boolean(R.doc);
+  const before=fitReader ? $('#readerPages').clientWidth : null;
+  if(open && !wasOpen)petFocus=document.activeElement;
+  panel.classList.toggle('open', open);
+  // A restored draft may have been measured while this panel was display:none.
+  if(open)growInput();
+  if(!open && wasOpen && restoreFocus) {
+    const previous=petFocus;
+    if(previous?.isConnected && !previous.inert && !panel.contains(previous) && previous.getClientRects().length)previous.focus();
+    else if(!$('#reader').classList.contains('hidden'))($('#readerAsk') || readerControls()[0] || $('#reader')).focus();
+  }
   // Docking changes the page width; re-fit only when the width really changed.
-  if ($('#reader').classList.contains('hidden') || !R.doc) return;
-  const before = $('#readerPages').clientWidth;
+  if (!fitReader) return;
   requestAnimationFrame(() => {
     if (Math.abs($('#readerPages').clientWidth - before) > 2) layoutPages();
   });
@@ -1968,8 +2142,9 @@ function followupRow(list) {
     const b = document.createElement('button');
     b.className = 'tiny';
     // Ask what the button shows; a model's own follow-up is only swapped for a whole pack entry.
-    const label = window.PDHi18n ? PDHi18n.exact(q) : q;
+  const label = window.PDHi18n ? PDHi18n.exact(q) : q;
     b.textContent = label;
+    b.title = label;
     b.onclick = () => ask(label);
     row.appendChild(b);
   }
@@ -2015,7 +2190,19 @@ function addMsg(kind, text, followups, meta) {
   return el;
 }
 async function ask(question) {
-  if (!question.trim() || pet.busy) return;
+  if (!question.trim() || pet.busy || R.loading) return;
+  const epoch = pet.epoch, key = pet.key, project = pet.project;
+  if (!key) { toast('请先选择要提问的论文', 'warn'); return; }
+  const current = () => epoch === pet.epoch && key === pet.key && project === pet.project;
+  if (R.doc && !$('#reader').classList.contains('hidden') && (R.key !== key || R.project !== project)) {
+    toast('引用或页面与当前论文、项目不一致，请重新打开论文', 'err'); return;
+  }
+  const readerIdentity = R.doc && !$('#reader').classList.contains('hidden') ? {key:R.key, project_id:R.project, pdf_sha256:R.sha256, kind:'pdf'} : null;
+  if (pet.referenceIdentity && (pet.referenceIdentity.key !== key || pet.referenceIdentity.project_id !== project ||
+      (pet.referenceIdentity.kind === 'pdf' && !PDHReaderIdentity.matches(pet.referenceIdentity, readerIdentity)))) {
+    toast('引用或页面与当前论文、项目不一致，请重新打开论文', 'err'); return;
+  }
+  const evidence = pet.referenceIdentity || readerIdentity;
   openPet(); pet.busy = true;
   const quoted = pet.selection, quotedPage = pet.selPage;   // setReference(null) clears both
   const userEl = addMsg('user', question);
@@ -2027,8 +2214,11 @@ async function ask(question) {
   const figure = PDHFigure.figureRequest(question);
   const forced = pet.attachPage;
   setAttachPage(false);   // the switch covers one question; a page image costs extra tokens
-  const keepSwitch = () => { if (forced) setAttachPage(true); };   // ...unless that question failed
-  if (R.doc && (figure || forced)) {
+  const keepSwitch = () => {
+    if (forced && current() && readerIdentity && !$('#reader').classList.contains('hidden') &&
+        PDHReaderIdentity.matches(readerIdentity, {key:R.key,project_id:R.project,pdf_sha256:R.sha256})) setAttachPage(true);
+  };   // restore only for the same visible PDF version
+  if (readerIdentity && R.doc && (figure || forced)) {
     // The page the question is about: a quote's page, else the page in view.
     const here = quotedPage || R.current || 1;
     if (figure && figure.number) {
@@ -2051,60 +2241,87 @@ async function ask(question) {
       imageNote = quotedPage ? '（引用所在页）' : '（当前页）';
       thinking.textContent = `正在渲染第 ${pageHint} 页给模型看…`;
     }
-    try { image = await pageImage(pageHint); } catch (e) { pageHint = null; image = null; imageNote = ''; }
+    try {
+      if (current() && PDHReaderIdentity.matches(readerIdentity, {key:R.key,project_id:R.project,pdf_sha256:R.sha256}))
+        image = await pageImage(pageHint);
+    } catch (e) { pageHint = null; image = null; imageNote = ''; }
     if (!image) { thinking.textContent = '页面渲染失败，改用纯文本回答…'; keepSwitch(); }
   }
   try {
-    const r = await api('/api/qa', { key: pet.key, question, selection: quoted, image, page_hint: pageHint,
-                                    project_id: state.currentProject,
+    await pet.sessionPromise;
+    if (!current()) { thinking.remove(); return; }
+    const r = await api('/api/qa', { key, question, selection: quoted, image, page_hint: pageHint,
+                                    project_id: project, session_id:pet.session, reader_context:evidence,
                                     context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
+    if (!current()) { thinking.remove(); return; }
     thinking.remove();
     const meta = r.ok ? [   // separate parts, so each is one phrase for the language pack
       r.mode === 'vision' ? `视觉 · 第 ${r.page_hint || pageHint || '?'} 页${imageNote}` : '全文检索',
       r.pages && r.pages.length ? `命中第 ${r.pages.join(',')} 页` : '',
       r.context_chars ? `${Math.round(r.context_chars / 1000)}k 字符` : '',
+      r.context_limits?.abstract_truncated ? '摘要仅为节选' : '',
+      r.context_limits?.omitted_passages ? `输入上限省略了 ${r.context_limits.omitted_passages} 段检索内容` : '',
     ].filter(Boolean) : null;
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
     if (!r.ok) keepSwitch();
-    if (r.ok) toast(r.mode === 'vision' ? `回答完成 · ${r.usage.total_tokens} token · $${r.usd} · 视觉`
-                                         : `回答完成 · ${r.usage.total_tokens} token · $${r.usd}`, 'ai');
-  } catch (e) { thinking.remove(); addMsg('sys', `失败：${e.message}`); keepSwitch(); }
-  finally { pet.busy = false; $('#petSend').disabled = false; }
+    if (r.ok) toast(r.mode === 'vision' ? `回答完成 · ${aiUsageText(r)} · 视觉`
+                                         : `回答完成 · ${aiUsageText(r)}`, 'ai');
+  } catch (e) { thinking.remove(); if (current()) { addMsg('sys', `失败：${e.message}`); keepSwitch(); } }
+  finally { pet.busy = false; $('#petSend').disabled = Boolean(R.loading); }
 }
 async function translate(text, rect) {
   const pop = $('#transPop');
+  const epoch = pet.epoch;
+  transAnchor = rect;
   pop.innerHTML = '<div class="tlabel">翻译中…</div>';
-  placeTransPop(rect);
   pop.classList.add('show');
+  placeTransPop(rect);
   try {
     const r = await api('/api/translate', { text });
+    if (epoch !== pet.epoch || !pop.classList.contains('show')) return;
     pop.innerHTML = `<div class="tlabel">划词翻译</div>
       <div class="tbody"${r.ok ? ' data-no-i18n' : ''}>${
       r.ok ? window.PDH.md(r.translation) : esc(aiFailure(r.reason))}</div>
+      ${r.ok && (r.usage_unknown || r.usage_reserved) ? '<p class="meta">计费未确认，暂按上限占用</p>' : ''}
       <div class="row" style="margin-top:10px">
         <button class="tiny" id="transCopy">复制</button>
         <button class="tiny ghost" id="transClose">关闭</button></div>`;
     $('#transCopy').onclick = () => { navigator.clipboard?.writeText(pop.innerText).then(() => toast('已复制')); };
     $('#transClose').onclick = () => pop.classList.remove('show');
   } catch (e) {
+    if (epoch !== pet.epoch || !pop.classList.contains('show')) return;
     pop.innerHTML = `<div class="tlabel">翻译失败</div><div class="tbody">${esc(e.message)}</div>`;
   }
+  if (pop.classList.contains('show')) placeTransPop(rect);
 }
 function placeTransPop(rect) {
   const pop = $('#transPop');
   pop.style.left = '0px'; pop.style.top = '0px';
   const w = pop.offsetWidth, h = pop.offsetHeight;
-  const r = rect || { left: 40, top: 80, bottom: 100 };
-  pop.style.left = `${Math.min(Math.max(10, r.left), Math.max(10, innerWidth - w - 10))}px`;
-  pop.style.top = `${Math.min(Math.max(10, r.bottom + 10), Math.max(10, innerHeight - h - 10))}px`;
+  const position = PDHReaderIdentity.popupPosition(rect, {width:w,height:h}, {width:innerWidth,height:innerHeight});
+  pop.style.left = `${position.left}px`; pop.style.top = `${position.top}px`;
 }
+let transAnchor = null;
+window.addEventListener('resize', () => { if ($('#transPop').classList.contains('show')) placeTransPop(transAnchor); });
+if (window.ResizeObserver) new ResizeObserver(() => { if ($('#transPop').classList.contains('show')) placeTransPop(transAnchor); }).observe($('#transPop'));
 $('#pet').onclick = () => setPetOpen(!$('#petPanel').classList.contains('open'));
 $('#petClose').onclick = () => setPetOpen(false);
-$('#petClear').onclick = () => { $('#petLog').innerHTML = ''; lastFol = null; addIntro(); };
+$('#petClear').onclick = async () => {
+  if (pet.busy || !pet.key) return;
+  const button = $('#petClear'), epoch = pet.epoch; button.disabled = true;
+  try {
+    const result = await api('/api/qa/session', {key:pet.key, project_id:pet.project});
+    if (epoch !== pet.epoch) return;
+    pet.session = result.session.id; pet.epoch++; setReference(null); setAttachPage(false);
+    $('#petLog').innerHTML = ''; lastFol = null; addIntro(); toast('已开始新会话；旧记录保留，不再用于后续回答', 'ok');
+  } catch (error) { toast(`新会话未开始：${error.message}`, 'err'); }
+  finally { button.disabled = false; }
+};
 /* The box keeps the question until it is actually sent, so nothing is lost while an answer is pending. */
 function sendInput() {
   const input = $('#petInput');
-  if (pet.busy || !input.value.trim()) return;
+  if (pet.busy || R.loading || !input.value.trim()) return;
+  if (!pet.key) { toast('请先选择要提问的论文', 'warn'); return; }
   const v = input.value;
   input.value = '';
   growInput();
@@ -2254,7 +2471,7 @@ pagesBox.addEventListener('gestureend', (event) => {
   commitZoom();
 }, { passive: false });
 
-$('#readerBack').onclick = () => { $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false); window.PDHOrganization?.invalidateLearning?.(R.key, true)?.catch?.(e => toast(e.message, 'warn')); };
+$('#readerBack').onclick = closeReader;
 $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sel]');
@@ -2266,7 +2483,7 @@ $('#selbar').addEventListener('click', (e) => {
   else { setReference(text, page); openPet(); $('#petInput').focus(); }
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { hideSel(); $('#transPop').classList.remove('show'); window.getSelection()?.removeAllRanges(); }
+  if (e.key === 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode!==229 && !document.querySelector('dialog[open]')) { hideSel(); $('#transPop').classList.remove('show'); window.getSelection()?.removeAllRanges(); }
 });
 </script>
 <script src="/vendor/cytoscape/cytoscape.min.js"></script>

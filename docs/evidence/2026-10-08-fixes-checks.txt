@@ -1,0 +1,54 @@
+FINAL CURRENT SNAPSHOT (owner-requested local main merge, not release approval)
+Source SHA256: 4764f88b512b50fa2748bc045769a45b79b842bed2a8770c13135358be4a9e17
+Full r13 start UTC 2026-10-08T12:02:35.084070+00:00
+python3 -m unittest discover -s tests -v
+exit0; Ran2021tests in203.989s; OK
+node --test tests/*.cjs
+exit0; 425tests/425pass/0fail/0skip/0cancelled/0todo; 774.208417ms
+Both steps source before/after identical, source_unchanged true.
+
+Fresh r7 build start UTC 2026-10-08T12:06:25.190406+00:00; end 2026-10-08T12:06:58.355144+00:00
+.local/desktop-build-env/bin/python scripts/build_desktop.py : exit0
+cargo tauri build --bundles app : exit0 (explicit worktree target)
+codesign --force --deep --sign - PaperDigHelper.app : exit0
+codesign --verify --deep --strict --verbose=2 PaperDigHelper.app : exit0
+scripts/verify_packaged_route.py actual packaged backend : exit0
+All five steps passed; before/after source identical to r13.
+App: src-tauri/target/release/bundle/macos/PaperDigHelper.app
+Backend SHA82475911b6740781a3889fe7d52a780e322ca09491ae16e782e9bfcd783295e8
+Executable SHAe038d5e635293e7bb012045606560adfe085870b7b8de9add113a10df55fd3a5
+Ad-hoc signing is not notarization. Packaged route uses isolated synthetic Gateway, not paid AI or native UI.
+
+Final snapshot commands:
+python3 scripts/harness.py review changes/2026-10-08-audit-bug-fixes.json : exit0, exact171paths/critical record traceability
+python3 scripts/budget.py --check : exit0, generated-document parity
+python3 scripts/harness.py check : exit0, repository traceability only
+git diff --check : exit0
+No extra paid/model calls during closure. Developer total2555064tokens/$0.782956770, unknown/reserved0 (gateway estimate, not invoice).
+
+R-F37 scoped258regressions + independent27packing/5App-lifecycle controls passed. New real fullqueue18 not_run at owner stop.
+R-F38 actual functions8/8, relatedNode64/64,Python27/27; independent8/8. Finalnewpackage native recovery not_run.
+Historical r6 actual native A/Bdraft/fulltwo-lines/PDFfit/English/structuredexport passed bounded only; science/human/background/IME gates remainopen.
+Formal09:32UTC checkpoint changed14files/19tables after earlier ownerconfirmed use; newinterval attributionpending, integrityok, QAabsent. No rollback.
+R4 packaged fixture failure and earlier model/native failures preserved in separate immutable logs/reports.
+
+PaperDigHelper audit repair work unit checks (not a whole-product release certificate)
+Baseline: 8e5cfd7a34aa69aebd25ea13c8b28143444530db
+Isolation: implementation worktree, temporary default home for Python tests, external Python DNS/socket/HTTP guard, absent developer test key; formal app data never initialized by these check drivers.
+
+INTERMEDIATE r9 (before newly confirmed R-F34 fixed-scope repair):
+Started UTC 2026-10-08T06:24:58.307385+00:00
+python3 -m unittest discover -s tests -v
+exit 0; Ran 2014 tests in 214.345s; OK
+node --test tests/*.cjs
+exit 0; tests415, pass415, fail0, cancelled0, skipped0, todo0; duration776.045917ms
+Ended UTC 2026-10-08T06:28:33.644317+00:00
+source before/after 9381b1ff538a833e091d64858641b53cc43f0cfdc83b0ce959bcaa7141849e19
+source unchanged true
+Process had completed before the attempted 06:28:52 stop; no signal was sent. This was a green intermediate run, not an interrupted/failed run.
+R-F34 was independently confirmed before any new paid call or build; these passing checks do not cover that subsequently added regression.
+Private immutable r9 status/source/logs and stop receipt retained under .local/audit-fixes-20261008.
+
+At that historical point later same-source checks were pending. Final r13/r7 is recorded above; native/AI gates remain separate.
+
+Current HTML artifact: fixes-detailed.html, 8 panels, renderer STE0warnings. Readonly snapshot content verified. Browser tool blocks fileprotocol; no workaround or pixel-preview claim. HTML SHAa4d0b78a1ec4bf2f3615ab5b8e3a3607c2cb210babbbe3c090b3e31a3cd4e3d6

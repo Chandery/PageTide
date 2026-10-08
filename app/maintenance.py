@@ -9,6 +9,7 @@ import datetime
 import json
 import threading
 from pathlib import Path
+from . import user_settings
 
 FREQUENCIES = ("daily", "weekly", "manual")
 RETRY_AFTER_SECONDS = 1800   # a failed refresh is retried at most every 30 minutes
@@ -87,13 +88,15 @@ def _has_unseen(app, project_id):
     route=app._route_state(project_id,verification_budget=verification_budget)
     if route and (route['goal_status']=='needs_review' or route.get('progress_verification_deferred')):return False
     if route and route['goal_status']=='completed' and app._completed_batch(project_id,app.batch_day()):return False
-    eligible=[p for p in app.recommendation_pool(project_id,verification_budget=verification_budget) if p['_eligibility']['eligible'] and p['key'] not in answered]
+    eligible=[p for p in app.recommendation_pool(project_id,verification_budget=verification_budget) if p['_eligibility']['eligible'] and p['key'] not in answered and user_settings.source_allowed(app.data,p) and str(p.get('published') or '')<=app.batch_day()]
     if route and route['goal_status']=='learning':
         from . import pathgrowth
         active={**route['graph'],'concepts':[c for c in route['graph']['concepts'] if c.get('state','active')=='active']}
         matches=pathgrowth.assign(active,eligible)
         if any(ids and ids[0] in route['frontier'] for ids in matches.values()):return True
-    return any(p['key'] not in seen for p in eligible)
+    seeds=set(app.seed_keys(project_id))
+    since=user_settings.since(app.data)
+    return any(p['key'] not in seen and p['key'] not in seeds and str(p.get('published') or '')<=app.batch_day() and (not since or str(p.get('published') or '')>=since) for p in eligible)
 
 
 def plan(app, project_id, now=None):
@@ -143,7 +146,7 @@ def run(app, project_id, now=None):
                 app.store.set_setting(_key("last_error", project_id), str(detail)[:200])
                 out["errors"] = errors or [{"error": detail}]
         if wanted["frequency"] != "manual" and not _has_batch_today(app, project_id, now) and _has_unseen(app, project_id):
-            built = app.build_batch(limit=BATCH_LIMIT, run_date=_today(now), project_id=project_id)
+            built = app.build_batch(limit=user_settings.count(app.data), run_date=_today(now), project_id=project_id)
             out["batch"] = bool(built.get("batch_id"))
         return out
     finally:

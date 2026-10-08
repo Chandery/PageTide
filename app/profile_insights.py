@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from . import ranking
 from .organization_terms import category_identity, category_label
 
-KINDS = {'saved', 'positive', 'negative', 'too_hard', 'understood', 'seed', 'term', 'feedback', 'week', 'exposed'}
+KINDS = {'saved', 'positive', 'negative', 'too_hard', 'understood', 'seed', 'term', 'inventory_term', 'feedback', 'week', 'exposed'}
 LABELS = {'positive': '有用', 'negative': '不相关', 'too_hard': '太难', 'understood': '已读懂', 'saved': '收藏', 'exposed': '曝光'}
 INTEREST = ('useful', 'irrelevant')   # a later 'understood' or 'too_hard' never replaces one of these
 STOP = {'further', 'framework', 'model', 'models', 'using', 'propose', 'proposed', 'approach'}
@@ -38,10 +38,8 @@ def context(app, project_id):
         sources = []
         if key in profile['positive_seeds']:
             sources.append('seed')
-        if latest.get(key, {}).get('action') == 'useful':
+        if key in profile['positive_feedback']:
             sources.append('useful_feedback')
-        if key in saved:
-            sources.append('saved')
         if sources:
             evidence[key] = sources
     events = []
@@ -60,7 +58,7 @@ def context(app, project_id):
         WHERE b.project_id=?''', (project_id,)):
         event(r['paper_key'], 'exposed', r['shown_at'])
     return dict(project_id=project_id, project=project, profile=profile, papers=papers,
-                feedback=feedback, latest=latest, familiar=familiar, saved=saved, evidence=evidence, events=events,
+                feedback=feedback, latest=latest, familiar=familiar, saved=saved, evidence=evidence, inventory={k:['saved'] for k in saved if k in papers}, events=events,
                 tree=library_tree(c, papers), route=lambda keys: learning_map(app, project_id, papers, keys))
 
 
@@ -114,7 +112,9 @@ def learning_map(app, project_id, papers, keys):
         if not graph:
             return None
         live = {**graph, 'concepts': [c for c in graph['concepts'] if c.get('state', 'active') == 'active']}
-        best = {key: ids[0] for key, ids in pathgrowth.assign(live, [dict(papers[k]) for k in keys if k in papers]).items()}
+        best = {key: ids[0] for key, ids in pathgrowth.assign(
+            live, [dict(papers[k]) for k in keys if k in papers],
+            scope=app._learning_scope(project_id, state)).items()}
         units = {c['id']: dict(c, name=str(c['name'])) for c in live['concepts']}
     except (KeyError, TypeError, ValueError, AttributeError):
         return None
@@ -139,16 +139,17 @@ def boundary():
     return datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
 
 
-def keywords(ctx, stopwords):
+def keywords(ctx, stopwords, inventory=False):
     docs = defaultdict(set)
-    for key in ctx['evidence']:
+    source = ctx['inventory'] if inventory else ctx['evidence']
+    for key in source:
         p = ctx['papers'][key]
-        for term in set(ranking.words((p['title'] or '') + ' ' + (p['abstract'] or ''))) - stopwords - STOP:
+        for term in set(ranking.topical_words((p['title'] or '') + ' ' + (p['abstract'] or ''))) - stopwords - STOP:
             docs[term].add(key)
     top = sorted(docs, key=lambda t: (-len(docs[t]), t))[:20]
     maximum = max((len(docs[t]) for t in top), default=1)
     return [dict(term=t, score=len(docs[t])/maximum, documents=len(docs[t]), explicit=False,
-                 sources=sorted({s for k in docs[t] for s in ctx['evidence'][k]}),
+                 sources=sorted({s for k in docs[t] for s in source[k]}),
                  evidence_keys=sorted(docs[t])[:5]) for t in top]
 
 
@@ -298,7 +299,7 @@ def weekly(ctx):
         counter = Counter()
         for key in keys:
             p = ctx['papers'][key]
-            counter.update(set(ranking.words(f"{p['title'] or ''} {p['abstract'] or ''}"))-PROFILE_STOPWORDS-STOP)
+            counter.update(set(ranking.topical_words(f"{p['title'] or ''} {p['abstract'] or ''}"))-PROFILE_STOPWORDS-STOP)
         return counter
     a, b = terms(current_events), terms(previous_events)
     changes = [dict(term=t, current=a[t], previous=b[t], delta=a[t]-b[t]) for t in a.keys() | b.keys()]
@@ -330,6 +331,7 @@ def insights(app, project_id, weeks=12):
                             **{k: cnt[k] for k in LABELS}, activity=len(events), interest_score=cnt['positive']-cnt['negative']))
     from .service import PROFILE_STOPWORDS
     terms = keywords(ctx, PROFILE_STOPWORDS)
+    inventory_terms = keywords(ctx, PROFILE_STOPWORDS, inventory=True)
     latest_counts = Counter(r['action'] for r in [*ctx['latest'].values(), *ctx['familiar'].values()])
     signals = dict(pinned=len(ctx['profile']['pinned_terms']), saved=len(ctx['saved']),
                    positive=latest_counts['useful'], negative=latest_counts['irrelevant'], too_hard=latest_counts['too_hard'], seed=len(ctx['evidence'].keys() & set(ctx['profile']['positive_seeds'])))
@@ -337,7 +339,8 @@ def insights(app, project_id, weeks=12):
     versions = app.profile_versions(ctx['project_id'])
     last = max([e['time'] for e in ctx['events']] + [v['created_at'] for v in versions], default=None)
     summary = ('当前论文证据中常见：' + '、'.join(t['term'] for t in terms[:3]) + '。词项表示论文内容，不代表已确认的长期偏好。') if terms else '暂无论文证据形成关注词项；可以先填写固定关键词，或对论文给出明确反馈。'
-    return dict(project_id=ctx['project_id'], keyword_distribution=terms,
+    return dict(project_id=ctx['project_id'], keyword_distribution=terms, inventory_distribution=inventory_terms,
+                inventory_evidence=dict(papers=len(ctx['inventory']), sources=['saved'] if ctx['inventory'] else []),
                 keyword_evidence=dict(papers=len(ctx['evidence']), sources=sorted({s for ss in ctx['evidence'].values() for s in ss})),
                 timeline=dict(weeks=buckets, has_activity=any(b['activity'] for b in buckets), window_weeks=weeks),
                 coverage=dict(start=start.date().isoformat(), end=end.date().isoformat(), timezone='UTC', last_activity=last, has_activity=any(b['activity'] for b in buckets)),
@@ -371,8 +374,9 @@ def evidence(app, project_id, kind, term='', start=None, end=None, offset=0):
         for key, p in ctx['papers'].items():
             fb = (ctx['familiar'] if action in ('too_hard', 'understood') else ctx['latest']).get(key, {})
             matched = (kind=='saved' and key in ctx['saved']) or (action and fb.get('action')==action) or (kind=='seed' and key in ctx['profile']['positive_seeds'])
-            if kind == 'term':
-                matched = key in ctx['evidence'] and term in ranking.words(f"{p['title'] or ''} {p['abstract'] or ''}")
+            if kind in ('term','inventory_term'):
+                source = ctx['inventory'] if kind=='inventory_term' else ctx['evidence']
+                matched = key in source and (not term or term in ranking.topical_words(f"{p['title'] or ''} {p['abstract'] or ''}"))
             if matched:
                 if kind == 'term' and (start or end):
                     a, b = stamp(start), stamp(end)
@@ -383,6 +387,6 @@ def evidence(app, project_id, kind, term='', start=None, end=None, offset=0):
             if matched:
                 items.append(dict(key=key, title=p['title'], published=p.get('published'), kind=kind,
                                   time=fb.get('created_at') or ctx['saved'].get(key, {}).get('saved_at'),
-                                  action=fb.get('action'), feedback_id=fb.get('id'), sources=ctx['evidence'].get(key, [])))
+                                  action=fb.get('action'), feedback_id=fb.get('id'), sources=(ctx['inventory'] if kind=='inventory_term' else ctx['evidence']).get(key, [])))
     items = sorted(items, key=lambda r: (r.get('time') or '', r['key']), reverse=True)
     return dict(project_id=ctx['project_id'], items=items[offset:offset+25], total=len(items), offset=offset, limit=25)

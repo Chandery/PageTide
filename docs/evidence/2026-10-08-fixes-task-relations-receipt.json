@@ -1,0 +1,6206 @@
+{
+  "measured_utc": "2026-10-08T03:21:07.232385+00:00",
+  "status": "frozen_user_ended_testing_for_local_merge",
+  "frozen_r19_receipt_sha256": "3243b91dea80c371de86be80ca0d8980f1cc2591deb8e7afe8cf41c392a38915",
+  "prior_r19_real_rounds": [
+    {
+      "round": 1,
+      "case_count": 144,
+      "parser_status": {
+        "passed_parser": 120,
+        "failed": 24
+      },
+      "actual_gateway_calls": 327,
+      "summary_sha256": "3dd180e363377c5dd9be0a98f83babbee5196718ba3ece44c66ca5a413da865d",
+      "snapshot_sha256": null,
+      "cases": [
+        {
+          "id": "cs-category-v0-r1",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v0-r2",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v0-r3",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v1-r1",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v1-r2",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v1-r3",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 2,
+          "sent": 2,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-guided-v0-r1",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v0-r2",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v0-r3",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v1-r1",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v1-r2",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v1-r3",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v0-r1",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v0-r2",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v0-r3",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v1-r1",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v1-r2",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v1-r3",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v0-r1",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v0-r2",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v0-r3",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v1-r1",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v1-r2",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v1-r3",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。修改请求不是完整严格JSON"
+        },
+        {
+          "id": "cs-revision-v1-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v0-r1",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI 速览不完整、编号或格式无效；未写入任何速览，保留本地卡片"
+        },
+        {
+          "id": "cs-triage-v0-r2",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v0-r3",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v1-r1",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v1-r2",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v1-r3",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v0-r1",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v0-r2",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v0-r3",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v1-r1",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v1-r2",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v1-r3",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。too many prerequisites for one concept"
+        },
+        {
+          "id": "materials-create-v1-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。a foundation concept needs a reason"
+        },
+        {
+          "id": "materials-create-v1-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置引用无效"
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-guided-v0-r1",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v0-r2",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v0-r3",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v1-r1",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v1-r2",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v1-r3",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v0-r1",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v0-r2",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v0-r3",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v1-r1",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v1-r2",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v1-r3",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v0-r1",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v0-r2",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v0-r3",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v1-r1",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v1-r2",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v1-r3",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。新增依赖已存在"
+        },
+        {
+          "id": "materials-revision-v0-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。新增依赖已存在"
+        },
+        {
+          "id": "materials-revision-v1-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。修改请求不是完整严格JSON"
+        },
+        {
+          "id": "materials-revision-v1-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。修改请求不是完整严格JSON"
+        },
+        {
+          "id": "materials-revision-v1-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v0-r1",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v0-r2",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v0-r3",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v1-r1",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v1-r2",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v1-r3",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v0-r1",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v0-r2",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v0-r3",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "分类操作未知、冲突或含非适用字段"
+        },
+        {
+          "id": "medicine-category-v1-r1",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v1-r2",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v1-r3",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The proposal name is empty, invalid or exceeds 40 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The proposal name is empty, invalid or exceeds 40 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-guided-v0-r1",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v0-r2",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v0-r3",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v1-r1",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v1-r2",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v1-r3",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v0-r1",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v0-r2",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v0-r3",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v1-r1",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v1-r2",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v1-r3",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v0-r1",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v0-r2",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v0-r3",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v1-r1",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v1-r2",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v1-r3",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。修改请求不是完整严格JSON"
+        },
+        {
+          "id": "medicine-revision-v0-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。无效节点字段：why"
+        },
+        {
+          "id": "medicine-revision-v1-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。无效节点字段：why"
+        },
+        {
+          "id": "medicine-triage-v0-r1",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v0-r2",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v0-r3",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v1-r1",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI 速览不完整、编号或格式无效；未写入任何速览，保留本地卡片"
+        },
+        {
+          "id": "medicine-triage-v1-r2",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v1-r3",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI 速览不完整、编号或格式无效；未写入任何速览，保留本地卡片"
+        }
+      ],
+      "tokens": 280919,
+      "usd": "0.114019866",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 2,
+      "case_count": 144,
+      "parser_status": {
+        "passed_parser": 136,
+        "failed": 8
+      },
+      "actual_gateway_calls": 360,
+      "summary_sha256": "2b2d5d893806aa40aeee4539633d3978a79623ed613e97f40f887240fe5f69c3",
+      "snapshot_sha256": "200e4289cace5c786ce3f3134dc3d92786dcb4393af8e8f9038eed1131023026",
+      "cases": [
+        {
+          "id": "cs-category-v0-r1",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v0-r2",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v0-r3",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v1-r1",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v1-r2",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "cs-category-v1-r3",
+          "domain": "cs",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The proposal name is empty, invalid or exceeds 40 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 6,
+          "sent": 6,
+          "reason": "The proposal name is empty, invalid or exceeds 40 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v0-r1",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v0-r2",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v0-r3",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v1-r1",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v1-r2",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-guided-v1-r3",
+          "domain": "cs",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v0-r1",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v0-r2",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v0-r3",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v1-r1",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v1-r2",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-qa-v1-r3",
+          "domain": "cs",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v0-r1",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v0-r2",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v0-r3",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v1-r1",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v1-r2",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-quick-v1-r3",
+          "domain": "cs",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v0-r1",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v0-r2",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v0-r3",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v1-r1",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v1-r2",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-triage-v1-r3",
+          "domain": "cs",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v0-r1",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v0-r2",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v0-r3",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v1-r1",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v1-r2",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "materials-category-v1-r3",
+          "domain": "materials",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。无效节点字段：why"
+        },
+        {
+          "id": "materials-create-v1-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。too many prerequisites for one concept"
+        },
+        {
+          "id": "materials-create-v1-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。无效节点字段：why"
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 3,
+          "sent": 3,
+          "reason": "AI回复缺少正确的results结构。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v0-r1",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v0-r2",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v0-r3",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v1-r1",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v1-r2",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-guided-v1-r3",
+          "domain": "materials",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v0-r1",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v0-r2",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v0-r3",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v1-r1",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v1-r2",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-qa-v1-r3",
+          "domain": "materials",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v0-r1",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v0-r2",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v0-r3",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v1-r1",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v1-r2",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-quick-v1-r3",
+          "domain": "materials",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v0-r1",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v0-r2",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v0-r3",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v1-r1",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v1-r2",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-triage-v1-r3",
+          "domain": "materials",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v0-r1",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v0-r2",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v0-r3",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v1-r1",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v1-r2",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "medicine-category-v1-r3",
+          "domain": "medicine",
+          "kind": "category",
+          "status": "passed_parser",
+          "calls": 3,
+          "sent": 3,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 6,
+          "sent": 6,
+          "reason": "The proposal name is empty, invalid or exceeds 40 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-guided-v0-r1",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v0-r2",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v0-r3",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v1-r1",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v1-r2",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-guided-v1-r3",
+          "domain": "medicine",
+          "kind": "guided",
+          "status": "passed_parser",
+          "calls": 6,
+          "sent": 6,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v0-r1",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v0-r2",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v0-r3",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v1-r1",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v1-r2",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-qa-v1-r3",
+          "domain": "medicine",
+          "kind": "qa",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v0-r1",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v0-r2",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v0-r3",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v1-r1",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v1-r2",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-quick-v1-r3",
+          "domain": "medicine",
+          "kind": "quick",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。too many prerequisites for one concept"
+        },
+        {
+          "id": "medicine-revision-v1-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v0-r1",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v0-r2",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v0-r3",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v1-r1",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v1-r2",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-triage-v1-r3",
+          "domain": "medicine",
+          "kind": "triage",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ],
+      "tokens": 321739,
+      "usd": "0.118838304",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 3,
+      "case_count": 54,
+      "parser_status": {
+        "passed_parser": 51,
+        "failed": 3
+      },
+      "actual_gateway_calls": 162,
+      "summary_sha256": "9502ba35c8c49f5b0c194c0698dc110ee511e43715d85b3ee1e355c1c52598b1",
+      "snapshot_sha256": "2b7f35e18bd2f6288cb0e5f8d0e1d5424196684b0bab6816654d50c0d88a68df",
+      "cases": [
+        {
+          "id": "cs-create-v0-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。too many prerequisites for one concept"
+        },
+        {
+          "id": "medicine-create-v1-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。too many prerequisites for one concept"
+        },
+        {
+          "id": "medicine-create-v1-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。too many prerequisites for one concept"
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ],
+      "tokens": 195315,
+      "usd": "0.049981320",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 7,
+      "case_count": 108,
+      "parser_status": {
+        "failed": 17,
+        "passed_parser": 91
+      },
+      "actual_gateway_calls": 212,
+      "summary_sha256": "ab032ffeec7a34e948b1f28aa67347afdad1d8b7f462d6c436a1f5411317e803",
+      "snapshot_sha256": "08bcaef5b923d0395fdf3c87548dc7bfbb68adff5017cc34d1680e707ad3afd6",
+      "cases": [
+        {
+          "id": "cs-create-v0-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "cs-create-v0-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "cs-create-v0-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "cs-create-v1-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-intro-v0-r1",
+          "domain": "cs",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-intro-v0-r2",
+          "domain": "cs",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-intro-v0-r3",
+          "domain": "cs",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-intro-v1-r1",
+          "domain": "cs",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-intro-v1-r2",
+          "domain": "cs",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-intro-v1-r3",
+          "domain": "cs",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。未知修改操作或字段"
+        },
+        {
+          "id": "cs-revision-v1-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-translate-v0-r1",
+          "domain": "cs",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-translate-v0-r2",
+          "domain": "cs",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-translate-v0-r3",
+          "domain": "cs",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-translate-v1-r1",
+          "domain": "cs",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-translate-v1-r2",
+          "domain": "cs",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-translate-v1-r3",
+          "domain": "cs",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-vision-v0-r1",
+          "domain": "cs",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-vision-v0-r2",
+          "domain": "cs",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-vision-v0-r3",
+          "domain": "cs",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-vision-v1-r1",
+          "domain": "cs",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-vision-v1-r2",
+          "domain": "cs",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-vision-v1-r3",
+          "domain": "cs",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "materials-create-v0-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置依据须为至多80字的原文短引"
+        },
+        {
+          "id": "materials-create-v1-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "materials-create-v1-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-intro-v0-r1",
+          "domain": "materials",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-intro-v0-r2",
+          "domain": "materials",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-intro-v0-r3",
+          "domain": "materials",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-intro-v1-r1",
+          "domain": "materials",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-intro-v1-r2",
+          "domain": "materials",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-intro-v1-r3",
+          "domain": "materials",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-translate-v0-r1",
+          "domain": "materials",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-translate-v0-r2",
+          "domain": "materials",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-translate-v0-r3",
+          "domain": "materials",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-translate-v1-r1",
+          "domain": "materials",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-translate-v1-r2",
+          "domain": "materials",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-translate-v1-r3",
+          "domain": "materials",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-vision-v0-r1",
+          "domain": "materials",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-vision-v0-r2",
+          "domain": "materials",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-vision-v0-r3",
+          "domain": "materials",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-vision-v1-r1",
+          "domain": "materials",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-vision-v1-r2",
+          "domain": "materials",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-vision-v1-r3",
+          "domain": "materials",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "medicine-create-v0-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "medicine-create-v0-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "medicine-create-v1-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "medicine-create-v1-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "medicine-create-v1-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI回复未通过完整校验；原图与先前草稿不变。创建前置分组缺少必要依据"
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 5,
+          "sent": 5,
+          "reason": "AI的direction字段使用了无效方向引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 5,
+          "sent": 5,
+          "reason": "The AI used an invalid direction reference. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-intro-v0-r1",
+          "domain": "medicine",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-intro-v0-r2",
+          "domain": "medicine",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-intro-v0-r3",
+          "domain": "medicine",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-intro-v1-r1",
+          "domain": "medicine",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-intro-v1-r2",
+          "domain": "medicine",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-intro-v1-r3",
+          "domain": "medicine",
+          "kind": "intro",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-translate-v0-r1",
+          "domain": "medicine",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-translate-v0-r2",
+          "domain": "medicine",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-translate-v0-r3",
+          "domain": "medicine",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-translate-v1-r1",
+          "domain": "medicine",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-translate-v1-r2",
+          "domain": "medicine",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-translate-v1-r3",
+          "domain": "medicine",
+          "kind": "translate",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-vision-v0-r1",
+          "domain": "medicine",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-vision-v0-r2",
+          "domain": "medicine",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-vision-v0-r3",
+          "domain": "medicine",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-vision-v1-r1",
+          "domain": "medicine",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-vision-v1-r2",
+          "domain": "medicine",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-vision-v1-r3",
+          "domain": "medicine",
+          "kind": "vision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ],
+      "tokens": 245551,
+      "usd": "0.065087748",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 8,
+      "case_count": 18,
+      "parser_status": {
+        "passed_parser": 18
+      },
+      "actual_gateway_calls": 18,
+      "summary_sha256": "3b03cefe1b39a22be1491d3fc0ad6d692c9e2e4201531bc2adad4e100e31b7b8",
+      "snapshot_sha256": "855d267b26a939d08504e334bbd201f96e74d49d5805da6df4541ef96f8b29be",
+      "cases": [
+        {
+          "id": "cs-create-v0-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v0-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r1",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r2",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-create-v1-r3",
+          "domain": "cs",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v0-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r1",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r2",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-create-v1-r3",
+          "domain": "materials",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v0-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r1",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r2",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-create-v1-r3",
+          "domain": "medicine",
+          "kind": "create",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ],
+      "tokens": 15502,
+      "usd": "0.009716172",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 9,
+      "case_count": 18,
+      "parser_status": {
+        "failed": 2,
+        "passed_parser": 16
+      },
+      "actual_gateway_calls": 117,
+      "summary_sha256": "afba3dbe8c2916817103b571613cb9b2cb8d277ca5c1bc0f0fc60128262c5693",
+      "snapshot_sha256": "e9be2e197b5366caf80a49ad82c04f88ce5168249b6de627924d67062d3c2f0e",
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI的direction字段使用了无效方向引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The reason is invalid or exceeds 140 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        }
+      ],
+      "tokens": 175045,
+      "usd": "0.040585128",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 10,
+      "case_count": 18,
+      "parser_status": {
+        "passed_parser": 18
+      },
+      "actual_gateway_calls": 18,
+      "summary_sha256": "d114179e44a4d5011df4cdb37eeed6f34d76f96a6d733e52efc24c98789b0cfd",
+      "snapshot_sha256": "c11efa1107ca59afd4aa531f06e18e0e9b8762a144edfc8c02096a4b67d295db",
+      "cases": [
+        {
+          "id": "cs-revision-v0-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v0-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r1",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r2",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-revision-v1-r3",
+          "domain": "cs",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v0-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r1",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r2",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-revision-v1-r3",
+          "domain": "materials",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v0-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r1",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r2",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-revision-v1-r3",
+          "domain": "medicine",
+          "kind": "revision",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ],
+      "tokens": 18650,
+      "usd": "0.007308708",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 14,
+      "case_count": 18,
+      "parser_status": {
+        "passed_parser": 15,
+        "failed": 3
+      },
+      "actual_gateway_calls": 108,
+      "summary_sha256": "41eb79a752f05af87c0ef78845b31fdeea066f7faa3de6cc4a79e9d515e7868b",
+      "snapshot_sha256": "94ae0f78a849811704a6574c522830f180ac93b9b13a96e2cb9fefd886a1b901",
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI的direction字段使用了无效方向引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI的direction字段使用了无效方向引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI used an invalid direction reference. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        }
+      ],
+      "tokens": 172268,
+      "usd": "0.038063580",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 16,
+      "case_count": 18,
+      "parser_status": {
+        "failed": 6,
+        "passed_parser": 12
+      },
+      "actual_gateway_calls": 90,
+      "summary_sha256": "3aaf285b66c4102742ad359bdaf3151a729d39c80d2da25a3ceaab9116690f47",
+      "snapshot_sha256": "fa55af11516e54db74b8b4d68e573b6e96360e3e731ffbe586dff324c0a69452",
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI的direction字段使用了无效方向引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI的direction字段使用了无效方向引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI的direction字段使用了无效方向引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI used an invalid direction reference. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI used an invalid direction reference. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI used an invalid direction reference. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        }
+      ],
+      "tokens": 141902,
+      "usd": "0.026102784",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": 18,
+      "case_count": 8,
+      "parser_status": {
+        "passed_parser": 7,
+        "failed": 1
+      },
+      "actual_gateway_calls": 55,
+      "summary_sha256": "dd51b653fc37deed70353bd58bcc1f308561a97ff3b215335105c02c65104be1",
+      "snapshot_sha256": "38431456c258712e2e3ea63736fdb439d39c7ae658bcf94a9084321606fcf193",
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 6,
+          "sent": 6,
+          "reason": "The provider rejected the request. 15 paper judgments were saved; unfinished papers remain pending."
+        }
+      ],
+      "tokens": 89106,
+      "usd": "0.022220676",
+      "unknown_billing": 0,
+      "provider_released": 1
+    },
+    {
+      "round": 19,
+      "case_count": 10,
+      "parser_status": {
+        "passed_parser": 10
+      },
+      "actual_gateway_calls": 70,
+      "summary_sha256": "6dc9a35ae4dfd1366ce9c4a6aa22a4c71269f07ea47daf362a323778dff90d50",
+      "snapshot_sha256": "632430d5faf1a8ef65a7aee301bb329389700f0232b5da88ec5520dcd325bb25",
+      "cases": [
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        }
+      ],
+      "tokens": 112285,
+      "usd": "0.022715412",
+      "unknown_billing": 0,
+      "provider_released": 0
+    },
+    {
+      "round": "19_resume",
+      "case_count": 1,
+      "parser_status": {
+        "passed_parser": 1
+      },
+      "actual_gateway_calls": 2,
+      "summary_sha256": "514ab9879d67b92686fc42df5b9073a53c01de23be14328147055d0d995309ec",
+      "snapshot_sha256": "98088a3c6f0ed640e1ecddd61a7852c4df20fbbf8cb1cefe002541de2a1abca6",
+      "cases": [
+        {
+          "id": "materials-growth-v1-r1-resume",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 2,
+          "sent": 2,
+          "reason": null
+        }
+      ],
+      "tokens": 3035,
+      "usd": "0.000443892",
+      "unknown_billing": 0,
+      "resumed_only_pending": 5,
+      "original_completed_preserved": 15
+    }
+  ],
+  "new_rounds": [
+    {
+      "round": 22,
+      "case_count": 18,
+      "parser_status": {
+        "failed": 18
+      },
+      "actual_gateway_calls": 22,
+      "summary_sha256": "9c88edf3709903e431ea08874962543636e06e60d190167be42483f05df7904c",
+      "source_snapshot_sha256": "c631a0caf525c5e52af49ae6bff9fcf1141777dd1353718af26be4ae5099a029",
+      "budget_sha256": "016b74bf581cba8ff106f474ffea84f20b5328f128af2dad42b4d5b11385d0fd",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 22,
+          "sent": 22,
+          "reconciled": 22,
+          "unknown": 0,
+          "tokens": 42140,
+          "usd_peak_ledger": "0.013443276",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 2,
+          "sent": 2,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 2,
+          "sent": 2,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 2,
+          "sent": 2,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 2,
+          "sent": 2,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI返回了不支持的字段。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The AI returned unsupported fields. Unfinished papers remain pending."
+        }
+      ]
+    },
+    {
+      "round": 23,
+      "case_count": 6,
+      "parser_status": {
+        "passed_parser": 6
+      },
+      "actual_gateway_calls": 6,
+      "summary_sha256": "229154a8f539e94658bbbffee3637ed07a42b961c29cfad772dda1d2082c591a",
+      "source_snapshot_sha256": "52fbce7fc9fe597d321cfd158419a5a0410c0b172e1bfdcd4a3d10e2543ad22b",
+      "budget_sha256": "016b74bf581cba8ff106f474ffea84f20b5328f128af2dad42b4d5b11385d0fd",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 6,
+          "sent": 6,
+          "reconciled": 6,
+          "unknown": 0,
+          "tokens": 10088,
+          "usd_peak_ledger": "0.002819544",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "round": 24,
+      "case_count": 18,
+      "parser_status": {
+        "passed_parser": 14,
+        "failed": 4
+      },
+      "actual_gateway_calls": 116,
+      "summary_sha256": "9fb1f7f353ac9d9a113b6673e07cd1f1d12555f70ea4423757e31fc0d30aa417",
+      "source_snapshot_sha256": "a94968a14bd1168e097014d6f7803073b7a125083e62bac9ae7692d4e167db2d",
+      "budget_sha256": "016b74bf581cba8ff106f474ffea84f20b5328f128af2dad42b4d5b11385d0fd",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 116,
+          "sent": 116,
+          "reconciled": 116,
+          "unknown": 0,
+          "tokens": 197731,
+          "usd_peak_ledger": "0.041673144",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 6,
+          "sent": 6,
+          "reason": "AI的新任务没有有效的父节点引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "AI的新任务没有有效的父节点引用。 未完成的论文仍保留在待判断中。"
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The proposal name is empty, invalid or exceeds 40 characters. Unfinished papers remain pending."
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "The proposal name is empty, invalid or exceeds 40 characters. Unfinished papers remain pending."
+        }
+      ]
+    },
+    {
+      "round": 26,
+      "case_count": 1,
+      "parser_status": {
+        "failed": 1
+      },
+      "actual_gateway_calls": 1,
+      "summary_sha256": "15b77b85ebf274b3f5b8737c1b9b62a2612d4b807af3d60c39ff1ad3a11ab5b7",
+      "source_snapshot_sha256": "6f38ab106fe73f41f02c17e179eda1510a5c0f1d7012275ec3c1569ad74089c6",
+      "budget_sha256": "016b74bf581cba8ff106f474ffea84f20b5328f128af2dad42b4d5b11385d0fd",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 1,
+          "sent": 1,
+          "reconciled": 1,
+          "unknown": 0,
+          "tokens": 1808,
+          "usd_peak_ledger": "0.0007917",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "round": 28,
+      "case_count": 1,
+      "parser_status": {
+        "failed": 1
+      },
+      "actual_gateway_calls": 1,
+      "summary_sha256": "40d1aaadbcf8d6c3e2182f5166eaa462884ad168d817ae88a9c1d59a2f0a69db",
+      "source_snapshot_sha256": "c0da8bb6cf27c65e9c3ddb7f88ea7eaa73a3678633571056dd8ea586ab2f6beb",
+      "budget_sha256": "016b74bf581cba8ff106f474ffea84f20b5328f128af2dad42b4d5b11385d0fd",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 1,
+          "sent": 1,
+          "reconciled": 1,
+          "unknown": 0,
+          "tokens": 1877,
+          "usd_peak_ledger": "0.000737304",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "AI原文短引的字段或论文编号无效。 未完成的论文仍保留在待判断中。"
+        }
+      ]
+    },
+    {
+      "round": 34,
+      "case_count": 4,
+      "parser_status": {
+        "passed_parser": 3,
+        "failed": 1
+      },
+      "actual_gateway_calls": 4,
+      "summary_sha256": "f6bfd250c07cd3188b1a0e97d103e48f78714091dae4b1b76b0246a6286cc548",
+      "source_snapshot_sha256": "b55ac29a47fa3b1fbac55ea7713dcc7283b903553f4ff328dc3d862b8389ecf7",
+      "budget_sha256": "65cb391da2102e6c82c4a3dcc959192174f19ad0b24a362171ddc06d919f43f0",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 4,
+          "sent": 4,
+          "reconciled": 4,
+          "unknown": 0,
+          "tokens": 8009,
+          "usd_peak_ledger": "0.002536224",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "The quoted evidence fields or paper references are invalid. Unfinished papers remain pending."
+        }
+      ]
+    },
+    {
+      "round": 36,
+      "case_count": 5,
+      "parser_status": {
+        "passed_parser": 4,
+        "failed": 1
+      },
+      "actual_gateway_calls": 5,
+      "summary_sha256": "f34d1b0ef0e462c54baaed7ce618512f4906f43177fe0f7be04a4671bcfffaad",
+      "source_snapshot_sha256": "9760b700e49db7c1aa40b8eabc8d4495696c28395978b531738ca88146d1d561",
+      "budget_sha256": "88de4ce2aa4851d50c4ec5a729d68e7940f6be79c2fb041bbeefc5e13dea39ea",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 5,
+          "sent": 5,
+          "reconciled": 5,
+          "unknown": 0,
+          "tokens": 10000,
+          "usd_peak_ledger": "0.002989968",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "round": "38-diagnostic-paid",
+      "case_count": 1,
+      "parser_status": {
+        "failed": 1
+      },
+      "actual_gateway_calls": 1,
+      "summary_sha256": "ca9d917c2e8ca1af4552c343de44bf8f73859174c1838d51e505d27f4a4adea0",
+      "source_snapshot_sha256": "5b8a274e73d3ee722d2f99dd4f317ec86869b50097110b0450b0562eeb19307c",
+      "budget_sha256": "88de4ce2aa4851d50c4ec5a729d68e7940f6be79c2fb041bbeefc5e13dea39ea",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 1,
+          "sent": 1,
+          "reconciled": 1,
+          "unknown": 0,
+          "tokens": 2058,
+          "usd_peak_ledger": "0.000580608",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": null
+        }
+      ]
+    },
+    {
+      "round": 39,
+      "case_count": 18,
+      "parser_status": {
+        "failed": 9,
+        "passed_parser": 9
+      },
+      "actual_gateway_calls": 87,
+      "summary_sha256": "16005a143bf74121f493fdffed051564a8d1819c248ec3cb1148a688940aa63c",
+      "source_snapshot_sha256": "62884bc617f8948eb520a6f062c96c658b97966fc61833cd8c48225ae4caeb5f",
+      "budget_sha256": "88de4ce2aa4851d50c4ec5a729d68e7940f6be79c2fb041bbeefc5e13dea39ea",
+      "operations": {
+        "route_growth_judge": {
+          "captured": 87,
+          "sent": 87,
+          "reconciled": 87,
+          "unknown": 0,
+          "tokens": 171715,
+          "usd_peak_ledger": "0.029805084",
+          "preflight_rejections": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "cs-growth-v0-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "cs-growth-v0-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "cs-growth-v0-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 1,
+          "sent": 1,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "cs-growth-v1-r1",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "cs-growth-v1-r2",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "cs-growth-v1-r3",
+          "domain": "cs",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 4,
+          "sent": 4,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "materials-growth-v0-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v0-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "materials-growth-v1-r1",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 3,
+          "sent": 3,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "materials-growth-v1-r2",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 3,
+          "sent": 3,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "materials-growth-v1-r3",
+          "domain": "materials",
+          "kind": "growth",
+          "status": "failed",
+          "calls": 3,
+          "sent": 3,
+          "reason": "完整学习图与论文超过本次输入预算；没有截断Map，请手动编辑或减少节点说明"
+        },
+        {
+          "id": "medicine-growth-v0-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v0-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r1",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r2",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        },
+        {
+          "id": "medicine-growth-v1-r3",
+          "domain": "medicine",
+          "kind": "growth",
+          "status": "passed_parser",
+          "calls": 7,
+          "sent": 7,
+          "reason": null
+        }
+      ]
+    }
+  ],
+  "developer_usage": {
+    "attempts": 1782,
+    "statuses": {
+      "reconciled": 1781,
+      "released": 1
+    },
+    "tokens": 2216743,
+    "usd": "0.610460442"
+  },
+  "including_original_audit_usage": {
+    "attempts": 2062,
+    "tokens": 2555064,
+    "usd": "0.782956770"
+  },
+  "soft_remaining": {
+    "tokens": 444936,
+    "usd": "1.217043230"
+  },
+  "official_source_recheck": [
+    {
+      "name": "pricing",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "http_status": 200,
+      "bytes": 23982,
+      "sha256": "210f102275ccf1a6542f08a3bc9e4b4c7c83278cb74b35217bffa112df6363b2",
+      "checked_at_utc": "2026-10-08T02:38:12.316147+00:00"
+    },
+    {
+      "name": "chat",
+      "url": "https://api-docs.deepseek.com/api/create-chat-completion/",
+      "http_status": 200,
+      "bytes": 142966,
+      "sha256": "e7133a7c2a7c2662567cca2e2392b503f97c2fb583009ff85f878744e0a36ba7",
+      "checked_at_utc": "2026-10-08T02:38:12.448863+00:00"
+    },
+    {
+      "name": "tokens",
+      "url": "https://api-docs.deepseek.com/quick_start/token_usage/",
+      "http_status": 200,
+      "bytes": 22447,
+      "sha256": "08bf766935b9ff92aee592c70bdac0908e3f44f1e3e52e93dd7aeafc9925fd1a",
+      "checked_at_utc": "2026-10-08T02:38:12.573219+00:00"
+    }
+  ],
+  "note": "User explicitly ended testing and requested local merge. R39 diagnostic nine complete and nine cap-refused cases remain historical; current packing fix has local and bounded independent evidence but no subsequent paid replay or scientific approval. R37 acceptance was never run. Original raw rounds, prior source/usage receipts and failures remain unchanged.",
+  "current_contract": "public-snippet-ref-v2",
+  "not_run": [
+    "R27",
+    "R29",
+    "R31",
+    "R33",
+    "R35",
+    "R37_acceptance_raw_science_gate_not_met",
+    "post_R_F37_packing_new_live_18_user_stop",
+    "new_scientific_blind_review_user_stop"
+  ],
+  "captured_only": [
+    30,
+    32,
+    38
+  ],
+  "updated_utc": "2026-10-08T07:46:23.462293+00:00",
+  "ledger_terminal": true,
+  "current_source_sha256": {
+    "app/snippet_contract.py": "6adaddec83a309645ee53413ef958da8f33948c45fb62bced7360d0a4ebac8e6",
+    "app/growthproposal.py": "fedcde54cd9f69cf20ac96f5e48a78cb375aa37103efaab5799dbbb05bf24725",
+    "app/ai_evidence.py": "2d7f19d230951983795abc4f3214213b984e0a6b87b33100b2faa0d03f44d4d5",
+    "app/task_relations.py": "5b2312041667d751aa62d4fcb80bcb7bfb58b224092661b32ea72367dcd3d2c6",
+    "app/service.py": "6f4ef452252964360e125eeefd374cae2923418105fa4f4084f84bb4fad183af",
+    "app/gateway.py": "4da2419a255898750d03ab92a3d938b5df4e9c87c406e57a04a92a846c73495a",
+    "app/learning_scope.py": "68106a99359bb2fa1c610da4c5aebba2821606e14f06da532bfc879e7f897a2f",
+    "app/route_revision.py": "41f3f1cdc2bf44b6c396c0554fbe08294e2df21929c48b7ef2a7208ed341eb2e",
+    "prompts/route-growth-judge.md": "ef3c10a53410a9fd8349db97e99460a8a75a3226bd79f086b58de2fd70d22021",
+    "harness/budget.json": "d891b33cbf9f22df8b870e8a25218fd95448604328d9c0641efe3b3bd9cf6b1a",
+    "tests/test_snippet_contract.py": "9780f3ea294db8f6c629aabb297ca42501109fc0f4010b899abe26a26db1f6b5",
+    "tests/fixtures/snippet_packing_r39_public.json": "ae4b8a67583227f12304694776b52c7a8dee0730a1f444a6163655021f1b9ab9",
+    "scripts/verify_packaged_route.py": "4bb04607c29afa3968e0c40b5f3b3d13a7aa03d29cd6920d21e0836de0bd27dc"
+  },
+  "current_budget_sha256": "d891b33cbf9f22df8b870e8a25218fd95448604328d9c0641efe3b3bd9cf6b1a",
+  "current_ai_source_manifest_sha256": "e7829b67e97754b6cb3b691d0fb13e7db789b439cf746347a28e7c57d088bf98",
+  "actual_diagnostic_source_manifest_sha256": "61a6f9c4c2f60c689c53398bca467ba17ca15b59a2b0cea2bda73b88f0ddd870",
+  "packing_fix": {
+    "software_status": "implemented",
+    "focused_regressions": "passed_258_of_258",
+    "actual_public_r39_failed_next_states": "3_regressions_before_refused_after_admitted",
+    "independent_actual_r39_states": "9_before_refused_9_after_admitted",
+    "fresh_gateway_capture": "not_run_user_stopped_testing",
+    "fresh_live_diagnostic_18": "not_run_user_stopped_testing",
+    "scientific_quality": "not_proven",
+    "independent_packing_controls": "passed_27_of_27",
+    "independent_actual_app_controls": "passed_5_of_5",
+    "independent_evidence_files": [
+      "snippet-packing-independent-r3.json",
+      "snippet-packing-endpoint-independent.json"
+    ],
+    "independent_paid_requests": 0
+  }
+}

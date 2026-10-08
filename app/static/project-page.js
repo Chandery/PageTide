@@ -29,13 +29,14 @@ function render() {
   part('routeLink').href = `/route.html?project_id=${encodeURIComponent(project.id)}`;
   part('name').value = project.name;
   part('nameEcho').textContent = project.name;
-  const facts = [['创建方式', {quick: '快速创建', manual: '手动创建', ai_guided: 'AI 引导创建'}[project.creation_mode] || project.creation_mode],
-                 ['关键词', (project.keywords || []).join('、') || '（还没有）']];
+  const modes = {quick: '快速创建', manual: '手动创建', ai_guided: 'AI 引导创建'};
+  const facts = [['创建方式', modes[project.creation_mode] || project.creation_mode, !modes[project.creation_mode]],
+                 ['关键词', (project.keywords || []).join('、') || '（还没有）', Boolean(project.keywords?.length)]];
   const list = part('facts');
   list.replaceChildren();
-  facts.forEach(([key, value]) => {
+  facts.forEach(([key, value, userData]) => {
     const dt = document.createElement('dt'), dd = document.createElement('dd');
-    dt.textContent = key; dd.textContent = value; dd.setAttribute('data-no-i18n', '');
+    dt.textContent = key; dd.textContent = value; if(userData)dd.setAttribute('data-no-i18n', '');
     list.append(dt, dd);
   });
   part('delete').disabled = !matches(part('confirm').value, project.name) || state.busy;

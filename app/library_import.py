@@ -4,8 +4,8 @@ A batch is a staging area. Files are uploaded one at a time into `imports/batche
 matched to public metadata (or kept as an unresolved PDF), the person reviews the result, and only then
 does one commit write papers, links, library saves and archived PDFs. Nothing here is a model call.
 
-The two tables are created lazily (like organization.py's drafts): they are new, nothing is altered or
-back-filled, and they cannot collide with another branch's migration number on a shared database."""
+Import tables are created lazily. The local schema lock serializes their creation and the additive
+upload-receipt migration across request connections without changing another branch's migration number."""
 import hashlib
 import json
 import re
@@ -14,6 +14,7 @@ import time
 import unicodedata
 import uuid
 from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
 
 from . import operation_lock, reference_files
@@ -42,7 +43,7 @@ AUTO_MATCH = 0.8          # title similarity accepted without asking (as on the 
 CANDIDATE_MIN = 0.25      # below this a hit is noise, not a candidate
 MAX_CANDIDATES = 5
 AUTO_GAP = 0.05           # the best title hit must beat the runner-up by this much to be accepted without asking
-MIN_COMPARE_WORDS = 3     # titles shorter than this are too thin to check an identifier against
+MIN_COMPARE_WORDS = 2     # short scientific titles still provide identity evidence (e.g. World Models)
 MIN_AUTO_WORDS = 2        # a one-word title is never accepted on its own
 _WORD = re.compile(r"[a-z0-9\u4e00-\u9fff]+")
 MAX_TITLE_LOOKUPS = 2     # title guesses tried per PDF
@@ -93,6 +94,13 @@ CREATE TABLE IF NOT EXISTS import_items (
   UNIQUE(batch_id, relative_path));
 CREATE INDEX IF NOT EXISTS idx_import_items_state ON import_items(batch_id, state);
 CREATE INDEX IF NOT EXISTS idx_import_items_sha ON import_items(sha256);
+CREATE TABLE IF NOT EXISTS import_upload_failures (
+  batch_id TEXT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+  relative_path TEXT NOT NULL,
+  attempt TEXT NOT NULL DEFAULT '',
+  message TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY(batch_id, relative_path));
 """
 
 _BATCH_JSON = ("options", "sidecar", "result")
@@ -153,13 +161,26 @@ def clean_options(options):
     return {key: bool(options.get(key, default)) for key, default in OPTION_DEFAULTS.items()}
 
 
+def _batch_edit(method):
+    """A review action (including a network lookup) cannot race commit/discard."""
+    @wraps(method)
+    def guarded(self, batch_id, *args, **kwargs):
+        with self._claim(f"library-import-edit:{batch_id}", "这个批次正在处理，请等待当前操作完成"):
+            return method(self, batch_id, *args, **kwargs)
+    return guarded
+
+
 class LibraryImport:
     def __init__(self, data_dir, store, client=None):
         self.data = Path(data_dir)
         self.store = store
         self.client = client
         self.conn = store.conn
-        self.conn.executescript(SCHEMA)
+        with operation_lock.serial(self.data, 'library-import-schema'):
+            self.conn.executescript(SCHEMA)
+            if 'attempt' not in {r[1] for r in self.conn.execute('PRAGMA table_info(import_upload_failures)')}:
+                self.conn.execute("ALTER TABLE import_upload_failures ADD COLUMN attempt TEXT NOT NULL DEFAULT ''")
+                self.conn.commit()
 
     # ------------------------------------------------------------------ rows
     def _staging(self, batch_id):
@@ -221,7 +242,17 @@ class LibraryImport:
         return self._batch_dict(self._batch_row(batch_id))
 
     def batch(self, batch_id, state=None, offset=0, limit=200):
+        # A SELECT does not start Python sqlite's implicit transaction. Keep the
+        # status, counts and rows in one read snapshot even as a worker finishes.
+        self.conn.execute("SAVEPOINT import_snapshot")
+        try:
+            return self._snapshot(batch_id, state, offset, limit)
+        finally:
+            self.conn.execute("RELEASE import_snapshot")
+
+    def _snapshot(self, batch_id, state=None, offset=0, limit=200):
         out = self._batch_dict(self._batch_row(batch_id))
+        out['upload_failures'] = self.upload_failures(batch_id)
         out["counts"] = self.counts(batch_id)
         out["copies"] = self.conn.execute("SELECT COUNT(*) FROM import_items WHERE batch_id=? AND duplicate_of IS NOT NULL", (batch_id,)).fetchone()[0]
         limit = max(0, min(int(limit), 200))
@@ -234,7 +265,7 @@ class LibraryImport:
 
     def list_batches(self, project_id):
         self.purge_stale()
-        return [self._batch_dict(r) | {"counts": self.counts(r["id"])} for r in self.conn.execute(
+        return [self._batch_dict(r) | {"counts": self.counts(r["id"]), 'upload_failures': self.upload_failures(r['id'])} for r in self.conn.execute(
             "SELECT * FROM import_batches WHERE project_id=? AND status!='discarded' ORDER BY created_at, id",
             (project_id,))]
 
@@ -249,6 +280,7 @@ class LibraryImport:
         if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
             raise ValueError("导入批次已关闭")
 
+    @_batch_edit
     def discard(self, batch_id):
         row = self._batch_row(batch_id)
         if row["status"] == "committing":
@@ -321,6 +353,59 @@ class LibraryImport:
 
     # ---------------------------------------------------------------- upload
     def add_pdf(self, batch_id, relative_path, stream, length, last_modified=0, hints=None):
+        attempt = self._begin_upload_attempt(batch_id, relative_path)
+        try:
+            return self._add_pdf(batch_id, relative_path, stream, length, last_modified, hints, attempt)
+        except ValueError as exc:
+            # A rejected file never becomes an import item. Keep its local
+            # receipt separately so a restart cannot make it disappear.
+            try:
+                self._record_upload_failure(batch_id, relative_path, str(exc), attempt)
+            except ValueError:
+                pass  # Invalid paths, closed batches and a held edit claim.
+            raise
+
+    def upload_failures(self, batch_id):
+        return [dict(r) for r in self.conn.execute(
+            'SELECT relative_path AS path,message,updated_at FROM import_upload_failures '
+            "WHERE batch_id=? AND message!='' ORDER BY relative_path LIMIT ?", (batch_id, MAX_FILES))]
+
+    @_batch_edit
+    def _begin_upload_attempt(self, batch_id, relative_path):
+        self.ensure_open(batch_id)
+        path = '/'.join(clean_path(relative_path))
+        exists = self.conn.execute('SELECT 1 FROM import_upload_failures WHERE batch_id=? AND relative_path=?',
+                                   (batch_id, path)).fetchone()
+        # Include successful attempts as tombstones for late failures. The
+        # small local table is bounded even for adversarial repeated paths.
+        if not exists and self.conn.execute('SELECT COUNT(*) FROM import_upload_failures WHERE batch_id=?',
+                                            (batch_id,)).fetchone()[0] >= MAX_FILES * 2:
+            raise ValueError('本批文件尝试过多，请新建批次后继续')
+        attempt = uuid.uuid4().hex
+        self.conn.execute("INSERT INTO import_upload_failures(batch_id,relative_path,attempt,message,updated_at) VALUES(?,?,?,'',?) "
+                          'ON CONFLICT(batch_id,relative_path) DO UPDATE SET attempt=excluded.attempt,updated_at=excluded.updated_at',
+                          (batch_id, path, attempt, now()))
+        self._touch(batch_id)
+        self.conn.commit()
+        return attempt
+
+    @_batch_edit
+    def _record_upload_failure(self, batch_id, relative_path, message, attempt):
+        self.ensure_open(batch_id)
+        path = '/'.join(clean_path(relative_path))
+        row = self.conn.execute('SELECT attempt,message FROM import_upload_failures WHERE batch_id=? AND relative_path=?',
+                                (batch_id, path)).fetchone()
+        if not row or row['attempt'] != attempt:
+            return
+        if not row['message'] and self.conn.execute("SELECT COUNT(*) FROM import_upload_failures WHERE batch_id=? AND message!=''",
+                                                   (batch_id,)).fetchone()[0] >= MAX_FILES:
+            return
+        self.conn.execute('UPDATE import_upload_failures SET message=?,updated_at=? WHERE batch_id=? AND relative_path=? AND attempt=?',
+                          (str(message)[:512], now(), batch_id, path, attempt))
+        self._touch(batch_id)
+        self.conn.commit()
+
+    def _add_pdf(self, batch_id, relative_path, stream, length, last_modified=0, hints=None, attempt=None):
         """Stream one PDF into the batch's staging folder, hashing as it goes, and record it as pending."""
         batch = self._batch_row(batch_id)
         if batch["status"] not in OPEN_STATUSES:
@@ -333,8 +418,8 @@ class LibraryImport:
         modified = int(last_modified or 0)
         existing = self.conn.execute("SELECT * FROM import_items WHERE batch_id=? AND relative_path=?",
                                      (batch_id, path)).fetchone()
-        if existing and existing["sha256"] and existing["size"] == length and existing["last_modified"] == modified:
-            return self._with_placements(self._item_dict(existing))  # the same file again: resuming an upload
+        # A path/size/mtime tuple is not a content identity. Even an explicit
+        # resend with the same tuple must read and hash the new bytes.
         if not existing and self.conn.execute("SELECT COUNT(*) FROM import_items WHERE batch_id=? AND kind='pdf'",
                                               (batch_id,)).fetchone()[0] >= MAX_FILES:
             raise ValueError(f"一次最多导入 {MAX_FILES} 个文件，请分批导入")
@@ -343,6 +428,36 @@ class LibraryImport:
         if shutil.disk_usage(folder).free < length + DISK_RESERVE_BYTES:
             raise ValueError("磁盘空间不足")
         sha, size = self._stream(folder, stream, length)
+        with self._claim(f"library-import-edit:{batch_id}", "这个批次正在处理，请稍后重传"):
+            try:
+                self.ensure_open(batch_id)
+            except ValueError:
+                shutil.rmtree(folder, ignore_errors=True)
+                raise
+            latest = self.conn.execute('SELECT attempt FROM import_upload_failures WHERE batch_id=? AND relative_path=?',
+                                       (batch_id, path)).fetchone()
+            if not latest or latest['attempt'] != attempt:
+                self._drop_unused_file(batch_id, sha)
+                raise ValueError('文件已重新上传，旧上传结果已忽略')
+            return self._register_pdf(batch_id, segments, path, sha, size, modified, hints)
+
+    def _register_pdf(self, batch_id, segments, path, sha, size, modified, hints):
+        batch = self._batch_row(batch_id)
+        existing = self.conn.execute("SELECT * FROM import_items WHERE batch_id=? AND relative_path=?",
+                                     (batch_id, path)).fetchone()
+        # Streaming is outside the edit claim. Recheck capacity while holding
+        # the claim so two simultaneous uploads cannot pass the same last slot.
+        if not existing and self.conn.execute(
+                "SELECT COUNT(*) FROM import_items WHERE batch_id=? AND kind='pdf'",
+                (batch_id,)).fetchone()[0] >= MAX_FILES:
+            self._drop_unused_file(batch_id, sha)
+            raise ValueError(f"一次最多导入 {MAX_FILES} 个文件，请分批导入")
+        if existing and existing["committed"]:
+            raise ValueError("这条已导入，不能替换；请另建批次")
+        if existing and existing["sha256"] == sha and existing["state"] != "failed":
+            self.conn.execute("UPDATE import_upload_failures SET message='' WHERE batch_id=? AND relative_path=?", (batch_id, path))
+            self.conn.commit()
+            return self._with_placements(self._item_dict(existing))
         stamp = now()
         name = segments[-1]
         placement = json.dumps(self._folders_of(segments, batch["root_name"], batch["source"]), ensure_ascii=False)
@@ -368,6 +483,7 @@ class LibraryImport:
             (batch_id, sha, item_id)).fetchone()
         if primary:
             self.conn.execute("UPDATE import_items SET state='duplicate', duplicate_of=? WHERE id=?", (primary["id"], item_id))
+        self.conn.execute("UPDATE import_upload_failures SET message='' WHERE batch_id=? AND relative_path=?", (batch_id, path))
         self._touch(batch_id, **({"status": "collecting"} if batch["status"] == "review" else {}))
         self.conn.commit()
         return self.item(batch_id, item_id)
@@ -394,9 +510,11 @@ class LibraryImport:
                 raise ValueError("上传中断：收到的内容比声明的短")
             if head != b"%PDF-":
                 raise ValueError("这不是 PDF 文件")
+            from .pdf_validation import validate_pdf
+            validate_pdf(part)
             sha = digest.hexdigest()
             target = folder / f"{sha}.pdf"
-            if target.exists():
+            if target.exists() and hashlib.sha256(target.read_bytes()).hexdigest() == sha:
                 part.unlink()
             else:
                 part.replace(target)
@@ -451,14 +569,19 @@ class LibraryImport:
                 self._pause(batch_id, "busy")
             raise
 
-    def _resolve(self, batch_id, cancel):
+    @_batch_edit
+    def _start_resolution(self, batch_id):
         batch = self._batch_row(batch_id)
         if batch["status"] not in OPEN_STATUSES:
             raise ValueError("导入批次已关闭")
-        options = clean_options(_loads(batch["options"], {}))
-        self.conn.execute("UPDATE import_items SET state='pending' WHERE batch_id=? AND state='resolving'", (batch_id,))
-        self._touch(batch_id, status="resolving", pause_reason=None)
+        self.conn.execute("UPDATE import_items SET state='pending' WHERE batch_id=? AND state='resolving' AND committed=0", (batch_id,))
+        self._touch_open(batch_id, status="resolving", pause_reason=None)
         self.conn.commit()
+        return batch
+
+    def _resolve(self, batch_id, cancel):
+        batch = self._start_resolution(batch_id)
+        options = clean_options(_loads(batch["options"], {}))
         try:
             self._join_sidecar(batch_id, options, batch["root_name"])
             self._match_local(batch_id)
@@ -501,11 +624,14 @@ class LibraryImport:
 
     def _set(self, item_id, state, **fields):
         fields = {"state": state, "updated_at": now(), **fields}
-        for key in ("paper", "candidates"):
+        for key in ("paper", "candidates", "hints"):
             if key in fields and fields[key] is not None:
                 fields[key] = json.dumps(fields[key], ensure_ascii=False)
         names = ", ".join(f"{k}=?" for k in fields)
-        self.conn.execute(f"UPDATE import_items SET {names} WHERE id=?", (*fields.values(), item_id))
+        marks = ",".join("?" for _ in OPEN_STATUSES)
+        self.conn.execute(f"UPDATE import_items SET {names} WHERE id=? AND committed=0 "
+                          f"AND batch_id IN (SELECT id FROM import_batches WHERE status IN ({marks}))",
+                          (*fields.values(), item_id, *OPEN_STATUSES))
         self.conn.commit()
 
     @staticmethod
@@ -545,7 +671,10 @@ class LibraryImport:
         plan["titles"] = list(dict.fromkeys(t.strip() for t in titles))
         return plan
 
+    @_batch_edit
     def _match_local(self, batch_id):
+        if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
+            return
         by_title = {}
         for row in self.conn.execute("SELECT key, title FROM papers"):
             tk = title_key(row["title"])
@@ -568,6 +697,13 @@ class LibraryImport:
             if existing:
                 paper = self.conn.execute("SELECT key, title FROM papers WHERE key=?", (existing,)).fetchone()
                 if paper:
+                    if self._contradicts(item, dict(paper)):
+                        self._set(item["id"], "needs_choice", match_source="existing", paper_key=None,
+                                  error="标识对应的库内题名与 PDF 首页不一致，请核对后选择",
+                                  candidates=[{"paper": dict(paper), "score": round(max(
+                                      similarity(t, paper["title"]) for t in self._plan(item)["titles"]), 3),
+                                      "existing": True}])
+                        continue
                     self._set(item["id"], "duplicate", match_source="existing", paper_key=existing,
                               paper={"key": paper["key"], "title": paper["title"]})
                     continue
@@ -607,6 +743,25 @@ class LibraryImport:
                 return None
             raise _Failed(str(exc)[:200]) from None
 
+    def _network_set(self, item, state, **fields):
+        return self._network_write(item["batch_id"], item, state, fields)
+
+    @_batch_edit
+    def _network_write(self, batch_id, requested, state, fields):
+        # The stream can be replaced while public metadata is in flight.
+        # Compare the complete input identity while holding the same short
+        # claim as uploads/review; never attach an old reply to new bytes.
+        if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
+            return False
+        current = self.item(batch_id, requested["id"])
+        if any(current.get(k) != requested.get(k) for k in ("sha256", "hints", "entry")):
+            raise _Pause("content_changed")
+        allowed = ("pending", "resolving") if state == "resolving" else ("resolving",)
+        if current["state"] not in allowed:
+            raise _Pause("content_changed")
+        self._set(current["id"], state, **fields)
+        return True
+
     def _matched(self, item, work, source):
         paper = slim(work, group="imported")
         if not paper.get("key") or not paper.get("title"):
@@ -618,10 +773,10 @@ class LibraryImport:
             # An identifier read off the first pages can be a cited paper's. Nobody confirms hundreds of matches,
             # so one whose title shares nothing with the title read from the same PDF is put to the person.
             shown = max(similarity(t, paper["title"]) for t in (item.get("hints") or {}).get("titles") or [""])
-            self._set(item["id"], "needs_choice", match_source=source, error=None,
+            self._network_set(item, "needs_choice", match_source=source, error=None,
                       candidates=[{"paper": paper, "score": round(shown, 3), "existing": False}])
             return True
-        self._set(item["id"], "matched", match_source=source, paper=paper, error=None)
+        self._network_set(item, "matched", match_source=source, paper=paper, error=None)
         return True
 
     @staticmethod
@@ -647,7 +802,7 @@ class LibraryImport:
             if work and self._matched(item, work, plans[item["id"]]["origin"]):
                 settle(item)
             elif item["id"] in open_ids:
-                self._set(item["id"], "pending")
+                self._network_set(item, "pending")
 
         # 1. DOIs, fifty per request. A DOI that could change the filter is fetched alone below.
         batched = todo(lambda p: p["doi"] and "," not in p["doi"] and "|" not in p["doi"])
@@ -655,7 +810,7 @@ class LibraryImport:
             chunk = batched[start:start + DOI_CHUNK]
             self._checkpoint(cancel)
             for item in chunk:
-                self._set(item["id"], "resolving")
+                self._network_set(item, "resolving")
             try:
                 works = self._call(lambda: self.client.works_by_dois([plans[i["id"]]["doi"] for i in chunk])) or []
             except _Failed as failure:
@@ -673,7 +828,7 @@ class LibraryImport:
                 if work and self._matched(item, work, plans[item["id"]]["origin"]):
                     settle(item)
                 else:
-                    self._set(item["id"], "pending")
+                    self._network_set(item, "pending")
         for item in todo(lambda p: p["doi"] and ("," in p["doi"] or "|" in p["doi"])):
             alone(item)
         # 2. arXiv ids, one request each (fetch_seed_work falls back to the landing page for pre-2022 papers)
@@ -683,7 +838,7 @@ class LibraryImport:
             if work and self._matched(item, work, plan["origin"]):
                 settle(item)
             elif item["id"] in open_ids:
-                self._set(item["id"], "pending")
+                self._network_set(item, "pending")
         # 3. titles read from the PDF
         for item in todo(lambda p: p["titles"] and not p["from_entry"]):   # an entry has its own record: no title search
             self._match_title(item, plans[item["id"]]["titles"][:MAX_TITLE_LOOKUPS], cancel)
@@ -695,7 +850,7 @@ class LibraryImport:
     def _one(self, item, cancel, function, settle):
         """One metered request for one item; a failed reply fails only that item."""
         self._checkpoint(cancel)
-        self._set(item["id"], "resolving")
+        self._network_set(item, "resolving")
         try:
             return self._call(function)
         except _Failed as failure:
@@ -706,20 +861,20 @@ class LibraryImport:
         """A lookup was refused or came back unusable. An export entry has its own record and falls back to it; anything
         else is shown as failed, with the reason, so the person can keep it as a plain PDF."""
         if item.get("entry"):
-            self._set(item["id"], "pending")
+            self._network_set(item, "pending")
             return
-        self._set(item["id"], "failed", error=str(failure))
+        self._network_set(item, "failed", error=str(failure))
         settle(item)
 
     def _match_title(self, item, titles, cancel):
         candidates = {}
         for title in titles:
             self._checkpoint(cancel)
-            self._set(item["id"], "resolving")
+            self._network_set(item, "resolving")
             try:
                 works = self._call(lambda t=title: self.client.title_lookup(t)) or []
             except _Failed as failure:
-                self._set(item["id"], "failed", error=str(failure))
+                self._network_set(item, "failed", error=str(failure))
                 return
             for work in works:
                 paper = slim(work, group="imported")
@@ -733,23 +888,27 @@ class LibraryImport:
             runner = ranked[1]["score"] if len(ranked) > 1 else 0.0
             if (best and best["score"] >= AUTO_MATCH and best["score"] - runner >= AUTO_GAP
                     and len(_WORD.findall(title.lower())) >= MIN_AUTO_WORDS):
-                self._set(item["id"], "matched", match_source="title", paper=best["paper"], error=None)
+                self._network_set(item, "matched", match_source="title", paper=best["paper"], error=None)
                 return
         ranked = sorted((c for c in candidates.values() if c["score"] >= CANDIDATE_MIN),
                         key=lambda c: c["score"], reverse=True)[:MAX_CANDIDATES]
         if ranked:
-            self._set(item["id"], "needs_choice", match_source="title", candidates=ranked)
+            self._network_set(item, "needs_choice", match_source="title", candidates=ranked)
         else:
-            self._set(item["id"], "pending")  # nothing usable came back: finished as an unresolved PDF below
+            self._network_set(item, "pending")  # nothing usable came back: finished as an unresolved PDF below
 
+    @_batch_edit
     def _finish_unmatched(self, batch_id):
         """What nothing could identify is kept as the PDF it is, under a key made from its content."""
+        if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
+            return
         for item in self._pending(batch_id):
             title = ((item["hints"] or {}).get("titles") or [None])[0] or Path(item["original_name"] or "").stem
             self._set(item["id"], "unmatched", match_source="unresolved",
-                      paper={"key": "pdf:" + item["sha256"], "title": title, "unresolved": True})
+                      paper={"key": "pdf:" + item["sha256"], "title": title, "unresolved": True}, hints=self._decision_hints(item))
 
     # --------------------------------------------------------------- export files
+    @_batch_edit
     def add_sidecar(self, batch_id, filename, data):
         """Read an export file (BibTeX, RIS, CSL-JSON) and keep its entries as rows without a file; they are joined to
         the PDFs they name when the batch is resolved. A second export replaces the entries not yet joined."""
@@ -771,7 +930,7 @@ class LibraryImport:
                 (batch_id, "entry", entry["title"][:MAX_NAME], json.dumps(entry, ensure_ascii=False), "[[]]", "pending", stamp, stamp))
         with_files = sum(1 for e in parsed["entries"] if e["files"])
         summary = {"filename": name, "format": fmt, "entries": len(parsed["entries"]), "with_files": with_files,
-                   "errors": parsed["errors"][:5]}
+                   "errors": parsed["errors"][:50], "errors_count": len(parsed["errors"])}
         self._touch(batch_id, sidecar=json.dumps(summary, ensure_ascii=False),
                     **({"status": "collecting"} if batch["status"] == "review" else {}))
         self.conn.commit()
@@ -810,8 +969,11 @@ class LibraryImport:
             return tail[0]
         return same[0] if len(same) == 1 else None
 
+    @_batch_edit
     def _join_sidecar(self, batch_id, options, root):
         """Fold each export entry into the PDF it names; entries that name none are references with no file."""
+        if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
+            return
         rows = self.conn.execute("SELECT * FROM import_items WHERE batch_id=? AND kind='entry' AND committed=0 "
                                  "AND state IN ('pending','excluded') ORDER BY id", (batch_id,)).fetchall()
         if not rows:
@@ -830,6 +992,10 @@ class LibraryImport:
             by_name.setdefault(r["relative_path"].rsplit("/", 1)[-1], []).append(item)
         for row in rows:
             item = self._item_dict(row)
+            if item["state"] == "excluded" and (item.get("hints") or {}).get("_sidecar_decision"):
+                # An explicitly excluded source is provenance, not permission
+                # to silently bind its metadata to a PDF on the next resolve.
+                continue
             joined = False
             for file in item["entry"].get("files") or []:
                 found = self._match_file(file, root, by_path, by_name)
@@ -838,17 +1004,47 @@ class LibraryImport:
                 target = found["target"]
                 if target["entry"] is None:
                     target["entry"] = json.dumps(item["entry"], ensure_ascii=False)
-                    self.conn.execute("UPDATE import_items SET entry=?, updated_at=? WHERE id=?", (target["entry"], now(), target["id"]))
-                joined = True
+                    self.conn.execute("UPDATE import_items SET entry=?, updated_at=? WHERE id=? AND committed=0", (target["entry"], now(), target["id"]))
+                    joined = True
+                else:
+                    previous = _loads(target["entry"], {})
+                    first, incoming = self._entry_paper(previous), self._entry_paper(item["entry"])
+                    if first["key"] == incoming["key"] and title_key(first["title"]) == title_key(incoming["title"]):
+                        joined = True
+                    else:
+                        # Same bytes/path cannot decide between contradictory
+                        # reference identities. Keep both sources visible.
+                        existing = self.item(batch_id, target["id"])
+                        decided = set((existing.get("hints") or {}).get("_sidecar_decision") or [])
+                        # Re-running resolution must respect the person's
+                        # existing choice/exclusion for these same sources.
+                        # A newly introduced identity still requires review.
+                        if existing["state"] in ("matched", "unmatched", "duplicate", "excluded") and {
+                                self._sidecar_identity(first), self._sidecar_identity(incoming)} <= decided:
+                            continue
+                        choices = existing.get("candidates") or []
+                        for p in (first, incoming):
+                            if not any(c["paper"]["key"] == p["key"] and c["paper"]["title"] == p["title"] for c in choices):
+                                choices.append({"paper": p, "score": 0.0, "existing": False})
+                        excluded = existing["state"] == "excluded" and bool(decided)
+                        self._set(target["id"], "excluded" if excluded else "needs_choice", match_source="sidecar_conflict", paper=None,
+                                  paper_key=None, candidates=choices, error=("已按你的决定排除；新增冲突题录仍保留，可恢复后选择" if excluded
+                                  else "多个导出题录引用同一 PDF，身份或题名冲突，请选择"))
+                        self._set(item["id"], "excluded", paper=incoming,
+                                  error="附件与其他题录冲突，未自动绑定；可恢复为无 PDF 的题录")
+                        target["conflict"] = True
             if joined:
-                self.conn.execute("DELETE FROM import_items WHERE id=?", (item["id"],))
+                self.conn.execute("DELETE FROM import_items WHERE id=? AND committed=0 AND state IN ('pending','excluded')", (item["id"],))
             elif item["state"] == "pending" and not options["include_fileless"]:
                 self.conn.execute("UPDATE import_items SET state='excluded', paper=?, updated_at=? WHERE id=?",
                                   (json.dumps(self._entry_paper(item["entry"]), ensure_ascii=False), now(), item["id"]))
         self.conn.commit()
 
+    @_batch_edit
     def _from_entries(self, batch_id):
         """What no lookup settled is described by the export itself."""
+        if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
+            return
         for item in self._pending(batch_id):
             if item["entry"]:
                 self._set(item["id"], "matched", match_source="sidecar", paper=self._entry_paper(item["entry"]), error=None)
@@ -865,6 +1061,7 @@ class LibraryImport:
         paper["relation_kind"] = "imported"
         return paper["key"], paper
 
+    @_batch_edit
     def commit(self, batch_id):
         """Write the reviewed batch into the library in one transaction and return what happened.
 
@@ -878,6 +1075,8 @@ class LibraryImport:
             counts = self.counts(batch_id)
             if counts.get("pending") or counts.get("resolving"):
                 raise ValueError("还有论文在匹配中，请等待完成后再提交")
+            if counts.get("failed"):
+                raise ValueError("还有失败项，请补传、查找或明确排除后再提交；批次和已暂存文件仍保留")
             options = clean_options(_loads(batch["options"], {}))
             project = batch["project_id"]
             self._touch(batch_id, status="committing")
@@ -885,7 +1084,7 @@ class LibraryImport:
             result = {"new_papers": 0, "linked_existing": 0, "unresolved": 0, "pdfs_archived": 0, "already_in_library": 0,
                       "skipped_needs_choice": 0, "skipped_failed": 0, "excluded": 0, "extra_pdfs": 0, "extra_pdf_names": []}
             saved_before = {r[0] for r in self.conn.execute("SELECT paper_key FROM project_library WHERE project_id=?", (project,))}
-            work, created, recording = [], [], {}
+            work, recording = [], {}
             try:
                 for item in self._unfinished(batch_id):
                     if item["state"] == "needs_choice":
@@ -907,16 +1106,13 @@ class LibraryImport:
                                 result["extra_pdf_names"].append(item["original_name"])
                         if record:
                             recording[key] = item["sha256"]
-                            target = self.data / "pdfs" / f"import-{item['sha256'][:24]}.pdf"
-                            existed = target.exists()
                             try:
                                 path = archive_pdf(self.data, item["sha256"], self._staging(batch_id) / f"{item['sha256']}.pdf")
                             except (ValueError, OSError) as exc:
-                                self._set(item["id"], "failed", error=str(exc)[:200])
-                                result["skipped_failed"] += 1
-                                continue
-                            if not existed:
-                                created.append(path)
+                                self.conn.execute("UPDATE import_items SET state='failed', error=?, updated_at=? WHERE id=? AND committed=0",
+                                                  (str(exc)[:200], now(), item["id"]))
+                                self.conn.commit()
+                                raise ValueError("归档失败，本批尚未入库；请重新选择原文件补传后再提交：" + str(exc)[:200]) from exc
                         work.append((item, key, paper, path))
                 self.conn.execute("BEGIN IMMEDIATE")
                 for item, key, paper, path in work:
@@ -938,8 +1134,9 @@ class LibraryImport:
                 self.conn.commit()
             except BaseException:
                 self.conn.rollback()
-                for path in created:  # files this attempt wrote; a retry writes them again
-                    Path(path).unlink(missing_ok=True)
+                # Content-addressed archives can have gained references from a
+                # different batch or attachment. Keep verified copies for reuse:
+                # rollback is never authority to delete a shared immutable file.
                 self._touch(batch_id, status="review")
                 self.conn.commit()
                 raise
@@ -972,6 +1169,7 @@ class LibraryImport:
         return [{"key": key, "folders": folders} for key, folders in merged.items()]
 
     # ---------------------------------------------------------------- review
+    @_batch_edit
     def act(self, batch_id, item_id, action, index=None, text=None):
         """One decision of the person about one item. Nothing happens on its own; a failed lookup changes nothing."""
         if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
@@ -986,7 +1184,7 @@ class LibraryImport:
         if item["state"] == "resolving":
             raise ValueError("这条正在匹配中")
         if action == "exclude":
-            self._set(item["id"], "excluded")
+            self._set(item["id"], "excluded", hints=self._decision_hints(item))
         elif action == "include":
             self._set(item["id"], self._restored_state(item))
         elif action == "unresolved":
@@ -1005,12 +1203,25 @@ class LibraryImport:
             return "unmatched" if item["paper"].get("unresolved") else "matched"
         return "needs_choice" if item["candidates"] else "pending"
 
+    @staticmethod
+    def _sidecar_identity(paper):
+        return str(paper.get("key") or "") + "\n" + title_key(paper.get("title"))
+
+    def _decision_hints(self, item):
+        hints = dict(item.get("hints") or {})
+        sources = [c["paper"] for c in item.get("candidates") or []]
+        if item.get("entry"):
+            sources.append(self._entry_paper(item["entry"]))
+        if sources:
+            hints["_sidecar_decision"] = sorted({self._sidecar_identity(p) for p in sources})
+        return hints
+
     def _keep_as_pdf(self, item):
         if not item["sha256"]:
             raise ValueError("这条没有 PDF 文件")
         title = ((item["hints"] or {}).get("titles") or [None])[0] or Path(item["original_name"] or "").stem
         self._set(item["id"], "unmatched", match_source="unresolved", paper_key=None,
-                  paper={"key": "pdf:" + item["sha256"], "title": title, "unresolved": True})
+                  paper={"key": "pdf:" + item["sha256"], "title": title, "unresolved": True}, hints=self._decision_hints(item))
 
     def _pick(self, item, index):
         candidates = item["candidates"] or []
@@ -1018,9 +1229,9 @@ class LibraryImport:
             raise ValueError("候选不存在")
         chosen = candidates[index]
         if chosen.get("existing"):
-            self._set(item["id"], "duplicate", match_source="existing", paper_key=chosen["paper"]["key"], paper=chosen["paper"])
+            self._set(item["id"], "duplicate", match_source="existing", paper_key=chosen["paper"]["key"], paper=chosen["paper"], hints=self._decision_hints(item), error=None)
         else:
-            self._set(item["id"], "matched", match_source="user_pick", paper_key=None, paper=chosen["paper"], error=None)
+            self._set(item["id"], "matched", match_source="user_pick", paper_key=None, paper=chosen["paper"], error=None, hints=self._decision_hints(item))
 
     def _lookup(self, item, text):
         """A typed DOI / arXiv id is fetched; a typed name is searched and the hits are offered. The text is the
@@ -1039,7 +1250,7 @@ class LibraryImport:
                 paper = slim(fetch_seed_work(self.client, identifier, arxiv_id), group="imported")
                 if not paper.get("key") or not paper.get("title"):
                     raise ValueError("公开元数据缺少论文标题")
-                self._set(item["id"], "matched", match_source="user_lookup", paper_key=None, paper=paper, error=None)
+                self._set(item["id"], "matched", match_source="user_lookup", paper_key=None, paper=paper, error=None, hints=self._decision_hints(item))
                 return
             hits = {}
             for work in self.client.title_lookup(text) or []:

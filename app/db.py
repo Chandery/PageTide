@@ -5,6 +5,7 @@ edited, frozen and rolled back. No writes touch an external service.
 """
 import json
 import sqlite3
+import uuid
 from pathlib import Path
 
 SCHEMA = """
@@ -100,6 +101,17 @@ class Store:
 
     def init(self):
         from app.migrations import apply_migrations, get_schema_version, pending
+        if self._has_user_data() and 'work_type' not in {r[1] for r in self.conn.execute('PRAGMA table_info(papers)')}:
+            target=self.path.with_name(f"{self.path.name}.pre-work-type.bak")
+            if target.exists():
+                target=self.path.with_name(f"{self.path.name}.pre-work-type-{uuid.uuid4().hex[:12]}.bak")
+            try:
+                self.backup(target)
+            except BaseException:
+                # A partial failed backup must not suppress the next attempt; original remains untouched.
+                try:target.unlink(missing_ok=True)
+                except OSError:pass
+                raise
         if self._has_user_data() and pending(self.conn) > 0:
             self.backup(self.path.with_name(
                 f"{self.path.name}.pre-v{get_schema_version(self.conn)}.bak"))
@@ -130,6 +142,8 @@ class Store:
         columns = {row[1] for row in self.conn.execute("PRAGMA table_info(papers)")}
         if "topic" not in columns:
             self.conn.execute("ALTER TABLE papers ADD COLUMN topic TEXT")
+        if "work_type" not in columns:
+            self.conn.execute("ALTER TABLE papers ADD COLUMN work_type TEXT")
 
     def close(self):
         self.conn.close()
@@ -159,6 +173,8 @@ class Store:
                  paper["title"], paper.get("abstract"), paper.get("published"),
                  paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now()))
             added += cur.rowcount
+            if isinstance(paper.get('work_type'),str) and paper['work_type']:
+                self.conn.execute('UPDATE papers SET work_type=? WHERE key=?',(paper['work_type'][:80],paper['key']))
             if 'metadata_language' in paper or 'language' in paper:
                 from .paper_language import metadata_code
                 self.conn.execute('''UPDATE papers SET metadata_language=?, metadata_language_source=? WHERE key=?''',
@@ -237,8 +253,14 @@ class Store:
         return [dict(r) for r in self.conn.execute(sql)]
 
     # ---------------------------------------------------------------- batches
-    def create_batch(self, run_date, keys, source="openalex", project_id=None, route=None):
+    def create_batch(self, run_date, keys, source="openalex", project_id=None, route=None, route_evidence=None):
         """route: optional {paper_key: (concept_id, kind, concept_name, layer)} for batches built from a learning map."""
+        receipt = None
+        if route_evidence:
+            if not isinstance(route_evidence, dict) or set(route_evidence)-set(keys) or len(route_evidence)>5:
+                raise ValueError('Invalid exploration evidence')
+            receipt=json.dumps(route_evidence,ensure_ascii=False,allow_nan=False)
+            if len(receipt.encode('utf-8'))>32768:raise ValueError('Exploration evidence exceeds 32 KiB')
         cur = self.conn.execute("INSERT INTO batches (run_date, created_at, source, project_id) VALUES (?,?,?,?)",
                                 (run_date, now(), source, project_id))
         batch_id = cur.lastrowid
@@ -248,12 +270,14 @@ class Store:
             node, kind, name, layer = (tuple(route.get(key, ())) + (None, None, None, None))[:4]
             self.conn.execute("""INSERT INTO exposures (batch_id, paper_key, rank, shown_at, route_node, route_kind, route_name, route_layer)
                                  VALUES (?,?,?,?,?,?,?,?)""", (batch_id, key, rank, stamp, node, kind, name, layer))
+        if receipt is not None:
+            self.conn.execute('INSERT INTO settings(key,value) VALUES (?,?)',('route_exploration_evidence_'+str(batch_id),receipt))
         self.conn.commit()
         return batch_id
 
     def batch(self, batch_id):
         rows = self.conn.execute(
-            """SELECT e.rank, e.route_node, e.route_kind, e.route_name, e.route_layer, p.* FROM exposures e JOIN papers p ON p.key=e.paper_key
+            """SELECT e.batch_id, e.rank, e.route_node, e.route_kind, e.route_name, e.route_layer, p.* FROM exposures e JOIN papers p ON p.key=e.paper_key
                WHERE e.batch_id=? ORDER BY e.rank""", (batch_id,)).fetchall()
         return [dict(r) for r in rows]
 
@@ -385,7 +409,7 @@ class Store:
         return json.loads(row["value"]) if row else default
 
     # ------------------------------------------------------------- summaries
-    def save_summary(self, paper_key, one_liner, why_relevant, caution, model):
+    def save_summary(self, paper_key, one_liner, why_relevant, caution, model, commit=True):
         self.conn.execute(
             """INSERT INTO summaries (paper_key, one_liner, why_relevant, caution, model, created_at)
                VALUES (?,?,?,?,?,?)
@@ -393,7 +417,8 @@ class Store:
                why_relevant=excluded.why_relevant, caution=excluded.caution, model=excluded.model,
                created_at=excluded.created_at""",
             (paper_key, one_liner, why_relevant, caution, model, now()))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def summaries(self):
         return {r["paper_key"]: dict(r) for r in self.conn.execute("SELECT * FROM summaries")}

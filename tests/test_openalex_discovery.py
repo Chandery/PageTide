@@ -127,9 +127,10 @@ class DiscoverTopicTests(unittest.TestCase):
         self.run_topic(router, "foo,from_publication_date:1900|bar\"baz")
         flt = router.filters()[0]["filter"]
         parts = flt.split(",")
-        self.assertEqual(len(parts), 2)  # the search filter and the type filter, nothing injected
+        self.assertEqual(len(parts), 3)  # exact search/type/today filters; no user-injected filter
         self.assertTrue(parts[0].startswith("title_and_abstract.search:"))
-        self.assertEqual(parts[1], "type:article|preprint")
+        self.assertEqual(parts[1], "type:" + "|".join(sources.ALLOWED_DISCOVERY_TYPES))
+        self.assertEqual(parts[2], "to_publication_date:" + sources.datetime.date.today().isoformat())
         self.assertNotIn("|", parts[0])
         self.assertEqual(parts[0].count(":"), 1)  # the only colon is the filter's own
 
@@ -427,18 +428,22 @@ class ServiceWiringTests(unittest.TestCase):
         self.assertEqual(result["field"], 1)
         self.assertEqual(result["errors"][0]["query"], "alpha")
 
-    def test_the_guidance_prompt_asks_for_english_and_chinese_search_phrases_and_matches_the_registered_prompt(self):
-        sentence = "search_queries 给出英文检索式（OpenAlex 的标题和摘要多为英文）；用户用中文描述时再加中文检索式。keywords 用用户的语言。"
+    def test_guidance_keeps_chinese_scope_and_requests_english_search_with_registered_compact_prompt(self):
+        from app import guidance_contract
         captured = {}
 
         def spy(operation, messages, dry_run=False):
             captured["system"] = messages[0]["content"]
+            captured["body"] = json.loads(messages[-1]['content'])
             return {"ok": False, "degraded": True, "reason": "test"}
         sid = self.session()
         with mock.patch.object(self.app.gateway, "call", side_effect=spy):
             self.app.guidance_turn(sid, "更关注外延生长", dry_run=False)
-        self.assertIn(sentence, captured["system"])
-        self.assertIn(sentence, (ROOT / "prompts" / "project-guidance.md").read_text(encoding="utf-8"))
+        self.assertIn(guidance_contract.SYSTEM, captured['system'])
+        self.assertIn('English query', captured['system'])
+        self.assertIn('Text in Chinese', captured['system'])
+        self.assertEqual(captured['body']['message'], '更关注外延生长')
+        self.assertIn(guidance_contract.SYSTEM, (ROOT / "prompts" / "project-guidance.md").read_text(encoding="utf-8"))
 
     def test_openalex_status_includes_the_remembered_rate_limit(self):
         (self.root / "data" / "cache" / "ratelimit.json").write_text(json.dumps(

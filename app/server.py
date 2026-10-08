@@ -36,6 +36,7 @@ ORGANIZATION_JOB_LOCK = threading.Lock()
 ORGANIZATION_PROCESSES_LOCK = threading.Lock()
 ORGANIZATION_PROCESSES = set()
 ORGANIZATION_STOPPING = threading.Event()
+USER_SETTINGS_LOCK = threading.Lock()
 
 
 def _static_version():
@@ -596,7 +597,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"page": app.figure_page((query.get("key") or [""])[0], (query.get("q") or [""])[0])})
         elif route == "/api/pdf/view":
             app = self._app()
-            path = app.pdf_path((query.get("key") or [""])[0])
+            key = (query.get("key") or [""])[0]
+            digest = (query.get('sha256') or [None])[0]
+            if digest:
+                current = app.store.conn.execute('SELECT sha256 FROM pdfs WHERE paper_key=?', (key,)).fetchone()
+                if not current or current['sha256'] != digest:
+                    return self._json({'error': 'PDF 版本已变化，请重新打开论文'}, 409)
+            path = app.pdf_path(key)
             if path:
                 self._file(path, "application/pdf")
             else:
@@ -632,15 +639,19 @@ class Handler(BaseHTTPRequestHandler):
             self._json(report)
         elif route == "/api/export":
             app = self._app()
-            project_id = query.get("project_id", [None])[0]
-            # Export all project data
-            data = {
-                "exported_at": datetime.now().isoformat(),
-                "profile": app.profile(project_id),
-                "library": app.library(project_id),
-                "stats": app.stats(project_id),
-            }
-            self._json(data)
+            from .local_snapshot import create_snapshot
+            try:
+                self._json(create_snapshot(app.store, app.data))
+            except (OSError, ValueError, sqlite3.Error) as exc:
+                self._json({'error': '结构化数据导出失败：' + str(exc)}, 500)
+        elif route == "/api/data-location":
+            root = Path(self._data()).resolve()
+            self._json({'data_dir': str(root), 'pdf_dir': str(root / 'pdfs'), 'cache_dir': str(root / 'cache')})
+        elif route == "/api/qa/session":
+            from .reader_context import session, history
+            app = self._app(); key = (query.get('key') or [''])[0]
+            current = session(app.store, key, requested_project)
+            self._json({'session': current, 'history': history(app.store, key, requested_project, current, limit=20)})
         elif route == "/api/user_settings":
             # GET settings from file
             settings_file = Path(self._data()) / "settings.json"
@@ -881,7 +892,7 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/daily":
             project_id = body.get("project_id")
             try:
-                self._json(app.build_batch(limit=int(body.get("limit", 5)), project_id=project_id))
+                self._json(app.build_batch(limit=int(body["limit"]) if "limit" in body else None, project_id=project_id))
             except (ValueError, TypeError) as exc:
                 return self._json({'error': str(exc)}, 400)
         elif route == "/api/triage":
@@ -940,9 +951,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(app.qa(body.get("key"), body.get("question") or "", body.get("selection"),
                                   image=body.get("image"), page_hint=body.get("page_hint"),
                                   context=body.get("context") or "normal", project_id=body.get("project_id"),
+                                  session_id=body.get('session_id'), reader_context=body.get('reader_context'),
                                   dry_run=bool(body.get("dry_run"))))
             except (ValueError, TypeError) as exc:
                 return self._json({"error": str(exc)}, 400)
+        elif route == "/api/qa/session":
+            from .reader_context import new_session
+            key, project = body.get('key'), body.get('project_id')
+            if not isinstance(key, str) or not app.store.paper(key):
+                return self._json({'error': '请选择论文后开始新会话'}, 400)
+            if project and not app.store.conn.execute('SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?', (project, key)).fetchone():
+                return self._json({'error': '论文不属于当前项目'}, 400)
+            self._json({'session': new_session(app.store, key, project)})
         elif route == "/api/translate":
             self._json(app.translate(body.get("text") or "", dry_run=bool(body.get("dry_run"))))
         elif route == "/api/detail":
@@ -1010,17 +1030,39 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(settings, dict):
                 return self._json({"error": "settings must be an object"}, 400)
             settings = {k: v for k, v in settings.items() if k not in USER_SETTINGS_EXCLUDED}
-            settings_file.write_text(json.dumps(settings, indent=2))
+            from .user_settings import read, validate
+            try:
+                settings = validate(settings)
+                with USER_SETTINGS_LOCK:
+                    if body.get('merge') is True:
+                        settings = {**read(settings_file.parent), **settings}
+                    import tempfile
+                    with tempfile.NamedTemporaryFile('w', encoding='utf-8', dir=settings_file.parent, delete=False) as staged:
+                        temporary = Path(staged.name)
+                        json.dump(settings, staged, indent=2, ensure_ascii=False)
+                        staged.flush(); os.fsync(staged.fileno())
+                    try:
+                        os.replace(temporary, settings_file)
+                    finally:
+                        temporary.unlink(missing_ok=True)
+            except ValueError as exc:
+                return self._json({'error': str(exc)}, 400)
+            except OSError as exc:
+                return self._json({'error': '设置未保存：' + str(exc)}, 500)
             self._json({"status": "saved"})
         elif route == "/api/cache":
             # DELETE cache (via POST with _method: DELETE)
             if body.get("_method") == "DELETE":
                 cache_dir = Path(self._data()) / "cache"
-                if cache_dir.exists():
-                    import shutil
-                    shutil.rmtree(cache_dir)
-                    cache_dir.mkdir(parents=True, exist_ok=True)
-                self._json({"status": "cleared"})
+                try:
+                    if cache_dir.exists():
+                        import shutil
+                        shutil.rmtree(cache_dir)
+                        cache_dir.mkdir(parents=True, exist_ok=True)
+                except OSError as exc:
+                    return self._json({'error': '缓存未完整清理：' + str(exc), 'preserved': ['pdf-archives', 'fulltext', 'notes', 'projects']}, 500)
+                self._json({"status": "cleared", 'removed': ['source-response-cache'],
+                            'preserved': ['pdf-archives', 'fulltext', 'notes', 'projects']})
             else:
                 self._json({"error": "method not allowed"}, 405)
         else:

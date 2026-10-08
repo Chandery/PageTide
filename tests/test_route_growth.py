@@ -13,13 +13,15 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from app import routeplan, server
+from app import routeplan, server, growthproposal, learning_scope, snippet_contract
 from app.organization import Conflict, Organization
 from app.service import App
 
 PLAN = {"concepts": [
-    {"id": "a", "name": "Crystal basics", "terms": ["crystal growth", "lattice"], "hint": 1, "needs": []},
-    {"id": "b", "name": "Epitaxy", "terms": ["epitaxy", "epitaxial"], "hint": 2, "needs": ["a"]},
+    {"id": "a", "name": "Crystal basics", "terms": ["crystal growth", "lattice"], "hint": 1, "needs": [],
+     "intro": "Lattice is required before strain relaxation."},
+    {"id": "b", "name": "Epitaxy", "terms": ["epitaxy", "epitaxial"], "hint": 2, "needs": ["a"],
+     "intro": "Epitaxy is required before strain relaxation. Epitaxy is required before thin films. Epitaxy is required before thin film growth."},
     {"id": "c", "name": "MBE", "terms": ["molecular beam epitaxy"], "hint": 3, "needs": ["b"]}], "targets": ["c"]}
 
 # four papers about one direction the map does not cover, from two sources
@@ -40,6 +42,64 @@ def new(labels, name="应变弛豫", terms=("strain relaxation", "dislocation gl
             "barrier": "要先懂外延和位错，难在应变与缺陷的耦合。", "needs": ["Epitaxy"], **extra}
 
 
+def grounded_fixture(response, body):
+    """Supply literal evidence for old synthetic positive replies, never bad overrides.
+
+    This prepares a provider fixture from the exact synthetic input; it does not
+    change production validation, unknown references, explicit citations or text.
+    Necessary edges may use only necessity sentences already in the fixture Map.
+    """
+    if not response.get('ok'):
+        return response
+    try:
+        content = json.loads(response['content'])
+    except (KeyError, ValueError, TypeError):
+        return response
+    if not isinstance(content, dict) or not isinstance(content.get('results'), list):
+        return response
+    for item in content['results']:
+        if not isinstance(item, dict) or item.get('verdict') == 'unclear':
+            continue
+        refs = item.get('papers')
+        if not isinstance(refs, list):
+            continue
+        if 'evidence' not in item:
+            current = all(body.get('papers', {}).get(ref, {}).get('evidence_contract') == snippet_contract.VERSION for ref in refs)
+            evidence = {} if current else []
+            for ref in refs:
+                source = body.get('papers', {}).get(ref)
+                if not source:
+                    continue
+                if current:
+                    choices = source.get('snippets') or {}
+                    sid = next((sid for sid, snippet in choices.items() if snippet['field'] == 'abstract'), next(iter(choices), None))
+                    if sid:
+                        evidence[ref] = {'snippet': sid, 'type': 'unknown'}
+                    continue
+                quote = (source.get('abstract') or source.get('title') or '')[:80]
+                evidence.append({'paper': ref, 'quote': quote, 'object': quote[:40],
+                                 'treatment': '', 'type': 'unknown'})
+            item['evidence'] = evidence
+        if 'necessity' not in item:
+            nodes = body.get('map', {}).get('concepts', {})
+            requested = [*(item.get('needs') if isinstance(item.get('needs'), list) else []),
+                         *(item.get('required_by') if isinstance(item.get('required_by'), list) else [])]
+            if item.get('parent'):
+                requested.append(item['parent'])
+            phrases = [item.get('name', ''), *(item.get('terms') if isinstance(item.get('terms'), list) else [])]
+            quotes = [
+                {'node': alias, 'quote': sentence.strip() + '.'}
+                for ref in requested for alias, node in nodes.items()
+                if ref in (alias, node['name'])
+                for sentence in (node.get('intro') or '').split('.')
+                if 'required before' in sentence and len(sentence.strip()) < 80
+                and any(isinstance(phrase, str) and phrase and phrase.lower() in
+                        sentence.split('required before')[0 if item.get('verdict') == 'missing_prerequisite' else 1].lower()
+                        for phrase in phrases)]
+            item['necessity'] = [q for i, q in enumerate(quotes) if q not in quotes[:i]]
+    return {**response, 'content': json.dumps(content, ensure_ascii=False)}
+
+
 class Fixture(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -53,6 +113,11 @@ class Fixture(unittest.TestCase):
         self.pid = self.app.create_project("Crystals", "manual", ["epitaxy"])["project_id"]
         self.other = self.app.create_project("Poetry", "manual", ["poetry"])["project_id"]
         self.app.route_save(self.pid, plan=PLAN)
+        graph = self.app.route_get(self.pid)['graph']
+        for node, source in zip(graph['concepts'], PLAN['concepts']):
+            if source.get('intro'):
+                node.update(intro=source['intro'], intro_by='user')
+        self.app.route_save(self.pid, graph=graph)
         for key, title, abstract, source in NEW:
             self.add(key, title, abstract, source)
 
@@ -74,11 +139,20 @@ class Fixture(unittest.TestCase):
 
         def fake(operation, messages, dry_run=False):
             calls.append((operation, messages, dry_run))
-            return result() if callable(result) else result
+            response = result() if callable(result) else result
+            return grounded_fixture(response, json.loads(messages[1]['content']))
         patcher = mock.patch.object(self.app.gateway, "call", side_effect=fake)
         patcher.start()
         self.addCleanup(patcher.stop)
         return calls
+
+    def evidence_reply(self, results):
+        """Positive fixture for callbacks that replace Gateway.call directly."""
+        papers = self.app._pending_growth(self.pid)[:3]
+        graph = self.app.route_get(self.pid)['graph']
+        body = json.loads(growthproposal.messages(papers, graph, [], fixed_scope=
+            learning_scope.as_text(self.app._learning_scope(self.pid)))[1]['content'])
+        return grounded_fixture(reply(results), body)
 
     def labels(self):
         """{paper key: 'p1'..} in the order the page would send them."""
@@ -181,9 +255,15 @@ class JudgeTests(Fixture):
         for forbidden in ("Poetry", "poetry", "PRIVATE NOTE", "Secret other", "journal-a", "journal-b", '"s1"', '"s2"', "useful", "Crystals", "seed"):
             self.assertNotIn(forbidden, sent, forbidden)
         body = json.loads(sent)
-        self.assertEqual(set(body), {"papers", "map", "directions"})
+        self.assertEqual(set(body), {"papers", "map", "directions", "available_verdicts"})
+        self.assertEqual(body["directions"], {})
+        self.assertNotIn("join", body["available_verdicts"])
+        self.assertIn("covered", body["available_verdicts"])
         self.assertEqual(set(body["papers"]), {"p1", "p2"})
-        self.assertTrue(all(set(p) == {"title", "abstract"} for p in body["papers"].values()))
+        self.assertTrue(all(set(p) == {"title", "abstract", "title_start", "abstract_start", "evidence_contract", "snippets", "title_truncated", "abstract_missing", "abstract_truncated"}
+                            for p in body["papers"].values()))
+        self.assertTrue(all(type(p['abstract_missing']) is bool and type(p['title_truncated']) is bool
+                            for p in body['papers'].values()))
         self.assertEqual(set(c["name"] for c in body["map"]["concepts"].values()), {"Epitaxy", "Crystal basics", "MBE"})
         self.assertEqual(calls[0][0], "route_growth_judge")
 
@@ -225,8 +305,9 @@ class JudgeTests(Fixture):
         self.assertEqual(len(self.app.route_candidates(self.pid)["candidates"]), 2)
 
     def test_a_neighbour_of_a_concept_is_covered_and_creates_nothing(self):
-        self.shown("s1")
-        self.say(("s1", "useful"))
+        self.add(*NEAR)
+        self.shown("n1")
+        self.say(("n1", "useful"))
         self.gateway(reply([{"papers": ["p1"], "verdict": "covered", "nearest": "Epitaxy"}]))
         out = self.app.route_direction_judge(self.pid)
         self.assertEqual((out["results"][0]["verdict"], out["results"][0]["nearest"]), ("covered", "Epitaxy"))
@@ -596,7 +677,9 @@ class HttpTests(Fixture):
             status, out = self.post(port, {"action": "direction-judge", "project_id": self.pid, "dry_run": True})
             self.assertEqual((status, out["ok"], out["reason_code"]), (200, False, "dry_run"))
             self.assertEqual(self.post(port, {"action": "direction-judge", "project_id": "no-such"})[0], 400)
-            with mock.patch("app.service.Gateway.call", return_value=reply([new(list(labels.values()))])):
+            def model_fixture(operation, messages, **kwargs):
+                return grounded_fixture(reply([new(list(labels.values()))]), json.loads(messages[1]['content']))
+            with mock.patch("app.service.Gateway.call", side_effect=model_fixture):
                 status, out = self.post(port, {"action": "direction-judge", "project_id": self.pid})
             self.assertEqual((status, out["ok"]), (200, True))
             status, body = self.post(port, {"action": "candidates", "project_id": self.pid})

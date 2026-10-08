@@ -30,3 +30,9 @@ test('preview explains changes, goals, resets and stale preservation without exp
   assert.match(html,/当前目标已完成/);assert.match(html,/当前目标学习中/);
   assert.ok(!html.includes('private-id'));assert.ok(!html.includes('<img src=x>'));
 });
+test('AI prerequisite warnings show the relation and missing necessity evidence', () => {
+  const graph={concepts:[{id:'private-a',name:'Representation'},{id:'private-b',name:'Planning'}],targets:['private-b']};
+  const html=Brief.previewHTML({before:{graph},after:{graph},changes:{warnings:[{kind:'prerequisite_review',from:'private-a',to:'private-b',reason:''}]}});
+  assert.match(html,/Representation → Planning/);assert.match(html,/必要/);assert.match(html,/补充依据或删除/);
+  assert.ok(!html.includes('[object Object]'));assert.ok(!html.includes('private-a'));
+});

@@ -82,8 +82,8 @@ class PreparationTests(unittest.TestCase):
 
     def test_complete_wire_accounting_matches_gateway_with_framing(self):
         result = cr.prepare(directories(), papers())
-        envelope = {'model': 'deepseek-flash', 'thinking': {'type': 'disabled'},
-                    'max_tokens': 2000, 'messages': result['messages']}
+        from app.gateway import request_envelope
+        envelope = request_envelope('category_review', 'deepseek-flash', 2000, result['messages'])
         self.assertEqual(cr.message_estimate(result['messages']),
                          len(json.dumps(envelope, ensure_ascii=False).encode('utf-8')) + 256)
         self.assertLessEqual(cr.message_estimate(result['messages']), 8000)

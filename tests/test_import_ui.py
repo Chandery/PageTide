@@ -25,7 +25,7 @@ BUILT_BY_SCRIPT = {"matchMore", "settleMore", "undoCats", "retryCats"}
 class PageStructureTests(unittest.TestCase):
     def test_scripts_load_in_dependency_order_and_all_are_local(self):
         order = re.findall(r'<script src="(/[^"]+)"', HTML)
-        self.assertEqual([s for s in order if s != "/i18n/current.js"], ["/creation-pdf.js", "/pdf-hints.js", "/import-files.js", "/import.js"])
+        self.assertEqual([s for s in order if s != "/i18n/current.js"], ["/theme.js", "/dialogs.js", "/creation-pdf.js", "/pdf-hints.js", "/import-files.js", "/import.js"])
         self.assertNotRegex(HTML, r'(?:src|href)="https?://')
         self.assertNotRegex(HTML, r'\son(?:click|change|load)=')
 
@@ -56,9 +56,9 @@ class PageStructureTests(unittest.TestCase):
         self.assertIn('id="optFileless"', HTML)
         self.assertRegex(HTML, r'id="filelessRow" hidden')
         self.assertIn("include_fileless: $('#optFileless').checked", JS)
-        self.assertIn("batchUrl('/sidecar')", JS)
+        self.assertIn("api(`/api/import/batches/${id}/sidecar`", JS)
         self.assertIn("'X-Filename': encodeURIComponent(", JS)
-        self.assertLess(JS.index("await uploadSidecar("), JS.index("const held = F.resumeSet("))
+        self.assertLess(JS.index("await uploadSidecar("), JS.index("S.queue = [...picked.pdfs]"))
         self.assertIn("$('#filelessRow').hidden", JS)
 
     def test_a_reference_without_a_file_is_marked_instead_of_showing_an_empty_path(self):
@@ -135,8 +135,8 @@ class PageStructureTests(unittest.TestCase):
         self.assertNotIn("/api/gateway", JS)
 
     def test_dynamic_text_from_files_and_papers_is_escaped_and_not_translated(self):
-        # A title, path or error comes from the person's files: it goes through esc() and sits in data-no-i18n.
-        for fragment in ("${esc(item.relative_path", "${esc(paper.title)}", "${esc(p.title)}", "${esc(item.error"):
+        # User titles and paths stay raw. Typed errors localize only known system frames, then escape.
+        for fragment in ("${esc(item.relative_path", "${esc(paper.title)}", "${esc(p.title)}", "${esc(systemError(item.error"):
             self.assertIn(fragment, JS)
         self.assertNotRegex(JS, r"innerHTML\s*=\s*[^;]*\$\{(?:item|paper|p)\.(?:title|relative_path|error)\}")
 

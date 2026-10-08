@@ -13,17 +13,21 @@ const MAX_PATH = 8;
 const SESSION_KEY = 'pdh-guidance-session';
 const policyEditor = PaperPolicy.mount($('#creationPaperPolicy'));
 
+let creationPending = 0, creationLeaving = false;
 async function api(path, options = {}) {
-  let response;
+  creationPending++;
   try {
-    response = await fetch(path, {...options, headers: {'Content-Type': 'application/json', ...(options.headers || {})}});
-  } catch (error) {
-    throw new Error('无法连接本地服务，请确认应用仍在运行');
-  }
-  let body = {};
-  try { body = await response.json(); } catch (error) { /* an empty body is fine */ }
-  if (!response.ok) throw new Error(body.error || '请求失败');
-  return body;
+    let response;
+    try {
+      response = await fetch(path, {...options, headers: {'Content-Type': 'application/json', ...(options.headers || {})}});
+    } catch (error) {
+      throw new Error('无法连接本地服务，请确认应用仍在运行');
+    }
+    let body = {};
+    try { body = await response.json(); } catch (error) { /* an empty body is fine */ }
+    if (!response.ok) throw new Error(body.error || '请求失败');
+    return body;
+  } finally { creationPending--; }
 }
 const post = (path, body) => api(path, {method: 'POST', body: JSON.stringify(body)});
 
@@ -275,8 +279,9 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     if (map.generating || map.checking || busy) return;
     try {
       if (map.graph.concepts.length >= 12) throw new Error('创建学习图最多12个概念');
-      let name = '新概念', n = 1;
-      while (map.graph.concepts.some((c) => c.name === name)) name = `新概念 ${++n}`;
+      const baseName = window.PDHi18n?.t('新概念') || '新概念';
+      let name = baseName, n = 1;
+      while (map.graph.concepts.some((c) => c.name === name)) name = `${baseName} ${++n}`;
       map.graph = R.addConcept(map.graph, {name, terms: [], hint: 2}, []);
       map.selected = map.editing = map.graph.concepts[map.graph.concepts.length - 1].id;
       mapNotice(''); renderMap();
@@ -284,7 +289,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   };
   part('mapStart').onclick = () => {
     if (map.generating || map.checking || busy) return;
-    map.graph = {concepts: [{id: 'c1', name: '第一个概念', terms: [], hint: 1, origin: 'user', state: 'active'}], prereqs: [], targets: ['c1']};
+    map.graph = {concepts: [{id: 'c1', name: (window.PDHi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active'}], prereqs: [], targets: ['c1']};
     map.mastered = []; map.selected = 'c1'; map.editing = null; renderMap();
   };
   part('mapDrop').onclick = () => { if (map.generating || map.checking || busy) return; map.discarded = true; map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice(''); renderMap(); };
@@ -305,14 +310,19 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       if (!out.ok) { mapNotice(`未得到有效学习图：${out.reason || 'AI 没有给出学习图'}。还可尝试 ${out.attempts_left} 次；可以点“自己搭一张”手动编辑，或不使用学习图。`); return; }
       map.discarded = false; map.cachedPlan = true; map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
       const warnings = (out.report?.warnings || []).join('；');
-      mapNotice(`AI 已回复${out.tokens ? ` · 约 ${out.tokens} token` : ''}${warnings ? ` · ${warnings}` : ''}。请检查后再创建。`, false);
+      mapNotice(`AI 已回复${out.usage_unknown || out.usage_reserved ? ' · 计费未确认，暂按上限占用' : (out.tokens ? ` · 约 ${out.tokens} token` : '')}${warnings ? ` · ${warnings}` : ''}。请检查后再创建。`, false);
       renderMap();
     } catch (error) { mapNotice(error.message); }
     finally { map.generating = false; part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); mapAct.stop(); part('mapGenerate').disabled = false; part('mapRegen').disabled = false; }
   }
   part('mapGenerate').onclick = () => generateMap(false);
-  part('mapRegen').onclick = () => {
-    if (confirm('重新生成会覆盖你对学习图的修改，并用掉 1 次重新生成机会。继续？')) generateMap(true);
+  let mapConfirming = false;
+  part('mapRegen').onclick = async () => {
+    if (mapConfirming || map.generating || busy) return;
+    const sentSession = sessionId(); mapConfirming = true; part('mapRegen').disabled = true;
+    try {
+      if (await window.PDHDialogs.confirm('重新生成会覆盖你对学习图的修改，并用掉 1 次重新生成机会。继续？', {valid:()=>sessionId()===sentSession && !map.generating})) await generateMap(true);
+    } finally { mapConfirming = false; part('mapRegen').disabled = map.generating; }
   };
 
   part('mapCheck').onclick = async () => {
@@ -453,6 +463,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   };
   refresh();
   return {setDraft, draft, search, refresh, root: view,
+    quitState:()=>({busy:searching || busy || map.checking || map.generating || mapConfirming, dirty:!!map.graph || map.briefDirty || !!map.editing || map.discarded || !!selected.size}),
     setBusy(value) { busy = value; refresh(); }};
 }
 
@@ -471,7 +482,7 @@ async function discardSession() {
   const id = session && session.id;
   session = null; review = null;
   localStorage.removeItem(SESSION_KEY);
-  if (id) { try { await fetch(`/api/project-guidance/sessions/${id}`, {method: 'DELETE'}); } catch (error) { /* it stays a draft; harmless */ } }
+  if (id) { creationPending++; try { await fetch(`/api/project-guidance/sessions/${id}`, {method: 'DELETE'}); } catch (error) { /* it stays a draft; harmless */ } finally { creationPending--; } }
 }
 
 async function resetAll() {
@@ -480,17 +491,23 @@ async function resetAll() {
   setMode(null);
 }
 
+let modeConfirming = false;
 $$('.mode-card').forEach((card) => {
   card.onclick = async () => {
-    if (card.dataset.mode === mode) return;
-    if (session) {
-      if (!confirm('切换创建方式会放弃当前草稿，继续吗？')) return;
-      await discardSession();
-    }
-    stopQuick(); stopGuided();
-    setMode(card.dataset.mode);
-    const first = $('.panel.active input, .panel.active textarea');
-    if (first) first.focus();
+    if (card.dataset.mode === mode || modeConfirming) return;
+    modeConfirming = true;
+    const originalSession = session?.id, originalMode = mode;
+    try {
+      if (session) {
+        if (!await window.PDHDialogs.confirm('切换创建方式会放弃当前草稿，继续吗？', {valid:()=>session?.id===originalSession && mode===originalMode})) return;
+        await discardSession();
+        if(session || mode!==originalMode)return;
+      }
+      stopQuick(); stopGuided();
+      setMode(card.dataset.mode);
+      const first = $('.panel.active input, .panel.active textarea');
+      if (first) first.focus();
+    } finally { modeConfirming = false; }
   };
 });
 document.addEventListener('click', (event) => {
@@ -504,7 +521,7 @@ async function finalize({draft, selectedKeys, route}) {
   try { result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route, language_policy}); }
   finally { policyEditor.disabled(false); }
   localStorage.removeItem(SESSION_KEY);
-  location.href = afterCreate(result.project_id);
+  creationLeaving = true; location.href = afterCreate(result.project_id);
 }
 
 async function createSession(name, goal, creationMode) {
@@ -516,14 +533,21 @@ async function createSession(name, goal, creationMode) {
 
 // One line saying whether the model answered, what it cost, and why not when it did not.
 function turnMeta(entry, live) {
+  const billing = () => {
+    if (entry.usage_unknown || entry.usage_reserved) return '计费未确认，暂按上限占用';
+    const usage = entry.usage || {};
+    const count = entry.tokens ?? usage.total_tokens ?? (Number.isInteger(usage.prompt_tokens) && Number.isInteger(usage.completion_tokens)
+      ? usage.prompt_tokens + usage.completion_tokens : null);
+    return Number.isInteger(count) && count >= 0 ? `约 ${Number(count).toLocaleString()} token` : '';
+  };
   if (entry.mode === 'ai') {
     const bits = ['<span class="ok">AI 已回复</span>'];
-    if (entry.tokens) bits.push(`约 ${Number(entry.tokens).toLocaleString()} token`);
+    if (billing()) bits.push(billing());
     if (live && live.elapsed_ms != null) bits.push(`${Math.max(1, Math.round(live.elapsed_ms / 1000))} 秒`);
     return bits.join('<span class="sep" aria-hidden="true">·</span>');
   }
   const why = esc(entry.reason_text || '');
-  return `<span class="warn">这一轮没有使用 AI</span>${why ? `<span data-no-i18n>${why}</span>` : ''}`;
+  return `<span class="warn">这一轮保留本地草稿</span>${billing() ? `<span>${billing()}</span>` : ''}${why ? `<span data-no-i18n>${why}</span>` : ''}`;
 }
 const retryable = (entry) => entry.mode === 'local' && entry.reason !== 'dry_run';
 const settingsLink = (entry) => (['no_key', 'ai_off'].includes(entry.reason) ? '<a href="/settings.html">打开设置</a>' : '');
@@ -540,6 +564,7 @@ function renderQuickNote(entry, live) {
   const note = $('#quickNote');
   note.hidden = false;
   note.innerHTML = `<div><span class="who">助手：</span><span data-no-i18n>${esc(entry.content || '')}</span></div>
+    ${guidanceScopeHTML(entry, live)}
     <div class="meta">${turnMeta(entry, live)} ${retryable(entry) ? '<button type="button" id="quickRetry">重试 AI</button>' : ''} ${settingsLink(entry)}</div>`;
   const retry = $('#quickRetry');
   if (retry) retry.onclick = async () => { if (await quickTurn({retry: true})) review.search(); };
@@ -573,7 +598,7 @@ async function quickTurn({retry = false} = {}) {
 
 $('#quickGo').onclick = async () => {
   const name = $('#quickName').value.trim(), goal = $('#quickGoal').value.trim();
-  if (!name || !goal) { alert('请填写项目名称和研究目标'); return; }
+  if (!name || !goal) { window.PDHDialogs.notice('请填写项目名称和研究目标',{kind:'error'}); return; }
   $('#quickGo').disabled = true;
   $('#quickStart').hidden = true; $('#quickWork').hidden = false;
   review = makeReview($('#quickReview'), {sessionId: () => session && session.id, onCreate: finalize});
@@ -582,7 +607,7 @@ $('#quickGo').onclick = async () => {
   try {
     await createSession(name, goal, 'quick');
   } catch (error) {
-    quickAct.stop(); stopQuick(); alert(error.message); return;
+    quickAct.stop(); stopQuick(); window.PDHDialogs.notice(error.message,{kind:'error'}); return;
   }
   if (await quickTurn()) await review.search();
 };
@@ -605,12 +630,25 @@ function setComposer(enabled) {
   if (review) review.setBusy(!enabled);
 }
 
+function guidanceScopeHTML(entry, live) {
+  const scope = entry.scope_notice ? entry : (live && live.scope_notice ? live : null);
+  if (!scope) return '';
+  const excerpt = scope.context_excerpt || {};
+  const lines = [['目标节选', excerpt.goal], ['本轮消息节选', excerpt.message],
+    ['关键词节选', Array.isArray(excerpt.keywords) ? excerpt.keywords.join(' · ') : excerpt.keywords]]
+    .filter(([, value]) => typeof value === 'string')
+    .map(([label, value]) => `<p><b>${label}</b><span data-no-i18n>：${esc(value)}</span></p>`).join('');
+  return `<p class="meta" data-no-i18n>${esc(window.PDHi18n?.exact(scope.scope_notice) || scope.scope_notice)}</p>`
+    + `<details><summary>本轮 AI 可见内容</summary>${lines}</details>`;
+}
+
 function bubble(entry, live) {
   const el = document.createElement('div');
   const user = entry.role === 'user';
   el.className = 'msg ' + (user ? 'user' : 'assistant');
   el.innerHTML = `<span class="who">${user ? '你：' : '助手：'}</span><span data-no-i18n>${esc(entry.content || '')}</span>`;
   if (!user) {
+    el.insertAdjacentHTML('beforeend', guidanceScopeHTML(entry, live));
     el.insertAdjacentHTML('beforeend', `<div class="meta">${turnMeta(entry, live)} ${retryable(entry) ? '<button type="button" data-retry>重试 AI</button>' : ''} ${settingsLink(entry)}</div>`);
     const retry = $('[data-retry]', el);
     if (retry) retry.onclick = () => guidedTurn({retry: true});
@@ -679,11 +717,11 @@ function openGuidedWorkspace() {
 
 $('#guidedGo').onclick = async () => {
   const name = $('#guidedName').value.trim(), goal = $('#guidedGoal').value.trim();
-  if (!name || !goal) { alert('请填写项目名称和研究目标'); return; }
+  if (!name || !goal) { window.PDHDialogs.notice('请填写项目名称和研究目标',{kind:'error'}); return; }
   $('#guidedGo').disabled = true;
   try {
     await createSession(name, goal, 'ai_guided');
-  } catch (error) { alert(error.message); $('#guidedGo').disabled = false; return; }
+  } catch (error) { window.PDHDialogs.notice(error.message,{kind:'error'}); $('#guidedGo').disabled = false; return; }
   openGuidedWorkspace();
   review.setDraft(session.draft);
   renderChat(null);
@@ -727,11 +765,11 @@ function seedRow(item) {
     sub = `<span data-no-i18n>${esc(meta(item.paper))}</span> <span class="tag">${esc(origin)}</span>${item.pdfId ? ` <span data-no-i18n>${esc(item.filename || '')}</span> <span class="good">PDF 创建后保存到这篇论文</span>` : ''}`;
   } else if (item.status === 'failed') {
     state = '<span class="bad">!</span>'; title = label;
-    sub = `<span class="bad" data-no-i18n>${esc(item.error)}</span>`;
+    sub = `<span class="bad" data-no-i18n>${esc(window.PDHi18n?.system(item.error) || item.error)}</span>`;
     help = `<div class="help"><div class="row"><input data-help-input placeholder="改填标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">重试</button></div></div>`;
   } else if (item.status === 'help') {
     state = '<span class="warn">?</span>'; title = label;
-    sub = `${item.error ? `<span class="bad" data-no-i18n>${esc(item.error)}</span> ` : ''}<span>没能确定是哪篇论文，请选一篇，或改标题/DOI 再查</span>`;
+    sub = `${item.error ? `<span class="bad" data-no-i18n>${esc(window.PDHi18n?.system(item.error) || item.error)}</span> ` : ''}<span>没能确定是哪篇论文，请选一篇，或改标题/DOI 再查</span>`;
     help = `<div class="help">${(item.hits || []).map((p, i) => `<button type="button" class="pick" data-do="pick" data-index="${i}"><span data-no-i18n>${esc(p.title)}</span><small data-no-i18n>${esc(meta(p))}</small></button>`).join('')}
       <div class="row"><input data-help-input placeholder="标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">再查一次</button></div></div>`;
   } else {
@@ -846,14 +884,17 @@ $('#seedSearchClose').onclick = () => { searchToken += 1; searchAct.stop(); $('#
 const {extractHints, withTimeout} = window.PDHPdfHints;
 
 async function uploadPdf(file) {
-  let response;
+  creationPending++;
   try {
-    response = await fetch('/api/seeds/pdf', {method: 'POST', body: file,
-      headers: {'Content-Type': 'application/pdf', 'X-Filename': encodeURIComponent(file.name)}});
-  } catch (error) { throw new Error('无法连接本地服务'); }
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'PDF 导入失败');
-  return body;
+    let response;
+    try {
+      response = await fetch('/api/seeds/pdf', {method: 'POST', body: file,
+        headers: {'Content-Type': 'application/pdf', 'X-Filename': encodeURIComponent(file.name)}});
+    } catch (error) { throw new Error('无法连接本地服务'); }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || 'PDF 导入失败');
+    return body;
+  } finally { creationPending--; }
 }
 
 async function pdfProcess(item, file) {
@@ -968,7 +1009,7 @@ function manualRefresh() {
 $('#manualCreate').onclick = async () => {
   const name = $('#manualName').value.trim();
   seedKeywords.commit();
-  if (!name) { alert('请填写项目名称'); $('#manualName').focus(); return; }
+  if (!name) { window.PDHDialogs.notice('请填写项目名称',{kind:'error'}); $('#manualName').focus(); return; }
   const payload = seeds.filter((s) => s.status === 'resolved')
     .map((s) => (s.pdfId ? {identifier: s.paper.openalex_id, pdf_id: s.pdfId} : s.paper.openalex_id));
   $('#manualCreate').disabled = true;
@@ -983,16 +1024,41 @@ $('#manualCreate').onclick = async () => {
   manualAct.stop();
   const go = afterCreate(result.project_id);
   const problems = (result.seed_results || []).filter((r) => !['resolved', 'duplicate'].includes(r.status) || r.pdf_attached === false);
-  if (!problems.length) { location.href = go; return; }
+  if (!problems.length) { creationLeaving = true; location.href = go; return; }
   const box = $('#manualResult');
   box.hidden = false;
   box.innerHTML = `<div><strong>项目已创建，但有 ${problems.length} 个种子没有完全导入：</strong></div>`
     + problems.map((r) => `<div class="bad" data-no-i18n>${esc(r.input)}：${esc(r.pdf_error || r.error || r.status)}</div>`).join('')
     + '<div class="actions"><button type="button" class="primary" id="enterProject">进入项目</button></div>';
-  $('#enterProject').onclick = () => { location.href = go; };
+  $('#enterProject').onclick = () => { creationLeaving = true; location.href = go; };
 };
 $('#manualName').addEventListener('input', manualRefresh);
 manualRefresh();
+
+/* ------------------------------------------------------------------ unsubmitted creation drafts at exit */
+function creationInputSignature() {
+  return JSON.stringify([...document.querySelectorAll('input, textarea, select')]
+    .filter(el=>!el.closest('#creationQuitDialog'))
+    .map(el=>[el.id || el.dataset?.role || '',el.type,el.value,!!el.checked]));
+}
+const creationInitialInputs = creationInputSignature();
+function creationExitState() {
+  const currentReview=review?.quitState?.() || {};
+  return {
+    busy:creationPending>0 || guidedBusy || modeConfirming || !!currentReview.busy || seeds.some(seed=>seed.status==='working') || !!window.PDHDialogs?.active(),
+    dirty:creationInputSignature()!==creationInitialInputs || !!session || !!currentReview.dirty || !!seeds.length || !!seedKeywords.get().length,
+  };
+}
+window.PDHCreationQuit.mount({
+  busy:()=>creationExitState().busy,
+  dirty:()=>creationExitState().dirty,
+  leaving:()=>creationLeaving,
+  focus:()=>{
+    const first=$$('.panel.active textarea, .panel.active input, .panel.active button')
+      .find(el=>!el.disabled && !el.closest('[hidden]') && el.getClientRects().length) || $('.mode-card');
+    first?.focus();
+  },
+});
 
 /* ------------------------------------------------------------------ resume an unfinished draft */
 async function resume() {

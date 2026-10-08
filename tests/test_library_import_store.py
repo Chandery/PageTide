@@ -1,3 +1,4 @@
+from tests.pdf_fixture import minimal_pdf
 """Building blocks of library import: one-transaction store writes and the shared content-addressed PDF archive.
 
 An import commit writes papers, project links, library saves and PDF records for hundreds of items; each
@@ -14,7 +15,7 @@ from app import creation
 from app.db import Store
 from app.project import ProjectManager
 
-PDF = b"%PDF-1.7\n" + b"x" * 200
+PDF = minimal_pdf("x" * 200)
 
 
 def make_store(tmp):

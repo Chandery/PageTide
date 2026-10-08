@@ -80,11 +80,18 @@ class RegistryTests(unittest.TestCase):
         self.assertIn("contract: implemented", text)
         self.assertIn(routeplan.INTRO_SYSTEM, text)
 
-    def test_the_longest_input_fits_the_cap_by_a_pessimistic_estimate(self):
+    def test_long_input_keeps_explicit_fields_and_bounds_optional_retrieval_on_full_wire(self):
         big = {"title": "题" * 500, "abstract": "摘" * 3000}
         out = routeplan.intro_messages("名" * 500, ["词" * 500, "词" * 500, "词" * 500], "目" * 5000, True, [big] * 5)
-        chars = sum(len(m["content"]) for m in out)
-        self.assertLessEqual(chars * 1.5, self.op["cap"]["input"])    # 1.5 tokens per character is a heuristic, not a measurement
+        from app.gateway import input_bound, request_envelope
+        self.assertLessEqual(input_bound(request_envelope('concept_intro', 'deepseek-flash', 400, out)), self.op['cap']['input'])
+        body = json.loads(out[-1]['content'])
+        self.assertEqual(body['concept'], '名' * 30); self.assertEqual(body['terms'], ['词' * 30, '词' * 30])
+        self.assertEqual(body['goal'], '目' * 40)
+        self.assertLess(len(body['papers']), 3)
+        self.assertTrue(all(p['title'] == '题' * 80 and p['abstract'] == '摘' * 200 for p in body['papers']))
+        smaller = routeplan.intro_messages('Concept', ['term'], 'Goal', True, [{'title': 'Public paper', 'abstract': 'Public short abstract'}] * 3)
+        self.assertEqual(len(json.loads(smaller[-1]['content'])['papers']), 3)
 
     def test_the_plan_operations_carry_the_raised_caps_the_owner_approved(self):
         for name in ("learning_path_plan", "learning_path_plan_project"):
@@ -260,7 +267,8 @@ class IntroTests(Fixture):
         (self.app.data / "settings.json").write_text(json.dumps({"language": "en-US"}))
         calls = self.gateway(reply("One sentence."))
         self.app.route_concept_intro(self.pid, self.cid["Epitaxy"])
-        self.assertIn(routeplan.ENGLISH_OUTPUT, calls[0][1][0]["content"])
+        self.assertIn('Reply in English.', calls[0][1][0]['content'])
+        self.assertIn(routeplan.INTRO_SYSTEM, calls[0][1][0]['content'])
 
 
 class DraftWithIntroTests(Fixture):

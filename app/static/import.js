@@ -17,7 +17,8 @@ const HINT_TIMEOUT_MS = 25000;
 const SEED_LIMIT = 20;
 
 const S = {batch: null, picked: null, queue: [], stop: false, stage: '', tab: null, shown: 0, poll: null, ticking: false, rowsToken: 0,
-  committed: null, seedsChosen: new Set(), uploadFailed: [], sidecarError: null, open: []};
+  committed: null, seedsChosen: new Set(), uploadFailed: [], uploadBatchId: null, uploading: false, reviewToken: 0,
+  sidecarError: null, open: [], pendingActions: 0};
 
 async function api(path, options = {}) {
   let response;
@@ -30,6 +31,7 @@ async function api(path, options = {}) {
 }
 const post = (path, body = {}) => api(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
 const batchUrl = (suffix = '') => `/api/import/batches/${S.batch.id}${suffix}`;
+const systemError = message => window.PDHi18n?.system(String(message || '请求失败')) || String(message || '请求失败');
 
 function fail(error) {
   const box = $('#error');
@@ -62,6 +64,7 @@ const SOURCE_LABEL = {pdf_id: '按 DOI / arXiv 编号', title: '按标题', side
   user_pick: '你选的', user_lookup: '你查找的', unresolved: '未识别'};
 const SKIP_REASON = {too_large: '超过 60 MB，无法导入，已跳过', empty: '文件是空的，已跳过'};
 const PAUSE_TEXT = {
+  content_changed: '文件或题录已更新，旧匹配结果已忽略；点击继续，用新内容重新匹配。',
   openalex_quota: 'OpenAlex 今天的检索额度用完了。可以先看已有结果，之后再继续（没提交的导入会保留 30 天），或者不再联网、把剩下的按 PDF 原样导入。论文很多、又主要靠题目检索时，可以到设置里填一个免费的 OpenAlex key，额度约是不填的 10 倍。',
   network: '连不上网络，已暂停。恢复网络后点「继续」即可，已经匹配好的不会重来。',
   cancelled: '已暂停。点「继续」接着匹配。',
@@ -100,10 +103,17 @@ async function loadResume() {
 }
 $('#resumeBox').addEventListener('click', (event) => {
   const button = event.target.closest('button[data-act]');
-  if (!button) return;
+  if (!button || button.disabled) return;
   const batch = S.open.find((b) => b.id === button.closest('[data-batch]').dataset.batch);
-  guarded(async () => {
-    if (button.dataset.act === 'drop') { await post(`/api/import/batches/${batch.id}/discard`); await loadResume(); return; }
+  if (!batch) return;
+  return guarded(async () => {
+    if (button.dataset.act === 'drop') {
+      button.disabled=true;
+      try {
+        if (!await window.PDHDialogs.confirm('放弃这次导入？已暂存的文件会被删除，论文库不会有任何变化。', {valid:()=>S.open.some(b=>b.id===batch.id && b.status!=='committing')})) return;
+        await post(`/api/import/batches/${batch.id}/discard`); await loadResume(); return;
+      } finally {button.disabled=false;}
+    }
     S.batch = batch;
     if (batch.status === 'committing') return retryCommit();       // a commit that was cut off: the same call finishes it
     if (batch.status === 'review') return enterReview();
@@ -114,15 +124,29 @@ $('#resumeBox').addEventListener('click', (event) => {
 
 /* A batch whose files were not all sent: back to the first step with its options fixed; picking the same folder again
    sends only what is missing (the server already holds the rest), or the person can match what is there. */
-function continueUpload(batch) {
+const hasItems = detail => Object.values(detail.counts || {}).some(count => Number(count) > 0);
+function continueUpload(batch, reselect = false) {
+  if (S.uploading || S.pendingActions) return;
   S.batch = batch;
+  if (!reselect && !hasItems(batch) && batch.upload_failures?.length) return enterReview();
+  S.stage = 'source';
+  S.rowsToken += 1;   // rows from the previous review must not paint after the return to file selection
   const total = Object.values(batch.counts || {}).reduce((a, n) => a + n, 0) - (batch.copies || 0);
   const o = batch.options || {};
   [['#optOnline', 'online'], ['#optFolders', 'folder_categories'], ['#optRoot', 'root_category'], ['#optReplace', 'replace_pdf'], ['#optFileless', 'include_fileless']]
     .forEach(([id, key]) => { $(id).checked = !!o[key]; $(id).disabled = true; });
-  $('#continueText').textContent = `正在继续这次导入（已有 ${total} 个文件）。重新选择同一个文件夹，只会补传缺少的文件。`;
+  $('#continueText').textContent = !hasItems(batch) ? systemError('失败记录和本次导入选项已保留。请修复文件后重新选择，再开始导入。')
+    : `正在继续这次导入（已有 ${total} 个文件）。重新选择同一个文件夹，只会补传缺少的文件。`;
   $('#continueBox').hidden = false;
+  $('#continueSkip').hidden = !hasItems(batch);
   $('#continueSkip').onclick = () => guarded(startResolve);
+  $('#continueBack').hidden = !reselect;
+  $('#continueBack').textContent = systemError('返回查看失败记录');
+  $('#continueBack').onclick = () => guarded(enterReview);
+  if (reselect) {
+    S.picked = null; S.queue = [];
+    $('#picked').hidden = true; $('#start').disabled = true;
+  }
   show('source');
 }
 
@@ -148,7 +172,7 @@ function setPicked(result) {
   if (F.looksLikeZoteroStorage(result.pdfs.map((p) => p.path))) {
     warn.push('这看起来是 Zotero 的 storage 文件夹：里面每篇论文一个随机命名的子文件夹，没有你整理的结构。建议在 Zotero 里用「导出分类…」导出带文件的文件夹再导入。');
   }
-  if (result.sidecars.length) $('#optRoot').checked = true;   // an export folder is one collection
+  if (result.sidecars.length && !S.batch) $('#optRoot').checked = true;   // resumed batches keep their original options
   $('#filelessRow').hidden = $('#filelessHint').hidden = !result.sidecars.length;
   const note = $('#pickedWarn');
   note.hidden = !warn.length;
@@ -187,52 +211,58 @@ const options = () => ({online: $('#optOnline').checked, folder_categories: $('#
 /* ------------------------------------------------------------------ reading and uploading */
 // The export of a reference manager comes first: it names the PDFs and carries their metadata. If it cannot be read the
 // PDFs are still imported (they are identified from their own first pages); the reason is shown, not hidden.
-async function uploadSidecar(picked) {
+async function uploadSidecar(picked, id = S.batch?.id) {
   const order = ['bibtex', 'ris', 'csljson'];
   const side = [...picked.sidecars].sort((a, b) => order.indexOf(a.format) - order.indexOf(b.format))[0];
   const note = $('#sidecarNote');
   note.innerHTML = '';
   if (!side) return null;
   try {
-    const summary = await api(batchUrl('/sidecar'), {method: 'POST',
+    const summary = await api(`/api/import/batches/${id}/sidecar`, {method: 'POST',
       headers: {'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(side.file.name)}, body: side.file});
+    if (S.batch?.id !== id || S.stage !== 'upload') return null;
     note.innerHTML = `<div>已读取导出文件：${summary.entries} 条题录，其中 ${summary.with_files} 条带 PDF</div>`
+      + ((summary.errors || []).length ? `<div class="err">部分题录未读取，请核对：</div><ul>${summary.errors.map((v) => `<li data-no-i18n>${esc(systemError(v))}</li>`).join('')}</ul>` : '')
       + (picked.sidecars.length > 1 ? `<div><span>找到多个导出文件，只读取：</span><span data-no-i18n>${esc(side.file.name)}</span></div>` : '');
     return summary;
   } catch (error) {
+    if (S.batch?.id !== id || S.stage !== 'upload') return null;
     S.sidecarError = error.message;
-    note.innerHTML = `<div class="err"><span>导出文件没有读成功，PDF 仍会照常导入：</span><span data-no-i18n>${esc(error.message)}</span></div>`;
+    note.innerHTML = `<div class="err"><span>导出文件没有读成功，PDF 仍会照常导入：</span><span data-no-i18n>${esc(systemError(error.message))}</span></div>`;
     return null;
   }
 }
 
-async function uploadOne(item) {
+async function uploadOne(item, id = S.batch?.id) {
   let hints = null;
   try { hints = await H.withTimeout(H.extractHints(item.file), HINT_TIMEOUT_MS); }
   catch (error) { hints = null; }   // an unreadable first page is not fatal: the file is kept as a plain PDF
+  if (S.batch?.id !== id || S.stage !== 'upload') return;  // extraction may finish after the active batch changed
   const headers = {'Content-Type': 'application/pdf', 'X-Relative-Path': encodeURIComponent(item.path),
     'X-Last-Modified': String(item.file.lastModified || 0)};
   const encoded = F.encodeHints(hints);
   if (encoded) headers['X-Import-Hints'] = encoded;
-  await api(batchUrl('/pdf'), {method: 'POST', headers, body: item.file});
+  await api(`/api/import/batches/${id}/pdf`, {method: 'POST', headers, body: item.file});
 }
 
-async function runUploads() {
+async function runUploads(id = S.batch?.id) {
   const state = {total: S.queue.length, done: 0, failed: []};
   S.stop = false;
+  const current = () => S.batch?.id === id && S.stage === 'upload';
   const render = () => {
+    if (!current()) return;
     $('#uploadCount').textContent = `${state.done} / ${state.total}`;
     $('#uploadBar').style.width = state.total ? `${Math.round(100 * state.done / state.total)}%` : '100%';
     const failed = $('#uploadFailed');
     failed.hidden = !state.failed.length;
-    failed.innerHTML = state.failed.map((f) => `<li><span data-no-i18n>${esc(f.path)}</span>：<span data-no-i18n>${esc(f.message)}</span></li>`).join('');
+    failed.innerHTML = state.failed.map((f) => `<li><span data-no-i18n>${esc(f.path)}</span>：<span data-no-i18n>${esc(systemError(f.message))}</span></li>`).join('');
   };
   const worker = async () => {
-    while (!S.stop) {
+    while (!S.stop && current()) {
       const item = S.queue.shift();
       if (!item) return;
       $('#uploadNow').textContent = item.path;
-      try { await uploadOne(item); }
+      try { await uploadOne(item, id); }
       catch (error) { state.failed.push({path: item.path, message: error.message}); }
       state.done += 1;
       render();
@@ -240,7 +270,7 @@ async function runUploads() {
   };
   render();
   await Promise.all(Array.from({length: F.CONCURRENCY}, worker));
-  $('#uploadNow').textContent = '';
+  if (current()) $('#uploadNow').textContent = '';
   return state;
 }
 
@@ -253,44 +283,70 @@ $('#stop').onclick = stopWork;
 
 async function startImport() {
   const picked = S.picked;
-  if (!picked) return;
+  if (!picked || S.uploading) return;
+  S.uploading = true;
+  $('#start').disabled = true;
   S.stage = 'upload';
   show('working');
   $('#stageResolve').hidden = true;
   $('#stageUpload').hidden = false;
   $('#resume').hidden = $('#toReview').hidden = true;
   $('#stop').hidden = false;
-  if (!S.batch) {
+  let id = S.batch?.id;
+  const current = () => S.batch?.id === id && S.stage === 'upload';
+  try {
+  if (!id) {
     const paths = picked.pdfs.map((p) => p.path);
     const source = picked.sidecars.length ? 'zotero' : paths.some((p) => p.includes('/')) ? 'folder' : 'files';
-    S.batch = await post('/api/import/batches', {project_id: projectId, source, root_name: F.rootOf(paths), options: options()});
+    const created = await post('/api/import/batches', {project_id: projectId, source, root_name: F.rootOf(paths), options: options()});
+    if (S.batch || S.stage !== 'upload') return;
+    S.batch = created; id = created.id;
   }
-  await uploadSidecar(picked);
-  const held = F.resumeSet((await api(batchUrl('?resume=1'))).files);
-  S.queue = picked.pdfs.filter((p) => !F.alreadyUploaded(held, p));
-  const already = picked.pdfs.length - S.queue.length;
-  const result = await runUploads();
+  S.uploadBatchId = id;
+  S.uploadFailed = [];
+  await uploadSidecar(picked, id);
+  if (!current()) return;
+  // Explicit reselection verifies content; name/size/mtime cannot prove that a
+  // file is unchanged. The server reuses a result only after reading its SHA.
+  S.queue = [...picked.pdfs];
+  const already = 0;
+  const result = await runUploads(id);
+  if (!current()) return;
   result.done += already;
   S.uploadFailed = result.failed;
   if (S.stop) { pausedUpload(); return; }
-  const detail = await api(batchUrl('?limit=0'));
-  if (!Object.keys(detail.counts).length) { throw new Error('没有任何文件保存成功，请检查上面的原因后重试'); }
-  return startResolve();
+  const detail = await api(`/api/import/batches/${id}?limit=0`);
+  if (!current()) return;
+  S.batch = detail;
+  if (!hasItems(detail)) return await enterReview();  // failure receipts are actionable even without a registered item
+  return await startResolve();
+  } finally {
+    S.uploading = false;
+    $('#start').disabled = !S.picked || !(S.picked.pdfs.length || S.picked.sidecars.length) || S.picked.pdfs.length > F.MAX_FILES;
+    $('#emptyReselect').disabled = S.pendingActions > 0;
+    if (S.batch?.id === id && S.stage === 'review' && !hasItems(S.batch)) $('#emptyReselect').focus();
+  }
 }
 
 function pausedUpload() {
+  const id = S.batch?.id;
   $('#paused').hidden = false;
   $('#stageResolve').hidden = false;
   $('#paused').textContent = S.queue.length ? `已暂停：还有 ${S.queue.length} 个文件没有读取。点「继续」接着读取。` : '已暂停：文件都已读取完。点「继续」开始匹配。';
   $('#resume').hidden = false;
   $('#stop').hidden = true;
   $('#resume').onclick = () => guarded(async () => {
+    if (S.batch?.id !== id || S.stage !== 'upload' || S.uploading) return;
+    S.uploading = true;
+    try {
     $('#paused').hidden = true; $('#resume').hidden = true; $('#stop').hidden = false;
     S.stage = 'upload';
-    const again = await runUploads();
+    const again = await runUploads(id);
+    if (S.batch?.id !== id || S.stage !== 'upload') return;
     S.uploadFailed = S.uploadFailed.concat(again.failed);
     if (S.stop) { pausedUpload(); return; }
-    return startResolve();
+    return await startResolve();
+    } finally { S.uploading = false; $('#emptyReselect').disabled = S.pendingActions > 0; }
   });
 }
 
@@ -313,6 +369,8 @@ function renderCounts(detail) {
 }
 
 async function startResolve() {
+  const id = S.batch?.id;
+  if (!id) return;
   show('working');
   $('#stageUpload').hidden = !S.picked;
   $('#stageResolve').hidden = false;
@@ -322,7 +380,12 @@ async function startResolve() {
   $('#settle').hidden = true;
   $('#stop').hidden = false;
   S.stage = 'resolve';
-  await post(batchUrl('/resolve'));
+  const detail = await api(`/api/import/batches/${id}?limit=0`);
+  if (S.batch?.id !== id || S.stage !== 'resolve') return;
+  S.batch = detail;
+  if (!hasItems(detail)) return enterReview();
+  await post(`/api/import/batches/${id}/resolve`);
+  if (S.batch?.id !== id || S.stage !== 'resolve') return;
   clearInterval(S.poll);
   S.poll = setInterval(() => guarded(tick), POLL_MS);
   await tick();
@@ -330,21 +393,34 @@ async function startResolve() {
 
 // Stop waiting for lookups: what is still pending is kept as plain PDFs (or by the export's own record) and nothing is sent.
 async function settleRest() {
-  if (!confirm('不再联网查找，把还没匹配的论文按 PDF 原样导入？之后仍可以在确认页里逐篇「查找」。')) return;
-  clearInterval(S.poll);
-  await post(batchUrl('/settle'));
-  return enterReview();
+  const button=$('#settle'), id=S.batch?.id;
+  if(button.disabled || !id)return;
+  button.disabled=true;
+  try {
+    if (!await window.PDHDialogs.confirm('不再联网查找，把还没匹配的论文按 PDF 原样导入？之后仍可以在确认页里逐篇「查找」。', {valid:()=>S.batch?.id===id})) return;
+    clearInterval(S.poll);
+    await post(`/api/import/batches/${id}/settle`);
+    if(S.batch?.id===id)return enterReview();
+  } finally {button.disabled=false;}
 }
 $('#settle').onclick = () => guarded(settleRest);
 
 async function tick() {
+  const id = S.batch?.id;
+  if (!id || S.stage !== 'resolve') return;
   if (S.ticking) return;   // a slow answer must not be overtaken by the next poll
   S.ticking = true;
   try {
-    const detail = await api(batchUrl('?limit=0'));
+    const detail = await api(`/api/import/batches/${id}?limit=0`);
+    if (S.batch?.id !== id || S.stage !== 'resolve') return;
     S.batch = detail;
     renderCounts(detail);
+    if (detail.status === 'review') { clearInterval(S.poll); return await enterReview(); }
     if (detail.worker_alive) return;
+    if (detail.status === 'resolving' && !sum(detail.counts, 'pending', 'resolving')) {
+      clearInterval(S.poll);
+      return await enterReview();
+    }
     clearInterval(S.poll);
     if (detail.status === 'review') return await enterReview();
     // 'resolving' with nobody working on it means the matching stopped without saying why: treat it as paused.
@@ -367,20 +443,40 @@ const TAB_ORDER = ['needs_choice', 'matched', 'unmatched', 'duplicate', 'failed'
 const tabCount = (detail, key) => (detail.counts[key] || 0) - (key === 'duplicate' ? detail.copies || 0 : 0);
 
 async function enterReview() {
+  const id = S.batch?.id, token = ++S.reviewToken;
+  if (!id) return;
   clearInterval(S.poll);
-  S.stage = '';
-  show('review');
-  S.batch = await api(batchUrl('?limit=0&categories=1'));
+  S.stage = 'review';
+  const detail = await api(`/api/import/batches/${id}?limit=0&categories=1`);
+  if (S.batch?.id !== id || S.stage !== 'review' || token !== S.reviewToken) return;
+  S.batch = detail;
   if (S.batch.status === 'committed') return enterDone();
+  $('#stop').hidden = true;
+  show('review');
   if (!S.tab || !tabCount(S.batch, S.tab)) S.tab = TAB_ORDER.find((k) => tabCount(S.batch, k)) || 'matched';
   renderReviewChrome();
   await loadRows(true);
+  if (S.batch?.id === id && S.stage === 'review' && token === S.reviewToken && !hasItems(S.batch) && !S.uploading) $('#emptyReselect').focus();
 }
 
 function importable(detail) { return sum(detail.counts, 'matched', 'unmatched') + tabCount(detail, 'duplicate'); }
 
 function renderReviewChrome() {
   const d = S.batch, c = d.counts;
+  const empty = !hasItems(d);
+  $('#emptyImport').hidden = !empty;
+  $('#reviewSummary').hidden = $('#tabs').hidden = $('#cats').hidden = $('#commit').hidden = empty;
+  $('#commitNote').hidden = empty;
+  $('#addMore').hidden = empty;
+  if (empty) {
+    $('#emptyImportTitle').textContent = systemError('没有文件保存为导入条目');
+    $('#emptyImportText').textContent = systemError('失败原因保留在下方。本次没有导入论文库，原文件未改动。请检查或修复文件后重新选择，也可以明确放弃这次导入。');
+    $('#emptyImportOptions').textContent = systemError(d.options?.online === false ? '联网补全仍关闭，重试将沿用这次导入的选项。' : '重试将沿用这次导入的选项。');
+    $('#emptyReselect').textContent = systemError('重新选择文件后重试');
+    $('#emptyReselect').disabled = S.uploading || S.pendingActions > 0;
+    const id = d.id;
+    $('#emptyReselect').onclick = () => { if (S.batch?.id === id && S.stage === 'review') return continueUpload(S.batch, true); };
+  }
   const waiting = sum(c, 'pending', 'resolving');
   $('#reviewSummary').innerHTML = `<div>将导入 ${importable(d)} 篇</div>`
     + (c.needs_choice ? `<div>${c.needs_choice} 篇需要你选择，不处理就不会导入</div>` : '')
@@ -390,24 +486,34 @@ function renderReviewChrome() {
   renderFailedUploads();
   $('#tabs').innerHTML = TAB_ORDER.filter((k) => tabCount(d, k) || k === S.tab).map((k) =>
     `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === S.tab}">${STATE_LABEL[k]} <span class="n">${tabCount(d, k)}</span></button>`).join('');
-  const blocked = waiting > 0;
-  $('#commit').disabled = blocked || !importable(d);
+  const blocked = waiting > 0 || c.failed > 0;
+  $('#commit').disabled = blocked || S.pendingActions > 0 || !importable(d);
+  $('#discard').disabled = S.pendingActions > 0;
   $('#commit').textContent = `导入 ${importable(d)} 篇到论文库`;
-  $('#commitNote').innerHTML = blocked ? '<span>还有论文没有匹配</span> <button type="button" class="small" id="matchMore">继续匹配</button> <button type="button" class="small ghost" id="settleMore">不再联网，按原样导入剩下的</button>' : '';
-  if (blocked) {
+  $('#commitNote').innerHTML = S.pendingActions ? '<span>正在完成审阅操作，请稍候</span>' : waiting ? '<span>还有论文没有匹配</span> <button type="button" class="small" id="matchMore">继续匹配</button> <button type="button" class="small ghost" id="settleMore">不再联网，按原样导入剩下的</button>' : c.failed ? '<span>请补传、查找或明确排除失败项后再提交</span>' : '';
+  if (waiting && !S.pendingActions) {
     $('#matchMore').onclick = () => guarded(startResolve);
     $('#settleMore').onclick = () => guarded(settleRest);
   }
   renderCategories(d.categories);
+  const warnings = d.sidecar && d.sidecar.errors || [];
+  $('#reviewWarnings').hidden = !warnings.length;
+  $('#reviewWarnings').innerHTML = warnings.length ? '<div>导出文件有部分题录未读取，请核对：</div><ul>'
+    + warnings.map((v) => `<li data-no-i18n>${esc(systemError(v))}</li>`).join('') + '</ul>' : '';
 }
 
-// Files that could not be sent are not in this batch: say so here, where the person decides what to import.
+// Transport or PDF validation failures leave no registered item; bytes may already have reached the local server.
 function renderFailedUploads() {
-  const failed = S.uploadFailed || [];
-  $('#failedBox').hidden = !failed.length;
-  if (!failed.length) return;
-  $('#failedText').textContent = `${failed.length} 个文件没有读取成功，没有进入这次导入：`;
-  $('#failedList').innerHTML = failed.slice(0, 20).map((f) => `<li><span data-no-i18n>${esc(f.path)}</span> <span data-no-i18n>${esc(f.message)}</span></li>`).join('');
+  // The desktop server uses a new port after restart. Browser storage is
+  // therefore not a durable import receipt; use the local batch snapshot.
+  const local = S.uploadBatchId && S.uploadBatchId !== S.batch?.id ? [] : (S.uploadFailed || []);
+  const failed = [...new Map([...local, ...(S.batch?.upload_failures || [])]
+    .map(row => [row.path, row])).values()];
+  const recorded = S.batch && S.batch.counts && S.batch.counts.failed || 0;
+  $('#failedBox').hidden = !failed.length && !recorded;
+  if (!failed.length && !recorded) return;
+  $('#failedText').textContent = `${failed.length} 个文件未保存为导入条目（传输或校验失败），${recorded} 条匹配或归档失败。可补传原文件，或在失败列表中查找、排除：`;
+  $('#failedList').innerHTML = failed.slice(0, 20).map((f) => `<li><span data-no-i18n>${esc(f.path)}</span> <span data-no-i18n>${esc(systemError(f.message))}</span></li>`).join('');
   $('#addMore').onclick = () => continueUpload(S.batch);
 }
 
@@ -425,9 +531,10 @@ function renderCategories(preview) {
 
 async function loadRows(reset) {
   const token = ++S.rowsToken;
+  const id = S.batch?.id;
   if (reset) { S.shown = 0; $('#rows').innerHTML = ''; }
-  const detail = await api(batchUrl(`?state=${S.tab}&offset=${S.shown}&limit=${PAGE}`));
-  if (token !== S.rowsToken) return;   // the person already moved to another tab or action
+  const detail = await api(`/api/import/batches/${id}?state=${S.tab}&offset=${S.shown}&limit=${PAGE}`);
+  if (token !== S.rowsToken || S.batch?.id !== id || S.stage !== 'review') return;   // an older batch/stage must not paint
   const html = detail.items.map(renderRow).join('');
   $('#rows').insertAdjacentHTML('beforeend', html);
   S.shown += detail.items.length;
@@ -470,16 +577,17 @@ function renderRow(item) {
     actions = `${lookup}<button type="button" class="small ghost" data-act="exclude">排除</button>`;
   } else if (state === 'duplicate') {
     body = paperLine(item);
-    actions = '<button type="button" class="small ghost" data-act="exclude">排除</button>';
+    actions = `${lookup}<button type="button" class="small ghost" data-act="keep">保留为未识别 PDF</button><button type="button" class="small ghost" data-act="exclude">排除</button>`;
   } else if (state === 'failed') {
-    body = `<div class="err" data-no-i18n>${esc(item.error || '匹配失败')}</div>`;
+    body = `<div class="err" data-no-i18n>${esc(systemError(item.error || '匹配失败'))}</div>`;
     actions = `${lookup}<button type="button" class="small ghost" data-act="keep">保留为未识别 PDF</button><button type="button" class="small ghost" data-act="exclude">排除</button>`;
   } else if (state === 'excluded') {
     body = paperLine(item);
     actions = '<button type="button" class="small" data-act="include">恢复</button>';
   }
   const where = item.kind === 'entry' ? '<span class="tag">没有 PDF 的题录</span>' : `<span data-no-i18n>${esc(item.relative_path || '')}</span>`;
-  return `<li class="row" data-item="${item.id}"><div class="row-file">${where}</div>${body}`
+  const warning = item.error && state !== 'failed' ? `<div class="err" data-no-i18n>${esc(systemError(item.error))}</div>` : '';
+  return `<li class="row" data-item="${item.id}"><div class="row-file">${where}</div>${warning}${body}`
     + `<div class="row-actions">${actions}</div><div class="err" data-error hidden></div></li>`;
 }
 
@@ -503,6 +611,8 @@ $('#rows').addEventListener('click', (event) => {
     if (!body.text.trim()) { $('input', row).focus(); return; }
   }
   button.disabled = true;
+  S.pendingActions += 1;
+  renderReviewChrome();
   const errorBox = $('[data-error]', row);
   errorBox.hidden = true;
   api(batchUrl(`/items/${row.dataset.item}`), {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)})
@@ -512,21 +622,28 @@ $('#rows').addEventListener('click', (event) => {
       renderReviewChrome();
       await loadRows(true);
     })
-    .catch((error) => { button.disabled = false; errorBox.textContent = error.message; errorBox.hidden = false; });
+    .catch((error) => { button.disabled = false; errorBox.textContent = error.message; errorBox.hidden = false; })
+    .finally(() => { S.pendingActions -= 1; renderReviewChrome(); });
 });
 
-$('#discard').onclick = () => {
-  if (!confirm('放弃这次导入？已暂存的文件会被删除，论文库不会有任何变化。')) return;
-  guarded(async () => { await post(batchUrl('/discard')); location.reload(); });
+$('#discard').onclick = async () => {
+  const button=$('#discard'), id=S.batch?.id;
+  if (S.pendingActions || button.disabled || !id) return;
+  button.disabled=true;
+  try {
+    if(!await window.PDHDialogs.confirm('放弃这次导入？已暂存的文件会被删除，论文库不会有任何变化。', {valid:()=>S.batch?.id===id && !S.pendingActions}))return;
+    return await guarded(async () => { await post(`/api/import/batches/${id}/discard`); location.reload(); });
+  } finally {button.disabled=false;}
 };
 
 $('#commit').onclick = () => guarded(async () => {
+  if (S.pendingActions) throw new Error('正在完成审阅操作，请等待后再提交');
   const button = $('#commit');
   button.disabled = true;
   button.textContent = '正在导入…';
   try {
     S.committed = (await post(batchUrl('/commit'))).result;
-  } catch (error) { button.disabled = false; renderReviewChrome(); throw error; }
+  } catch (error) { S.batch = await api(batchUrl('?limit=0&categories=1')); await enterReview(); throw error; }
   return enterDone();
 });
 
@@ -562,7 +679,7 @@ async function applyCategories(again = false) {
       box.innerHTML = '<div>已撤销这次导入的分类。论文仍在论文库里，只是回到未分类。</div>';
     });
   } catch (error) {
-    box.innerHTML = `<div class="err" data-no-i18n>${esc(error.message)}</div><div>论文已经导入，只是分类没有应用成功。</div><button type="button" class="small" id="retryCats">重新应用文件夹分类</button>`;
+    box.innerHTML = `<div class="err" data-no-i18n>${esc(systemError(error.message))}</div><div>论文已经导入，只是分类没有应用成功。</div><button type="button" class="small" id="retryCats">重新应用文件夹分类</button>`;
     $('#retryCats').onclick = () => guarded(() => applyCategories(true));
   }
 }

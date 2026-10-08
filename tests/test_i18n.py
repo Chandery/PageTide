@@ -98,14 +98,14 @@ class EnglishServiceTests(unittest.TestCase):
         self.app.store.upsert_papers([{"key": "ref1", "title": "World Model Planning with JEPA",
                                        "abstract": "latent prediction and planning for robotics",
                                        "published": "2026-08-01", "group_name": "field"}])
-        self.app.store.save_to_library("ref1")
+        self.app.record_feedback("ref1", "useful")
         paper = {"title": "Zero-shot planning with a world model",
                  "abstract": "latent prediction enables planning", "topic": "Robotics"}
         self.assertIn("领域：Robotics", self.app.explain(paper)["why"])
         set_language(self.app.data, "en-US")
         explanation = self.app.explain(paper)
         self.assertIn("Field: Robotics", explanation["why"])
-        self.assertIn("the saved “World Model Planning with JEPA”", explanation["nearest_reference"])
+        self.assertIn("the useful-feedback paper “World Model Planning with JEPA”", explanation["nearest_reference"])
         self.assertFalse(HAN.search(explanation["why"]), explanation["why"])
 
 

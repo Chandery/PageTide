@@ -38,6 +38,11 @@ class Fixture(unittest.TestCase):
                      "strain relaxation by misfit dislocation glide in thin films", source)
         # a paper outside the map that the profile will like better than the direction's papers
         self.add("decoy", "A decoy about quantum dots", "quantum dots")
+        # Ordinary exploration needs an actual public query with visible text
+        # evidence. The direction's other papers have explicit positive basis.
+        self.public_sources = {"decoy": [{"query": "quantum dots", "kinds": ["explore"], "observed_at": "2026-02-01"}]}
+        sources = mock.patch.object(self.app, "route_recall_sources", return_value=self.public_sources)
+        sources.start(); self.addCleanup(sources.stop)
         self.app.record_feedback("s1", "useful", project_id=self.pid)
         self.app.record_feedback("s2", "useful", project_id=self.pid)
         self.app.store.create_batch("2026-09-01", ["s1", "s2"], project_id=self.pid, route={k: (None, "explore", None, None) for k in ("s1", "s2")})
@@ -76,10 +81,17 @@ class ExploreNewTests(Fixture):
         route = self.app._route_state(self.pid)
         pool = [dict(self.app.store.paper(k)) for k in ("decoy", "s3", "cb0", "cb1", "cb2", "cb3", "cb4")]
         scored = [("decoy", 0.9), ("s3", 0.4)] + [(f"cb{i}", 0.3) for i in range(5)]
+        plain_evidence={}; route={**route, '_selection_evidence':plain_evidence}
         plain = self.app._route_pick(route, pool, scored, {}, 5, 0, ())
-        steered = self.app._route_pick(route, pool, scored, {}, 5, 0, [{"name": "应变弛豫", "papers": ["s3"]}])
-        self.assertIn(("decoy", None, "explore", None), plain)
-        self.assertEqual([p for p in steered if p[2].startswith("explore")], [("s3", None, "explore_new", "应变弛豫"), ("decoy", None, "explore", None)])
+        self.assertIn(("decoy", None, "explore", "quantum dots"), plain)
+        self.assertEqual(plain_evidence['decoy']['query'],'quantum dots')
+        self.assertIn(plain_evidence['decoy']['quote'], 'A decoy about quantum dots quantum dots')
+        steered_evidence={};route={**route, '_selection_evidence':steered_evidence}
+        basis=[{'key':'s1','title':self.app.store.paper('s1')['title']}]
+        steered = self.app._route_pick(route, pool, scored, {}, 5, 0, [{"name": "应变弛豫", "papers": ["s3"], 'positive_basis':basis}])
+        self.assertEqual([p for p in steered if p[2].startswith("explore")], [("s3", None, "explore_new", "应变弛豫"), ("decoy", None, "explore", "quantum dots")])
+        self.assertEqual(steered_evidence['s3']['positive_basis'],basis)
+        self.assertEqual(steered_evidence['s3']['status'],'pending_user_review')
 
     def test_the_targets_come_from_the_papers_under_each_direction_and_leave_out_unlike_papers(self):
         papers = self.app._project_papers_for_growth(self.pid)
@@ -121,6 +133,15 @@ class ExploreNewTests(Fixture):
         kinds = self.kinds(self.app.build_batch(limit=5, project_id=self.pid)["cards"])
         self.assertNotIn("explore_new", kinds.values())
         self.assertIn("explore", kinds.values())
+
+    def test_without_direction_or_public_purpose_unmatched_papers_do_not_fill_exploration(self):
+        self.app.store.set_setting(f"route_directions_{self.pid}", {"directions": [], "judged": {}})
+        english_papers(self.app, self.pid)
+        with mock.patch.object(self.app, 'route_recall_sources', return_value={}):
+            cards=self.app.build_batch(limit=5,project_id=self.pid)['cards']
+        self.assertTrue(cards)
+        self.assertEqual(set(self.kinds(cards).values()),{'route'})
+        self.assertFalse({'decoy','s3','s4'} & {c['key'] for c in cards})
 
     def test_the_path_keeps_its_labels_when_the_readable_concepts_run_out_of_unseen_papers(self):
         for i in range(6):

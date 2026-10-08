@@ -226,16 +226,16 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(len(self.app.cards()), 2)
 
     def test_explain_is_specific_and_names_a_reference(self):
-        # A saved paper becomes a reference, so a similar candidate should name it.
+        # Explicit useful feedback becomes an interest reference; saving alone is inventory.
         self.app.store.upsert_papers([{"key": "ref1", "title": "World Model Planning with JEPA",
                                        "abstract": "latent prediction and planning for robotics",
                                        "published": "2026-08-01", "group_name": "field"}])
-        self.app.store.save_to_library("ref1")
+        self.app.record_feedback("ref1", "useful")
         explanation = self.app.explain({"title": "Zero-shot planning with a world model",
                                         "abstract": "latent prediction enables planning",
                                         "topic": "Robotics"})
         self.assertTrue(explanation["why"])
-        self.assertIn("已收藏", explanation["nearest_reference"] or "")
+        self.assertIn("有用反馈论文《World Model Planning with JEPA》", explanation["nearest_reference"] or "")
         self.assertTrue(explanation["shared_terms"])
         self.assertIn("领域：Robotics", explanation["why"])
 

@@ -307,13 +307,20 @@ def parse_ris(text):
                 except ValueError as exc:
                     errors.append(str(exc))
                 fields, last = {}, None
-            elif tag != "TY":
+            elif tag == "TY":
+                if fields:
+                    number += 1
+                    errors.append(f"第 {number} 条记录缺少 ER 结束标记，已跳过")
+                fields, last = {}, None
+            else:
                 fields.setdefault(tag, []).append([value[:MAX_FIELD]])
                 last, size = tag, len(value)
         elif line.strip() and last and fields.get(last) and size < MAX_FIELD:
             piece = line.strip()
             fields[last][-1].append(piece)   # a wrapped value: pieces are joined once, and collection stops at the cap
             size += len(piece) + 1
+    if fields:
+        errors.append(f"第 {number + 1} 条记录缺少 ER 结束标记，已跳过")
     return {"entries": entries, "errors": errors[:50]}
 
 

@@ -2,6 +2,8 @@
   'use strict';
   const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', graphView: 'papers', routeFocus: null, rcy: null, routeDetail: null, routeToken: 0, showOther: false, showAll: false, transient: new Set() };
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Translate only program frames; named values are user text and remain verbatim.
+  const systemLabel = (text, values) => window.PDHi18n?.t(text, values) ?? (values ? text.replace(/\{(\w+)\}/g, (all, key) => key in values ? values[key] : all) : text);
   S.reviewToken = 0; S.epoch = 0; S.refreshToken = 0; S.relationsToken = 0; S.contextToken = 0; S.navigationToken = 0; S.contexts = new Map();
   const DEFAULT_COLOR = '#64748b';
   const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
@@ -10,7 +12,7 @@
     try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
     catch { return fallback; }
   };
-  const PAPER_HINT = '点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布';
+  const PAPER_HINT = '点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布 · 缩小时收起标签，选中或悬停查看题名';
   const $ = selector => S.root.querySelector(selector);
   const icons = { undo: 'undo-2', export: 'download', fit: 'maximize', rearrange: 'grid-2x2', 'zoom-in': 'plus', 'zoom-out': 'minus', 'direction-new': 'plus', collapse: 'chevron-down', 'direction-edit': 'pencil', 'category-child': 'plus', 'direction-delete': 'x', 'direction-up': 'arrow-up', 'direction-down': 'arrow-down', 'detail-close': 'x', 'dialog-close': 'x', history: 'history', 'note-save': 'check' };
   const button = (action, label, symbol, extra = '') => `<button type="button" data-action="${action}" title="${h(label)}" aria-label="${h(label)}" ${extra}><img class="org-icon" src="/icons/org/${icons[action] || 'pencil'}.svg" width="16" height="16" alt=""></button>`;
@@ -60,6 +62,17 @@
   const currentProject = () => window.PDH?.state?.currentProject || null;
   const projectName = (id, snapshot = S.snapshot) => (snapshot.projects || []).find(x => x.id === id)?.name || id;
   const owners = p => p.projects || [];
+  async function openLibraryReader(p) {
+    const project = window.PDHReaderIdentity?.readingProject(owners(p), S.scope, currentProject())
+      ?? (S.scope !== 'all' && owners(p).includes(S.scope) ? S.scope : owners(p).includes(currentProject()) ? currentProject() : owners(p).length === 1 ? owners(p)[0] : null);
+    if (project) return window.PDH.openReader(p.key, p.title, project);
+    if (!owners(p).length) return window.PDH.openReader(p.key, p.title, null);
+    dialog('选择阅读会话的项目', `<p>这篇论文属于多个项目，请选择本次阅读和问答的项目。顶部项目保持原样。</p><label>项目<select name="reading-project">${owners(p).map(id => `<option value="${h(id)}">${h(projectName(id))}</option>`).join('')}</select></label>`, '开始阅读', async el => {
+      const selected = el.querySelector('[name=reading-project]').value;
+      if (!owners(p).includes(selected)) throw new Error('论文不属于当前项目');
+      await window.PDH.openReader(p.key, p.title, selected);
+    });
+  }
   function scopeItems(snapshot = S.snapshot, scope = S.scope) {
     const items = snapshot.items || [];
     return scope === 'all' || !scope ? items : items.filter(p => owners(p).includes(scope));
@@ -97,10 +110,10 @@
   function projectTags(p, snapshot = S.snapshot, scope = S.scope, current = currentProject()) {
     const list = owners(p);
     if (!list.length) return '<span class="org-proj is-none" title="只在旧的全局收藏里，没有归到任何项目">未归项目</span>';
-    const tag = (id, cls) => `<span class="org-proj ${cls}" title="${h(`收藏于项目：${projectName(id, snapshot)}`)}"><span data-no-i18n>${h(projectName(id, snapshot))}</span></span>`;
+    const tag = (id, cls) => `<span class="org-proj ${cls}" data-no-i18n title="${h(systemLabel('收藏于项目：{project}', {project:projectName(id, snapshot)}))}"><span data-no-i18n>${h(projectName(id, snapshot))}</span></span>`;
     if (scope === 'all' || !scope) return list.map(id => tag(id, id === current ? 'is-current' : 'is-other')).join('');
     const others = list.filter(id => id !== scope);
-    return (list.includes(scope) ? tag(scope, 'is-current') : '') + (others.length ? `<span class="org-proj is-also" title="${h(others.map(id => projectName(id, snapshot)).join('、'))}">也在：<span data-no-i18n>${h(others.map(id => projectName(id, snapshot)).join('、'))}</span></span>` : '');
+    return (list.includes(scope) ? tag(scope, 'is-current') : '') + (others.length ? `<span class="org-proj is-also" data-no-i18n title="${h(others.map(id => projectName(id, snapshot)).join('、'))}">${h(systemLabel('也在：'))}<span data-no-i18n>${h(others.map(id => projectName(id, snapshot)).join('、'))}</span></span>` : '');
   }
   /* The tabs: 全部 and one per project, with how many saved papers each has. */
   function projectTabs(snapshot = S.snapshot, scope = S.scope, current = currentProject()) {
@@ -273,42 +286,46 @@
   }
   function renderData() { renderSidebar(); renderList(); renderDetail(); setMode(); renderUndo(); status(); }
   // Only a change the owner made and can recognise is offered, named: never a silent layout save.
-  const undoHTML = undo => undo && undo.label ? `<button type="button" class="org-undo" data-action="undo" data-event="${h(undo.id)}" title="撤销：${h(undo.label)}"><img class="org-icon" src="/icons/org/${icons.undo}.svg" width="16" height="16" alt="">撤销${h(undo.label)}</button>` : '';
+  const undoHTML = undo => {
+    if (!undo?.label) return '';
+    const event = systemLabel(undo.label);
+    return `<button type="button" class="org-undo" data-no-i18n data-action="undo" data-event="${h(undo.id)}" title="${h(systemLabel('撤销：{event}', {event}))}"><img class="org-icon" src="/icons/org/${icons.undo}.svg" width="16" height="16" alt="">${h(systemLabel('撤销{event}', {event}))}</button>`;
+  };
   function renderUndo() { const slot = $('[data-undo-slot]'); if (slot) slot.innerHTML = undoHTML(S.snapshot.undo); }
   function sidebarHTML() {
     const hiddenOther = otherProjectCategories(), rows = treeRows().filter(d => S.showOther || !hiddenOther.has(String(d.id)));
     const items = scoped();
     const count = id => { const ids = categoryIds(id); return items.filter(p => memberships(p).some(m => ids.has(m))).length; };
-    const crossBadge = id => { const st = categoryStats(id); return st.cross ? `<em class="org-cross" title="${h('这个类别里有多个项目的论文：' + Object.entries(st.perProject).map(([pid, n]) => `${projectName(pid)} ${n}`).join('、'))}">跨项目</em>` : ''; };
+    const crossBadge = id => { const st = categoryStats(id); return st.cross ? `<em class="org-cross" data-no-i18n title="${h(systemLabel('这个类别里有多个项目的论文：{projects}', {projects:Object.entries(st.perProject).map(([pid, n]) => `${projectName(pid)} ${n}`).join('、')}))}">${h(systemLabel('跨项目'))}</em>` : ''; };
     const tabs = `<div class="org-projects-panel" role="tablist" aria-label="项目"><div class="org-section-head"><h3>项目</h3></div>${projectTabs().map(t => `<button type="button" role="tab" class="org-ptab ${t.active ? 'is-active' : ''}" aria-selected="${t.active}" data-action="project-tab" data-scope="${h(t.id)}" title="${h(t.id === 'all' ? '所有项目收藏的论文' : '只看这个项目收藏的论文')}"><span class="org-ptab-name" ${t.id === 'all' ? '' : 'data-no-i18n'}>${h(t.name)}</span>${t.current ? '<i class="org-ptab-now" title="当前项目"></i>' : ''}<small>${t.count}</small></button>`).join('')}</div>`;
     const otherNote = hiddenOther.size ? `<button type="button" class="org-other-cats" data-action="toggle-other-cats">${S.showOther ? '收起只在其他项目的类别' : `另有 ${hiddenOther.size} 个类别只在其他项目`}</button>` : '';
-    const graphPaperButton = p => `<button class="org-directory-paper ${S.key === p.key ? 'is-active' : ''}" data-action="graph-paper-focus" data-key="${h(p.key)}" title="${h(p.title || p.key)}"><strong>${h(p.title || p.key)}</strong><span>${h(p.authors?.[0] || p.author || '')}${p.published ? ` · ${h(String(p.published).slice(0,4))}` : ''}</span></button>`;
+    const graphPaperButton = p => `<button class="org-directory-paper ${S.key === p.key ? 'is-active' : ''}" data-action="graph-paper-focus" data-no-i18n data-key="${h(p.key)}" title="${h(p.title || p.key)}"><strong>${h(p.title || p.key)}</strong><span>${h(p.authors?.[0] || p.author || '')}${p.published ? ` · ${h(String(p.published).slice(0,4))}` : ''}</span></button>`;
     const graphPapersUnder = (id, folded) => {
       if (S.mode !== 'graph' || folded) return '';
       const papers = items.filter(p => id === '' ? !memberships(p).length : memberships(p).includes(String(id))).sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
-      return papers.length ? `<div class="org-directory-papers" aria-label="${h(id === '' ? '未分类论文' : `${categoryPath(id)} 下的论文`)}">${papers.map(graphPaperButton).join('')}</div>` : '';
+      return papers.length ? `<div class="org-directory-papers" data-no-i18n aria-label="${h(id === '' ? systemLabel('未分类论文') : systemLabel('{category} 下的论文', {category:categoryPath(id)}))}">${papers.map(graphPaperButton).join('')}</div>` : '';
     };
     return `${tabs}<div class="org-section-head org-directory-title"><h3>目录</h3>${button('direction-new','新建类别','')}</div><button class="org-filter ${S.filter === '*' ? 'is-active' : ''}" data-action="filter" data-id="*"><img class="org-folder-icon" src="/icons/org/book-open.svg" alt=""><span>全部论文</span><small>${items.length}</small></button><div class="org-directory-group org-uncategorized-group"><button class="org-filter ${S.filter === '' ? 'is-active' : ''}" data-action="filter" data-id=""><img class="org-folder-icon" src="/icons/org/folder.svg" alt=""><span>未分类</span><small>${items.filter(p => !memberships(p).length).length}</small></button>${graphPapersUnder('', false)}</div><div class="org-directions" role="list" aria-label="类别目录">${rows.filter(d => !d.hidden).map(d => {
       const siblings = directions().filter(other => (other.parent_id || null) === (d.parent_id || null)), i = siblings.findIndex(other => other.id === d.id);
       const folded = S.collapsed.has(String(d.id)), selected = S.filter === String(d.id);
-      return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',(folded ? '展开 ' : '折叠 ')+d.name,'',`data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><i class="org-category-dot" style="background:${categoryColor(d.id)}" aria-hidden="true"></i><span>${h(d.name)}</span>${crossBadge(d.id)}<small>${count(d.id)}</small></button><details class="org-category-menu"><summary aria-label="更多操作 ${h(d.path)}" title="更多操作"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title">${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
+      return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',systemLabel(folded ? '展开 {category}' : '折叠 {category}', {category:d.name}),'',`data-no-i18n data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-no-i18n data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><i class="org-category-dot" style="background:${categoryColor(d.id)}" aria-hidden="true"></i><span>${h(d.name)}</span>${crossBadge(d.id)}<small>${count(d.id)}</small></button><details class="org-category-menu"><summary data-no-i18n aria-label="${h(systemLabel('更多操作 {category}', {category:d.path}))}" title="${h(systemLabel('更多操作'))}"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title" data-no-i18n>${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
     }).join('') || '<p class="org-directory-empty">还没有类别<br>点击上方 + 建立目录</p>'}</div>${otherNote}`;
   }
   function renderSidebar() { $('.org-sidebar').innerHTML = sidebarHTML(); }
   function renderBulk() {
     const list = visible();
-    $('.org-bulk').innerHTML = `<strong class="org-breadcrumb" title="${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}">${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}</strong><label><input type="checkbox" data-select-all ${list.length && list.every(p => S.selected.has(p.key)) ? 'checked' : ''} aria-label="选择当前列表全部论文"> ${list.length} 篇</label><span>已选 ${S.selected.size}</span><button data-action="membership" ${S.selected.size ? '' : 'disabled'}>编辑类别</button>${S.selected.size ? '<button data-action="clear-selection">清除选择</button>' : ''}`;
+    $('.org-bulk').innerHTML = `<strong class="org-breadcrumb" ${S.filter === '*' || S.filter === '' ? '' : 'data-no-i18n'} title="${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}">${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}</strong><label><input type="checkbox" data-select-all ${list.length && list.every(p => S.selected.has(p.key)) ? 'checked' : ''} aria-label="选择当前列表全部论文"> ${list.length} 篇</label><span>已选 ${S.selected.size}</span><button data-action="membership" ${S.selected.size ? '' : 'disabled'}>编辑类别</button>${S.selected.size ? '<button data-action="clear-selection">清除选择</button>' : ''}`;
     const cb = $('[data-select-all]'); cb.indeterminate = list.some(p => S.selected.has(p.key)) && !list.every(p => S.selected.has(p.key));
   }
   function renderList() {
     renderBulk();
-    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} aria-label="选择 ${h(p.title)}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags">${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="detail" data-key="${h(p.key)}" title="打开右侧论文详情：摘要、笔记、所属类别和项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${understoodButton(p)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
+    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} data-no-i18n aria-label="${h(systemLabel('选择 {paper}', {paper:p.title}))}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags" data-no-i18n>${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="detail" data-key="${h(p.key)}" title="打开右侧论文详情：摘要、笔记、所属类别和项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${understoodButton(p)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
   }
   // Which categories the open paper belongs to; each chip locates that category, and an
   // uncategorized paper says so instead of showing nothing.
   function detailCategoriesHTML(p) {
     const paperDirections = directions().filter(d => memberships(p).includes(String(d.id)));
-    return `<section class="org-detail-categories" aria-label="所属类别"><div class="org-detail-categories-head"><span>所属类别</span><button type="button" class="org-link-button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div><div class="org-detail-badges">${paperDirections.length ? paperDirections.map(d => `<button type="button" class="org-detail-badge" data-action="filter" data-id="${h(d.id)}" title="查看类别：${h(categoryPath(d.id))}"><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</button>`).join('') : '<button type="button" class="org-detail-badge is-empty" data-action="filter" data-id="" title="查看未分类论文">未分类</button>'}</div></section>`;
+    return `<section class="org-detail-categories" aria-label="所属类别"><div class="org-detail-categories-head"><span>所属类别</span><button type="button" class="org-link-button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div><div class="org-detail-badges">${paperDirections.length ? paperDirections.map(d => `<button type="button" class="org-detail-badge" data-action="filter" data-id="${h(d.id)}" data-no-i18n title="${h(systemLabel('查看类别：{category}', {category:categoryPath(d.id)}))}"><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</button>`).join('') : '<button type="button" class="org-detail-badge is-empty" data-action="filter" data-id="" title="查看未分类论文">未分类</button>'}</div></section>`;
   }
   /* The AI summary the Today drawer shows. It is read from what the home page already loaded, or once from
      /api/detail (stored text; no model call); `null` means the paper has none, and nothing is shown then. */
@@ -327,8 +344,8 @@
     const project = understoodProject(p);
     if (!project) return `<button type="button" disabled title="先在某个项目里收藏这篇论文，才能标记已读懂">已读懂</button>`;
     const on = (p.understood_in || []).includes(project);
-    const where = owners(p).length > 1 ? `，记在项目「${projectName(project)}」` : '';
-    return `<button type="button" data-action="understood" data-key="${h(p.key)}" data-project="${h(project)}" class="${on ? 'is-on' : ''}" aria-pressed="${on}" title="${h(`读懂了：只推进学习进度，不改变兴趣画像${where}`)}">${on ? '✓ 已读懂' : '已读懂'}</button>`;
+    const where = owners(p).length > 1 ? systemLabel('，记在项目「{project}」', {project:projectName(project)}) : '';
+    return `<button type="button" data-action="understood" data-key="${h(p.key)}" data-project="${h(project)}" class="${on ? 'is-on' : ''}" aria-pressed="${on}" data-no-i18n title="${h(systemLabel('读懂了：只推进学习进度，不改变兴趣画像') + where)}">${h(systemLabel(on ? '✓ 已读懂' : '已读懂'))}</button>`;
   }
   function summaryFor(key) {
     if (summaryCache.has(key)) return summaryCache.get(key);
@@ -369,16 +386,16 @@
     panel.classList.toggle('has-paper', !!p);
     if (!p) { panel.innerHTML = '<p class="org-empty">选择一篇论文</p>'; return; }
     const draft = draftFor(p);
-    const sourceMeta = [p.published, p.source, p.arxiv_id ? `arXiv:${p.arxiv_id}` : '', p.doi ? 'DOI' : ''].filter(Boolean);
+    const sourceMeta = [p.published, p.source, window.PDH.workTypeLabel?.(p.work_type) || p.work_type, p.arxiv_id ? `arXiv:${p.arxiv_id}` : '', p.doi ? 'DOI' : ''].filter(Boolean);
     const editor = $('[data-note-editor]');
     const focused = editor && document.activeElement === editor;
     const selection = focused ? [editor.selectionStart, editor.selectionEnd] : null;
-    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${sourceMeta.map(h).map(v => `<span>${v}</span>`).join('')}</div>${detailCategoriesHTML(p)}<section class="org-detail-projects" aria-label="所属项目"><span>所属项目</span><div class="org-projects">${projectTags(p, S.snapshot, 'all')}</div></section><details class="org-abstract" open><summary>摘要</summary><p>${h(p.abstract || '暂无摘要')}</p></details><section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
+    panel.innerHTML = `<div class="org-section-head"><h3>论文详情</h3>${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${sourceMeta.map(h).map(v => `<span>${v}</span>`).join('')}</div>${detailCategoriesHTML(p)}<section class="org-detail-projects" aria-label="所属项目"><span>所属项目</span><div class="org-projects">${projectTags(p, S.snapshot, 'all')}</div></section><details class="org-abstract" open><summary>摘要</summary>${p.abstract ? `<p data-no-i18n>${h(p.abstract)}</p>` : '<div>暂无摘要</div>'}</details><section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}</div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
     const reading = document.createElement('div'); reading.className = 'org-reading-tools';
     const read = document.createElement('button'); read.type = 'button'; read.innerHTML = '<img class="org-icon" src="/icons/org/book-open.svg" width="16" height="16" alt="">阅读 PDF';
     read.disabled = typeof window.PDH.openReader !== 'function';
     read.title = read.disabled ? '阅读器尚未加载，请刷新' : '阅读 PDF';
-    read.onclick = () => window.PDH.openReader(p.key, p.title); reading.append(read);
+    read.onclick = () => openLibraryReader(p).catch(report); reading.append(read);
     const url = paperURL(p);
     if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = '打开论文'; reading.append(link); }
     panel.querySelector('.org-detail-categories').after(reading);
@@ -527,6 +544,8 @@
       { selector: 'edge.org-connected', style: { opacity: 1, 'line-color': muted, width: 2 } },
       { selector: 'node.org-focused, node.org-dragging, node.org-pulse', style: { 'border-color': ink, 'border-width': 4, 'overlay-color': 'data(color)', 'overlay-opacity': 0.12, 'overlay-padding': 9, 'overlay-shape': 'ellipse' } },
       { selector: 'node.org-focused', style: { 'font-size': 16, 'font-weight': 650, 'text-max-width': 180, 'text-background-opacity': 1 } },
+      { selector: 'node.org-label-hidden', style: { label: '' } },
+      { selector: 'node.org-label-hidden:selected, node.org-label-hidden.org-focused, node.org-label-hidden.org-hover-label', style: { label: 'data(label)', 'text-wrap': 'wrap', 'text-max-width': 180 } },
       { selector: 'node.org-origin', style: { 'border-color': mark, 'border-width': 5, 'overlay-color': mark, 'overlay-opacity': 0.18, 'overlay-padding': 8 } },
       { selector: 'edge.org-pulse', style: { opacity: 1, width: 2.5 } }
     ];
@@ -543,7 +562,7 @@
     if (!rows.length) { legend.hidden = true; return; }
     legend.hidden = false;
     legend.innerHTML = rows.slice(0, 10).map((d, i) =>
-      `<div class="org-graph-legend-item"><span class="org-graph-legend-dot" style="background:${categoryColor(d.id)}"></span><span>${h(d.name)}</span></div>`
+      `<div class="org-graph-legend-item"><span class="org-graph-legend-dot" style="background:${categoryColor(d.id)}"></span><span data-no-i18n>${h(d.name)}</span></div>`
     ).join('');
   }
   async function loadRelations() {
@@ -678,6 +697,8 @@
       if (target) S.cy.viewport(target);
     }
     S.cy.nodes().forEach(n => { if (S.selected.has(n.data('key'))) n.select(); });
+    const labelDetail = () => S.cy?.nodes().toggleClass('org-label-hidden', S.cy.zoom() < 0.7);
+    S.cy.on('zoom', labelDetail); labelDetail();
     let before;
     S.cy.on('tap', 'node', e => {
       if (e.target.data('key')) { S.navigationToken++; S.key = e.target.data('key'); renderSidebar(); renderDetail(); renderList(); S.root.querySelector('.org-directory-paper.is-active')?.scrollIntoView?.({ block: 'nearest' }); }
@@ -685,10 +706,11 @@
       filterGraph(); focusGraph(e.target.id());
     });
     S.cy.on('mouseover', 'node', e => {
+      e.target.addClass('org-hover-label');
       S.cy.elements().addClass('org-dim'); e.target.closedNeighborhood().removeClass('org-dim').addClass('org-connected');
       container.title = e.target.data('key') ? item(e.target.data('key'))?.title || '' : e.target.data('label');
     });
-    S.cy.on('mouseout', 'node', () => { container.title = ''; highlightGraph(); });
+    S.cy.on('mouseout', 'node', () => { S.cy.nodes().removeClass('org-hover-label'); container.title = ''; highlightGraph(); });
     S.cy.on('mouseover', 'edge', e => { container.title = e.target.data('kind') === 'similarity' ? `内容相似度 ${Math.round(e.target.data('weight') * 100)}%（非引用关系）` : e.target.data('kind') === 'category' ? '同一研究方向（非引用关系）' : e.target.data('kind') === 'hierarchy' ? '类别上下级关系' : '研究方向归属'; });
     S.cy.on('select unselect', 'node', () => { syncGraphSelection(S.cy.nodes()); renderBulk(); });
     const cy = S.cy;
@@ -1011,11 +1033,16 @@
     const key = S.key, result = await window.PDH.api('/api/organization', { action: 'history', key });
     const rows = result.history || [];
     const d = dialog('笔记历史', rows.map((r, i) => `<section class="org-history-entry"><div class="org-section-head"><span>版本 ${h(r.version ?? r.note_version)} · ${h(r.created_at || r.created || '')}</span><button type="button" data-history-restore="${i}">恢复到草稿</button></div><div class="org-markdown">${window.PDH.md(r.text ?? r.note ?? '')}</div></section>`).join('') || '<p>暂无历史版本</p>', null);
-    d.querySelectorAll('[data-history-restore]').forEach(b => b.onclick = () => {
-      const draft = draftFor(item(key));
-      if (draft.dirty && !window.confirm('替换当前未保存的草稿？')) return;
-      draft.text = rows[Number(b.dataset.historyRestore)].text ?? rows[Number(b.dataset.historyRestore)].note ?? '';
-      draft.version = item(key).note_version; draft.dirty = true; draft.error = ''; storeDraft(key, draft); d.close(); renderDetail();
+    d.querySelectorAll('[data-history-restore]').forEach(b => b.onclick = async () => {
+      if(b.disabled || !item(key))return;
+      const draft = draftFor(item(key)), originalText = draft.text;
+      b.disabled=true;
+      try {
+        if (draft.dirty && !await window.PDHDialogs.confirm('替换当前未保存的草稿？', {valid:()=>S.key===key && d.open && draft.text===originalText})) return;
+        if(S.key!==key || !d.open || draft.text!==originalText)return;
+        draft.text = rows[Number(b.dataset.historyRestore)].text ?? rows[Number(b.dataset.historyRestore)].note ?? '';
+        draft.version = item(key).note_version; draft.dirty = true; draft.error = ''; storeDraft(key, draft); d.close(); renderDetail();
+      } finally {b.disabled=false;}
     });
   }
   /* The review lists only what could change: new categories, additions to existing categories, duplicate categories
@@ -1128,11 +1155,12 @@
     const result = await window.PDH.api('/api/organization', { action: 'export' });
     const data = result.export || result;
     if (data == null) throw new Error('导出数据缺失');
-    dialog('导出论文库', '<label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
+    dialog('导出论文库', '<p>包含所有项目的论文库、类别和笔记，不包含原始 PDF。全部结构化状态请在设置中导出。</p><label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
       const format = el.querySelector('select').value;
       const payload = format === 'json' ? JSON.stringify(data, null, 2) : (data.markdown || markdownExport(data));
-      const blob = new Blob([payload], { type: format === 'json' ? 'application/json;charset=utf-8' : 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `paperdighelper-organization-${new Date().toISOString().slice(0, 10)}.${format}`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
+      const receipt = await window.PDHSaveFile(`paperdighelper-organization-${new Date().toISOString().slice(0, 10)}.${format}`, payload);
+      if (receipt.status === 'saved') window.PDH.toast(`导出已保存：${receipt.path}`, 'ok', 8000);
+      else window.PDH.toast('已取消导出，未保存文件', 'warn');
     });
   }
   function markdownExport(data) {
@@ -1238,7 +1266,7 @@
       case 'learning-match-retry':
         if (b.dataset.project !== (S.scope === 'all' ? currentProject() : S.scope) || b.dataset.key !== S.key) break;
         await invalidateLearning(b.dataset.key, true); break;
-      case 'read': { const p = item(b.dataset.key); if (p) await window.PDH.openReader(p.key, p.title); break; }
+      case 'read': { const p = item(b.dataset.key); if (p) await openLibraryReader(p); break; }
       case 'detail': S.key = b.dataset.key; S.navigationToken++; renderDetail(); renderList(); filterGraph(); break;
       case 'detail-close': S.navigationToken++; S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); if (S.focus.startsWith('paper')) { S.focus = 'all'; if (S.mode === 'graph') renderGraph(false); else renderFocus(); } break;
       case 'direction-new': editDirection(); break;
@@ -1328,6 +1356,29 @@
     }
   }
   window.addEventListener('beforeunload', event => { if ([...S.drafts.values()].some(d => d.dirty)) { event.preventDefault(); event.returnValue = ''; } });
+  async function flushDrafts() {
+    await S.queue;
+    for (const [key, draft] of S.drafts) {
+      clearTimeout(draft.timer); clearTimeout(draft.remoteTimer);
+      if (draft.dirty) await persistDraft(key);
+    }
+    await S.queue;
+  }
+  window.PDHFlushDrafts = flushDrafts;
+  let quitting = false;
+  window.PDHPrepareQuit = async () => {
+    if (quitting) return;
+    quitting = true;
+    const editors = typeof document !== 'undefined' ? [...document.querySelectorAll('[data-note-editor]')] : [];
+    const disabled = editors.map(el => el.disabled); editors.forEach(el => { el.disabled = true; });
+    try {
+      await flushDrafts();
+      await window.__TAURI_INTERNALS__.invoke('complete_quit');
+    } catch (error) {
+      quitting = false; editors.forEach((el, i) => { el.disabled = disabled[i]; });
+      window.PDH.toast(`草稿未持久保存，应用保持打开：${error.message}`, 'error', 10000);
+    }
+  };
   // Switching project: forget what was shown for the previous one (selection, focus, similarity relations) and reload.
   function reset() {
     S.cancelReview?.(); S.cancelReview = null;
@@ -1362,5 +1413,5 @@
     const epoch = S.epoch;
     try { return await refresh(); } catch (error) { if (epoch === S.epoch) report(error); return false; }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { contextFor, navigatePaper, renderUnmatched, refresh, loadRelations, renderDetail, aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggest, suggestionsHTML, aiReviewHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { contextFor, navigatePaper, renderUnmatched, refresh, loadRelations, renderDetail, aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggest, suggestionsHTML, aiReviewHTML, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, storeDraft, flushDrafts, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
 })();

@@ -203,7 +203,7 @@ function askIntro(id) {
       notice(`没有使用 AI：${out.reason || 'AI 没有给出简介'}。可以自己写。`);
       return;
     }
-    state.pendingIntro = {id, text: out.intro}; state.selected = state.editing = id;
+    state.pendingIntro = {id, text: out.intro, context_excerpt: out.context_excerpt, scope_notice: out.scope_notice}; state.selected = state.editing = id;
     notice(`AI 写了一段话，已放进编辑框，点“确定”再保存才会生效；今天这个项目还能让 AI 写 ${out.attempts_left} 次。`, false);
     renderDetail();
   });
@@ -235,6 +235,7 @@ function editConcept(holder, graph, concept) {
     <input class="edit" data-role="t" maxlength="130" placeholder="两个检索词，用 / 分隔" aria-label="检索词">
     <textarea class="edit" data-role="i" maxlength="140" rows="2" placeholder="简单说明这个概念是什么、门槛在哪（最多 140 字，可以不写）" aria-label="简介"></textarea>
     <p class="map-note" data-role="introNote"></p>
+    ${state.pendingIntro && state.pendingIntro.id === concept.id ? R.introInputHTML(state.pendingIntro) : ''}
     <label class="map-note"><input type="checkbox" data-role="target"${(graph.targets || []).includes(concept.id) ? ' checked' : ''}> 作为学习目标</label>
     ${R.needsEditorHTML(graph, concept.id)}
     <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>
@@ -262,8 +263,9 @@ function editConcept(holder, graph, concept) {
 
 part('add').onclick = () => {
   try {
-    let name = '新概念', n = 1;
-    while (state.draft.concepts.some((c) => c.name === name)) name = `新概念 ${++n}`;
+    const baseName = window.PDHi18n?.t('新概念') || '新概念';
+    let name = baseName, n = 1;
+    while (state.draft.concepts.some((c) => c.name === name)) name = `${baseName} ${++n}`;
     const next = R.addConcept(state.draft, {name, terms: [], hint: 2}, []);
     state.selected = state.editing = next.concepts[next.concepts.length - 1].id;
     change(next);
@@ -272,16 +274,22 @@ part('add').onclick = () => {
 part('startEmpty').onclick = () => {
   if (state.busy || state.checking) return;
   openAi(); state.creationBrief = true;
-  state.draft = {concepts: [{id: 'c1', name: '第一个概念', terms: [], hint: 1, origin: 'user', state: 'active', side: false}], prereqs: [], targets: ['c1']};
+  state.draft = {concepts: [{id: 'c1', name: (window.PDHi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active', side: false}], prereqs: [], targets: ['c1']};
   state.route = {...(state.route || {}), progress: {}, total: 1, done: 0, exploration_share: 0.2, enabled: true};
   state.dirty = true; state.selected = 'c1'; state.editing = null; render();
 };
 part('discard').onclick = () => { if (!state.checking && !state.busy) load(); };
 part('save').onclick = () => guarded(async () => {
+  if (state.editing || state.pendingIntro) { notice('先点概念编辑框的“确定”或“取消”，再保存学习图。'); return; }
   const verdict = R.check(state.draft);
   if (!verdict.ok) { notice(`学习图还不能保存：${verdict.reason}`); return; }
-  state.route = await api({action: 'save', graph: state.draft, revision: state.route.revision ?? 0, ...(state.creationBrief ? {brief: Brief.read(part('briefFields'))} : {})});
+  const sentBrief = state.creationBrief ? Brief.read(part('briefFields')) : null;
+  state.route = await api({action: 'save', graph: state.draft, revision: state.route.revision ?? 0, ...(sentBrief ? {brief: sentBrief} : {})});
   state.draft = JSON.parse(JSON.stringify(state.route.graph)); state.dirty = false; state.annotated = false;
+  if (sentBrief) {
+    try { state.briefDirty = JSON.stringify(Brief.read(part('briefFields'))) !== JSON.stringify(sentBrief); } catch (_) { state.briefDirty = true; }
+    state.creationBrief = null;
+  }
   notice('已保存。', false); render();
   loadGrowth();
 });
@@ -396,7 +404,7 @@ function renderGrowth() {
     + (result.candidates || []).map((c) => R.candidateRowHTML(c, growth.selected)).join('')
     + (R.growthNote(result) ? `<p class="hint">${esc(R.growthNote(result))}</p>` : '')
     + (growth.undo && growth.undo.revision === state.route.revision   // any other save or mark moves the revision on: then it is no longer the step to take back
-      ? `<p class="hint">${esc(growth.undo.label)}。<button type="button" class="ghost small" data-growth="undo" data-event="${esc(growth.undo.id)}"${locked ? ' disabled title="先保存或放弃对学习图的修改"' : ''}>撤销</button></p>` : '');
+      ? `<p class="hint"><span>${esc(window.PDHi18n?.t(growth.undo.label) || growth.undo.label)}</span> <button type="button" class="ghost small" data-growth="undo" data-event="${esc(growth.undo.id)}"${locked ? ' disabled title="先保存或放弃对学习图的修改"' : ''}>撤销</button></p>` : '');
 }
 async function loadGrowth() {
   try {
@@ -452,7 +460,40 @@ async function judgeNow() {
 }
 part('growthList').onclick = growthClick;
 part('detail').addEventListener('click', growthClick);   // the same buttons in a direction's own panel
-window.addEventListener('beforeunload', (event) => { if (state.dirty || state.briefDirty) { event.preventDefault(); event.returnValue = ''; } });
+function quitOperationPending() { return state.busy || state.checking || growth.judging; }
+function quitNeedsReview() {
+  return state.dirty || state.briefDirty || state.editing || state.pendingIntro || (state.preview && !state.preview.confirmed);
+}
+let quitting = false;
+async function completeRouteQuit() {
+  if (quitting) return;
+  if (quitOperationPending()) { notice('仍在处理学习图，请等当前操作结束后再退出。'); return; }
+  quitting = true;
+  try { await window.__TAURI_INTERNALS__.invoke('complete_quit'); }
+  catch (error) { quitting = false; notice(`无法完成退出，应用保持打开：${error.message}`); }
+}
+window.PDHPrepareQuit = async () => {
+  if (quitting) return;
+  if (quitOperationPending()) { notice('仍在处理学习图，请等当前操作结束后再退出。'); return; }
+  if (quitNeedsReview()) {
+    if (!part('quitDialog').open) part('quitDialog').showModal();
+    return;
+  }
+  await completeRouteQuit();
+};
+part('quitCancel').onclick = () => part('quitDialog').close();
+part('quitReview').onclick = () => {
+  part('quitDialog').close();
+  if (state.editing || state.pendingIntro) part('detail').querySelector('[data-role=n]')?.focus();
+  else if (state.dirty) part('save').focus();
+  else openAi();
+};
+// Only this explicit choice abandons unsaved page edits. It never saves or
+// confirms a graph/AI preview, and an IPC failure leaves every edit intact.
+part('quitDiscard').onclick = completeRouteQuit;
+window.addEventListener('beforeunload', (event) => {
+  if (!quitting && (quitNeedsReview() || quitOperationPending())) { event.preventDefault(); event.returnValue = ''; }
+});
 
 (async () => {
   if (!projectId) { notice('没有指定项目。请从今日推荐页进入。'); return; }

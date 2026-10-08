@@ -201,7 +201,8 @@ class ServerSmokeTests(unittest.TestCase):
     def test_dropped_pdf_is_kept_and_attached_to_the_resolved_seed(self):
         from app import creation
         creation._SEED_CACHE.clear()
-        pdf = b"%PDF-1.7\n1 0 obj<<>>endobj\n%%EOF\n"
+        from tests.pdf_fixture import minimal_pdf
+        pdf = minimal_pdf()
         self.assertEqual(self._upload(b"<html>nope</html>")[0], 400)
         status, uploaded = self._upload(pdf, "my paper.pdf")
         self.assertEqual(status, 200)

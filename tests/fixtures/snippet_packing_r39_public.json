@@ -1,0 +1,366 @@
+{
+  "provenance": "Public fixed persona graph and public title/abstract/proposal fields from actually failed R39 next-batch states. No raw ledger/private project IDs/reviewer labels. Original model failures retained separately.",
+  "cases": [
+    {
+      "case": "cs-growth-v0-r1",
+      "source_round": "R39",
+      "original_outcome": "invalid_input-before-request",
+      "papers": [
+        {
+          "key": "https://doi.org/10.48550/arxiv.2211.15666",
+          "title": "Learning Visual Planning Models from Partially Observed Images",
+          "abstract": "There has been increasing attention on planning model learning in classical planning. Most existing approaches, however, focus on learning planning models from structured data in symbolic representations. It is often difficult to obtain such structured data in real-world scenarios. Although a number of approaches have been developed for learning planning models from fully observed unstructured data (e.g., images), in many scenarios raw observations are often incomplete. In this paper, we provide a novel framework, \\aType{Recplan}, for learning a transition model from partially observed raw image traces. More specifically, by considering the preceding and subsequent images in a trace, we learn the latent state representations of raw observations and then build a transition model based on such representations. Additionally, we propose a neural-network-based approach to learn a heuristic model that estimates the distance toward a given goal observation. Based on the learned transition model and heuristic model, we implement a classical planner for images. We exhibit empirically that our approach is more effective than a state-of-the-art approach of learning visual planning models in the environment with incomplete observations.",
+          "doi": "https://doi.org/10.48550/arxiv.2211.15666",
+          "openalex_id": "https://openalex.org/W4310509154",
+          "published": "2022-11-25"
+        },
+        {
+          "key": "https://doi.org/10.48550/arxiv.2603.11110",
+          "title": "ResWM: Residual-Action World Model for Visual RL",
+          "abstract": "Learning predictive world models from raw visual observations is a central challenge in reinforcement learning (RL), especially for robotics and continuous control. Conventional model-based RL frameworks directly condition future predictions on absolute actions, which makes optimization unstable: the optimal action distributions are task-dependent, unknown a priori, and often lead to oscillatory or inefficient control. To address this, we introduce the Residual-Action World Model (ResWM), a new framework that reformulates the control variable from absolute actions to residual actions -- incremental adjustments relative to the previous step. This design aligns with the inherent smoothness of real-world control, reduces the effective search space, and stabilizes long-horizon planning. To further strengthen the representation, we propose an Observation Difference Encoder that explicitly models the changes between adjacent frames, yielding compact latent dynamics that are naturally coupled with residual actions. ResWM is integrated into a Dreamer-style latent dynamics model with minimal modifications and no extra hyperparameters. Both imagination rollouts and policy optimization are conducted in the residual-action space, enabling smoother exploration, lower control variance, and more reliable planning. Empirical results on the DeepMind Control Suite demonstrate that ResWM achieves consistent improvements in sample efficiency, asymptotic returns, and control smoothness, significantly surpassing strong baselines such as Dreamer and TD-MPC. Beyond performance, ResWM produces more stable and energy-efficient action trajectories, a property critical for robotic systems deployed in real-world environments. These findings suggest that residual action modeling provides a simple yet powerful principle for bridging algorithmic advances in RL with the practical requirements of robotics.",
+          "doi": "https://doi.org/10.48550/arxiv.2603.11110",
+          "openalex_id": "https://openalex.org/W7135200086",
+          "published": "2026-03-11"
+        },
+        {
+          "key": "https://doi.org/10.48550/arxiv.2609.39235",
+          "title": "The Planning Limits of Latent World Models",
+          "abstract": "World models offer a promising way to help robots understand how the physical world evolves and plan complex behaviours through imagination. Yet existing studies mainly demonstrate what these models can accomplish, leaving unclear when their predictions remain useful for planning and where they fail. We study this question using action-conditioned predictors built on five frozen self-supervised visual backbones: V-JEPA 2, V-JEPA 2.1, VideoMAEv2, VideoPrism, and DINOv2. We use frozen backbones to test representations intended to transfer across environments. We evaluate these models on diverse Meta-World manipulation tasks and real-robot interactions from BridgeData V2. We find that a world model guides action selection reliably only when the goal lies within, or slightly beyond, the trajectory it imagines during planning. With five-step rollouts, the length the predictor was trained on, the world model ranks actions reliably only for targets five to ten control steps ahead, whereas task goals lie 16 to 53 steps away. Neither an 81-fold larger predictor nor longer-rollout training extends this range; the encoder affects both range and closed-loop success, with V-JEPA 2.1 performing most consistently. More fundamentally, the limit persists under perfect prediction: using the real simulator, success falls from 92% to 41% as the target moves from five to twenty steps ahead of a five-step rollout. Planning therefore requires either longer imagined trajectories or closer subgoals. For distant goals, pure imagination succeeds in 23% of episodes, planning with feedback (MPC) raises success to 30%, imagining as far as the goal to 47%, and nearby expert subgoals to 76%. Used within its plannable range, a world model can also improve a vision-language-action (VLA) policy: choosing among eight actions the VLA proposes raises its success from 65% to 77% across 16 different tasks.",
+          "doi": "https://doi.org/10.48550/arxiv.2609.39235",
+          "openalex_id": "https://openalex.org/W7215060812",
+          "published": "2026-09-30"
+        }
+      ],
+      "graph": {
+        "concepts": [
+          {
+            "id": "visual",
+            "name": "视觉状态表征",
+            "terms": [
+              "visual representation",
+              "latent state"
+            ],
+            "hint": 1,
+            "type": "foundation",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false,
+            "why": "为固定目标提供必要的基础理解；这是显式测试前置，其学科正确性另行盲审。"
+          },
+          {
+            "id": "dynamics",
+            "name": "动作条件动力学",
+            "terms": [
+              "world model",
+              "latent dynamics"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          },
+          {
+            "id": "planning",
+            "name": "模型规划",
+            "terms": [
+              "model predictive control",
+              "visual planning"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          },
+          {
+            "id": "evaluation",
+            "name": "规划泛化评估",
+            "terms": [
+              "model uncertainty",
+              "generalization"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          }
+        ],
+        "prereqs": [
+          {
+            "from": "visual",
+            "to": "dynamics",
+            "state": "active"
+          },
+          {
+            "from": "dynamics",
+            "to": "planning",
+            "state": "active"
+          }
+        ],
+        "targets": [
+          "planning",
+          "evaluation"
+        ]
+      },
+      "directions": [
+        {
+          "name": "世界模型量化评估",
+          "intro": "学习在不同位宽、量化粒度和规划步长下评估世界模型量化对视觉规划的影响",
+          "terms": [
+            "world model quantization",
+            "visual planning evaluation"
+          ],
+          "proposal_type": "new_branch"
+        },
+        {
+          "name": "交互式世界模型学习",
+          "intro": "学习可扩展的交互式世界模型，支持动作条件视频预测、视觉规划与基于模型的强化学习",
+          "terms": [
+            "interactive world model",
+            "action-conditioned video prediction"
+          ],
+          "proposal_type": "new_branch"
+        },
+        {
+          "name": "训练无关视觉规划",
+          "intro": "学习无需训练即可逐步构建并反思内部世界模型的视觉规划策略",
+          "terms": [
+            "training-free planning",
+            "visual planning"
+          ],
+          "proposal_type": "new_branch"
+        }
+      ],
+      "fixed_scope": "视觉 世界模型",
+      "english": false
+    },
+    {
+      "case": "cs-growth-v1-r1",
+      "source_round": "R39",
+      "original_outcome": "invalid_input-before-request",
+      "papers": [
+        {
+          "key": "https://doi.org/10.48550/arxiv.2311.17918",
+          "title": "Driving into the Future: Multiview Visual Forecasting and Planning with World Model for Autonomous Driving",
+          "abstract": "In autonomous driving, predicting future events in advance and evaluating the foreseeable risks empowers autonomous vehicles to better plan their actions, enhancing safety and efficiency on the road. To this end, we propose Drive-WM, the first driving world model compatible with existing end-to-end planning models. Through a joint spatial-temporal modeling facilitated by view factorization, our model generates high-fidelity multiview videos in driving scenes. Building on its powerful generation ability, we showcase the potential of applying the world model for safe driving planning for the first time. Particularly, our Drive-WM enables driving into multiple futures based on distinct driving maneuvers, and determines the optimal trajectory according to the image-based rewards. Evaluation on real-world driving datasets verifies that our method could generate high-quality, consistent, and controllable multiview videos, opening up possibilities for real-world simulations and safe planning.",
+          "doi": "https://doi.org/10.48550/arxiv.2311.17918",
+          "openalex_id": "https://openalex.org/W4389218154",
+          "published": "2023-11-29"
+        },
+        {
+          "key": "https://doi.org/10.48550/arxiv.2602.18639",
+          "title": "JEPA-Bisim: Learning Robust Visual Representations for Planning with Joint-Embedding Predictive World Models",
+          "abstract": "World models learned from high-dimensional visual observations allow agents to make decisions and plan directly in latent space, avoiding pixel-level reconstruction. However, recent latent predictive architectures (JEPAs), including the DINO world model (DINO-WM), display a degradation in test time robustness due to their sensitivity to ``slow features\". These include visual variations such as background changes and distractors that are irrelevant to the task being solved. We address this limitation by augmenting the predictive objective with a bisimulation encoder that enforces control-relevant state equivalence, mapping states with similar transition dynamics to nearby latent states while limiting contributions from slow features. We evaluate our model on a navigation task (PointMaze) and on a manipulation task (PushT) under different test-time background changes and visual distractors. Across all benchmarks, our model consistently improves robustness to slow features while operating in a reduced latent space, up to $10\\times$ smaller than that of DINO-WM. Moreover, our model is agnostic to the choice of pre-trained visual encoder and maintains robustness when paired with DINOv2, SimDINOv2, and iBOT features.",
+          "doi": "https://doi.org/10.48550/arxiv.2602.18639",
+          "openalex_id": "https://openalex.org/W7131285459",
+          "published": "2026-02-20"
+        },
+        {
+          "key": "https://doi.org/10.48550/arxiv.2411.04983",
+          "title": "DINO-WM: World Models on Pre-trained Visual Features enable Zero-shot Planning",
+          "abstract": "The ability to predict future outcomes given control actions is fundamental for physical reasoning. However, such predictive models, often called world models, remains challenging to learn and are typically developed for task-specific solutions with online policy learning. To unlock world models' true potential, we argue that they should 1) be trainable on offline, pre-collected trajectories, 2) support test-time behavior optimization, and 3) facilitate task-agnostic reasoning. To this end, we present DINO World Model (DINO-WM), a new method to model visual dynamics without reconstructing the visual world. DINO-WM leverages spatial patch features pre-trained with DINOv2, enabling it to learn from offline behavioral trajectories by predicting future patch features. This allows DINO-WM to achieve observational goals through action sequence optimization, facilitating task-agnostic planning by treating goal features as prediction targets. We demonstrate that DINO-WM achieves zero-shot behavioral solutions at test time on six environments without expert demonstrations, reward modeling, or pre-learned inverse models, outperforming prior state-of-the-art work across diverse task families such as arbitrarily configured mazes, push manipulation with varied object shapes, and multi-particle scenarios.",
+          "doi": "https://doi.org/10.48550/arxiv.2411.04983",
+          "openalex_id": "https://openalex.org/W4404360744",
+          "published": "2024-11-07"
+        }
+      ],
+      "graph": {
+        "concepts": [
+          {
+            "id": "visual",
+            "name": "视觉状态表征",
+            "terms": [
+              "visual representation",
+              "latent state"
+            ],
+            "hint": 1,
+            "type": "foundation",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false,
+            "why": "为固定目标提供必要的基础理解；这是显式测试前置，其学科正确性另行盲审。"
+          },
+          {
+            "id": "dynamics",
+            "name": "动作条件动力学",
+            "terms": [
+              "world model",
+              "latent dynamics"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          },
+          {
+            "id": "planning",
+            "name": "模型规划",
+            "terms": [
+              "model predictive control",
+              "visual planning"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          },
+          {
+            "id": "evaluation",
+            "name": "规划泛化评估",
+            "terms": [
+              "model uncertainty",
+              "generalization"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          }
+        ],
+        "prereqs": [
+          {
+            "from": "visual",
+            "to": "dynamics",
+            "state": "active"
+          },
+          {
+            "from": "dynamics",
+            "to": "planning",
+            "state": "active"
+          }
+        ],
+        "targets": [
+          "planning",
+          "evaluation"
+        ]
+      },
+      "directions": [],
+      "fixed_scope": "视觉 世界模型",
+      "english": true
+    },
+    {
+      "case": "materials-growth-v1-r1",
+      "source_round": "R39",
+      "original_outcome": "invalid_input-before-request",
+      "papers": [
+        {
+          "key": "https://doi.org/10.1149/ma2025-017771mtgabs",
+          "title": "New Types of Binder for Ceramic Solid Electrolyte Films: Sulfide Electrolyte, Lithium Metal, Interfaces and Cyclability",
+          "abstract": "Solid-state batteries are expected to provide holistic solutions to overcome major growth barriers in the EV market, with its higher energy density, faster charging rate, intrinsic safety, and potentially better affordability. Sulfide-based electrolyte is attracting extensive interest among other solid electrolyte chemistries, owing to its outstanding conductivity and processibility at ambient temperature. According to multiple announcements from battery manufacturers and OEMs, the sulfide-based all-solid-state batteries are believed to be only a few years away from its start of production for EV applications. As demonstrated in literature, the sulfide solid electrolyte is not stable with lithium metal. To be competitive with other technologies, the sulfide solid electrolyte could be combined with lithium metal, and the obtained all-solid-state batteries demonstrate comparable performances at high c-rate. But the dendrite formation or cracks are observed, even if high pressure is applied. This presentation will address the remaining challenges of sulfide-electrolyte film and interfaces with lithium metal. The development of new “binders” for sulfide film electrolyte will be presented with the demonstration of relationship of solid electrolyte ceramic film composition, binder, density, flexibility to offer high conductivity and easily manipulation. With stabilized lithium metal interface and specific properties of solid electrolyte film by binder development, more than 700 cycles under industry-relevant pressure conditions at moderate temperature under pouch-cell configuration were obtained. The complementarity between binder properties, mixing, preparation and electrochemical measurements will be explained with technical and economical issues to bring the technology closer to the market.",
+          "doi": "https://doi.org/10.1149/ma2025-017771mtgabs",
+          "openalex_id": "https://openalex.org/W4412541930",
+          "published": "2025-07-11"
+        },
+        {
+          "key": "https://doi.org/10.1002/aenm.202504926",
+          "title": "Insight Into All‐Solid‐State Lithium‐Sulfur Batteries: Challenges and Interface Engineering at the Electrode‐Sulfide Solid Electrolyte Interface",
+          "abstract": "ABSTRACT Challenges such as persistent shuttle effects, fast capacity fading, and safety concerns in conventional liquid lithium‐sulfur (Li─S) batteries have significantly hindered their commercialization. Replacing liquid electrolytes with inorganic solid electrolytes has emerged as a promising strategy to overcome these limitations, owing to their intrinsic safety and shuttle‐effect‐free characteristic. Despite great advancements in all‐solid‐state lithium‐sulfur batteries (ASSLSBs), numerous challenges persist, including low active material utilization, large volume change during cycling, electrolyte‐electrode interfacial reactions, and the high proportion of inactive components. This review provides a comprehensive overview of recent advancements in ASSLSBs, with a particular focus on sulfur cathode design strategies aimed at enhancing ionic and electronic conducting percolations and mitigating the interfacial stresses caused by sulfur's volume changes during cycling. Furthermore, the interfacial challenges at the composite cathode‐electrolyte and electrolyte‐anode interfaces are critically analyzed, and pathways for engineering interfaces to maximize performance and extend battery lifetime are discussed. Finally, the preparation of thin electrolyte membrane, which is closely tied to the overall energy density of ASSLSBs, is thoroughly examined. By addressing these key aspects, this review aims to provide valuable insights into the critical factors affecting the performance of sulfide‐based ASSLSBs and guide future research efforts toward their commercialization.",
+          "doi": "https://doi.org/10.1002/aenm.202504926",
+          "openalex_id": "https://openalex.org/W4417358649",
+          "published": "2025-12-16"
+        },
+        {
+          "key": "https://doi.org/10.1002/adfm.202315555",
+          "title": "High Ionic Conductive, Mechanical Robust Sulfide Solid Electrolyte Films and Interface Design for All‐Solid‐State Lithium Metal Batteries",
+          "abstract": "Abstract All‐solid‐state lithium batteries (ASSLBs) are considered a promising technology for next‐generation energy storage systems due to their inherent safety. However, the conventional laboratory‐scale ASSLBs reported to date are based on pellet‐type structures with thick solid electrolyte layers, leading to challenges related to low energy densities and poor electrochemical performance. In this study, porous adhesive poly(ethylene vinyl acetate) (PEVA) scaffolds and polytetrafluoroethylene (PTFE) binders are utilized to interweave sulfide solid electrolytes into freestanding films with an ultra‐low thickness of 40 µm, high ionic conductivity of 1.1 mS cm −1 , and a high tensile strength of 74 MPa. To mitigate the reduction reaction between the PTFE binder and the lithium metal anode, a Li 3 N‐rich solid electrolyte interphase (SEI) in situ on lithium metal is formed, and the assembled symmetric cell shows excellent cycling stability within 800 h at the current density of 0.2 mA cm −2 and room temperature. Additionally, the ASSLBs using oxidatively stable Li 2 ZrCl 5 F in the composite cathode and the prepared solid electrolyte film demonstrate exceptional cycling performance and fast‐charging capability, with a high cell‐level energy density of 354.4 Wh kg −1 . The ASSLBs prepared by coupling E‐LPSCl film and stable interface design exhibit excellent electrochemical performance and a high cell‐level energy density.",
+          "doi": "https://doi.org/10.1002/adfm.202315555",
+          "openalex_id": "https://openalex.org/W4392519266",
+          "published": "2024-03-06"
+        }
+      ],
+      "graph": {
+        "concepts": [
+          {
+            "id": "transport",
+            "name": "硫化物输运基础",
+            "terms": [
+              "sulfide electrolyte",
+              "ionic conductivity"
+            ],
+            "hint": 1,
+            "type": "foundation",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false,
+            "why": "为固定目标提供必要的基础理解；这是显式测试前置，其学科正确性另行盲审。"
+          },
+          {
+            "id": "interface",
+            "name": "锂金属界面反应",
+            "terms": [
+              "lithium metal interface",
+              "interphase"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          },
+          {
+            "id": "failure",
+            "name": "沉积和界面失效",
+            "terms": [
+              "dendrite",
+              "critical current density"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          },
+          {
+            "id": "characterization",
+            "name": "界面稳定性评估",
+            "terms": [
+              "interfacial stability",
+              "interfacial resistance"
+            ],
+            "hint": 2,
+            "type": "topic",
+            "intro": "",
+            "origin": "user",
+            "state": "active",
+            "side": false
+          }
+        ],
+        "prereqs": [
+          {
+            "from": "transport",
+            "to": "interface",
+            "state": "active"
+          },
+          {
+            "from": "interface",
+            "to": "failure",
+            "state": "active"
+          }
+        ],
+        "targets": [
+          "failure",
+          "characterization"
+        ]
+      },
+      "directions": [],
+      "fixed_scope": "sulfide electrolyte",
+      "english": true
+    }
+  ]
+}

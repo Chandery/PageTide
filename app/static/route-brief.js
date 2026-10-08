@@ -49,7 +49,13 @@
       <p>目标：${esc(names(before.graph, before.graph?.targets))} → ${esc(names(after.graph, after.graph?.targets))}</p>
       ${rows.length ? `<table class="revision-table"><tbody>${rows.join('')}</tbody></table>` : '<p>没有结构修改。</p>'}
       ${briefs ? `<table class="revision-table"><thead><tr><th>需求</th><th>原需求</th><th>新需求</th></tr></thead><tbody>${briefs}</tbody></table>` : ''}
-      ${(changes.warnings || []).map(w => `<p class="map-note">${esc(w)}</p>`).join('')}
+      ${(changes.warnings || []).map(w => {
+        const relation = w && typeof w === 'object' ? `${names(after.graph, [w.from])} → ${names(after.graph, [w.to])}` : '';
+        const text = typeof w === 'string' ? w : w?.kind === 'prerequisite_review'
+          ? `请核对这条前置是否必要：${relation}。依据：${w.reason || '未说明；建议补充依据或删除关系'}`
+          : w?.kind === 'hint_inversion' ? `前置难度高于后续概念：${relation}` : '请核对学习关系';
+        return `<p class="map-note">${esc(text)}</p>`;
+      }).join('')}
       <p class="map-note">新增或语义改变的任务不继承旧掌握；兴趣反馈和论文历史保留。人工简介与稳定节点的关注保持。</p>
       ${preview.stale ? '<p class="notice error">学习图或有效反馈已变化，草稿保留；请重新生成预览后确认。</p>' : ''}
       ${preview.confirmed ? '<p class="notice">这次修改已确认。</p>' : ''}`;

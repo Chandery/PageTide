@@ -1073,6 +1073,37 @@
         "app/reference_files.py",
         "docs/evidence/2026-10-07-library-import-checks.txt"
       ]
+    },
+    {
+      "id": "FIX-MULTIDISCIPLINE-AUDIT",
+      "stage": "reading",
+      "title": "Repair every confirmed B01–B29 and I01–I12 audit finding with isolated evidence",
+      "status": "in_progress",
+      "depends_on": [],
+      "requirements": [
+        "R-PROFILE",
+        "R-LOCAL",
+        "R-DURABILITY",
+        "R-BUDGET",
+        "R-HARNESS",
+        "R-PDF",
+        "R-GRAPH",
+        "R-ROUTE-V2-06",
+        "R-ROUTE-V2-07",
+        "R-ROUTE-V2-08",
+        "R-LIBRARY-IMPORT"
+      ],
+      "acceptance": [
+        "Every B01–B29 and I01–I12 has a per-ID repair and verification entry; overlapping findings stay traceable rather than counted twice. Unsupported model benefit or human-value gates remain open",
+        "Protect paper/project/PDF identity, complete source/version metadata, archive rollback references and persistent draft/session state; all failure paths recover or refuse with actionable messages",
+        "Enforce actual source/count/time/settings, scientific terms and evidence meaning; default import never creates positive feedback or mastery; all known type/date/seed/alias counterexamples rechecked",
+        "All AI stays in single Gateway with complete-message pretransport cap, existing operation/output/global limits and no fallback/retry. Repeated real public six-scenario tests use independent developer ledger; unknown/failing semantic outputs remain visible",
+        "Full Python/Node tests, fresh backend/Tauri package/signature/packaged-route checks, actual isolated native verification and independent review. Original user DB/PDF/ledgers preserved; no whole-product release approval inferred"
+      ],
+      "evidence": [
+        "docs/decisions/0030-audit-repairs.md",
+        "docs/evidence/2026-10-08-fixes-matrix.md"
+      ]
     }
   ]
 }

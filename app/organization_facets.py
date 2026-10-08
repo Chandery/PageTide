@@ -15,6 +15,7 @@ import json
 import re
 from collections import Counter, defaultdict
 
+from . import ranking
 from .clustering import MAX_PAPERS, MAX_TEXT, corpus_fingerprint, _corpus
 from .organization_terms import LABELS, TERMS, category_identity, category_label, category_aliases, category_term
 
@@ -54,7 +55,7 @@ def stem(word):
 
 def words(text):
     """Latin/digit words with original spelling, split on hyphens and punctuation."""
-    return [w for w in re.findall(r"[^\W_]+", text or "", re.UNICODE) if not CJK.search(w)]
+    return [w for w in re.findall(r"[^\W_]+", ranking.scientific_text(text), re.UNICODE) if not CJK.search(w)]
 
 
 def _stems(text):
@@ -122,7 +123,7 @@ def _clean_terms(values):
     return terms
 
 
-def _phrases(rows, keys, exclude):
+def _phrases(rows, keys, exclude, docs=None, texts=None):
     """Only supported complete terms with explicit title/abstract evidence become suggestions."""
     found = {}
     for term in TERMS:
@@ -136,8 +137,8 @@ def _phrases(rows, keys, exclude):
             continue
         members = set()
         for key in keys:
-            text = rows[key]['title'] + ' ' + rows[key]['abstract']
-            doc = _segments(rows[key]['title']) + _segments(rows[key]['abstract'])
+            text = texts[key] if texts is not None else rows[key]['title'] + ' ' + rows[key]['abstract']
+            doc = docs[key] if docs is not None else _segments(rows[key]['title']) + _segments(rows[key]['abstract'])
             if any(_contains(doc, v, gap=0) for v in variants) or any(CJK.search(alias) and alias.casefold() in text.casefold() for alias in term['aliases']):
                 members.add(key)
         if len(members) >= MIN_GROUP:
@@ -290,12 +291,12 @@ def suggest_groups(papers, profile=None):
                                  display(child["term"]),
                                  text_of["nested"] % (child["term"], parent_group["name"]),
                                  [child["term"]]))
-        candidates = {gram: value for gram, value in _phrases(rows, members, exclude).items()
-                      if len(value[0]) < len(members)
+        candidates = {gram: value for gram, value in _phrases(rows, members, exclude, doc, text).items()
+                      if (len(value[0]) < len(members) or category_term(value[1]).get('parent') == (category_term(parent_group['name']) or {}).get('id'))
                       and not any(_jaccard(value[0], t) >= DUPLICATE for t in taken)
                       and (category_term(value[1])["kind"] == "method"
                            or category_term(value[1]).get("parent") == (category_term(parent_group["name"]) or {}).get("id"))}
-        for gram, share, surface in _pick(candidates, members, MAX_CHILDREN - len(reserved), interest):
+        for gram, share, surface in _pick(candidates, list(members)+["\0"], MAX_CHILDREN - len(reserved), interest):
             # Only name interest words the parent does not already say.
             echo = sorted(set(gram) & interest - WEAK - {s for ex in exclude for s in ex})
             groups.append(_group("phrase", " ".join(gram), share, parent_group["id"],
@@ -315,14 +316,14 @@ def suggest_groups(papers, profile=None):
     # 2. Papers no pinned term covers: repeated title phrases, never discipline labels.
     covered = set().union(*(top["keys"] for top in tops)) if tops else set()
     rest = [key for key in keys if key not in covered]
-    top_candidates = {g: v for g, v in _phrases(rows, rest, []).items()
+    top_candidates = {g: v for g, v in _phrases(rows, rest, [], doc, text).items()
                       if category_term(v[1])["kind"] == "direction" and category_term(v[1])["parent"] is None}
     phrase_tops = _pick(top_candidates, rest + ["\0"], MAX_TOP - len(tops), interest) if len(rest) >= MIN_GROUP else []
     for gram, members, surface in phrase_tops:
         reason = text_of["rest" if pinned else "rest_unpinned"] % (len(members), surface)
         group = _group("phrase", " ".join(gram), members, None, phrase_name(gram, surface), reason, [surface])
         groups.append(group)
-        if len(members) >= 2 * MIN_GROUP:
+        if len(members) >= MIN_GROUP:
             add_children(group, members, [gram], [])
     placed = {key for group in groups for key in group["keys"]}
     return {"fingerprint": corpus_fingerprint(rows_list), "algorithm": ALGORITHM,

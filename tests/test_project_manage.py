@@ -178,11 +178,22 @@ class ProjectPlanTests(Fixture):
 
     def test_the_report_says_whether_the_map_is_branched(self):
         self.gateway(reply(BRANCHED))
-        shape = self.app.route_plan_project(self.pid, self.GOAL)["report"]["shape"]
-        self.assertEqual((shape["roots"], shape["levels"], shape["width"], shape["chain"]), (2, 3, 2, False))
+        out = self.app.route_plan_project(self.pid, self.GOAL)
+        shape = out["report"]["shape"]
+        self.assertEqual((shape["roots"], shape["levels"], shape["width"], shape["chain"]), (5, 1, 5, False))
+        self.assertEqual(out["graph"]["prereqs"], [])
+        self.assertTrue(out["report"]["warnings"])
+        self.assertEqual(len(out["report"]["prerequisite_review"]), 4)
+        self.assertEqual(BRANCHED["concepts"][-1]["needs"], ["c", "d"])  # Original model fixture is preserved.
         self.gateway(reply(CHAIN))
-        shape = self.app.route_plan_project(self.pid, self.GOAL)["report"]["shape"]
-        self.assertTrue(shape["chain"])
+        out = self.app.route_plan_project(self.pid, self.GOAL)
+        self.assertFalse(out["report"]["shape"]["chain"])
+        self.assertEqual(out["graph"]["prereqs"], [])
+        self.assertTrue(out["report"]["warnings"])
+        # The person's explicitly saved/manual branched graph remains branched.
+        self.app.route_save(self.pid, plan=BRANCHED)
+        shape = pg.shape(self.app.route_get(self.pid)["graph"])
+        self.assertEqual((shape["roots"], shape["levels"], shape["width"], shape["chain"]), (2, 3, 2, False))
 
     def test_the_model_sees_only_the_goal_and_the_first_five_keywords(self):
         self.app.projects.update_project(self.pid, keywords=[f"kw{i}" for i in range(9)])
@@ -288,10 +299,17 @@ class ProjectPlanTests(Fixture):
 
     def test_a_proposal_can_then_be_saved_like_any_map(self):
         self.gateway(reply(BRANCHED))
-        graph = self.app.route_plan_project(self.pid, self.GOAL)["graph"]
+        out = self.app.route_plan_project(self.pid, self.GOAL)
+        graph = out["graph"]
         saved = self.app.route_save(self.pid, graph=graph, revision=0)
         self.assertEqual(len(saved["graph"]["concepts"]), 5)
-        self.assertEqual({c["status"] if "status" in c else p["status"] for c, p in [(c, saved["progress"][c["id"]]) for c in saved["graph"]["concepts"]]} >= {"unlocked", "locked"}, True)
+        self.assertEqual(saved["graph"]["prereqs"], [])
+        self.assertTrue(out["report"]["warnings"])
+        self.assertEqual({saved["progress"][c["id"]]["status"] for c in saved["graph"]["concepts"]}, {"unlocked"})
+        self.app.route_save(self.pid, plan=BRANCHED)
+        manual = self.app.route_get(self.pid)
+        self.assertTrue(manual["graph"]["prereqs"])
+        self.assertEqual({manual["progress"][c["id"]]["status"] for c in manual["graph"]["concepts"]}, {"unlocked", "locked"})
 
 
 class PromptTests(unittest.TestCase):

@@ -145,6 +145,8 @@ def import_pdf(data_dir, data, filename=""):
         raise ValueError("这不是 PDF 文件")
     if len(data) > PDF_MAX_BYTES:
         raise ValueError("PDF 超过 60 MB，无法导入")
+    from .pdf_validation import validate_pdf
+    validate_pdf(data)
     folder = Path(data_dir) / "imports"
     folder.mkdir(parents=True, exist_ok=True)
     cutoff = time.time() - IMPORT_TTL_SECONDS
@@ -195,11 +197,19 @@ def archive_pdf(data_dir, sha256, source):
     target_dir = Path(data_dir) / "pdfs"
     target = target_dir / f"import-{sha256[:24]}.pdf"
     if target.exists():
+        if hashlib.sha256(target.read_bytes()).hexdigest() != sha256:
+            raise ValueError("已归档的 PDF 校验失败，请先核对或重新获取文件")
         return target
     target_dir.mkdir(parents=True, exist_ok=True)
-    partial = target.with_suffix(".pdf.part")
-    shutil.copyfile(source, partial)
-    partial.replace(target)
+    import uuid
+    partial = target_dir / (".import-" + uuid.uuid4().hex + ".part")
+    try:
+        shutil.copyfile(source, partial)
+        if hashlib.sha256(partial.read_bytes()).hexdigest() != sha256:
+            raise ValueError("复制期间 PDF 内容改变，请重新上传")
+        partial.replace(target)
+    finally:
+        partial.unlink(missing_ok=True)
     return target
 
 

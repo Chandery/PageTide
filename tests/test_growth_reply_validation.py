@@ -7,7 +7,8 @@ from app import growthproposal
 class GrowthReplyValidationTests(Fixture):
     def queue(self, count=6):
         for i in range(count):
-            self.add(f'b{i}', f'Synthetic paper {i}', 'Public synthetic abstract', 'synthetic')
+            self.add(f'b{i}', f'Synthetic paper {i}',
+                     'Epitaxy and strain relaxation are studied in this synthetic abstract.', 'synthetic')
             self.say((f'b{i}', 'useful'))
 
     def topic_groups(self, number):
@@ -23,7 +24,7 @@ class GrowthReplyValidationTests(Fixture):
         calls = []
         def respond(operation, messages, dry_run=False):
             calls.append(messages)
-            return reply(self.topic_groups(len(calls)))
+            return self.evidence_reply(self.topic_groups(len(calls)))
         self.app.gateway.call = respond
         out = self.app.route_direction_judge(self.pid)
         self.assertEqual((out['processed'], out['pending'], out['complete'], out['judges_left']), (6, 0, True, 9))
@@ -38,7 +39,7 @@ class GrowthReplyValidationTests(Fixture):
         calls = []
         def respond(operation, messages, dry_run=False):
             calls.append(messages)
-            return reply([{'papers': ['p1', 'p2', 'p3'], 'verdict': 'covered', 'nearest': 'c2',
+            return self.evidence_reply([{'papers': ['p1', 'p2', 'p3'], 'verdict': 'covered', 'nearest': 'c2',
                            'reason': 'Different methods supplement the same learning objective.'}])
         self.app.gateway.call = respond
         out = self.app.route_direction_judge(self.pid)
@@ -55,9 +56,9 @@ class GrowthReplyValidationTests(Fixture):
             body = json.loads(messages[1]['content'])
             calls.append(body)
             if len(calls) == 1:
-                return reply([new(['p1', 'p2', 'p3'], name='Reusable learning capability')])
+                return self.evidence_reply([new(['p1', 'p2', 'p3'], name='Reusable learning capability')])
             self.assertEqual(list(body['directions']), ['d1'])
-            return reply([{'papers': ['p1', 'p2', 'p3'], 'verdict': 'join', 'direction': 'd1',
+            return self.evidence_reply([{'papers': ['p1', 'p2', 'p3'], 'verdict': 'join', 'direction': 'd1',
                            'reason': 'Additional evidence for the same learning objective.'}])
         self.app.gateway.call = respond
         out = self.app.route_direction_judge(self.pid)
@@ -145,7 +146,7 @@ class GrowthReplyValidationTests(Fixture):
         calls = []
         def respond(operation, messages, dry_run=False):
             calls.append(messages)
-            return reply([{'papers': ['p1', 'p2'], 'verdict': 'covered', 'nearest': 'c2'},
+            return self.evidence_reply([{'papers': ['p1', 'p2'], 'verdict': 'covered', 'nearest': 'c2'},
                           {'papers': ['p3'], 'verdict': 'unclear', 'nearest': 'c1',
                            'reason': 'There is insufficient evidence to identify a matching learning capability.'}])
         self.app.gateway.call = respond
@@ -170,7 +171,7 @@ class GrowthReplyValidationTests(Fixture):
         calls = []
         def respond(operation, messages, dry_run=False):
             calls.append(messages)
-            return reply([{**new(['p1', 'p2'], name=f'Independent capability {len(calls)}'),
+            return self.evidence_reply([{**new(['p1', 'p2'], name=f'Independent capability {len(calls)}'),
                            'reason_note': '', 'reason_detail': ''},
                           {'papers': ['p3'], 'verdict': 'unclear', 'nearest': 'c1',
                            'reason': 'Insufficient evidence.'}])
@@ -213,7 +214,7 @@ class GrowthReplyValidationTests(Fixture):
         count = []
         def response(*args, **kwargs):
             count.append(1)
-            return reply(self.topic_groups(len(count)))
+            return self.evidence_reply(self.topic_groups(len(count)))
         self.app.gateway.call = response
         out = self.app.route_direction_judge(self.pid)
         self.assertEqual((out['processed'], out['pending'], out['complete'], out['model_calls']), (6, 0, True, 2))
@@ -231,7 +232,7 @@ class GrowthReplyValidationTests(Fixture):
             body = json.loads(messages[1]['content'])
             self.assertLessEqual(len(body['directions']), 3)
             calls.append(messages)
-            return reply([new([p], name=f'Proposal {len(calls)}-{i}') for i, p in enumerate(body['papers'])])
+            return self.evidence_reply([new([p], name=f'Proposal {len(calls)}-{i}') for i, p in enumerate(body['papers'])])
         self.app.gateway.call = response
         before = self.app.route_get(self.pid)['graph']
         out = self.app.route_direction_judge(self.pid)

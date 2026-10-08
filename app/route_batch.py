@@ -5,7 +5,7 @@ has been established. A matching routine satisfied concept is not a filler.
 """
 from datetime import date
 
-from . import pathgraph, pathgrowth
+from . import learning_scope, pathgraph, pathgrowth
 from .sources import clean_query
 
 MAX_BATCH = 5
@@ -20,7 +20,7 @@ def policy(completed=False):
 
 
 def choose(route, papers, scored, limit, directions=(), shown=None, sources=None,
-           recent_since=None, today=None):
+           recent_since=None, today=None, evidence=None):
     """[(paper_key, concept_id | None, kind, label | None)], at most five.
 
     Paths can repeat until explicitly answered; discoveries always need unseen
@@ -34,9 +34,11 @@ def choose(route, papers, scored, limit, directions=(), shown=None, sources=None
     limit = max(0,min(MAX_BATCH,int(limit)))
     completed = route.get('goal_status') == 'completed'
     if route.get('goal_status') not in ('learning','completed') or route.get('progress_verification_deferred'):return []
+    matching_scope=route.get('matching_scope') or learning_scope.make(route.get('brief'))
+    papers=[p for p in papers if learning_scope.check(matching_scope,p)['compatible']]
     graph=route['graph'];frontier=route.get('frontier') or []
     active={**graph,'concepts':[c for c in graph['concepts'] if c.get('state','active')=='active']}
-    assigned=pathgrowth.assign(active,papers)
+    assigned=pathgrowth.assign(active,papers,matching_scope)
     score=dict(scored); by_key={p['key']:p for p in papers}
     keys=[k for k,_ in scored if k in by_key]
     def ordered(values, paths=False):
@@ -47,28 +49,53 @@ def choose(route, papers, scored, limit, directions=(), shown=None, sources=None
             values.sort(key=lambda k:pathgrowth.paper_role(by_key[k])!='intro')
             values.sort(key=lambda k:shown.get(k,0))
         return values
-    by_concept={c:[] for c in frontier}
+    by_concept={c:[] for c in frontier};path_nodes={}
     for key in keys:
         ids=assigned.get(key,[])
-        cid=ids[0] if ids and ids[0] in by_concept else None
-        if cid:by_concept[cid].append(key)
+        # A still-locked primary may also explicitly support an open unit.
+        # The material selection does not move primary-only mastery, nor
+        # recycle a satisfied primary into another routine learning slot.
+        primary=ids[0] if ids else None
+        cid=next((i for i in ids if i in by_concept),None) if primary and route['progress'][primary]['status']!='satisfied' else None
+        if cid:
+            by_concept[cid].append(key);path_nodes[key]=cid
     for c in by_concept:by_concept[c]=ordered(by_concept[c],True)
-    toward={}
+    toward={};direction_by_key={}
     for direction in directions:
-        for key in direction['papers']:toward.setdefault(key,direction['name'])
+        if not direction.get('positive_basis'):continue
+        for key in direction['papers']:
+            toward.setdefault(key,direction['name']);direction_by_key.setdefault(key,direction)
     covered={clean_query(t).casefold() for c in active['concepts'] for t in c.get('terms',[])}
-    explore,watch,labels={}, {}, {}
+    explore,watch,labels,purposes={}, {}, {}, {}
     watched=set(route.get('watched_satisfied') or [])
     scope=set(route.get('goal_scope') or [])
     for key in keys:
         if shown.get(key):continue
         ids=assigned.get(key,[])
-        novel=next((e['query'] for e in reversed(sources.get(key,[]))
-                    if 'explore' in e.get('kinds',[]) and clean_query(e.get('query')).casefold() not in covered),None)
+        public=None
+        for entry in reversed(sources.get(key,[])):
+            query=clean_query(entry.get('query'))
+            if 'explore' not in entry.get('kinds',[]) or not query or query.casefold() in covered:continue
+            visible={'title':by_key[key].get('title'),'abstract':by_key[key].get('abstract')}
+            matches=pathgrowth.match_evidence({'name':'Public exploration query','terms':[query]},visible)
+            if matches:
+                public={'kind':'public_query','query':query,'quote':matches[0]['quote'],
+                        'observed_at':entry.get('observed_at')};break
+        novel=public['query'] if public else None
         side=next((c for c in ids if c not in scope and route['progress'][c]['status']!='satisfied'),None)
-        if not ids or side or novel or key in toward:
+        if side or novel or key in toward:
             explore[key]=side or (ids[0] if ids else None)
             labels[key]=toward.get(key) or novel
+            if key in toward:
+                direction=direction_by_key[key]
+                purposes[key]={'kind':'direction_proposal','name':direction['name'],
+                    'positive_basis':direction['positive_basis'][:3],'status':'pending_user_review'}
+            elif public:purposes[key]=public
+            else:
+                node=next(c for c in active['concepts'] if c['id']==side)
+                matches=pathgrowth.match_evidence(node,by_key[key],matching_scope)
+                purposes[key]={'kind':'side_branch','node':side,'name':node['name'],
+                               'quote':matches[0]['quote'],'state':'unsatisfied'}
         cid=next((c for c in ids if c in watched),None)
         if cid:
             published=str(by_key[key].get('published') or '')
@@ -115,6 +142,7 @@ def choose(route, papers, scored, limit, directions=(), shown=None, sources=None
     for index,(kind,_) in enumerate(slots):
         key=assigned_slots[index]
         actual='explore_new' if kind=='explore' and key in toward else kind
-        node=assigned[key][0] if kind=='route' else explore[key] if kind=='explore' else watch[key]
+        node=path_nodes[key] if kind=='route' else explore[key] if kind=='explore' else watch[key]
         chosen.append((key,node,actual,labels.get(key) if kind=='explore' else None))
+        if evidence is not None and kind=='explore':evidence[key]=purposes[key]
     return chosen

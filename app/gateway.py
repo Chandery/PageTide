@@ -6,6 +6,8 @@ daily/monthly token or USD ceilings would be exceeded. Failure degrades to the
 caller (local mode) - there is never a silent provider fallback.
 """
 import json
+import copy
+import base64
 import os
 import threading
 import urllib.error
@@ -39,9 +41,53 @@ DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 def request_envelope(operation, model, max_output, messages):
     body = {"model": model, "thinking": {"type": "disabled"},
             "max_tokens": max_output, "messages": messages}
-    if operation == "route_growth_judge":
+    if operation in {"daily_triage", "route_growth_judge", "project_guidance", "route_map_create",
+                     "route_map_revision", "category_review"}:
         body.update({"temperature": 0, "response_format": {"type": "json_object"}})
     return body
+
+
+def input_bound(envelope):
+    """Bound the complete encoded text, including JSON and protocol framing.
+
+    UTF-8 bytes are deliberately conservative, not a tokenizer parity claim.
+    Inline image bytes are transport encoding, not text tokens: the documented
+    DeepSeek Flash ceiling is 1024 tokens/image. No external image fetch or
+    unregistered multimodal content is admitted. Unknown shapes fail closed.
+    """
+    counted = copy.deepcopy(envelope)
+    images = 0
+    messages = counted.get('messages')
+    if not isinstance(messages, list):
+        raise ValueError('messages must be a list')
+    for message in messages:
+        if not isinstance(message, dict) or set(message) != {'role', 'content'}:
+            raise ValueError('invalid message fields')
+        if message['role'] not in {'system', 'user', 'assistant'}:
+            raise ValueError('invalid message role')
+        content = message['content']
+        if isinstance(content, str):
+            continue
+        if not isinstance(content, list) or message['role'] != 'user':
+            raise ValueError('invalid message content')
+        for part in content:
+            if not isinstance(part, dict):
+                raise ValueError('invalid content part')
+            if part.get('type') == 'text' and set(part) == {'type', 'text'} and isinstance(part['text'], str):
+                continue
+            if (part.get('type') != 'image_url' or set(part) != {'type', 'image_url'}
+                    or not isinstance(part['image_url'], dict) or set(part['image_url']) != {'url'}):
+                raise ValueError('unsupported content part')
+            url = part['image_url']['url']
+            if (not isinstance(url, str) or not url.startswith(('data:image/png;base64,',
+                    'data:image/jpeg;base64,', 'data:image/webp;base64,')) or len(url) > 8 * 1024 * 1024):
+                raise ValueError('only bounded inline reader images are allowed')
+            base64.b64decode(url.split(',', 1)[1], validate=True)
+            part['image_url']['url'] = '[inline image]'
+            images += 1
+    if images > 1:
+        raise ValueError('only one reader page image is allowed')
+    return len(json.dumps(counted, ensure_ascii=False, allow_nan=False).encode('utf-8')) + 256 + 1024 * images
 
 
 def load_budget(root="."):
@@ -309,13 +355,21 @@ class Gateway:
             except BudgetExceeded as exc:
                 return {"ok": False, "degraded": True, "reason": str(exc)}
             try:
-                body = json.dumps(request_envelope(operation, provider["model"], cap_out, messages),
-                                  ensure_ascii=False).encode('utf-8')
+                envelope = request_envelope(operation, provider["model"], cap_out, messages)
+                body = json.dumps(envelope, ensure_ascii=False, allow_nan=False).encode('utf-8')
+                bound = input_bound(envelope)
+                if any(isinstance(m.get('content'), list) for m in messages) and operation != 'paper_vision_qa':
+                    raise ValueError('images outside reader vision operation')
             except (UnicodeError, TypeError, ValueError, RecursionError):
                 return {"ok": False, "degraded": True, "invalid_input": True,
                         "usage_unknown": False, "reason": "invalid request text; nothing sent"}
+            if bound > cap_in:
+                return {"ok": False, "degraded": True, "invalid_input": True, "input_too_large": True,
+                        "usage_unknown": False, "input_bound": bound, "input_cap": cap_in,
+                        "reason": "完整问题、资料和历史超过本次输入上限；请缩短问题/选区，或开始新会话。未发送请求。"}
             if dry_run:
                 return {"ok": True, "dry_run": True, "operation": operation,
+                        "input_bound": bound,
                         "reservation": {"input": cap_in, "output": cap_out, "usd": str(reserve_usd)}}
             key, _source = self._load_key()
             if not key:
@@ -327,6 +381,7 @@ class Gateway:
             DEEPSEEK_URL, data=body,
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
                      "User-Agent": "PaperDigHelper/0.1 (local app)"})
+        reservation = {"input": cap_in, "output": cap_out, "usd": str(reserve_usd)}
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 payload = json.loads(response.read().decode("utf-8", "replace"))
@@ -335,22 +390,49 @@ class Gateway:
                 # Rejected before generation (auth, balance, validation, rate limit).
                 self._record(today, operation, {}, Decimal(0), provider["model"], rid, "released")
             return {"ok": False, "degraded": True, "usage_unknown": not 400 <= exc.code < 500,
+                    "usage_reserved": not 400 <= exc.code < 500,
+                    "reservation": reservation if not 400 <= exc.code < 500 else None,
                     "http_status": exc.code, "reason": f"HTTPError: {exc.code}"}
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             # The request may have been processed: keep the reservation charged.
             return {"ok": False, "degraded": True, "usage_unknown": True,
+                    "usage_reserved": True, "reservation": reservation,
                     "reason": f"{type(exc).__name__}: {exc}"}
         usage = payload.get("usage") if isinstance(payload, dict) else None
         model = (payload.get("model") if isinstance(payload, dict) else None) or provider["model"]
-        content = (((payload.get("choices") or [{}])[0].get("message") or {}).get("content", "")
-                   if isinstance(payload, dict) else "")
-        finish_reason = ((payload.get('choices') or [{}])[0].get('finish_reason') if isinstance(payload, dict) else None)
-        if not isinstance(usage, dict) or "prompt_tokens" not in usage or "completion_tokens" not in usage:
+        choices = payload.get('choices') if isinstance(payload, dict) else None
+        choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+        message = choice.get('message')
+        content = message.get('content') if isinstance(message, dict) else None
+        finish_reason = choice.get('finish_reason')
+        valid_content = isinstance(content, str) and bool(content.strip()) and finish_reason != 'length'
+        if valid_content:
+            try:
+                content.encode('utf-8')
+            except UnicodeError:
+                valid_content = False
+        valid_usage = (isinstance(usage, dict) and all(type(usage.get(k)) is int and usage[k] >= 0
+                      for k in ('prompt_tokens', 'completion_tokens'))
+                      and type(usage.get('prompt_cache_hit_tokens', 0)) is int
+                      and 0 <= usage.get('prompt_cache_hit_tokens', 0) <= usage.get('prompt_tokens', 0))
+        if not valid_usage:
             self._record(today, operation, {"prompt_tokens": cap_in, "completion_tokens": cap_out},
                          reserve_usd, model, rid, "unknown")
+            if not valid_content:
+                return {"ok": False, "degraded": True, "bad_reply": True,
+                        "reason": "AI 回复须为非空完整文本；未保存回复", "finish_reason": finish_reason,
+                        "usage": {"total_tokens": cap_in + cap_out},
+                        "usage_unknown": True, "usage_reserved": True, "reservation": reservation,
+                        "usd": str(reserve_usd), "model": model, "dev": self.dev}
             return {"ok": True, "content": content, 'finish_reason': finish_reason, "usage": {"total_tokens": cap_in + cap_out},
-                    "usage_unknown": True, "usd": str(reserve_usd), "model": model, "dev": self.dev}
+                    "usage_unknown": True, "usage_reserved": True, "reservation": reservation,
+                    "usd": str(reserve_usd), "model": model, "dev": self.dev}
         usd = _cost(provider, usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0),
                     usage.get("prompt_cache_hit_tokens", 0))
         self._record(today, operation, usage, usd, model, rid, "reconciled")
-        return {"ok": True, "content": content, 'finish_reason': finish_reason, "usage": usage, "usd": str(usd), "model": model, "dev": self.dev}
+        if not valid_content:
+            return {"ok": False, "degraded": True, "bad_reply": True,
+                    "reason": "AI 回复须为非空完整文本；未保存回复", "finish_reason": finish_reason, "usage": usage,
+                    "usd": str(usd), "model": model, "usage_unknown": False, "usage_reserved": False}
+        return {"ok": True, "content": content, 'finish_reason': finish_reason, "usage": usage, "usd": str(usd),
+                "model": model, "dev": self.dev, "usage_unknown": False, "usage_reserved": False}

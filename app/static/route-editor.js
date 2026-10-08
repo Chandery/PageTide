@@ -265,6 +265,16 @@
     return `<p class="concept-intro" data-no-i18n>${esc(concept.intro)}</p><div class="badges"><span class="badge">${concept.intro_by === 'ai' ? 'AI 写的' : '你写的'}</span></div>`;
   }
 
+  function introInputHTML(out) {
+    const body = out && out.context_excerpt;
+    if (!body) return '';
+    const papers = (Array.isArray(body.papers) ? body.papers : []).slice(0, 3).map((p) =>
+      `<li data-no-i18n><b>${esc(p.title || '')}</b><p>${esc(p.abstract || '')}</p></li>`).join('');
+    return `${out.scope_notice ? `<p class="map-note" data-no-i18n>${esc((typeof window!=='undefined' && window.PDHi18n?.exact(out.scope_notice)) || out.scope_notice)}</p>` : ''}`
+      + `<details><summary>本次简介的 AI 可见内容</summary><p><b>概念与检索词</b><span data-no-i18n>：${esc(body.concept || '')} · ${esc((body.terms || []).join(' · '))}</span></p>`
+      + `<p><b>项目名称与关键词</b><span data-no-i18n>：${esc(body.goal || '')}</span></p><ul>${papers}</ul></details>`;
+  }
+
   const FEEDBACK_TEXT = { useful: '你点过有用', irrelevant: '你点过不相关' };
   const FAMILIAR_TEXT = { understood: '你点过已读懂', too_hard: '你点过太难' };
   function matchedPapersHTML(result) {
@@ -301,7 +311,7 @@
     const c = ctx || {}, p = c.progress ? c.progress[concept.id] : null;
     const needs = needsOf(g, concept.id), waiting = new Set(waitingOn(g, c.progress, concept.id).map(n => n.id));
     const unlocks = dependents(g, concept.id);
-    const chip = (n) => `<span class="need ${n.label}${c.progress ? (waiting.has(n.id) ? ' wait' : ' done') : ''}" title="${esc(LABELS[n.label])}" data-no-i18n>${esc(n.name)}</span>`;
+    const chip = (n) => `<span class="need ${n.label}${c.progress ? (waiting.has(n.id) ? ' wait' : ' done') : ''}" title="${esc((typeof window!=='undefined' && window.PDHi18n?.t(LABELS[n.label])) || LABELS[n.label])}" data-no-i18n>${esc(n.name)}</span>`;
     const lines = [];
     lines.push(`<h3 data-no-i18n>${esc(concept.name)}</h3>`);
     lines.push((concept.terms || []).length ? `<div class="terms" data-no-i18n>${esc(concept.terms.join(' · '))}</div>` : '<div class="terms">（没有检索词）</div>');
@@ -369,6 +379,16 @@
   const kindText = {new_task: '新任务', missing_prerequisite: '前置缺口', new_branch: '新分支', legacy: '旧规则提议'};
   const gateText = (g, decimals) => (decimals ? `${(Number(g.have) || 0).toFixed(2)}/${(Number(g.need) || 0).toFixed(2)}` : `${Number(g.have) || 0}/${Number(g.need) || 0}`);
 
+  function evidenceHTML(value) {
+    const types = {basic: '基础实验', observational: '观察性临床研究', trial: '临床试验', review: '综述', unknown: '研究类型未确认'};
+    const evidence = Array.isArray(value.source_evidence) ? value.source_evidence : [];
+    const quotes = evidence.slice(0, 12);
+    const details = quotes.length ? `<details><summary>核对判断依据 · ${quotes.length}/${evidence.length}</summary><ul>` + quotes.map((q) =>
+      `<li><b>${types[q.type] || types.unknown}</b><span data-no-i18n> · ${esc(q.title || q.paper || '')} · “${esc(q.quote || '')}”</span></li>`).join('')
+      + '</ul><p>原文短引来自本轮可见的标题或摘要节选；研究类型仍需核对全文。</p></details>' : '';
+    return (value.optional_relation ? '<p>缺少必要前置依据，保留为可选任务；确认后不会添加未经证明的硬前置。</p>' : '') + details;
+  }
+
   function candidateRowHTML(c, selectedId) {
     const g = c.gates || {};
     const counts = `论文 ${gateText(g.papers || {})} · 你点过 ${gateText(g.positive || {})} · 来源 ${gateText(g.sources || {})}`;
@@ -401,7 +421,7 @@
     const impact = c.goal_impact === 'adds_prerequisite' ? '新前置进入当前目标范围，可能重新开启学习。' : '当前目标保持不变；新增任务不自动成为目标。';
     return `<h3 data-no-i18n>${esc(c.name)}</h3><p>${kindText[c.proposal_type] || '新分支'}</p>${lifecycle}<p>${impact}</p>${terms}<div class="badges"><span class="badge">${c.stale ? '已过期' : (accepts(c) ? '可以加入' : '证据较少')}</span></div>${brief}`
       + `<div class="growth-meter" role="img" aria-label="证据 ${pct(c.progress)}%"><i style="width:${pct(c.progress)}%"></i></div>`
-      + `<div class="gates">${gates}</div>${missing}${where}`
+      + `<div class="gates">${gates}</div>${missing}${where}${evidenceHTML(c)}`
       + `<h4>哪几篇论文</h4><ul class="growth-papers">${papers}</ul>`
       + `<h4>强度是怎么来的</h4><ul class="growth-parts">${parts}</ul>`
       + `<div class="row"><button type="button" class="primary small" data-growth="accept" data-id="${esc(c.id)}"${locked || accept}>加入学习图</button>`
@@ -491,7 +511,7 @@
 
   function judgementsHTML(result) {
     const list = (result && result.judgements) || [];
-    return list.length ? '<h4>判断记录</h4>' + list.map((j) => `<p>${j.stale ? '已过期' : (j.verdict === 'covered' ? '已覆盖' : (j.verdict === 'unclear' ? '看不清' : '已有判断'))}<span data-no-i18n> · ${esc((j.titles || []).join(' · '))}${j.reason ? ` · ${esc(j.reason)}` : ''}</span></p>`).join('') : '';
+    return list.length ? '<h4>判断记录</h4>' + list.map((j) => `<p>${j.stale ? '已过期' : (j.verdict === 'covered' ? '已覆盖' : (j.verdict === 'unclear' ? '看不清' : '已有判断'))}<span data-no-i18n> · ${esc((j.titles || []).join(' · '))}${j.reason ? ` · ${esc(j.reason)}` : ''}</span></p>${evidenceHTML(j)}`).join('') : '';
   }
 
   function countsText(state) {
@@ -523,5 +543,5 @@
     return `<label class="map-note"><input type="checkbox" data-route-watch ${watching ? 'checked' : ''}> 持续关注</label><p class="map-note">${satisfied ? '已满足的概念：开启后可推荐这个方向的新进展。' : '持续关注不改变掌握状态；满足这个概念后才推荐新进展。'}</p>`;
   }
 
-  return { setTarget, watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgementsHTML, judgeSummary, judgeProgress, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
+  return { setTarget, watchHTML, MAX_NODES, needsEditorHTML, readNeeds, STATUS, LOW_INTEREST_TITLE, LOCKED_TITLE, countsText, ROLE_TEXT, ROLE_LABEL, HINT_TEXT, roleOf, introHTML, introInputHTML, matchedPapersHTML, examplesHTML, setIntro, candidateRowHTML, pendingHTML, judgementsHTML, judgeSummary, judgeProgress, ghostDetailHTML, ghostGraph, ringSVG, ghostStatus, growthNote, BACKGROUNDS, DEPTHS, TYPES, boundaryHTML, readBoundary, typeText, actionsFor, summaryText, LABELS, layers, shape, shapeText, waitingOn, dependents, nodeStatus, detailHTML, needsOf, check, addConcept, removeConcept, setNeeds, rename, reuseIds, toggleMastered, payload, label };
 });

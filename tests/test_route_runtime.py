@@ -176,6 +176,13 @@ class BatchTests(Fixture):
     def setUp(self):
         super().setUp()
         self.fill()
+        self.public_sources={}
+        for i in range(4):
+            key='sourced_explore'+str(i)
+            self.paper(key,'Photonic nanowire growth calibration '+str(i),'photonics nanowires calibration',published=f'2026-05-0{i+1}')
+            self.public_sources[key]=[{'kinds':['explore'],'query':'photonics nanowires','observed_at':1}]
+        patcher=mock.patch.object(self.app,'route_recall_sources',side_effect=lambda *a,**k:self.public_sources)
+        patcher.start();self.addCleanup(patcher.stop)
 
     def test_a_project_without_a_map_gets_the_same_batch_as_before_and_no_labels(self):
         legacy = self.batch()
@@ -327,6 +334,7 @@ class BatchTests(Fixture):
         self.paper("understood_one", "Crystal lattice reconstruction notes", "lattice crystal lattice")   # a concept the reader already understood
         self.paper("locked_one", "Dislocation defects revisited", "dislocation defects")                     # a concept that is still locked
         self.paper("new_one", "Photonic nanowire arrays", "photonics nanowires")                            # matches nothing on the map
+        self.public_sources['new_one']=[{'kinds':['explore'],'query':'photonics nanowires','observed_at':1}]
         explored = []
         for _ in range(6):
             explored += [c["key"] for c in self.batch() if c["route"]["kind"] == "explore"]
@@ -386,7 +394,8 @@ class BatchTests(Fixture):
             other.store.upsert_papers([{k: p[k] for k in ("key", "title", "abstract", "published")}], project_id=pid)
         route = other.route_save(pid, plan=PLAN)
         other.route_manual(pid, {c["name"]: c["id"] for c in route["graph"]["concepts"]}["Crystal basics"], "mastered")
-        with mock.patch.object(other.gateway, "call", side_effect=AssertionError("no model")):
+        with mock.patch.object(other.gateway, "call", side_effect=AssertionError("no model")), \
+                mock.patch.object(other,'route_recall_sources',return_value=self.public_sources):
             two = []
             for _ in range(3):
                 english_papers(other, pid)

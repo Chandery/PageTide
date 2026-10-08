@@ -119,6 +119,9 @@ def evaluate(policy, paper, language, local_body=''):
 
 
 REASONS = {
+    "fixed_scope_conflict": ("论文明确研究对象或治疗类型与固定目标冲突", "The stated object or treatment conflicts with the fixed goal"),
+    "future_publication_date": ("来源报告了未来发布日期；请核对来源元数据后再推荐", "The source reports a future publication date; verify metadata before recommending"),
+    "source_disabled": ("该论文所属来源已在设置中关闭", "This paper’s source is disabled in settings"),
     'language_policy_required': ('请先在项目设置选择学科和允许的论文语言', 'Choose the discipline and allowed paper languages in project settings first'),
     'source_version_changed': ('PDF 版本已变化，请重新生成', 'The PDF version changed; generate again'),
     'source_verification_deferred': ('本轮文件核验读取量已达上限，请再次生成', 'File verification reached its read limit; generate again'),

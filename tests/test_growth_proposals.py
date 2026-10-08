@@ -20,6 +20,13 @@ class GrowthProposalTests(Fixture):
         self.app.route_save(self.pid, graph=graph)
 
     def propose(self, kind='new_task', **fields):
+        if kind == 'missing_prerequisite':
+            graph = self.app.route_get(self.pid)['graph']
+            for ref in fields.get('required_by', ['c2']):
+                if isinstance(ref, str) and ref.startswith('c') and ref[1:].isdigit():
+                    node = graph['concepts'][int(ref[1:]) - 1]
+                    node['intro'] = f"Strain relaxation is required before {node['name']}."
+            self.app.route_save(self.pid, graph=graph)
         self.say(('s1', 'useful'))
         self.gateway(reply([{**new(['p1']), 'verdict': kind,
                              'parent': 'c2' if kind == 'new_task' else '',

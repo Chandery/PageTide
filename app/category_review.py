@@ -44,6 +44,9 @@ SYSTEM = (
     '{"id":"n1","name":"子方向","parent":"c1","reason":"论文支持该子方向"}，parent可省略表示顶层。'
     '论文categories只能引用最终存在的c/n编号，可为空；同一论文同一类别仅一次。'
     '不得输出输入没有的论文、私有ID、工具调用或多余字段。'
+    '理由用一句短句（建议20字以内）以完成整批。缺摘要或title_truncated时不补全研究对象；'
+    '正极、负极、电解质及不同证据类型不能混同。若fixed_actions存在，按其中操作输出categories；未列c编号均keep，'
+    '只审阅本批论文和有证据的新类别；不得改变已冻结的目录意见。'
 )
 
 
@@ -71,8 +74,8 @@ def _digest(value):
 
 def message_estimate(messages, model='deepseek-flash'):
     """Complete wire UTF-8 bytes plus margin, not a tokenizer measurement."""
-    envelope = {'model': model, 'thinking': {'type': 'disabled'},
-                'max_tokens': OUTPUT_CAP, 'messages': messages}
+    from .gateway import request_envelope
+    envelope = request_envelope(OPERATION, model, OUTPUT_CAP, messages)
     # Match Gateway.call serialization (default spaces) before its reservation.
     return len(json.dumps(envelope, ensure_ascii=False).encode('utf-8')) + 256
 
@@ -87,7 +90,7 @@ def _acyclic(parents):
             current = parents[current]
 
 
-def prepare(directions, papers, profile=None, *, model='deepseek-flash'):
+def prepare(directions, papers, profile=None, *, model='deepseek-flash', fixed_actions=None):
     """Return messages and private context for a complete directory/bounded batch.
 
     directions use id/name/parent_id. Papers use key/title/abstract/categories;
@@ -142,6 +145,11 @@ def prepare(directions, papers, profile=None, *, model='deepseek-flash'):
         # Detect any public metadata change locally, including the unsent tail.
         source_digests.append(_digest({'key': key, 'title': title, 'abstract': abstract, 'categories': member_ids}))
     body = {'categories': sent_categories, 'papers': sent_papers}
+    if fixed_actions is not None:
+        # Only validated category actions from the preceding batch, re-aliased.
+        body['fixed_actions'] = {aliases[op['id']]: {**{k:v for k,v in op.items() if k in {'action', 'name'}},
+            **({'target': aliases[op['target']]} if 'target' in op else {})}
+            for op in fixed_actions if op['action'] != 'keep'}
     messages = [{'role': 'system', 'content': SYSTEM},
                 {'role': 'user', 'content': json.dumps(body, ensure_ascii=False, separators=(',', ':'))}]
     if message_estimate(messages, model) > INPUT_CAP:

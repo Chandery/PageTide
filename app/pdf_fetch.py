@@ -264,6 +264,11 @@ class Fetcher:
                 if first:
                     raise PdfFetchError("empty response", "not_pdf")
             sha = digest.hexdigest()
+            from .pdf_validation import validate_pdf
+            try:
+                validate_pdf(temp)
+            except ValueError as exc:
+                raise PdfFetchError(str(exc), "not_pdf") from exc
             target = self.dest / f"{stem}-{sha[:12]}.pdf"
             if target.exists():
                 os.unlink(temp)  # identical content already archived: keep the original

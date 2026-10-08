@@ -90,9 +90,20 @@ test('body extraction posts the captured source hash and ignores late save respo
 
 test('closing the actual reader refreshes learning views after a version or text change',()=>{
   const source=fs.readFileSync('app/static/index.html','utf8');
-  const line=source.split('\n').find(s=>s.startsWith("$('#readerBack').onclick ="));
-  const nodes=new Map(),calls=[];
-  const node=id=>{if(!nodes.has(id))nodes.set(id,{classList:{add(){}}});return nodes.get(id);};
-  vm.runInNewContext(line,{$:node,R:{key:'p'},document:{body:{classList:{remove(){}}}},dockPanel(){},toast(){},window:{PDHOrganization:{invalidateLearning:(...args)=>{calls.push(args);return Promise.resolve();}}}});
+  const close=source.slice(source.indexOf('function closeReader() {'),source.indexOf('function readerControls() {'));
+  const assistant=source.slice(source.indexOf('function dockPanel(dock) {'),source.indexOf('function openPet()'));
+  const line=assistant+close + source.split('\n').find(s=>s.startsWith("$('#readerBack').onclick ="));
+  const nodes=new Map(),calls=[],frames=[];
+  const classes=()=>{const values=new Set();return {add:name=>values.add(name),remove:name=>values.delete(name),contains:name=>values.has(name),toggle:(name,on)=>on?values.add(name):values.delete(name)};};
+  const node=id=>{if(!nodes.has(id))nodes.set(id,{classList:classes(),clientWidth:640,value:''});return nodes.get(id);};
+  const body={classList:classes(),appendChild(element){element.parentElement=this;}},state={key:'p',epoch:0,doc:{}};
+  node('#petPanel').classList.add('open');node('#petPanel').classList.add('docked');node('#transPop').classList.add('show');
+  node('#petInput').value='中文问题\n第二行';body.classList.add('reader-open');
+  vm.runInNewContext(line,{$:node,R:state,pet:{busy:false},readerBackground:new Map(),readerFocus:null,setReference(){},setAttachPage(){},hideSel(){},document:{body},requestAnimationFrame:fn=>frames.push(fn),layoutPages:()=>calls.push(['layout']),toast(){},window:{PDHOrganization:{invalidateLearning:(...args)=>{calls.push(args);return Promise.resolve();}}}});
   node('#readerBack').onclick();assert.deepEqual(calls,[['p',true]]);
+  assert.equal(node('#petPanel').classList.contains('open'),false);
+  assert.equal(node('#petPanel').classList.contains('docked'),false);assert.equal(node('#petPanel').parentElement,body);
+  assert.equal(node('#reader').classList.contains('hidden'),true);assert.equal(node('#transPop').classList.contains('show'),false);
+  assert.equal(node('#petInput').value,'中文问题\n第二行');assert.equal(state.epoch,1);
+  assert.equal(frames.length,1);for(const frame of frames)frame();assert.deepEqual(calls,[['p',true]]);
 });

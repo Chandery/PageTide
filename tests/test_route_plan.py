@@ -562,7 +562,7 @@ class FlowTests(Fixture):
         self.assertTrue(route["enabled"])
         self.assertEqual(len(route["graph"]["concepts"]), 3)
         status = {c["name"]: route["progress"][c["id"]]["status"] for c in route["graph"]["concepts"]}
-        self.assertEqual(status, {"Crystal structure": "satisfied", "Epitaxy": "unlocked", "MBE": "locked"})   # the mark opens the next concept
+        self.assertEqual(status, {"Crystal structure": "satisfied", "Epitaxy": "unlocked", "MBE": "unlocked"})   # legacy AI ordering is optional without necessity evidence
 
     def test_an_invalid_graph_blocks_creation_before_anything_is_created(self):
         before = len(self.app.projects.list_projects())

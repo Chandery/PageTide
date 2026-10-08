@@ -276,21 +276,52 @@ class LearningMapTests(Fixture):
     def test_the_route_is_only_matched_for_papers_that_had_a_record_this_week(self):
         self.app.route_save(self.pid, plan=PLAN)
         from unittest import mock
-        from app import pathgrowth
+        from app import profile_insights
+        # An older understood paper still affects overall progress, and an old
+        # library item has no activity; neither belongs to this week's material.
+        self.say('c2','understood',days_ago=9)
+        self.app.store.save_to_library('e1',project_id=self.pid)
+        self.app.store.conn.execute('UPDATE project_library SET saved_at=? WHERE paper_key=? AND project_id=?',
+            ((self.today-timedelta(days=60)).isoformat(),'e1',self.pid))
+        self.app.store.conn.commit()
+        self.say('c1','understood')
         seen = []
-        real = pathgrowth.assign
-        def spy(graph, papers):
-            seen.append(sorted(p["key"] for p in papers)); return real(graph, papers)
-        with mock.patch.object(pathgrowth, "assign", spy):
-            self.say("c1", "understood")
-            seen.clear()
-            self.report()
-        self.assertIn(["c1"], seen)   # the weekly pass matched only the paper with a record
+        real = profile_insights.learning_map
+        def spy(app,project_id,papers,keys):
+            seen.append(sorted(keys));return real(app,project_id,papers,keys)
+        with mock.patch.object(profile_insights, 'learning_map', side_effect=spy):
+            report=self.report()
+        self.assertEqual({tuple(keys) for keys in seen},{('c1',)})
+        units={u['name']:u for u in report['units']['items']}
+        self.assertEqual(units['Crystal basics']['current']['understood'],1)
+        self.assertEqual(units['Crystal basics']['current']['papers'],1)
+        self.assertEqual(units['Epitaxy']['current']['papers'],0)
+        self.assertEqual(report['units']['done'],1)  # c1+c2 understood, not this-week double counting
 
     def test_saving_alone_does_not_advance_a_unit(self):
         self.app.route_save(self.pid, plan=PLAN)
         self.say("c1", "useful"); self.say("c2", "useful")
         self.assertEqual(self.report()["units"]["advanced"], [])
+
+    def test_wrong_cancer_understood_does_not_advance_weekly_learning_unit(self):
+        self.pid = self.app.create_project("NSCLC resistance", "manual", ["NSCLC", "PD-1"])["project_id"]
+        plan = {"concepts": [{"id": "t", "name": "Microenvironment resistance",
+                             "terms": ["tumor microenvironment"], "hint": 1, "needs": []}], "targets": ["t"]}
+        self.app.route_save(self.pid, plan=plan)
+        self.paper("wrong", "Tumor microenvironment of liver cancer",
+                   "Hepatocellular carcinoma tumor microenvironment review.")
+        self.say("wrong", "understood")
+        wrong = self.report()["units"]
+        self.assertEqual(wrong["done"], self.app.route_get(self.pid)["done"])
+        self.assertEqual(wrong["items"][0]["current"]["understood"], 0)
+        self.assertEqual(wrong["advanced"], [])
+        # A genuinely matching paper still appears in the weekly unit.
+        self.paper("right", "NSCLC tumor microenvironment and PD-1 resistance",
+                   "Tumor microenvironment mechanisms of PD-1 resistance in NSCLC.")
+        self.say("right", "understood")
+        right = self.report()["units"]
+        self.assertEqual(right["items"][0]["current"]["understood"], 1)
+        self.assertEqual(right["advanced"], ["Microenvironment resistance"])
 
     def test_a_unit_with_nothing_this_week_is_listed_without_a_verdict(self):
         self.app.route_save(self.pid, plan=PLAN)

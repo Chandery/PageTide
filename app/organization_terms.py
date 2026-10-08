@@ -57,6 +57,26 @@ _term('vision-transformer', 'Vision Transformers', '视觉 Transformer', ['visio
 _term('3d-gaussian-splatting', '3D Gaussian Splatting', '三维高斯泼溅', ['3DGS', '3D GS', '三维高斯溅射'], kind='method')
 _term('diffusion-model', 'Diffusion Models', '扩散模型', ['diffusion model'], kind='method')
 
+# Equal, explicit vocabularies for materials and medicine; aliases are identities,
+# not inferred from co-occurrence. Each fine direction names its parent.
+_term('solid-state-battery', 'Solid-state Batteries', '全固态电池', ['solid state battery', 'all-solid-state batteries'], parent='battery')
+_term('sulfide-electrolyte', 'Sulfide Solid Electrolytes', '硫化物固态电解质', ['sulfide solid electrolyte', 'sulphide solid electrolytes', 'sulfide electrolyte'])
+_term('battery-interface', 'Battery Interfaces', '电池界面', ['battery interface', 'electrode electrolyte interface', '电极电解质界面'], parent='battery')
+_term('interface-stability', 'Interfacial Stability', '界面稳定性', ['interface stability', 'interfacial degradation'], parent='battery-interface')
+_term('argyrodite', 'Argyrodite Electrolytes', '硫银锗矿型电解质', ['argyrodite'], parent='sulfide-electrolyte')
+_term('li6ps5cl', 'Li6PS5Cl', 'Li₆PS₅Cl', ['Li6PS5Cl'], parent='sulfide-electrolyte')
+_term('ionic-conductivity', 'Ionic Conductivity', '离子电导率', ['ionic conduction'], kind='method')
+_term('xps', 'X-ray Photoelectron Spectroscopy', 'X射线光电子能谱', ['XPS'], kind='method')
+_term('operando-characterization', 'Operando Characterization', '工况表征', ['operando spectroscopy'], kind='method')
+_term('nsclc', 'Non-small Cell Lung Cancer', '非小细胞肺癌', ['non-small-cell lung cancer', 'NSCLC'], parent='cancer')
+_term('checkpoint-resistance', 'Immune Checkpoint Resistance', '免疫检查点耐药', ['checkpoint inhibitor resistance', 'immune checkpoint blockade resistance'], parent='immunotherapy')
+_term('pd1-resistance', 'PD-1 Resistance', 'PD-1耐药', ['PD1 resistance', 'PD1耐药', 'anti-PD-1 resistance', 'PD-1/PD-L1 resistance'], parent='checkpoint-resistance')
+_term('tumor-microenvironment', 'Tumor Microenvironment', '肿瘤微环境', ['tumour microenvironment', 'TME'], parent='cancer')
+_term('primary-resistance', 'Primary Resistance', '原发性耐药', ['intrinsic resistance'], parent='checkpoint-resistance')
+_term('acquired-resistance', 'Acquired Resistance', '获得性耐药', ['secondary resistance'], parent='checkpoint-resistance')
+_term('biomarker', 'Biomarkers', '生物标志物', ['biomarker'], kind='method')
+_term('visual-planning', 'Visual Planning', '视觉规划', ['planning from images', 'vision-based planning'], parent='world-model')
+
 for _t in TERMS:
     if _t['id'] in {'neural-network', 'deep-learning', 'machine-learning'}:
         _t['kind'] = 'method'

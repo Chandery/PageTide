@@ -184,6 +184,12 @@ def run_review(app, scope_project, profile, dry_run=False, cancelled=None):
                 _check_cancel(cancelled)
                 _current(org, scope_project, frozen)
                 _check_cancel(cancelled)
+                if actions is not None:
+                    by_key = {p['key']: p for p in frozen['papers']}
+                    current_papers = [dict(by_key[p['key']], categories=list(frozen['memberships'].get(p['key'], [])))
+                                      for p in prepared['context']['papers']]
+                    prepared = category_review.prepare(frozen['directions'], current_papers, model=model,
+                                                       fixed_actions=list(actions.values()))
                 stats['calls'] += 1
                 try:
                     result = app.gateway.call(category_review.OPERATION, prepared['messages'], dry_run=dry_run) or {}

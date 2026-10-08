@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <title>设置 - PaperDigHelper</title>
+  <script src="/theme.js"></script>
+  <script src="/save-file.js"></script>
   <link rel="stylesheet" href="/theme.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -111,7 +113,7 @@
       .actions button { width: 100%; justify-content: center; }
     }
   </style>
-</head>
+<script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
   <div class="container">
     <a href="/" class="back-link">← 返回主页</a>
@@ -171,14 +173,14 @@
         <input type="number" id="recommendCount" value="5" min="1" max="20">
       </div>
       <div class="field">
-        <label for="decayWindow">兴趣衰减窗口（天）</label>
+        <label for="decayWindow">明确反馈衰减窗口（天）</label>
         <input type="number" id="decayWindow" value="30" min="7" max="365">
-        <small>超过此天数的反馈权重会逐渐降低</small>
+        <small>超过此天数的明确兴趣反馈逐渐降权；种子与固定词不衰减，冻结后保持不变</small>
       </div>
       <div class="field">
         <label for="newPaperBoost">新论文权重提升</label>
         <input type="number" id="newPaperBoost" value="0.2" min="0" max="1" step="0.1">
-        <small>提升最近发表论文的排名权重（0–1）</small>
+        <small>对相关候选增加近期权重（0–1），不会把不相关论文提升为相关；0 表示不提升</small>
       </div>
     </div>
 
@@ -187,13 +189,13 @@
       <div class="field">
         <label class="inline">
           <input type="checkbox" id="sourceArxiv" checked>
-          arXiv
+          arXiv（通过 OpenAlex 检索）
         </label>
       </div>
       <div class="field">
         <label class="inline">
           <input type="checkbox" id="sourceOpenAlex" checked>
-          OpenAlex
+          期刊与会议论文（OpenAlex）
         </label>
       </div>
       <div class="field">
@@ -215,7 +217,7 @@
         <label for="timePreference">时间偏好</label>
         <select id="timePreference">
           <option value="recent">最近 1 周</option>
-          <option value="month">最近 1 月</option>
+          <option value="month">最近 30 天</option>
           <option value="all">所有时间</option>
         </select>
       </div>
@@ -225,19 +227,20 @@
       <h2>存储与导出</h2>
       <div class="field">
         <label for="dataDir">数据目录</label>
-        <input type="text" id="dataDir" value="~/Documents/PaperDigHelper" readonly>
+        <input type="text" id="dataDir" value="读取实际数据位置…" readonly>
         <small>数据存储位置（只读）</small>
       </div>
       <div class="field">
-        <button id="exportBtn" class="ghost" style="padding-left:0">导出所有数据</button>
-        <small>导出为 JSON 格式</small>
+        <button id="exportBtn" class="ghost" style="padding-left:0">导出结构化数据</button>
+        <small>导出全部项目、学习图、画像、笔记与历史的 JSON 快照。PDF 原文件和密钥不包含；PDF 归档请另外复制保存。</small><div id="exportStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
       <div class="field">
         <button id="clearCacheBtn" class="danger">清除缓存</button>
-        <small>清除下载的 PDF 和全文数据</small>
+        <small>只清除可重建的元数据缓存；归档 PDF、全文、笔记和账本保留</small>
       </div>
     </div>
 
+    <div id="settingsStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="actions">
       <button id="cancelBtn" class="ghost">取消</button>
       <button id="saveBtn" class="primary">保存设置</button>
@@ -262,7 +265,8 @@
       } catch { settings = {}; }
 
       $('#language').value       = settings.language       || 'zh-CN';
-      $('#theme').value          = storedMode || 'auto';
+      $('#theme').value          = settings.theme || 'auto';
+      window.PDHTheme.apply($('#theme').value);
       $('#apiProvider').value    = settings.apiProvider    || 'deepseek';
       $('#apiKey').value         = '';
       $('#openalexKey').value    = '';
@@ -274,6 +278,7 @@
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
       $('#timePreference').value  = settings.timePreference  || 'recent';
 
+      try { const res=await fetch('/api/data-location'); if(!res.ok)throw new Error(); const data=await res.json(); $('#dataDir').value=data.data_dir; } catch { $('#dataDir').value='无法读取实际数据位置'; }
       await loadGateway();
     }
 
@@ -320,15 +325,16 @@
 
     async function saveSettings() {
       const btn = $('#saveBtn');
+      if(btn.disabled)return;
       btn.disabled = true;
       btn.textContent = '保存中…';
       const newSettings = {
         language:       $('#language').value,
         theme:          $('#theme').value,
         apiProvider:    $('#apiProvider').value,
-        recommendCount: parseInt($('#recommendCount').value) || 5,
-        decayWindow:    parseInt($('#decayWindow').value) || 30,
-        newPaperBoost:  parseFloat($('#newPaperBoost').value) || 0.2,
+        recommendCount: Number($('#recommendCount').value),
+        decayWindow:    Number($('#decayWindow').value),
+        newPaperBoost:  Number($('#newPaperBoost').value),
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
         updateFrequency: $('#updateFrequency').value,
@@ -352,39 +358,49 @@
       } catch (e) {
         btn.disabled = false;
         btn.textContent = '保存设置';
-        alert(e && e.message && e.message !== '保存失败' ? e.message : '保存失败，请重试。');
+        window.PDHDialogs.notice(e && e.message && e.message !== '保存失败' ? e.message : '保存失败，请重试。', {target:$('#settingsStatus'),kind:'error'});
       }
     }
 
     $('#clearOpenalexKeyBtn').onclick = async () => {
+      const button=$('#clearOpenalexKeyBtn');if(button.disabled)return;button.disabled=true;
       try { await postGateway({clear_openalex_key: true}); $('#openalexKey').value = ''; }
-      catch (e) { alert(e.message || '清除失败，请重试。'); }
+      catch (e) { window.PDHDialogs.notice(e.message || '清除失败，请重试。', {target:$('#settingsStatus'),kind:'error'}); }
+      finally {button.disabled=false;}
     };
 
     $('#saveBtn').onclick  = saveSettings;
     $('#cancelBtn').onclick = () => window.location.href = '/';
 
     $('#exportBtn').onclick = async () => {
-      const projectId = localStorage.getItem('pdh-current-project');
-      const res = await fetch(`/api/export?project_id=${projectId || ''}`);
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `paperdighelper-export-${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const button=$('#exportBtn'), target=$('#exportStatus');
+      if(button.disabled)return;
+      button.disabled=true;
+      window.PDHDialogs.notice('正在准备导出…',{target});
+      try {
+        const res=await fetch('/api/export');const data=await res.json();
+        if(!res.ok)throw new Error(data.error||'导出失败');
+        const filename=`paperdighelper-export-${new Date().toISOString().slice(0,10)}.json`;
+        const result=await window.PDHSaveFile(filename,JSON.stringify(data,null,2));
+        if(result?.status==='cancelled')window.PDHDialogs.notice('已取消导出；数据保留。',{target});
+        else if(result?.status==='saved')window.PDHDialogs.notice(`导出已保存：${result.path||filename}`,{target,kind:'success'});
+        else throw new Error('未收到有效的保存回执');
+      } catch(e) {window.PDHDialogs.notice(`导出失败：${e.message}`,{target,kind:'error'});}
+      finally {button.disabled=false;}
     };
 
     $('#clearCacheBtn').onclick = async () => {
-      if (!confirm('确定要清除所有缓存吗？这将删除已下载的 PDF 和全文数据。')) return;
-      await fetch('/api/cache', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({_method: 'DELETE'})
-      });
-      alert('缓存已清除。');
+      const button=$('#clearCacheBtn'), target=$('#settingsStatus');
+      if(button.disabled)return;
+      button.disabled=true;
+      try {
+        if(!await window.PDHDialogs.confirm('清除可重建的元数据缓存？归档 PDF、全文、笔记和账本将保留。'))return;
+        const res=await fetch('/api/cache',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_method:'DELETE'})});
+        const data=await res.json();if(!res.ok)throw new Error(data.error||'缓存清理失败');
+        const names={'source-response-cache':'元数据缓存','pdf-archives':'归档 PDF','fulltext':'全文','notes':'笔记','projects':'项目'};
+        window.PDHDialogs.notice(`已清除：${(data.removed||[]).map(x=>window.PDHi18n?.t(names[x]||x)||names[x]||x).join('、')||'无'}；保留：${(data.preserved||[]).map(x=>window.PDHi18n?.t(names[x]||x)||names[x]||x).join('、')||'查看数据目录'}。`,{target,kind:'success'});
+      } catch(e) {window.PDHDialogs.notice(`清理失败：${e.message}。请保留资料后重试。`,{target,kind:'error'});}
+      finally {button.disabled=false;}
     };
 
     loadSettings();

@@ -34,3 +34,13 @@ operation: paper_qa
 ## 界面语言
 
 设置页语言为 English（`settings.json` 的 `language` 为 `en-US`）时，系统指令换成英文回答版（同样只依据给定材料、不编造引用或页码，回答用英文），系统指令末尾追加一句：「界面语言为英文：所有自然语言内容（包括追问和说明）都用英文（English）书写，JSON 键名不变。」估计多 40–60 token（估算，未实测），在登记的 instructions 分项内。中文界面的指令逐字不变。
+
+## Audit corrections2026-10-08
+
+The shared Gateway checks complete encoded text, all history, question and explicit selection before transport/reservation (UTF8-byte upper bound plus256 framing, not tokenizer parity). QA supplies at most800characters of abstract, labeled as an excerpt when shortened; optional locally ranked passages are removed from the end until the full request fits4200. User question, selected quote and current-session history are never silently truncated; if these alone exceed cap, request is refused with shortening/new-session guidance. Only pages actually sent are returned, with context_limits.abstract_truncated and omitted_passages. No hidden extra request or full-PDF upload.
+
+JSON answer must be nonempty text and followups a list of strings; invalid types/keys/JSON or length truncation cause stable labeled failure and no history write. Plain text remains an explicit compatibility response with no followups. Valid user+assistant history is one transaction, after rechecking current session and reader evidence. Model usage/unknown reservations remain accountable on failures.
+
+## Reply boundary update (2026-10-08)
+
+A structured answer must be one strict JSON object with text answer and text-list followups. JSON arrays/scalars, duplicate keys, nonfinite values or broken wrappers are refused before history writes. A complete fenced JSON object may be unwrapped; legacy unstructured plain prose remains compatible. The shared gateway refuses nontext, empty, invalid-Unicode or length-truncated provider output for every operation even when billing usage is unknown. Unknown usage keeps the cap reservation. No automatic retry.

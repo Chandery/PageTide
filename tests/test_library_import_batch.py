@@ -1,3 +1,4 @@
+from tests.pdf_fixture import minimal_pdf
 """Import batches: lazy tables, streamed PDF upload into a staging folder, in-batch duplicates, safe paths.
 
 Nothing here touches the network or the library itself; a batch is only a staging area until it is committed."""
@@ -16,8 +17,8 @@ from app.db import Store
 from app.library_import import LibraryImport
 from app.project import ProjectManager
 
-PDF_A = b"%PDF-1.7\n" + b"a" * 300
-PDF_B = b"%PDF-1.5\n" + b"b" * 300
+PDF_A = minimal_pdf("a" * 300)
+PDF_B = minimal_pdf("b" * 300)
 
 
 class Base(unittest.TestCase):
@@ -191,7 +192,7 @@ class ReferenceManagerFolderTests(Base):
         self.assertEqual(self.add(batch, "My Library/files/flat.pdf", PDF_A)["folders"], [[]])
         self.assertEqual(self.add(batch, "My Library/files/12/numbered.pdf", PDF_B)["folders"], [[]])
         # only the first level: a folder of the same name deeper down is the person's own
-        self.assertEqual(self.add(batch, "My Library/Notes/files/x.pdf", b"%PDF-1.7\n" + b"c" * 300)["folders"], [["Notes", "files"]])
+        self.assertEqual(self.add(batch, "My Library/Notes/files/x.pdf", minimal_pdf("c" * 300))["folders"], [["Notes", "files"]])
 
     def test_a_real_files_folder_with_a_year_inside_is_the_persons_own_structure_outside_an_export(self):
         batch = self.batch(root="Papers")
@@ -220,7 +221,7 @@ class ResumeIndexTests(Base):
     def test_it_is_not_capped_like_a_page_of_items(self):
         batch = self.batch(root="r")
         for i in range(230):
-            data = b"%PDF-1.7\n" + f"{i}".encode() * 30
+            data = minimal_pdf(str(i) * 30)
             self.imp.add_pdf(batch, f"r/f{i}.pdf", io.BytesIO(data), len(data), i, None)
         self.assertEqual(len(self.imp.resume_index(batch)), 230)
         self.assertEqual(len(self.imp.batch(batch)["items"]), 200)

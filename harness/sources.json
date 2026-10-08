@@ -4,18 +4,18 @@
     {
       "id": "DS-PRICE",
       "url": "https://api-docs.deepseek.com/quick_start/pricing/",
-      "verified_on": "2026-09-11",
+      "verified_on": "2026-10-07",
       "recheck_after_days": 30,
-      "claim": "deepseek-flash V4.1 Flash; input miss $0.30/M peak ($0.15 off-peak), cache hit $0.006/$0.003, output $1.20/$0.60; peaks 01-04 and 06-10 UTC Mon-Fri; v4-pro retiring to Flash 2026-09-14",
-      "verification": "official pricing page fetched HTTP 200; page has no effective date, freshness unverified"
+      "claim": "deepseek-flash peak input cache miss $0.30/M, hit $0.006/M, output $1.20/M; existing gateway conservatively retains these rates. These are published rates, not an invoice or billing-parity measurement.",
+      "verification": "Official pricing page fetched HTTP 200 at 2026-10-07T20:34:39Z by the isolated repair evaluator; no user cap or provider changed. No retirement/date schedule assumption is used."
     },
     {
       "id": "DS-TOKEN-USAGE",
       "url": "https://api-docs.deepseek.com/quick_start/token_usage",
-      "verified_on": "2026-09-11",
+      "verified_on": "2026-10-07",
       "recheck_after_days": 30,
-      "claim": "documented ratio ~0.3 token per English char and ~0.6 per CJK char; offline tokenizer zip about 1.9 MB needing HF tokenizers, no model weights",
-      "verification": "official token-usage doc plus DIRECT download of the official tokenizer zip and inspection of tokenizer.json; ratios are provider documentation, not measured on project text"
+      "claim": "Official tokenizer artifact runs without model weights; offline counts concern a defined text representation and do not establish hosted framing/image/billing parity.",
+      "verification": "Official token-usage page and direct tokenizer ZIP HTTP 200 at 2026-10-07T20:34:39Z. ZIP SHA256 e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495; tokenizer JSON SHA256 89085f12ef79460ac5f66d1119325ddfc694b4ab209d80bbd81d35f081dc9614 matches the previously pinned artifact."
     },
     {
       "id": "TIKTOKEN",
@@ -28,10 +28,10 @@
     {
       "id": "DS-CHAT",
       "url": "https://api-docs.deepseek.com/api/create-chat-completion",
-      "verified_on": "2026-09-11",
+      "verified_on": "2026-10-07",
       "recheck_after_days": 30,
-      "claim": "thinking enabled by default and can be disabled via {\"thinking\":{\"type\":\"disabled\"}}; explicit max_tokens; usage exposes prompt/completion/total, cache hit/miss and cached_tokens",
-      "verification": "official docs plus a 2026-09-11 live probe (non-private prompt, HTTP 200): thinking disabled honored with no reasoning_content, JSON mode worked, usage fields exactly match scripts/budget.py reconcile_usage; raw response kept privately in .local, no key in git"
+      "claim": "Chat completions supports explicit thinking disabled, max_tokens, temperature 0 and json_object. finish_reason length may leave incomplete output; usage exposes prompt/completion/total and cache hit/miss. Local structure and billing checks remain necessary.",
+      "verification": "Official API document HTTP 200 at 2026-10-07T20:34:39Z; current repair live calls use one existing Gateway. Unknown usage retains reservation. Valid JSON alone does not establish task structure or scientific correctness."
     },
     {
       "id": "DS-TOKENIZER",
@@ -419,11 +419,11 @@
     },
     {
       "id": "DS-VISION",
-      "url": "https://api-docs.deepseek.com/guides/vision",
-      "verified_on": "2026-09-11",
+      "url": "https://api-docs.deepseek.com/guides/vision/",
+      "verified_on": "2026-10-07",
       "recheck_after_days": 30,
-      "claim": "deepseek-flash accepts OpenAI-compatible content parts: text plus image_url with either a base64 data URL or a public http(s) link (<=32 MiB, link <=8192 chars). The same model name serves vision, so no separate vision model is required.",
-      "verification": "official vision guide fetched (HTTP 200); request shape cross-checked with the OpenAI-format example on the page; no live image call made yet"
+      "claim": "Chat completions accepts bounded image content including base64 data URLs. Image token bounds and payload byte bounds are separate; the product sends one image through the same Gateway.",
+      "verification": "Official vision guide HTTP 200 at 2026-10-07T20:34:39Z; real provider receipts and specific payload tests are recorded separately. Documentation support is not a passed scientific vision evaluation."
     },
     {
       "id": "DS-PRICE-20261006",
@@ -480,6 +480,14 @@
       "recheck_after_days": 60,
       "claim": "Zotero's BibTeX export writes attachments as file = {description:path:type}, several joined by ';'. With 'Export Files' ticked the attachments are copied into a files folder next to the .bib and the field points there; with it unticked the field may hold absolute paths into Zotero's own storage. Whether files/ always contains numbered subfolders, the RIS L1 attachment line and the absence of attachment paths in CSL-JSON are assumptions taken from the format, not checked against the owner's installed Zotero.",
       "verification": "2026-10-07 web search of the Zotero forum thread and zotero/zotero issue 1416 (both old; current behaviour may differ). Nothing was read from the owner's Zotero library. The importer is tested on synthetic samples that follow this format; a sanitized real export is still required (E-LIBRARY-IMPORT)."
+    },
+    {
+      "id": "DS-TOKENIZER-ARTIFACT",
+      "url": "https://cdn.deepseek.com/api-docs/deepseek_v4_tokenizer.zip",
+      "verified_on": "2026-10-07",
+      "recheck_after_days": 30,
+      "claim": "The pinned official V4 tokenizer ZIP and tokenizer JSON match the fresh download; no model weights are required.",
+      "verification": "HTTP 200 at 2026-10-07T20:34:39Z; ZIP SHA256 e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495; JSON SHA256 89085f12ef79460ac5f66d1119325ddfc694b4ab209d80bbd81d35f081dc9614. Hosted billing parity remains unverified."
     }
   ]
 }

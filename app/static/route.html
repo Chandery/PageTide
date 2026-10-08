@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<script>document.documentElement.dataset.mode=localStorage.getItem('pdh-mode')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')</script>
+<script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/project-creation.css">
 <title>学习图 · PaperDigHelper</title>
@@ -66,6 +66,15 @@
   </section>
 </section>
 </div>
+<dialog class="route-quit" data-role="quitDialog" aria-labelledby="routeQuitTitle" aria-describedby="routeQuitHint">
+  <h2 id="routeQuitTitle">退出前处理本页修改</h2>
+  <p id="routeQuitHint">学习图、需求或 AI 内容尚未保存或确认。请返回检查并保存，或明确放弃本页未保存修改。退出不会自动确认 AI；已经保存的 AI 预览仍会保留。</p>
+  <div class="actions">
+    <button type="button" class="primary" data-role="quitReview">返回检查并保存</button>
+    <button type="button" data-role="quitCancel">取消退出</button>
+    <button type="button" data-role="quitDiscard">放弃本页未保存修改并退出</button>
+  </div>
+</dialog>
 <script src="/route-editor.js"></script>
 <script src="/route-brief.js"></script>
 <script src="/route-graph.js"></script>

@@ -78,7 +78,10 @@ class ConceptUnderstandingPageTests(unittest.TestCase):
         self.assertIn("part('detail').addEventListener('click'", JS)
         ask = JS[JS.index("function askIntro"):JS.index("async function mark")]
         self.assertNotIn("state.draft =", ask)         # the sentence is held aside, not written into the map
-        self.assertIn("state.pendingIntro = {id, text: out.intro}", ask)
+        self.assertIn("state.pendingIntro = {id, text: out.intro, context_excerpt: out.context_excerpt, scope_notice: out.scope_notice}", ask)
+        # The preview keeps the actual request excerpt and scope receipt visible.
+        self.assertIn("R.introInputHTML(state.pendingIntro)", JS)
+        self.assertIn("context_excerpt", EDITOR[EDITOR.index("function introInputHTML"):EDITOR.index("function introInputHTML") + 1800])
 
     def test_the_sentence_is_labelled_by_who_wrote_it_and_editing_it_makes_it_yours(self):
         for wanted in ("这句话是 AI 写的；改过之后就算你写的。", "这句话是你写的。", "intro_by"):

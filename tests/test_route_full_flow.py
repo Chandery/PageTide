@@ -11,8 +11,10 @@ from app.service import App
 class FullLocalFlowTests(Fixture):
     def test_single_project_language_batch_feedback_undo_watch_revision_restart_restore(self):
         self.app.set_project_language(self.pid, "stem", ["en"])
+        public={f'x{i}':[{'query':'photonic calibration','kinds':['explore'],'observed_at':date.today().isoformat()}] for i in range(6)}
         with mock.patch.object(self.app.gateway, "call", side_effect=AssertionError("no model calls")), \
-                mock.patch.object(self.app.source, "_fetch", side_effect=AssertionError("no source calls")):
+                mock.patch.object(self.app.source, "_fetch", side_effect=AssertionError("no source calls")), \
+                mock.patch.object(self.app, 'route_recall_sources', return_value=public):
             route = self.app.route_save(self.pid, plan={"concepts": [
                 {"id": "a", "name": "Lattice basis", "terms": ["crystal lattice"], "hint": 1, "needs": []},
                 {"id": "b", "name": "Epitaxy goal", "terms": ["epitaxy"], "hint": 2, "needs": ["a"]}], "targets": ["b"]})
@@ -27,6 +29,9 @@ class FullLocalFlowTests(Fixture):
             batch = self.app.build_batch(project_id=self.pid)
             self.assertEqual(Counter(c["route"]["kind"] for c in batch["cards"]), {"route": 3, "explore": 1, "watch": 1})
             key = next(c["key"] for c in batch["cards"] if c["route"]["kind"] == "explore")
+            exploration=next(c for c in batch['cards'] if c['key']==key)['route']['exploration_evidence']
+            self.assertEqual(exploration['query'],'photonic calibration')
+            self.assertIn(exploration['quote'],self.app.store.paper(key)['title']+' '+self.app.store.paper(key)['abstract'])
             feedback = self.app.record_feedback(key, "useful", project_id=self.pid)
             self.assertTrue(self.app.store.in_library(key, self.pid))
             self.app.undo_feedback(feedback["feedback_id"], self.pid)
