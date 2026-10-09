@@ -1,0 +1,41 @@
+Work unit FIX-GUIDANCE-JSON-PROTOCOL; base06b23be; 2026-10-09.
+Source/behavior checks are final; general publication gates remain unchanged.
+
+Failure-first evidence (private .local/guidance-json-verification/):
+- guidance-before.txt: legacy system without JSON word,6 methods/19 failures; real App→Gateway with protocol-aware fake transport rejected HTTP400. Fixed new8 tests plus existing16 =24 passed.
+- gateway-before.txt:8 methods/15 failures before bounded diagnostic; new9 and existing gateway/policy regressions50 passed.
+- diagnostic-before.txt:3 failures before localized request-format mapping; fixed3 passed. No API call.
+- targeted.txt: all new8+9+3 and existing16 =36 tests passed,0.196s.
+
+Final checks actually executed:
+PYTHONPATH=<offline guard>:tests:. python3 -m unittest discover -s tests -v: exit0,2127 tests,295.453s,OK. Guard blocks any unmocked DeepSeek URL. No build/cargo ran concurrently with this suite.
+node --test tests/*.cjs: exit0,461 passed,0 failed/skipped,835.801ms.
+python3 scripts/budget.py --write: exit0, generated output unchanged.
+python3 scripts/budget.py --check: exit0, arithmetic/generated parity only.
+python3 scripts/harness.py check: exit0, repository traceability only.
+python3 scripts/i18n_extract.py --check: exit0,0 missing of1471.
+git diff --check: exit0.
+Independent review: creation_ui102Python+22Node,4 App/Gateway known400 mode/language probes and actual production turnMeta renderer; ai_guide12 diagnostics+8 extra boundary/accounting/hand-map probes; all green, zero live calls.
+.local/desktop-build-env/bin/python scripts/build_desktop.py: exit0.
+cargo tauri build --bundles app: exit0, fresh app; release compile14.78s.
+codesign --force --deep --sign - <app>; codesign --verify --deep --strict --verbose=2 <app>: each exit0.
+.local/desktop-build-env/bin/python .local/guidance-json-verification/verify_compiled_contract.py <bundled backend>: exit0; reads freshly compiled PYZ code constants, verifies JSON directive,36/1200 excerpt bound,8192/8193 diagnostic and localized safe cause. Does not invoke provider.
+PYTHONPATH=<offline guard>:tests:. python3 scripts/verify_packaged_route.py <bundled backend>: exit0, existing isolated package API/Route/auth/AI-off/current-version/history/undo/restart fixtures passed. Fresh package no-key/off checks are not live AI acceptance.
+Source fingerprint and independent-review file hashes verified after build/sign: match frozen files.
+
+Budget/privacy/reproduction limits:
+All model calls stay behind existing Gateway; no new operation/provider/retry/output/frequency/scope. System adds12UTF8bytes; brainstorm/English terms/data instruction remain verbatim. Long BMP Chinese current excerpt floor40→36 fits original1200input/500output; local originals/notice retained, optional memory cannot shrink admitted answer. Supplementary Unicode/quote/backslash extremes may still be rejected locally at the floor, as baseline; no claim of all-Unicode admission.
+Core recurring search/dedupe/ranking/profile/archive/DB minimum0 modeltokens. Registered peak cache-miss1200/500 per-call arithmetic$0.00096 before/after, not actual billing. Runtime aggregate remains owner-uncapped and unknown; developer caps/accounting unchanged. Real paid development/provider calls0 for this unit, coding-agent use unknown. Prior units' actual usage is not overwritten.
+HTTP400 known JSON-instruction class reads once<=8193bytes, accepts<=8192 validUTF8/JSON only; only fixed class returned, never provider body/code/param/message/key/prompt. Streams close,4xx release retained;5xx no diagnostic body read and unknown reservation retained.
+Historical screenshot body not captured. Official JSON-mode contract and protocol-aware mocked400 reproduce the code defect; no claim that old provider body was read or live model success/quality/billing proved. General recommendation/learning-map scientific correctness and tokenizer parity are not measured here. No formal user data/key/ledger read or modified.
+
+Package:
+{
+  "source_count": 165,
+  "source_sha256": "6def5810a5418d143cc9d5e6b42486689e133e94c058380f2880fc8711bbe838",
+  "app_mtime": "2026-10-09T11:14:16.798711+08:00",
+  "backend_sha256": "32b0bfd9e9f7b238bea80bf5c4df30898cce1f4eb70ab81e51ab5306d2c41928"
+}
+Backup: .local/app-backups/PaperDigHelper-before-guidance-json-20261009.app; previous backend SHA256 f86440c82cf943840e3e6e9218c7526ac904b015d5867734d204c82527b30203.
+General release: python3 scripts/harness.py check --release expected exit1; unchanged20 blocking evaluations not_run and2 enforcement/calibration flags. Record owner_approved remainsfalse. Ordinary work-unit review recorded after exact changed-file registration.
+Final exact17-file ordinary record review: exit0. Final repository/budget/i18n/whitespace checks: exit0. Review --release: expected exit1, existing general-release approval missing; no gate or human approval field was changed to obtain a pass.

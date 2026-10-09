@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-09-guidance-json-protocol",
+  "class": "critical",
+  "summary": "Repair the missing JSON-mode prompt instruction in project guidance and show a narrowly classified safe provider rejection reason.",
+  "tasks": [
+    "FIX-GUIDANCE-JSON-PROTOCOL"
+  ],
+  "files": [
+    "app/creation.py",
+    "app/gateway.py",
+    "app/guidance_contract.py",
+    "changes/2026-10-09-guidance-json-protocol.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0032-guidance-json-protocol.md",
+    "docs/evidence/2026-10-09-guidance-json-checks.txt",
+    "docs/evidence/2026-10-09-guidance-json-review-gateway.md",
+    "docs/evidence/2026-10-09-guidance-json-review.md",
+    "docs/evidence/2026-10-09-guidance-json-self-review.md",
+    "harness/sources.json",
+    "harness/tasks.json",
+    "prompts/project-guidance.md",
+    "tests/test_gateway_http_diagnostics.py",
+    "tests/test_guidance_error_diagnostics.py",
+    "tests/test_guidance_json_protocol.py"
+  ],
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Daily search, dedupe, ranking, profile, archive and DB minimum remain0 model tokens. Existing project_guidance1200input/500output bounds, quick1/guided6 accepted turns, one attempt, no retry or new operation remain. Explicit JSON instruction adds12 UTF8bytes; optional current excerpt floor40→36 fits the same bound without removing rules or local originals. Runtime aggregate remains owner-uncapped and unknown; developer caps/accounting unchanged.",
+    "before": "06b23be; existing1200input/500output, one attempt, peak cache-miss per-call ceiling arithmetic unchanged; core0.",
+    "after": "Same per-call envelope, frequency, model/prices and privacy scope; no aggregate ceiling; actual provider usage not measured.",
+    "developer_usage": "Real paid development/provider requests0 this unit. Synthetic temporary App/Gateway transport only. Coding-agent consumption unknown.",
+    "quantified": {
+      "period": "one existing project_guidance call registered envelope arithmetic; not a provider measurement or aggregate cap",
+      "before": {
+        "input_tokens": 1200,
+        "output_tokens": 500,
+        "usd": "0.00096"
+      },
+      "after": {
+        "input_tokens": 1200,
+        "output_tokens": 500,
+        "usd": "0.00096"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-guidance-json-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-guidance-json-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-guidance-json-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "reviewer": "root",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-guidance-json-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "creation_ui: no production/test authorship this unit, all source/API/rendering contracts",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-guidance-json-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "ai_guide: Gateway/creation diagnostics only; own guidance files excluded",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-guidance-json-review-gateway.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Historical screenshot lacks provider response body; protocol-aware reproduction proves the code defect, not the exact old provider message.",
+    "No live paid guide request or response-quality/billing measurement; general release gates remain unchanged."
+  ]
+}

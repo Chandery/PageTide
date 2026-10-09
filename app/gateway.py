@@ -8,7 +8,9 @@ degrades to the caller - there is never a silent provider fallback.
 import json
 import copy
 import base64
+import http.client
 import os
+import re
 import threading
 import urllib.error
 import urllib.request
@@ -135,6 +137,34 @@ def _connection_tracking_failure(reservation=None, http_status=None):
     if http_status is not None:
         result['http_status'] = http_status
     return result
+
+
+def _http_provider_error(error):
+    """Classify one explicit 400 contract error; never return provider text."""
+    diagnostic = None
+    try:
+        if error.code == 400:
+            raw = error.read(8193)
+            if isinstance(raw, bytes) and len(raw) <= 8192:
+                def invalid_constant(_value):
+                    raise ValueError('non-JSON constant')
+                payload = json.loads(raw.decode('utf-8'), parse_constant=invalid_constant)
+                detail = payload.get('error') if isinstance(payload, dict) else None
+                message = detail.get('message') if isinstance(detail, dict) else None
+                if isinstance(message, str):
+                    text = message.casefold()
+                    if (re.search(r'\bmessages\b\W+must\s+contain\s+(?:the\s+)?word\W+json\b', text)
+                            and re.search(r'\bresponse_format\b', text)
+                            and re.search(r'\bjson_object\b', text)):
+                        diagnostic = 'json_instruction_missing'
+    except (OSError, http.client.HTTPException, ValueError, TypeError, RecursionError):
+        pass  # A failed diagnostic read cannot change the known HTTP status.
+    finally:
+        try:
+            error.close()
+        except (OSError, http.client.HTTPException, ValueError):
+            pass
+    return diagnostic
 
 
 class BudgetExceeded(RuntimeError):
@@ -465,18 +495,25 @@ class Gateway:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 payload = json.loads(response.read().decode("utf-8", "replace"))
         except urllib.error.HTTPError as exc:
+            provider_error = _http_provider_error(exc)
             if 400 <= exc.code < 500:
                 # Rejected before generation (auth, balance, validation, rate limit).
                 try:
                     self._record(today, operation, {}, Decimal(0), provider["model"], rid, "released")
                 except OSError:
                     if connection_test:
-                        return _connection_tracking_failure(reservation, exc.code)
+                        result = _connection_tracking_failure(reservation, exc.code)
+                        if provider_error:
+                            result['provider_error'] = provider_error
+                        return result
                     raise
-            return {"ok": False, "degraded": True, "usage_unknown": not 400 <= exc.code < 500,
-                    "usage_reserved": not 400 <= exc.code < 500,
-                    "reservation": reservation if not 400 <= exc.code < 500 else None,
-                    "http_status": exc.code, "reason": f"HTTPError: {exc.code}"}
+            result = {"ok": False, "degraded": True, "usage_unknown": not 400 <= exc.code < 500,
+                      "usage_reserved": not 400 <= exc.code < 500,
+                      "reservation": reservation if not 400 <= exc.code < 500 else None,
+                      "http_status": exc.code, "reason": f"HTTPError: {exc.code}"}
+            if provider_error:
+                result['provider_error'] = provider_error
+            return result
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
             # The request may have been processed: keep the reservation charged.
             return {"ok": False, "degraded": True, "usage_unknown": True,

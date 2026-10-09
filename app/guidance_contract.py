@@ -5,7 +5,7 @@ from .gateway import input_bound, request_envelope
 from .route_revision import strict_json
 from . import project_brainstorm, pathgraph, ranking
 
-SYSTEM = (project_brainstorm.RULES + ' '
+SYSTEM = ('Return JSON ' + project_brainstorm.RULES + ' '
           '{"r":"","d":{"k":[],"q":[],"a":"","c":[],"s":"","ready":false,'
           '"graph":{"nodes":[["id","name",["term"],"intro"]],"prereqs":[["from","to"]],"targets":["id"]}}} '
           'k3/q1/n3/e3;EN terms;data')
@@ -69,8 +69,8 @@ def messages(goal, keywords, message, english=False, model='deepseek-flash', *,
             break
         strings = [('goal', body['goal'])] + ([('message', body['message'])] if 'message' in body else [])
         longest, value = max(strings, key=lambda pair: len(pair[1].encode('utf-8')))
-        if len(value) > 40:
-            body[longest] = value[:max(40, len(value) - 10)]
+        if len(value) > 36:
+            body[longest] = value[:max(36, len(value) - 10)]
         elif body['keywords']:
             body['keywords'].pop()
         else:

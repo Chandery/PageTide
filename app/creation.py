@@ -220,6 +220,8 @@ _REASONS = {
     "not_approved": ("这项 AI 调用还没有获得批准", "This AI call has not been approved"),
     "budget": ("已达到每日或每月的额度上限", "A daily or monthly budget ceiling was reached"),
     "http": ("DeepSeek 拒绝了这次请求", "DeepSeek rejected the request"),
+    "request_format": ("应用的 AI 请求缺少 JSON 输出声明，请更新应用后重试；草稿已保留 (HTTP 400)",
+                       "The app's AI request is missing its JSON output instruction; update the app and retry. Your draft was preserved (HTTP 400)"),
     "network": ("请求没有成功（网络或超时）；这次预留的额度仍会计入", "The request did not complete (network or timeout); the reserved budget still counts"),
     "bad_reply": ("AI 回复为空或格式无效；请重新尝试，原有内容已保留", "The AI reply is empty or invalid; try again. Existing content was preserved"),
     "error": ("调用出现意外错误", "The call failed unexpectedly"),
@@ -247,6 +249,8 @@ def degrade_reason(result, english=False):
         code = "not_approved"
     elif "ceiling" in raw or "budget exceeded" in raw:
         code = "budget"
+    elif status == 400 and result.get('provider_error') == 'json_instruction_missing':
+        code = "request_format"
     elif status is not None:
         code = "http"
     elif result.get('bad_reply'):

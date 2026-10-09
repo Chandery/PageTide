@@ -488,6 +488,14 @@
       "recheck_after_days": 30,
       "claim": "The pinned official V4 tokenizer ZIP and tokenizer JSON match the fresh download; no model weights are required.",
       "verification": "HTTP 200 at 2026-10-07T20:34:39Z; ZIP SHA256 e7310d1dafe0a86d8a5629fe78a7c763760f651db9b8682718a1781dcd6fe495; JSON SHA256 89085f12ef79460ac5f66d1119325ddfc694b4ab209d80bbd81d35f081dc9614. Hosted billing parity remains unverified."
+    },
+    {
+      "id": "DS-JSON-OUTPUT-20261009",
+      "url": "https://api-docs.deepseek.com/zh-cn/guides/json_mode/",
+      "verified_on": "2026-10-09",
+      "recheck_after_days": 30,
+      "claim": "JSON Output requires response_format json_object plus a system/user prompt containing json and an output example; reasonable max_tokens and response validation remain necessary.",
+      "verification": "Official Chinese JSON Output page successfully opened with web on2026-10-09 after English-page timeout. Offline protocol-aware transport reproduces missing-instruction rejection; no new live provider or billing probe, no historical screenshot error body captured."
     }
   ]
 }

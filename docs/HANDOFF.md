@@ -1,3 +1,13 @@
+# 当前工作单元：项目引导 JSON 协议修复（2026-10-09）
+
+基线 main `06b23be`，上一单元 AI 设置/题目初筛已本地提交隔离，无推送。本单元 `FIX-GUIDANCE-JSON-PROTOCOL` 已完成，改动保留未提交；[变更记录](../changes/2026-10-09-guidance-json-protocol.json)。用户报告设置测试成功、引导HTTP400；引导system漏JSON字样，违反本日核验的服务合同，而设置测试仅固定普通文本。已增加明确JSON声明，保持1200/500和单次尝试；新增安全有界400分类与同处失败原因，草稿保留。
+
+离线协议感知失败先行与36项针对回归已通过；最终Python2127（295.453秒）、Node461通过。独立主审查102Python/22Node及4个App/真实显示函数回放通过，另Gateway/creation独审12项回归+8合成回放通过。桌面prepare/build、签名、编译合同常量和隔离API包验证均通过，以[检查证据](evidence/2026-10-09-guidance-json-checks.txt)最终记录为准。本次没有真实付费调用、正式库或正式密钥访问；不能声称现网引导质量成功，历史截图未保留provider响应体。
+
+本地日常核心最低0模型token，1200/500峰时未命中单次上界算术 $0.00096 不变；新增12字节不是实测token。用户aggregate帽仍取消且总量未知，开发限额与账本保留；编码agent用量未知。完整目标/回答留本地；长BMP中文请求适配至下限36字符，更高转义成本仍可安全拒绝，非全Unicode准入保证。全部产品blocking gates/人工发布批准保留原状态。新版输出 `src-tauri/target/release/bundle/macos/PaperDigHelper.app`；source165文件SHA256 `6def5810a5418d143cc9d5e6b42486689e133e94c058380f2880fc8711bbe838`，打包后端SHA256 `32b0bfd9e9f7b238bea80bf5c4df30898cce1f4eb70ab81e51ab5306d2c41928`，构建时间 `2026-10-09T11:14:16.798711+08:00`。旧应用备份位于 `.local/app-backups/PaperDigHelper-before-guidance-json-20261009.app`。下一个动作：用户退出旧版并打开新版，在保留草稿上显式重试；若仍有400，依据新的安全原因进一步调查，不自动付费复测。
+
+---
+
 # 当前工作单元：AI 设置与推荐题目初筛（2026-10-09）
 
 本地 main 基线 `f745009`（上一创建/brainstorm修复单元已本地提交隔离）；本单元修改保留在 main 工作树，未提交/推送。`FIX-AI-SETTINGS-TITLE` done，仅表示本单元软件验收；一般发布批准和既有质量门槛不自行通过。见 [变更记录](../changes/2026-10-09-owner-ai-settings.json)、[ADR0031](decisions/0031-owner-ai-settings-title-screen.md)、[检查证据](evidence/2026-10-09-owner-ai-settings-checks.txt)。
