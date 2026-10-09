@@ -42,6 +42,9 @@ class GatewayBudgetTests(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         self.gateway = Gateway(root=ROOT, data_dir=self.data, dev=False)
+        # These historic ceiling fixtures explicitly exercise the retained
+        # opt-in policy; shipped runtime policy is covered in test_gateway_policy.
+        self.gateway.config['policy']['aggregate_limits_enabled'] = True
 
     def test_invalid_unicode_serialization_refuses_before_reservation_or_network(self):
         with mock.patch('app.gateway.urllib.request.urlopen') as opened:

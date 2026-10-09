@@ -4,6 +4,8 @@ import hashlib
 import threading
 from pathlib import Path
 
+from .paper_language import title_metadata_evidence
+
 MAX_PDF_BYTES = 128 * 1024 * 1024
 BODY_PAGES = 6
 BODY_PAGE_CHARS = 2000
@@ -104,15 +106,22 @@ def defer_verification(scope, key):
 
 
 def evaluate(policy, paper, language, local_body=''):
+    # Recompute from the current title, rather than trusting a cached/client
+    # signal. _paper_language owns current-PDF proof; legacy direct callers
+    # supplying only fulltext_language keep their existing verified priority.
+    language = {**language, **title_metadata_evidence(paper.get('title'), language.get('metadata_language'))}
+    fulltext_verified = bool(language.get('fulltext_language')) and language.get('fulltext_status', 'verified') == 'verified'
     reason = None
     if policy['status'] != 'ready':
         reason = 'language_policy_required'
     else:
-        reported = language.get('fulltext_language') or language.get('metadata_language')
+        reported = (language.get('fulltext_language') if fulltext_verified else None) or language.get('metadata_language')
         if not reported:
             reason = 'language_unknown'
         elif reported not in policy['allowed_languages']:
             reason = 'language_not_allowed'
+        elif policy['allowed_languages'] == ['en'] and language['title_metadata_conflict'] and not fulltext_verified:
+            reason = 'title_language_unverified'
         elif not usable_abstract(paper.get('abstract')) and not usable_body(local_body):
             reason = 'no_readable_content'
     return {'eligible': reason is None, 'reason': reason, 'language': language}
@@ -127,5 +136,7 @@ REASONS = {
     'source_verification_deferred': ('本轮文件核验读取量已达上限，请再次生成', 'File verification reached its read limit; generate again'),
     'language_unknown': ('论文语言未知', 'Paper language is unknown'),
     'language_not_allowed': ('论文语言不符合项目设置', 'Paper language is not allowed by this project'),
+    'title_language_unverified': ('标题文字与来源报告的英文语言存在冲突，请核验当前 PDF 的正文语言后再推荐',
+                                  'The title script conflicts with the source English report; verify the current PDF body language before recommending'),
     'no_readable_content': ('没有可用摘要或当前版本的本地正文', 'No usable abstract or local text from the current PDF'),
 }

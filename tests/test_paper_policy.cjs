@@ -33,6 +33,13 @@ test('loading an old pending project does not assign English; saved multi-langua
   assert.match(policy.label({metadata_language:'en'}),/未核验/);
   assert.match(policy.label({fulltext_status:'verified',fulltext_language:'zh'}),/中文.*已核验/);
 });
+test('language report distinguishes the source claim and current-PDF evidence without changing a conflicting title',()=>{
+  const report=policy.report({metadata_language:'en',metadata_source:'OpenAlex',fulltext_status:'unverified',title_metadata_conflict:true});
+  assert.match(report,/来源报告语言：英文（OpenAlex）/);assert.match(report,/全文语言未核验/);assert.match(report,/题名文字与英文来源报告不一致/);
+  const verified=policy.report({metadata_language:'en',metadata_source:'OpenAlex',fulltext_status:'verified',fulltext_language:'en',title_metadata_conflict:true});
+  assert.match(verified,/全文语言：英文（已核验）/);assert.doesNotMatch(verified,/全文语言未核验|全文语言：中文/);
+  assert.match(policy.report({fulltext_status:'unverified'}),/来源报告语言：未知/);
+});
 test('project settings submit the selected humanities policy once and retain it after failure',async()=>{
   const nodes=new Map();for(const name of ['paperPolicy','languageForm','languageSave','main','back','routeLink','name','nameEcho','facts','delete','confirm','notice','renameForm','rename']) nodes.set(name,new Element(document,name));
   const doc={...document,querySelector(selector){return nodes.get(selector.match(/"(.+)"/)[1]);}};

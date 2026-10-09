@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "baseline_id": "2026-09-11-ai-approved-incl-rerank",
+  "baseline_id": "2026-10-09-ai-no-aggregate-ceilings",
   "approved_by_owner": true,
-  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003). 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical. 2026-10-07 owner 在本会话对新增 category_review 范围与上限问题明确回复“批准”：完整共享目录最多60类、每批最多12篇标题80/摘要160片段及临时 c/p 归属别名；输入8000、输出2000，每批一次无重试，沿用全局55k/day、1.5M/month、$0.15/day、$1.50/month。明确显式审阅才调用、完整预览确认才改分类；不发PDF、笔记、反馈、画像、私有ID或历史，不自动打开AI总开关，不扩大其他操作。初始登记为false等待答复，现按此次人类批准登记true；不是agent自行批准。",
+  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003). 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical. 2026-10-07 owner 在本会话对新增 category_review 范围与上限问题明确回复“批准”：完整共享目录最多60类、每批最多12篇标题80/摘要160片段及临时 c/p 归属别名；输入8000、输出2000，每批一次无重试，沿用全局55k/day、1.5M/month、$0.15/day、$1.50/month。明确显式审阅才调用、完整预览确认才改分类；不发PDF、笔记、反馈、画像、私有ID或历史，不自动打开AI总开关，不扩大其他操作。初始登记为false等待答复，现按此次人类批准登记true；不是agent自行批准。 2026-10-09 owner 在本会话明确要求“不再设置预算上限，设置里增设按钮：测试AI”：取消 App 运行时 aggregate 日/月 token 与 USD 准入上限，保留逐次用量、未知预留与各操作单次请求合同；旧总帽数值仅为历史，不是当前余额或0额度。新增 ai_connection_test 仅手工按钮单次固定消息，可临时测试未保存密钥及在 AI 总开关关闭时测试而不改开关；无自动重试、无用户内容外发。本授权不扩展其他操作单次 caps，不批准额外 paid developer calls；独立开发账本与开发上限保持。",
   "pending_approval": [],
   "measurement_status": "owner_approved_planning_envelopes_no_runtime_or_tokenizer_measurement",
   "provider": {
@@ -35,7 +35,9 @@
     "unknown_usage": "retain_reservation_until_reconciled",
     "budget_increase_requires_owner_approval": true,
     "cache_savings_assumed": false,
-    "automatic_model_fallback": false
+    "automatic_model_fallback": false,
+    "aggregate_limits_enabled": false,
+    "aggregate_limits_note": "Owner 2026-10-09: 不再设置预算上限；existing daily/monthly numeric fields are historical, not admission limits. Separate developer policy remains enabled."
   },
   "zero_token_operations": [
     "paper_metadata_search",
@@ -320,7 +322,7 @@
         "three_public_papers_and_three_proposals": 2500,
         "protocol_framing_margin": 500
       },
-      "scope": "One explicit whole-queue job freezes all current Useful/chosen-seed pending papers. At most10 jobs/project/local day shared with historical counter. Each sequential unretried gateway request sends up to3 of the same public title/abstract fields, complete bounded Map40nodes/120edges with names/terms/intros/hints/type/state/side/targets/prereqs, and up to3 current proposals under ephemeral p/c/d aliases. Public source windows start at title80/abstract180 characters; within the SAME complete encoded-envelope UTF8bytes+256 <=8000 admission limit, each paper may sequentially expand to160/300,200/420,200/480 continuous original characters. Recompute the complete envelope for every candidate; keep the last admitted window, never cut the Map or make extra calls to gain source space. Component amounts are flexible arithmetic allocations, not simultaneous per-field guarantees. The same continuous transmitted title/abstract windows also contain at most3 immutable contiguous snippet options per paper, each no longer than160characters with an ephemeral paper-prefixed reference, source field, original start/end and exact text. Repeated text and all option/schema overhead are included in the complete encoded-envelope admission check; optional window enrichment can be reduced for that overhead, never the complete Map. Before refusing a baseline envelope solely because optional snippet duplication does not fit, measure complete encoded messages with at most3, then2, then1 existing semantically selected immutable option per paper, never removing the last available literal option. Missing or very short supplied metadata may yield no valid literal option; existing uncertainty handling then cannot grant coverage or a new task. Preserve those same continuous original source windows, the complete Map and all selected current proposals during this count admission; never shrink those required fields for options or omit them. Subsequent optional window enrichment retains the admitted option count, with every candidate envelope independently measured. Still oversized even with1 is refused before transport. No extra gateway request, response repair or scientific exemption. The public-snippet-ref-v2 model response keys evidence by each ephemeral paper alias, with exactly one object containing only snippet and type per paper for decisive judgments. Raw JSON duplicate keys at any depth are rejected before normalization. No arrays, multiple options, free quotation, v1 marked-shape fallback or local evidence merging is accepted. The model selects exactly one valid option per paper for decisive judgments. Local expansion validates the frozen reference/table/offset/text before restoring the literal citation; unknown, duplicate, cross-paper, altered or out-of-window references fail closed. Object/treatment omitted by the model remain unknown; choosing a real snippet does not prove study type, object/task compatibility, negation or a necessary prerequisite. Existing scientific/context guards still operate on only exactly transmitted context. Legacy quotation validation remains strict. Broader abstract data outside those windows cannot justify a model conclusion. New interest waits for next click. No private IDs, notes, profile, feedback text, other projects, full text or history. Per-request8000 conservative input upper estimate/1000output and request count unchanged; refuse oversized Map and length/invalid/missing results. Every request separately admitted/reserved/reconciled under unchanged global55k/day1.5M/month,$0.15/day$1.50/month. More actual input can cost more inside that existing cap; no cache discount is assumed. No aggregate guarantee; stop on failure, budget refusal, unknown billing, stale context or incomplete batch; retain prior saves and unfinished queue. Completely unpaid job refunded, otherwise one daily job retained. Atomic user preview/confirmation before Map change. Human whole-queue instruction2026-10-07 authorizes expanded frequency/scope; owner's2026-10-08 instruction to fix all audit findings authorizes bounded evidence repair, not a higher quota or new exposure. Actual billing is recorded in the separate developer ledger; scientific quality and release value remain separate evaluations."
+      "scope": "One explicit whole-queue job freezes all current Useful/chosen-seed pending papers. At most10 jobs/project/local day shared with historical counter. Each sequential unretried gateway request sends up to3 of the same public title/abstract fields, complete bounded Map40nodes/120edges with names/terms/intros/hints/type/state/side/targets/prereqs, and up to3 current proposals under ephemeral p/c/d aliases. Public source windows start at title80/abstract180 characters; within the SAME complete encoded-envelope UTF8bytes+256 <=8000 admission limit, each paper may sequentially expand to160/300,200/420,200/480 continuous original characters. Recompute the complete envelope for every candidate; keep the last admitted window, never cut the Map or make extra calls to gain source space. Component amounts are flexible arithmetic allocations, not simultaneous per-field guarantees. The same continuous transmitted title/abstract windows also contain at most3 immutable contiguous snippet options per paper, each no longer than160characters with an ephemeral paper-prefixed reference, source field, original start/end and exact text. Repeated text and all option/schema overhead are included in the complete encoded-envelope admission check; optional window enrichment can be reduced for that overhead, never the complete Map. Before refusing a baseline envelope solely because optional snippet duplication does not fit, measure complete encoded messages with at most3, then2, then1 existing semantically selected immutable option per paper, never removing the last available literal option. Missing or very short supplied metadata may yield no valid literal option; existing uncertainty handling then cannot grant coverage or a new task. Preserve those same continuous original source windows, the complete Map and all selected current proposals during this count admission; never shrink those required fields for options or omit them. Subsequent optional window enrichment retains the admitted option count, with every candidate envelope independently measured. Still oversized even with1 is refused before transport. No extra gateway request, response repair or scientific exemption. The public-snippet-ref-v2 model response keys evidence by each ephemeral paper alias, with exactly one object containing only snippet and type per paper for decisive judgments. Raw JSON duplicate keys at any depth are rejected before normalization. No arrays, multiple options, free quotation, v1 marked-shape fallback or local evidence merging is accepted. The model selects exactly one valid option per paper for decisive judgments. Local expansion validates the frozen reference/table/offset/text before restoring the literal citation; unknown, duplicate, cross-paper, altered or out-of-window references fail closed. Object/treatment omitted by the model remain unknown; choosing a real snippet does not prove study type, object/task compatibility, negation or a necessary prerequisite. Existing scientific/context guards still operate on only exactly transmitted context. Legacy quotation validation remains strict. Broader abstract data outside those windows cannot justify a model conclusion. New interest waits for next click. No private IDs, notes, profile, feedback text, other projects, full text or history. Per-request8000 conservative input upper estimate/1000output and request count unchanged; refuse oversized Map and length/invalid/missing results. Every request separately admitted/reserved/reconciled under the single-request contract and current policy.aggregate_limits_enabled=false; historical daily/monthly token/USD totals do not refuse runtime requests. More actual input can cost more; no cache discount is assumed. No aggregate spend cap; stop on failure, single-request refusal, unknown billing, stale context or incomplete batch; retain prior saves and unfinished queue. Completely unpaid job refunded, otherwise one daily job retained. Atomic user preview/confirmation before Map change. Human whole-queue instruction2026-10-07 authorizes expanded frequency/scope; owner's2026-10-08 instruction to fix all audit findings authorizes bounded evidence repair, not a higher quota or new exposure. Actual billing is recorded in the separate developer ledger; scientific quality and release value remain separate evaluations."
     },
     "route_map_create": {
       "owner_approved": true,
@@ -384,7 +386,28 @@
         "complete_directory_and_public_papers": 5500,
         "protocol_framing_margin": 500
       },
-      "scope": "One explicit review freezes all current-scope saved papers and the entire shared directory (max60); sequential unretried batches of at most12 public titles80/abstract160 fragments and memberships under temporary c/p aliases. No PDF, notes, feedback, profile, private IDs or history. Complete wire UTF8bytes+256 checked before gateway admission; oversize directory refused, never cut. Every request goes through unchanged global55k/day1.5M/month,$0.15/day$1.50/month. Full successful consensus preview only, failure/unknown usage stops later requests; no partial unsafe plan and no automatic rejudgment. Explicit atomic apply/undo before edits; deletes require all remaining links handled. Price/tokenizer/actual AI quality arithmetic, not product measurement."
+      "scope": "One explicit review freezes all current-scope saved papers and the entire shared directory (max60); sequential unretried batches of at most12 public titles80/abstract160 fragments and memberships under temporary c/p aliases. No PDF, notes, feedback, profile, private IDs or history. Complete wire UTF8bytes+256 checked before gateway admission; oversize directory refused, never cut. Every request goes through the metered gateway and its single-request contract; current policy.aggregate_limits_enabled=false disables runtime daily/monthly token/USD admission caps while retaining usage and unknown reservations. Full successful consensus preview only, failure/unknown usage stops later requests; no partial unsafe plan and no automatic rejudgment. Explicit atomic apply/undo before edits; deletes require all remaining links handled. Price/tokenizer/actual AI quality arithmetic, not product measurement."
+    },
+    "ai_connection_test": {
+      "owner_approved": true,
+      "approval_note": "Owner 2026-10-09 明确要求“不再设置预算上限，设置里增设按钮：测试AI”；授权 runtime 一次手工固定连通测试，不授权额外 paid dev calls。",
+      "prompt": "prompts/ai-connection-test.md",
+      "trigger": "interactive",
+      "enabled_by_default": false,
+      "reference": {
+        "input": 128,
+        "output": 4
+      },
+      "cap": {
+        "input": 768,
+        "output": 16
+      },
+      "input_cap_components": {
+        "fixed_message": 64,
+        "protocol_and_framing": 448,
+        "margin": 256
+      },
+      "scope": "one explicit settings button click; fixed English connectivity text only, no user content/history/project metadata; one call, no retry; optional ephemeral key only for this operation; may test with AI switch off without changing it"
     }
   },
   "scenarios": [
@@ -515,6 +538,17 @@
       "weekly_calls": {},
       "one_off_calls": {
         "route_growth_judge": 56
+      }
+    },
+    {
+      "id": "ai_connection_manual",
+      "label": "手工单次AI连接测试（需求算术，不是账单）",
+      "days": 1,
+      "weekly_runs": 0,
+      "daily_calls": {},
+      "weekly_calls": {},
+      "one_off_calls": {
+        "ai_connection_test": 1
       }
     }
   ],

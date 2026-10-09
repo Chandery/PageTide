@@ -99,9 +99,11 @@ class GatewayTests(unittest.TestCase):
         dev = Gateway(root=".", ledger=Path(self.tmp.name) / "runtime.jsonl", dev=True)
         self.assertEqual(runtime.ledger.name, "runtime.jsonl")
         self.assertEqual(dev.ledger, Path(".") / DEV_LEDGER)
-        self.assertEqual(runtime.limits()["daily_total_tokens"], runtime.config["policy"]["daily_total_tokens"])
+        self.assertFalse(runtime.limits()['aggregate_limits_enabled'])
+        self.assertIsNone(runtime.limits()["daily_total_tokens"])
+        self.assertTrue(dev.limits()['aggregate_limits_enabled'])
         self.assertEqual(dev.limits()["daily_total_tokens"], DEV_POLICY["daily_total_tokens"])
-        self.assertGreater(dev.limits()["daily_total_tokens"], runtime.limits()["daily_total_tokens"])
+        self.assertGreater(dev.limits()["daily_total_tokens"], runtime.config["policy"]["daily_total_tokens"])
         self.assertNotEqual(dev.ledger, runtime.ledger)
 
     def test_unregistered_operation_is_rejected(self):

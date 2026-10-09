@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-09-owner-ai-settings",
+  "class": "critical",
+  "summary": "Apply owner-requested uncapped runtime aggregate usage, add an explicit credential-safe AI connectivity check in settings, and screen source English reports against clearly non-Latin titles before English-only recommendation.",
+  "tasks": [
+    "FIX-AI-SETTINGS-TITLE"
+  ],
+  "files": [
+    "app/eligibility.py",
+    "app/gateway.py",
+    "app/paper_language.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/import.js",
+    "app/static/index.html",
+    "app/static/paper-policy.js",
+    "app/static/settings.html",
+    "changes/2026-10-09-owner-ai-settings.json",
+    "docs/BUDGET.generated.md",
+    "docs/BUDGET.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0031-owner-ai-settings-title-screen.md",
+    "docs/evidence/2026-10-09-owner-ai-settings-checks.txt",
+    "docs/evidence/2026-10-09-owner-ai-settings-review-api.md",
+    "docs/evidence/2026-10-09-owner-ai-settings-review-backend.md",
+    "docs/evidence/2026-10-09-owner-ai-settings-review-gateway-ui.md",
+    "docs/evidence/2026-10-09-owner-ai-settings-self-review.md",
+    "harness/budget.json",
+    "harness/requirements.json",
+    "harness/tasks.json",
+    "prompts/ai-connection-test.md",
+    "scripts/budget.py",
+    "tests/test_ai_connection.py",
+    "tests/test_ai_connection_settings.cjs",
+    "tests/test_app_core.py",
+    "tests/test_budget.py",
+    "tests/test_gateway_budget.py",
+    "tests/test_gateway_policy.py",
+    "tests/test_gateway_process.py",
+    "tests/test_growth_batch.py",
+    "tests/test_i18n.cjs",
+    "tests/test_paper_context.cjs",
+    "tests/test_paper_policy.cjs",
+    "tests/test_provider_settings.py",
+    "tests/test_ranking_foundation.py",
+    "tests/test_system_i18n_fixes.cjs",
+    "tests/test_title_language_gate.py"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "Owner explicitly removes runtime aggregate token/money ceilings. Daily local search, dedupe, ranking, profile, archive and DB minimum remains0 model tokens. Adds only a fixed manually invoked connection test; no user/library data, no auto retry or enablement, separate developer limits/accounting retained. Single-operation input/output contracts unchanged for existing features. Unlimited aggregate is unknown/unbounded, never0 or a finite guaranteed monthly maximum.",
+    "before": "Runtime55k/day1.5M/month,$0.15/day$1.50/month; no connection-test operation; core minimum0.",
+    "after": "No runtime aggregate ceilings by human instruction; optional aggregate spend unbounded by app. New connection test bounded768input/16output, one request/explicit click; peak cache-miss arithmetic$0.0002496 per registered envelope, not an actual bill. All local minimum0; developer limits separate.",
+    "quantified": {
+      "period": "one explicit new connection-test action, registered per-call envelope arithmetic; NOT aggregate spending cap",
+      "before": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": "0"
+      },
+      "after": {
+        "input_tokens": 768,
+        "output_tokens": 16,
+        "usd": "0.0002496"
+      }
+    },
+    "developer_usage": "This unit: real paid development/provider calls0; synthetic transport/local HTTP tests and no-key/off browser/package only. Coding-agent usage unknown; previous unit actual usage remains separately recorded."
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-owner-ai-settings-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-owner-ai-settings-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-owner-ai-settings-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "reviewer": "root",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-owner-ai-settings-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "organization_ai: title/backend and root service; own gateway excluded",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-owner-ai-settings-review-backend.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "ai_guide: gateway/budget/UI and root lifecycle; own title excluded",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-owner-ai-settings-review-gateway-ui.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "creation_ui: App/API/Gateway integration; own UI excluded",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-owner-ai-settings-review-api.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "General release evaluation gates and owner publication approval unchanged.",
+    "Title character evidence cannot establish PDF language or scientific quality; live connection quality not claimed from mocks."
+  ]
+}

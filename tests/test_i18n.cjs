@@ -192,6 +192,12 @@ test('language evidence and exclusion counts translate as complete UI messages',
   assert.equal(i18n.translate('全文语言未核验 · 元数据语言：en'),'Full-text language unverified · Metadata language: en');
   assert.equal(i18n.translate('语言未知 2 篇'),'Language unknown: 2 papers');
 });
+test('connection test and unlimited accounting translate complete status sentences',()=>{
+  const {i18n}=load('en-US',PACK);
+  for(const text of ['测试 AI','AI 用量记录','正在测试 AI…已等待 4 秒','AI 测试成功 · DeepSeek · mock-model · 用时 4.2 秒 · 本次 9 token','AI 测试失败：HTTP 401 · 用时 1.2 秒','本次用量未确认；预留记录保留，待核对。','今日 900 token · 含待确认预留','今日消耗 $0.003 · 本月消耗 $0.006','来源报告语言：英文（OpenAlex） · 全文语言未核验 · 题名文字与英文来源报告不一致','不设用量上限，仍记录消耗。未确认用量的预留记录仍保留，待核对。']){
+    assert.doesNotMatch(i18n.translate(text),/[㐀-鿿]/,text);
+  }
+});
 
 test('actual Route batch sentences and badges translate in empty, watch-only and mixed batches',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../app/static/index.html'),'utf8');

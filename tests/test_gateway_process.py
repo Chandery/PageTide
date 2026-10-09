@@ -17,6 +17,7 @@ from app.gateway import Gateway
 
 def _race_gateway(data, paused, release, sent, results, first):
     gateway = Gateway(root=ROOT, data_dir=data, dev=False)
+    gateway.config['policy']['aggregate_limits_enabled'] = True
     usage = gateway._usage
     if first:
         def snapshot_then_pause(day, month):
@@ -268,6 +269,8 @@ class GatewayProcessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as data:
             first = Gateway(root=ROOT, data_dir=data, dev=False)
             second = Gateway(root=ROOT, data_dir=data, dev=False)
+            first.config['policy']['aggregate_limits_enabled'] = True
+            second.config['policy']['aggregate_limits_enabled'] = True
             today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
             first._append({'date': today, 'input': 45000, 'output': 0, 'usd': '0'})
             sent, release, second_done = threading.Event(), threading.Event(), threading.Event()

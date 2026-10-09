@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import creation, maintenance
+from .organization import Conflict as OrganizationConflict
 from .language import language
 from .service import App
 
@@ -131,7 +132,7 @@ def category_review_job(root, project_id, all_papers=False, cancelled=None):
         app.store.close()
 
 
-# Keys and budget ceilings are owned by the gateway, not the cosmetic settings file.
+# Credentials and usage accounting belong to the gateway, not cosmetic settings.
 USER_SETTINGS_EXCLUDED = {"apiKey", "api_key", "dailyLimit", "aiRerank"}
 
 # Every page loads these first: the language pack for the chosen interface language, then the
@@ -672,7 +673,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self._same_origin():
             return self._json({"error": "cross-origin request denied"}, 403)
         route = urlparse(self.path).path
-        if route in ("/api/organization", "/api/settings", "/api/route"):
+        if route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test"):
             # These routes mutate the local library, the learning map or store a credential: also cap the body.
             limit = {"/api/organization": 2_000_000, "/api/route": 1_000_000}.get(route, 8_000)
             try:
@@ -721,7 +722,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": str(exc)}, 400)
             return self._json(self._settings_payload(app))
         app = self._app()
-        if route == "/api/projects":
+        if route == '/api/ai-test':
+            if set(body) - {'api_key'} or ('api_key' in body and not isinstance(body['api_key'], str)):
+                return self._json({'error': '测试请求仅接受可选的单行 API 密钥'}, 400)
+            try:
+                return self._json(app.test_ai_connection(body.get('api_key')))
+            except OrganizationConflict:
+                return self._json({'error': 'AI 连接测试正在进行，请等待本次结果'}, 409)
+            except ValueError as exc:
+                return self._json({'error': str(exc)}, 400)
+        elif route == "/api/projects":
             # POST: create new project
             name = body.get("name")
             creation_mode = body.get("creation_mode", "manual")
@@ -1109,10 +1119,11 @@ class Handler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _settings_payload(app):
-        """Provider state, AI switch and the enforced ceilings; never the key itself."""
+        """Provider, switch and accounting policy; never a saved or transient key."""
         limits = app.gateway.limits()
         return {"provider": app.provider_status(), "openalex": app.openalex_status(), "dev_mode": app.gateway.dev,
                 "ai_enabled": app.gateway.enabled(), "usage": app.usage(),
+                "aggregate_limits_enabled": bool(limits.get('aggregate_limits_enabled', True)),
                 "limits": {k: limits[k] for k in ("daily_total_tokens", "monthly_total_tokens",
                                                    "daily_usd", "monthly_usd")}}
 

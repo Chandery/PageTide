@@ -934,7 +934,7 @@ function cardHTML(c, i) {
       ${saved ? '<span class="st st-saved"><i class="icon bookmark" aria-hidden="true"></i>已收藏</span>' : ''}
     </div>
     ${routeBadge(c) ? `<div class="kws">${routeBadge(c)}</div>` : ''}
-    <div class="sub">${esc(PaperPolicy.label(c.language))} · 元数据语言：${esc(PaperPolicy.languages[c.language?.metadata_language] || c.language?.metadata_language || '未知')}</div>
+    <div class="sub">${esc(PaperPolicy.report(c.language))}</div>
     <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '暂无摘要'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
@@ -1032,6 +1032,14 @@ const projectSwitcher = window.ProjectSwitcher.mount({
 });
 
 // ------------------------------------------------------------------ load
+function usageLabel(u) {
+  if (!u) return '';
+  const tokens = typeof u.tokens === 'number' ? u.tokens.toLocaleString() : '—';
+  const ceiling = u.ceiling != null && Number.isFinite(Number(u.ceiling)) ? Number(u.ceiling).toLocaleString() : null;
+  const pending = u.tokens_known === false || Number(u.pending_reservations) > 0 || u.usage_unknown || u.usage_reserved || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0;
+  return [ceiling == null ? `今日 ${tokens} token` : `今日 ${tokens} / ${ceiling} token`,
+    u.dev ? '测试模式独立账本' : '',pending ? '含待确认预留' : ''].filter(Boolean).join(' · ');
+}
 async function load() {
   const projectAtStart = state.currentProject;
   const params = state.currentProject ? `?project_id=${encodeURIComponent(state.currentProject)}` : '';
@@ -1050,8 +1058,8 @@ async function load() {
   const banner = document.getElementById('devbanner');
   banner.style.display = state.devMode ? 'block' : 'none';
   if (state.devMode) {
-    banner.innerHTML = '<b>测试模式</b> · 独立账本与宽松额度，不消耗也不改动正式预算。' +
-      (state.usage ? ` 今日测试用量 ${state.usage.tokens.toLocaleString()} / ${state.usage.ceiling.toLocaleString()} token。` : '');
+    banner.innerHTML = '<b>测试模式</b> · 独立测试账本与额度，正式用量记录保持独立。' +
+      (state.usage ? ` ${esc(usageLabel(state.usage))}` : '');
   }
   state.stats = data.stats; state.profile = data.profile; state.summaries = data.summaries || {};
   try {
@@ -1070,7 +1078,7 @@ async function load() {
   const localLabel = document.createElement('span'); localLabel.textContent = '本地数据位置：';
   const localPath = document.createElement('span'); localPath.dataset.noI18n = ''; localPath.textContent = location.data_dir;
   $('#foot').replaceChildren(localLabel, localPath, ` · 服务端版本 ${state.version}`,
-    u ? ` · 今日 ${u.tokens.toLocaleString()} / ${u.ceiling.toLocaleString()} token${u.dev ? '（测试额度）' : ''}` : '');
+    u ? ` · ${usageLabel(u)}` : '');
 }
 // Opening-time upkeep: the server refreshes the candidate pool and builds today's batch when they are due.
 // It never starts an AI summary, never counts what was missed, and a failure leaves the page as it was.
@@ -1394,7 +1402,7 @@ async function openDetail(key) {
         ${window.PDHPaperContext.html(d.context, d.key)}
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
-        <section class="detail-section"><h3>论文语言</h3><p>${esc(PaperPolicy.label(d.language))}</p></section>
+        <section class="detail-section"><h3>论文语言</h3><p>${esc(PaperPolicy.report(d.language))}</p></section>
         <section class="detail-section"><h3>摘要</h3><div class="full">${d.abstract ? `<div data-no-i18n>${md(d.abstract)}</div>` : '暂无摘要'}</div></section>
       </aside>`;
     $('#detail').classList.remove('hidden');
@@ -1464,7 +1472,7 @@ async function openSettings() {
         <button class="ghost" id="settingsBack">← 返回</button>
         <div class="label" style="margin-top:20px">AI 接口</div>
         <h2>模型 API 设置</h2>
-        <div class="sub">速览、追问、划词翻译与图表问答统一经过预算网关调用 ${esc(p.model || 'DeepSeek')}；账号额度与日/月上限由服务端账本控制，超限即拒绝。</div>
+        <div class="sub">速览、追问、划词翻译与图表问答统一经过网关调用 ${esc(p.model || 'DeepSeek')}；日/月总用量不设上限，每次消耗仍记录在本地账本。</div>
         <div class="row" style="margin-top:14px">${status}</div>
         <div class="label">API Key</div>
         <div class="row">

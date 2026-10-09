@@ -192,13 +192,17 @@ class SettingsHTTPTests(unittest.TestCase):
 
 
 class SettingsPageTests(unittest.TestCase):
-    def test_settings_page_has_no_fake_budget_controls(self):
+    def test_settings_page_keeps_usage_and_explicit_test_without_budget_controls(self):
         html = (Path(__file__).resolve().parents[1] / "app/static/settings.html").read_text()
         for removed in ("dailyLimit", "aiRerank", "settings.apiKey", "apiKey:"):
             self.assertNotIn(removed, html)
         self.assertIn('id="aiEnabled"', html)
         self.assertIn("ai_enabled", html)
         self.assertIn('id="budgetLimits"', html)
+        self.assertIn('id="testAiBtn"', html)
+        self.assertIn('/api/ai-test', html)
+        self.assertIn('不设用量上限，仍记录消耗', html)
+        self.assertNotIn('预算上限（', html)
 
 
 if __name__ == "__main__":

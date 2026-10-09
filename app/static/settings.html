@@ -149,20 +149,23 @@
       </div>
       <div class="field">
         <label for="apiKey">API 密钥</label>
-        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off">
+        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" aria-describedby="apiKeyStatus aiTestStatus">
         <small id="apiKeyStatus">密钥只写入应用数据目录的本地密钥文件（0600），不会保存在设置文件或回显</small>
+        <button type="button" id="testAiBtn">测试 AI</button>
+        <small>只发送一条固定测试消息。填写的密钥仅用于本次测试，不保存，也不更改 AI 开关；留空则使用已保存的密钥。</small>
+        <div id="aiTestStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
       <div class="field">
         <label class="inline">
           <input type="checkbox" id="aiEnabled" checked>
           启用 AI（速览、问答、翻译）
         </label>
-        <small>关闭后所有模型请求为 0，推荐、画像和归档仍在本地运行</small>
+        <small>关闭后 AI 功能不发送模型请求，推荐、画像和归档仍在本地运行；仍可手动测试 AI 连接。</small>
       </div>
       <div class="field">
-        <label>预算上限（由唯一预算网关执行，只读）</label>
+        <label>AI 用量记录</label>
         <div id="budgetLimits" class="readonly-note">读取中…</div>
-        <small>上限变更需要 owner 在预算文件中批准，不能在此处放宽</small>
+        <small>不设用量上限，仍记录消耗。未确认用量的预留记录仍保留，待核对。</small>
       </div>
     </div>
 
@@ -256,8 +259,71 @@
     document.documentElement.dataset.mode = storedMode || (systemDark() ? 'dark' : 'light');
 
     let settings = {};
+    let aiTestBusy = false;
+    let aiTestEpoch = 0;
+
+    function invalidateAiTest(message) {
+      aiTestEpoch++;
+      if (message && (aiTestBusy || $('#aiTestStatus').textContent)) {
+        window.PDHDialogs.notice(message, {target:$('#aiTestStatus')});
+      }
+    }
+
+    function safeAiTestText(value, testedKey) {
+      let text = String(value || '请求失败，请稍后手动重试。');
+      for (const key of new Set([testedKey, $('#apiKey').value.trim()])) {
+        if (key) text = text.split(key).join('[密钥已隐藏]');
+      }
+      return text.replace(/sk-[A-Za-z0-9_-]{8,}/g, '[密钥已隐藏]');
+    }
+
+    async function testAiConnection() {
+      if (aiTestBusy) return;
+      aiTestBusy = true;
+      const button = $('#testAiBtn'), target = $('#aiTestStatus');
+      const key = $('#apiKey').value.trim(), epoch = ++aiTestEpoch, started = Date.now();
+      button.disabled = true;
+      const current = () => epoch === aiTestEpoch && $('#apiKey').value.trim() === key;
+      const waiting = () => {
+        if (current()) window.PDHDialogs.notice(`正在测试 AI…已等待 ${Math.floor((Date.now() - started) / 1000)} 秒`, {target});
+      };
+      waiting();
+      const timer = setInterval(waiting, 1000);
+      try {
+        const res = await fetch('/api/ai-test', {method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(key ? {api_key:key} : {})});
+        const data = await res.json();
+        clearInterval(timer);
+        if (!current()) return;
+        const elapsed = Number(data.elapsed_ms);
+        const seconds = ((Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : Math.max(0, Date.now() - started)) / 1000).toFixed(1);
+        if (!res.ok || data.ok !== true) {
+          window.PDHDialogs.notice(`AI 测试失败：${safeAiTestText(data.reason || data.error, key)} · 用时 ${seconds} 秒`, {target,kind:'error'});
+        } else {
+          const counts = data.usage || {};
+          const validCount = value => Number.isInteger(value) && value >= 0;
+          const total = validCount(counts.total_tokens) ? counts.total_tokens
+            : validCount(counts.prompt_tokens) && validCount(counts.completion_tokens) ? counts.prompt_tokens + counts.completion_tokens : null;
+          const usage = data.usage_reserved ? '本次用量未确认；预留记录保留，待核对。'
+            : data.usage_unknown || total == null ? '本次用量未确认，请查看用量记录。' : `本次 ${total} token`;
+          window.PDHDialogs.notice(`AI 测试成功 · ${safeAiTestText(data.provider || 'DeepSeek', key)} · ${safeAiTestText(data.model || '模型未知', key)} · 用时 ${seconds} 秒 · ${usage}`, {target,kind:'success'});
+        }
+        // Refresh accounting alone: a connection test must not overwrite unsaved settings.
+        try {
+          const usageRes = await fetch('/api/settings');
+          if (usageRes.ok) renderUsage(await usageRes.json());
+        } catch { /* The connection result remains valid if the usage display cannot refresh. */ }
+      } catch (error) {
+        if (current()) window.PDHDialogs.notice(`AI 测试失败：${safeAiTestText(error.message, key)}`, {target,kind:'error'});
+      } finally {
+        clearInterval(timer);
+        aiTestBusy = false;
+        button.disabled = false;
+      }
+    }
 
     async function loadSettings() {
+      invalidateAiTest('设置已重新载入，请重新测试。');
       try {
         const res = await fetch('/api/user_settings');
         const data = await res.json();
@@ -282,16 +348,19 @@
       await loadGateway();
     }
 
-    function renderGateway(data) {
-      $('#aiEnabled').checked = data.ai_enabled !== false;
-      const l = data.limits || {};
+    function renderUsage(data) {
       const u = data.usage || {};
       $('#budgetLimits').textContent = [   // one phrase per part: the language layer translates a " · " list part by part
-        `今日 ${u.tokens ?? 0} / ${l.daily_total_tokens ?? '—'} token`,
-        `本月 ${u.month_tokens ?? 0} / ${l.monthly_total_tokens ?? '—'} token`,
-        `每日 $${l.daily_usd ?? '—'}`, `每月 $${l.monthly_usd ?? '—'}`,
+        `今日 ${u.tokens ?? 0} token`, `本月 ${u.month_tokens ?? 0} token`,
+        `今日消耗 $${u.usd ?? '0'}`, `本月消耗 $${u.month_usd ?? '0'}`,
+        u.tokens_known === false || u.month_tokens_known === false || Number(u.pending_reservations) > 0 || Number(u.month_pending_reservations) > 0 || u.usage_unknown || u.usage_reserved || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0 ? '含待确认预留' : '',
         data.dev_mode ? '测试模式独立账本' : '',
       ].filter(Boolean).join(' · ');
+    }
+
+    function renderGateway(data) {
+      $('#aiEnabled').checked = data.ai_enabled !== false;
+      renderUsage(data);
       const oa = data.openalex || {};
       const rl = oa.rate_limit || {};
       const allowance = rl.remaining != null && rl.limit ? `OpenAlex 额度剩余 ${rl.remaining} / ${rl.limit}` : '';
@@ -308,8 +377,9 @@
     async function loadGateway() {
       try {
         const res = await fetch('/api/settings');
+        if (!res.ok) throw new Error();
         renderGateway(await res.json());
-      } catch { $('#budgetLimits').textContent = '无法读取预算网关状态'; }
+      } catch { $('#budgetLimits').textContent = '无法读取 AI 用量记录'; }
     }
 
     async function postGateway(body) {
@@ -371,6 +441,8 @@
 
     $('#saveBtn').onclick  = saveSettings;
     $('#cancelBtn').onclick = () => window.location.href = '/';
+    $('#testAiBtn').onclick = testAiConnection;
+    $('#apiKey').oninput = () => invalidateAiTest('密钥已更改，请重新测试。');
 
     $('#exportBtn').onclick = async () => {
       const button=$('#exportBtn'), target=$('#exportStatus');

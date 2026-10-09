@@ -38,7 +38,7 @@ def validate(config):
     flags += [(key, policy[key]) for key in (
         'runtime_enforcement_implemented', 'tokenizer_parity_verified',
         'budget_increase_requires_owner_approval', 'cache_savings_assumed',
-        'automatic_model_fallback')]
+        'automatic_model_fallback', 'aggregate_limits_enabled')]
     for name, value in flags:
         if type(value) is not bool:
             raise ValueError(f'{name}: expected JSON boolean, not truthy text')
@@ -193,6 +193,8 @@ def peak_day(config, scenario, mode):
 
 def violations(config, scenario, mode):
     day, month, p = peak_day(config, scenario, mode), scenario_totals(config, scenario, mode), config['policy']
+    if not p.get('aggregate_limits_enabled', True):
+        return []
     result = []
     for field, key in (('tokens', 'daily_total_tokens'), ('background', 'daily_background_tokens'),
                        ('interactive', 'daily_interactive_tokens')):
@@ -262,22 +264,30 @@ def render(config):
         lines.append(f"| {name} | {r['input']:,} | {r['output']:,} | {c['input']:,} | {c['output']:,} | {cost(config,r['input'],r['output']):.6f} | {cost(config,c['input'],c['output']):.6f} |")
     lines += ['', '## 场景（参考量和请求上限均不含额外隐式调用）', '',
               '每行显示实际配置的天数/周任务批次数。峰值日把周任务和一次性操作完整计入当天，不用摊销值做准入。', '',
-              '| 场景/口径 | 期间输入 | 期间输出 | 期间总token | 峰值日token | 期间USD | 拟议限额结果 |',
+              '| 场景/口径 | 期间输入 | 期间输出 | 期间总token | 峰值日token | 期间USD | 日/月总帽策略 |',
               '|---|---:|---:|---:|---:|---:|---|']
     for s in config['scenarios']:
         for mode, label in [('reference', '参考'), ('cap', '上限')]:
             t, d = scenario_totals(config, s, mode), peak_day(config, s, mode)
             errors = violations(config, s, mode)
-            result = '会拒绝部分请求：' + ', '.join(errors) if errors else '此场景内未超限（不代表已授权）'
+            result = ('日/月总预算上限已取消；本行仅为用量算术' if not config['policy'].get('aggregate_limits_enabled', True)
+                      else '会拒绝部分请求：' + ', '.join(errors) if errors else '此场景内未超限（不代表已授权）')
             period = f"{s['days']}天/{s['weekly_runs']}次周任务"
             lines.append(f"| {s['label']} / {label} / {period} | {t['input']:,} | {t['output']:,} | {t['tokens']:,} | {d['tokens']:,} | {t['usd']:.6f} | {result} |")
     p = config['policy']
     approval = 'owner 已批准' if config['approved_by_owner'] else '待用户批准'
-    lines += ['', f'## 准入阈值（{approval}；待应用网关实现）', '',
+    if not p.get('aggregate_limits_enabled', True):
+        lines += ['', f'## 当前准入策略（{approval}）', '',
+                  '日/月总预算上限已取消；不因历史每日/月 token 或 USD 数值拒绝运行时请求。',
+                  '旧55,000/日、1,500,000/月 token 及 $0.15/日、$1.50/月保留为历史记录，不是当前上限、余额或0额度。',
+                  '每操作单次输入/输出合同、显式授权和开关仍生效；开发模式保留独立开发上限与独立账本。',
+                  '所有请求仍预留并记账；未知用量保持未结算预留，不称为实测或零消耗。']
+    else:
+        lines += ['', f'## 准入阈值（{approval}；待应用网关实现）', '',
               f"后台/日 {p['daily_background_tokens']:,}；交互/日 {p['daily_interactive_tokens']:,}；合计/日 {p['daily_total_tokens']:,}；合计/月 {p['monthly_total_tokens']:,} token。",
               f"金额额外阈值：${p['daily_usd']}/日，${p['monthly_usd']}/月；token和金额必须同时通过。",
-              '后台和交互限额不相加成为总限额。已发出但用量未知的请求持续占用预留。',
-              f"默认每操作最多额外尝试{p['max_retries_per_operation']}次；重试必须再次准入。压力场景是需求量，不代表获准执行。", '',
+              '后台和交互限额不相加成为总限额。已发出但用量未知的请求持续占用预留。']
+    lines += [f"注册每操作最多额外尝试{p['max_retries_per_operation']}次；网关不会自动重试，重新触发仍单独准入和记账。压力场景只是需求算术，不扩大单次合同或触发授权。", '',
               '## 解释', '',
               '最低模型开销为0（本地基础模式或无需新模型结果）。',
               '日/周任务量以操作表与场景配置为准；周归一化日均不能代替实际日历累计或周报日准入。',

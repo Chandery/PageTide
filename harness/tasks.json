@@ -1134,6 +1134,33 @@
         "docs/evidence/2026-10-08-creation-ai-ux-review-creation.md"
       ],
       "authorization_note": "2026-10-08 owner reports four issues and asks for their repair. Authorizes these bug/UX fixes within existing operation scope/caps. No new paid tests, global budget change, automatic AI trigger, user-data migration, push or general release approval. Owner further explicitly requests a lightweight brainstorm-like skill connected to project guidance, 2026-10-08."
+    },
+    {
+      "id": "FIX-AI-SETTINGS-TITLE",
+      "stage": "delivery",
+      "title": "取消用户AI总预算帽、设置测试AI与推荐题目初筛",
+      "status": "done",
+      "depends_on": [],
+      "requirements": [
+        "R-BUDGET",
+        "R-LOCAL",
+        "R-HARNESS",
+        "R-ROUTE-V2-01",
+        "R-ROUTE-V2-02"
+      ],
+      "acceptance": [
+        "运行时每日/月token与USD总帽取消；用量、unknown预留、并发原子账本和独立开发限额保留；无帽不得显示0或旧帽",
+        "设置显式测试AI：当前临时或保存密钥、固定短请求，经唯一网关，不保存临时key或改变总开关，无自动重试；等待/成功/具体失败与过期回复保护",
+        "题名强非Latin多数且来源英文、正文未核验时不进入仅英文推荐；不据题名改写全文语言，已核验正文优先；Route/maintenance/历史说明一致",
+        "失败先行回归、独立审查、最终检查、桌面构建/签名/隔离包验证；不动正式用户库，不追加付费开发调用"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-09-owner-ai-settings-checks.txt",
+        "docs/evidence/2026-10-09-owner-ai-settings-review-backend.md",
+        "docs/evidence/2026-10-09-owner-ai-settings-review-gateway-ui.md",
+        "docs/evidence/2026-10-09-owner-ai-settings-review-api.md"
+      ],
+      "authorization_note": "2026-10-09 human owner: “现在找不到了，但是你得先过滤一遍题目啊。现在你先修复一个新的问题，不再设置预算上限，设置里增设按钮：测试AI”。取消aggregate日/月token/USD帽及显式短AI连接测试是该人类指令授权；单次协议长度/工作流次数、总开关默认、开发测试账本与一般发布审批不改变。"
     }
   ]
 }

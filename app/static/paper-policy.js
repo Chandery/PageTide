@@ -24,7 +24,7 @@
       const row=doc.createElement('label'), box=doc.createElement('input');
       box.type='checkbox'; box.value=code; row.append(box,doc.createTextNode(name)); choices.append(row); boxes.push(box);
     });
-    const hint=doc.createElement('p'); hint.className='hint'; hint.textContent='语言规则用于新推荐，已有论文仍可查看。元数据语言通过初筛后，全文语言仍可能未核验。';
+    const hint=doc.createElement('p'); hint.className='hint'; hint.textContent='语言规则用于新推荐，已有论文仍可查看。来源报告语言用于初筛；仅允许英文时，题名与英文报告明显冲突需先核验全文语言。';
     fieldset.append(legend,label,fixed,choices,hint); container.replaceChildren(fieldset);
     container.classList.add('paper-language-editor');
     function show() { fixed.hidden=select.value!=='stem'; choices.hidden=select.value!=='humanities'; }
@@ -41,7 +41,14 @@
     if (!value || value.fulltext_status!=='verified') return '全文语言未核验';
     return '全文语言：'+(languages[value.fulltext_language] || value.fulltext_language)+'（已核验）';
   }
-  const api={languages,validate,mount,label};
+  function report(value) {
+    const language=languages[value?.metadata_language] || value?.metadata_language || '未知';
+    const source=value?.metadata_source ? '（'+value.metadata_source+'）' : '';
+    const parts=['来源报告语言：'+language+source,label(value)];
+    if (value?.title_metadata_conflict) parts.push('题名文字与英文来源报告不一致');
+    return parts.join(' · ');
+  }
+  const api={languages,validate,mount,label,report};
   if (typeof module==='object' && module.exports) module.exports=api;
   root.PaperPolicy=api;
 })(typeof window==='object'?window:globalThis);

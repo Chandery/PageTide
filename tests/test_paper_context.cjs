@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'), assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
 const Context=require('../app/static/paper-context.js');
+const Policy=require('../app/static/paper-policy.js');
 test('category, multi-unit and purpose labels stay separate and escape all source text',()=>{
   const html=Context.html({project_id:'p"x',categories:[{name:'<b>category</b>'}],units:[{id:'a"x',name:'<img src=x>'},{id:'b',name:'Second'}],map_available:true,route_enabled:false,saved_in_project:true,recommendation:{kind:'watch',name:'Old name'}},'k"x');
   for(const label of ['收藏类别','对应学习单元','本次推荐用途','关注新进展','Route 已关闭','在论文关系图中定位','在学习图中定位']) assert.ok(html.includes(label));
@@ -25,7 +26,7 @@ function drawerFixture(){
   const section=source.slice(source.indexOf('let detailToken = 0;'),source.indexOf("$('#detail').addEventListener('click'"));
   const nodes=new Map(), replies=[], notices=[];
   const node=selector=>{if(!nodes.has(selector)){const classes=new Set();nodes.set(selector,{innerHTML:'',classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c)},addEventListener(){}});}return nodes.get(selector);};
-  const ctx=vm.createContext({state:{currentProject:'p1',projects:[]},window:{PDHPaperContext:Context,PDH:{setPetContext(){}}},PaperPolicy:{label:()=>''},$:node,hidePreview(){},esc:v=>v,md:v=>v,toast:(...v)=>notices.push(v),api:(url,body)=>new Promise(resolve=>replies.push({body,resolve}))});
+  const ctx=vm.createContext({state:{currentProject:'p1',projects:[]},window:{PDHPaperContext:Context,PDH:{setPetContext(){}}},PaperPolicy:Policy,$:node,hidePreview(){},esc:v=>v,md:v=>v,toast:(...v)=>notices.push(v),api:(url,body)=>new Promise(resolve=>replies.push({body,resolve}))});
   vm.runInContext(section+'\nthis.open=openDetail;this.close=closeDetail;',ctx);
   return {ctx,replies,node,notices};
 }

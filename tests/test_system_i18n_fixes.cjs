@@ -60,6 +60,18 @@ const entry={key:'paper',title:'收藏',kind:'positive',action:'useful',publishe
 const fixture=()=>({coverage:{start:'2026-09-01',end:'2026-10-08',last_activity:null},signals:{saved:2,positive:1,negative:1,too_hard:1},timeline:{weeks:[{start:'2026-10-01',end:'2026-10-08',saved:2,positive:1,negative:1,too_hard:1,exposed:2,activity:7}]},keyword_distribution:[{term:'有用',documents:2,sources:['seed','useful_feedback']}],keyword_evidence:{papers:2},inventory_distribution:[{term:'种子'}],inventory_evidence:{papers:1},weekly_change:{week_start:'2026-10-01',week_end:'2026-10-08',stats:{saved:2,positive:1},previous_stats:{saved:1},has_activity:true,comparable:true,keyword_changes:{rising:[{term:'收藏',delta:1}],falling:[]}},recent_feedback:[entry],versions:[{id:1,created_at:'2026-10-01',data:{pinned_terms:['有用']}}]});
 function profile(b){const page=b.context.PDHProfile.create(b.root,{api:async()=>({items:[entry],total:1}),refresh(){},projectName:()=> '有用',openPaper(){},notify(){}});page.render(fixture(),{project_id:'p',pinned_terms:['收藏'],frozen:false},'有用');return page;}
 
+test('actual recommendation cards preserve original titles and label source reports and language conflicts in both interfaces',()=>{
+  for(const lang of ['zh-CN','en-US']){
+    const b=browser(lang),src=read('index.html');vm.runInContext(read('paper-policy.js'),b.context);
+    Object.assign(b.context,{esc:b.context.PDHProfile.esc,state:{triaging:false,triagingKeys:new Set(),currentProject:'p'},pdfBadge:()=>'',routeBadge:()=>'',explorationEvidence:()=>'',aiSlot:()=>'<b>AI 速览</b><span data-no-i18n>AI 中文解释</span>'});
+    vm.runInContext(src.slice(src.indexOf('function cardHTML('),src.indexOf('function renderCards(')),b.context);
+    b.root.innerHTML=b.context.cardHTML({key:'paper',title:'中文原始题名',language:{metadata_language:'en',metadata_source:'OpenAlex',fulltext_status:'unverified',title_metadata_conflict:true},why:''},0);b.flush();
+    assert.equal(b.root.querySelector('.paper-title').textContent,'中文原始题名');assert.match(b.text(),/OpenAlex/);assert.match(b.text(),/AI 中文解释/);
+    if(lang==='en-US'){assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());assert.match(b.text(),/Source-reported language: English/);assert.match(b.text(),/title.*source.*report/i);}
+    else{assert.match(b.text(),/来源报告语言：英文/);assert.match(b.text(),/全文语言未核验/);assert.match(b.text(),/题名文字与英文来源报告不一致/);}
+  }
+});
+
 test('actual profile feedback rows, source labels and composite statistics render in English',()=>{
   const b=browser('en-US');profile(b);b.flush();
   assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());

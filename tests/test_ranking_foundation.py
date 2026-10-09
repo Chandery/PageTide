@@ -163,7 +163,11 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         pid = self.project(["半导体晶体生长"])
         self.add(pid, "zh-hit", "半导体晶体生长技术研究", "介绍半导体晶体生长的方法", published="2025-01-01")
         self.add(pid, "zh-miss", "古典诗歌的发展脉络", "唐诗宋词的演变", published="2026-01-01")
-        english_papers(self.app, pid)
+        # This case tests Chinese lexical ranking, with an explicit Chinese
+        # project/report rather than the old synthetic English mislabel.
+        self.app.set_project_language(pid, 'humanities', ['zh'])
+        self.app.store.conn.execute("UPDATE papers SET metadata_language='zh', metadata_language_source='synthetic Chinese fixture' WHERE key IN ('zh-hit','zh-miss')")
+        self.app.store.conn.commit()
         self.assertEqual(self.app.build_batch(limit=1, project_id=pid)["cards"][0]["key"], "zh-hit")
 
     def test_the_same_inputs_give_the_same_batch(self):

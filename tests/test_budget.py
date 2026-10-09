@@ -32,7 +32,8 @@ def configured_fixture():
                             'weekly_calls': {'periodic': 1}, 'one_off_calls': {}}]
     config['policy'].update(daily_background_tokens=500, daily_interactive_tokens=500,
                             daily_total_tokens=800, monthly_total_tokens=10000,
-                            daily_usd='0.01', monthly_usd='0.10', max_retries_per_operation=1)
+                            daily_usd='0.01', monthly_usd='0.10', max_retries_per_operation=1,
+                            aggregate_limits_enabled=True)
     return config
 
 
@@ -71,6 +72,41 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(operation['trigger'], 'interactive')
         self.assertEqual(operation['cap'], {'input': 8000, 'output': 2000})
 
+    def test_runtime_aggregate_cancellation_is_explicit_human_grant_not_a_zero_cap(self):
+        config = budget.load()
+        self.assertIs(config['policy'].get('aggregate_limits_enabled', True), False)
+        self.assertIn('不再设置预算上限', config['owner_approval_note'])
+        self.assertEqual(config['policy']['daily_total_tokens'], 55000)
+        self.assertEqual(config['policy']['monthly_total_tokens'], 1500000)
+        rendered = budget.render(config)
+        self.assertIn('日/月总预算上限已取消', rendered)
+        self.assertNotIn('会拒绝部分请求', rendered)
+
+    def test_disabled_aggregate_has_no_scenario_violations_but_arithmetic_and_caps_remain(self):
+        self.config['policy']['aggregate_limits_enabled'] = False
+        self.config['policy'].update(daily_total_tokens=0, monthly_total_tokens=0, daily_usd='0', monthly_usd='0')
+        scenario = self.config['scenarios'][0]
+        scenario['daily_calls']['batch'] = 300
+        self.assertEqual(budget.violations(self.config, scenario, 'cap'), [])
+        self.assertGreater(budget.scenario_totals(self.config, scenario, 'cap')['tokens'], 0)
+        self.config['operations']['batch']['cap']['output'] = 0
+        with self.assertRaises(ValueError): budget.validate(self.config)
+
+    def test_aggregate_switch_requires_a_json_boolean(self):
+        for value in ('false', 0, None):
+            bad = copy.deepcopy(self.config)
+            bad['policy']['aggregate_limits_enabled'] = value
+            with self.subTest(value=value), self.assertRaises(ValueError): budget.validate(bad)
+
+    def test_ai_connection_test_is_an_approved_manual_fixed_small_request(self):
+        operation = budget.load()['operations']['ai_connection_test']
+        self.assertIs(operation['owner_approved'], True)
+        self.assertIn('测试AI', operation['approval_note'])
+        self.assertFalse(operation['enabled_by_default'])
+        self.assertEqual(operation['trigger'], 'interactive')
+        self.assertEqual(operation['cap'], {'input': 768, 'output': 16})
+        self.assertEqual(sum(operation['input_cap_components'].values()), 768)
+
     def test_registered_proposal_daily_minimum_and_stress(self):
         config = budget.load()
         starter = next(s for s in config['scenarios'] if s['id'] == 'daily_triage_starter')
@@ -79,7 +115,9 @@ class BudgetTests(unittest.TestCase):
         self.assertLess(day['tokens'], config['policy']['daily_total_tokens'])
         self.assertEqual(budget.violations(config, starter, 'cap'), [])
         heavy = next(s for s in config['scenarios'] if s['id'] == 'heavy_retry_stress')
-        self.assertIn('daily_total_tokens', budget.violations(config, heavy, 'cap'))
+        self.assertEqual(budget.violations(config, heavy, 'cap'), [])
+        legacy = copy.deepcopy(config); legacy['policy']['aggregate_limits_enabled'] = True
+        self.assertIn('daily_total_tokens', budget.violations(legacy, heavy, 'cap'))
         hybrid = next(s for s in config['scenarios'] if s['id'] == 'hybrid_llm_rerank')
         self.assertEqual(budget.violations(config, hybrid, 'cap'), [])
 

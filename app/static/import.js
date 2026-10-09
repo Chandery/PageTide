@@ -720,7 +720,7 @@ function renderAi(result) {
   card.hidden = total < 2;
   const batches = Math.ceil(total / 12);
   card.innerHTML = `<h3>让 AI 复审分类（可选）</h3><p class="hint">在论文库点「整理分类」触发：先给出预览，你确认后才会应用，也可以撤销。</p>`
-    + `<p class="hint">它按每批 12 篇调用 AI，你的论文库约需 ${batches} 批；论文很多时可能超出每日额度而中止，那时可以改天再试。导入本身没有用任何 AI。</p>`;
+    + `<p class="hint">它按每批 12 篇调用 AI，你的论文库约需 ${batches} 批；每批消耗仍记录在本地账本。导入本身没有用任何 AI。</p>`;
 }
 
 /* ------------------------------------------------------------------ start */

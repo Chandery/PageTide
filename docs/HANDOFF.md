@@ -1,3 +1,19 @@
+# 当前工作单元：AI 设置与推荐题目初筛（2026-10-09）
+
+本地 main 基线 `f745009`（上一创建/brainstorm修复单元已本地提交隔离）；本单元修改保留在 main 工作树，未提交/推送。`FIX-AI-SETTINGS-TITLE` done，仅表示本单元软件验收；一般发布批准和既有质量门槛不自行通过。见 [变更记录](../changes/2026-10-09-owner-ai-settings.json)、[ADR0031](decisions/0031-owner-ai-settings-title-screen.md)、[检查证据](evidence/2026-10-09-owner-ai-settings-checks.txt)。
+
+按业主明确指令取消运行时每日/月 token/USD 总帽，保留账本/未确认预留/单次合同/原次数和独立开发限额。设置新增“测试 AI”：固定短请求，支持临时或已有密钥，AI 关闭也可显式测试，不保存临时密钥、不改开关、无重试。具体失败及耗时就地显示，晚回复受输入版本保护。发送前本地锁/记账失败明确未发送，发送后写入错误保留真实预留；锁退出错误保留已确认计量。未知或缺 total 不伪称已知/预留。
+
+推荐先检查当前原题。明显非Latin多数题名与来源英文报告冲突、正文未核验时，不进仅英文推荐；已核验当前正文优先，PDF变化失效，原题/来源语言/旧批次保留并分开说明。数学英文字体按计数字形兼容，不改原题。该本地启发式不能证明正文语言或通用科学筛选质量。
+
+最终源代码165文件指纹 `4fc80141f57399564031730197a1c60fa18af34cc2def15d9be3488ee0f35010`。完整2107Python/361.672s、461Node、预算/traceability/i18n0缺漏/diff均绿。独立API、gateway/UI、title/backend审查均完成，发现的P2均修复复验。旧包在新策略夹具失败，新包实际隔离接口/资产/题名筛选/历史/重启及既有Route夹具通过。backend+Tauri构建与adhoc严格签名绿，常用 `src-tauri/target/release/bundle/macos/PaperDigHelper.app` mtime2026-10-09 01:24:54+0800；打包backend SHA256 `f86440c82cf943840e3e6e9218c7526ac904b015d5867734d204c82527b30203`。
+
+旧包备份 `.local/app-backups/PaperDigHelper-before-owner-ai-settings-20261009.app`；私有测试/截图/manifest/包验证器在 `.local/owner-ai-settings-verification/`。正式数据/密钥/账本未读取或修改；本单元paid/provider调用0，coding-agent用量未知。原先单元345token事故仍在原记录，不覆盖。新固定测试768/16峰时未命中 $0.0002496/次仅注册算术，取消总帽后累计可选花费没有App上界。官方HTML已重新读取、原价格/model版本不改。
+
+20全产品评估not_run、2计量/enforcement标记和人工发布批准保持原状，`check --release` 与 `review --release` 应失败；此单元不是全产品发布。未实测当前正式密钥、真实连接/科学收益/tokenizer/invoice、原生窗口或8GB。下一步退出旧实例并从常用路径重开，设置中由用户显式点测试AI核对自己的连接；不自动代发付费调用。后续新单元先提交或隔离当前工作，保留旧记录/恢复包。
+
+以下交接记录按当时状态保留，上文是当前状态。
+
 # 当前工作单元：创建学习图与 brainstorm 引导体验修复（2026-10-08）
 
 基线 main `48bfc63`，初始工作树干净；当前修改保留在本地 main 工作树，未提交/推送。用户四项问题及追加“轻量 brainstorm skill”“确认细节后输出右侧结构”已实现，`FIX-CREATION-AI-UX` review，待用户体验复核；不自行批准整产品发布。记录见 [工作单元](../changes/2026-10-08-creation-ai-ux.json)，脱敏检查与限制见 [检查证据](evidence/2026-10-08-creation-ai-ux-checks.txt)。

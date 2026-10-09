@@ -115,6 +115,8 @@ class GrowthBatchTests(Fixture):
 
     def test_real_gateway_cap_refusal_preserves_eighteen_of_twenty(self):
         self.queue(20)
+        # Opt into the retained capped policy to test refusal/recovery explicitly.
+        self.app.gateway.config['policy']['aggregate_limits_enabled'] = True
         sent=[]
         def response(request, **kwargs):
             body=json.loads(request.data)

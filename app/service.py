@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, eligibility, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
+from . import creation, eligibility, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, paper_language, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -2469,6 +2469,77 @@ class App:
     def clear_api_key(self):
         return self.gateway.clear_key()
 
+    def test_ai_connection(self, api_key=None):
+        """One explicit fixed-message test; transient credentials never persist."""
+        if api_key is not None:
+            if (not isinstance(api_key, str) or not api_key.strip() or len(api_key) > 500
+                    or any(char in api_key for char in ('\n', '\r', '\0'))):
+                raise ValueError('请提供有效的单行 API 密钥')
+            api_key = api_key.strip()
+        started = time.monotonic()
+        result = None
+        try:
+            with operation_lock.claim(self.data, 'ai-connection-test'):
+                try:
+                    result = self.gateway.test_connection(test_key=api_key) or {}
+                except Exception as exc:
+                    # Never echo a credential or a provider body embedded in an exception.
+                    result = {'ok': False, 'reason': type(exc).__name__, 'tracking_failed': True,
+                              'usage_unknown': True, 'usage_reserved': False}
+        except ValueError:
+            raise Conflict('AI 连接测试正在进行，请等待本次结果') from None
+        except OSError:
+            if result is None:
+                result = {'ok': False, 'tracking_failed': True, 'usage_unknown': False,
+                          'usage_reserved': False}
+            else:
+                # Unlock errors do not invalidate an already reconciled bill.
+                result = {**result, 'claim_release_failed': True}
+        receipt = _ai_receipt(result)
+        # An uncertain failure alone does not prove that a reservation was written.
+        receipt['usage_reserved'] = bool(result.get('usage_reserved') or result.get('reservation'))
+        unknown = bool(receipt['usage_unknown'] or receipt['usage_reserved'])
+        usage = result.get('usage') or {}
+        receipt['usage'] = None if unknown else {key: usage[key] for key in
+            ('prompt_tokens', 'completion_tokens', 'total_tokens', 'prompt_cache_hit_tokens')
+            if type(usage.get(key)) is int and usage[key] >= 0}
+        if unknown:
+            receipt['usd'] = None
+        if result.get('ok'):
+            code = None
+            reason = ('AI connection succeeded.' if self.english() else 'AI 连接测试成功。')
+            if unknown:
+                reason += (' Usage is not confirmed; the accounting reservation is retained.' if self.english()
+                           else ' 用量尚未确认，计量预留保留。')
+        elif result.get('tracking_failed'):
+            code = 'accounting_failed'
+            if not unknown:
+                reason = ('Local usage recording failed. Nothing was sent; check the data folder permissions and available space.'
+                          if self.english() else '本地用量记录失败，本次未发送。请检查数据目录权限和剩余空间。')
+            else:
+                reason = ('Usage recording failed; usage is not confirmed. Check the data folder permissions and available space.'
+                          if self.english() else '用量记录出现问题，用量尚未确认。请检查数据目录权限和剩余空间。')
+                if type(result.get('http_status')) is int:
+                    _, provider_reason = creation.degrade_reason({'http_status': result['http_status']}, self.english())
+                    reason = provider_reason + ' ' + reason
+                if receipt['usage_reserved']:
+                    reason += (' The recorded reservation is retained.' if self.english() else ' 已记录的预留仍保留。')
+        else:
+            code, reason = creation.degrade_reason(result, self.english())
+        if result.get('claim_release_failed'):
+            warning = ('The local operation lock could not be released; check the data folder permissions.'
+                       if self.english() else '本地操作锁释放失败，请检查数据目录权限。')
+            if result.get('ok'):
+                code = 'local_lock_failed'
+                reason = ('The AI service responded. ' if self.english() else 'AI 服务已响应。') + warning
+                if unknown:
+                    reason += (' Usage is not confirmed.' if self.english() else ' 用量尚未确认。')
+            else:
+                reason += ' ' + warning
+        return {'ok': bool(result.get('ok')) and not result.get('claim_release_failed'), 'reason_code': code, 'reason': reason,
+                'provider': 'DeepSeek', 'model': self.gateway.config['provider']['model'],
+                'elapsed_ms': int((time.monotonic() - started) * 1000), **receipt}
+
     def stats(self, project_id=None):
         """Get statistics for a project or globally."""
         if project_id:
@@ -2672,7 +2743,8 @@ class App:
                 'metadata_source': paper.get('metadata_language_source'),
                 'fulltext_language': paper.get('verified_language') if verified else None,
                 'fulltext_status': 'verified' if verified else 'unverified',
-                'verification_method': paper.get('verified_method') if verified else None}
+                'verification_method': paper.get('verified_method') if verified else None,
+                **paper_language.title_metadata_evidence(paper.get('title'), paper.get('metadata_language'))}
 
     def _check_matching_rows_current(self, rows):
         """Reject a derived response if its captured body changed during this request.

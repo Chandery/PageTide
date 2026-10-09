@@ -3,6 +3,9 @@
 The initial editor offers a bounded set of languages, including classical-language
 research. Metadata is a report, never evidence of the PDF's actual language.
 """
+import unicodedata
+
+
 LANGUAGES = {
     'en': '英文', 'zh': '中文', 'ja': '日文', 'ko': '韩文', 'fr': '法文',
     'de': '德文', 'es': '西班牙文', 'pt': '葡萄牙文', 'ru': '俄文',
@@ -14,6 +17,32 @@ def metadata_code(value):
     # Preserve other two-letter reports for display, although the initial editor
     # exposes only LANGUAGES. Missing/invalid reports remain unknown.
     return value.lower() if isinstance(value, str) and len(value) == 2 and value.isascii() and value.isalpha() else None
+
+
+def title_metadata_evidence(title, metadata_language):
+    """Derive a script warning without rewriting source or body-language reports.
+
+    Inspect the whole title so a bilingual suffix cannot be silently dropped.
+    Non-Latin script is not a language detector: four alphabetic characters and
+    a strict majority only flag a conflict with an English metadata report.
+    Digits, punctuation, emoji and combining marks do not vote. Normalize each
+    character for this derived count so mathematical/fullwidth Latin fonts
+    remain Latin; the stored title is unchanged. Cost is one local linear scan,
+    with no cache, retained title copy, model or external exposure.
+    """
+    alphabetic, non_latin = 0, 0
+    for original in title if isinstance(title, str) else '':
+        for char in unicodedata.normalize('NFKC', original):
+            if char.isalpha():
+                alphabetic += 1
+                if 'LATIN' not in unicodedata.name(char, ''):
+                    non_latin += 1
+    majority = non_latin >= 4 and non_latin * 2 > alphabetic
+    conflict = majority and metadata_code(metadata_language) == 'en'
+    return {'title_metadata_conflict': conflict,
+            'title_warning': 'title_metadata_conflict' if conflict else None,
+            'title_evidence': {'source': 'title_script', 'alphabetic_chars': alphabetic,
+                               'non_latin_chars': non_latin, 'non_latin_majority': majority}}
 
 
 def validate_policy(discipline, allowed):
