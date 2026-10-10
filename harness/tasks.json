@@ -1215,6 +1215,32 @@
         "docs/evidence/2026-10-09-organize-scope-review.md"
       ],
       "authorization_note": "2026-10-09 human owner reports the library 整理分类 scope/ordering/selection are wrong and asks for repair. Existing category_review authorization (8000 input / 2000 output per batch, explicit trigger, no retry) is unchanged; this unit makes no real model call, raises no cap and adds no external data. No paid development test, release or build authorization is implied."
+    },
+    {
+      "id": "FIX-GUIDANCE-OUTPUT-BOUNDS",
+      "stage": "delivery",
+      "title": "修复项目引导输出达到上限后的截断误导与结构化失败",
+      "status": "done",
+      "depends_on": [
+        "FIX-GUIDANCE-JSON-PROTOCOL"
+      ],
+      "requirements": [
+        "R-BUDGET",
+        "R-AGENT",
+        "R-HARNESS",
+        "R-LOCAL",
+        "R-ROUTE-V2-07"
+      ],
+      "acceptance": [
+        "引导系统示例不再诱导占位 graph；字符串数组和选项在本地保持有界，错误对象、坏图和 finish_reason=length 仍安全拒绝并保留草稿",
+        "截断原因明确指向本次输出上限；本地兜底气泡显示本地整理，AI 回答与本地整理可区分",
+        "保持1200输入/500输出、单次点击、无自动重试/换模型/新外发范围；真实开发账本14次独立 DeepSeek 回放全部完整解析",
+        "失败先行回归、独立审查、最终全量检查和绿色桌面构建；不动正式用户数据或正式账本"
+      ],
+      "evidence": [
+        "docs/evidence/2026-10-09-guidance-truncation-checks.txt"
+      ],
+      "authorization_note": "2026-10-09 human owner asked to modify the screenshot issue and test it for delivery. This authorizes the bounded project-guidance repair and real development-provider verification through the existing Gateway; it does not approve a new provider, higher cap, general release or formal-user-data test."
     }
   ]
 }

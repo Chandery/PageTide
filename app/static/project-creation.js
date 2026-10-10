@@ -798,7 +798,8 @@ function bubble(entry, live) {
   const el = document.createElement('div');
   const user = entry.role === 'user';
   el.className = 'msg ' + (user ? 'user' : 'assistant');
-  el.innerHTML = `<span class="who">${user ? '你：' : '助手：'}</span><span data-no-i18n>${esc(entry.content || '')}</span>`;
+  const speaker = user ? '你：' : (entry.mode === 'local' ? '本地整理：' : '助手：');
+  el.innerHTML = `<span class="who">${speaker}</span><span data-no-i18n>${esc(entry.content || '')}</span>`;
   if (!user) {
     el.insertAdjacentHTML('beforeend', guidanceScopeHTML(entry, live));
     el.insertAdjacentHTML('beforeend', `<div class="meta">${turnMeta(entry, live)} ${retryable(entry) ? '<button type="button" data-retry>重试 AI</button>' : ''} ${settingsLink(entry)}</div>`);

@@ -274,8 +274,8 @@ def degrade_reason(result, english=False):
         text = ('The complete request exceeds its input limit; shorten the input or start a new session. Nothing was sent.' if english
                 else '完整请求超过本次输入上限；请缩短输入或开始新会话。未发送请求。')
     elif code == 'bad_reply' and result.get('finish_reason') == 'length':
-        text = ('The AI reply was truncated; try again with a shorter input. Existing content was preserved.' if english
-                else 'AI 回复被截断；请缩短输入后重新尝试，原有内容已保留。')
+        text = ('The AI reply was truncated at this request\'s output limit; the structured draft was incomplete. Try again; existing content was preserved.' if english
+                else 'AI 回复被截断，达到本次输出长度上限；结构化草稿未完成，请重试，原有内容已保留。')
     elif code == 'budget':
         period = ('daily' if raw.startswith('daily') else 'monthly' if raw.startswith('monthly') else '')
         if period:

@@ -85,6 +85,36 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
         self.assertEqual(body['keywords'], ['world model'])
         self.assertTrue(json_instruction(request_envelope('project_guidance', 'deepseek-flash', 500, built)))
 
+    def test_guidance_prompt_marks_graph_as_optional_and_forbids_placeholder_copy(self):
+        system = guidance_contract.SYSTEM
+        self.assertIn('k/q/c=str[];k3 q1 c3', system)
+        self.assertIn('r/a/s=str', system)
+        self.assertIn('graph?concrete', system)
+        self.assertIn('no obj/ph', system)
+        self.assertNotIn('\"id\",\"name\"', system)
+        self.assertLessEqual(len(system.encode('utf-8')), 800)
+
+    def test_string_only_overproduction_is_bounded_without_accepting_objects(self):
+        payload = {'r': '先选一个方向。', 'd': {
+            'k': ['one', 'two', 'three', 'four'], 'q': ['one?', 'two?'], 'a': '',
+            'c': ['A'], 's': '', 'ready': False}}
+        parsed = guidance_contract.parse(json.dumps(payload))
+        self.assertEqual(parsed['draft']['keywords'], ['one', 'two', 'three'])
+        self.assertEqual(parsed['draft']['search_queries'], ['one?'])
+        bad = {'r': '先选一个方向。', 'd': {
+            'k': [{'name': 'one'}], 'q': [], 'a': '', 'c': ['A'], 's': '', 'ready': False}}
+        with self.assertRaises(ValueError):
+            guidance_contract.parse(json.dumps(bad))
+
+    def test_long_string_choices_are_bounded_but_wrong_choice_types_fail(self):
+        payload = {'r': '先选一个方向。', 'd': {
+            'k': [], 'q': [], 'a': '', 'c': ['x' * 80], 's': '', 'ready': False}}
+        parsed = guidance_contract.parse(json.dumps(payload))
+        self.assertEqual(len(parsed['draft']['choices'][0]), 60)
+        payload['d']['c'] = [{'label': 'x'}]
+        with self.assertRaises(ValueError):
+            guidance_contract.parse(json.dumps(payload))
+
     def test_protocol_control_rejects_a_json_sample_without_the_json_instruction(self):
         missing = request_envelope('project_guidance', 'deepseek-flash', 500,
             [{'role': 'system', 'content': '{"r":"","d":{}}'},

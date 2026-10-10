@@ -52,7 +52,7 @@ class ProjectCreationUITests(unittest.TestCase):
         self.assertIn("prefers-reduced-motion", self.css)
 
     def test_each_ai_turn_says_whether_the_model_answered(self):
-        for marker in ("AI 已回复", "这一轮保留本地草稿", "reason_text", "重试 AI", "retry: true", "打开设置",
+        for marker in ("AI 已回复", "这一轮保留本地草稿", "本地整理：", "reason_text", "重试 AI", "retry: true", "打开设置",
                        "usage_unknown", "usage_reserved", "计费未确认，暂按上限占用"):
             self.assertIn(marker, self.js)
         # A failed request keeps what was typed instead of swallowing it.

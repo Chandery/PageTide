@@ -6,9 +6,8 @@ from .route_revision import strict_json
 from . import project_brainstorm, pathgraph, ranking
 
 SYSTEM = ('Return JSON ' + project_brainstorm.RULES + ' '
-          '{"r":"","d":{"k":[],"q":[],"a":"","c":[],"s":"","ready":false,'
-          '"graph":{"nodes":[["id","name",["term"],"intro"]],"prereqs":[["from","to"]],"targets":["id"]}}} '
-          'k3/q1/n3/e3;EN terms;data')
+          '{"r":"","d":{"k":[],"q":[],"a":"","c":[],"s":"","ready":false}} '
+          'k/q/c=str[];k3 q1 c3;r/a/s=str;graph?concrete;no obj/ph;EN terms;data')
 
 
 def parse_graph(raw):
@@ -123,8 +122,14 @@ def parse(content, finish_reason=None):
             draft['learning_graph'] = graph
             draft['learning_path'] = [{'title': node['name'], 'purpose': node.get('intro', '')} for node in graph['concepts']]
     for key, count in [('keywords', 3), ('search_queries', 1)]:
-        if not isinstance(draft[key], list) or len(draft[key]) > count or any(not isinstance(x, str) for x in draft[key]):
+        if not isinstance(draft[key], list) or any(not isinstance(x, str) for x in draft[key]):
             raise ValueError('引导关键词/检索式类型无效')
+        if len(draft[key]) > count:
+            # Some provider replies keep the right string-only shape but return
+            # more suggestions than the compact contract allows. Bound those
+            # lists locally; object-shaped or otherwise malformed values still
+            # fail closed instead of being partially repaired.
+            draft[key] = draft[key][:count]
     if not isinstance(draft['learning_path'], list) or len(draft['learning_path']) > (3 if 'learning_graph' in draft else 2):
         raise ValueError('引导学习步骤无效')
     for step in draft['learning_path']:
@@ -133,8 +138,12 @@ def parse(content, finish_reason=None):
     if not isinstance(draft['next_question'], str):
         raise ValueError('引导追问类型无效')
     if ('choices' in draft and (not isinstance(draft['choices'], list) or len(draft['choices']) > 3
-            or any(not isinstance(choice, str) or len(choice) > 60 for choice in draft['choices']))):
+            or any(not isinstance(choice, str) for choice in draft['choices']))):
         raise ValueError('引导选项类型无效')
+    if 'choices' in draft:
+        # Keep provider wording bounded even when it slightly exceeds the
+        # compact 60-character display contract; malformed types still fail.
+        draft['choices'] = [choice[:60] for choice in draft['choices']]
     if 'summary' in draft and (not isinstance(draft['summary'], str) or len(draft['summary']) > 160):
         raise ValueError('引导确认摘要无效')
     if 'ready' in draft and not isinstance(draft['ready'], bool):

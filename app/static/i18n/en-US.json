@@ -1048,6 +1048,7 @@
     "打开设置": "Open Settings",
     "重试 AI": "Retry AI",
     "助手：": "Assistant:",
+    "本地整理：": "Local summary:",
     "正在请求 AI 整理关键词和检索式…": "Asking the AI to organise keywords and search queries…",
     "没能完成这一步：{0}": "This step did not complete: {0}",
     "返回修改": "Back to edit",

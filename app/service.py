@@ -1930,7 +1930,8 @@ class App:
                 payload = guidance_contract.parse(result.get('content'), result.get('finish_reason'))
             except ValueError:
                 mode, reason_code = "local", "bad_reply"
-                reason = creation.reason_text(reason_code, self.english())
+                reason_code, reason = creation.degrade_reason(
+                    {**result, "bad_reply": True}, self.english())
             else:
                 if ('learning_path' in payload['draft'] and 'learning_graph' not in payload['draft']
                         and payload['draft']['learning_path'] != draft['learning_path']):
