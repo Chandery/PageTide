@@ -8,7 +8,9 @@ const vm = require('node:vm');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return {promise, resolve}; }
 const snap = revision => ({directions: [{id:'d',name:'Owner label'}],items:[],positions:{},projects:[{id:'p1',name:'One'},{id:'p2',name:'Two'}],revision});
-const aiPreview = () => ({groups:[],ai_token:'old-token',fingerprint:'old-fingerprint',ai_plan:{categories:[{id:'d',action:'rename',name:'Research',reason:'Synthetic review'}],new_categories:[],papers:[]}});
+const aiUnits = () => [{id:'c:d',kind:'category',section:'adjust',category:'d',action:'rename',name:'Research',reason:'Synthetic review',papers:0,requires:[]},
+  {id:'p:fresh',kind:'paper',section:'classify',key:'fresh',from:[],to:['d'],fallback:false,reason:'Synthetic filing',requires:[]}];
+const aiPreview = () => ({groups:[],ai_token:'old-token',fingerprint:'old-fingerprint',ai_units:aiUnits(),ai_plan:{categories:[{id:'d',action:'rename',name:'Research',reason:'Synthetic review'}],new_categories:[],papers:[{key:'fresh',categories:['d'],reason:'Synthetic filing'}]}});
 const localPreview = () => ({groups:[],fingerprint:'old-fingerprint',merges:[{id:'m',target:'d',name:'Owner label',copies:[{id:'copy',name:'Alias'}],reason:'Synthetic review'}],moves:[]});
 
 // Run the shipped function in a fresh VM. The fake DOM tracks view writes and lets
@@ -22,7 +24,7 @@ function fixture(api) {
       get textContent() { return text; }, set textContent(value) { text = value; writes.push([label,'text',value]); },
       classList:{add(){},remove(){},toggle(){},contains(){return false;}},setAttribute(){},
       querySelector(){return null;},querySelectorAll(){return [];},
-      addEventListener(kind,fn){(this.listeners[kind] ||= []).push(fn);},focus(){}};
+      addEventListener(kind,fn){(this.listeners[kind] ||= []).push(fn);},focus(){},prepend(child){this.prepended = child;}};
   }
   function get(selector) { if (!nodes.has(selector)) nodes.set(selector,node(selector)); return nodes.get(selector); }
   const host = node('dialog-host');
@@ -32,7 +34,9 @@ function fixture(api) {
     const children = new Map(), d = node('dialog'); d.html = html; d.isConnected = true;
     d.querySelector = selector => { if (!children.has(selector)) children.set(selector,node(`modal:${selector}`)); return children.get(selector); };
     const merge = node('merge'); merge.dataset.merge = 'm'; merge.querySelector = () => ({checked:true});
-    d.querySelectorAll = selector => selector === '[data-merge]' ? [merge] : [];
+    const unitBoxes = aiUnits().map(u => { const box = node('unit'); box.dataset.unit = u.id; return box; });
+    d.unitBoxes = unitBoxes;
+    d.querySelectorAll = selector => selector === '[data-merge]' ? [merge] : selector === '[data-unit]' ? unitBoxes : [];
     d.showModal = () => {};
     d.remove = () => { d.isConnected = false; };
     d.close = () => { if (!d.isConnected) return; d.isConnected = false; for (const fn of d.listeners.close || []) fn(); };
@@ -176,3 +180,82 @@ for (const mode of ['ai','local']) for (const kind of ['scope','project','reset'
     assert.equal(f.ui.S.pending,0);
   });
 }
+
+test('applying an AI plan sends exactly the ticked units, not a whole-plan switch', async () => {
+  const calls = [];
+  const f = fixture((url, body) => { calls.push([url, body]);
+    return Promise.resolve(body?.action === 'apply-ai-review' ? {...snap(2), apply_result:{classified_papers:1, changed_papers:1, still_unclassified:0}} : {suggestions:aiPreview()}); });
+  await f.ui.suggest();
+  const review = f.dialogs[1];
+  review.unitBoxes[0].checked = false;   // the rename stays unticked
+  await review.querySelector('form').onsubmit({preventDefault(){}}); await tick();
+  const apply = calls.find(([,body]) => body?.action === 'apply-ai-review')[1];
+  assert.deepEqual(JSON.parse(JSON.stringify(apply.selection)), {units:['p:fresh']});
+  assert.equal(apply.ai_token, 'old-token');
+  assert.equal(apply.fingerprint, 'old-fingerprint');
+  assert.match(f.toasts.at(-1)[0], /已归类 1 篇未分类论文/);
+  assert.doesNotMatch(f.toasts.at(-1)[0], /仍有/);
+});
+
+test('ticking nothing applies nothing and says so', async () => {
+  const calls = [];
+  const f = fixture((url, body) => { calls.push([url, body]); return Promise.resolve({suggestions:aiPreview()}); });
+  await f.ui.suggest();
+  const review = f.dialogs[1];
+  review.unitBoxes.forEach(box => { box.checked = false; });
+  await review.querySelector('form').onsubmit({preventDefault(){}}); await tick();
+  assert.equal(calls.filter(([,body]) => body?.action === 'apply-ai-review').length, 0);
+  assert.equal(review.querySelector('.org-dialog-error').textContent, '没有选择需要应用的整理项');
+});
+
+test('a plan with no selectable change offers no apply button', async () => {
+  const f = fixture(() => Promise.resolve({suggestions:{...aiPreview(), ai_units:[]}}));
+  await f.ui.suggest();
+  assert.match(f.dialogs[1].html, /所有论文都已有类别/);
+  assert.doesNotMatch(f.dialogs[1].html, /type="submit"/);
+});
+
+test('while an application is in flight the ticks and the apply button are locked, and come back after a failure', async () => {
+  let reject; const failing = new Promise((_, fail) => { reject = fail; }); failing.catch(() => {});
+  const f = fixture((url, body) => body?.action === 'apply-ai-review' ? failing : Promise.resolve({suggestions:aiPreview()}));
+  await f.ui.suggest();
+  const review = f.dialogs[1];
+  const applying = review.querySelector('form').onsubmit({preventDefault(){}}); await tick();
+  assert.ok(review.unitBoxes.every(box => box.disabled), 'ticks are locked while applying');
+  reject(new Error('服务端拒绝'));
+  await applying; await tick();
+  assert.ok(review.unitBoxes.every(box => !box.disabled), 'the choice is editable again after a failure');
+  assert.equal(review.querySelector('.org-dialog-error').textContent, '服务端拒绝');
+});
+
+test('a revision conflict while applying says in words that the library changed after the preview', async () => {
+  const f = fixture((url, body) => body?.action === 'apply-ai-review' ? Promise.reject(new Error('Organization revision conflict')) : Promise.resolve({suggestions:aiPreview()}));
+  await f.ui.suggest();
+  const review = f.dialogs[1];
+  await review.querySelector('form').onsubmit({preventDefault(){}}); await tick();
+  assert.equal(review.querySelector('.org-dialog-error').textContent, '类别或论文在预览之后变化了，请关闭后重新整理');
+});
+
+test('a completed choice says how many more items were applied with it, for the choice to stay applicable', async () => {
+  const f = fixture((url, body) => Promise.resolve(body?.action === 'apply-ai-review'
+    ? {...snap(2), apply_result:{classified_papers:0, changed_papers:2, merged_categories:2, also_applied:['c:child']}} : {suggestions:aiPreview()}));
+  await f.ui.suggest();
+  await f.dialogs[1].querySelector('form').onsubmit({preventDefault(){}}); await tick();
+  assert.match(f.toasts.at(-1)[0], /为保证能一起应用，另带上了 1 项整理内容/);
+});
+
+test('the apply error sits in the footer that stays in view, next to the button', async () => {
+  const f = fixture(() => Promise.resolve({suggestions:aiPreview()}));
+  await f.ui.suggest();
+  const review = f.dialogs[1];
+  assert.equal(review.querySelector('footer').prepended, review.querySelector('.org-dialog-error'));
+});
+
+test('papers still unclassified after a partial application are reported in the notice', async () => {
+  const f = fixture((url, body) => Promise.resolve(body?.action === 'apply-ai-review'
+    ? {...snap(2), apply_result:{classified_papers:0, changed_papers:0, renamed_categories:1, still_unclassified:3}} : {suggestions:aiPreview()}));
+  await f.ui.suggest();
+  await f.dialogs[1].querySelector('form').onsubmit({preventDefault(){}}); await tick();
+  assert.match(f.toasts.at(-1)[0], /改名 1、合并 0、删除 0 个标签/);
+  assert.match(f.toasts.at(-1)[0], /仍有 3 篇未分类/);
+});

@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-09-organize-scope-selection",
+  "class": "critical",
+  "summary": "整理分类只处理左侧目录显示的范围（项目标签只审阅该项目的论文和实际显示的类别，共用类别及其上级只接收论文），未分类论文排最前且整理完不留未分类（本地兜底：先保留原类别，否则顶层“其他”并标明），预览拆成按“归类→调整→重新归类”排序、逐项可勾选的单元并由服务端保证任何勾选都能应用。",
+  "tasks": [
+    "FIX-ORGANIZE-SCOPE-SELECT"
+  ],
+  "files": [
+    "app/category_review.py",
+    "app/category_review_service.py",
+    "app/category_review_units.py",
+    "app/organization.py",
+    "app/static/i18n/en-US.json",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "changes/2026-10-09-organize-scope-selection.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0034-organize-scope-priority-selection.md",
+    "docs/evidence/2026-10-09-organize-scope-checks.txt",
+    "docs/evidence/2026-10-09-organize-scope-review.md",
+    "harness/tasks.json",
+    "prompts/category-review.md",
+    "tests/fixtures/scope_directory_cases.json",
+    "tests/test_category_review_async.cjs",
+    "tests/test_category_review_priority.py",
+    "tests/test_category_review_repair.py",
+    "tests/test_category_review_selection.py",
+    "tests/test_category_review_service.py",
+    "tests/test_category_review_subsets.py",
+    "tests/test_category_review_units.py",
+    "tests/test_organization_ui.cjs",
+    "tests/test_scope_directory_parity.py"
+  ],
+  "budget_impact": {
+    "runtime": "changed",
+    "rationale": "category_review 的单批合同不变（输入 8000 保守预检 / 输出 2000，每批一次、无重试、无推理或模型替代、显式触发），未提高任何额度、未新增外发字段（只多匿名 \"lock\":1，不含私有 ID/画像/笔记/反馈）。提示词变长 269 字节（2683→2952），靠压缩措辞保住 60 类×12 篇空文本极限用例（7629→7900，上限 8000）；常见规模下每批少放 0–1 篇（如 20 类 9→8、60 类 2→1），类名很长的目录上限 56→53 类，即最坏情形调用批数增加；项目标签下目录更小，通常缓解。本单元未调用任何真实模型，开发用量 0。日常核心 0 模型 token 不变。",
+    "before": "9fdae25；category_review 单批 8000 input/2000 output，SYSTEM 2683 字节，60 类×12 篇空文本极限 7629 字节",
+    "after": "同一单批合同；SYSTEM 2952 字节（+269），极限 7900 字节；每批容量如 20 类 9→8 篇、60 类 2→1 篇（可复现测量，见检查证据）；不是账单或 tokenizer 实测",
+    "developer_usage": "Real paid development/provider requests 0 this unit. Coding-agent consumption unknown.",
+    "quantified": {
+      "period": "one optional category-review batch (ceiling arithmetic, unchanged; no actual usage)",
+      "before": {
+        "input_tokens": 8000,
+        "output_tokens": 2000,
+        "usd": "0.0048"
+      },
+      "after": {
+        "input_tokens": 8000,
+        "output_tokens": 2000,
+        "usd": "0.0048"
+      }
+    }
+  },
+  "checks": [
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-organize-scope-checks.txt"
+    },
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-organize-scope-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-09-organize-scope-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "reviewer": "author",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-organize-scope-checks.txt"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "superpowers:code-reviewer subagent, read-only, round 1 (7 major + 9 minor)",
+      "result": "changes_required",
+      "evidence": "docs/evidence/2026-10-09-organize-scope-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "same reviewer, round 2 (all fixed, but 2 new major introduced by the fixes: B1 probing cost, B2 misfiling)",
+      "result": "changes_required",
+      "evidence": "docs/evidence/2026-10-09-organize-scope-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "same reviewer, round 3 (B1/B2/A1 fixed; 2 new major from the speed-ups: R1 classify unit could fail at apply, R2 over-bundling)",
+      "result": "changes_required",
+      "evidence": "docs/evidence/2026-10-09-organize-scope-review.md"
+    },
+    {
+      "kind": "independent",
+      "reviewer": "same reviewer, round 4 final targeted check: verdict yes, 3 small items (F1-F3)",
+      "result": "passed",
+      "evidence": "docs/evidence/2026-10-09-organize-scope-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "The three small items the final review left (repair keeps unrelated proposals, a cap on pair probes, neutral also_applied wording) were changed AFTER that review and are verified by the author tests only, each written to fail first.",
+    "prompts/category-review.md wording changed while status stays owner_approved with the 2026-10-07 approval sentence: caps, trigger and privacy scope are unchanged, but the owner should acknowledge the new wording; no approval field was changed by an agent.",
+    "No real model call: real answer quality (how often \"其他\" is used, near-synonym new categories created independently by different batches, structure decisions frozen from the first batch) is unmeasured.",
+    "Desktop build not made (main checkout and official .app are in use by another agent); merge then rebuild in the main checkout. The change set touches harness/tasks.json and docs/HANDOFF.md which also have uncommitted edits in the main checkout.",
+    "Extreme directories are tighter: 12-character names now fit 53 categories (was 56); about 11 more bytes per read-only category on the wire.",
+    "Plan is single-use: unticked units need a new (paid) review, also after an undo (undo clears the temporary preview). Moves implied by a dropped read-only merge/delete stay visible and untickable. A few higher-order combinations are completed at apply time with the fewest more label changes and the result says which (also_applied).",
+    "Sticky-footer error placement was verified in a real browser, the Node tests only assert the DOM move."
+  ]
+}

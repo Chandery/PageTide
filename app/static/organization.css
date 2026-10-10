@@ -245,6 +245,20 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-pending { margin:6px 0 0; padding-left:18px; font-size:12.5px; color:var(--org-muted); }
 .org-dismiss { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:var(--org-muted); }
 .org-review-section h4 { margin:14px 0 6px; font-size:13px; }
+/* AI review units: one tick per change with its reason underneath; the tools row keeps the count in view */
+.org-review-section > .org-suggestion { margin-top:8px; }
+.org-unit { display:flex; align-items:flex-start; gap:8px; }
+.org-unit input { margin-top:3px; flex:none; }
+.org-unit > span, .org-suggestion-head > span, .org-suggestion-head > strong { min-width:0; overflow-wrap:anywhere; }
+.org-suggestion-head > strong { flex:1; }
+.org-unit-why { display:block; font-size:12.5px; color:var(--org-muted); }
+.org-review-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0; }
+.org-review-tools button { padding:3px 10px; }
+.org-review-tools [data-ai-summary] { margin-left:auto; }
+/* a long plan scrolls; the apply button stays in reach */
+.org-review-dialog footer { position:sticky; bottom:-20px; margin:18px 0 -20px; padding:12px 0 20px; background:var(--org-bg); border-top:1px solid var(--org-border); flex-wrap:wrap; }
+.org-review-dialog footer .org-dialog-error { flex:1 0 100%; margin:0 0 8px !important; }
+.org-review-dialog footer .org-dialog-error:empty { display:none; }
 
 /* AI summary in the shared detail pane, and the reading button: its icon is dark art, so on the filled (dark) button in
    light mode it is inverted to white; in dark mode the button is light and the icon stays dark (the dark-mode rule that

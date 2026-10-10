@@ -7,12 +7,21 @@ import copy
 import hashlib
 import json
 
-from . import category_review, operation_lock
+from . import category_review, category_review_units, operation_lock
 from .clustering import corpus_fingerprint
 from .creation import degrade_reason
 from .organization import Conflict, Organization
 from .organization_facets import review, structure_hash
 from .organization_terms import category_identity
+
+FALLBACK_NAMES = {'其他', '其它', 'other', 'others', 'misc', 'miscellaneous'}
+FALLBACK_TEXT = {   # server-written wording (name, paper reason, category reason, kept reason); follows the interface language
+    'zh-CN': ('其他', '依据不足，暂放「其他」，可稍后手动归类', '依据不足的论文暂放此处，之后可手动归类',
+              '模型没有给出新的归属，保持原有类别'),
+    'en-US': ('Other', 'Not enough evidence; placed in “Other” for now. Sort it later.',
+              'Papers without enough evidence are placed here for now; sort them later.',
+              'The model gave no new placement, so the current categories are kept.'),
+}
 
 
 class _ReviewCancelled(ValueError):
@@ -24,19 +33,32 @@ def _check_cancel(cancelled):
         raise _ReviewCancelled('AI 分类审阅已取消，停止后续批次；没有保存或应用不完整方案')
 
 
-def _capture(org, scope):
+def _capture(org, scope, view=True):
+    """Freeze what is reviewed: the scope's papers and the categories the left directory shows for it.
+
+    A project tab shows the categories its papers use (and empty ones); categories only other projects use are
+    neither sent nor changed. Shown categories other projects also use are read-only (see scope_directory).
+    `view=False` skips the directory work for the cheap "did anything change" re-checks."""
     with org._transaction(write=False):
         revision, data = org._load()
         papers = org._corpus(scope)
+        saved = org._corpus(None) if scope and view else papers
+        owners = org._owners() if scope and view and hasattr(org, '_owners') else {}
         directions = copy.deepcopy(data['directions'])
         memberships = copy.deepcopy(data['memberships'])
-        return dict(revision=revision, papers=papers, directions=directions,
-                    memberships=memberships, fingerprint=corpus_fingerprint(papers),
-                    structure=structure_hash(directions, memberships))
+    if scope and view:
+        shown, locked = category_review_units.scope_directory(
+            directions, memberships, {p['key'] for p in papers}, {p['key'] for p in saved}, owners, scope)
+    else:
+        shown, locked = [d['id'] for d in directions], set()
+    visible = [dict(d, locked=d['id'] in locked) for d in directions if d['id'] in set(shown)]
+    return dict(revision=revision, papers=papers, directions=visible, all_directions=directions,
+                memberships=memberships, fingerprint=corpus_fingerprint(papers),
+                structure=structure_hash(directions, memberships), scoped=bool(scope))
 
 
 def _current(org, scope, frozen):
-    live = _capture(org, scope)
+    live = _capture(org, scope, view=False)
     if any(live[key] != frozen[key] for key in ('revision', 'fingerprint', 'structure')):
         raise Conflict('分类目录或论文在审阅期间变化，AI 方案已失效，请重新审阅')
 
@@ -59,8 +81,11 @@ def _offline(org, scope, profile, stats):
 
 
 def _batches(frozen, model):
-    """Preflight every batch before spending; decrease paper count, never trim the tree."""
+    """Preflight every batch before spending; decrease paper count, never trim the tree.
+
+    Papers without a category come first: filing them is the review's first priority."""
     papers = [dict(p, categories=list(frozen['memberships'].get(p['key'], []))) for p in frozen['papers']]
+    papers.sort(key=lambda p: bool(p['categories']))
     out, offset = [], 0
     if not papers:
         return [category_review.prepare(frozen['directions'], [], model=model)]
@@ -77,6 +102,11 @@ def _batches(frozen, model):
         out.append(prepared)
         offset += count
     return out
+
+
+def _stable_id(path):
+    identity = json.dumps(path, ensure_ascii=False, separators=(',', ':'))
+    return 'ai-cat-' + hashlib.sha256(identity.encode('utf-8')).hexdigest()[:24]
 
 
 def _stable_batch(parsed, directions):
@@ -109,13 +139,11 @@ def _stable_batch(parsed, directions):
         cache[identifier] = result
         return result
 
-    mapping = {}
-    for identifier in new:
-        identity = json.dumps(path(identifier), ensure_ascii=False, separators=(',', ':'))
-        stable = 'ai-cat-' + hashlib.sha256(identity.encode('utf-8')).hexdigest()[:24]
-        if stable in old:
-            raise ValueError('AI 新类别编号与现有类别冲突')
-        mapping[identifier] = stable
+    # An ID derived from the canonical path can already belong to a category an earlier review created and its
+    # owner since renamed or moved. Salt it now, while the model's references to that category and to the new one
+    # are still different aliases (the salt follows from the path, so every batch agrees).
+    taken = set(old)
+    mapping = {identifier: _fresh_id(path(identifier), taken) for identifier in new}
     convert = lambda identifier: mapping.get(identifier, identifier)
     categories = [dict(op, **({'target': convert(op['target'])} if 'target' in op else {})) for op in parsed['categories']]
     papers = [dict(p, categories=[convert(i) for i in p['categories']]) for p in parsed['papers']]
@@ -127,6 +155,169 @@ def _action_identity(op):
     return (op['action'], category_identity(op['name']) if 'name' in op else None, op.get('target'))
 
 
+def _is_fallback(name):
+    return ' '.join(str(name).casefold().split()) in FALLBACK_NAMES
+
+
+def _fresh_id(path, used):
+    """The ID derived from `path`, or the first salted variant of it that is not in `used`."""
+    candidate, salt = _stable_id(path), 0
+    while candidate in used:
+        salt += 1
+        candidate = _stable_id(tuple(path) + (str(salt),))
+    return candidate
+
+
+def _unique_ids(plan, frozen):
+    """A new category whose derived ID is taken by a category the directory does not show gets a fresh ID.
+
+    Runs before _reuse_outside, so every reference to such an ID in the plan still means the new category."""
+    used = {d['id'] for d in frozen['all_directions']} | {c['id'] for c in plan['new_categories']}
+    mapping = {}
+    for category in plan['new_categories']:
+        if category['id'] in {d['id'] for d in frozen['all_directions']}:
+            mapping[category['id']] = _fresh_id((category['id'],), used)
+            used.add(mapping[category['id']])
+    if not mapping:
+        return plan
+    convert = lambda identifier: mapping.get(identifier, identifier)
+    created = [dict(c, id=convert(c['id']), parent_id=convert(c.get('parent_id'))) for c in plan['new_categories']]
+    papers = [dict(p, categories=[convert(i) for i in p['categories']]) for p in plan['papers']]
+    return dict(plan, new_categories=created, papers=papers)
+
+
+def _keep_names_outside(plan, frozen):
+    """A rename or merge that would repeat a name the left directory cannot see, at the same level, is dropped.
+
+    The model prefers the standard Chinese name, and another project's part of the shared tree may already have
+    it. Renaming X to it, or merging X into a category whose hidden child has the name of one of X's children,
+    would make a same-level duplicate there, so that one proposal is dropped instead of failing the whole plan.
+    Returns the plan and how many proposals were dropped."""
+    shown = {d['id']: d for d in frozen['directions']}
+    outside = {(d.get('parent_id'), category_identity(d['name'])) for d in frozen['all_directions'] if d['id'] not in shown}
+    ops = {op['id']: op for op in plan['categories']}
+    redirect = {i: op['target'] for i, op in ops.items() if op['action'] == 'merge'}
+    children = {}
+    for direction in frozen['directions']:
+        children.setdefault(direction.get('parent_id'), []).append(direction['id'])
+    keep = lambda op: {'id': op['id'], 'action': 'keep', 'reason': op['reason']}
+    dropped = 0
+    for identifier, op in list(ops.items()):                     # renames first: they decide the names merges move
+        if op['action'] == 'rename':
+            parent = shown[identifier].get('parent_id')
+            if (redirect.get(parent, parent), category_identity(op['name'])) in outside:
+                ops[identifier], dropped = keep(op), dropped + 1
+    for identifier, op in list(ops.items()):
+        if op['action'] == 'merge':
+            moving = [c for c in children.get(identifier, []) if ops[c]['action'] not in {'merge', 'delete'}]
+            if any((op['target'], category_identity(ops[c].get('name', shown[c]['name']))) in outside for c in moving):
+                ops[identifier], dropped = keep(op), dropped + 1
+    if not dropped:
+        return plan, 0
+    return dict(plan, categories=[ops[op['id']] for op in plan['categories']]), dropped
+
+
+def _reuse_outside(plan, frozen):
+    """A new category that repeats one the left directory does not show reuses that one.
+
+    The model never sees categories only other projects use, so it may propose a label that already exists
+    there. Creating it again would be a same-level duplicate; the papers join the existing category instead.
+    Mapping repeats until nothing changes, so the order the reply lists parents and children does not matter."""
+    shown = {d['id'] for d in frozen['directions']}
+    outside = {(d.get('parent_id'), category_identity(d['name'])): d['id']
+               for d in frozen['all_directions'] if d['id'] not in shown}
+    mapping, changed = {}, True
+    while changed:
+        changed = False
+        for category in plan['new_categories']:
+            if category['id'] in mapping:
+                continue
+            parent = mapping.get(category.get('parent_id'), category.get('parent_id'))
+            found = outside.get((parent, category_identity(category['name'])))
+            if found:
+                mapping[category['id']], changed = found, True
+    if not mapping:
+        return plan
+    created = [dict(c, parent_id=mapping.get(c.get('parent_id'), c.get('parent_id')))
+               for c in plan['new_categories'] if c['id'] not in mapping]
+    papers = [dict(p, categories=list(dict.fromkeys(mapping.get(i, i) for i in p['categories']))) for p in plan['papers']]
+    return dict(plan, new_categories=created, papers=papers)
+
+
+def _fill_empty(plan, frozen, language='zh-CN'):
+    """Every reviewed paper ends with a category.
+
+    The model is told to give each paper a category; this is the local guarantee behind that, so a review never
+    ends with papers still unclassified. A paper the model left empty keeps the categories it has now (after the
+    plan's merges and deletions); only one left with nothing goes to the top-level 其他, marked so the preview can
+    say why it is there."""
+    name, reason, why, kept_reason = FALLBACK_TEXT.get(language, FALLBACK_TEXT['zh-CN'])
+    ops = {op['id']: op for op in plan['categories']}
+    redirect = {i: op['target'] for i, op in ops.items() if op['action'] == 'merge'}
+    deleted = {i for i, op in ops.items() if op['action'] == 'delete'}
+
+    def current(key):
+        return list(dict.fromkeys(redirect.get(i, i) for i in frozen['memberships'].get(key, []) if i not in deleted))
+
+    def existing():
+        for direction in frozen['all_directions']:
+            op = ops.get(direction['id'])
+            if op and op['action'] in {'merge', 'delete'}:
+                continue
+            if direction.get('parent_id') is None and _is_fallback((op or {}).get('name', direction['name'])):
+                return direction['id']
+        for category in plan['new_categories']:
+            if category.get('parent_id') is None and _is_fallback(category['name']):
+                return category['id']
+        return None
+    empty = [p for p in plan['papers'] if not p['categories']]
+    if not empty:
+        return plan
+    homeless = [p for p in empty if not current(p['key'])]
+    target, created = existing(), list(plan['new_categories'])
+    if homeless and target is None:
+        used = {d['id'] for d in frozen['all_directions']} | {c['id'] for c in created}
+        target = _fresh_id((category_identity(name),), used)
+        created.append({'id': target, 'name': name, 'parent_id': None, 'reason': why})
+    papers = []
+    for p in plan['papers']:
+        if not p['categories']:
+            kept = current(p['key'])
+            p = (dict(p, categories=kept, reason=kept_reason) if kept
+                 else dict(p, categories=[target], fallback=True, reason=reason))
+        papers.append(p)
+    return dict(plan, new_categories=created, papers=papers)
+
+
+def _demote(plan, identifiers):
+    """The plan with those label changes turned into keep; papers and new categories are untouched."""
+    identifiers = set(identifiers)
+    return dict(plan, categories=[{'id': op['id'], 'action': 'keep', 'reason': op['reason']} if op['id'] in identifiers else op
+                                  for op in plan['categories']])
+
+
+def _repair(org, plan):
+    """A plan the library cannot take as it stands loses label changes, never papers, instead of failing the review.
+
+    Dropping a proposal for scope reasons can leave another one that relied on it unappliable (a merge into a target
+    whose rename was dropped, a swap of two names of which one was dropped). The model call is already paid for, so
+    this starts from the plan without any label change (which must apply) and brings the proposals back one by one,
+    keeping each that still applies, so unrelated proposals survive. Returns the plan and how many label changes were
+    dropped; what cannot be repaired is left for storing to report."""
+    problem = getattr(org, 'plan_error', None)
+    if problem is None or problem(plan) is None:
+        return plan, 0
+    changing = [op for op in plan['categories'] if op['action'] != 'keep']
+    current = _demote(plan, [op['id'] for op in changing])        # no label change at all: the base that must apply
+    if problem(current) is not None:
+        return plan, 0
+    for op in changing:                                           # bring each proposal back if it still applies
+        candidate = dict(current, categories=[op if item['id'] == op['id'] else item for item in current['categories']])
+        if problem(candidate) is None:
+            current = candidate
+    return current, sum(1 for item in current['categories'] if item['action'] == 'keep') - sum(1 for item in plan['categories'] if item['action'] == 'keep')
+
+
 def _safe_plan(plan, frozen):
     """Validate cross-batch state and all global membership holders, including archived papers."""
     old = {d['id']: d for d in frozen['directions']}
@@ -135,11 +326,18 @@ def _safe_plan(plan, frozen):
     keys = {p['key'] for p in frozen['papers']}
     if set(ops) != set(old) or {p['key'] for p in plan['papers']} != keys or len(plan['papers']) != len(keys):
         raise ValueError('AI 方案没有完整覆盖分类目录或本次全部论文')
+    if any(ops[i]['action'] != 'keep' for i, d in old.items() if d.get('locked')):
+        raise ValueError(category_review.LOCKED_MESSAGE)
+    if any(not p['categories'] for p in plan['papers']):
+        raise ValueError('AI 方案仍有论文没有类别')
     deleted = {i for i, op in ops.items() if op['action'] == 'delete'}
     for key, memberships in frozen['memberships'].items():
         if key not in keys and deleted.intersection(memberships):
             raise ValueError('待删除类别仍有本次范围外或已归档论文，未完整审阅，不能删除')
     redirect = {i: op['target'] for i, op in ops.items() if op['action'] == 'merge'}
+    # Categories the directory does not show stay as they are; a plan may file papers under them or hang a
+    # new category below them (a label that already exists there is reused), never change them.
+    outside = {d['id'] for d in frozen['all_directions']} - set(old)
     retained = (set(old) - deleted - set(redirect)) | set(new)
     parents, names = {}, {}
     for identifier in retained:
@@ -147,7 +345,7 @@ def _safe_plan(plan, frozen):
         parent = item.get('parent_id')
         parents[identifier] = redirect.get(parent, parent)
         names[identifier] = ops[identifier].get('name', item['name']) if identifier in old else item['name']
-        if parents[identifier] is not None and parents[identifier] not in retained:
+        if parents[identifier] is not None and parents[identifier] not in retained | outside:
             raise ValueError('AI 完整方案留下悬空子类')
     identities = set()
     for identifier in retained:
@@ -156,12 +354,12 @@ def _safe_plan(plan, frozen):
             raise ValueError('AI 各批合并后仍有重复同义类别')
         identities.add(signature)
         seen, current = set(), identifier
-        while current is not None:
+        while current is not None and current in parents:
             if current in seen:
                 raise ValueError('AI 完整方案留下循环分类')
             seen.add(current)
             current = parents[current]
-    if any(not set(p['categories']) <= retained for p in plan['papers']):
+    if any(not set(p['categories']) <= retained | outside for p in plan['papers']):
         raise ValueError('AI 论文归属引用被移除或未知类别')
 
 
@@ -256,6 +454,14 @@ def run_review(app, scope_project, profile, dry_run=False, cancelled=None):
                 stats['completed_batches'] += 1
                 stats['processed_papers'] += len(batch['papers'])
                 stats['remaining_papers'] = stats['total_papers'] - stats['processed_papers']
+            plan, kept_by_scope = _keep_names_outside(plan, frozen)
+            plan = _fill_empty(_reuse_outside(_unique_ids(plan, frozen), frozen), frozen, profile.get('language') or 'zh-CN')
+            stats['kept_by_scope'] = kept_by_scope
+            plan.update(category_scope=[d['id'] for d in frozen['directions']], scoped=frozen['scoped'],
+                        scope_project=scope_project if frozen['scoped'] else None)
+            plan, stats['demoted_for_validity'] = _repair(org, plan)
+            stats.update(unclassified_papers=sum(1 for p in frozen['papers'] if not frozen['memberships'].get(p['key'])),
+                         fallback_papers=sum(1 for p in plan['papers'] if p.get('fallback')))
             _safe_plan(plan, frozen)
             _current(org, scope_project, frozen)
             _check_cancel(cancelled)

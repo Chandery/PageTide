@@ -1,0 +1,65 @@
+[
+  {
+    "name": "a category only another project uses is hidden with its sub-category; an empty one stays",
+    "scope": "one",
+    "directions": [
+      {"id": "A", "parent_id": null}, {"id": "B", "parent_id": null}, {"id": "C", "parent_id": null}, {"id": "D", "parent_id": "B"}
+    ],
+    "papers": {
+      "mine": {"projects": ["one"], "saved": true, "directions": ["A"]},
+      "theirs": {"projects": ["two"], "saved": true, "directions": ["B", "D"]}
+    },
+    "shown": ["A", "C"]
+  },
+  {
+    "name": "a parent nobody holds stays shown when a sub-category holds one of this project's papers",
+    "scope": "one",
+    "directions": [{"id": "P", "parent_id": null}, {"id": "Q", "parent_id": "P"}],
+    "papers": {"mine": {"projects": ["one"], "saved": true, "directions": ["Q"]}},
+    "shown": ["P", "Q"]
+  },
+  {
+    "name": "a parent held by another project is shown when a sub-category holds this project's paper",
+    "scope": "one",
+    "directions": [{"id": "P", "parent_id": null}, {"id": "Q", "parent_id": "P"}],
+    "papers": {
+      "mine": {"projects": ["one"], "saved": true, "directions": ["Q"]},
+      "theirs": {"projects": ["two"], "saved": true, "directions": ["P"]}
+    },
+    "shown": ["P", "Q"]
+  },
+  {
+    "name": "a category held only by an archived paper counts as empty and stays",
+    "scope": "one",
+    "directions": [{"id": "X", "parent_id": null}],
+    "papers": {"gone": {"projects": [], "saved": false, "directions": ["X"]}},
+    "shown": ["X"]
+  },
+  {
+    "name": "a legacy saved paper that belongs to no project hides its category in a project tab",
+    "scope": "one",
+    "directions": [{"id": "Y", "parent_id": null}, {"id": "Z", "parent_id": null}],
+    "papers": {
+      "legacy": {"projects": [], "saved": true, "directions": ["Y"]},
+      "mine": {"projects": ["one"], "saved": true, "directions": ["Z"]}
+    },
+    "shown": ["Z"]
+  },
+  {
+    "name": "an empty sub-category is hidden with its hidden parent",
+    "scope": "one",
+    "directions": [{"id": "B", "parent_id": null}, {"id": "E", "parent_id": "B"}, {"id": "F", "parent_id": "E"}],
+    "papers": {"theirs": {"projects": ["two"], "saved": true, "directions": ["B"]}},
+    "shown": []
+  },
+  {
+    "name": "a paper saved by two projects keeps its category in both tabs",
+    "scope": "two",
+    "directions": [{"id": "S", "parent_id": null}, {"id": "T", "parent_id": null}],
+    "papers": {
+      "both": {"projects": ["one", "two"], "saved": true, "directions": ["S"]},
+      "only-one": {"projects": ["one"], "saved": true, "directions": ["T"]}
+    },
+    "shown": ["S"]
+  }
+]

@@ -155,10 +155,22 @@ class CategoryReviewServiceTests(unittest.TestCase):
         def delete(index, request, value):
             value['categories'][0]['action'] = 'delete'
         self.app.gateway.response = delete
-        result = self.review()
+        result = run_review(self.app, None, self.profile)   # all papers: nothing may be deleted under an unreviewed holder
         self.assertEqual(result['ai_review']['status'], 'failed')
         self.assertEqual(self.org.stored, [])
         self.assertIn('归档', result['ai_review']['error'])
+
+    def test_in_a_project_scope_a_delete_of_a_category_held_outside_is_dropped_not_applied(self):
+        self.org.data['memberships'] = {'archived-paper-key': ['private-world-id']}
+        wire = []
+        def delete(index, request, value):
+            wire.append(request['categories'][0])
+            value['categories'][0]['action'] = 'delete'
+        self.app.gateway.response = delete
+        result = self.review()
+        self.assertEqual(wire[0].get('lock'), 1, 'the model was told this category is read-only')
+        self.assertEqual(result['ai_review']['status'], 'complete')
+        self.assertEqual(self.org.stored[0]['categories'][0]['action'], 'keep')
 
     def test_delete_reassigns_all_reviewed_papers_explicitly_before_preview_storage(self):
         self.org.data['memberships'] = {p['key']: ['private-world-id'] for p in self.papers}
@@ -168,8 +180,11 @@ class CategoryReviewServiceTests(unittest.TestCase):
                 p['categories'] = []
         self.app.gateway.response = delete
         self.review()
-        self.assertEqual(self.org.stored[0]['categories'][0]['action'], 'delete')
-        self.assertTrue(all(p['categories'] == [] for p in self.org.stored[0]['papers']))
+        plan = self.org.stored[0]
+        self.assertEqual(plan['categories'][0]['action'], 'delete')
+        # A reply that leaves the emptied papers without a category is completed locally: none stays unclassified.
+        other = next(c['id'] for c in plan['new_categories'] if c['name'] == '其他')
+        self.assertTrue(all(p['categories'] == [other] and p['fallback'] for p in plan['papers']))
 
     def test_truncated_reply_is_not_applied_or_retried(self):
         self.app.gateway.response = lambda *args: {'ok': True, 'content': '{}', 'finish_reason': 'length', 'usage': {'total_tokens': 2000}}
@@ -241,10 +256,14 @@ class CategoryReviewServiceTests(unittest.TestCase):
         self.org.papers = []
         self.org.data['memberships'] = {'outside': ['private-world-id']}
         self.app.gateway.response = lambda i, req, out: out['categories'][0].update(action='delete')
-        result = self.review()
+        result = run_review(self.app, None, self.profile)
         self.assertEqual(len(self.app.gateway.calls), 1)
         self.assertEqual(result['ai_review']['status'], 'failed')
         self.assertEqual(self.org.stored, [])
+        self.app.gateway.calls.clear()
+        project = self.review()   # in a project scope the same proposal is dropped, the category stays
+        self.assertEqual(project['ai_review']['status'], 'complete')
+        self.assertEqual(self.org.stored[0]['categories'][0]['action'], 'keep')
 
     def test_unknown_usage_stays_unknown_in_returned_job_statistics(self):
         real = self.app.gateway.call

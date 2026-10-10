@@ -1197,19 +1197,144 @@ test('graph retry remains available for deferred progress with no pending saved 
   assert.match(box.innerHTML,/route-verification-retry/);assert.match(box.innerHTML,/重新核验学习匹配/);
 });
 
-test('AI review shows existing label deletion together with paper reassignment and escapes reasons', () => {
-  const ui = fixture();
-  ui.accept(snapshot());
-  const preview = {scope:'project', ai_plan:{categories:[{id:'d1',action:'delete',reason:'<script>bad</script>'}],
+function aiPlanFixture() {
+  // Unclassified paper fresh-1 is filed under a new category; the junk label is deleted with its holder re-homed;
+  // a duplicate label is merged; one classified paper is moved.
+  const plan = {category_scope:['d1','junk','dup'], scoped:true,
+    categories:[{id:'d1',action:'keep',reason:'ok'},{id:'junk',action:'delete',reason:'<script>bad</script>'},{id:'dup',action:'merge',target:'d1',reason:'同义'}],
     new_categories:[{id:'new',name:'世界模型',parent_id:null,reason:'标题依据'}],
-    papers:[{key:'paper:one',categories:['new'],reason:'明确方向'}]}};
-  const html = ui.suggestionsHTML(preview);
-  assert.match(html,/删除标签/); assert.match(html,/重新归类论文/); assert.match(html,/data-ai-plan checked/);
-  assert.match(html,/不删除论文或笔记/); assert.match(html,/&lt;script&gt;/); assert.doesNotMatch(html,/<script>/);
+    papers:[{key:'fresh-1',categories:['new'],reason:'明确方向'},{key:'held',categories:['d1'],reason:'重新归类'},{key:'moved',categories:['new'],reason:'更准'}]};
+  const units = [
+    {id:'p:fresh-1',kind:'paper',section:'classify',key:'fresh-1',from:[],to:['new'],fallback:false,reason:'<img src=x>',requires:[]},
+    {id:'c:dup',kind:'category',section:'adjust',category:'dup',action:'merge',target:'d1',reason:'同义',papers:2,requires:[]},
+    {id:'c:junk',kind:'category',section:'adjust',category:'junk',action:'delete',reason:'<script>bad</script>',papers:1,rehome:[{key:'held',to:['d1']}],requires:[]},
+    {id:'p:moved',kind:'paper',section:'rehome',key:'moved',from:['d1'],to:['new'],fallback:false,reason:'更准',requires:[]}];
+  return {scope:'project-a', ai_plan:plan, ai_units:units};
+}
+function planUI() {
+  const ui = fixture();
+  ui.accept(snapshot({directions:[{id:'d1',name:'Models',rank:0},{id:'junk',name:'Junk',rank:1},{id:'dup',name:'Dup',rank:2}],
+    projects:[{id:'project-a',name:'项目甲'}],
+    items:[{key:'fresh-1',title:'Fresh paper',directions:[]},{key:'held',title:'Held paper',directions:['junk']},{key:'moved',title:'Moved paper',directions:['d1']}]}));
+  return ui;
+}
+
+test('AI review lists unclassified papers first, then label changes, then moves, each unit with its own checkbox', () => {
+  const html = planUI().suggestionsHTML(aiPlanFixture());
+  const at = text => html.indexOf(text);
+  assert.ok(at('先归类还没有类别的论文') > 0 && at('先归类还没有类别的论文') < at('再调整现有分类') && at('再调整现有分类') < at('最后重新归类已分类的论文'));
+  for (const id of ['p:fresh-1','c:dup','c:junk','p:moved']) assert.match(html, new RegExp(`data-unit="${id}" checked`));
+  assert.equal((html.match(/data-unit=/g) || []).length, 4, 'one checkbox per unit and nothing else');
+  assert.match(html, /data-group/);                                  // the unclassified papers are grouped by where they go
+  assert.match(html, /<em class="org-maybe">新建<\/em>/);              // the category that does not exist yet says so
+  assert.doesNotMatch(html, /data-ai-plan/);                         // the old all-or-nothing switch is gone
+  assert.match(html, /data-select-all-units/); assert.match(html, /data-select-no-units/); assert.match(html, /data-ai-summary/);
 });
 
-test('AI keep plan with unchanged paper links has no apply choice', () => {
-  const ui = fixture(); ui.accept(snapshot());
-  const html=ui.suggestionsHTML({ai_plan:{categories:[{id:'d1',action:'keep'}],new_categories:[],papers:[{key:'paper:one',categories:['d1'],reason:''}]}});
-  assert.match(html,/没有需要调整/); assert.doesNotMatch(html,/data-ai-plan/);
+test('AI review says which scope it covers and escapes model text', () => {
+  const html = planUI().suggestionsHTML(aiPlanFixture());
+  assert.match(html, /范围：项目「项目甲」/); assert.match(html, /<span>3 篇论文<\/span>/); assert.match(html, /<span>左边目录里显示 3 个类别<\/span>/);
+  assert.match(html, /与其他项目共用的类别只接收论文/);
+  assert.match(html, /&lt;script&gt;/); assert.match(html, /&lt;img src=x&gt;/);
+  assert.doesNotMatch(html, /<script>/); assert.doesNotMatch(html, /<img src=x>/);
+  const all = planUI().suggestionsHTML({...aiPlanFixture(), scope:null});
+  assert.match(all, /范围：全部项目/); assert.match(all, /<span>3 篇论文<\/span>/); assert.doesNotMatch(all, /与其他项目共用/);
+});
+
+test('deleting a label shows the papers it moves, and a merge says how many papers follow it', () => {
+  const html = planUI().suggestionsHTML(aiPlanFixture());
+  assert.match(html, /1 篇论文改归到别的类别/); assert.match(html, /Held paper/);
+  assert.match(html, /2 篇论文随之并入/);
+});
+
+test('papers the model could not judge are marked as placed in 其他 for now', () => {
+  const preview = aiPlanFixture();
+  preview.ai_units = [{...preview.ai_units[0], fallback:true, to:['new']}];
+  const html = planUI().suggestionsHTML(preview);
+  assert.match(html, /依据不足，暂放/);
+});
+
+test('a plan with nothing to change says every paper already has a category and shows no checkbox', () => {
+  const html = planUI().suggestionsHTML({...aiPlanFixture(), ai_units:[]});
+  assert.match(html, /所有论文都已有类别/); assert.doesNotMatch(html, /data-unit=/);
+});
+
+test('a plan without selectable units is refused instead of being applied as a whole', () => {
+  const html = planUI().suggestionsHTML({ai_plan:{categories:[],new_categories:[],papers:[]}});
+  assert.match(html, /缺少可选项/); assert.doesNotMatch(html, /data-unit=/);
+});
+
+test('ticking a deletion pulls in the deletion of its sub-categories, and unticking one unticks what needs it', () => {
+  const ui = planUI();
+  const units = [{id:'c:parent',section:'adjust',requires:['c:child']},{id:'c:child',section:'adjust',requires:[]},
+    {id:'p:a',section:'classify',requires:[]},{id:'p:b',section:'classify',requires:[]},{id:'p:m',section:'rehome',requires:[]}];
+  const sel = ui.planSelection(units);
+  assert.deepEqual([...sel.all()].sort(), ['c:child','c:parent','p:a','p:b','p:m']);
+  let chosen = sel.toggle(new Set(), 'c:parent', true);
+  assert.deepEqual([...chosen].sort(), ['c:child','c:parent']);
+  chosen = sel.toggle(chosen, 'c:child', false);
+  assert.deepEqual([...chosen], [], 'the parent cannot stay without its child');
+  assert.equal(sel.unclassifiedLeft(new Set(['p:a'])), 1);
+  assert.equal(sel.unclassifiedLeft(sel.all()), 0);
+});
+
+test('the dialog keeps the count, the unclassified warning and the apply button in step with the ticks', () => {
+  const ui = planUI(), preview = aiPlanFixture();
+  const listeners = {}, summary = {textContent:''}, submit = {textContent:'', disabled:false};
+  const boxes = preview.ai_units.map(u => ({dataset:{unit:u.id}, checked:true, matches: s => s === '[data-unit]', closest: () => ({querySelectorAll: () => groupBoxes})}));
+  const groupBoxes = [boxes[0]];
+  const group = {checked:true, indeterminate:false, matches: s => s === '[data-group]', closest: () => ({querySelectorAll: () => groupBoxes})};
+  const buttons = {'[data-select-all-units]':{}, '[data-select-no-units]':{}};
+  const root = {querySelectorAll: s => s === '[data-unit]' ? boxes : s === '[data-group]' ? [group] : [],
+    querySelector: s => s === '[data-ai-summary]' ? summary : s === '[type=submit]' ? submit : buttons[s] ? Object.assign(buttons[s], {addEventListener:(k,fn)=>{buttons[s].fn=fn;}}) : null,
+    addEventListener: (kind, fn) => { listeners[kind] = fn; }};
+  ui.wireAIPlan(root, preview.ai_units);
+  assert.equal(summary.textContent, '已选 4 / 4 项 · 应用后没有未分类论文');
+  assert.equal(submit.textContent, '应用所选（4 项）');
+  boxes[0].checked = false; listeners.change({target: boxes[0]});   // untick the only unclassified paper
+  assert.equal(summary.textContent, '已选 3 / 4 项 · 应用后仍有 1 篇未分类');
+  assert.equal(group.checked, false);
+  buttons['[data-select-no-units]'].fn();
+  assert.equal(summary.textContent, '已选 0 / 4 项 · 应用后仍有 1 篇未分类');
+  assert.equal(submit.disabled, true);
+  buttons['[data-select-all-units]'].fn();
+  assert.equal(submit.disabled, false); assert.ok(boxes.every(b => b.checked));
+  group.checked = false; listeners.change({target: group});          // untick the whole group at once
+  assert.equal(boxes[0].checked, false); assert.ok(boxes.slice(1).every(b => b.checked));
+});
+
+test('the scope note escapes the project name', () => {
+  const ui = planUI();
+  ui.S.snapshot.projects[0].name = '<img src=x onerror=alert(1)>';
+  const html = ui.suggestionsHTML(aiPlanFixture());
+  assert.doesNotMatch(html, /<img src=x/);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+});
+
+test('a new category shows where it will sit and why the model wants it', () => {
+  const preview = aiPlanFixture();
+  preview.ai_plan.new_categories[0].parent_id = 'd1';
+  const html = planUI().suggestionsHTML(preview);
+  assert.match(html, /Models › 世界模型/);                      // the path, not just the bare name
+  assert.match(html, /标题依据/);                                // the model's reason for creating it
+  const moved = html.slice(html.indexOf('最后重新归类已分类的论文'));
+  assert.match(moved, /Models › 世界模型/);                      // and in the move list too
+});
+
+test('every unit checkbox has an accessible name', () => {
+  const html = planUI().suggestionsHTML(aiPlanFixture());
+  for (const id of ['c:dup', 'c:junk']) assert.match(html, new RegExp(`data-unit="${id}" checked [^>]*aria-label="[^"]+"`));
+  assert.match(html, /data-group checked aria-label="选择归入「[^"]*世界模型[^"]*」的论文"/);
+  assert.equal((html.match(/aria-label="选择这一组"/g) || []).length, 0, 'groups are named after where they go');
+});
+
+test('the left directory hides exactly the categories the review leaves out (shared cases with the server rule)', () => {
+  const ui = fixture(), cases = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/scope_directory_cases.json'), 'utf8'));
+  for (const c of cases) {
+    const items = Object.entries(c.papers).filter(([, p]) => p.saved).map(([key, p]) => ({key, title: key, projects: p.projects, directions: p.directions}));
+    const snap = {directions: c.directions.map(d => ({...d, name: d.id})), items, projects: [], positions: {}, revision: 1, drafts: []};
+    const hidden = ui.otherProjectCategories(snap, c.scope, '*');
+    const shown = c.directions.map(d => d.id).filter(id => !hidden.has(id));
+    assert.deepEqual(shown, c.shown, c.name);
+  }
 });

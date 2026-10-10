@@ -1187,6 +1187,34 @@
         "docs/evidence/2026-10-09-guidance-json-review-gateway.md"
       ],
       "authorization_note": "2026-10-09 human owner reports settings Test AI success but project guidance HTTP400 and requests repair. Existing development authorization covers this bounded request-contract bug fix; no new provider, retry, paid development test or general publication authorization."
+    },
+    {
+      "id": "FIX-ORGANIZE-SCOPE-SELECT",
+      "stage": "graph",
+      "title": "整理分类按左侧目录范围、未分类优先且不留尾巴、预览逐项可选",
+      "status": "review",
+      "depends_on": [],
+      "requirements": [
+        "R-GRAPH",
+        "R-LOCAL",
+        "R-LOWCOMPUTE",
+        "R-DURABILITY",
+        "R-BUDGET",
+        "R-HARNESS"
+      ],
+      "acceptance": [
+        "项目标签下只冻结该项目论文和左侧目录实际显示的类别：只在其他项目里的类别不发送、不被改；与其他项目或已归档论文共用的类别带 lock 只能接收论文；全部项目标签仍整库。提示词、parse、_safe_plan 与最终写入口 _apply_ai_review 四处独立拒绝改动 lock 类别",
+        "未分类论文排在批次最前，提示词把归类未分类列为第一优先；方案里仍无类别的论文由本地兜底归入顶层“其他”并标明依据不足，_safe_plan 断言无空归属，整理完不会还有未分类（用户在预览中自行取消的除外，应用结果如实报告仍未分类篇数）",
+        "AI 方案拆成按“归类未分类→调整现有分类→重新归类已分类”排序的可选单元，逐项勾选；服务端闭包保证子集可应用（删类别带论文改归、删父类带处理子类的单元、新类别仅在被使用时创建），空/未知选择被拒绝且不消耗预览，不带 selection 的旧调用仍应用整份方案，一次撤销还原",
+        "单批 8000 输入/2000 输出保守预检与每批一次无重试不变，不新增外发字段（仅匿名 lock 标记）；提示词变长后极限用例仍在 8000 内并如实记录各目录规模下的批容量变化；prompts/category-review.md 与代码 SYSTEM 逐字一致",
+        "离线回归、独立审查及真实浏览器合成数据验证（只桩住模型任务，应用走真实服务端）通过；未调用真实模型，真实模型质量、真实库、原生窗口及桌面构建（主构建被另一代理占用）不冒充通过"
+      ],
+      "evidence": [
+        "docs/decisions/0034-organize-scope-priority-selection.md",
+        "docs/evidence/2026-10-09-organize-scope-checks.txt",
+        "docs/evidence/2026-10-09-organize-scope-review.md"
+      ],
+      "authorization_note": "2026-10-09 human owner reports the library 整理分类 scope/ordering/selection are wrong and asks for repair. Existing category_review authorization (8000 input / 2000 output per batch, explicit trigger, no retry) is unchanged; this unit makes no real model call, raises no cap and adds no external data. No paid development test, release or build authorization is implied."
     }
   ]
 }

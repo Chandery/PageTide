@@ -25,6 +25,7 @@ changing organization revision/undo. drafts accepts an optional key filter.
 snapshot.drafts excludes cleared tombstones; distinct clients never overwrite
 one another. A caller restores a draft by adopting its client and version.
 """
+import itertools
 import json
 import math
 import os
@@ -37,7 +38,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import unquote
 
-from . import eligibility, pathgraph, pathgrowth, route_revision
+from . import category_review_units as review_units, eligibility, pathgraph, pathgrowth, route_revision
 from .clustering import cluster, corpus_fingerprint
 from .organization_terms import category_identity, category_term
 from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
@@ -631,13 +632,29 @@ class Organization:
                     raise Conflict("AI 审阅预览已变化，请重新审阅")
                 if preview.get("ai_applied"):
                     result = self._snapshot()
-                    result["apply_result"] = {"changed_papers": 0, "created_categories": 0, "merged_categories": 0, "deleted_categories": 0, "renamed_categories": 0}
+                    result["apply_result"] = {"changed_papers": 0, "created_categories": 0, "merged_categories": 0, "deleted_categories": 0, "renamed_categories": 0, "classified_papers": 0}
                     return result
                 if body.get("fingerprint") != preview.get("fingerprint") or corpus_fingerprint(self._corpus(preview.get("scope"))) != preview.get("fingerprint"):
                     raise Conflict("论文已变化，请重新审阅")
                 if structure_hash(data["directions"], data["memberships"]) != preview.get("structure"):
                     raise Conflict("类别或归属已变化，请重新审阅")
-                apply_result = self._apply_ai_review(data, preview.get("ai_plan"))
+                plan = preview.get("ai_plan")
+                if "selection" in body:
+                    # Only the chosen units; what they need comes with them, so the part is valid on its own.
+                    selection = body["selection"]
+                    chosen = selection.get("units") if isinstance(selection, dict) else None
+                    units = preview.get("ai_units") or self._offered_units(plan, data)
+                    if isinstance(chosen, list) and not chosen:
+                        raise ValueError("请至少选择一项要应用的整理内容")
+                    asked = review_units.closure(units, chosen)
+                    resolved = self._resolve_selection(plan, units, chosen, data)
+                    also_applied = sorted(resolved - asked)
+                    plan = review_units.select_plan(plan, units, resolved, data["memberships"])
+                else:
+                    also_applied = []
+                apply_result = self._apply_ai_review(data, plan)
+                if also_applied:
+                    apply_result["also_applied"] = also_applied
                 preview["ai_applied"] = True
                 label = "应用 AI 分类审阅"
             elif op == "suggest-apply":
@@ -1228,20 +1245,146 @@ class Organization:
             data['suggestions'] = {'groups': [], 'merges': [], 'moves': [], 'pending_keys': [],
                                   'fingerprint': corpusfp, 'structure': structure, 'scope': scope,
                                   'source': 'ai', 'algorithm': 'ai-category-review-v1',
-                                  'ai_plan': plan, 'ai_token': uuid.uuid4().hex}
+                                  'ai_plan': plan, 'ai_token': uuid.uuid4().hex,
+                                  'ai_units': self._offered_units(plan, data)}
             self.conn.execute('UPDATE org_projects SET revision=?,data=? WHERE project=?',
                               (now + 1, _dump(data), self.project))
             return self._snapshot()
 
-    def _apply_ai_review(self, data, plan):
+    def plan_error(self, plan):
+        """None when `plan` would apply to the library as it is now, else the reason. Read-only (a private copy)."""
+        with self._transaction(write=False):
+            _, data = self._load()
+        try:
+            self._apply_ai_review(json.loads(_dump(data)), plan)
+        except ValueError as error:
+            return str(error)
+        return None
+
+    def _selection_probe(self, plan, units, data):
+        """works(chosen): would the plan, reduced to the chosen units, apply to the library as it is now?
+
+        Tried on a slim private copy. Papers that keep their categories cannot change whether a plan applies, so only
+        the changed ones are sent through; who counts as this scope's papers (for the read-only rule) still comes
+        from the whole plan."""
+        saved = {row[0] for row in self.conn.execute("SELECT l.paper_key FROM library l JOIN papers p ON p.key=l.paper_key")}
+        reviewed = {item["key"] for item in plan["papers"]}
+
+        def works(chosen):
+            sub = review_units.select_plan(plan, units, chosen, data["memberships"])
+            sub["papers"] = [p for p in sub["papers"] if p["categories"] != data["memberships"].get(p["key"], [])]
+            scratch = {"directions": [dict(d) for d in data["directions"]],
+                       "memberships": {key: list(ids) for key, ids in data["memberships"].items()},
+                       "protected": list(data.get("protected", [])), "collapsed": list(data.get("collapsed", [])), "positions": {}}
+            try:
+                self._apply_ai_review(scratch, sub, saved, reviewed)
+                return True
+            except ValueError:
+                return False
+        return works
+
+    def _offered_units(self, plan, data):
+        """The units the preview offers, with what each needs so that the usual choices apply without surprises.
+
+        A label change can depend on another one (a merged parent's children must merge too, a rename into a
+        sibling's name needs the sibling's rename, a merge into a renamed target needs the rename). Rather than
+        guess every such rule, each label change, each pair of them, and each paper that files under new categories
+        (alone and with each label change) is tried on a private copy; whatever fails is bundled with what makes it
+        work, up to bundling everything (the whole plan was already validated). This cannot cover every higher-order
+        combination, which is why applying has its own safety net (_resolve_selection)."""
+        units = review_units.build_units(plan, data["directions"], data["memberships"])
+        structural = [unit["id"] for unit in units if unit["section"] == "adjust"]
+        by_id = {unit["id"]: unit for unit in units}
+        works = self._selection_probe(plan, units, data)
+        fresh = {item["id"] for item in plan["new_categories"]}
+        # A paper that files under a NEW category brings that category with it, which can repeat the name of a
+        # sibling the plan renames, merges or deletes; one try per set of new categories stands for all its papers.
+        groups = {}
+        for unit in units:
+            used = frozenset(i for i in unit.get("to", []) if i in fresh) if unit["kind"] == "paper" else frozenset()
+            if used:
+                groups.setdefault(used, []).append(unit)
+        probes = [[unit] for unit in units if unit["section"] == "adjust"] + list(groups.values())
+
+        def need(unit, extra):
+            unit["requires"] = list(dict.fromkeys(unit["requires"] + [i for i in extra if i != unit["id"]]))
+
+        def fix(chosen):
+            """The label changes that make `chosen` apply: one, else all of them, else the whole plan."""
+            helper = next((c for c in structural if c not in chosen and works(chosen | review_units.closure(units, [c]))), None)
+            if helper is not None:
+                return [helper]
+            if works(chosen | set(structural)):
+                return [c for c in structural if c not in chosen]
+            return [other["id"] for other in units]
+        for _ in range(4):
+            changed = False
+            for members in probes:
+                chosen = review_units.closure(units, [members[0]["id"]])
+                if not works(chosen):
+                    changed = True
+                    extra = fix(chosen)
+                    for unit in members:
+                        need(unit, extra)
+            if len(structural) <= 40:
+                for first, second in itertools.combinations(structural, 2):
+                    if not works(review_units.closure(units, [first, second])):
+                        changed = True
+                        need(by_id[first], [second]); need(by_id[second], [first])
+                # A paper that files under a new category and a label change can each apply alone yet not together.
+                # The fix goes on the label change, so filing unclassified papers never drags other changes along.
+                if len(groups) * len(structural) <= 600:       # beyond that, applying has its own safety net
+                    for members in groups.values():
+                        for label in structural:
+                            chosen = review_units.closure(units, [members[0]["id"], label])
+                            if not works(chosen):
+                                changed = True
+                                need(by_id[label], fix(chosen))
+            if not changed:
+                break
+        return units
+
+    def _resolve_selection(self, plan, units, selected, data):
+        """The units to apply for a choice: the choice with its requirements, and, if that still cannot apply to the
+        library as it is, the fewest more label changes that make it work (at worst the whole plan, which was
+        validated). The caller reports anything beyond the choice, so applying never fails for this reason and never
+        changes more than it says."""
+        chosen = review_units.closure(units, selected)
+        works = self._selection_probe(plan, units, data)
+        if works(chosen):
+            return chosen
+        structural = [unit["id"] for unit in units if unit["section"] == "adjust"]
+        for label in structural:
+            trial = chosen | review_units.closure(units, [label])
+            if label not in chosen and works(trial):
+                return trial
+        current = set(chosen)
+        for label in structural:
+            current |= review_units.closure(units, [label])
+            if works(current):
+                return current
+        return {unit["id"] for unit in units}
+
+    def _apply_ai_review(self, data, plan, saved=None, reviewed=None):
         """Apply the entire reviewed plan atomically. Deletes require every retained link to be handled."""
         if not isinstance(plan, dict) or not isinstance(plan.get('categories'), list) or not isinstance(plan.get('papers'), list) or not isinstance(plan.get('new_categories'), list):
             raise ValueError('分类审阅方案缺失')
         existing = {d['id']: d for d in data['directions']}
         operations = {item.get('id'): item for item in plan['categories'] if isinstance(item, dict)}
-        if len(operations) != len(plan['categories']) or set(operations) != set(existing):
+        # A plan made for one project covers the categories that project's directory shows (category_scope);
+        # the others are not reviewed and not touched. Older plans cover every category.
+        scope = set(existing) if plan.get('category_scope') is None else set(self._list(plan['category_scope'], 'category scope'))
+        if len(operations) != len(plan['categories']) or set(operations) != scope or not scope <= set(existing):
             raise ValueError('审阅必须覆盖全部现有类别')
-        redirect, removed, renamed = {}, set(), 0
+        before = {key: list(ids) for key, ids in data['memberships'].items()}
+        if plan.get('scoped'):
+            if reviewed is None:
+                reviewed = {item.get('key') for item in plan['papers'] if isinstance(item, dict)}
+            outside = review_units.outside_keys(data['memberships'], reviewed, self._owners(), plan.get('scope_project'))
+            locked = review_units.locked_categories(data['directions'], data['memberships'], outside, scope)
+            if any(operations[identifier].get('action') != 'keep' for identifier in locked):
+                raise ValueError('与其他项目共用的类别在项目范围内只能接收论文，不能改名、合并或删除')
+        redirect, removed, renamed, renamed_ids = {}, set(), 0, set()
         for identifier, item in operations.items():
             action = item.get('action')
             if action == 'rename':
@@ -1251,9 +1394,10 @@ class Organization:
                 if existing[identifier]['name'] != name:
                     existing[identifier].update(name=name, manual=True)
                     renamed += 1
+                    renamed_ids.add(identifier)
             elif action == 'merge':
                 target = item.get('target')
-                if target not in existing or target == identifier or operations[target].get('action') not in {'keep', 'rename'}:
+                if target not in operations or target == identifier or operations[target].get('action') not in {'keep', 'rename'}:
                     raise ValueError('合并目标必须为保留的现有类别')
                 source_term = category_term(existing[identifier]['name'])
                 target_name = operations[target].get('name', existing[target]['name'])
@@ -1278,9 +1422,12 @@ class Organization:
                                        'rank': len(data['directions']), 'parent_id': item.get('parent_id'),
                                        'manual': True, 'source': 'ai-review'})
         live = {d['id'] for d in data['directions']} - removed
+        reparented = set()
         for direction in data['directions']:
             parent = direction.get('parent_id')
             direction['parent_id'] = redirect.get(parent, parent)
+            if direction['parent_id'] != parent:
+                reparented.add(direction['id'])
             if direction['id'] in live and direction.get('parent_id') is not None and direction['parent_id'] not in live:
                 raise ValueError('删除父类别前必须处理子类别')
         by_id = {d['id']: d for d in data['directions'] if d['id'] in live}
@@ -1304,7 +1451,11 @@ class Organization:
         for item in plan['papers']:
             if not isinstance(item, dict):
                 raise ValueError('论文审阅必须为对象')
-            key = self._paper_key(item.get('key'), saved=True)
+            key = item.get('key')
+            if saved is None:
+                key = self._paper_key(key, saved=True)
+            elif not isinstance(key, str) or key not in saved:
+                raise ValueError('Paper is not saved: ' + str(key))
             ids = self._list(item.get('categories'), 'review categories')
             ids = list(dict.fromkeys(redirect.get(i, i) for i in ids))
             if key in paper_ids or not set(ids) <= live:
@@ -1324,13 +1475,20 @@ class Organization:
                 parent = by_id[parent].get('parent_id')
         if not fresh <= supported:
             raise ValueError('新增类别必须有本次论文证据支持')
-        if any(category_identity(a['name']) == category_identity(b['name']) and a.get('parent_id') == b.get('parent_id')
-               for index, a in enumerate(by_id.values()) for b in list(by_id.values())[index + 1:]):
+        # Only what this plan creates, renames or moves is checked for a same-level synonym; an old duplicate the
+        # plan leaves alone (for example one in another project's part of the shared tree) must not block it.
+        touched = fresh | renamed_ids | reparented
+        rows = list(by_id.values())
+        if any((a['id'] in touched or b['id'] in touched)
+               and category_identity(a['name']) == category_identity(b['name']) and a.get('parent_id') == b.get('parent_id')
+               for index, a in enumerate(rows) for b in rows[index + 1:]):
             raise ValueError('审阅方案仍有同级同义类别')
         self._remove_directions(data, removed)
         data['protected'] = sorted(set(data['protected']) | changed)
         return {'changed_papers': len(changed), 'created_categories': len(fresh),
-                'renamed_categories': renamed, 'merged_categories': len(redirect), 'deleted_categories': len(deleted)}
+                'renamed_categories': renamed, 'merged_categories': len(redirect), 'deleted_categories': len(deleted),
+                'classified_papers': sum(1 for key in changed if not before.get(key) and data['memberships'].get(key)),
+                'still_unclassified': sum(1 for item in plan['papers'] if not data['memberships'].get(item['key']))}
 
     @staticmethod
     def _list(value, name):

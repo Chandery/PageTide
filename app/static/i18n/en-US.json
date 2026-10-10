@@ -1555,20 +1555,71 @@
     "合并": "Merge",
     "删除标签": "Delete label",
     "调整": "Adjust",
-    "保留为未分类": "Leave unclassified",
-    "应用这份完整整理方案": "Apply this complete organization plan",
-    "删除标签与论文重新归类一起应用，不删除论文或笔记；应用后可以撤销。": "Label deletion and paper reassignment are applied together. Papers and notes are preserved, and you can undo.",
-    "AI 审阅完成，没有需要调整的内容。": "AI review is complete; no changes are needed.",
     "调整现有分类": "Update existing categories",
-    "重新归类论文": "Reassign papers",
-    "AI 已审阅当前范围内的已有分类、已分类和未分类论文。只显示建议改变的内容。": "AI reviewed the existing categories and all classified and unclassified papers in this scope. Only proposed changes are shown.",
     "正在进行本地检查…": "Running a local check…",
-    "正在用 AI 审阅已有分类和全部论文，分批处理…": "AI is reviewing the existing categories and all papers in batches…",
     "AI 审阅未完成，本次没有修改分类。": "AI review did not complete. Categories were not changed.",
     "本地检查可以合并明确同义类别、提供归类建议；不会替代 AI 对分类合理性的判断。": "A local check can merge exact aliases and suggest assignments; it does not replace the AI review of category quality.",
     "只做本地检查": "Run a local check",
     "论文范围已变化，请重新审阅": "The paper scope changed. Please review again.",
-    "没有选择需要应用的整理方案": "No organization plan was selected.",
+    "整理方案缺少可选项，请重新整理。": "This plan has no selectable items. Please run the review again.",
+    "新建": "New",
+    "AI 审阅完成，没有需要调整的内容，所有论文都已有类别。": "AI review is complete; nothing needs to change and every paper already has a category.",
+    "依据不足，暂放": "Not enough evidence; placed here for now",
+    "{0} 篇论文随之并入；它的子类别也跟着并入。": [
+      "{0} paper moves with it, and so do its sub-categories.",
+      "{0} papers move with it, and so do its sub-categories."
+    ],
+    "子类别跟着并入。": "Its sub-categories move with it.",
+    "没有论文受影响。": "No papers are affected.",
+    "{0} 篇论文改归到别的类别 · 查看": [
+      "{0} paper moves to another category · view",
+      "{0} papers move to other categories · view"
+    ],
+    "全不选": "Select none",
+    "先归类还没有类别的论文": "First, file the papers that have no category",
+    "再调整现有分类": "Then adjust the existing categories",
+    "最后重新归类已分类的论文": "Finally, move papers that were already classified",
+    "没勾选的项目不会应用，需要时可以重新整理；应用后可以撤销，不删除论文或笔记。": "Items you leave unticked are not applied; run the review again if you need them. You can undo, and no papers or notes are deleted.",
+    "已选 {0} / {1} 项": "{0} / {1} items selected",
+    "应用后仍有 {0} 篇未分类": [
+      "{0} paper would still be unclassified after applying",
+      "{0} papers would still be unclassified after applying"
+    ],
+    "应用后没有未分类论文": "No papers would be left unclassified after applying",
+    "应用所选（{count} 项）": "Apply selected ({count})",
+    "范围：项目「{0}」": "Scope: project “{0}”",
+    "范围：全部项目": "Scope: all projects",
+    "左边目录里显示 {0} 个类别": [
+      "{0} category shown in the left directory",
+      "{0} categories shown in the left directory"
+    ],
+    "与其他项目共用的类别只接收论文，不会被改动。": "Categories shared with other projects only receive papers and are not changed.",
+    "为保证能一起应用，另带上了 {0} 项整理内容": [
+      "To keep the choice applicable, {0} more item was applied with it",
+      "To keep the choice applicable, {0} more items were applied with it"
+    ],
+    "类别或论文在预览之后变化了，请关闭后重新整理": "The categories or papers changed after this preview. Close it and run the review again.",
+    "需要一起应用：{0}": "Applied together with: {0}",
+    "选择归入「{category}」的论文": "Select the papers filed under “{category}”",
+    "选择改名：{from} → {to}": "Select rename: {from} → {to}",
+    "选择合并：{from} → {to}": "Select merge: {from} → {to}",
+    "选择删除标签：{name}": "Select label deletion: {name}",
+    "正在用 AI 审阅范围内的论文和类别，先归类未分类论文，分批处理…": "AI is reviewing the papers and categories in scope in batches, filing unclassified papers first…",
+    "没有选择需要应用的整理项": "No items were selected to apply.",
+    "已归类 {0} 篇未分类论文": [
+      "Filed {0} unclassified paper",
+      "Filed {0} unclassified papers"
+    ],
+    "改名 {0}、合并 {1}、删除 {2} 个标签": "Renamed {0}, merged {1}, deleted {2} labels",
+    "共改动 {0} 篇论文的类别": [
+      "Changed the categories of {0} paper",
+      "Changed the categories of {0} papers"
+    ],
+    "仍有 {0} 篇未分类": [
+      "{0} paper is still unclassified",
+      "{0} papers are still unclassified"
+    ],
+    "可以撤销": "You can undo",
     "已整理 {0} 篇论文；改名 {1}、合并 {2}、删除 {3} 个标签，可以撤销": "Organized {0} papers; renamed {1}, merged {2}, and deleted {3} labels. You can undo.",
     "周报将 {0} 组同义类别按一个方向统计；论文库原类别与归属保留。": "The weekly report counts {0} groups of equivalent categories as one direction. The original library categories and memberships are preserved.",
     "已审阅 {0} / {1} 篇，完成 {2} / {3} 批；剩余 {4} 篇未处理。此次没有保存或应用 AI 整理方案。": "Reviewed {0} / {1} papers and completed {2} / {3} batches; {4} papers remain. No AI organization plan was saved or applied.",
