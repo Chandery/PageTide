@@ -228,3 +228,38 @@ $ node --test tests/*.cjs 2>&1 | grep -E "^# (tests|pass|fail|skipped)"
 
 真实模型回复质量（含“其他”被滥用的频率、各批命名不一致造成的近义新类别）、真实资料库、原生桌面窗口、8GB 资源、桌面构建与签名（主构建被占用，合并后需在主目录重新构建）、
 账单/tokenizer 实测均未测；本记录不构成全产品发布通过。
+
+
+## 9. 构建记录（owner 于 2026-10-10 授权合并到 main 并构建最终 release）
+
+合并：分支 organize-scope-select 的提交 1d120cc（基线即 main 9fdae25）快进合并到 main，没有合并提交。主目录当时有另一个单元
+（项目引导输出上限，FIX-GUIDANCE-OUTPUT-BOUNDS）的 15 条未提交改动；与本提交重叠的 3 个文件（app/static/i18n/en-US.json、
+docs/HANDOFF.md、harness/tasks.json）用“只暂存这 3 个文件 → 快进合并 → 恢复暂存”处理，两个有冲突的文件保留双方内容，逐行核对
+双方新增行均在（唯一不在的是我有意去掉的一行旧标题），临时暂存已删除，没有提交那个单元的任何文件。**所以本次构建包含那个单元的
+未提交改动**（它自带的测试也在下面的全量回归里一起通过）。
+
+在 main 上、构建产物对应的最终文件上真实执行（退出码与输出尾部原样记录）：
+
+$ python3 -m unittest discover -s tests          -> exit 0, Ran 2212 tests in 533.780s, OK（机器当时较忙，慢于之前的 84 秒）
+$ node --test tests/*.cjs                         -> exit 0, 479 passed, 0 failed
+$ python3 scripts/i18n_extract.py --check         -> 0 of 1496 missing
+$ python3 scripts/budget.py --check               -> PASS budget arithmetic and generated document parity (no live API)
+$ python3 scripts/harness.py check                -> PASS repository checks only
+$ git diff --check                                -> exit 0
+$ .local/desktop-build-env/bin/python scripts/build_desktop.py   -> exit 0（PyInstaller 后端，Prepared src-tauri/resources/paperdighelper-server）
+$ cargo tauri build --bundles app                 -> exit 0（Finished 1 bundle: src-tauri/target/release/bundle/macos/PaperDigHelper.app）
+$ codesign --force --deep --sign - <app>; codesign --verify --deep --strict <app>   -> exit 0（valid on disk，满足 Designated Requirement；ad-hoc 签名，不是公证）
+$ cmp app/static/{organization.js,organization.css,i18n/en-US.json} <bundled copies> -> 三个均逐字相同
+$ PYTHONPATH=tests:. python3 scripts/verify_packaged_route.py <bundled backend>      -> exit 0（打包后端的隔离 API/路由/鉴权/AI 关闭/重启/撤销夹具全部通过；无 provider 调用）
+打包后端（PYZ）里的编译常量核对（.local/desktop-build-env/bin/python，PyInstaller CArchiveReader）：app.category_review 含新提示词“第一优先是未分类论文”、"lock":1、“不得为空”；
+app.category_review_service 含“其他”/Other/ai-cat-；app.category_review_units 含 classify/rehome；app.organization 含 apply-ai-review、selection 与“请至少选择一项要应用的整理内容” -> 全部 present，exit 0。
+
+产物：src-tauri/target/release/bundle/macos/PaperDigHelper.app，54M，构建时间 2026-10-10 18:12。
+SHA-256 paper-dig-helper = 1c3380dd3748f34ed16f98d8b3542314be7c4d5e0283a1253b85fccce68bf10b
+SHA-256 paperdighelper-server = 1dee9fa88aabe4e85284ea092ae0a6f3cec0a51bcec4b4d2a2b25a484db4affd
+构建时 Git：HEAD 1d120cc + 另一个单元的 15 条未提交改动（app/creation.py、app/guidance_contract.py、app/service.py、app/static/project-creation.js、
+prompts/project-guidance.md、3 个测试文件、tests/test_guidance_truncation.py、changes/2026-10-09-guidance-output-bounds.json、docs/decisions/0033-…、docs/evidence/2026-10-09-guidance-truncation-checks.txt，
+以及上述 3 个重叠文件里该单元的部分）。
+
+没有验证的东西：原生桌面窗口里的人工点验（本记录的浏览器验证是合成数据 + 源码静态页，不是打包 App 的窗口）、真实模型回复质量、真实资料库、公证、8GB 资源；
+本记录不构成全产品发布通过（原 19 项阻断评估与预算标志位不变，`harness.py check --release` 仍以实际结果为准）。
