@@ -22,6 +22,8 @@ class Fixture(unittest.TestCase):
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
         (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.addCleanup(self.app.store.close)
         self.pid = self.app.create_project("Crystals", "manual", ["crystal lattice"])["project_id"]
 

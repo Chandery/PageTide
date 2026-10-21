@@ -271,6 +271,15 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _route_beta_head(self):
+        """Tell every page, before it renders, whether the beta learning-map mode is switched on in Settings.
+        Elements marked data-route-beta are hidden while it is off; scripts read window.PDH_ROUTE_BETA."""
+        from .user_settings import route_beta
+        on = route_beta(self._data())
+        return (b"<script>window.PDH_ROUTE_BETA=" + (b"true" if on else b"false") + b";"
+                + (b"document.documentElement.classList.add('route-beta');" if on else b"") + b"</script>"
+                b"<style>html:not(.route-beta) [data-route-beta],html.route-beta [data-route-beta-off]{display:none !important}</style>")
+
     def _static(self, path):
         target = (STATIC / ("index.html" if path in ("/", "") else path.lstrip("/"))).resolve()
         if not str(target).startswith(str(STATIC)) or not target.is_file():
@@ -278,7 +287,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         body = target.read_bytes()
         if target.suffix == ".html":
-            body = re.sub(rb"(<head(?:\s[^>]*)?>)", lambda m: m.group(1) + I18N_SCRIPTS, body, count=1)
+            body = re.sub(rb"(<head(?:\s[^>]*)?>)", lambda m: m.group(1) + I18N_SCRIPTS + self._route_beta_head(), body, count=1)
             # Inject a cache-buster on every local JS/CSS URL so WKWebView
             # fetches the latest build instead of serving a stale cached copy.
             ver = _static_version().encode()

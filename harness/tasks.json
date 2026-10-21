@@ -1241,6 +1241,34 @@
         "docs/evidence/2026-10-09-guidance-truncation-checks.txt"
       ],
       "authorization_note": "2026-10-09 human owner asked to modify the screenshot issue and test it for delivery. This authorizes the bounded project-guidance repair and real development-provider verification through the existing Gateway; it does not approve a new provider, higher cap, general release or formal-user-data test."
+    },
+    {
+      "id": "FEAT-ROUTE-BETA-SWITCH",
+      "stage": "delivery",
+      "title": "学习图模式（beta）放进设置，默认热点模式：关闭时所有学习图入口隐藏、推荐按画像推最新论文",
+      "status": "review",
+      "depends_on": [
+        "ROUTE-V2-08"
+      ],
+      "requirements": [
+        "R-LOCAL",
+        "R-BUDGET",
+        "R-HARNESS",
+        "R-ROUTE-V2-08"
+      ],
+      "acceptance": [
+        "设置里有“打开学习图模式（beta）”，默认关；关闭时 _route_state/home_route 一律视为没有学习图，推荐、刷新、每日维护全部走热点模式，已建的图、进度与手动标记原样保留",
+        "关闭时主页只显示“热点模式”一行；项目创建不要求也不保存学习图，项目页、论文库图谱、论文详情、画像与周报里的学习图入口和进度隐藏；直接打开学习图页只提示未开启并给设置入口；打开后全部恢复",
+        "热点模式沿用画像加稀疏检索排序，零模型调用；仅在 owner 没有选择时默认只看最近 30 天并给新论文加权 0.5，owner 在设置里选的时间偏好和权重仍然优先；设置页显示的默认值与后端一致",
+        "不新增外发字段、不新增模型调用或额度；服务端在每个 HTML 页的 head 里注入开关状态，没有额外请求",
+        "失败先行回归（后端、HTTP 注入、前端行为）和全量 Python/Node 检查通过；真实浏览器在合成数据上看过关/开两种状态；不构建正式 .app，不动正式用户数据"
+      ],
+      "evidence": [
+        "docs/decisions/0035-route-beta-switch-hotspot-default.md",
+        "docs/evidence/2026-10-22-route-beta-checks.txt",
+        "docs/evidence/2026-10-22-route-beta-self-review.md"
+      ],
+      "authorization_note": "2026-10-22 human owner asked to move the whole learning-map framework behind a Settings switch “打开学习图模式（beta）”, default off, with hotspot mode (newest papers by profile) as the default recommendation; confirmed the hidden entry points and the 30-day / 0.5 defaults. No new model call, provider, cap or outbound field."
     }
   ]
 }

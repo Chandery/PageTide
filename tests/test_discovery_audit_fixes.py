@@ -91,9 +91,11 @@ class DiscoveryServiceTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.app=App(root='.',data_dir=Path(self.tmp.name)/'app');self.addCleanup(self.app.store.close)
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.pid=self.app.create_project('science','manual',['visual planning'])['project_id']
     def setting(self,**kw):
-        (self.app.data/'settings.json').write_text(json.dumps(kw))
+        (self.app.data/'settings.json').write_text(json.dumps({'timePreference':'all',**kw}))   # old synthetic papers: owner chose all time
     def add(self,key,title='visual planning',published='2026-01-01',seed=False):
         self.app.store.upsert_papers([dict(key=key,title=title,abstract='visual planning and dynamic prediction relevant research',published=published)],project_id=self.pid)
         if seed:

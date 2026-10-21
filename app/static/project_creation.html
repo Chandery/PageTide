@@ -12,18 +12,18 @@
 <div class="container">
 <a class="back" href="/">← 返回主页</a>
 <h1>创建研究项目</h1>
-<p class="lead">选一种方式开始。助手帮你确认目标、整理关键词和学习图；你检查后再创建，候选论文由你选择。</p>
+<p class="lead" data-route-beta>选一种方式开始。助手帮你确认目标、整理关键词和学习图；你检查后再创建，候选论文由你选择。</p><p class="lead" data-route-beta-off>选一种方式开始。助手帮你确认目标、整理关键词和检索式；你检查后再创建，候选论文由你选择。</p>
 <div id="creationPaperPolicy"></div>
 <div id="creationQuitStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="modes" role="radiogroup" aria-label="创建方式">
   <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="quick">
     <span class="mode-title">快速创建</span><span class="badge ai">AI · 1 次调用</span>
-    <span class="mode-desc">一句话说清目标，整理关键词、检索式和可编辑学习图，再查找候选论文，你看过再创建。</span>
+    <span class="mode-desc" data-route-beta>一句话说清目标，整理关键词、检索式和可编辑学习图，再查找候选论文，你看过再创建。</span><span class="mode-desc" data-route-beta-off>一句话说清目标，整理关键词和检索式，再查找候选论文，你看过再创建。</span>
   </button>
   <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="ai_guided">
     <span class="mode-title">AI 引导</span><span class="badge ai">AI · 最多 6 轮</span>
-    <span class="mode-desc">像和助手聊天：它追问，你回答，右边的关键词、检索式和学习路径随对话一起完善。</span>
+    <span class="mode-desc" data-route-beta>像和助手聊天：它追问，你回答，右边的关键词、检索式和学习路径随对话一起完善。</span><span class="mode-desc" data-route-beta-off>像和助手聊天：它追问，你回答，右边的关键词和检索式随对话一起完善。</span>
   </button>
   <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="manual">
     <span class="mode-title">手动创建</span><span class="badge">不用 AI</span>
@@ -125,7 +125,7 @@
     <header><h3>检索式</h3><span class="hint">每行一条，最多 6 条；查找论文时用前 3 条</span></header>
     <textarea data-role="queries" rows="3" placeholder="例如：world model embodied planning"></textarea>
   </section>
-  <section class="rv-block" data-role="mapBlock">
+  <section class="rv-block" data-role="mapBlock" data-route-beta>
     <header><h3>学习图</h3><span class="hint">学习阶段或目标先成为可编辑概念，确认后用于学习推荐；前置关系由你检查</span>
       <button type="button" class="ghost small" data-role="mapGenerate">AI 细化学习图（1 次 AI）</button><button type="button" class="ghost small" data-role="mapRegen" hidden>重新生成</button><button type="button" class="ghost small" data-role="mapStart">自己搭一张</button></header>
     <div class="activity" data-role="mapActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
@@ -146,7 +146,7 @@
     </div>
     <label class="map-confirm" data-role="mapConfirmWrap" hidden><input type="checkbox" data-role="mapConfirm"><span>确认使用这张学习图</span></label>
   </section>
-  <section class="rv-block" data-role="pathBlock">
+  <section class="rv-block" data-role="pathBlock" data-route-beta>
     <header><h3>学习路径</h3><button type="button" class="ghost small" data-role="addPath">+ 添加阶段</button></header>
     <p class="hint">每个阶段对应上方的一个学习概念。修改标题或目的会更新学习图；不会自动添加前置关系。</p>
     <div data-role="path"></div>

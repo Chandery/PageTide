@@ -69,6 +69,8 @@ class ReasonAndKeywordTests(unittest.TestCase):
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
         (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.app = App(root=str(root), data_dir=str(root / "data"))
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.addCleanup(self.app.store.close)
 
     def test_local_guidance_keywords_never_show_chinese_fragments(self):
@@ -109,6 +111,8 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
         (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.app = App(root=str(root), data_dir=str(root / "data"))
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app)
         self.addCleanup(self.app.store.close)
 
     def project(self, keywords):

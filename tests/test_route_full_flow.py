@@ -62,6 +62,8 @@ class FullLocalFlowTests(Fixture):
             self.assertNotIn(ids["Lattice basis"], confirmed["manual"])
         self.app.store.close()
         self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=True)
         self.addCleanup(self.app.store.close)
         with mock.patch.object(self.app.gateway, "call", side_effect=AssertionError("no model calls")), \
                 mock.patch.object(self.app.source, "_fetch", side_effect=AssertionError("no source calls")):

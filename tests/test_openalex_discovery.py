@@ -4,6 +4,7 @@ The reported failure: a Chinese topic ("半导体生长") found no candidates be
 only titles, with every word required, and sent Chinese text to an English-titled index. No test touches
 the network: urlopen is replaced by a router that records every URL.
 """
+import datetime
 import io
 import json
 import os
@@ -400,7 +401,8 @@ class ServiceWiringTests(unittest.TestCase):
                 mock.patch.object(self.app.source, "discover", side_effect=AssertionError("must not search 'world model'")):
             result = self.app.refresh_candidates(project_id=project)
         self.assertEqual([a[0] for a in asked], ["semiconductor growth", "epitaxy", "crystal defects"])  # at most three
-        self.assertTrue(all(a[1] == "recent" and a[2] == sources.window_start(5) for a in asked))
+        thirty_days_ago = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()   # hotspot default
+        self.assertTrue(all(a[1] == "recent" and a[2] == thirty_days_ago for a in asked))
         self.assertEqual(result["field"], 3)
 
     def test_refresh_bounds_chinese_keywords_by_date_too_so_the_feed_is_not_old_journal_papers(self):
@@ -408,7 +410,8 @@ class ServiceWiringTests(unittest.TestCase):
         asked = []
         with mock.patch.object(self.app.source, "discover_topic", side_effect=lambda q, **kw: asked.append(kw) or []):
             self.app.refresh_candidates(project_id=project)
-        self.assertEqual((asked[0]["order"], asked[0]["from_date"]), ("recent", sources.window_start(5)))
+        thirty_days_ago = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()   # hotspot default
+        self.assertEqual((asked[0]["order"], asked[0]["from_date"]), ("recent", thirty_days_ago))
 
     def test_refresh_for_the_default_project_keeps_the_world_model_recipe(self):
         with mock.patch.object(self.app.source, "discover", return_value=[]) as legacy, \

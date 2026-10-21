@@ -91,6 +91,8 @@ class AppTitleGateTests(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
         self.data = Path(tmp.name)
         self.app = App(data_dir=self.data); self.addCleanup(self.app.store.close)
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.pid = self.app.create_project('Title policy')['project_id']
         self.app.set_project_language(self.pid, 'stem', ['en'])
         patcher = mock.patch.object(self.app.gateway, 'call', side_effect=AssertionError('Title screening must not call AI'))

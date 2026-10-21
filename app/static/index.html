@@ -807,8 +807,14 @@ function renderRoute(route) {
   const panel = $('#routePanel');
   if (!panel) return;
   $('#btnDaily').textContent = dailyButtonText();
+  if (window.PDH_ROUTE_BETA === false) {
+    // Learning-map mode is a beta setting, off by default: the home page only says which mode recommends.
+    panel.hidden = !state.currentProject;
+    panel.innerHTML = '<div class="route-head"><div class="route-title"><strong>热点模式</strong><span class="sub">按你的画像推最新论文</span></div></div>';
+    return;
+  }
   const link = state.currentProject ? `/route.html?project_id=${encodeURIComponent(state.currentProject)}` : '/route.html';
-  const seg = (on) => `<div class="seg" role="radiogroup" aria-label="推荐方式"><button type="button" role="radio" aria-checked="${on}" data-route-mode="route">按学习图推荐</button><button type="button" role="radio" aria-checked="${!on}" data-route-mode="off">普通排序</button></div>`;
+  const seg = (on) => `<div class="seg" role="radiogroup" aria-label="推荐方式"><button type="button" role="radio" aria-checked="${on}" data-route-mode="route">按学习图推荐</button><button type="button" role="radio" aria-checked="${!on}" data-route-mode="off">热点模式</button></div>`;
   if (!route) {
     panel.hidden = !state.currentProject;
     panel.innerHTML = state.currentProject ? `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">这个项目还没有学习图</span></div><a class="btn" href="${link}">搭一张学习图</a></div>
@@ -818,7 +824,7 @@ function renderRoute(route) {
   panel.hidden = false;
   if (route.enabled === false) {
     panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">路径模式已关闭</span></div>${seg(false)}</div>
-      <div class="route-foot"><span class="sub">现在推荐按普通排序。打开后，推荐会先从你现在能读的概念里选论文。</span><a class="btn" href="${link}">查看学习图</a></div>`;
+      <div class="route-foot"><span class="sub">现在推荐按热点模式：按你的画像推最新论文。打开后，推荐会先从你现在能读的概念里选论文。</span><a class="btn" href="${link}">查看学习图</a></div>`;
     return;
   }
   const goalDone = route.goal_done ?? route.done, goalTotal = route.goal_total ?? route.total;

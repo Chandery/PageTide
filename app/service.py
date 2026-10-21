@@ -1414,7 +1414,10 @@ class App:
         return {"node": row.get("route_node"), "name": name, "layer": layer, "kind": row["route_kind"]}
 
     def _route_state(self, project_id, verification_budget=None):
-        """route_get() for a project whose map is switched on, else None."""
+        """route_get() for a project whose map is switched on, else None. Learning-map mode is a beta setting that is
+        off by default: while it is off every project is recommended in hotspot mode and its stored map is left alone."""
+        if not user_settings.route_beta(self.data):
+            return None
         try:
             state = self.route_get(project_id,verification_budget=verification_budget)
         except ValueError:
@@ -1550,6 +1553,8 @@ class App:
         """A short summary of the learning map for the Today page: None when the project has no map, and
         enabled=False (no frontier, no progress, no paper matching) when the map exists but is switched off."""
         project_id = self._require_project(project_id)
+        if not user_settings.route_beta(self.data):
+            return None
         revision, stored = read_route(self.store.conn, project_id)
         if not stored:
             return None
@@ -2670,7 +2675,9 @@ class App:
             if include_distractors:
                 raise ValueError('Route refresh is limited to three themes; turn Route off for distractor experiments')
             return self._refresh_route_candidates(project_id, route, from_date, per_page)
-        from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
+        # Hotspot mode looks at the last 30 days unless the owner chose a time preference; an explicit search keeps the wide window.
+        from_date = from_date or (user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS)) if search
+                                  else user_settings.hotspot_since(self.data))
         keywords = [] if search else self._project_keywords(project_id)[:3]
         field = []
         if keywords:
@@ -2976,7 +2983,7 @@ class App:
         saved = self.saved_keys(project_id)   # the person's own library is never offered back as new
         readable = lambda p: p['_eligibility']['eligible'] and p['key'] not in saved
         seeds=set(self.seed_keys(project_id))
-        since=user_settings.since(self.data)
+        since=user_settings.hotspot_since(self.data)
         in_time=lambda p: (not p.get("published") or str(p["published"]) <= eligibility_day) and (not since or str(p.get("published") or "") >= since)
         fresh = [p for p in papers if p["key"] not in seeds and in_time(p) and p["key"] not in seen and p["key"] not in feedback and readable(p)]    # never shown, never rated
         route = self._route_state(project_id,verification_budget=verification_budget)
@@ -3020,7 +3027,7 @@ class App:
             eligibility.retrieval_text(p)), idf)) for p in pool}
         profile_vector = self.profile_vector({p["key"]: p for p in papers}, idf, project_id)
         scored = ranking.sort_scored(
-            [(p["key"], ranking.novelty_score(ranking.cosine(profile_vector,vectors[p["key"]]),p.get("published"),user_settings.boost(self.data),eligibility_day)) for p in pool],
+            [(p["key"], ranking.novelty_score(ranking.cosine(profile_vector,vectors[p["key"]]),p.get("published"),user_settings.boost(self.data,0 if route else user_settings.HOTSPOT_BOOST),eligibility_day)) for p in pool],
             {p["key"]: p.get("published") for p in pool})
         if route:
             shown={r[0]:r[1] for r in self.store.conn.execute('SELECT e.paper_key,COUNT(*) FROM exposures e JOIN batches b ON b.id=e.batch_id WHERE b.project_id=? GROUP BY e.paper_key',(project_id,))}

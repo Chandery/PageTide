@@ -1,4 +1,5 @@
 """Interface language: settings.json "language" switches the UI pack, server prose and AI reply language."""
+import datetime
 import json
 import os
 import re
@@ -44,6 +45,8 @@ class EnglishServiceTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(root=str(ROOT), data_dir=Path(self.tmp.name) / "app")
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
 
     def capture(self):
         seen = []
@@ -88,7 +91,8 @@ class EnglishServiceTests(unittest.TestCase):
 
     def test_english_counts_use_the_singular_for_one(self):
         self.app.store.upsert_papers([{"key": "p1", "title": "World models", "abstract": "a",
-                                       "published": "2026-08-01", "group_name": "field"}])
+                                       "published": (datetime.date.today() - datetime.timedelta(days=1)).isoformat(),
+                                       "group_name": "field"}])
         set_language(self.app.data, "en-US")
         english_papers(self.app, None)
         reason = self.app.build_batch(limit=5)["shortfall"]["reason"]
