@@ -105,7 +105,9 @@ def learning_map(app, project_id, papers, keys):
     """The project's learning map with progress, and the unit each of the papers in `keys` fits best, or None without
     a map (or when the stored map cannot be read: the report then simply has no learning-map section). Only the
     papers that had a record this week are matched, so a large library costs nothing extra."""
-    from . import pathgrowth
+    from . import pathgrowth, user_settings
+    if not user_settings.route_beta(app.data):
+        return None
     try:
         state = app.route_get(project_id)
         graph = state.get('graph')

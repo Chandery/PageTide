@@ -39,6 +39,8 @@ class CoreChainTests(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         self.app = App(root=ROOT, data_dir=Path(self.tmp.name) / "app")
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.a = self.app.create_project("A", "manual", ["world model", "planning"])["project_id"]
         self.b = self.app.create_project("B", "manual", ["protein"])["project_id"]
         for pid in (self.a, self.b):

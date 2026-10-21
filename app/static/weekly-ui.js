@@ -109,7 +109,7 @@
     const advanced = (u.advanced || []).length
       ? `<p class="wk-adv">本周有“已读懂”记录的概念：${u.advanced.map((name) => `<span class="wk-chip st-satisfied" data-no-i18n>${esc(name)}</span>`).join(' ')}</p>`
       : '<p class="wk-adv">本周没有标记“已读懂”的概念。收藏表示感兴趣，不推进学习进度。</p>';
-    const off = u.enabled ? '' : '<p class="wk-adv">学习图现在是关闭状态，推荐按普通排序；下面的进度仍按你已有的反馈计算。</p>';
+    const off = u.enabled ? '' : '<p class="wk-adv">学习图现在是关闭状态，推荐按热点模式；下面的进度仍按你已有的反馈计算。</p>';
     return `<section class="wk-card"><div class="wk-head"><h3>学习图进度</h3><span class="wk-note">已读懂 ${n(u.done)} / ${n(u.total)} 个概念</span></div>${off}`
       + `<div class="wk-progress" role="img" aria-label="已读懂 ${n(u.done)} / ${n(u.total)} 个概念"><i style="width:${share}%"></i></div>${advanced}<ul class="wk-units">${rows}</ul></section>`;
   }

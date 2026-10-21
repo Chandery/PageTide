@@ -19,6 +19,8 @@ class SavedPapersAreNotCandidatesTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(data_dir=Path(self.tmp.name))
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.addCleanup(self.app.store.close)
         self.pid = self.app.create_project('Learning')['project_id']
         self.app.set_project_language(self.pid, 'stem', ['en'])

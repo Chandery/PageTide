@@ -338,6 +338,8 @@ class ServiceDegradeTests(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         self.app = App(root=ROOT, data_dir=Path(self.tmp.name) / "app")
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.project = self.app.create_project("P", "manual", ["world", "model"])["project_id"]
         self.app.store.upsert_papers([{"key": "p1", "title": "World Model Planning", "abstract": "latent",
                                        "published": "2026-08-01"}], project_id=self.project)

@@ -37,6 +37,8 @@ class GuidedCreationTests(unittest.TestCase):
         self.addCleanup(transport.stop)
         self.data = Path(self.tmp.name) / "app"
         self.app = App(root=ROOT, data_dir=self.data)
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
 
     def answer_like_the_model(self, keywords=("world models",)):
         reply = {"reply": "先限定场景", "draft": {"keywords": list(keywords), "search_queries": ["world models planning"],
@@ -239,6 +241,8 @@ class CrossProjectSharingTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(root=ROOT, data_dir=Path(self.tmp.name) / "app")
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app)
         self.a = self.app.create_project("A", "manual", ["world model"])["project_id"]
         self.b = self.app.create_project("B", "manual", ["planning"])["project_id"]
         self.app.store.upsert_papers([{**candidate("shared"), "project_id": self.a, "relation_kind": "seed"}])

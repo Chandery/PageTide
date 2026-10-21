@@ -268,7 +268,9 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
 
   /* ---- learning map: AI proposes concepts and their order, the page lets you edit, check and confirm */
   const R = window.PDHRoute, Brief = window.PDHBrief;
-  const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null, briefDirty: false, generating: false, cachedPlan: false, discarded: false, userEdited: false};
+  const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null, briefDirty: false, generating: false, cachedPlan: false,
+    discarded: window.PDH_ROUTE_BETA === false,   // learning-map mode is a beta setting: with it off the project is created without a map
+    userEdited: false};
   const mapAct = makeActivity(part('mapActivity'));
   Brief.mount(part('mapBrief'));
   part('mapBrief').addEventListener('input', () => { map.briefDirty = true; part('mapConfirm').checked = false; });
@@ -612,7 +614,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   };
   refresh();
   return {setDraft, draft, search, refresh, root: view,
-    quitState:()=>({busy:searching || busy || map.checking || map.generating || mapConfirming, dirty:!!map.graph || map.briefDirty || !!map.editing || map.discarded || !!selected.size}),
+    quitState:()=>({busy:searching || busy || map.checking || map.generating || mapConfirming, dirty:!!map.graph || map.briefDirty || !!map.editing || (map.discarded && window.PDH_ROUTE_BETA !== false) || !!selected.size}),
     setBusy(value) { busy = value; refresh(); }};
 }
 

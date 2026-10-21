@@ -84,7 +84,7 @@ function render() {
     b.setAttribute('aria-checked', String((b.dataset.mode === 'route') === !!route.enabled));
     b.disabled = !saved;
   });
-  part('modeNote').textContent = !saved ? '先保存一次学习图，才能切换推荐方式。' : route.enabled ? '推荐先从你现在能读的概念里选论文。' : '现在推荐按普通排序。'
+  part('modeNote').textContent = !saved ? '先保存一次学习图，才能切换推荐方式。' : route.enabled ? '推荐先从你现在能读的概念里选论文。' : '现在推荐按热点模式：按你的画像推最新论文。'
   part('save').hidden = part('discard').hidden = !state.dirty;
   const shape = R.shape(graph);
   part('shape').textContent = R.shapeText(shape);
@@ -497,6 +497,12 @@ window.addEventListener('beforeunload', (event) => {
 
 (async () => {
   if (!projectId) { notice('没有指定项目。请从今日推荐页进入。'); return; }
+  if (window.PDH_ROUTE_BETA === false) {   // beta setting off: nothing is read or changed, the stored map stays as it is
+    ['aiBox', 'empty', 'main'].forEach((role) => { part(role).hidden = true; });
+    notice('学习图模式（beta）还没有打开。在设置里打开后才能使用；已经建好的学习图和进度不会丢。', false);
+    part('notice').append(' ', Object.assign(document.createElement('a'), {href: '/settings.html', textContent: '去设置'}));
+    return;
+  }
   try {
     const projects = (await (await fetch('/api/projects')).json()).projects || [];
     const current = projects.find((p) => p.id === projectId);

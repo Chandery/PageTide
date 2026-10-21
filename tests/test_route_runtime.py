@@ -15,7 +15,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from recommendation_fixtures import english_papers
+from recommendation_fixtures import english_papers, legacy_recommendation_settings
 from app import migrations
 from app import pathgraph as pg
 from app import sources
@@ -43,6 +43,12 @@ class Fixture(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.pid = self.app.create_project("Crystals", "manual", ["crystal growth"])["project_id"]
+        if self.owner_settings:
+            legacy_recommendation_settings(self.app, route_beta=True)
+
+    # The beta learning-map mode is on and the time window is "all time" for these tests, as an owner who uses the map
+    # and has old synthetic papers would have set them; test_route_beta clears this to test the defaults.
+    owner_settings = True
 
     def paper(self, key, title, abstract="", published="2026-01-01", pid=None):
         self.app.store.upsert_papers([{"key": key, "title": title, "abstract": abstract, "published": published}], project_id=pid or self.pid)
@@ -389,6 +395,7 @@ class BatchTests(Fixture):
         # rebuild an identical project in a second app and compare
         other = App(root=str(self.root), data_dir=str(self.root / "data2"))
         self.addCleanup(other.store.close)
+        legacy_recommendation_settings(other, route_beta=True)
         pid = other.create_project("Crystals", "manual", ["crystal growth"])["project_id"]
         for p in self.app.store.papers():
             other.store.upsert_papers([{k: p[k] for k in ("key", "title", "abstract", "published")}], project_id=pid)

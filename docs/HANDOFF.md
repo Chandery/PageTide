@@ -8,6 +8,18 @@
 
 ---
 
+# 当前工作单元：学习图模式（beta）开关与热点模式默认（2026-10-22）
+
+分支 `route-beta-switch`，隔离 worktree `.claude/worktrees/route-beta-switch`，基线 main `0c288b3`，未推送、未合并、未构建 `.app`（另有 agent 可能在测主目录的构建）。owner 要求把学习图整套框架放进设置“打开学习图模式（beta）”，只有打开后才能在主页选学习图模式，默认用热点模式（按画像推最新论文），并确认了隐藏范围与默认值。任务 `FEAT-ROUTE-BETA-SWITCH` 状态 review；[变更记录](../changes/2026-10-22-route-beta-switch.json)，[ADR 0035](decisions/0035-route-beta-switch-hotspot-default.md)，[检查证据](evidence/2026-10-22-route-beta-checks.txt)，[自审](evidence/2026-10-22-route-beta-self-review.md)（非独立审查）。
+
+行为：设置键 `routeBeta` 默认关。`_route_state()` / `home_route()` 关闭时返回 `None`，所以推荐、刷新、每日维护一律走热点模式；已建的图、进度与手动标记原样保留，打开后恢复。热点模式是现有非学习图排序，零模型调用，owner 没设置时默认最近 30 天、新论文权重 0.5。服务端在每个 HTML 页的 `<head>` 注入 `window.PDH_ROUTE_BETA`，带 `data-route-beta` 的元素关闭时隐藏；主页、项目创建、项目页、论文库图谱、论文详情、画像、周报、学习图页都已处理。预算：不新增模型调用、额度或外发字段。
+
+验证：失败先行回归，Python 全量与 Node 全量通过；用合成数据在真实浏览器里看过关、开两种状态。为让默认关闭不打破旧测试，旧测试的夹具显式写出 owner 的设置（`tests/recommendation_fixtures.py` 的 `legacy_recommendation_settings`），三个断言旧默认窗口的测试改为断言热点默认。
+
+未验证与限制：30 天 / 0.5 只是默认值，推荐质量未评估；论文库图谱和周报没有用真实内容在浏览器里看过；已打开的页面要刷新才感知开关；AI 引导回复可能仍带回学习图，页面忽略不存。合并提示：与分支 `ui-elavatine`（界面换肤）会在 `app/static/settings.html`、`app/static/i18n/en-US.json`、`docs/HANDOFF.md`、`harness/tasks.json` 上有文本冲突，保留双方即可。
+
+---
+
 # 当前工作单元：整理分类范围 / 顺序 / 逐项选择修复（2026-10-09）
 
 分支 `organize-scope-select`，隔离 worktree `.claude/worktrees/organize-scope-select`，基线 main `9fdae25`，未推送。owner 于 2026-10-10 授权合并到 main 并构建最终 release：合并与桌面构建（`build_desktop.py` + `cargo tauri build --bundles app`）的实际结果以[检查证据](evidence/2026-10-09-organize-scope-checks.txt)末尾的“构建记录”为准，没有记录就是没做。`FIX-ORGANIZE-SCOPE-SELECT` 状态 review；[变更记录](../changes/2026-10-09-organize-scope-selection.json)、[ADR0034](decisions/0034-organize-scope-priority-selection.md)、[检查证据](evidence/2026-10-09-organize-scope-checks.txt)、[独立审查](evidence/2026-10-09-organize-scope-review.md)。

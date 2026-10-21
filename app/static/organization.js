@@ -608,7 +608,7 @@
   }
   const OVERVIEW_LIMIT = 60;   // more papers than this are not drawn all at once unless asked
   /* The second graph view exists only for a project tab whose project has a learning map. */
-  const routeAvailable = () => S.scope !== 'all' && (S.snapshot.route_projects || []).includes(S.scope);
+  const routeAvailable = () => window.PDH_ROUTE_BETA !== false && S.scope !== 'all' && (S.snapshot.route_projects || []).includes(S.scope);
   function renderViewSeg() {
     const box = $('[data-view-seg]'), wrap = $('.org-graph-wrap'); if (!box || !wrap) return;
     const on = routeAvailable();

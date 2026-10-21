@@ -16,6 +16,8 @@ class EligibilityTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name)
         self.app = App(data_dir=self.data)
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=True)
         self.addCleanup(self.app.store.close)
         self.pid = self.app.create_project('Learning')['project_id']
         patcher = mock.patch.object(self.app.gateway, 'call', side_effect=AssertionError('No model in eligibility'))

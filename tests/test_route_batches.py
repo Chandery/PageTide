@@ -239,7 +239,7 @@ app.store.close()
                 case=BatchTests();case.setUp()
                 try:
                     case.prepare(completed=True)
-                    (case.app.data/'settings.json').write_text('{"updateFrequency":"daily"}')
+                    (case.app.data/'settings.json').write_text('{"updateFrequency":"daily","routeBeta":true,"timePreference":"all"}')
                     day='2026-10-07';instant=datetime(2026,10,7,5,tzinfo=timezone.utc)
                     with mock.patch.object(case.app,'batch_day',return_value=day),mock.patch.object(maintenance,'LOCAL_TZ',timezone.utc),mock.patch.object(case.app,'refresh_candidates',return_value={'fetched':0,'added':0,'errors':[]}):
                         if manual_first:case.result()

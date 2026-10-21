@@ -141,14 +141,24 @@ class ServiceWindowTests(unittest.TestCase):
             self.app.guidance_search(self.session(), "semiconductor growth", all_years=True)
         self.assertIsNone(topic.call_args.kwargs["from_date"])
 
-    def test_refresh_defaults_to_a_relative_five_year_window_not_a_fixed_date(self):
+    def test_refresh_defaults_to_the_hotspot_window_of_thirty_days_relative_to_today(self):
+        thirty_days_ago = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()
         project = self.app.create_project("p", "manual", ["epitaxy"])["project_id"]
         with mock.patch.object(self.app.source, "discover_topic", return_value=[]) as topic:
             self.app.refresh_candidates(project_id=project)
-        self.assertEqual(topic.call_args.kwargs["from_date"], sources.window_start(5))
+        self.assertEqual(topic.call_args.kwargs["from_date"], thirty_days_ago)
         with mock.patch.object(self.app.source, "discover", return_value=[]) as legacy:
             self.app.refresh_candidates()
-        self.assertEqual(legacy.call_args.kwargs["from_date"], sources.window_start(5))
+        self.assertEqual(legacy.call_args.kwargs["from_date"], thirty_days_ago)
+
+    def test_an_owner_time_preference_replaces_the_hotspot_window(self):
+        from recommendation_fixtures import set_user_settings
+        set_user_settings(self.app, timePreference="recent")
+        week_ago = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+        project = self.app.create_project("p", "manual", ["epitaxy"])["project_id"]
+        with mock.patch.object(self.app.source, "discover_topic", return_value=[]) as topic:
+            self.app.refresh_candidates(project_id=project)
+        self.assertEqual(topic.call_args.kwargs["from_date"], week_ago)
 
     def test_an_explicit_refresh_window_is_honoured(self):
         project = self.app.create_project("p", "manual", ["epitaxy"])["project_id"]
@@ -158,10 +168,11 @@ class ServiceWindowTests(unittest.TestCase):
 
     def test_recommendation_cards_carry_the_pdf_status(self):
         project = self.app.create_project("p", "manual", ["epitaxy"])["project_id"]
+        recent = lambda days: (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
         self.app.store.upsert_papers([
-            {"key": "a", "title": "epitaxy growth direct", "abstract": "epitaxy", "published": "2026-01-01", "oa": DIRECT},
-            {"key": "b", "title": "epitaxy growth page", "abstract": "epitaxy", "published": "2026-01-02", "oa": PAGE_ONLY},
-            {"key": "c", "title": "epitaxy growth none", "abstract": "epitaxy", "published": "2026-01-03"}], project_id=project)
+            {"key": "a", "title": "epitaxy growth direct", "abstract": "epitaxy", "published": recent(3), "oa": DIRECT},
+            {"key": "b", "title": "epitaxy growth page", "abstract": "epitaxy", "published": recent(2), "oa": PAGE_ONLY},
+            {"key": "c", "title": "epitaxy growth none", "abstract": "epitaxy", "published": recent(1)}], project_id=project)
         english_papers(self.app, project)
         cards = {c["key"]: c["pdf_status"] for c in self.app.build_batch(limit=5, project_id=project)["cards"]}
         self.assertEqual(cards, {"a": "direct", "b": "page", "c": "none"})

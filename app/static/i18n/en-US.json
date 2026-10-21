@@ -2009,6 +2009,21 @@
     "请先完成上方的论文语言设置": "Complete the paper language settings above first",
     "目前确认：": "Confirmed so far:",
     "方向已经足够清楚，可以检查右侧学习图并创建项目；也可以继续补充。": "Your direction is clear enough to review the map and create the project; you can also add more detail.",
-    "AI 已根据确认的方向提出学习概念和前置关系；请检查检索词、目标与顺序，确认后用于学习推荐。": "AI proposed learning concepts and prerequisites from the agreed direction. Review search terms, targets and order before confirming them for recommendations."
+    "AI 已根据确认的方向提出学习概念和前置关系；请检查检索词、目标与顺序，确认后用于学习推荐。": "AI proposed learning concepts and prerequisites from the agreed direction. Review search terms, targets and order before confirming them for recommendations.",
+    "热点模式": "Hotspot mode",
+    "按你的画像推最新论文": "Newest papers matched to your profile",
+    "现在推荐按热点模式：按你的画像推最新论文。打开后，推荐会先从你现在能读的概念里选论文。": "Recommendations use hotspot mode now: the newest papers matched to your profile. When it is on, they pick papers from the concepts you can read now.",
+    "现在推荐按热点模式：按你的画像推最新论文。": "Recommendations use hotspot mode now: the newest papers matched to your profile.",
+    "学习图现在是关闭状态，推荐按热点模式；下面的进度仍按你已有的反馈计算。": "The learning map is switched off, so recommendations use the hotspot mode; the progress below still follows your existing feedback.",
+    "实验功能": "Experimental features",
+    "打开学习图模式（beta）": "Turn on learning-map mode (beta)",
+    "默认关闭，推荐使用热点模式：按你的画像推最新论文。打开后，主页可以切换到学习图模式，项目里的学习图、画像和周报里的学习图进度也会出现。关闭不会删除任何已建的学习图或进度。": "Off by default; recommendations use hotspot mode: the newest papers matched to your profile. When it is on, the home page can switch to learning-map mode, and the learning map in a project and the learning-map progress in the profile and weekly report appear. Turning it off does not delete any map or progress you built.",
+    "热点模式下对相关候选增加近期权重（0–1，默认 0.5），不会把不相关论文提升为相关；0 表示不提升": "In hotspot mode, adds recency weight to relevant candidates (0–1, default 0.5). It never makes an irrelevant paper relevant; 0 means no boost.",
+    "热点模式只在这段时间内发表的论文里推荐，默认最近 30 天。": "Hotspot mode recommends only papers published in this period; the default is the last 30 days.",
+    "选一种方式开始。助手帮你确认目标、整理关键词和检索式；你检查后再创建，候选论文由你选择。": "Pick a way to start. The assistant helps you confirm the goal and sort out keywords and search queries; you review before creating, and you choose the candidate papers.",
+    "一句话说清目标，整理关键词和检索式，再查找候选论文，你看过再创建。": "State the goal in one sentence. The assistant sorts out keywords and search queries, then finds candidate papers for you to review before creating.",
+    "像和助手聊天：它追问，你回答，右边的关键词和检索式随对话一起完善。": "Chat with the assistant: it asks, you answer, and the keywords and search queries on the right improve as you talk.",
+    "去设置": "Open Settings",
+    "学习图模式（beta）还没有打开。在设置里打开后才能使用；已经建好的学习图和进度不会丢。": "Learning-map mode (beta) is not turned on. Turn it on in Settings to use it; the maps and progress you already built are kept."
   }
 }

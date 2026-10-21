@@ -133,6 +133,8 @@ class ServiceTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(root=".", data_dir=Path(self.tmp.name) / "app")
+        from recommendation_fixtures import legacy_recommendation_settings
+        legacy_recommendation_settings(self.app, route_beta=False)
         self.app.store.upsert_papers([
             {"key": "p1", "title": "World Model Planning", "abstract": "latent planning",
              "published": "2026-08-01", "group_name": "field"},
