@@ -136,7 +136,7 @@ class LargeScreenTests(unittest.TestCase):
 
     def test_the_main_page_scales_its_text_and_controls_but_not_the_dense_workspace(self):
         index = read("index.html")
-        for rule in (".card h3 { font-size:calc(16px * var(--s))", ".hero h1 { font-size:calc(28px * var(--s))", ".tab { padding:calc(7px * var(--s)) calc(16px * var(--s))",
+        for rule in (".card h3 { font-size:calc(16px * var(--s))", ".hero h1 { font-size:calc(32px * var(--s))", ".tab { padding:calc(7px * var(--s)) calc(16px * var(--s))",
                      "width:min(calc(520px * var(--s)), 100vw)"):
             self.assertIn(rule, index)
         self.assertIn("#organizationRoot { --s:1; }", index)               # the library page keeps its current size at every width

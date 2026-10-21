@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-ui-restyle",
+  "class": "standard",
+  "summary": "Restyle the app from warm paper / serif / bookmark red to a cool grey page with white large-radius cards, pill controls, heavy sans headings and one blue accent, in light and dark mode. Tokens in theme.css drive every page; the main page's visual layer was restyled by hand.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "files": [
+    "app/static/import.css",
+    "app/static/index.html",
+    "app/static/organization.css",
+    "app/static/profile.css",
+    "app/static/project-creation.css",
+    "app/static/settings.html",
+    "app/static/theme.css",
+    "changes/2026-10-22-ui-restyle.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-22-ui-restyle-checks.txt",
+    "docs/evidence/2026-10-22-ui-restyle-self-review.md",
+    "tests/test_route_graph_page.py"
+  ],
+  "scope_note": "Worktree ui-elavatine, branched from main 0c288b3. No .app build by design.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Presentation only: CSS tokens and rules. No model call, no network, no stored data or prompt change.",
+    "before": "warm paper, serif headings, red accent",
+    "after": "cool grey, sans headings, blue accent; same model-token use (zero)",
+    "developer_usage": "none: no model call was made for this unit"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-22-ui-restyle-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-22-ui-restyle-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-22-ui-restyle-checks.txt"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-22-ui-restyle-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Learning-map graph, import batches, weekly report and project switcher were not seen with real content.",
+    "Logo and favicon keep the old cream and red colours.",
+    "No native window check and no release build."
+  ]
+}

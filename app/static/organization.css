@@ -9,7 +9,7 @@
 .pdh-organization input[type=checkbox] { appearance:auto; width:16px; height:16px; flex:none; accent-color:var(--org-accent); margin:0; }
 .pdh-organization input[type=color] { width:36px; height:32px; padding:2px; background:transparent; border:1px solid var(--org-border); border-radius:4px; flex:none; }
 .pdh-organization h2, .pdh-organization h3, .pdh-organization p { margin:0; }
-.pdh-organization h2 { font-size:19px; font-weight:600; white-space:nowrap; font-family:var(--serif); }
+.pdh-organization h2 { font-size:19px; font-weight:600; white-space:nowrap; font-family:var(--display); }
 .pdh-organization h3 { font-size:14px; font-weight:650; }
 .org-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 0; border-bottom:1px solid var(--org-border); }
 .org-tabs, .org-tools { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
@@ -175,7 +175,7 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-detail.has-paper > .org-section-head:first-child { position:sticky; top:-22px; z-index:2; margin:0 -24px 22px; padding:16px 24px 13px; background:color-mix(in srgb, var(--org-bg) 94%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--org-border); }
 .org-detail.has-paper > .org-section-head:first-child h3 { font-size:13px; color:var(--org-muted); font-weight:600; letter-spacing:.02em; }
 .org-detail.has-paper > .org-section-head:first-child button { width:30px; min-height:30px; border-radius:8px; font-size:18px; line-height:1; padding:0; }
-.org-detail-title { font-family:var(--serif); font-size:21px !important; line-height:1.35 !important; font-weight:600 !important; margin:0 0 12px !important; white-space:normal !important; overflow-wrap:anywhere; word-break:break-word; }
+.org-detail-title { font-family:var(--display); font-size:21px !important; line-height:1.35 !important; font-weight:600 !important; margin:0 0 12px !important; white-space:normal !important; overflow-wrap:anywhere; word-break:break-word; }
 .org-detail .org-detail-meta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; color:var(--org-muted); font-size:12.5px; }
 .org-detail .org-detail-meta span + span { position:relative; }
 .org-detail .org-detail-meta span + span::before { content:'·'; position:absolute; left:-8px; color:var(--org-border); }

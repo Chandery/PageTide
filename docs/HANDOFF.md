@@ -1,3 +1,13 @@
+# 当前工作单元：界面换肤，冷灰底 + 白卡片 + 蓝色强调（2026-10-22）
+
+分支 `ui-elavatine`，隔离 worktree `.claude/worktrees/ui-elavatine`，基线 main `0c288b3`，未推送、未合并、未构建 `.app`（另有 agent 可能在测主目录的构建）。owner 嫌原来的米色/衬线/书签红风格像某个助手产品，给了另一款 app 的截图作参照，要求简约、有质感；试过靛紫、青碧、森绿、石墨、玫红后选回蓝色。[变更记录](../changes/2026-10-22-ui-restyle.json)，任务 `PILOT-01`。
+
+改动：`theme.css` 的浅色/深色色板、`--display` 代替 `--serif`、大圆角、扁平阴影；`index.html` 的视觉层（页签、按钮、卡片、输入、开关、详情抽屉、聊天、提示、项目总览背景）。其余样式表只把 `--serif` 改名，随 token 变化。[检查证据](evidence/2026-10-22-ui-restyle-checks.txt)，[自审](evidence/2026-10-22-ui-restyle-self-review.md)（非独立审查）。
+
+未验证：学习图图形、导入批次、周报、项目总览浮层没有用真实内容看过；logo 与 favicon 仍是米色+红色，待 owner 决定是否换；没有原生窗口检查。
+
+---
+
 # 当前工作单元：整理分类范围 / 顺序 / 逐项选择修复（2026-10-09）
 
 分支 `organize-scope-select`，隔离 worktree `.claude/worktrees/organize-scope-select`，基线 main `9fdae25`，未推送。owner 于 2026-10-10 授权合并到 main 并构建最终 release：合并与桌面构建（`build_desktop.py` + `cargo tauri build --bundles app`）的实际结果以[检查证据](evidence/2026-10-09-organize-scope-checks.txt)末尾的“构建记录”为准，没有记录就是没做。`FIX-ORGANIZE-SCOPE-SELECT` 状态 review；[变更记录](../changes/2026-10-09-organize-scope-selection.json)、[ADR0034](decisions/0034-organize-scope-priority-selection.md)、[检查证据](evidence/2026-10-09-organize-scope-checks.txt)、[独立审查](evidence/2026-10-09-organize-scope-review.md)。

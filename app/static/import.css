@@ -57,7 +57,7 @@
 .cat-line .n{color:var(--muted);font-variant-numeric:tabular-nums;margin-left:calc(6px * var(--s))}
 .commitbar{position:sticky;bottom:0;display:flex;gap:calc(12px * var(--s));align-items:center;padding:calc(12px * var(--s)) 0;background:var(--bg);border-top:1px solid var(--line);margin-top:calc(14px * var(--s))}
 
-.done-title{font-family:var(--serif);font-size:calc(22px * var(--s));margin:0 0 calc(6px * var(--s))}
+.done-title{font-family:var(--display);font-size:calc(22px * var(--s));margin:0 0 calc(6px * var(--s))}
 .card{border:1px solid var(--line);border-radius:var(--r-lg);padding:calc(14px * var(--s)) calc(16px * var(--s));margin:calc(14px * var(--s)) 0;background:var(--base)}
 .card h3{white-space:normal;margin-bottom:calc(4px * var(--s))}
 .seedlist{list-style:none;margin:calc(8px * var(--s)) 0;padding:0;max-height:calc(260px * var(--s));overflow:auto}
