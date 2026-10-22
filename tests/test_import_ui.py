@@ -44,13 +44,15 @@ class PageStructureTests(unittest.TestCase):
         self.assertRegex(HTML, r'<input type="file" id="filesInput" accept="application/pdf,\.pdf" multiple hidden>')
 
     def test_the_online_lookup_says_exactly_what_is_sent(self):
-        for phrase in ("DOI", "arXiv 编号", "论文题目", "OpenAlex", "PDF 文件本身和你的论文库不会上传"):
-            self.assertIn(phrase, HTML)
+        self.assertIn("只向 OpenAlex 发送 DOI、arXiv 编号和题目", HTML)
+        self.assertNotIn("PDF 文件本身和你的论文库不会上传", HTML)
         self.assertIn('id="optOnline" checked', HTML)
 
     def test_importing_is_never_described_as_liking(self):
-        self.assertIn("不会被当作你的兴趣信号", HTML)
-        self.assertIn("不会作为学习地图生长的依据", HTML)
+        # The standing reassurances were removed from the page; nothing may call an import a liking either.
+        self.assertNotIn("不会被当作你的兴趣信号", HTML)
+        self.assertNotIn("不会作为学习图生长的依据", HTML)
+        self.assertNotRegex(HTML, r"导入.{0,6}(喜欢|感兴趣)")
 
     def test_an_export_file_is_uploaded_before_the_pdfs_and_the_reference_only_option_appears_with_it(self):
         self.assertIn('id="optFileless"', HTML)
@@ -62,7 +64,7 @@ class PageStructureTests(unittest.TestCase):
         self.assertIn("$('#filelessRow').hidden", JS)
 
     def test_a_reference_without_a_file_is_marked_instead_of_showing_an_empty_path(self):
-        self.assertRegex(JS, r"item\.kind === 'entry' \? '<span class=\"tag\">没有 PDF 的题录</span>'")
+        self.assertRegex(JS, r"item\.kind === 'entry' \? '<span class=\"tag\">无 PDF</span>'")
 
     def test_every_reason_the_server_can_pause_for_has_a_message(self):
         reasons = set(re.findall(r'_pause\(batch_id, "([a-z_]+)"\)|_Pause\("([a-z_]+)"\)', (ROOT / "app" / "library_import.py").read_text(encoding="utf-8")))
@@ -90,7 +92,8 @@ class PageStructureTests(unittest.TestCase):
         self.assertIn("'补传并继续'", JS)
 
     def test_pausing_when_nothing_is_left_to_read_does_not_claim_files_are_unread(self):
-        self.assertIn("已暂停：文件都已读取完。点「继续」开始匹配。", JS)
+        self.assertIn("`已暂停，还有 ${S.queue.length} 个文件未读取` : '已暂停'", JS)
+        self.assertNotIn("已暂停：文件都已读取完。点「继续」开始匹配。", JS)
         self.assertRegex(JS, r"S\.queue\.length\s*\?")
 
     def test_the_person_is_never_stuck_waiting_on_a_lookup_that_cannot_finish(self):
@@ -106,17 +109,15 @@ class PageStructureTests(unittest.TestCase):
     def test_what_the_page_says_about_the_network_and_about_keeping_the_batch_is_true(self):
         # With online lookup off nothing is sent by the import itself; a lookup the person types is their own query.
         self.assertNotIn("不会向 OpenAlex 发送任何内容。", JS)
-        self.assertIn("只有你在确认页里主动「查找」", JS)
-        self.assertNotIn("一直保留", JS)        # an unfinished batch is purged after 30 days
-        self.assertIn("保留 30 天", JS)
-        self.assertIn("查找」会把你输入的文字发给 OpenAlex", JS)
+        self.assertNotIn("一直保留", JS)        # an unfinished batch is purged after 30 days; never promise otherwise
+        self.assertNotIn("联网补全已关闭：导入不会自动向 OpenAlex 发送任何内容", JS)   # the standing network note is gone
 
     def test_a_second_pdf_for_the_same_paper_is_reported_on_the_done_step(self):
         self.assertIn("result.extra_pdfs", JS)
-        self.assertIn("没有归档（原文件没有改动）", JS)
+        self.assertIn("个 PDF 未归档（论文已有 PDF）：", JS)
 
-    def test_more_than_one_export_file_says_which_one_was_read(self):
-        self.assertIn("找到多个导出文件", JS)
+    def test_more_than_one_export_file_adds_no_explanatory_line(self):
+        self.assertNotIn("找到多个导出文件", JS)
 
     def test_a_bad_export_does_not_stop_the_pdfs(self):
         self.assertIn("S.sidecarError", JS)
@@ -127,8 +128,8 @@ class PageStructureTests(unittest.TestCase):
         self.assertNotIn("result.added_memberships", JS)
 
     def test_an_unidentified_pdf_is_labelled_once(self):
-        self.assertRegex(JS, r"paper\.unresolved \? '<span class=\"tag unresolved\">未识别的 PDF</span>'")
-        self.assertRegex(JS, r"item\.match_source && !paper\.unresolved")
+        self.assertRegex(JS, r"paper\.unresolved \? '<span class=\"tag unresolved\">未识别</span>'")
+        self.assertNotIn("SOURCE_LABEL", JS)                     # per-row match provenance is not shown (2026-10-22)
 
     def test_nothing_in_the_script_calls_a_model_or_an_external_service(self):
         self.assertNotRegex(JS, r"https?://")

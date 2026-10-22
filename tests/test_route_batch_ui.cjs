@@ -10,17 +10,13 @@ function context(response={}) {
   toast:(...args)=>notices.push(args),autoTriage:async()=>{c.triages++;},triages:0});
  vm.runInContext(helpers+generate,c);return {c,button,notices};
 }
-test('fixed learning quota, completed daily cap and actual discovery counts are visible',()=>{
+test('the generate button names the batch; the home page does not narrate batch composition',()=>{
  const {c}=context();
- assert.match(c.exploreLine({goal_status:'learning'}),/三篇路径、一篇探索、一篇新进展/);
- assert.match(c.exploreLine({goal_status:'completed'}),/每日本地最多一篇/);
- assert.doesNotMatch(c.exploreLine({goal_status:'completed',progress_verification_deferred:true}),/目标已完成/);
+ assert.equal(c.dailyButtonText(),'生成今日发现');
  c.state.route.progress_verification_deferred=true;assert.equal(c.dailyButtonText(),'核验后生成推荐');
- c.state.cards=[{route:{kind:'explore_new'}},{route:{kind:'watch'}},{route:{kind:'route'}}];
- assert.match(c.exploreLine({goal_status:'learning'}),/探索 1 篇、新进展 1 篇/);
- c.state.cards=[{route:{kind:'route'}}];
- assert.match(c.exploreLine({goal_status:'learning'}),/前置缺口或新分支/);
- assert.doesNotMatch(c.exploreLine({goal_status:'learning'}),/探索约占/);
+ c.state.route={enabled:false};assert.equal(c.dailyButtonText(),'生成今日 5 篇');
+ assert.equal(typeof c.exploreLine,'undefined');
+ for(const gone of ['每批最多','这次推荐：探索','以你现在能读的概念为主','每天只推一篇']) assert.ok(!html.includes(gone),gone);
 });
 test('reopening completed daily batch preserves summary and does not trigger another AI triage',async()=>{
  const {c,button,notices}=context({cards:[{key:'x',summary:{text:'saved'}}],reused:true,reason:'每日最多一篇'});
@@ -33,10 +29,12 @@ test('short batches show the shortage reason and empty batches preserve existing
  const empty=context({cards:[],reason:'需要检查路线'});empty.c.state.cards=[{key:'previous'}];
  await empty.c.generate();assert.equal(empty.c.state.cards[0].key,'previous');assert.equal(empty.c.triages,0);
 });
-test('watch cards explain satisfied watched concepts without adding learning tasks',()=>{
+test('watch cards show the short new-development label with the concept name and no standing explanation',()=>{
  const code=html.slice(html.indexOf('const ROUTE_KINDS'),html.indexOf('const PDF_BADGES'));
  const c=vm.createContext({esc:String});vm.runInContext(code,c);
- assert.match(c.routeBadge({route:{kind:'watch',name:'Lattice'}}),/持续关注/);
- assert.match(c.routeBadge({route:{kind:'watch'}}),/不增加学习任务/);
+ assert.match(c.routeBadge({route:{kind:'watch',name:'Lattice'}}),/新进展[\s\S]*Lattice/);
+ assert.doesNotMatch(c.routeBadge({route:{kind:'watch',name:'Lattice'}}),/持续关注|不增加学习任务/);
+ assert.match(c.routeBadge({route:{kind:'watch'}}),/新进展/);
+ assert.doesNotMatch(c.routeBadge({route:{kind:'watch'}}),/不增加学习任务/);
  assert.equal(c.routeBadge({route:{kind:'unknown'}}),'');
 });

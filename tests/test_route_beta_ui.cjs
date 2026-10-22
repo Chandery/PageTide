@@ -17,12 +17,13 @@ const context={project_id:'p',categories:[{name:'Cat'}],units:[{id:'a',name:'Uni
 test('with the beta off the paper detail shows categories and the paper graph but no learning-map rows',()=>{
   const html=loadContext(false).html(context,'k');
   assert.match(html,/收藏类别/);assert.match(html,/在论文关系图中定位/);
-  for(const hidden of ['对应学习单元','本次推荐用途','在学习图中定位','定位学习单元','重新核验学习匹配','Unit A']) assert.ok(!html.includes(hidden),hidden);
+  for(const hidden of ['学习单元','本次推荐用途','在学习图中定位','定位学习单元','重新核验学习匹配','Unit A']) assert.ok(!html.includes(hidden),hidden);
 });
 test('with the beta on, or no flag at all, the paper detail keeps the learning-map rows',()=>{
   for(const flag of [true,undefined]){
     const html=loadContext(flag).html(context,'k');
-    for(const shown of ['对应学习单元','本次推荐用途','在学习图中定位']) assert.ok(html.includes(shown),`${flag}:${shown}`);
+    for(const shown of ['学习单元','Unit A','定位学习单元','在学习图中定位']) assert.ok(html.includes(shown),`${flag}:${shown}`);
+    assert.ok(!html.includes('本次推荐用途'),`${flag}: the recommendation-use row is gone`);
   }
 });
 
@@ -42,7 +43,7 @@ test('the settings page shows the beta switch off by default, and the hotspot de
   const p=settingsPage({});await vm.runInContext('loadSettings()',p.context);
   assert.equal(p.node('#routeBeta').checked,false);
   assert.equal(String(p.node('#newPaperBoost').value),'0.5');
-  assert.equal(p.node('#timePreference').value,'month');
+  assert.equal(p.node('#timePreference').value,'all');
 });
 test('the beta switch is saved with the other settings, and turning it on round-trips',async()=>{
   const p=settingsPage({routeBeta:true});await vm.runInContext('loadSettings()',p.context);

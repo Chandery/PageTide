@@ -8,7 +8,7 @@ Owner request and confirmed scope are in task `FEAT-ROUTE-BETA-SWITCH` and ADR 0
 
 ## Cost and privacy
 
-Zero model tokens and no new outbound field. The only change to outbound traffic is the public-metadata `from_date` of the candidate refresh: 30 days by default in hotspot mode instead of five years, unless the owner chose a time preference. The core daily minimum stays 0 tokens. No budget record changed (`budget.py --check` passes).
+Zero model tokens and no new outbound field. Outbound traffic is unchanged: the candidate refresh keeps its original five-year `from_date` window (a first draft narrowed it to 30 days and also cut recommendations off at 30 days; the owner pointed out recency should only be a weight, so both were reverted and are covered by tests). The core daily minimum stays 0 tokens. No budget record changed (`budget.py --check` passes).
 
 ## How it was checked
 
@@ -27,7 +27,7 @@ Zero model tokens and no new outbound field. The only change to outbound traffic
 
 ## Limits
 
-- Not run: native window, real library, real recommendation quality with the 30-day / 0.5 defaults (a product judgement, not measured), library graph view and weekly report with real content in the browser (covered by code and unit tests only).
+- Not run: native window, real library, real recommendation quality with the 0.5 new-paper weight (a product judgement, not measured), library graph view and weekly report with real content in the browser (covered by code and unit tests only).
 - A page that is already open does not notice the switch until it reloads.
 - The AI guidance reply may still contain a map while the beta is off; it is ignored, not stored.
 - No `.app` build was made, by design.

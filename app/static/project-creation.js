@@ -21,7 +21,7 @@ async function api(path, options = {}) {
     try {
       response = await fetch(path, {...options, headers: {'Content-Type': 'application/json', ...(options.headers || {})}});
     } catch (error) {
-      throw new Error('无法连接本地服务，请确认应用仍在运行');
+      throw new Error('无法连接本地服务');
     }
     let body = {};
     try { body = await response.json(); } catch (error) { /* an empty body is fine */ }
@@ -123,7 +123,7 @@ function makeActivity(el) {
   let timer = null, started = 0, limit = 0;
   const tick = () => {
     const seconds = Math.floor((Date.now() - started) / 1000);
-    time.textContent = limit ? `已等 ${seconds} 秒（最长约 ${limit} 秒）` : `已等 ${seconds} 秒`;
+    time.textContent = `${seconds} 秒`;
   };
   const clear = () => { clearInterval(timer); timer = null; };
   return {
@@ -189,15 +189,8 @@ const meta = (p) => {
   return [names, p.published, p.source].filter(Boolean).join(' · ');
 };
 
-const PDF_BADGES = {
-  direct: ['直链 PDF', '已知合法的 PDF 下载链接（arXiv 或开放获取）'],
-  page: ['仅原文页', '这篇论文是开放获取的，但只给了原文网页，没有 PDF 直链'],
-  none: ['无 PDF 来源', '没有找到合法的 PDF 来源；可以自己下载后附加'],
-};
-const pdfBadge = (status) => {
-  const [text, tip] = PDF_BADGES[status] || PDF_BADGES.none;
-  return `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}">${text}</span>`;
-};
+const PDF_BADGES = {direct: '直链 PDF', page: '仅原文页', none: '无 PDF 来源'};
+const pdfBadge = (status) => `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}">${PDF_BADGES[status] || PDF_BADGES.none}</span>`;
 
 function candidateCard(paper, selected, onToggle) {
   const el = document.createElement('div');
@@ -210,7 +203,7 @@ function candidateCard(paper, selected, onToggle) {
       <div class="meta" data-no-i18n>${esc(meta(paper))}</div>
       <div class="abstract" data-no-i18n>${hasAbstract ? esc(paper.abstract) : ''}</div>
       <div class="more">
-        ${hasAbstract ? '<button type="button" class="toggle">展开摘要</button>' : '<span>没有摘要</span>'}
+        ${hasAbstract ? '<button type="button" class="toggle">展开摘要</button>' : ''}
         ${paper.url ? `<a href="${esc(paper.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
         ${pdfBadge(paper.pdf_status)}
         <span class="tags"></span>
@@ -228,7 +221,7 @@ function candidateCard(paper, selected, onToggle) {
     more.textContent = open ? '收起摘要' : '展开摘要';
   };
   el.setTags = (queries) => {
-    $('.tags', el).innerHTML = (queries || []).map((q) => `<span class="tag"><span>命中</span> <span data-no-i18n>${esc(q)}</span></span>`).join(' ');
+    $('.tags', el).innerHTML = '';
   };
   el.setSelected = (value) => { box.checked = value; el.classList.toggle('selected', value); };
   el.setTags(paper.matched_queries);
@@ -236,8 +229,8 @@ function candidateCard(paper, selected, onToggle) {
 }
 
 const SEARCH_PROBLEMS = {
-  unavailable: 'OpenAlex 暂时不可用（对方限流或维护中）。草稿已保存，稍后再点「按检索式查找论文」。',
-  network_error: '网络不通，没能连到 OpenAlex。检查网络后再试。',
+  unavailable: 'OpenAlex 暂时不可用，稍后再试。',
+  network_error: '网络不通，没能连到 OpenAlex。',
 };
 
 /* ------------------------------------------------------------------ review area */
@@ -253,7 +246,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
 
   function refresh() {
     const count = keywords.get().length;
-    part('summary').textContent = `已选 ${selected.size} 篇候选，${count} 个关键词`;
+    part('summary').textContent = `已选 ${selected.size} 篇`;
     part('create').disabled = busy || !count;
     part('create').title = count ? '' : '至少需要 1 个关键词';
     part('search').disabled = searching || busy;
@@ -279,7 +272,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     const el = part('mapNotice');
     el.hidden = !message; el.textContent = message || ''; el.classList.toggle('error', isError);
   };
-  const GROUNDING = {ok: '', none: '（公开文献里没找到）', no_terms: '（没有检索词）', unavailable: '（这次没能核对）', skipped: '（被限流，未核对）'};
+  const GROUNDING = {ok: '', none: '（没找到文献）', no_terms: '（没有检索词）', unavailable: '（没能核对）', skipped: '（未核对）'};
 
   function renderMap() {
     const g = map.graph;
@@ -295,10 +288,8 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     part('map').replaceChildren();
     if (!g) { part('mapNote').hidden = true; refresh(); return; }
     const verdict = R.check(g);
-    part('mapNote').hidden = false;
-    part('mapNote').textContent = verdict.ok
-      ? '箭头从“要先读懂的概念”指向“依赖它的概念”，每个概念只等它自己的前置，不同分支互不等待。点一个概念可以标记“已掌握”（作为起点，它后面的概念会先解锁）、编辑或删除。虚线框是与目标无关的旁支。'
-      : `现在的学习图有问题：${verdict.reason}`;
+    part('mapNote').hidden = verdict.ok;
+    part('mapNote').textContent = verdict.ok ? '' : `学习图有问题：${verdict.reason}`;
     const shape = R.shape(g);
     part('mapShape').textContent = R.shapeText(shape);
     part('mapShape').classList.toggle('single', shape.chain);
@@ -309,10 +300,10 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       maxHeight: '60vh',
       onRescale: () => renderMap(),
       canSelect: () => {
-        if (map.editing) { mapNotice('先点“确定”或“取消”，再选别的概念。'); return false; }
+        if (map.editing) { mapNotice('先点“确定”或“取消”'); return false; }
         return true;
       },
-      statusOf: (concept) => (map.mastered.includes(concept.id) ? {key: 'satisfied', label: '起点（已掌握）', title: concept.name} : {key: 'plain', label: '', title: concept.name}),
+      statusOf: (concept) => (map.mastered.includes(concept.id) ? {key: 'satisfied', label: '已掌握', title: concept.name} : {key: 'plain', label: '', title: concept.name}),
       extraClass: (concept) => (map.mastered.includes(concept.id) ? 'mastered' : ''),
       onSelect: (id) => { map.selected = id; map.editing = null; renderDetail(); },
     });
@@ -324,12 +315,12 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   function renderDetail() {
     const g = map.graph, holder = part('mapDetail');
     const concept = g && g.concepts.find((c) => c.id === map.selected);
-    if (!concept) { holder.innerHTML = '<div class="map-note">点一个概念，查看它需要先读懂什么，也可以在这里标记、编辑或删除它。</div>'; return; }
+    if (!concept) { holder.innerHTML = '<div class="map-note">点一个概念查看</div>'; return; }
     if (map.editing === concept.id) { editConcept(holder, g, concept); return; }
     const mastered = map.mastered.includes(concept.id);
     const grounding = GROUNDING[concept.grounding] || '';
     holder.innerHTML = `${R.detailHTML(g, concept, {mastered})}${grounding ? `<div class="counts none">${esc(grounding)}</div>` : ''}
-      <div class="row"><label><input type="checkbox"${mastered ? ' checked' : ''}> 已掌握（作为起点）</label>
+      <div class="row"><label><input type="checkbox"${mastered ? ' checked' : ''}> 已掌握</label>
         <button type="button" class="ghost small" data-act="edit">编辑</button><button type="button" class="ghost small" data-act="del">删除</button></div>`;
     $('input[type=checkbox]', holder).onchange = () => {
       if (map.generating || map.checking || busy) { renderDetail(); return; }
@@ -348,7 +339,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
 
   function editConcept(holder, g, concept) {
     holder.innerHTML = `<input class="edit" data-role="n" maxlength="60" placeholder="概念名称" aria-label="概念名称">
-      <input class="edit" data-role="t" maxlength="130" placeholder="两个检索词，用 / 分隔" aria-label="检索词">
+      <input class="edit" data-role="t" maxlength="130" placeholder="检索词，用 / 分隔" aria-label="检索词">
       <label class="map-note"><input type="checkbox" data-role="target"${(g.targets || []).includes(concept.id) ? ' checked' : ''}> 作为学习目标</label>
       ${R.needsEditorHTML(g, concept.id)}
       <div class="row"><button type="button" class="small" data-act="ok">确定</button><button type="button" class="ghost small" data-act="no">取消</button></div>`;
@@ -387,31 +378,29 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     part('path').innerHTML = ''; part('addPath').disabled = false;
     map.mastered = []; map.selected = 'c1'; map.editing = null; renderMap();
   };
-  part('mapDrop').onclick = () => { if (map.generating || map.checking || busy) return; map.discarded = true; map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice('已选择不使用学习图；项目只按关键词推荐。', false); renderMap(); };
+  part('mapDrop').onclick = () => { if (map.generating || map.checking || busy) return; map.discarded = true; map.graph = null; map.mastered = []; map.selected = map.editing = null; mapNotice('不使用学习图', false); renderMap(); };
 
   async function generateMap(regenerate) {
     if (map.generating || map.checking || busy) return;
-    if (!sessionId()) { mapNotice('请先开始创建会话。'); return; }
+    if (!sessionId()) { mapNotice('请先开始创建'); return; }
     const brief = readCreationBrief(part('mapBrief'));
     if (!brief) return;
-    if (map.editing) { mapNotice('先确定或取消概念编辑。'); return; }
+    if (map.editing) { mapNotice('先确定或取消概念编辑'); return; }
     const sentSession = sessionId(); map.generating = true;
     refresh();
     part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
-    mapNotice(''); mapAct.start('正在请 AI 规划学习路径（约 10–30 秒）…');
+    mapNotice(''); mapAct.start('正在请 AI 规划学习图…');
     part('mapGenerate').disabled = true; part('mapRegen').disabled = true;
     try {
       const out = await post(`/api/project-guidance/sessions/${sentSession}/route`, {regenerate, brief});
       if (sessionId() !== sentSession) return;
-      if (!out.ok) { mapNotice(`未得到有效学习图：${out.reason || 'AI 没有给出学习图'}。还可尝试 ${out.attempts_left} 次；可以点“自己搭一张”手动编辑，或不使用学习图。`); return; }
+      if (!out.ok) { mapNotice(`未得到有效学习图：${out.reason || 'AI 没有给出学习图'}`); return; }
       changedMap(); map.cachedPlan = true; map.graph = out.graph; map.mastered = []; map.selected = map.editing = null;
       // The AI concept plan replaces the local stage-derived map. Its stage rows must refer
       // to that plan, otherwise submission would silently re-add the old stage concepts.
       part('path').innerHTML = '';
       map.graph.concepts.slice(0, MAX_PATH).forEach(concept => addPathItem({title: concept.name, purpose: concept.intro || ''}));
       syncPath(); bindPathConcepts();
-      const warnings = (out.report?.warnings || []).join('；');
-      mapNotice(`AI 已回复${out.usage_unknown || out.usage_reserved ? ' · 计费未确认，暂按上限占用' : (out.tokens ? ` · 约 ${out.tokens} token` : '')}${warnings ? ` · ${warnings}` : ''}。请检查后再创建。`, false);
       renderMap();
     } catch (error) { mapNotice(error.message); }
     finally { map.generating = false; part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = false; }); mapAct.stop(); part('mapGenerate').disabled = false; part('mapRegen').disabled = false; refresh(); }
@@ -422,20 +411,20 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     if (mapConfirming || map.generating || busy) return;
     const sentSession = sessionId(); mapConfirming = true; part('mapRegen').disabled = true;
     try {
-      if (await window.PDHDialogs.confirm('重新生成会覆盖你对学习图的修改，并用掉 1 次重新生成机会。继续？', {valid:()=>sessionId()===sentSession && !map.generating})) await generateMap(true);
+      if (await window.PDHDialogs.confirm('重新生成会覆盖你的修改，并调用 1 次 AI。继续？', {valid:()=>sessionId()===sentSession && !map.generating})) await generateMap(true);
     } finally { mapConfirming = false; part('mapRegen').disabled = map.generating; }
   };
 
   part('mapCheck').onclick = async () => {
     if (!map.graph || map.checking || map.generating || busy) return;
-    map.checking = true; mapNotice(''); mapAct.start('正在用公开文献核对每个概念（OpenAlex，只发送检索词）…');
+    map.checking = true; mapNotice(''); mapAct.start('正在核对概念…');
     refresh();
     part('mapCheck').disabled = true;
     try {
       const out = await post('/api/route', {action: 'ground', graph: map.graph});
       map.graph = out.graph; renderMap();
       const missing = map.graph.concepts.filter((c) => c.grounding === 'none').length;
-      mapNotice(missing ? `有 ${missing} 个概念在公开文献里没找到，可以改检索词或删除。` : '核对完成。', !!missing);
+      mapNotice(missing ? `${missing} 个概念没找到文献` : '核对完成', !!missing);
     } catch (error) { mapNotice(error.message); }
     finally { mapAct.stop(); map.checking = false; part('mapCheck').disabled = false; refresh(); }
   };
@@ -512,7 +501,6 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       part('path').innerHTML = ''; stages.forEach(addPathItem); syncPath();
       bindPathConcepts(modelGraph ? map.graph.concepts.slice(0, MAX_PATH).map(concept => concept.id) : plan.stage_ids);
       renderMap();
-      mapNotice(modelGraph ? 'AI 已根据确认的方向提出学习概念和前置关系；请检查检索词、目标与顺序，确认后用于学习推荐。' : '学习阶段已加入本地学习图；阶段顺序不会自动当作前置关系。请检查目标与检索词，确认后会用于学习推荐。', false);
     }
     if (d.candidates && d.candidates.length && !candidates.size) addCandidates(d.candidates.map((p) => ({...p, url: p.url || (p.arxiv_id ? `https://arxiv.org/abs/${p.arxiv_id}` : null)})));
     refresh();
@@ -545,14 +533,14 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     const d = draft();
     let queries = d.search_queries.slice(0, 3);
     if (!queries.length && d.keywords.length) queries = [d.keywords.slice(0, 4).join(' ')];
-    if (!queries.length) { notice('请先填写检索式或关键词。'); return; }
+    if (!queries.length) { notice('请先填写检索式或关键词'); return; }
     searching = true; notice(''); refresh();
     const before = candidates.size;
     if (!candidates.size) skeletons(3);
     let problem = null;
     for (let i = 0; i < queries.length; i += 1) {
-      searchAct.start(`正在查找第 ${i + 1}/${queries.length} 条检索式：${queries[i]}`);
-      part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇候选，继续查找…` : '查找中…';
+      searchAct.start(`正在查找（${i + 1}/${queries.length}）`);
+      part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇…` : '查找中…';
       let result;
       try {
         result = await post(`/api/project-guidance/sessions/${sessionId()}/search`, {query: queries[i], all_years: part('allYears').checked});
@@ -566,13 +554,13 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     searchAct.stop();
     $$('.skeleton', part('cands')).forEach((el) => el.remove());
     searching = false;
-    part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇候选` : '';
+    part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇` : '';
     if (problem) {
       notice(SEARCH_PROBLEMS[problem.kind] || `部分检索失败：${problem.message}`);
     } else if (!candidates.size) {
-      notice('没有找到候选论文。论文标题大多是英文，试试把检索式换成更宽的英文词。', false);
+      notice('没有找到论文', false);
     } else if (candidates.size === before) {
-      notice('这次没有新的候选论文。', false);
+      notice('没有新的论文', false);
     }
     refresh();
   }
@@ -590,14 +578,14 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   part('create').onclick = async () => {
     if (busy) return;
     if (!readCreationPolicy()) return;
-    if (map.generating || map.checking || map.editing) { mapNotice('先完成当前学习图操作再创建项目。'); return; }
+    if (map.generating || map.checking || map.editing) { mapNotice('先完成学习图编辑'); return; }
     if (!map.discarded && $$('.path-item', part('path')).some(row => row.commit && !row.commit())) return;
     if (map.graph && !part('mapConfirm').checked) {
-      mapNotice('请检查学习图，并勾选“确认使用这张学习图”；也可以明确选择“不使用学习图”。');
+      mapNotice('请先确认学习图，或选择不使用');
       part('mapConfirm').scrollIntoView({behavior: 'smooth', block: 'center'}); part('mapConfirm').focus(); return;
     }
     if (!map.graph && !map.discarded) {
-      mapNotice('还没有学习图，请添加学习阶段或自己搭图；也可以明确选择不使用学习图。');
+      mapNotice('请先建立学习图，或选择不使用');
       part('mapBlock').scrollIntoView({behavior: 'smooth', block: 'center'}); part('mapStart').focus(); return;
     }
     if (map.graph && !readCreationBrief(part('mapBrief'))) return;
@@ -667,7 +655,7 @@ document.addEventListener('click', (event) => {
 
 async function finalize({draft, selectedKeys, route}) {
   const language_policy=readCreationPolicy();
-  if (!language_policy) throw new Error('请先完成上方的论文语言设置');
+  if (!language_policy) throw new Error('请先选择论文语言');
   policyEditor.disabled(true);
   let result;
   try { result = await post(`/api/project-guidance/sessions/${session.id}/finalize`, {draft, selected_keys: selectedKeys, route, skip_route: !route, language_policy}); }
@@ -683,23 +671,13 @@ async function createSession(name, goal, creationMode) {
   return session;
 }
 
-// One line saying whether the model answered, what it cost, and why not when it did not.
+// Says why the model did not answer; a normal AI answer needs no note.
 function turnMeta(entry, live) {
-  const billing = () => {
-    if (entry.usage_unknown || entry.usage_reserved) return '计费未确认，暂按上限占用';
-    const usage = entry.usage || {};
-    const count = entry.tokens ?? usage.total_tokens ?? (Number.isInteger(usage.prompt_tokens) && Number.isInteger(usage.completion_tokens)
-      ? usage.prompt_tokens + usage.completion_tokens : null);
-    return Number.isInteger(count) && count >= 0 ? `约 ${Number(count).toLocaleString()} token` : '';
-  };
-  if (entry.mode === 'ai') {
-    const bits = ['<span class="ok">AI 已回复</span>'];
-    if (billing()) bits.push(billing());
-    if (live && live.elapsed_ms != null) bits.push(`${Math.max(1, Math.round(live.elapsed_ms / 1000))} 秒`);
-    return bits.join('<span class="sep" aria-hidden="true">·</span>');
-  }
+  if (entry.mode === 'ai') return '';
   const why = esc(entry.reason_text || '');
-  return `<span class="warn">这一轮保留本地草稿</span>${billing() ? `<span>${billing()}</span>` : ''}${why ? `<span data-no-i18n>${why}</span>` : ''}`;
+  // A request that was sent but gave nothing usable may still cost: never call that "AI not used".
+  const charged = entry.usage_unknown || entry.usage_reserved;
+  return `<span class="warn">${charged ? 'AI 回复不可用' : '未使用 AI'}</span>${charged ? '<span>用量未确认</span>' : ''}${why ? `<span data-no-i18n>${why}</span>` : ''}`;
 }
 const retryable = (entry) => entry.mode === 'local' && entry.reason !== 'dry_run';
 const settingsLink = (entry) => (['no_key', 'ai_off'].includes(entry.reason) ? '<a href="/settings.html">打开设置</a>' : '');
@@ -723,7 +701,7 @@ function renderQuickNote(entry, live) {
 }
 
 async function quickTurn({retry = false} = {}) {
-  quickAct.start('正在请求 AI 整理关键词和检索式…', AI_WAIT);
+  quickAct.start('正在整理关键词和检索式…', AI_WAIT);
   $('#quickNote').hidden = true;
   if (review) review.setBusy(true);
   let result;
@@ -755,7 +733,7 @@ $('#quickGo').onclick = async () => {
   $('#quickStart').hidden = true; $('#quickWork').hidden = false;
   review = makeReview($('#quickReview'), {sessionId: () => session && session.id, onCreate: finalize});
   review.root.hidden = true;
-  quickAct.start('正在创建草稿…');
+  quickAct.start('正在创建…');
   try {
     await createSession(name, goal, 'quick');
   } catch (error) {
@@ -784,16 +762,16 @@ function setComposer(enabled) {
   if (review) review.setBusy(!enabled);
 }
 
+/* Only when the AI received part of the input: one quiet folded line, the excerpts it actually saw inside. */
 function guidanceScopeHTML(entry, live) {
   const scope = entry.scope_notice ? entry : (live && live.scope_notice ? live : null);
   if (!scope) return '';
   const excerpt = scope.context_excerpt || {};
-  const lines = [['目标节选', excerpt.goal], ['本轮消息节选', excerpt.message],
-    ['关键词节选', Array.isArray(excerpt.keywords) ? excerpt.keywords.join(' · ') : excerpt.keywords]]
+  const lines = [['目标', excerpt.goal], ['消息', excerpt.message],
+    ['关键词', Array.isArray(excerpt.keywords) ? excerpt.keywords.join(' · ') : excerpt.keywords]]
     .filter(([, value]) => typeof value === 'string')
     .map(([label, value]) => `<p><b>${label}</b><span data-no-i18n>：${esc(value)}</span></p>`).join('');
-  return `<p class="meta" data-no-i18n>${esc(window.PDHi18n?.exact(scope.scope_notice) || scope.scope_notice)}</p>`
-    + `<details><summary>本轮 AI 可见内容</summary>${lines}</details>`;
+  return `<details><summary>AI 只看到部分内容</summary>${lines}</details>`;
 }
 
 function bubble(entry, live) {
@@ -819,19 +797,18 @@ function renderChat(live) {
   $$('[data-retry]', chat).slice(0, -1).forEach((button) => button.remove());
   chat.scrollTop = chat.scrollHeight;
   const used = session.turn_count || 0;
-  $('#turnCounter').textContent = `AI 对话已用 ${used}/6 轮`;
+  $('#turnCounter').textContent = `${used}/6 轮`;
   $('#guideSend').disabled = guidedBusy || used >= 6;
   const question = $('#guideQuestion'), draft = session.draft || {};
-  question.hidden = !(draft.next_question || draft.summary || draft.ready);
+  question.hidden = !(draft.next_question || draft.summary);
   question.innerHTML = `${draft.summary ? `<p class="hint"><b>目前确认：</b><span data-no-i18n>${esc(draft.summary)}</span></p>` : ''}
-    ${draft.next_question ? `<p data-no-i18n>${esc(draft.next_question)}</p>` : ''}
-    ${draft.ready ? '<p class="hint">方向已经足够清楚，可以检查右侧学习图并创建项目；也可以继续补充。</p>' : ''}`;
+    ${draft.next_question ? `<p data-no-i18n>${esc(draft.next_question)}</p>` : ''}`;
   for (const choice of Array.isArray(draft.choices) ? draft.choices.slice(0, 3) : []) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'ghost small';
     button.textContent = choice; button.setAttribute('data-no-i18n', ''); button.disabled = guidedBusy || used >= 6;
     button.onclick = () => guidedTurn({message: choice}); question.appendChild(button);
   }
-  if (used >= 6) $('#guideMessage').placeholder = '6 轮 AI 对话已用完，请直接编辑右侧草稿后创建';
+  if (used >= 6) $('#guideMessage').placeholder = '6 轮已用完，请直接编辑右侧草稿';
 }
 
 function showPending(text) {
@@ -854,8 +831,8 @@ async function guidedTurn({message = '', retry = false} = {}) {
   } else if (retry) {
     $$('.msg.assistant', chat).at(-1)?.remove();
   }
-  showPending('正在请求 AI，整理你的方向…');
-  guidedAct.start('正在请求 AI…', AI_WAIT);
+  showPending('AI 正在回复…');
+  guidedAct.start('AI 正在回复…', AI_WAIT);
   let result;
   try {
     result = await post(`/api/project-guidance/sessions/${session.id}/turn`, {
@@ -911,9 +888,9 @@ const seeds = [];
 let seedSeq = 0, queue = Promise.resolve();
 const queued = (fn) => { const run = queue.then(fn, fn); queue = run.catch(() => {}); return run; };   // one OpenAlex lookup at a time
 const seedFailure = (r) => ({
-  not_found: 'OpenAlex 里没有这篇（刚发布的论文可能还没收录）',
-  unavailable: 'OpenAlex 暂时不可用（对方限流或维护中），稍后重试',
-  network_error: '网络不通，没能连到 OpenAlex',
+  not_found: 'OpenAlex 里没有这篇',
+  unavailable: 'OpenAlex 暂时不可用，稍后重试',
+  network_error: '网络不通',
   invalid_input: r.error, failed: r.error || '解析失败',
 }[r.status] || r.error || '解析失败');
 
@@ -921,24 +898,23 @@ function seedRow(item) {
   let li = $(`#seedList [data-id="${item.id}"]`);
   if (!li) { li = document.createElement('li'); li.dataset.id = item.id; $('#seedList').appendChild(li); }
   li.className = 'seed' + (item.status === 'failed' ? ' failed' : '');
-  const origin = {id: 'DOI / 链接', name: '名称检索', pdf: 'PDF'}[item.kind];
   let state = '<span class="spinner"></span>', title = '', sub = '', help = '';
   const label = item.kind === 'pdf' ? item.filename : item.input;
   if (item.status === 'resolved') {
     state = '<span class="good">✓</span>';
     title = item.paper.title;
-    sub = `<span data-no-i18n>${esc(meta(item.paper))}</span> <span class="tag">${esc(origin)}</span>${item.pdfId ? ` <span data-no-i18n>${esc(item.filename || '')}</span> <span class="good">PDF 创建后保存到这篇论文</span>` : ''}`;
+    sub = `<span data-no-i18n>${esc(meta(item.paper))}</span>${item.pdfId ? ` <span data-no-i18n>${esc(item.filename || '')}</span>` : ''}`;
   } else if (item.status === 'failed') {
     state = '<span class="bad">!</span>'; title = label;
     sub = `<span class="bad" data-no-i18n>${esc(window.PDHi18n?.system(item.error) || item.error)}</span>`;
-    help = `<div class="help"><div class="row"><input data-help-input placeholder="改填标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">重试</button></div></div>`;
+    help = `<div class="help"><div class="row"><input data-help-input placeholder="标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">重试</button></div></div>`;
   } else if (item.status === 'help') {
     state = '<span class="warn">?</span>'; title = label;
-    sub = `${item.error ? `<span class="bad" data-no-i18n>${esc(window.PDHi18n?.system(item.error) || item.error)}</span> ` : ''}<span>没能确定是哪篇论文，请选一篇，或改标题/DOI 再查</span>`;
+    sub = `${item.error ? `<span class="bad" data-no-i18n>${esc(window.PDHi18n?.system(item.error) || item.error)}</span> ` : ''}<span>请选一篇，或改标题 / DOI</span>`;
     help = `<div class="help">${(item.hits || []).map((p, i) => `<button type="button" class="pick" data-do="pick" data-index="${i}"><span data-no-i18n>${esc(p.title)}</span><small data-no-i18n>${esc(meta(p))}</small></button>`).join('')}
       <div class="row"><input data-help-input placeholder="标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">再查一次</button></div></div>`;
   } else {
-    title = label; sub = item.stage || '正在处理…';
+    title = label; sub = item.stage || '处理中…';
   }
   li.innerHTML = `<span class="state">${state}</span><div class="title" data-no-i18n>${esc(title)}</div>
     <button type="button" class="ghost small remove" data-do="remove" title="移除" aria-label="移除">×</button>
@@ -956,7 +932,7 @@ function seedAccept(item, paper) {
   if (other) {
     if (item.pdfId && !other.pdfId) { seedUpdate(other, {pdfId: item.pdfId, filename: item.filename}); }
     seedRemove(item);
-    seedHint('这篇论文已经在种子列表里了。');
+    seedHint('已添加过');
     return;
   }
   seedUpdate(item, {status: 'resolved', paper, error: null});
@@ -969,13 +945,13 @@ function seedRemove(item) {
 }
 
 function seedNew(kind, fields) {
-  const item = {id: ++seedSeq, kind, status: 'working', stage: '正在排队…', ...fields};
+  const item = {id: ++seedSeq, kind, status: 'working', stage: '等待中…', ...fields};
   seeds.push(item); seedRow(item); manualRefresh();
   return item;
 }
 
 async function seedResolve(item, text) {
-  seedUpdate(item, {status: 'working', stage: '正在向 OpenAlex 核对…', guess: text});
+  seedUpdate(item, {status: 'working', stage: '正在核对…', guess: text});
   try {
     const result = await queued(() => post('/api/seeds/resolve', {input: text}));
     if (result.status === 'resolved') seedAccept(item, result.paper);
@@ -990,7 +966,7 @@ async function seedFromInput(text) {
   if (!input) return;
   if (!PDF.looksLikeIdentifier(input)) { openSeedSearch(input); return; }
   if (seeds.some((s) => s.kind === 'id' && s.input.toLowerCase() === input.toLowerCase())) {
-    seedHint('这个标识已经添加过了。');
+    seedHint('已添加过');
     return;
   }
   $('#seedInput').value = '';
@@ -1011,7 +987,7 @@ async function openSeedSearch(query) {
   $('#seedSearchTitle').textContent = `“${query}” 的检索结果`;
   $('#seedSearchList').innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
   $('#seedSearchNotice').hidden = true;
-  searchAct.start('正在 OpenAlex 里按名称检索…');
+  searchAct.start('正在检索…');
   let result;
   try { result = await queued(() => post('/api/seeds/search', {query})); }
   catch (error) { result = {status: 'failed', error: error.message, items: []}; }
@@ -1021,7 +997,7 @@ async function openSeedSearch(query) {
   const notice = $('#seedSearchNotice');
   if (!result.items.length) {
     notice.hidden = false; notice.classList.toggle('error', result.status !== 'empty');
-    notice.textContent = result.status === 'empty' ? '没有找到。试试更完整的英文标题，或直接粘贴 DOI / arXiv 编号。' : seedFailure(result);
+    notice.textContent = result.status === 'empty' ? '没有找到' : seedFailure(result);
   }
   for (const paper of result.items) {
     const hit = document.createElement('div');
@@ -1036,7 +1012,6 @@ async function openSeedSearch(query) {
       seedUpdate(item, {status: 'resolved', paper});
       button.textContent = '已添加';
     };
-    button.title = '再点一次撤销';
     if (added()) button.textContent = '已添加';
     $('#seedSearchList').appendChild(hit);
   }
@@ -1063,20 +1038,20 @@ async function uploadPdf(file) {
 }
 
 async function pdfProcess(item, file) {
-  seedUpdate(item, {stage: '正在读取 PDF 首页…'});
+  seedUpdate(item, {stage: '正在读取 PDF…'});
   const [uploaded, hints] = await Promise.allSettled([uploadPdf(file), withTimeout(extractHints(file), 25000)]);
   if (uploaded.status === 'rejected') { seedUpdate(item, {status: 'failed', error: uploaded.reason.message}); return; }
   item.pdfId = uploaded.value.pdf_id;
   if (hints.status === 'rejected') {
     seedUpdate(item, {status: 'help', hits: [], guess: '', stage: '',
-      error: '读不出这个 PDF 的文字（可能是扫描件）'});
+      error: '读不出这个 PDF 的文字'});
     return;
   }
   const found = hints.value;
   const ids = [found.arxiv, found.doi].filter(Boolean);
   let lastFailure = null;
   for (const id of ids) {
-    seedUpdate(item, {stage: `识别到 ${id}，正在核对…`});
+    seedUpdate(item, {stage: '正在核对…'});
     try {
       const result = await queued(() => post('/api/seeds/resolve', {input: id}));
       if (result.status === 'resolved') { seedAccept(item, result.paper); return; }
@@ -1085,7 +1060,7 @@ async function pdfProcess(item, file) {
   }
   const hits = [];
   for (const title of found.titles) {
-    seedUpdate(item, {stage: `按标题检索：${title}`});
+    seedUpdate(item, {stage: '正在检索…'});
     let result;
     try { result = await queued(() => post('/api/seeds/search', {query: title})); }
     catch (error) { lastFailure = {status: 'failed', error: error.message}; continue; }
@@ -1101,7 +1076,7 @@ async function pdfProcess(item, file) {
 function addPdfFiles(files) {
   for (const file of files) {
     if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
-      seedHint(`「${file.name}」不是 PDF，已忽略。`);
+      seedHint(`「${file.name}」不是 PDF`);
       continue;
     }
     pdfProcess(seedNew('pdf', {filename: file.name, input: file.name}), file);
@@ -1145,7 +1120,7 @@ $('#seedList').addEventListener('click', (event) => {
 });
 
 async function searchForItem(item, title) {
-  seedUpdate(item, {status: 'working', stage: `按标题检索：${title}`, guess: title});
+  seedUpdate(item, {status: 'working', stage: '正在检索…', guess: title});
   let result;
   try { result = await queued(() => post('/api/seeds/search', {query: title})); }
   catch (error) { result = {status: 'failed', error: error.message, items: []}; }
@@ -1153,7 +1128,7 @@ async function searchForItem(item, title) {
   const best = result.items.map((p) => ({p, score: PDF.similarity(title, p.title)})).sort((a, b) => b.score - a.score)[0];
   if (best && best.score >= 0.8) { seedAccept(item, best.p); return; }
   seedUpdate(item, {status: 'help', hits: result.items.slice(0, 5), guess: title,
-    error: result.items.length ? null : '没有找到，试试更完整的英文标题'});
+    error: result.items.length ? null : '没有找到'});
 }
 
 /* ---- create */
@@ -1162,13 +1137,9 @@ function manualRefresh() {
   const working = seeds.filter((s) => s.status === 'working').length;
   const ready = seeds.filter((s) => s.status === 'resolved').length;
   const keywords = seedKeywords.get().length;
-  const parts = [];
-  if (keywords) parts.push(`${keywords} 个关键词`);
-  if (ready) parts.push(`${ready} 篇种子论文`);
-  if (working) parts.push(`${working} 个种子仍在处理`);
-  $('#manualSummary').textContent = parts.join('，');
+  $('#manualSummary').textContent = working ? `${working} 个处理中` : '';
   $('#manualCreate').disabled = !!working || !(keywords || ready);
-  $('#manualCreate').title = working ? '请等种子处理完成' : (keywords || ready ? '' : '至少需要 1 个关键词或 1 篇种子论文');
+  $('#manualCreate').title = working ? '请等处理完成' : (keywords || ready ? '' : '至少需要 1 个关键词或 1 篇种子论文');
 }
 
 $('#manualCreate').onclick = async () => {
@@ -1178,7 +1149,7 @@ $('#manualCreate').onclick = async () => {
   const payload = seeds.filter((s) => s.status === 'resolved')
     .map((s) => (s.pdfId ? {identifier: s.paper.openalex_id, pdf_id: s.pdfId} : s.paper.openalex_id));
   $('#manualCreate').disabled = true;
-  manualAct.start(payload.length ? `正在创建项目并导入 ${payload.length} 篇种子论文…` : '正在创建项目…');
+  manualAct.start('正在创建项目…');
   let result;
   policyEditor.disabled(true);
   try {
@@ -1192,7 +1163,7 @@ $('#manualCreate').onclick = async () => {
   if (!problems.length) { creationLeaving = true; location.href = go; return; }
   const box = $('#manualResult');
   box.hidden = false;
-  box.innerHTML = `<div><strong>项目已创建，但有 ${problems.length} 个种子没有完全导入：</strong></div>`
+  box.innerHTML = `<div><strong>${problems.length} 个种子没有导入：</strong></div>`
     + problems.map((r) => `<div class="bad" data-no-i18n>${esc(r.input)}：${esc(r.pdf_error || r.error || r.status)}</div>`).join('')
     + '<div class="actions"><button type="button" class="primary" id="enterProject">进入项目</button></div>';
   $('#enterProject').onclick = () => { creationLeaving = true; location.href = go; };

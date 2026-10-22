@@ -35,7 +35,7 @@ class ProjectCreationUITests(unittest.TestCase):
     def test_three_modes_are_distinct_and_say_what_they_cost(self):
         for mode in ("quick", "ai_guided", "manual"):
             self.assertIn(f'data-mode="{mode}"', self.html)
-        for label in ("AI · 1 次调用", "AI · 最多 6 轮", "不用 AI"):
+        for label in ("AI · 1 次调用", "AI · 对话", "不用 AI"):
             self.assertIn(label, self.html)
         self.assertIn('role="radiogroup"', self.html)
         # Quick creation has no conversation box; guided creation does.
@@ -47,13 +47,13 @@ class ProjectCreationUITests(unittest.TestCase):
         for region in ("quickActivity", "guidedActivity", "seedSearchActivity", "manualActivity"):
             self.assertRegex(self.html, rf'id="{region}" role="status" aria-live="polite"')
         self.assertIn('data-role="searchActivity"', self.html)
-        for marker in ("function makeActivity", "最长约", "setInterval(tick"):
+        for marker in ("function makeActivity", "setInterval(tick"):
             self.assertIn(marker, self.js)
         self.assertIn("prefers-reduced-motion", self.css)
 
     def test_each_ai_turn_says_whether_the_model_answered(self):
-        for marker in ("AI 已回复", "这一轮保留本地草稿", "本地整理：", "reason_text", "重试 AI", "retry: true", "打开设置",
-                       "usage_unknown", "usage_reserved", "计费未确认，暂按上限占用"):
+        for marker in ("未使用 AI", "本地整理：", "reason_text", "重试 AI", "retry: true", "打开设置",
+                       "usage_unknown", "usage_reserved", "AI 回复不可用", "用量未确认"):
             self.assertIn(marker, self.js)
         # A failed request keeps what was typed instead of swallowing it.
         self.assertIn("guideMessage').value = message", self.js)
@@ -61,15 +61,15 @@ class ProjectCreationUITests(unittest.TestCase):
     def test_candidates_stream_per_query_with_placeholders_and_details(self):
         self.assertIn("/search`", self.js)
         self.assertNotIn("/preview", self.js)
-        for marker in ("skeleton", "matched_queries", "展开摘要", "打开原文", "继续查找", "OpenAlex 暂时不可用"):
+        for marker in ("skeleton", "matched_queries", "展开摘要", "打开原文", "已找到", "OpenAlex 暂时不可用"):
             self.assertIn(marker, self.js)
         # The model never selects: nothing starts ticked.
         self.assertIn("selected.has(paper.key)", self.js)
-        self.assertIn("勾选后才会加入项目", self.html)
+        self.assertNotIn("勾选后才会加入项目", self.html)
         self.assertNotIn("selected.add(paper.key)", self.js)
 
     def test_manual_seeds_accept_identifiers_titles_and_dropped_pdfs(self):
-        for marker in ('id="seedInput"', 'id="dropzone"', 'id="pdfPick"', "PDF 文件本身不离开这台电脑"):
+        for marker in ('id="seedInput"', 'id="dropzone"', 'id="pdfPick"'):
             self.assertIn(marker, self.html)
         for marker in ("/api/seeds/resolve", "/api/seeds/search", "/api/seeds/pdf", "pdf_id",
                        "PDHPdfHints", "looksLikeIdentifier"):
@@ -93,7 +93,7 @@ class ProjectCreationUITests(unittest.TestCase):
     def test_detail_has_explicit_project_sharing_control(self):
         self.assertIn("/api/project-papers", self.index)
         self.assertIn("加入其他项目", self.index)
-        self.assertIn("收藏、反馈和画像仍按项目独立记录", self.index)
+        self.assertNotIn("收藏、反馈和画像仍按项目独立记录", self.index)
         self.assertIn("new URLSearchParams(window.location.search).get('project_id')", self.index)
 
     def test_desktop_shell_lets_the_page_receive_dropped_files(self):
@@ -129,7 +129,7 @@ class RoutePageTests(unittest.TestCase):
 
     def test_today_links_to_the_map_and_labels_cards_by_route(self):
         self.assertIn("/route.html", self.index)
-        for token in ("routePanel", "renderRoute", "c.route", "补基础", "探索", "状态：来自学习图"):
+        for token in ("routePanel", "renderRoute", "c.route", "补基础", "探索", "来自学习图"):
             self.assertIn(token, self.index)
 
     def test_the_page_never_describes_disinterest_lateness_or_debt(self):

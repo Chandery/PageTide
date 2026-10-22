@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
+from recommendation_fixtures import SYNTHETIC_OA
 from app import maintenance
 from app.service import App
 
@@ -30,7 +31,7 @@ class SavedPapersAreNotCandidatesTests(unittest.TestCase):
 
     def paper(self, key, relation_kind=None):
         self.app.store.upsert_papers([{'key': key, 'title': f'World model paper {key}', 'published': '2026-01-01',
-            'abstract': 'A usable abstract about world model learning and prediction.', 'language': 'en',
+            'abstract': 'A usable abstract about world model learning and prediction.', 'language': 'en', 'oa': SYNTHETIC_OA,
             **({'relation_kind': relation_kind} if relation_kind else {})}], self.pid)
 
     def keys(self):

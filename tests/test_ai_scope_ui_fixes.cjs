@@ -20,7 +20,8 @@ test('actual guidance bubble shows saved sent excerpts and escapes untrusted con
   const html = render({role: 'assistant', content: 'Draft', scope_notice: 'Only the shown excerpt was sent.',
     context_excerpt: {goal: '<script>goal</script>', message: 'visible message', keywords: ['NSCLC', 'PD-1']}},
     {scope_notice: 'stale live receipt', context_excerpt: {goal: 'wrong goal'}});
-  assert.match(html, /本轮 AI 可见内容/);
+  assert.match(html, /AI 只看到部分内容/);
+  assert.doesNotMatch(html, /Only the shown excerpt was sent/);              // no standing paragraph
   assert.match(html, /&lt;script&gt;goal&lt;\/script&gt;/);
   assert.match(html, /visible message/);
   assert.match(html, /NSCLC · PD-1/);
@@ -28,25 +29,19 @@ test('actual guidance bubble shows saved sent excerpts and escapes untrusted con
 });
 test('guidance receipt supplements a current response and normal full inputs stay uncluttered', () => {
   assert.match(render({role: 'assistant', content: 'Draft'}, {scope_notice: 'excerpt only', context_excerpt: {goal: 'sent goal'}}), /sent goal/);
-  assert.doesNotMatch(render({role: 'assistant', content: 'Draft'}), /本轮 AI 可见内容/);
-  assert.doesNotMatch(render({role: 'user', content: 'Goal', scope_notice: 'unused'}), /本轮 AI 可见内容/);
+  assert.doesNotMatch(render({role: 'assistant', content: 'Draft'}), /AI 只看到部分内容/);
+  assert.doesNotMatch(render({role: 'user', content: 'Goal', scope_notice: 'unused'}), /AI 只看到部分内容/);
 });
-test('actual learning judgement shows quoted source type, optional relation and no HTML execution', () => {
-  const html = R.judgementsHTML({judgements: [{verdict: 'covered', titles: ['Public paper'], optional_relation: true,
-    source_evidence: [{paper: 'p1', title: 'Actual source title', quote: '<img src=x onerror=alert(1)> in vitro evidence', type: 'basic'}]}]});
-  assert.match(html, /基础实验/);
-  assert.match(html, /核对判断依据/);
-  assert.match(html, /Actual source title/);
-  assert.match(html, /可选任务/);
-  assert.match(html, /&lt;img/);
-  assert.doesNotMatch(html, /<img/);
-  assert.doesNotMatch(R.judgementsHTML({judgements: [{verdict: 'unclear', titles: ['Unknown'] }]}), /核对判断依据/);
+test('the judgement history is not drawn on the page, so no source prose can reach it', () => {
+  assert.equal(R.judgementsHTML({judgements: [{verdict: 'covered', titles: ['Public paper'], optional_relation: true,
+    source_evidence: [{paper: 'p1', title: 'Actual source title', quote: '<img src=x onerror=alert(1)> in vitro evidence', type: 'basic'}]}]}), '');
 });
 test('intro editing displays the sent matching papers and optional omission notice', () => {
   const html = R.introInputHTML({scope_notice: 'One optional paper omitted.',
     context_excerpt: {concept: 'PD-1', terms: ['PD-1'], goal: 'NSCLC project',
       papers: [{title: 'Public evidence', abstract: '<script>data</script>'}]}});
-  assert.match(html, /One optional paper omitted/);
+  assert.doesNotMatch(html, /One optional paper omitted/);
+  assert.match(html, /发送给 AI 的内容/);
   assert.match(html, /NSCLC project/);
   assert.match(html, /Public evidence/);
   assert.match(html, /&lt;script&gt;/);
@@ -63,16 +58,17 @@ test('actual quick creation live and restored notes share the same visible scope
     chineseLocale(context);vm.runInContext(helper + quick, context);
     const receipt = {scope_notice: 'Only this excerpt was sent.', context_excerpt: {goal: '<target>', keywords: ['NSCLC']}};
     context.renderQuickNote({role: 'assistant', content: 'Draft', ...(cold ? receipt : {})}, cold ? null : receipt);
-    assert.match(note.innerHTML, /Only this excerpt was sent/);
+    assert.doesNotMatch(note.innerHTML, /Only this excerpt was sent/);
     assert.match(note.innerHTML, /&lt;target&gt;/);
-    assert.match(note.innerHTML, /本轮 AI 可见内容/);
+    assert.match(note.innerHTML, /AI 只看到部分内容/);
   }
 });
 test('a paid unusable guidance reply retains cost transparency and the local draft', () => {
   const meta = source.slice(source.indexOf('function turnMeta(entry, live)'), source.indexOf('const retryable'));
   const context = vm.createContext({esc}); vm.runInContext(meta, context);
   const unknown = context.turnMeta({mode: 'local', usage_reserved: true, tokens: 1700, reason_text: 'Bad reply'}, null);
-  assert.match(unknown, /计费未确认/); assert.match(unknown, /保留本地草稿/);
-  assert.doesNotMatch(unknown, /1700 token|没有使用 AI/);
-  assert.match(context.turnMeta({mode: 'local', usage: {prompt_tokens: 20, completion_tokens: 10}}, null), /30 token/);
+  assert.match(unknown, /AI 回复不可用/); assert.match(unknown, /用量未确认/);
+  assert.doesNotMatch(unknown, /1700 token|未使用 AI/);
+  const plain = context.turnMeta({mode: 'local', reason_text: 'No key'}, null);
+  assert.match(plain, /未使用 AI/); assert.doesNotMatch(plain, /用量未确认/);
 });

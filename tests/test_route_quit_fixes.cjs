@@ -39,7 +39,7 @@ test('brief, in-editor text, pending intro and unconfirmed preview each require 
 test('save, grounding and AI judgement in flight cannot be abandoned by quit',async()=>{
   for(const code of ['state.busy=true','state.checking=true','growth.judging=true']){
     const h=setup();h.set(code);await h.quit();assert.equal(h.events.some(e=>e[0]==='quit'),false,code);
-    assert.match(h.node('notice').textContent,/当前操作/);
+    assert.match(h.node('notice').textContent,/正在处理，稍后再退出/);
   }
 });
 test('cancel or return to review leaves edits intact; only actual Save writes the graph',async()=>{
@@ -75,7 +75,7 @@ test('a new operation after opening quit choice blocks discard; native errors pr
   const h=setup();h.set('state.dirty=true');await h.quit();h.set('state.busy=true');await h.node('quitDiscard').onclick();
   assert.equal(h.events.some(e=>e[0]==='quit'),false);h.set('state.busy=false');
   h.window.__TAURI_INTERNALS__.invoke=async()=>{throw new Error('native refusal');};await h.node('quitDiscard').onclick();
-  assert.equal(h.set('state.dirty'),true);assert.match(h.node('notice').textContent,/应用保持打开/);
+  assert.equal(h.set('state.dirty'),true);assert.match(h.node('notice').textContent,/无法退出：native refusal/);
 });
 test('clean page exits once and duplicate requests do not double-complete',async()=>{
   const h=setup();let finish;h.window.__TAURI_INTERNALS__.invoke=cmd=>{h.events.push(['quit',cmd]);return new Promise(resolve=>{finish=resolve;});};

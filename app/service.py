@@ -349,8 +349,8 @@ class App:
                 n = need["sources"] - have["sources"]
                 missing.append(say(f"还差 {n} 个不同来源", f"{n} more different source{'s' if n != 1 else ''} needed"))
             if not gates["strength"]["ok"] and all(gates[k]["ok"] for k in ("papers", "positive", "sources")):
-                missing.append(say(f"这些论文的文字还不够集中、证据还不够多（强度 {have['strength']:.2f} / 需要 {need['strength']:.2f}）",
-                                   f"The papers do not read alike enough or the evidence is still thin (strength {have['strength']:.2f} / needs {need['strength']:.2f})"))
+                missing.append(say("这些论文的文字还不够集中、证据还不够多",
+                                   "The papers do not read alike enough or the evidence is still thin"))
             shown = c["positive"] + [k for k in c["papers"] if k not in c["positive"]]
             needs = [{"id": p["from"], "name": names[p["from"]], "support": p["support"]} for p in c["prereqs"] if p["from"] in names]
             parent = {"id": c["parent"], "name": names[c["parent"]]} if c.get("parent") in names else None
@@ -1065,7 +1065,7 @@ class App:
                   if route_revision._proves_relation(proofs.get((edge['from'], edge['to']), ''),
                        view.get('brief') or {}, nodes[edge['from']], nodes[edge['to']])]
         optional = [{'from': names.get(edge['from'], edge['from']), 'to': names.get(edge['to'], edge['to']),
-                     'why': '未确认 AI 草稿未提供可核的必要性短引，保留为可选关系'}
+                     'why': 'AI 草稿没有给出可核对的依据，保留为可选关系'}
                     for edge in graph['prereqs'] if edge not in proved]
         if not optional:
             return view
@@ -1120,7 +1120,7 @@ class App:
             state = self.store.get_setting(key) or {}
             plan, attempts = state.get("plan"), int(state.get("attempts") or 0)
             if plan and not regenerate and plan.get('operation', 'learning_path_plan') != 'learning_path_plan':
-                raise ValueError('需求合同已改变，请明确重新生成；之前草稿保留')
+                raise ValueError('需求已改变，请重新生成；之前的草稿保留')
             if plan and not regenerate:
                 plan = self._legacy_plan_view(plan)
                 return {"ok": True, "mode": "kept", "graph": plan["graph"], "report": plan.get("report"), "tokens": None,
@@ -1181,7 +1181,7 @@ class App:
         names = {node['id']: node['name'] for node in graph['concepts']}
         optional = [{'from': names.get(edge['from'], edge['from']),
                      'to': names.get(edge['to'], edge['to']),
-                     'why': '旧版 AI 合同未提供可核的必要性短引，保留为可选关系'}
+                     'why': '旧版 AI 草稿没有给出可核对的依据，保留为可选关系'}
                     for edge in graph['prereqs']]
         graph['prereqs'] = []
         if optional:
@@ -2152,7 +2152,7 @@ class App:
         if batch_id is not None:
             batch = self.library_import.batch(batch_id, limit=0)
             if batch["project_id"] != project_id:
-                raise ValueError("这个导入批次不属于这个项目")
+                raise ValueError("这次导入不属于这个项目")
             allowed = {placement["key"] for placement in self.library_import.placements(batch_id)}
         saved = self.saved_keys(project_id)
         for key in keys:
@@ -2515,8 +2515,8 @@ class App:
             code = None
             reason = ('AI connection succeeded.' if self.english() else 'AI 连接测试成功。')
             if unknown:
-                reason += (' Usage is not confirmed; the accounting reservation is retained.' if self.english()
-                           else ' 用量尚未确认，计量预留保留。')
+                reason += (' Usage is not confirmed; the record is kept.' if self.english()
+                           else ' 用量尚未确认，记录已保留。')
         elif result.get('tracking_failed'):
             code = 'accounting_failed'
             if not unknown:
@@ -2529,7 +2529,7 @@ class App:
                     _, provider_reason = creation.degrade_reason({'http_status': result['http_status']}, self.english())
                     reason = provider_reason + ' ' + reason
                 if receipt['usage_reserved']:
-                    reason += (' The recorded reservation is retained.' if self.english() else ' 已记录的预留仍保留。')
+                    reason += (' The recorded usage is kept.' if self.english() else ' 已记录的用量仍保留。')
         else:
             code, reason = creation.degrade_reason(result, self.english())
         if result.get('claim_release_failed'):
@@ -2675,9 +2675,7 @@ class App:
             if include_distractors:
                 raise ValueError('Route refresh is limited to three themes; turn Route off for distractor experiments')
             return self._refresh_route_candidates(project_id, route, from_date, per_page)
-        # Hotspot mode looks at the last 30 days unless the owner chose a time preference; an explicit search keeps the wide window.
-        from_date = from_date or (user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS)) if search
-                                  else user_settings.hotspot_since(self.data))
+        from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
         keywords = [] if search else self._project_keywords(project_id)[:3]
         field = []
         if keywords:
@@ -2747,12 +2745,17 @@ class App:
     def _paper_language(self, paper, digest=None, verification_budget=None):
         verified = bool(paper.get('verified_language') and paper.get('current_pdf_sha256')
                         and (digest if digest is not None else self._verified_pdf_digest(paper,eligibility.file_identity(paper.get('current_pdf_path')),verification_budget)) == paper['current_pdf_sha256'])
-        return {'metadata_language': paper.get('metadata_language'),
-                'metadata_source': paper.get('metadata_language_source'),
+        reported, source = paper.get('metadata_language'), paper.get('metadata_language_source')
+        if not paper_language.metadata_code(reported) and paper_language.abstract_language(paper.get('abstract')):
+            # The source said nothing (OpenAlex, for most arXiv preprints): a clearly English abstract stands in. Never
+            # overrides a report and is not stored; the title-script check below still guards a non-Latin title.
+            reported, source = 'en', 'abstract'
+        return {'metadata_language': reported,
+                'metadata_source': source,
                 'fulltext_language': paper.get('verified_language') if verified else None,
                 'fulltext_status': 'verified' if verified else 'unverified',
                 'verification_method': paper.get('verified_method') if verified else None,
-                **paper_language.title_metadata_evidence(paper.get('title'), paper.get('metadata_language'))}
+                **paper_language.title_metadata_evidence(paper.get('title'), reported)}
 
     def _check_matching_rows_current(self, rows):
         """Reject a derived response if its captured body changed during this request.
@@ -2910,8 +2913,8 @@ class App:
         except CompletedDiscoveryLimit as exc:
             return self._completed_result(exc.batch_id,project_id or self.get_default_project_id(),verification_budget)
         except RecommendationChanged:
-            reason = ('Papers, route, feedback or language settings changed; generate again' if self.english()
-                      else '论文、路线、反馈或语言设置已变化，请重新生成')
+            reason = ('Papers, learning map, feedback or language settings changed; generate again' if self.english()
+                      else '论文、学习图、反馈或语言设置已变化，请重新生成')
             return {'batch_id': None, 'cards': [], 'reason': reason, 'reason_code': 'recommendation_changed'}
 
     def saved_keys(self, project_id):
@@ -2983,7 +2986,7 @@ class App:
         saved = self.saved_keys(project_id)   # the person's own library is never offered back as new
         readable = lambda p: p['_eligibility']['eligible'] and p['key'] not in saved
         seeds=set(self.seed_keys(project_id))
-        since=user_settings.hotspot_since(self.data)
+        since=user_settings.since(self.data)
         in_time=lambda p: (not p.get("published") or str(p["published"]) <= eligibility_day) and (not since or str(p.get("published") or "") >= since)
         fresh = [p for p in papers if p["key"] not in seeds and in_time(p) and p["key"] not in seen and p["key"] not in feedback and readable(p)]    # never shown, never rated
         route = self._route_state(project_id,verification_budget=verification_budget)
@@ -2996,7 +2999,7 @@ class App:
         if route and route['goal_status']=='needs_review':
             return {'batch_id':None,'cards':[],'reason_code':'route_needs_review','reason':'Review the learning goal or prerequisites' if self.english() else '学习目标或前置关系需要检查','eligibility':snapshot}
         if route and route['goal_status']=='learning' and not route['frontier']:
-            return {'batch_id':None,'cards':[],'reason_code':'route_no_frontier','reason':'No learnable frontier; review the route' if self.english() else '当前没有可学习的前沿，请检查路线','eligibility':snapshot}
+            return {'batch_id':None,'cards':[],'reason_code':'route_no_frontier','reason':'No concept can be studied now; review the learning map' if self.english() else '现在没有可以学的概念，请检查学习图','eligibility':snapshot}
         if completed_day:
             run_date=completed_day
             existing=self._completed_batch(project_id,completed_day)
@@ -3011,12 +3014,11 @@ class App:
             shortfall = {"requested": limit, "available": len(pool), "candidates": len(papers),
                          "excluded_seen": sum(1 for p in papers if p["key"] in seen),
                          "excluded_feedback": sum(1 for p in papers if p["key"] in feedback and p["key"] not in seen),
-                         "reason": (f"Only {len(pool)} {'paper' if len(pool) == 1 else 'papers'} in the project pool "
-                                    f"{'is' if len(pool) == 1 else 'are'} neither shown nor rated"
-                                    if self.english() else f"项目候选池中只剩 {len(pool)} 篇未展示且未反馈的论文")}
+                         "reason": (f"Only {len(pool)} {'paper is' if len(pool) == 1 else 'papers are'} left that you have not seen or rated"
+                                    if self.english() else f"还没看过、也没反馈过的论文只剩 {len(pool)} 篇")}
 
         if not pool:
-            reason = ('No eligible route candidates' if self.english() else '路线没有符合条件的候选论文') if route else (('No eligible candidates' if self.english() else '没有符合条件的候选论文') if counts else 'no unseen candidates')
+            reason = ('No eligible candidates in the learning map' if self.english() else '学习图里没有符合条件的候选论文') if route else (('No eligible candidates' if self.english() else '没有符合条件的候选论文') if counts else ('No new candidates' if self.english() else '没有新的候选论文'))
             return {"batch_id": None, "cards": [], "reason": reason,"reason_code":"route_no_candidates" if route else "no_candidates", "shortfall": shortfall, 'eligibility': snapshot}
 
         # The profile is learned from labelled and seed papers, which the pool by definition excludes
@@ -3043,7 +3045,7 @@ class App:
                 shortage={'requested':target,'available':len(picks),'candidates':len(papers),'reason':reason}
             if not picks:
                 return {'batch_id':None,'cards':[],'reason_code':'route_no_candidates',
-                        'reason':shortage['reason'] if shortage else '路线没有符合条件的候选论文','shortfall':shortage,'eligibility':snapshot}
+                        'reason':shortage['reason'] if shortage else '学习图里没有符合条件的候选论文','shortfall':shortage,'eligibility':snapshot}
             names={c['id']:(c['name'],route['layers'][c['id']]) for c in route['graph']['concepts']}
             batch_id=self._create_eligible_batch(run_date,[k for k,_,_,_ in picks],project_id,policy,papers,
                 route={k:(node,kind)+(names.get(node,(None,None)) if label is None else (label,None)) for k,node,kind,label in picks},
@@ -3118,7 +3120,7 @@ class App:
             if paper.get("topic"):
                 parts.append(f"领域：{paper['topic']}")
             if pinned:
-                parts.append("命中钉死关键词：" + ", ".join(pinned))
+                parts.append("命中你固定的关键词：" + ", ".join(pinned))
             if nearest_label:
                 parts.append(f"与{nearest_label}方向接近")
             if shared:

@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 from datetime import datetime, timezone
 
+from recommendation_fixtures import SYNTHETIC_OA
 from app import maintenance
 from app.service import App
 
@@ -28,7 +29,7 @@ class EligibilityTests(unittest.TestCase):
 
     def paper(self, key, language='en', abstract='A usable abstract about world model learning and prediction.', **extra):
         self.app.store.upsert_papers([{'key': key, 'title': 'An English world model title',
-            'abstract': abstract, 'published': '2026-01-01', 'language': language, **extra}], self.pid)
+            'abstract': abstract, 'published': '2026-01-01', 'language': language, 'oa': SYNTHETIC_OA, **extra}], self.pid)
 
     def pdf(self, key, suffix='first'):
         path = self.data / (key + suffix + '.pdf')

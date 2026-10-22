@@ -1,3 +1,13 @@
+# 当前工作单元：界面留白优先 + 推荐池规则（2026-10-22）
+
+在 worktree `preview-both` 上完成，基线 `a6f45b7`（换肤 + 学习图 beta 开关的预览合并），owner 于 2026-10-22 要求合并到 main 并构建 app。[变更记录](../changes/2026-10-22-minimal-ui-pool.json)，[ADR 0036](decisions/0036-minimal-surface-and-recommendation-pool.md)，[检查证据](evidence/2026-10-22-minimal-ui-pool-checks.txt)，[自审](evidence/2026-10-22-minimal-ui-pool-self-review.md)（非独立审查；类别 critical，发布前需要独立审查）。
+
+内容：界面不放诊断、机制说明、计数和提示段落（界面文字 1525 → 1132 条），只留操作、简短状态、真实错误和几条影响判断的提示（AI 动作上的成本/隐私一句、"AI 只看到部分内容"、"另带上了 N 项"、"用量未确认"）。推荐池：没有 PDF 来源的不推荐；热点模式近期只是权重；来源没报语言时摘要明显是英文就算英文。后者修复了 owner 真实库上"没有符合条件的候选论文"（世界模型(main) 可推荐 0 → 405）。
+
+待办：owner 的正式设置里时间偏好仍是"最近 1 周"（疑似 10 月 9 日旧设置页默认值误存），需要在设置里改为"所有时间"。学习图页（beta 打开时）与导入各步骤只有测试覆盖，没在浏览器里看过。
+
+---
+
 # 当前工作单元：界面换肤，冷灰底 + 白卡片 + 蓝色强调（2026-10-22）
 
 分支 `ui-elavatine`，隔离 worktree `.claude/worktrees/ui-elavatine`，基线 main `0c288b3`，未推送、未合并、未构建 `.app`（另有 agent 可能在测主目录的构建）。owner 嫌原来的米色/衬线/书签红风格像某个助手产品，给了另一款 app 的截图作参照，要求简约、有质感；试过靛紫、青碧、森绿、石墨、玫红后选回蓝色。[变更记录](../changes/2026-10-22-ui-restyle.json)，任务 `PILOT-01`。
@@ -12,11 +22,11 @@
 
 分支 `route-beta-switch`，隔离 worktree `.claude/worktrees/route-beta-switch`，基线 main `0c288b3`，未推送、未合并、未构建 `.app`（另有 agent 可能在测主目录的构建）。owner 要求把学习图整套框架放进设置“打开学习图模式（beta）”，只有打开后才能在主页选学习图模式，默认用热点模式（按画像推最新论文），并确认了隐藏范围与默认值。任务 `FEAT-ROUTE-BETA-SWITCH` 状态 review；[变更记录](../changes/2026-10-22-route-beta-switch.json)，[ADR 0035](decisions/0035-route-beta-switch-hotspot-default.md)，[检查证据](evidence/2026-10-22-route-beta-checks.txt)，[自审](evidence/2026-10-22-route-beta-self-review.md)（非独立审查）。
 
-行为：设置键 `routeBeta` 默认关。`_route_state()` / `home_route()` 关闭时返回 `None`，所以推荐、刷新、每日维护一律走热点模式；已建的图、进度与手动标记原样保留，打开后恢复。热点模式是现有非学习图排序，零模型调用，owner 没设置时默认最近 30 天、新论文权重 0.5。服务端在每个 HTML 页的 `<head>` 注入 `window.PDH_ROUTE_BETA`，带 `data-route-beta` 的元素关闭时隐藏；主页、项目创建、项目页、论文库图谱、论文详情、画像、周报、学习图页都已处理。预算：不新增模型调用、额度或外发字段。
+行为：设置键 `routeBeta` 默认关。`_route_state()` / `home_route()` 关闭时返回 `None`，所以推荐、刷新、每日维护一律走热点模式；已建的图、进度与手动标记原样保留，打开后恢复。热点模式是现有非学习图排序，零模型调用，新论文权重默认 0.5、不设时间截止（没有新论文就推旧的；owner 明确选了时间窗口才限定）。服务端在每个 HTML 页的 `<head>` 注入 `window.PDH_ROUTE_BETA`，带 `data-route-beta` 的元素关闭时隐藏；主页、项目创建、项目页、论文库图谱、论文详情、画像、周报、学习图页都已处理。预算：不新增模型调用、额度或外发字段。
 
 验证：失败先行回归，Python 全量与 Node 全量通过；用合成数据在真实浏览器里看过关、开两种状态。为让默认关闭不打破旧测试，旧测试的夹具显式写出 owner 的设置（`tests/recommendation_fixtures.py` 的 `legacy_recommendation_settings`），三个断言旧默认窗口的测试改为断言热点默认。
 
-未验证与限制：30 天 / 0.5 只是默认值，推荐质量未评估；论文库图谱和周报没有用真实内容在浏览器里看过；已打开的页面要刷新才感知开关；AI 引导回复可能仍带回学习图，页面忽略不存。合并提示：与分支 `ui-elavatine`（界面换肤）会在 `app/static/settings.html`、`app/static/i18n/en-US.json`、`docs/HANDOFF.md`、`harness/tasks.json` 上有文本冲突，保留双方即可。
+未验证与限制：权重 0.5 只是默认值，推荐质量未评估；论文库图谱和周报没有用真实内容在浏览器里看过；已打开的页面要刷新才感知开关；AI 引导回复可能仍带回学习图，页面忽略不存。合并提示：与分支 `ui-elavatine`（界面换肤）会在 `app/static/settings.html`、`app/static/i18n/en-US.json`、`docs/HANDOFF.md`、`harness/tasks.json` 上有文本冲突，保留双方即可。
 
 ---
 

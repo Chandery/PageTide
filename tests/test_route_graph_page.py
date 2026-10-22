@@ -49,12 +49,11 @@ class NoLayersWordingTests(unittest.TestCase):
         self.assertNotIn("route.layer", badge)
         self.assertNotIn("层", badge)
 
-    def test_the_map_is_explained_as_arrows_between_concepts_not_stages(self):
+    def test_the_map_carries_no_standing_explanation_of_arrows_or_stages(self):
         for name in ("route.html", "project-creation.js"):
             text = read(name)
-            self.assertIn("箭头", text)
-            self.assertIn("不同分支互不等待", text)
-        self.assertIn("不是必须读完一整层", read("route.html"))
+            self.assertNotIn("不同分支互不等待", text)
+        self.assertNotIn("不是必须读完一整层", read("route.html"))
 
     def test_no_lateness_or_debt_wording_on_the_new_pages(self):
         for name in PAGES:
@@ -75,10 +74,11 @@ class AiOnlyOnClickTests(unittest.TestCase):
         self.assertNotIn("action: 'plan'", js)
         self.assertNotIn("generateBrief()", js[:js.index("function defaultGoal")])
 
-    def test_the_disclosure_explains_full_map_scope_and_confirmation(self):
+    def test_the_disclosure_is_one_short_phrase_not_a_scope_paragraph(self):
         html = read("route.html")
-        for needle in ("五字段", "完整有界学习图", "不发送论文、笔记、画像、反馈或其他项目", "本地日", "预览确认"):
-            self.assertIn(needle, html)
+        self.assertIn("五项需求", html)
+        for gone in ("完整学习图", "不发送论文、笔记、画像、反馈或其他项目", "本地日", "预览确认"):
+            self.assertNotIn(gone, html)
 
     def test_the_server_only_plans_on_post(self):
         server = (ROOT / "app" / "server.py").read_text(encoding="utf-8")
@@ -101,10 +101,11 @@ class DraftSafetyTests(unittest.TestCase):
         self.assertIn("action: 'revision-confirm', draft_id: preview.draft_id", js)
         self.assertIn("state.preview = out.preview", js)
 
-    def test_unapproved_scope_is_explained_and_teacher_input_retained(self):
+    def test_unapproved_scope_is_reported_in_a_short_notice(self):
         js = read("route-page.js")
         self.assertIn("reason_code === 'not_approved'", js)
-        self.assertIn("需求和草稿已保留", js)
+        self.assertIn("AI 范围尚未批准", js)
+        self.assertNotIn("需求和草稿已保留", js)
 
     def test_a_redraw_keeps_zoom_scroll_and_focus_and_does_not_drop_a_half_typed_edit(self):
         for name, holder in (("route-page.js", "state"), ("project-creation.js", "map")):
@@ -220,10 +221,11 @@ class ProjectPageTests(unittest.TestCase):
         out = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True).stdout
         self.assertEqual(json.loads(out), [True, False, False, False, False, False])
 
-    def test_the_page_says_what_is_removed_and_what_is_kept_and_that_a_backup_is_made(self):
+    def test_the_delete_section_asks_for_the_name_without_a_what_is_removed_paragraph(self):
         html = read("project.html")
-        for needle in ("推荐记录", "学习图", "已下载的 PDF", "别的项目也不受影响", "数据库备份"):
-            self.assertIn(needle, html)
+        self.assertIn("输入项目名称确认删除", html)
+        for gone in ("推荐记录", "已下载的 PDF", "别的项目也不受影响", "备份"):
+            self.assertNotIn(gone, html)
 
     def test_entry_points_exist(self):
         index = read("index.html")

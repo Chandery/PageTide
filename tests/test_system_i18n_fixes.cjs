@@ -60,22 +60,22 @@ const entry={key:'paper',title:'收藏',kind:'positive',action:'useful',publishe
 const fixture=()=>({coverage:{start:'2026-09-01',end:'2026-10-08',last_activity:null},signals:{saved:2,positive:1,negative:1,too_hard:1},timeline:{weeks:[{start:'2026-10-01',end:'2026-10-08',saved:2,positive:1,negative:1,too_hard:1,exposed:2,activity:7}]},keyword_distribution:[{term:'有用',documents:2,sources:['seed','useful_feedback']}],keyword_evidence:{papers:2},inventory_distribution:[{term:'种子'}],inventory_evidence:{papers:1},weekly_change:{week_start:'2026-10-01',week_end:'2026-10-08',stats:{saved:2,positive:1},previous_stats:{saved:1},has_activity:true,comparable:true,keyword_changes:{rising:[{term:'收藏',delta:1}],falling:[]}},recent_feedback:[entry],versions:[{id:1,created_at:'2026-10-01',data:{pinned_terms:['有用']}}]});
 function profile(b){const page=b.context.PDHProfile.create(b.root,{api:async()=>({items:[entry],total:1}),refresh(){},projectName:()=> '有用',openPaper(){},notify(){}});page.render(fixture(),{project_id:'p',pinned_terms:['收藏'],frozen:false},'有用');return page;}
 
-test('actual recommendation cards preserve original titles and label source reports and language conflicts in both interfaces',()=>{
+test('actual recommendation cards preserve original titles and show no source-report language lines in either interface',()=>{
   for(const lang of ['zh-CN','en-US']){
     const b=browser(lang),src=read('index.html');vm.runInContext(read('paper-policy.js'),b.context);
     Object.assign(b.context,{esc:b.context.PDHProfile.esc,state:{triaging:false,triagingKeys:new Set(),currentProject:'p'},pdfBadge:()=>'',routeBadge:()=>'',explorationEvidence:()=>'',aiSlot:()=>'<b>AI 速览</b><span data-no-i18n>AI 中文解释</span>'});
     vm.runInContext(src.slice(src.indexOf('function cardHTML('),src.indexOf('function renderCards(')),b.context);
     b.root.innerHTML=b.context.cardHTML({key:'paper',title:'中文原始题名',language:{metadata_language:'en',metadata_source:'OpenAlex',fulltext_status:'unverified',title_metadata_conflict:true},why:''},0);b.flush();
-    assert.equal(b.root.querySelector('.paper-title').textContent,'中文原始题名');assert.match(b.text(),/OpenAlex/);assert.match(b.text(),/AI 中文解释/);
-    if(lang==='en-US'){assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());assert.match(b.text(),/Source-reported language: English/);assert.match(b.text(),/title.*source.*report/i);}
-    else{assert.match(b.text(),/来源报告语言：英文/);assert.match(b.text(),/全文语言未核验/);assert.match(b.text(),/题名文字与英文来源报告不一致/);}
+    assert.equal(b.root.querySelector('.paper-title').textContent,'中文原始题名');assert.match(b.text(),/AI 中文解释/);assert.doesNotMatch(b.text(),/OpenAlex|来源报告语言|全文语言未核验|题名文字与英文来源报告不一致|Source-reported language|Full-text language|title.*source.*report/i);
+    if(lang==='en-US')assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());
   }
 });
 
 test('actual profile feedback rows, source labels and composite statistics render in English',()=>{
   const b=browser('en-US');profile(b);b.flush();
   assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());
-  assert.match(b.text(),/Useful/);assert.match(b.text(),/current feedback:|Current feedback:/);assert.match(b.text(),/Useful feedback/);assert.match(b.text(),/Too hard/);
+  assert.match(b.text(),/Useful/);assert.match(b.text(),/Useful · 2026-10-08/);assert.doesNotMatch(b.text(),/current feedback:/i);assert.match(b.text(),/Useful rate/);assert.match(b.text(),/Too hard/);
+  assert.equal(b.root.querySelector('.profile-term').getAttribute('title'),'Source: Seed / Useful feedback');
 });
 test('profile protects CJK user titles, project names, keywords and feedback reasons even if they equal UI labels',()=>{
   const b=browser('en-US');profile(b);b.flush();
@@ -89,7 +89,7 @@ test('actual profile evidence drawer and rerender switch system language while p
   await b.listeners.get('click')({target:{closest:()=>button}});b.flush();
   assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());assert.match(b.text(),/收藏/);
   b.language('zh-CN');page.render(fixture(),{project_id:'p',pinned_terms:['收藏'],frozen:false},'有用');b.flush();
-  assert.match(b.text(),/当前反馈：/);assert.match(b.text(),/有用率/);assert.match(b.text(),/收藏/);
+  assert.match(b.text(),/有用 · 2026-10-08/);assert.doesNotMatch(b.text(),/当前反馈：/);assert.match(b.text(),/有用率/);assert.match(b.text(),/收藏/);
 });
 
 test('profile empty, frozen and all explicit feedback kinds keep their system labels in English',()=>{
@@ -128,13 +128,16 @@ test('actual import row errors translate defaults and saved identity warnings wh
   b.root.innerHTML=b.context.renderRow({id:3,state:'failed',relative_path:'收藏.pdf',error:'条目 <img src=x onerror=1> 没有标题'});b.flush();
   assert.equal(b.root.querySelector('img'),null);assert.match(b.root.querySelector('.err').textContent,/Entry <img src=x onerror=1> has no title/);
 });
-test('actual saved scope notices translate after English reload and retain exact source excerpts',()=>{
+test('actual intro-input excerpts translate their labels and stay exact; a partial-input receipt is one folded line',()=>{
   const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.esc=b.context.PDHProfile.esc;
   b.root.innerHTML=b.context.PDHRoute.introInputHTML({scope_notice:'部分匹配论文因本次预算未发送；简介只依据下列节选起草。',context_excerpt:{concept:'收藏',terms:['有用'],goal:'种子',papers:[{title:'太难',abstract:'不相关'}]}});b.flush();
-  assert.doesNotMatch(b.root.querySelector('.map-note').textContent,/[㐀-鿿]/);assert.match(b.text(),/收藏/);assert.match(b.text(),/不相关/);
+  assert.equal(b.root.querySelector('.map-note'),null);assert.doesNotMatch(b.text(),/部分匹配论文因本次预算未发送|Some matched papers/);
+  assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());assert.match(b.text(),/收藏/);assert.match(b.text(),/不相关/);
   const src=read('project-creation.js');vm.runInContext(src.slice(src.indexOf('function guidanceScopeHTML('),src.indexOf('function bubble(')),b.context);
   b.root.innerHTML=b.context.guidanceScopeHTML({scope_notice:'AI 只看到了下列节选，完整目标和消息仍保存在本地。确认前请核对未发送的限制，或缩短输入后再引导。',context_excerpt:{goal:'收藏',message:'有用',keywords:['种子']}},null);b.flush();
-  assert.doesNotMatch(b.root.querySelector('.meta').textContent,/[㐀-鿿]/);assert.match(b.text(),/收藏/);assert.match(b.text(),/有用/);
+  assert.match(b.systems(),/AI saw only part of the input/);assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());   // one folded line, translated
+  assert.doesNotMatch(b.text(),/完整目标和消息仍保存在本地|still saved locally/);                                  // no standing notice
+  assert.match(b.text(),/收藏/);assert.match(b.text(),/有用/);assert.match(b.text(),/种子/);                          // the excerpts stay exact
 });
 test('actual learning-map undo describes the fixed system event in the current language',()=>{
   const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.R=b.context.PDHRoute;b.context.esc=b.context.PDHProfile.esc;
@@ -156,9 +159,9 @@ test('actual library project tags and paper selectors retain user names in text 
   ui.S.scope='p';ui.S.root=b.root;b.root.innerHTML='<div class="org-bulk"></div><div class="org-list"></div>';
   ui.renderList();b.flush();
   const selected=b.root.querySelector('[data-select-key]');assert.equal(selected.getAttribute('aria-label'),'Select 收藏');
-  const tag=b.root.querySelector('.is-current');assert.equal(tag.getAttribute('title'),'Saved in project: 有用');assert.equal(tag.textContent,'有用');
+  const tag=b.root.querySelector('.is-current');assert.equal(tag.getAttribute('title'),null);assert.equal(tag.textContent,'有用');
   const also=b.root.querySelector('.is-also');assert.equal(also.getAttribute('title'),'收藏');assert.match(also.textContent,/Also in:收藏/);
-  const understood=b.root.querySelector('[data-action="understood"]');assert.match(understood.getAttribute('title'),/recorded in project “有用”/);
+  const understood=b.root.querySelector('[data-action="understood"]');assert.equal(understood.getAttribute('data-project'),'p');assert.equal(understood.getAttribute('title'),null);assert.doesNotMatch(understood.textContent,/[㐀-鿿]/);
 });
 test('actual library undo handles fixed event labels in both languages',()=>{
   const b=browser('en-US'),ui=organization(b);b.root.innerHTML=ui.undoHTML({id:2,label:'保存学习路径'});b.flush();
@@ -182,7 +185,7 @@ test('actual sidecar upload and creation failure row use typed system errors and
   b.context.api=async()=>({entries:2,with_files:1,errors:['第 2 条记录没有标题','条目 收藏 没有标题']});b.context.batchUrl=()=>'/local-test';
   vm.runInContext(src.slice(src.indexOf('const systemError ='),src.indexOf('\nfunction fail('))+'\n'+src.slice(src.indexOf('async function uploadSidecar('),src.indexOf('async function uploadOne(')),b.context);
   await b.context.uploadSidecar({sidecars:[{format:'ris',file:{name:'收藏.ris'}},{format:'bibtex',file:{name:'有用.bib'}}]});b.flush();
-  assert.match(b.text(),/Record 2 has no title/);assert.match(b.text(),/Entry 收藏 has no title/);assert.match(b.text(),/有用.bib/);
+  assert.match(b.text(),/Record 2 has no title/);assert.match(b.text(),/Entry 收藏 has no title/);assert.doesNotMatch(b.text(),/\.ris|\.bib/);
   const creation=read('project-creation.js');vm.runInContext(creation.slice(creation.indexOf('function seedRow('),creation.indexOf('function seedUpdate(')),b.context);
   b.context.seedRow({id:1,kind:'pdf',status:'failed',filename:'收藏.pdf',error:'第 3 条记录缺少 ER 结束标记，已跳过'});b.flush();
   assert.doesNotMatch(b.root.querySelector('.bad').textContent,/[㐀-鿿]/);assert.match(b.text(),/Record 3 has no ER ending marker/);assert.match(b.text(),/收藏.pdf/);
@@ -196,15 +199,15 @@ test('actual library category names stay original in directory, breadcrumb and d
   assert.equal(b.root.querySelector('.org-breadcrumb').textContent,'收藏');
   assert.equal(b.root.querySelector('.org-directory-name').getAttribute('title'),'收藏');
   assert.equal(b.root.querySelector('.org-detail-badge').textContent,'收藏');
-  assert.equal(b.root.querySelector('.org-detail-badge').getAttribute('title'),'View category: 收藏');
+  assert.equal(b.root.querySelector('.org-detail-badge').getAttribute('data-id'),'d');assert.equal(b.root.querySelector('.org-detail-badge').getAttribute('title'),null);
   assert.ok(b.root.querySelectorAll('.org-tags')[0].textContent.includes('收藏'));
 });
 
-test('actual persisted import rejection describes an unregistered file without claiming no transmission',()=>{
+test('actual persisted import rejection reports a file that failed to save, without claiming no transmission',()=>{
   const b=browser('en-US'),src=read('import.js');b.context.esc=b.context.PDHProfile.esc;b.context.$=selector=>b.root.querySelector(selector);
   b.root.innerHTML='<section id="failedBox"><p id="failedText"></p><ul id="failedList"></ul><button id="addMore"></button></section>';
   b.context.S={uploadFailed:[],batch:{id:'b',upload_failures:[{path:'收藏.pdf',message:'这不是 PDF 文件'}],counts:{failed:0}}};
   vm.runInContext(src.slice(src.indexOf('const systemError ='),src.indexOf('\nfunction fail('))+'\n'+src.slice(src.indexOf('function renderFailedUploads()'),src.indexOf('function renderCategories(')),b.context);
-  b.context.renderFailedUploads();b.flush();assert.match(b.root.querySelector('#failedText').textContent,/not saved as (?:an import item|import items)/);assert.doesNotMatch(b.text(),/not uploaded|not transmitted/);assert.match(b.text(),/收藏.pdf/);assert.match(b.text(),/not a PDF file/);
-  b.language('zh-CN');b.context.renderFailedUploads();b.flush();assert.match(b.root.querySelector('#failedText').textContent,/未保存为导入条目/);assert.doesNotMatch(b.text(),/未上传/);
+  b.context.renderFailedUploads();b.flush();assert.match(b.root.querySelector('#failedText').textContent,/failed to save/);assert.doesNotMatch(b.text(),/not uploaded|not transmitted/);assert.match(b.text(),/收藏.pdf/);assert.match(b.text(),/not a PDF file/);
+  b.language('zh-CN');b.context.renderFailedUploads();b.flush();assert.match(b.root.querySelector('#failedText').textContent,/保存失败/);assert.doesNotMatch(b.text(),/未上传/);
 });

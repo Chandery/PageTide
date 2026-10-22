@@ -12,7 +12,7 @@
     try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback; }
     catch { return fallback; }
   };
-  const PAPER_HINT = '点击类别定位 · 点击论文查看详情 · 滚轮缩放 / 拖动画布 · 缩小时收起标签，选中或悬停查看题名';
+  const PAPER_HINT = '';
   const $ = selector => S.root.querySelector(selector);
   const icons = { undo: 'undo-2', export: 'download', fit: 'maximize', rearrange: 'grid-2x2', 'zoom-in': 'plus', 'zoom-out': 'minus', 'direction-new': 'plus', collapse: 'chevron-down', 'direction-edit': 'pencil', 'category-child': 'plus', 'direction-delete': 'x', 'direction-up': 'arrow-up', 'direction-down': 'arrow-down', 'detail-close': 'x', 'dialog-close': 'x', history: 'history', 'note-save': 'check' };
   const button = (action, label, symbol, extra = '') => `<button type="button" data-action="${action}" title="${h(label)}" aria-label="${h(label)}" ${extra}><img class="org-icon" src="/icons/org/${icons[action] || 'pencil'}.svg" width="16" height="16" alt=""></button>`;
@@ -67,7 +67,7 @@
       ?? (S.scope !== 'all' && owners(p).includes(S.scope) ? S.scope : owners(p).includes(currentProject()) ? currentProject() : owners(p).length === 1 ? owners(p)[0] : null);
     if (project) return window.PDH.openReader(p.key, p.title, project);
     if (!owners(p).length) return window.PDH.openReader(p.key, p.title, null);
-    dialog('选择阅读会话的项目', `<p>这篇论文属于多个项目，请选择本次阅读和问答的项目。顶部项目保持原样。</p><label>项目<select name="reading-project">${owners(p).map(id => `<option value="${h(id)}">${h(projectName(id))}</option>`).join('')}</select></label>`, '开始阅读', async el => {
+    dialog('选择阅读会话的项目', `<label>项目<select name="reading-project">${owners(p).map(id => `<option value="${h(id)}">${h(projectName(id))}</option>`).join('')}</select></label>`, '开始阅读', async el => {
       const selected = el.querySelector('[name=reading-project]').value;
       if (!owners(p).includes(selected)) throw new Error('论文不属于当前项目');
       await window.PDH.openReader(p.key, p.title, selected);
@@ -109,8 +109,8 @@
   }
   function projectTags(p, snapshot = S.snapshot, scope = S.scope, current = currentProject()) {
     const list = owners(p);
-    if (!list.length) return '<span class="org-proj is-none" title="只在旧的全局收藏里，没有归到任何项目">未归项目</span>';
-    const tag = (id, cls) => `<span class="org-proj ${cls}" data-no-i18n title="${h(systemLabel('收藏于项目：{project}', {project:projectName(id, snapshot)}))}"><span data-no-i18n>${h(projectName(id, snapshot))}</span></span>`;
+    if (!list.length) return '<span class="org-proj is-none">未归项目</span>';
+    const tag = (id, cls) => `<span class="org-proj ${cls}" data-no-i18n><span data-no-i18n>${h(projectName(id, snapshot))}</span></span>`;
     if (scope === 'all' || !scope) return list.map(id => tag(id, id === current ? 'is-current' : 'is-other')).join('');
     const others = list.filter(id => id !== scope);
     return (list.includes(scope) ? tag(scope, 'is-current') : '') + (others.length ? `<span class="org-proj is-also" data-no-i18n title="${h(others.map(id => projectName(id, snapshot)).join('、'))}">${h(systemLabel('也在：'))}<span data-no-i18n>${h(others.map(id => projectName(id, snapshot)).join('、'))}</span></span>` : '');
@@ -154,11 +154,11 @@
   function report(error) { S.error = error.message || String(error); status(); window.PDH.toast(S.error, 'error'); }
   function status() {
     const node = $('[data-status]');
-    if (node) { node.classList.toggle('org-error', !!S.error); node.textContent = S.error || (S.pending ? '正在保存…' : S.notice || `${scoped().length} 篇论文 · ${S.snapshot.directions.length} 个方向${S.scope !== 'all' ? ` · ${projectName(S.scope)}` : ''}`); }
+    if (node) { node.classList.toggle('org-error', !!S.error); node.textContent = S.error || (S.pending ? '正在保存…' : S.notice || ''); }
   }
   function accept(data) {
     const snap = data.snapshot || data;
-    if (!Array.isArray(snap.items) || !Array.isArray(snap.directions)) throw new Error('组织数据格式不完整，请刷新重试');
+    if (!Array.isArray(snap.items) || !Array.isArray(snap.directions)) throw new Error('数据不完整，请刷新重试');
     if (S.relationsCorpus !== JSON.stringify(snap.items.map(p => [p.key,p.title,p.abstract,p.topic]))) S.relations = null;
     if (graphSignature(S.snapshot) !== graphSignature(snap)) S.positions = {};
     S.snapshot = snap;
@@ -213,12 +213,12 @@
   }
   function cacheDraft(key, draft) {
     try { localStorage.setItem(`pdh.organization.note:${key}`, JSON.stringify({ text: draft.text, version: draft.version, dirty: draft.dirty, recovered: !!draft.recovered, client: draft.client, serverVersion: draft.serverVersion, variants: draft.variants || [] })); }
-    catch (_) { S.error = '本地草稿存储不可用，请保持页面打开并保存笔记'; status(); }
+    catch (_) { S.error = '草稿无法存到本地'; status(); }
   }
   function storeDraft(key, draft) {
     cacheDraft(key, draft);
     clearTimeout(draft.remoteTimer);
-    if (draft.dirty) draft.remoteTimer = setTimeout(() => persistDraft(key).catch(error => { draft.error = `草稿未持久保存：${error.message}`; noteStatus(key); }), 250);
+    if (draft.dirty) draft.remoteTimer = setTimeout(() => persistDraft(key).catch(error => { draft.error = `草稿未保存：${error.message}`; noteStatus(key); }), 250);
   }
   async function persistDraft(key) {
     const draft = S.drafts.get(key); clearTimeout(draft.remoteTimer);
@@ -230,7 +230,7 @@
     const draft = S.drafts.get(key);
     if (!draft?.dirty || draft.saving) return;
     clearTimeout(draft.timer);
-    if (draft.recovered) { draft.error = '已恢复草稿，请先比较最新笔记并确认保存'; noteStatus(key); return; }
+    if (draft.recovered) { draft.error = '已恢复草稿，请先比较再保存'; noteStatus(key); return; }
     draft.saving = true; draft.error = '';
     const text = draft.text;
     noteStatus(key);
@@ -241,7 +241,7 @@
       draft.dirty = draft.text !== text;
       if (!draft.dirty) await mutate({ action: 'draft-clear', key, client: draft.client, version: draft.serverVersion }, false);
       storeDraft(key, draft);
-    } catch (error) { draft.error = `${error.message}。草稿已保留；可查看历史，或刷新后比较版本。`; }
+    } catch (error) { draft.error = error.message; }
     finally {
       draft.saving = false; noteStatus(key);
       if (draft.dirty && !draft.error) draft.timer = setTimeout(() => saveNote(key), 700);
@@ -251,9 +251,9 @@
     if (S.key !== key) return;
     const draft = S.drafts.get(key), node = $('[data-note-status]');
     if (node) {
-      node.textContent = draft.error || (draft.recovered ? '已恢复草稿，请先比较最新笔记并确认保存' : draft.saving ? '正在保存…' : draft.dirty ? '草稿未保存' : '已保存'); node.classList.toggle('org-error', !!draft.error);
+      node.textContent = draft.error || (draft.recovered ? '已恢复草稿，请先比较再保存' : draft.saving ? '正在保存…' : draft.dirty ? '草稿未保存' : '已保存'); node.classList.toggle('org-error', !!draft.error);
       if (draft.dirty && (draft.recovered || draft.error || draft.version !== item(key)?.note_version)) {
-        const retry = document.createElement('button'); retry.type = 'button'; retry.dataset.action = 'note-rebase'; retry.textContent = '比较最新版本并重试'; node.appendChild(retry);
+        const retry = document.createElement('button'); retry.type = 'button'; retry.dataset.action = 'note-rebase'; retry.textContent = '比较并重试'; node.appendChild(retry);
       }
       if (draft.variants?.length) { const choose = document.createElement('button'); choose.type = 'button'; choose.dataset.action = 'draft-choose'; choose.textContent = '恢复其他草稿'; node.appendChild(choose); }
     }
@@ -261,7 +261,7 @@
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
     S.root.classList.add('pdh-organization');
-    S.root.innerHTML = `<header class="org-toolbar"><h2>论文库</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">列表</button><button role="tab" data-action="graph">图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest"><img src="/icons/sparkles.svg" alt="">整理分类</button><button data-action="import"><img src="/icons/folder-open.svg" alt="">导入论文</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><details class="org-route-unmatched" data-route-unmatched hidden></details><div class="org-graph-hint">${PAPER_HINT}</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
+    S.root.innerHTML = `<header class="org-toolbar"><h2>论文库</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">列表</button><button role="tab" data-action="graph">图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest" title="调用 AI，只发送标题、摘要片段和类别名"><img src="/icons/sparkles.svg" alt="">整理分类</button><button data-action="import"><img src="/icons/folder-open.svg" alt="">导入论文</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><details class="org-route-unmatched" data-route-unmatched hidden></details><div class="org-graph-hint">${PAPER_HINT}</div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = event => {
       const menu = event.target.closest('.org-category-menu'), b = event.target.closest('[data-action]');
       S.root.querySelectorAll('.org-category-menu[open]').forEach(other => { if (other !== menu || b) other.open = false; });
@@ -296,9 +296,9 @@
     const hiddenOther = otherProjectCategories(), rows = treeRows().filter(d => S.showOther || !hiddenOther.has(String(d.id)));
     const items = scoped();
     const count = id => { const ids = categoryIds(id); return items.filter(p => memberships(p).some(m => ids.has(m))).length; };
-    const crossBadge = id => { const st = categoryStats(id); return st.cross ? `<em class="org-cross" data-no-i18n title="${h(systemLabel('这个类别里有多个项目的论文：{projects}', {projects:Object.entries(st.perProject).map(([pid, n]) => `${projectName(pid)} ${n}`).join('、')}))}">${h(systemLabel('跨项目'))}</em>` : ''; };
-    const tabs = `<div class="org-projects-panel" role="tablist" aria-label="项目"><div class="org-section-head"><h3>项目</h3></div>${projectTabs().map(t => `<button type="button" role="tab" class="org-ptab ${t.active ? 'is-active' : ''}" aria-selected="${t.active}" data-action="project-tab" data-scope="${h(t.id)}" title="${h(t.id === 'all' ? '所有项目收藏的论文' : '只看这个项目收藏的论文')}"><span class="org-ptab-name" ${t.id === 'all' ? '' : 'data-no-i18n'}>${h(t.name)}</span>${t.current ? '<i class="org-ptab-now" title="当前项目"></i>' : ''}<small>${t.count}</small></button>`).join('')}</div>`;
-    const otherNote = hiddenOther.size ? `<button type="button" class="org-other-cats" data-action="toggle-other-cats">${S.showOther ? '收起只在其他项目的类别' : `另有 ${hiddenOther.size} 个类别只在其他项目`}</button>` : '';
+    const crossBadge = id => { const st = categoryStats(id); return st.cross ? `<em class="org-cross" data-no-i18n>${h(systemLabel('跨项目'))}</em>` : ''; };
+    const tabs = `<div class="org-projects-panel" role="tablist" aria-label="项目"><div class="org-section-head"><h3>项目</h3></div>${projectTabs().map(t => `<button type="button" role="tab" class="org-ptab ${t.active ? 'is-active' : ''}" aria-selected="${t.active}" data-action="project-tab" data-scope="${h(t.id)}"><span class="org-ptab-name" ${t.id === 'all' ? '' : 'data-no-i18n'}>${h(t.name)}</span>${t.current ? '<i class="org-ptab-now" title="当前项目"></i>' : ''}<small>${t.count}</small></button>`).join('')}</div>`;
+    const otherNote = hiddenOther.size ? `<button type="button" class="org-other-cats" data-action="toggle-other-cats">${S.showOther ? '收起其他项目的类别' : `其他项目的类别（${hiddenOther.size}）`}</button>` : '';
     const graphPaperButton = p => `<button class="org-directory-paper ${S.key === p.key ? 'is-active' : ''}" data-action="graph-paper-focus" data-no-i18n data-key="${h(p.key)}" title="${h(p.title || p.key)}"><strong>${h(p.title || p.key)}</strong><span>${h(p.authors?.[0] || p.author || '')}${p.published ? ` · ${h(String(p.published).slice(0,4))}` : ''}</span></button>`;
     const graphPapersUnder = (id, folded) => {
       if (S.mode !== 'graph' || folded) return '';
@@ -309,7 +309,7 @@
       const siblings = directions().filter(other => (other.parent_id || null) === (d.parent_id || null)), i = siblings.findIndex(other => other.id === d.id);
       const folded = S.collapsed.has(String(d.id)), selected = S.filter === String(d.id);
       return `<div class="org-directory-group"><div class="org-directory-row ${selected ? 'is-active' : ''}" role="listitem"><span class="org-tree-indent" style="width:${Math.min(d.depth * 16, 80)}px" aria-hidden="true"></span>${d.hasChildren || S.mode === 'graph' ? button('collapse',systemLabel(folded ? '展开 {category}' : '折叠 {category}', {category:d.name}),'',`data-no-i18n data-id="${h(d.id)}" aria-expanded="${!folded}"`) : '<span class="org-tree-spacer" aria-hidden="true"></span>'}<button class="org-directory-name" data-no-i18n data-action="filter" data-id="${h(d.id)}" title="${h(d.path)}" ${selected ? 'aria-current="page"' : ''}><img class="org-folder-icon" src="/icons/org/${d.hasChildren && !folded ? 'folder-open' : 'folder'}.svg" alt=""><i class="org-category-dot" style="background:${categoryColor(d.id)}" aria-hidden="true"></i><span>${h(d.name)}</span>${crossBadge(d.id)}<small>${count(d.id)}</small></button><details class="org-category-menu"><summary data-no-i18n aria-label="${h(systemLabel('更多操作 {category}', {category:d.path}))}" title="${h(systemLabel('更多操作'))}"><img class="org-icon" src="/icons/org/ellipsis.svg" alt=""></summary><div class="org-category-actions"><div class="org-category-menu-title" data-no-i18n>${h(d.path)}</div><button type="button" data-action="category-child" data-id="${h(d.id)}">新建子类别</button><button type="button" data-action="direction-edit" data-id="${h(d.id)}">改名或移动</button>${i > 0 ? `<button type="button" data-action="direction-up" data-id="${h(d.id)}">上移</button>` : ''}${i < siblings.length-1 ? `<button type="button" data-action="direction-down" data-id="${h(d.id)}">下移</button>` : ''}<button type="button" class="org-danger" data-action="direction-delete" data-id="${h(d.id)}">删除类别</button></div></details></div>${graphPapersUnder(d.id, folded)}</div>`;
-    }).join('') || '<p class="org-directory-empty">还没有类别<br>点击上方 + 建立目录</p>'}</div>${otherNote}`;
+    }).join('') || '<p class="org-directory-empty">还没有类别</p>'}</div>${otherNote}`;
   }
   function renderSidebar() { $('.org-sidebar').innerHTML = sidebarHTML(); }
   function renderBulk() {
@@ -319,13 +319,13 @@
   }
   function renderList() {
     renderBulk();
-    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} data-no-i18n aria-label="${h(systemLabel('选择 {paper}', {paper:p.title}))}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${h(p.published || '日期未知')} ${p.note ? ' · 有笔记' : ''}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags" data-no-i18n>${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="detail" data-key="${h(p.key)}" title="打开右侧论文详情：摘要、笔记、所属类别和项目">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${understoodButton(p)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
+    $('.org-list').innerHTML = visible().map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} data-no-i18n aria-label="${h(systemLabel('选择 {paper}', {paper:p.title}))}"><button class="org-paper-open" data-action="read" data-key="${h(p.key)}"><strong>${h(p.title || p.key)}</strong><span class="org-paper-meta">${[p.published, p.note ? '有笔记' : ''].filter(Boolean).map(h).join(' · ')}</span><span class="org-projects">${projectTags(p)}</span><span class="org-tags" data-no-i18n>${directions().filter(d => memberships(p).includes(String(d.id))).map(d => `<span><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</span>`).join('')}</span></button><div class="org-paper-actions"><button type="button" data-action="detail" data-key="${h(p.key)}">详情</button><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${understoodButton(p)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
   }
   // Which categories the open paper belongs to; each chip locates that category, and an
   // uncategorized paper says so instead of showing nothing.
   function detailCategoriesHTML(p) {
     const paperDirections = directions().filter(d => memberships(p).includes(String(d.id)));
-    return `<section class="org-detail-categories" aria-label="所属类别"><div class="org-detail-categories-head"><span>所属类别</span><button type="button" class="org-link-button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div><div class="org-detail-badges">${paperDirections.length ? paperDirections.map(d => `<button type="button" class="org-detail-badge" data-action="filter" data-id="${h(d.id)}" data-no-i18n title="${h(systemLabel('查看类别：{category}', {category:categoryPath(d.id)}))}"><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</button>`).join('') : '<button type="button" class="org-detail-badge is-empty" data-action="filter" data-id="" title="查看未分类论文">未分类</button>'}</div></section>`;
+    return `<section class="org-detail-categories" aria-label="所属类别"><div class="org-detail-categories-head"><span>所属类别</span><button type="button" class="org-link-button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button></div><div class="org-detail-badges">${paperDirections.length ? paperDirections.map(d => `<button type="button" class="org-detail-badge" data-action="filter" data-id="${h(d.id)}" data-no-i18n><i style="background:${categoryColor(d.id)}"></i>${h(categoryPath(d.id))}</button>`).join('') : '<button type="button" class="org-detail-badge is-empty" data-action="filter" data-id="">未分类</button>'}</div></section>`;
   }
   /* The AI summary the Today drawer shows. It is read from what the home page already loaded, or once from
      /api/detail (stored text; no model call); `null` means the paper has none, and nothing is shown then. */
@@ -342,10 +342,9 @@
   };
   function understoodButton(p) {
     const project = understoodProject(p);
-    if (!project) return `<button type="button" disabled title="先在某个项目里收藏这篇论文，才能标记已读懂">已读懂</button>`;
+    if (!project) return `<button type="button" disabled title="先收藏到项目">已读懂</button>`;
     const on = (p.understood_in || []).includes(project);
-    const where = owners(p).length > 1 ? systemLabel('，记在项目「{project}」', {project:projectName(project)}) : '';
-    return `<button type="button" data-action="understood" data-key="${h(p.key)}" data-project="${h(project)}" class="${on ? 'is-on' : ''}" aria-pressed="${on}" data-no-i18n title="${h(systemLabel('读懂了：只推进学习进度，不改变兴趣画像') + where)}">${h(systemLabel(on ? '✓ 已读懂' : '已读懂'))}</button>`;
+    return `<button type="button" data-action="understood" data-key="${h(p.key)}" data-project="${h(project)}" class="${on ? 'is-on' : ''}" aria-pressed="${on}" data-no-i18n>${h(systemLabel(on ? '✓ 已读懂' : '已读懂'))}</button>`;
   }
   function summaryFor(key) {
     if (summaryCache.has(key)) return summaryCache.get(key);
@@ -368,7 +367,7 @@
     if (S.contexts.has(cacheKey)) return S.contexts.get(cacheKey);
     const epoch = S.epoch, token = S.contextToken;
     if (!summaryCache.has(key)) summaryCache.set(key, undefined);
-    S.contexts.set(cacheKey, '<p class="hint">正在读取学习用途…</p>');
+    S.contexts.set(cacheKey, '<p class="hint">读取中…</p>');
     window.PDH.api('/api/detail', {key, project_id: project}).then(d => {
       if (epoch !== S.epoch || token !== S.contextToken) return;
       summaryCache.set(key, d.summary || null);
@@ -376,7 +375,7 @@
       if (S.key === key && (S.scope === 'all' ? currentProject() : S.scope) === project) renderDetail();
     }).catch(() => {
       if (epoch !== S.epoch || token !== S.contextToken) return;
-      S.contexts.set(cacheKey, '<p class="hint">学习用途未读取，刷新后可重试。</p>');
+      S.contexts.set(cacheKey, '<p class="hint">读取失败</p>');
       if (S.key === key && (S.scope === 'all' ? currentProject() : S.scope) === project) renderDetail();
     });
     return S.contexts.get(cacheKey);
@@ -588,7 +587,7 @@
         if (epoch !== S.epoch || token !== S.relationsToken) return;
         if(S.graphDragging) S.relationsPending=true; else renderGraph();
       }
-    } catch (error) { if (epoch === S.epoch && token === S.relationsToken) report(new Error(`相似关系未加载：${error.message}；现有分类关系仍可查看`)); }
+    } catch (error) { if (epoch === S.epoch && token === S.relationsToken) report(new Error(`相似关系未加载：${error.message}`)); }
     finally {
       if (epoch !== S.epoch || token !== S.relationsToken) return;
       S.relationsLoading = false;
@@ -615,8 +614,8 @@
     if (!on && S.graphView === 'route') S.graphView = 'papers';
     box.hidden = !on;
     wrap.classList?.toggle('has-view', on); wrap.classList?.toggle('is-route', S.graphView === 'route');
-    box.innerHTML = on ? [['papers', '论文关系', '论文之间的相似关系和类别'], ['route', '学习图', '这个项目的学习单元，以及每篇论文对应哪个单元']].map(([view, label, tip]) =>
-      `<button type="button" role="radio" aria-checked="${S.graphView === view}" data-action="graph-view" data-view="${view}" title="${h(tip)}">${label}</button>`).join('') : '';
+    box.innerHTML = on ? [['papers', '论文关系'], ['route', '学习图']].map(([view, label]) =>
+      `<button type="button" role="radio" aria-checked="${S.graphView === view}" data-action="graph-view" data-view="${view}">${label}</button>`).join('') : '';
   }
   function renderFocus() {
     renderViewSeg();
@@ -627,7 +626,7 @@
     if (S.focus === 'category' && !canCat) S.focus = 'all';
     if (S.focus.startsWith('paper') && !canPaper) S.focus = 'all';
     const b = (mode, label, enabled, title) => `<button type="button" role="radio" aria-checked="${S.focus === mode}" data-action="focus-mode" data-mode="${mode}" ${enabled ? '' : 'disabled'} title="${h(title)}">${label}</button>`;
-    box.innerHTML = b('all', '全貌', true, '显示当前范围内的全部论文') + b('category', '当前类别', canCat, canCat ? '只画当前所选类别（含子类别）里的论文' : '先在左侧选一个类别') + b('paper1', '论文·1 跳', canPaper, canPaper ? '只画所选论文和与它直接相连的论文' : '先选一篇论文') + b('paper2', '论文·2 跳', canPaper, canPaper ? '再多画一层相连的论文' : '先选一篇论文');
+    box.innerHTML = b('all', '全貌', true, '') + b('category', '当前类别', canCat, canCat ? '' : '先选一个类别') + b('paper1', '直接相连', canPaper, canPaper ? '' : '先选一篇论文') + b('paper2', '再多一层', canPaper, canPaper ? '' : '先选一篇论文');
   }
   function renderGraph(persistInitial = true) {
     S.routeToken++;   // a second-view read still in flight must not draw over what is drawn now
@@ -644,12 +643,12 @@
     if (!window.cytoscape) { container.innerHTML = '<p class="org-empty org-error">图谱组件未加载，请刷新重试</p>'; return; }
     const view = { ...S.snapshot, items: graphItems(S.snapshot, S.relations, { scope: S.scope, mode: S.focus.startsWith('paper') ? 'paper' : S.focus, hops: S.focus === 'paper2' ? 2 : 1, filter: S.filter, key: S.key }) };
     renderFocus();
-    if (!scoped().length) { container.innerHTML = `<p class="org-empty">${S.scope !== 'all' ? '这个项目还没有收藏论文。可以点上方的“全部项目”标签查看其他项目的论文。' : '暂无已收藏论文'}</p>`; return; }
+    if (!scoped().length) { container.innerHTML = `<p class="org-empty">还没有论文</p>`; return; }
     if (S.focus === 'all' && S.filter === '*' && !S.showAll && view.items.length > OVERVIEW_LIMIT) {
-      container.innerHTML = `<div class="org-empty org-overview"><p>${view.items.length} 篇论文一起画出来会看不清。先选一个类别（左侧目录），或在列表里选一篇论文看它周围的关系。</p><button type="button" data-action="show-all-graph">仍然显示全部 ${view.items.length} 篇</button></div>`;
+      container.innerHTML = `<div class="org-empty org-overview"><p>论文较多，先选一个类别或一篇论文</p><button type="button" data-action="show-all-graph">显示全部 ${view.items.length} 篇</button></div>`;
       return;
     }
-    if (!view.items.length) { container.innerHTML = '<p class="org-empty">当前选择下没有可画的论文</p>'; return; }
+    if (!view.items.length) { container.innerHTML = '<p class="org-empty">没有论文</p>'; return; }
     // A partial view (one project, a category, a paper's neighbours) is laid out in memory only: it never overrides saved
     // positions of the shared layout and never saves positions the person did not set.
     const subset = S.scope !== 'all' || S.focus !== 'all';
@@ -670,7 +669,7 @@
     }
     S.renderedSignature = graphSignature(S.snapshot);
     const transition = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? '0ms' : '180ms';
-    container.setAttribute('aria-label', `论文关系网络，${nodes.length} 个节点，${elements.length - nodes.length} 条关系`);
+    container.setAttribute('aria-label', `论文关系网络，${nodes.length} 篇论文，${elements.length - nodes.length} 条关系`);
     S.cy = window.cytoscape({ container, elements,
       // Positions are assigned below by the bounded radial layout. Do not start
       // CoSE here: its asynchronous relaxation can move nodes after the camera
@@ -711,7 +710,7 @@
       container.title = e.target.data('key') ? item(e.target.data('key'))?.title || '' : e.target.data('label');
     });
     S.cy.on('mouseout', 'node', () => { S.cy.nodes().removeClass('org-hover-label'); container.title = ''; highlightGraph(); });
-    S.cy.on('mouseover', 'edge', e => { container.title = e.target.data('kind') === 'similarity' ? `内容相似度 ${Math.round(e.target.data('weight') * 100)}%（非引用关系）` : e.target.data('kind') === 'category' ? '同一研究方向（非引用关系）' : e.target.data('kind') === 'hierarchy' ? '类别上下级关系' : '研究方向归属'; });
+    S.cy.on('mouseover', 'edge', e => { container.title = e.target.data('kind') === 'similarity' ? '内容相近' : e.target.data('kind') === 'category' ? '同一研究方向' : e.target.data('kind') === 'hierarchy' ? '类别上下级' : '研究方向归属'; });
     S.cy.on('select unselect', 'node', () => { syncGraphSelection(S.cy.nodes()); renderBulk(); });
     const cy = S.cy;
     const writer = positionWriter(S.snapshot.revision, data => { if (data && S.cy === cy) { S.renderedSignature = graphSignature(S.snapshot); capturePositions(); } });
@@ -751,7 +750,7 @@
   }
   /* ---- the second view: learning units + this project's papers. Its own cytoscape instance (S.rcy), its own node
      ids (ru:/rp:), laid out in memory by route-detail.js: it never touches S.cy, S.positions or a saved layout. */
-  const UNIT_STATUS = { satisfied: '已读懂', unlocked: '可以读', locked: '未解锁', proposed: '建议（未加入）' };
+  const UNIT_STATUS = { satisfied: '已读懂', unlocked: '可以读', locked: '未解锁', proposed: '建议' };
   function renderRouteLegend(legend) {
     legend.hidden = false;
     const dot = (color, label) => `<div class="org-graph-legend-item"><span class="org-graph-legend-dot" style="background:${color}"></span><span>${label}</span></div>`;
@@ -797,10 +796,10 @@
     if (S.filter === '*') { fitRouteGraph(); return; }
     const keys = new Set(visible().map(p => p.key));
     const papers = cy.nodes('[kind="paper"]').filter(n => keys.has(n.data('key')));
-    if (!papers.length) { S.notice = '当前类别或搜索没有可显示的论文'; status(); return; }
+    if (!papers.length) { S.notice = '没有论文'; status(); return; }
     const lit = papers.closedNeighborhood();
     cy.elements().addClass('org-dim'); lit.removeClass('org-dim');
-    S.notice = `${papers.length} 篇论文 · 已定位，滚轮缩放或拖动画布浏览`; status();
+    S.notice = ''; status();
     cy.resize(); cy.animate({ fit: { eles: lit.nodes(), padding: 50 } }, { duration: routeMotion() });
   }
   function fitRouteGraph() {
@@ -813,7 +812,7 @@
     S.cy?.destroy(); S.cy = null; S.rcy?.destroy(); S.rcy = null;
     const container = $('.org-graph'); if (!container) return;
     const token = ++S.routeToken, scope = S.scope;
-    container.innerHTML = '<p class="org-empty">正在读取学习图…</p>';
+    container.innerHTML = '<p class="org-empty">读取中…</p>';
     renderFocus(); renderGraphLegend();
     if (!window.cytoscape) { container.innerHTML = '<p class="org-empty org-error">图谱组件未加载，请刷新重试</p>'; return; }
     const focusKey = S.key;
@@ -826,14 +825,14 @@
         S.routeDetail = { scope, focusKey, data: detail };
       }
     } catch (error) {
-      if (token === S.routeToken && S.graphView === 'route' && S.scope === scope && S.mode === 'graph') container.innerHTML = `<p class="org-empty org-error">${h(`学习图没有读到：${error.message}`)}</p>`;
+      if (token === S.routeToken && S.graphView === 'route' && S.scope === scope && S.mode === 'graph') container.innerHTML = `<p class="org-empty org-error">${h(`学习图读取失败：${error.message}`)}</p>`;
       return;
     }
-    if (!detail.available) { container.innerHTML = '<p class="org-empty">这个项目还没有学习图。可以在项目的学习图页创建一张。</p>'; return; }
+    if (!detail.available) { container.innerHTML = '<p class="org-empty">还没有学习图</p>'; return; }
     renderUnmatched(detail);
     if (!S.relations) loadRelations();   // similarity lines join in when the offline job is done
     const built = window.PDHRouteDetail.layout(detail, S.relations);
-    if (!built.nodes.length) { container.innerHTML = '<p class="org-empty">学习图里还没有可画的单元</p>'; return; }
+    if (!built.nodes.length) { container.innerHTML = '<p class="org-empty">学习图还是空的</p>'; return; }
     container.innerHTML = '';
     container.setAttribute('aria-label', `学习图和论文，${window.PDHRouteDetail.summary(built.counts)}`);
     const elements = [
@@ -843,11 +842,11 @@
     fitRouteGraph();
     const hint = $('.org-graph-hint');
     const say = text => { if (hint) hint.textContent = text; };
-    say(`${window.PDHRouteDetail.summary(built.counts)} · 点论文看详情，点学习单元看它的说明${detail.progress_verification_deferred ? ' · 部分进度证据待核验' : ''}`);
+    say('');
     cy.on('tap', 'node[kind="paper"]', e => { S.navigationToken++; S.key = e.target.data('key'); cy.nodes().removeClass('org-current'); e.target.addClass('org-current'); renderSidebar(); renderDetail(); renderList(); });
     cy.on('tap', 'node[kind="unit"]', e => {
       const d = e.target.data(), kind = { topic: '主题', method: '方法', problem: '问题', foundation: '基础' }[d.type];
-      say([d.name, UNIT_STATUS[d.status] || '', kind ? `类型：${kind}` : '', d.why ? `为什么在这里：${d.why}` : ''].filter(Boolean).join(' · '));   // text only
+      say([d.name, UNIT_STATUS[d.status] || '', kind || '', d.why || ''].filter(Boolean).join(' · '));   // text only
     });
     cy.on('mouseover', 'node', e => { cy.elements().addClass('org-dim'); e.target.closedNeighborhood().removeClass('org-dim'); container.title = e.target.data('key') ? item(e.target.data('key'))?.title || '' : (e.target.data('name') || ''); });
     cy.on('mouseout', 'node', () => { cy.elements().removeClass('org-dim'); container.title = ''; });
@@ -920,7 +919,7 @@
     const keys = new Set(visible().map(p => p.key));
     const nodes = cy.nodes().filter(n => keys.has(n.data('key')));
     const target = graphViewport(nodes);
-    S.notice = nodes.length ? `${visible().length} 篇论文 · 已定位，滚轮缩放或拖动画布浏览` : '当前类别或搜索没有可显示的论文';
+    S.notice = nodes.length ? '' : '没有论文';
     status();
     if (target) animateViewport(target);
   }
@@ -1010,7 +1009,7 @@
     const children = directions().filter(row => row.parent_id === d.id).length;
     const holders = S.snapshot.items.filter(p => memberships(p).includes(id)), count = holders.length;
     const elsewhere = holders.filter(p => S.scope !== 'all' && !owners(p).includes(S.scope)).length;   // papers of other projects lose this category too
-    dialog('删除类别', `<p>删除「${h(categoryPath(id))}」？</p>${elsewhere ? `<p>这个类别由所有项目共用：其中 ${elsewhere} 篇属于其他项目，它们也会失去这个类别。</p>` : ''}<p>只解除 ${count} 篇已收藏论文与此类别的直接归属，论文、PDF、笔记和其他类别归属均保留。</p><p>${children ? `${children} 个直接子类别会移到${d.parent_id ? '「'+h(categoryPath(d.parent_id))+'」下' : '顶层目录'}。` : '此类别没有子类别。'}可以使用「撤销上一步」恢复。</p>`, '删除类别并保留论文', async () => {
+    dialog('删除类别', `<p>删除「${h(categoryPath(id))}」？</p>${elsewhere ? `<p>其中 ${elsewhere} 篇属于其他项目，也会失去此类别。</p>` : children ? `<p>${children} 个子类别会移到${d.parent_id ? '「'+h(categoryPath(d.parent_id))+'」下' : '顶层'}。</p>` : ''}`, '删除类别', async () => {
       await mutate({ action:'direction-delete', id, revision });
     });
   }
@@ -1018,7 +1017,7 @@
     const revision = S.snapshot.revision, single = keys.length === 1;
     const rows = treeRows();
     const before = new Set(single ? memberships(item(keys[0])) : []);
-    const body = `<p>${single ? '勾选需要归属的类别；取消勾选即可移除已有归属。' : '批量操作只修改你明确选择的类别，其他归属保持不变。'}同一篇论文可同时属于多个子类别。移除后不再包含论文的类别会自动删除，可用「撤销上一步」恢复。</p>` + (rows.map(d => single ? `<label class="org-membership-row"><input type="checkbox" data-membership="${h(d.id)}" ${before.has(String(d.id)) ? 'checked' : ''}><i style="background:${categoryColor(d.id)}"></i><span>${h(d.path)}</span></label>` : `<label class="org-membership-row"><i style="background:${categoryColor(d.id)}"></i><span>${h(d.path)}</span><select data-membership="${h(d.id)}" aria-label="${h(d.path)}"><option value="">保持 (${keys.filter(k => memberships(item(k)).includes(String(d.id))).length}/${keys.length})</option><option value="add">添加</option><option value="remove">移除</option></select></label>`).join('') || '<p>还没有类别，请先新建类别。</p><button type="button" data-action="direction-new">新建类别</button>');
+    const body = (rows.map(d => single ? `<label class="org-membership-row"><input type="checkbox" data-membership="${h(d.id)}" ${before.has(String(d.id)) ? 'checked' : ''}><i style="background:${categoryColor(d.id)}"></i><span>${h(d.path)}</span></label>` : `<label class="org-membership-row"><i style="background:${categoryColor(d.id)}"></i><span>${h(d.path)}</span><select data-membership="${h(d.id)}" aria-label="${h(d.path)}"><option value="">保持 (${keys.filter(k => memberships(item(k)).includes(String(d.id))).length}/${keys.length})</option><option value="add">添加</option><option value="remove">移除</option></select></label>`).join('') || '<p>还没有类别</p><button type="button" data-action="direction-new">新建类别</button>');
     dialog(`编辑类别 · ${keys.length} 篇`, body, '保存归属', async el => {
       const add = [], remove = [];
       el.querySelectorAll('[data-membership]').forEach(field => {
@@ -1051,39 +1050,33 @@
   function suggestionsHTML(preview, lookup = item, nameOf = id => categoryPath(id)) {
     if (preview.ai_plan) return aiReviewHTML(preview, lookup, nameOf);
     const groups = preview.groups || [], merges = preview.merges || [], moves = preview.moves || [], pending = preview.pending_keys || [];
-    const standards = '<p class="org-paper-meta">分类采用明确的研究术语；中英文同义名称归为同一类，优先沿用已有分类，证据不足的论文保留待分类。</p>'
-      + '<p class="org-paper-meta">父级表示研究方向，子类表示更细的方向或方法；方法细分类不会自动变成一级方向，父级与子类不按同义分类合并。</p>';
-    const pendingDetails = new Map((preview.pending_details || []).map(p => [p.key, p.code]));
-    const pendingReason = key => ({metadata_missing:'缺少可用于判断的标题和摘要，请先补充论文信息。',
-      insufficient_group:'本地检查至少需要两篇有共同术语的论文，才会建议新类别。',
-      no_matching_terms:'标题和摘要没有匹配到已有类别或可重复验证的研究术语。'}[pendingDetails.get(key)] || '本地检查暂时没有足够证据提出类别。');
-    const waiting = pending.length ? `<section class="org-review-section" data-kind="pending"><h4>还没有归类的论文</h4><p class="org-paper-meta">这是本地术语检查的结果；AI 可以从论文标题和摘要建议已有归属或新类别，完整预览后由你确认。</p><ul class="org-pending">${pending.map(k => `<li><span data-no-i18n>${h(lookup(k)?.title || k)}</span><p class="org-paper-meta">${h(pendingReason(k))}</p></li>`).join('')}</ul><button type="button" data-review-ai>用 AI 帮我归类</button> <button type="button" data-review-create>手动新建类别</button></section>` : '';
+    const standards = '';
+    const waiting = pending.length ? `<section class="org-review-section" data-kind="pending"><h4>还没有归类的论文</h4><ul class="org-pending">${pending.map(k => `<li><span data-no-i18n>${h(lookup(k)?.title || k)}</span></li>`).join('')}</ul><button type="button" data-review-ai title="调用 AI，只发送标题、摘要片段和类别名">用 AI 帮我归类</button> <button type="button" data-review-create>手动新建类别</button></section>` : '';
     if (!groups.length && !merges.length && !moves.length) {
-      return standards + `${waiting ? `<p class="org-review-empty" role="status">没有可以自动提出的调整。</p>${waiting}` : '<p class="org-review-empty" role="status">没有需要调整的内容。</p>'}<p class="org-paper-meta">${preview.scope ? '已检查这个项目里的论文；论文内容或类别有变化后，才会再次检查。' : '已检查全部论文；论文内容或类别有变化后，才会再次检查。'}</p>`;
+      return standards + `${waiting ? `<p class="org-review-empty" role="status">没有可调整的内容</p>${waiting}` : '<p class="org-review-empty" role="status">没有需要调整的内容</p>'}`;
     }
     const index = new Map(groups.map((g, i) => [g.id, i]));
     const depth = g => { let n = 0, p = g.parent; while (p != null && index.has(p) && n < 4) { n++; p = groups[index.get(p)].parent; } return n; };
-    const members = (keys, on) => `<details class="org-suggestion-members-wrap"><summary>${keys.length} 篇论文 · 查看或取消</summary><div class="org-suggestion-members">${keys.map(k => `<label><input type="checkbox" data-member="${h(k)}" ${on ? 'checked' : ''}><span>${h(lookup(k)?.title || k)}</span></label>`).join('')}</div></details>`;
+    const members = (keys, on) => `<details class="org-suggestion-members-wrap"><summary>${keys.length} 篇论文</summary><div class="org-suggestion-members">${keys.map(k => `<label><input type="checkbox" data-member="${h(k)}" ${on ? 'checked' : ''}><span>${h(lookup(k)?.title || k)}</span></label>`).join('')}</div></details>`;
     const groupCard = (g, i) => { const level = depth(g), parent = level ? groups[index.get(g.parent)] : null, existing = !!g.target, weak = !!g.weak;
-      return `<fieldset class="org-suggestion${level ? ' is-child' : ''}${weak ? ' is-weak' : ''}" data-suggestion="${i}" style="--depth:${level}"><div class="org-suggestion-head"><input type="checkbox" data-enabled ${weak ? '' : 'checked'} aria-label="${existing ? '加入这个类别' : '采用此类别'}">${parent ? `<span class="org-suggestion-parent">${h(parent.name)} ›</span>` : ''}${weak ? '<em class="org-maybe">可能相关</em>' : ''}<input data-name aria-label="类别名称" value="${h(g.name)}" required maxlength="120"${existing ? ' readonly' : ''}>${existing ? '' : `<input type="color" data-color aria-label="类别颜色" value="${color(g.color || DEFAULT_COLOR)}">`}</div><p class="org-paper-meta">${h(g.reason || '请核对分组内容')}</p>${members(g.keys || [], true)}</fieldset>`; };
+      return `<fieldset class="org-suggestion${level ? ' is-child' : ''}${weak ? ' is-weak' : ''}" data-suggestion="${i}" style="--depth:${level}"><div class="org-suggestion-head"><input type="checkbox" data-enabled ${weak ? '' : 'checked'} aria-label="${existing ? '加入这个类别' : '采用此类别'}">${parent ? `<span class="org-suggestion-parent">${h(parent.name)} ›</span>` : ''}${weak ? '<em class="org-maybe">可能相关</em>' : ''}<input data-name aria-label="类别名称" value="${h(g.name)}" required maxlength="120"${existing ? ' readonly' : ''}>${existing ? '' : `<input type="color" data-color aria-label="类别颜色" value="${color(g.color || DEFAULT_COLOR)}">`}</div><p class="org-paper-meta">${h(g.reason || '')}</p>${members(g.keys || [], true)}</fieldset>`; };
     const section = (kind, title, body) => body ? `<section class="org-review-section" data-kind="${kind}"><h4>${title}</h4>${body}</section>` : '';
-    const mergeCard = m => `<fieldset class="org-suggestion" data-merge="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-merge-enabled checked aria-label="合并这些类别"><strong data-no-i18n>${h(m.name)}</strong></div><p class="org-paper-meta">${h(m.reason)}</p><p class="org-paper-meta">${(m.copies || []).map(c => `<span>「<span data-no-i18n>${h(c.name || nameOf(c.id))}</span>」：<span>${c.children ? `${h(c.papers)} 篇、${h(c.children)} 个子类` : `${h(c.papers)} 篇`}</span></span>`).join(' · ')}</p><p class="org-paper-meta">子类别和论文都会并入保留的那个（第一个）；合并后可以撤销。</p></fieldset>`;
+    const mergeCard = m => `<fieldset class="org-suggestion" data-merge="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-merge-enabled checked aria-label="合并这些类别"><strong data-no-i18n>${h(m.name)}</strong></div><p class="org-paper-meta">${h(m.reason)}</p><p class="org-paper-meta">${(m.copies || []).map(c => `<span>「<span data-no-i18n>${h(c.name || nameOf(c.id))}</span>」：<span>${c.children ? `${h(c.papers)} 篇、${h(c.children)} 个子类` : `${h(c.papers)} 篇`}</span></span>`).join(' · ')}</p></fieldset>`;
     const moveCard = m => `<fieldset class="org-suggestion" data-move="${h(m.id)}"><div class="org-suggestion-head"><input type="checkbox" data-move-enabled aria-label="调整这篇论文的类别"><span class="org-move-title" data-no-i18n>${h(lookup(m.key)?.title || m.key)}</span></div><p class="org-paper-meta">${(m.from || []).map(id => `「<span data-no-i18n>${h(nameOf(id))}</span>」`).join('')} → 「<span data-no-i18n>${h(m.name || nameOf(m.to))}</span>」</p><p class="org-paper-meta">${h(m.reason)}</p><label class="org-dismiss"><input type="checkbox" data-move-dismiss> 保持现状，不再提示</label></fieldset>`;
     const created = groups.map((g, i) => ({ g, i })).filter(x => !x.g.target), added = groups.map((g, i) => ({ g, i })).filter(x => x.g.target);
-    return standards + `<p class="org-paper-meta">${preview.scope ? '范围：这个项目的论文。只列出需要调整的内容，没变的不再重复。' : '范围：全部论文。只列出需要调整的内容，没变的不再重复。'}</p>`
+    return standards
       + section('create', '新增分类', created.map(x => groupCard(x.g, x.i)).join(''))
       + section('add', '归入已有分类', added.map(x => groupCard(x.g, x.i)).join(''))
       + section('merge', '合并重复分类', merges.map(mergeCard).join(''))
-      + section('move', '建议调整归属（默认不勾选）', moves.length ? `<p class="org-paper-meta">原类别如果因此没有任何论文，会一并删除（可撤销）。没勾选“调整”也没勾选“保持现状”的建议，下次还会出现。</p>${moves.map(moveCard).join('')}` : '')
-      + waiting
-      + '<p class="org-paper-meta">没勾选的新增分类、归入和合并，下次检查时还会再出现；只有勾选“保持现状，不再提示”的调整建议，才会在论文和类别不变时不再出现。应用后可以撤销。</p>';
+      + section('move', '建议调整归属', moves.length ? moves.map(moveCard).join('') : '')
+      + waiting;
   }
   /* The AI plan is shown as units the reader ticks one by one, in the owner's order: first file the papers that have no
      category, then adjust the existing categories, then move papers that were already filed. `preview.ai_units` comes
      from the server, which also decides what a choice needs (deleting a category carries the re-homing of its papers). */
   function aiReviewHTML(preview, lookup = item, nameOf = id => categoryPath(id)) {
     const plan = preview.ai_plan, units = preview.ai_units;
-    if (!Array.isArray(units)) return '<p class="org-danger" role="alert">整理方案缺少可选项，请重新整理。</p>';
+    if (!Array.isArray(units)) return '<p class="org-danger" role="alert">整理方案不完整，请重新整理</p>';
     const created = new Map((plan.new_categories || []).map(c => [c.id, c]));
     const newPath = (id, depth = 0) => { const c = created.get(id), up = c.parent_id; return (up && depth < 8 ? `${created.has(up) ? newPath(up, depth + 1) : nameOf(up)} › ` : '') + c.name; };
     const plain = id => created.has(id) ? newPath(id) : nameOf(id);
@@ -1097,34 +1090,26 @@
     const ariaFor = u => u.action === 'rename' ? systemLabel('选择改名：{from} → {to}', {from: nameOf(u.category), to: u.name})
       : u.action === 'merge' ? systemLabel('选择合并：{from} → {to}', {from: nameOf(u.category), to: plain(u.target)})
       : systemLabel('选择删除标签：{name}', {name: nameOf(u.category)});
-    const papers = (preview.ai_plan.papers || []).length, shown = (plan.category_scope || S.snapshot.directions || []).length;
-    // Each phrase is its own element so the interface language can pluralize each count on its own.
-    const counts = `<span>${papers} 篇论文</span> · <span>左边目录里显示 ${shown} 个类别</span>`;
-    const scopeNote = preview.scope
-      ? `<span>范围：项目「${h(projectName(preview.scope))}」</span> · ${counts}<br><span>与其他项目共用的类别只接收论文，不会被改动。</span>`
-      : `<span>范围：全部项目</span> · ${counts}`;
-    if (!units.length) return `<p class="org-paper-meta">${scopeNote}</p><p role="status">AI 审阅完成，没有需要调整的内容，所有论文都已有类别。</p>`;
+    if (!units.length) return '<p role="status">没有需要调整的内容</p>';
     const classify = units.filter(u => u.section === 'classify'), adjust = units.filter(u => u.section === 'adjust'), rehome = units.filter(u => u.section === 'rehome');
     const groups = new Map();
     for (const u of classify) { const k = [...u.to].sort().join('\u0001'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(u); }
     const member = u => `<label class="org-unit">${box(u)}<span>${title(u.key)}${why(u.reason)}</span></label>`;
-    const group = list => `<fieldset class="org-suggestion org-unit-group"><div class="org-suggestion-head"><input type="checkbox" data-group checked aria-label="${h(systemLabel('选择归入「{category}」的论文', {category: list[0].to.length ? list[0].to.map(plain).join('、') : systemLabel('未分类')}))}"><strong>${labels(list[0].to)}</strong>${list.every(u => u.fallback) ? '<em class="org-maybe">依据不足，暂放</em>' : ''}</div>${list[0].to.filter(id => created.has(id)).map(id => why(created.get(id).reason)).join('')}<details class="org-suggestion-members-wrap"${list.length <= 6 ? ' open' : ''}><summary>${list.length} 篇论文 · 查看或取消</summary><div class="org-suggestion-members">${list.map(member).join('')}</div></details></fieldset>`;
+    const group = list => `<fieldset class="org-suggestion org-unit-group"><div class="org-suggestion-head"><input type="checkbox" data-group checked aria-label="${h(systemLabel('选择归入「{category}」的论文', {category: list[0].to.length ? list[0].to.map(plain).join('、') : systemLabel('未分类')}))}"><strong>${labels(list[0].to)}</strong>${list.every(u => u.fallback) ? '<em class="org-maybe">依据不足，暂放</em>' : ''}</div>${list[0].to.filter(id => created.has(id)).map(id => why(created.get(id).reason)).join('')}<details class="org-suggestion-members-wrap"${list.length <= 6 ? ' open' : ''}><summary>${list.length} 篇论文</summary><div class="org-suggestion-members">${list.map(member).join('')}</div></details></fieldset>`;
     const adjustCard = u => {
       const name = `<span data-no-i18n>${h(nameOf(u.category))}</span>`;
       const head = u.action === 'rename' ? `<b>改名</b> ${name} → <span data-no-i18n>${h(u.name)}</span>`
         : u.action === 'merge' ? `<b>合并</b> ${name} → ${label(u.target)}` : `<b>删除标签</b> ${name}`;
-      const extra = u.action === 'merge' ? (u.papers ? `<p class="org-paper-meta">${u.papers} 篇论文随之并入；它的子类别也跟着并入。</p>` : '<p class="org-paper-meta">子类别跟着并入。</p>')
-        : u.action === 'delete' ? `<details class="org-suggestion-members-wrap"><summary>${u.rehome.length} 篇论文改归到别的类别 · 查看</summary><div class="org-suggestion-members">${u.rehome.map(r => `<div>${title(r.key)}<span class="org-unit-why">→ ${labels(r.to)}</span></div>`).join('') || '<p class="org-paper-meta">没有论文受影响。</p>'}</div></details>` : '';
-      const needs = (u.requires || []).length ? `<p class="org-paper-meta">需要一起应用：${u.requires.map(unitName).join('、')}</p>` : '';
+      const extra = u.action === 'delete' ? `<details class="org-suggestion-members-wrap"><summary>${u.rehome.length} 篇论文改归别的类别</summary><div class="org-suggestion-members">${u.rehome.map(r => `<div>${title(r.key)}<span class="org-unit-why">→ ${labels(r.to)}</span></div>`).join('')}</div></details>` : '';
+      const needs = (u.requires || []).length ? `<p class="org-paper-meta">需同时应用：${u.requires.map(unitName).join('、')}</p>` : '';
       return `<fieldset class="org-suggestion"><div class="org-suggestion-head">${box(u, `data-requires="${h((u.requires || []).join(' '))}" aria-label="${h(ariaFor(u))}"`)}<span>${head}</span></div>${why(u.reason)}${extra}${needs}</fieldset>`;
     };
     const rehomeCard = u => `<fieldset class="org-suggestion"><label class="org-unit">${box(u)}<span>${title(u.key)}<span class="org-unit-why" data-no-i18n>${u.from.map(id => h(nameOf(id))).join(' · ') || '未分类'} → ${u.to.map(id => h(plain(id))).join(' · ')}</span>${why(u.reason)}</span></label></fieldset>`;
     const section = (kind, heading, body) => body ? `<section class="org-review-section" data-kind="${kind}"><h4>${heading}</h4>${body}</section>` : '';
-    return `<p class="org-paper-meta">${scopeNote}</p><p class="org-review-tools"><button type="button" data-select-all-units>全选</button> <button type="button" data-select-no-units>全不选</button> <span class="org-paper-meta" role="status" aria-live="polite" data-ai-summary></span></p>`
-      + section('classify', '先归类还没有类别的论文', [...groups.values()].map(group).join(''))
-      + section('adjust', '再调整现有分类', adjust.map(adjustCard).join(''))
-      + section('rehome', '最后重新归类已分类的论文', rehome.map(rehomeCard).join(''))
-      + '<p class="org-paper-meta">没勾选的项目不会应用，需要时可以重新整理；应用后可以撤销，不删除论文或笔记。</p>';
+    return `<p class="org-review-tools"><button type="button" data-select-all-units>全选</button> <button type="button" data-select-no-units>全不选</button> <span class="org-paper-meta" role="status" aria-live="polite" data-ai-summary></span></p>`
+      + section('classify', '归类未分类论文', [...groups.values()].map(group).join(''))
+      + section('adjust', '调整现有分类', adjust.map(adjustCard).join(''))
+      + section('rehome', '重新归类', rehome.map(rehomeCard).join(''));
   }
   /* Ticking is linked the way the plan needs it: ticking a unit ticks what it requires, unticking one unticks what
      requires it. Pure over a Set of unit IDs so it can be tested without a page. */
@@ -1148,8 +1133,8 @@
         const own = [...g.closest('fieldset').querySelectorAll('[data-unit]')];
         g.checked = own.length > 0 && own.every(b => b.checked); g.indeterminate = own.some(b => b.checked) && !own.every(b => b.checked);
       });
-      const left = sel.unclassifiedLeft(chosen), summary = root.querySelector('[data-ai-summary]'), submit = root.querySelector('[type=submit]');
-      if (summary) summary.textContent = [`已选 ${chosen.size} / ${units.length} 项`, left ? `应用后仍有 ${left} 篇未分类` : '应用后没有未分类论文'].join(' · ');
+      const summary = root.querySelector('[data-ai-summary]'), submit = root.querySelector('[type=submit]');
+      if (summary) summary.textContent = `已选 ${chosen.size} / ${units.length} 项`;
       if (submit) { submit.textContent = chosen.size ? systemLabel('应用所选（{count} 项）', {count: chosen.size}) : systemLabel('应用所选'); submit.disabled = busy() || !chosen.size; }
     }
     root.addEventListener('change', e => {
@@ -1168,11 +1153,11 @@
     let jobId = null, completed = false;
     const cancel = () => { if (jobId && !completed) window.PDH.api('/api/organization', {action:'cancel-category-review',job_id:jobId}).catch(() => {}); };
     S.cancelReview?.(); S.cancelReview = cancel;
-    const d = dialog('整理分类', `<p role="status">${mode === 'local' ? '正在进行本地检查…' : '正在用 AI 审阅范围内的论文和类别，先归类未分类论文，分批处理…'}</p>`, null);
+    const d = dialog('整理分类', `<p role="status">${mode === 'local' ? '正在检查…' : '正在用 AI 整理…'}</p>`, null);
     d.addEventListener('close', cancel);
     const failureDialog = stats => {
-      const progress = Number.isFinite(stats.total_papers) ? `<p class="org-paper-meta">已审阅 ${Number(stats.processed_papers) || 0} / ${Number(stats.total_papers) || 0} 篇，完成 ${Number(stats.completed_batches) || 0} / ${Number(stats.total_batches) || 0} 批；剩余 ${Number(stats.remaining_papers) || 0} 篇未处理。此次没有保存或应用 AI 整理方案。</p>` : '<p class="org-paper-meta">此次没有保存或应用整理方案，论文和类别保持原样。</p>';
-      const failure = dialog('整理分类', `<p class="org-danger" role="alert">${h(stats.error || stats.reason || 'AI 审阅未完成，本次没有修改分类。')}</p>${progress}${mode === 'ai' ? '<p class="org-paper-meta">本地检查可以合并明确同义类别、提供归类建议；不会替代 AI 对分类合理性的判断。</p><a href="/settings.html">检查 AI 设置</a> ' : ''}<button type="button" data-retry-review>${mode === 'ai' ? '重试 AI 审阅' : '重试本地检查'}</button>${mode === 'ai' ? ' <button type="button" data-local-review>只做本地检查</button>' : ''}`, null);
+      const progress = Number.isFinite(stats.total_papers) ? `<p class="org-paper-meta">已审阅 ${Number(stats.processed_papers) || 0} / ${Number(stats.total_papers) || 0} 篇</p>` : '';
+      const failure = dialog('整理分类', `<p class="org-danger" role="alert">${h(stats.error || stats.reason || 'AI 审阅未完成')}</p>${progress}${mode === 'ai' ? '<a href="/settings.html">检查 AI 设置</a> ' : ''}<button type="button" data-retry-review>${mode === 'ai' ? '重试 AI 审阅' : '重试本地检查'}</button>${mode === 'ai' ? ' <button type="button" data-local-review>只做本地检查</button>' : ''}`, null);
       failure.querySelector('[data-retry-review]').addEventListener('click', () => { if (!current()) return; failure.close(); suggest(mode); });
       if (mode === 'ai') failure.querySelector('[data-local-review]').addEventListener('click', () => { if (!current()) return; failure.close(); suggest('local'); });
       return failure;
@@ -1198,7 +1183,7 @@
       if (Array.isArray(result.items) && result.revision >= S.snapshot.revision) { accept(result); renderData(); }
       d.close();
       const preview = result.suggestions || result.snapshot?.suggestions;
-      if (!preview || !Array.isArray(preview.groups)) throw new Error('服务端没有返回整理分类的结果，请重试');
+      if (!preview || !Array.isArray(preview.groups)) throw new Error('没有拿到结果，请重试');
       if (mode === 'ai' && !preview.ai_plan) {
         const stats = result.ai_review || {};
         failureDialog(stats);
@@ -1210,13 +1195,13 @@
         if (!current()) throw new Error('论文范围已变化，请重新审阅');
         if (preview.ai_plan) {
           const picked = [...el.querySelectorAll('[data-unit]')].filter(b => b.checked).map(b => b.dataset.unit);
-          if (!picked.length) throw new Error('没有选择需要应用的整理项');
+          if (!picked.length) throw new Error('请先选择');
           // The choice cannot change while the application is in flight (a second click would send another one).
           const lock = on => { el.dataset.applying = on ? '1' : ''; for (const part of ['[data-unit]', '[data-group]', '[data-select-all-units]', '[data-select-no-units]']) el.querySelectorAll(part).forEach(b => { b.disabled = on; }); };
           lock(true);
           let result;
           try { result = await mutate({action:'apply-ai-review', ai_token:preview.ai_token, fingerprint:preview.fingerprint, selection:{units:picked}}, false, current); }
-          catch (error) { throw /revision conflict/i.test(error.message) ? new Error('类别或论文在预览之后变化了，请关闭后重新整理') : error; }
+          catch (error) { throw /revision conflict/i.test(error.message) ? new Error('类别或论文已变化，请重新整理') : error; }
           finally { lock(false); }
           if (!current()) return;
           const a = result.apply_result || {}, n = key => Number(a[key]) || 0;
@@ -1224,8 +1209,8 @@
           // Sentences joined by " · ": the interface language layer translates each one whole.
           S.notice = [n('classified_papers') ? `已归类 ${n('classified_papers')} 篇未分类论文` : '',
             n('renamed_categories') || n('merged_categories') || n('deleted_categories') ? `改名 ${n('renamed_categories')}、合并 ${n('merged_categories')}、删除 ${n('deleted_categories')} 个标签` : '',
-            `共改动 ${n('changed_papers')} 篇论文的类别`, n('still_unclassified') ? `仍有 ${n('still_unclassified')} 篇未分类` : '',
-            (a.also_applied || []).length ? `为保证能一起应用，另带上了 ${a.also_applied.length} 项整理内容` : '', '可以撤销'].filter(Boolean).join(' · ');
+            `共改动 ${n('changed_papers')} 篇论文的类别`,
+            (a.also_applied || []).length ? `另带上了 ${a.also_applied.length} 项` : ''].filter(Boolean).join(' · ');   // items applied without a tick are never silent
           status(); window.PDH.toast(S.notice, 'ok', 6000); return;
         }
         const suggestions = [...el.querySelectorAll('[data-suggestion]')].filter(f => f.querySelector('[data-enabled]').checked).map(f => ({ id: proposals[Number(f.dataset.suggestion)].id, name: f.querySelector('[data-name]').value.trim(), color: f.querySelector('[data-color]')?.value || DEFAULT_COLOR, keys: [...f.querySelectorAll('[data-member]:checked')].map(c => c.dataset.member) }));
@@ -1236,11 +1221,11 @@
         const result = await mutate({ action:'apply-suggestions', apply_mode:'add', fingerprint:preview.fingerprint, suggestions, merges, moves, dismissed, finish: true }, false, current);
         if (!current()) return;
         const applied = result.apply_result;
-        if (!applied) throw new Error('当前服务端未返回应用结果，请退出旧版并打开最新应用后重试');
+        if (!applied) throw new Error('没有收到应用结果');
         S.filter = '*'; renderData();
         // Sentences joined by " · ": the interface language layer translates each one whole.
         const parts = [applied.added_memberships ? `为 ${applied.changed_papers} 篇论文新增了 ${applied.added_memberships} 条类别归属` : '', applied.created_categories ? `新建了 ${applied.created_categories} 个类别` : '', applied.merged_categories ? `合并了 ${applied.merged_categories} 个重复类别` : '', applied.moved_papers ? `调整了 ${applied.moved_papers} 篇论文的类别` : ''].filter(Boolean);
-        S.notice = parts.length ? [...parts, '其余保持原样，可以撤销'].join(' · ') : '没有改动任何类别';
+        S.notice = parts.length ? parts.join(' · ') : '没有改动任何类别';
         status(); window.PDH.toast(S.notice, 'ok', 6000);
       });
       if (preview.ai_plan && !nothing) {
@@ -1258,12 +1243,12 @@
     const result = await window.PDH.api('/api/organization', { action: 'export' });
     const data = result.export || result;
     if (data == null) throw new Error('导出数据缺失');
-    dialog('导出论文库', '<p>包含所有项目的论文库、类别和笔记，不包含原始 PDF。全部结构化状态请在设置中导出。</p><label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
+    dialog('导出论文库', '<label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
       const format = el.querySelector('select').value;
       const payload = format === 'json' ? JSON.stringify(data, null, 2) : (data.markdown || markdownExport(data));
       const receipt = await window.PDHSaveFile(`paperdighelper-organization-${new Date().toISOString().slice(0, 10)}.${format}`, payload);
       if (receipt.status === 'saved') window.PDH.toast(`导出已保存：${receipt.path}`, 'ok', 8000);
-      else window.PDH.toast('已取消导出，未保存文件', 'warn');
+      else window.PDH.toast('已取消导出', 'warn');
     });
   }
   function markdownExport(data) {
@@ -1300,11 +1285,11 @@
     const keys = detail.unmatched || [], total = detail.unmatched_total ?? keys.length;
     const pending = detail.pending || [], pendingTotal = detail.pending_total ?? pending.length;
     const papers = keys => keys.map(key => `<button type="button" data-action="graph-paper-focus" data-key="${h(key)}"><span data-no-i18n>${h(item(key)?.title || key)}</span></button>`).join('');
-    box.innerHTML = `<summary>没有对应的学习单元 · ${h(total)} 篇</summary>${papers(keys)}${pendingTotal ? `<p>${h(pendingTotal)} 篇正文待核验</p>${papers(pending)}` : ''}<button type="button" data-action="route-verification-retry">重新核验学习匹配</button>${total + pendingTotal > keys.length + pending.length ? '<p>部分论文未画出，可在列表搜索后定位。</p>' : ''}`;
+    box.innerHTML = `<summary>没有对应的学习单元 · ${h(total)} 篇</summary>${papers(keys)}${pendingTotal ? papers(pending) : ''}<button type="button" data-action="route-verification-retry">重新匹配</button>`;
   }
   async function handle(action, b) {
     switch (action) {
-      case 'import': { const project = currentProject(); if (!project) throw new Error('请先在上方选择一个项目，再导入论文'); location.href = `/import.html?project_id=${encodeURIComponent(project)}`; break; }
+      case 'import': { const project = currentProject(); if (!project) throw new Error('请先选择项目'); location.href = `/import.html?project_id=${encodeURIComponent(project)}`; break; }
       case 'library': case 'graph': S.navigationToken++; await S.positionQueue; capturePositions(); S.mode = action; renderSidebar(); setMode(); if (action === 'graph') await loadRelations(); break;
       case 'filter': {
         S.filter = b.dataset.id; S.graphFocus = null;
@@ -1327,7 +1312,7 @@
           S.key = p.key; renderSidebar(); renderDetail(); renderList();
           S.routeFocus = `rp:${p.key}`;
           if (S.rcy?.getElementById(S.routeFocus).length) focusRoute(S.routeFocus); else renderRouteGraph();
-          S.notice = `${p.title || p.key} · 已定位`; status(); break;
+          S.notice = ''; status(); break;
         }
         if (!S.cy) {   // nothing is drawn yet (the overview): picking a paper draws it with its neighbours
           S.key = p.key; S.focus = 'paper1'; S.graphFocus = paperNodeId(p.key);
@@ -1335,7 +1320,7 @@
         }
         S.key = p.key; S.graphFocus = paperNodeId(p.key); renderSidebar(); renderDetail(); renderList();
         if (S.focus.startsWith('paper')) { renderGraph(false); }
-        S.notice = `${p.title || p.key} · 已定位`; status(); focusGraph(S.graphFocus); break;
+        S.notice = ''; status(); focusGraph(S.graphFocus); break;
       }
       case 'project-tab': {
         const next = b.dataset.scope || 'all';
@@ -1406,7 +1391,7 @@
         try {
           await window.PDH.api('/api/feedback', { key, action: 'understood', project_id: project });
           if (p && !(p.understood_in || []).includes(project)) p.understood_in = [...(p.understood_in || []), project];
-          window.PDH.toast('已记录：已读懂（只推进学习进度，不改变兴趣）', 'ok');
+          window.PDH.toast('已记录', 'ok');
         } catch (e) { window.PDH.toast(e.message, 'err'); }
         renderList(); break;
       }
@@ -1424,7 +1409,7 @@
         const key = S.key, draft = S.drafts.get(key);
         await refresh();
         const comparedVersion = item(key).note_version;
-        dialog('比较笔记版本', `<h3>最新保存版本</h3><div class="org-markdown">${window.PDH.md(item(key).note || '')}</div><h3>你的草稿</h3><div class="org-markdown">${window.PDH.md(draft.text)}</div>`, '确认以草稿保存新版本', async () => {
+        dialog('比较笔记版本', `<h3>最新保存版本</h3><div class="org-markdown">${window.PDH.md(item(key).note || '')}</div><h3>你的草稿</h3><div class="org-markdown">${window.PDH.md(draft.text)}</div>`, '用草稿保存', async () => {
           confirmDraftVersion(key, comparedVersion); storeDraft(key, draft); await saveNote(key);
           if (draft.error) throw new Error(draft.error);
         }); break;
@@ -1446,10 +1431,10 @@
       case 'fit': if (S.rcy) fitRouteGraph(); else focusGraph(null); break;
       case 'rearrange':
         if (S.graphView === 'route') break;   // this view has no saved layout to rearrange
-        dialog('重新排列', '<p>重新排列当前显示的论文卡片？没有显示的论文不受影响。之后可点击「撤销重新排列」恢复原布局。</p>', '重新排列', async () => {
+        dialog('重新排列', '<p>重新排列当前论文？</p>', '重新排列', async () => {
           await S.positionQueue;
           const previous = S.snapshot.positions, drawn = new Set(S.cy ? S.cy.nodes().map(n => n.id()) : []);   // only what is drawn is re-arranged; hidden papers keep their place
-          if (!drawn.size) { S.notice = '当前没有显示论文，无法重新排列'; status(); return; }
+          if (!drawn.size) { S.notice = '没有论文可排列'; status(); return; }
           S.snapshot.positions = Object.fromEntries(Object.entries(previous).filter(([id]) => !drawn.has(id))); S.positions = {}; S.transient = new Set(); S.cy?.destroy(); S.cy = null; renderGraph(false); S.transient = new Set(); capturePositions();
           try { await mutate({ action: 'positions', rearrange: true, positions: { ...Object.fromEntries([...drawn].filter(id => id in previous).map(id => [id, null])), ...S.positions } }, false); renderGraph(false); }
           catch (error) { S.snapshot.positions = previous; S.positions = {}; S.cy?.destroy(); S.cy = null; renderGraph(); throw error; }
@@ -1479,7 +1464,7 @@
       await window.__TAURI_INTERNALS__.invoke('complete_quit');
     } catch (error) {
       quitting = false; editors.forEach((el, i) => { el.disabled = disabled[i]; });
-      window.PDH.toast(`草稿未持久保存，应用保持打开：${error.message}`, 'error', 10000);
+      window.PDH.toast(`草稿未保存：${error.message}`, 'error', 10000);
     }
   };
   // Switching project: forget what was shown for the previous one (selection, focus, similarity relations) and reload.

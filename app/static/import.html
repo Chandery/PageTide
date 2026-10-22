@@ -13,7 +13,6 @@
 <div class="container">
 <a class="back" id="back" href="/">← 返回主页</a>
 <h1>导入已有论文库</h1>
-<p class="lead">把你已经整理好的 PDF 带进来：几篇、整个文件夹，或 Zotero 导出的文件夹。原文件不会被改动，应用会复制一份归档；导入的论文只进论文库，不会被当作你的兴趣信号。</p>
 <div class="hint" id="target" role="status"></div>
 <div class="notice bad" id="error" role="alert" hidden></div>
 
@@ -24,7 +23,7 @@
 <!-- ===================================================================== 1 选择 -->
 <section class="panel active" id="stepSource" aria-label="选择要导入的论文">
   <div id="resumeBox" class="resume" hidden></div>
-  <div class="resume" id="continueBox" hidden><span id="continueText"></span> <button type="button" class="small" id="continueSkip">直接匹配已有的文件</button> <button type="button" class="small ghost" id="continueBack" hidden>返回查看失败记录</button></div>
+  <div class="resume" id="continueBox" hidden><span id="continueText"></span> <button type="button" class="small" id="continueSkip">直接匹配已有的文件</button> <button type="button" class="small ghost" id="continueBack" hidden>查看失败记录</button></div>
   <div class="picker">
     <button type="button" class="primary" id="pickFiles">选择 PDF 文件…</button>
     <button type="button" id="pickFolder">选择文件夹…</button>
@@ -33,16 +32,14 @@
   </div>
   <div class="dropzone" id="drop" tabindex="0" role="button" aria-label="拖入 PDF 或文件夹">
     <strong>或把 PDF、文件夹拖到这里</strong>
-    <span class="hint">子文件夹会按层级整理成分类；以点开头的隐藏文件和系统文件会被忽略。</span>
   </div>
   <details class="zotero">
     <summary>从 Zotero 导入</summary>
     <ol>
-      <li>在 Zotero 里右键要导入的分类（collection），选「导出分类…」。</li>
-      <li>格式选 BibTeX 或 RIS，勾选「导出文件」，保存到一个文件夹。</li>
-      <li>回到这里，点「选择文件夹…」选这个导出文件夹。元数据直接读导出文件，不需要打开 Zotero，也不会碰 Zotero 的数据库。</li>
+      <li>在 Zotero 里右键分类，选「导出分类…」</li>
+      <li>选 BibTeX 或 RIS，勾选「导出文件」</li>
+      <li>在这里选择导出的文件夹</li>
     </ol>
-    <p class="hint">导出文件夹本身会作为一个分类；每个 collection 请分别导出一次。</p>
   </details>
 
   <div id="picked" hidden>
@@ -54,13 +51,12 @@
   <fieldset class="options" id="options">
     <legend>导入选项</legend>
     <label class="check"><input type="checkbox" id="optOnline" checked><span>联网补全元数据</span></label>
-    <p class="hint opt-hint">会把从 PDF 里识别出的 DOI、arXiv 编号和论文题目发送给 OpenAlex，用来查找标题、作者、摘要等公开元数据；PDF 文件本身和你的论文库不会上传。关闭后，导入本身不会联网，没有导出文件的论文都按 PDF 原样入库；之后你在确认页里主动「查找」时，输入的文字才会发给 OpenAlex。</p>
+    <p class="hint opt-hint">只向 OpenAlex 发送 DOI、arXiv 编号和题目</p>
     <label class="check"><input type="checkbox" id="optFolders" checked><span>把子文件夹整理成分类</span></label>
-    <label class="check"><input type="checkbox" id="optRoot"><span>把所选文件夹本身也作为一个顶级分类</span></label>
-    <label class="check"><input type="checkbox" id="optReplace"><span>已经有 PDF 的论文，用这份文件替换当前 PDF</span></label>
-    <p class="hint opt-hint">替换时旧的 PDF 会留在文件历史里。论文在多个项目共享时，各项目的当前 PDF 都会使用这份文件；请先核对题名与文件。</p>
-    <label class="check" id="filelessRow" hidden><input type="checkbox" id="optFileless"><span>也导入没有 PDF 的条目（只有题录信息）</span></label>
-    <p class="hint opt-hint" id="filelessHint" hidden>Zotero 里有些条目只有题录、没有附件。勾选后它们也会进论文库，但没有 PDF 可读。</p>
+    <label class="check"><input type="checkbox" id="optRoot"><span>所选文件夹也作为分类</span></label>
+    <label class="check"><input type="checkbox" id="optReplace"><span>替换已有的 PDF</span></label>
+    <label class="check" id="filelessRow" hidden><input type="checkbox" id="optFileless"><span>也导入没有 PDF 的题录</span></label>
+    <p class="hint opt-hint" id="filelessHint" hidden></p>
   </fieldset>
   <div class="actions"><span class="spacer"></span><button type="button" class="primary" id="start" disabled>开始导入</button></div>
 </section>
@@ -68,7 +64,7 @@
 <!-- ===================================================================== 2 读取与匹配 -->
 <section class="panel" id="stepWorking" aria-label="读取与匹配">
   <div class="stage" id="stageUpload">
-    <div class="stage-head"><strong>读取并保存 PDF</strong><span class="stage-count" id="uploadCount"></span></div>
+    <div class="stage-head"><strong>读取 PDF</strong><span class="stage-count" id="uploadCount"></span></div>
     <div class="bar"><i id="uploadBar"></i></div>
     <div class="hint" id="sidecarNote"></div>
     <div class="hint" id="uploadNow" data-no-i18n></div>
@@ -81,7 +77,7 @@
     <div class="hint" id="quota"></div>
     <div class="notice warn" id="paused" hidden></div>
   </div>
-  <div class="actions"><button type="button" class="ghost" id="stop">暂停</button><span class="spacer"></span><button type="button" class="primary" id="resume" hidden>继续</button><button type="button" id="toReview" hidden>先看已有结果</button><button type="button" id="settle" hidden>不再联网，按原样导入剩下的</button></div>
+  <div class="actions"><button type="button" class="ghost" id="stop">暂停</button><span class="spacer"></span><button type="button" class="primary" id="resume" hidden>继续</button><button type="button" id="toReview" hidden>先看已有结果</button><button type="button" id="settle" hidden>剩下的按原样导入</button></div>
 </section>
 
 <!-- ===================================================================== 3 确认 -->
@@ -91,7 +87,7 @@
     <strong id="emptyImportTitle"></strong>
     <p id="emptyImportText"></p>
     <p class="hint" id="emptyImportOptions"></p>
-    <button type="button" id="emptyReselect">重新选择文件后重试</button>
+    <button type="button" id="emptyReselect">重新选择文件</button>
   </div>
   <div class="notice warn" id="failedBox" hidden>
     <div id="failedText"></div>
@@ -121,7 +117,6 @@
   <div class="card" id="catsDone" hidden></div>
   <div class="card" id="seedsCard" hidden>
     <h3>设为种子（可选）</h3>
-    <p class="hint">种子会让推荐更贴近这些论文，也会出现在画像里；但它们不会作为学习地图生长的依据，也不会推进学习地图的进度。一次最多 20 篇，一个项目最多 40 篇。</p>
     <ul class="seedlist" id="seedList"></ul>
     <div class="actions"><span class="hint" id="seedCount"></span><span class="spacer"></span><button type="button" id="seedGo" disabled>设为种子</button></div>
   </div>

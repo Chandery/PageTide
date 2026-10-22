@@ -4,6 +4,7 @@ from datetime import date
 from unittest import mock
 
 from test_route_detail import Fixture
+from recommendation_fixtures import SYNTHETIC_OA
 from app.organization import Conflict
 from app.service import App
 
@@ -21,7 +22,7 @@ class FullLocalFlowTests(Fixture):
             ids = {c["name"]: c["id"] for c in route["graph"]["concepts"]}
             self.app.store.upsert_papers([
                 {"key": kind + str(i), "title": term + " study " + str(i), "abstract": term + " methods and measurements",
-                 "language": "en", "published": date.today().isoformat()}
+                 "language": "en", "published": date.today().isoformat(), "oa": SYNTHETIC_OA}
                 for kind, term in [("p", "epitaxy"), ("w", "crystal lattice"), ("x", "photonic calibration")]
                 for i in range(6)], project_id=self.pid)
             route = self.app.route_manual(self.pid, ids["Lattice basis"], "mastered", route["revision"])

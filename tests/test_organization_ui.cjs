@@ -512,12 +512,12 @@ const reviewPreview = () => ({ fingerprint: 'f', scope: 'p1', pending_keys: ['p9
 test('the review lists only changes, in sections, nests child categories and escapes what it shows', () => {
   const ui = fixture();
   const html = ui.suggestionsHTML(reviewPreview(), key => ({ title: key === 'p1' ? 'Paper <one>' : key }), id => ({ d1: '机器人', d3: 'World <model>' }[id] || id));
-  for (const title of ['新增分类', '归入已有分类', '合并重复分类', '建议调整归属（默认不勾选）']) assert.match(html, new RegExp(`<h4>${title.replace(/[（）]/g, '.')}</h4>`));
+  for (const title of ['新增分类', '归入已有分类', '合并重复分类', '建议调整归属']) assert.match(html, new RegExp(`<h4>${title}</h4>`));
   assert.equal((html.match(/class="org-suggestion is-child"/g) || []).length, 2);
   assert.match(html, /data-suggestion="1" style="--depth:1"><div class="org-suggestion-head"><input type="checkbox" data-enabled checked aria-label="采用此类别"><span class="org-suggestion-parent">世界模型 ›<\/span>/);
   assert.match(html, /Paper &lt;one&gt;/);
   assert.doesNotMatch(html, /<b>Video|<one>|<model>/);
-  assert.match(html, /范围：这个项目的论文/);
+  assert.doesNotMatch(html, /范围：/);
 });
 
 test('additions to an existing category cannot be renamed or recoloured; merges are ticked and moves are not', () => {
@@ -530,21 +530,15 @@ test('additions to an existing category cannot be renamed or recoloured; merges 
   assert.match(html, /data-merge-enabled checked/);
   assert.match(html, /data-move-enabled aria-label/);
   assert.doesNotMatch(html, /data-move-enabled checked/);
-  assert.match(html, /子类别和论文都会并入保留的那个/);
+  assert.doesNotMatch(html, /子类别和论文都会并入保留的那个/);
 });
 
-test('category review explains aliases, existing categories and the distinction between directions and methods even with no changes', () => {
+test('category review carries no standing explanation of its standards, with or without changes', () => {
   const ui = fixture();
   for (const preview of [reviewPreview(), { groups: [], merges: [], moves: [], pending_keys: [], scope: 'p1' }]) {
     const html = ui.suggestionsHTML(preview);
-    assert.match(html, /明确的研究术语/);
-    assert.match(html, /中英文同义名称归为同一类/);
-    assert.match(html, /优先沿用已有分类/);
-    assert.match(html, /证据不足的论文保留待分类/);
-    assert.match(html, /方法细分类不会自动变成一级方向/);
-    assert.match(html, /父级与子类不按同义分类合并/);
-    const firstResult = html.indexOf(preview.groups.length ? '范围：' : '没有需要调整的内容');
-    assert.ok(html.indexOf('明确的研究术语') < firstResult);
+    for (const gone of ['明确的研究术语', '中英文同义名称归为同一类', '优先沿用已有分类', '证据不足的论文保留待分类', '方法细分类不会自动变成一级方向', '父级与子类不按同义分类合并']) assert.doesNotMatch(html, new RegExp(gone), gone);
+    assert.match(html, preview.groups.length ? /新增分类/ : /没有需要调整的内容/);
   }
 });
 
@@ -563,7 +557,7 @@ test('merge preview shows each real alias name safely and keeps legacy copy name
   assert.doesNotMatch(html, /<img src=x|手工<类别>/);
   assert.ok(html.indexOf('World Models') < html.indexOf('4 篇、1 个子类'));
   assert.match(html, /data-merge-enabled checked/);
-  assert.match(html, /合并后可以撤销/);
+  assert.doesNotMatch(html, /合并后可以撤销/);
 });
 
 test('the category standards explanation has complete English UI translations', () => {
@@ -588,7 +582,7 @@ test('papers nothing could be proposed for are listed, and the review does not c
   const ui = fixture();
   const html = ui.suggestionsHTML({ fingerprint: 'f', groups: [], merges: [], moves: [], pending_keys: ['p1', 'p2'], scope: 'x', profile: {} }, key => ({ title: key === 'p1' ? 'Survey <of> Embodied AI' : key }));
   assert.doesNotMatch(html, /没有需要调整的内容/);
-  assert.match(html, /没有可以自动提出的调整/);
+  assert.match(html, /没有可调整的内容/);
   assert.match(html, /还没有归类的论文/);
   assert.match(html, /Survey &lt;of&gt; Embodied AI/);
   assert.doesNotMatch(html, /<fieldset|type="checkbox"/);          // nothing to tick: it is a to-do for the person, not a proposal
@@ -606,9 +600,7 @@ test('a possible match is marked and not ticked, merges show each copy, moves ca
   assert.match(weak, /data-member="p7" checked/);                                   // its papers are ticked, so ticking the category is enough to apply it
   assert.match(html, /4 篇、1 个子类/);
   assert.match(html, /data-move-dismiss/);
-  assert.match(html, /没勾选“调整”也没勾选“保持现状”的建议，下次还会出现/);
-  assert.match(html, /原类别如果因此没有任何论文，会一并删除/);
-  assert.match(html, /没勾选的新增分类、归入和合并，下次检查时还会再出现/);          // no false promise about what is remembered
+  assert.doesNotMatch(html, /没勾选“调整”也没勾选“保持现状”的建议，下次还会出现|原类别如果因此没有任何论文，会一并删除|没勾选的新增分类、归入和合并，下次检查时还会再出现/);   // the standing notes are gone
 });
 
 test('an old preview without merges or moves still renders', () => {
@@ -629,7 +621,7 @@ test('undo button names the change it undoes and is absent when nothing visible 
 
 test('toolbar has an undo slot and no refresh button', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/static/organization.js'), 'utf8');
-  assert.match(source, /<span class="org-undo-slot" data-undo-slot><\/span><button data-action="suggest">/);
+  assert.match(source, /<span class="org-undo-slot" data-undo-slot><\/span><button data-action="suggest"[^>]*>/);
   assert.doesNotMatch(source, /button\('refresh'|data-action="refresh"|case 'refresh'/);
 });
 
@@ -751,7 +743,7 @@ test('the sidebar has the project panel above the directory, counts follow the t
   const html = ui.sidebarHTML();
   assert.ok(html.indexOf('org-projects-panel') < html.indexOf('org-directory-title'));
   assert.match(html, /aria-selected="true"[^>]*data-scope="p1"/);
-  assert.match(html, /另有 1 个类别只在其他项目/);
+  assert.doesNotMatch(html, /另有 1 个类别只在其他项目/);
   assert.doesNotMatch(html, /data-id="d2"/);                                // Robots only holds p2's paper
   ui.S.scope = 'all';
   const all = ui.sidebarHTML();
@@ -1099,15 +1091,15 @@ test('paper context cache is scoped to the project and drops pre-reset replies',
   assert.equal(ui.S.contexts.has(JSON.stringify(['p1','one'])),false);
   replies[1].resolve({context:{project_id:'p2',categories:[],units:[],map_available:false,saved_in_project:false}});
   await new Promise(r=>setImmediate(r));
-  assert.match(ui.S.contexts.get(JSON.stringify(['p2','one'])), /对应学习单元/);
+  assert.equal(typeof ui.S.contexts.get(JSON.stringify(['p2','one'])), 'string');   // the p2 reply is cached under its own project
 });
 
-test('explicit unmatched entry names papers and tells the user about omitted matches', () => {
+test('explicit unmatched entry names papers and carries no note about omitted matches', () => {
   const ui=fixture(), box={hidden:true,innerHTML:''};
   ui.S.root={querySelector:()=>box};ui.S.graphView='route';ui.S.snapshot=snapshot();
   ui.renderUnmatched({available:true,unmatched:['paper:one'],unmatched_total:150});
   assert.equal(box.hidden,false); assert.match(box.innerHTML,/150 篇/);
-  assert.match(box.innerHTML,/data-key="paper:one"/);assert.match(box.innerHTML,/列表搜索后定位/);
+  assert.match(box.innerHTML,/data-key="paper:one"/);assert.doesNotMatch(box.innerHTML,/列表搜索后定位/);
   ui.S.graphView='papers';ui.renderUnmatched(); assert.equal(box.hidden,true);
 });
 
@@ -1159,7 +1151,7 @@ test('ready learning matches can be explicitly reread after adding body text',as
   ui.setAPI(async()=>({context:{project_id:'p1',categories:[],map_available:true,saved_in_project:true,route_enabled:true,
     matching_status:'ready',units:++calls===1?[]:[{id:'a',name:'Body-derived match'}]}}));
   ui.contextFor('one');await new Promise(r=>setImmediate(r));
-  assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/没有对应的学习单元/);
+  assert.doesNotMatch(ui.S.contexts.get(JSON.stringify(['p1','one'])),/没有对应的学习单元/);   // nothing to show is not narrated
   assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/learning-match-retry/);
   await ui.handle('learning-match-retry',{dataset:{project:'p1',key:'one'}});await new Promise(r=>setImmediate(r));
   assert.equal(calls,2);assert.match(ui.S.contexts.get(JSON.stringify(['p1','one'])),/Body-derived match/);
@@ -1194,7 +1186,7 @@ test('late fulltext saving restarts the visible current-project graph instead of
 test('graph retry remains available for deferred progress with no pending saved papers',()=>{
   const ui=fixture(),box={hidden:true,innerHTML:''};ui.S.root={querySelector:()=>box};ui.S.graphView='route';
   ui.renderUnmatched({available:true,unmatched:[],pending:[],pending_total:0,progress_verification_deferred:true});
-  assert.match(box.innerHTML,/route-verification-retry/);assert.match(box.innerHTML,/重新核验学习匹配/);
+  assert.match(box.innerHTML,/route-verification-retry/);assert.match(box.innerHTML,/重新匹配/);
 });
 
 function aiPlanFixture() {
@@ -1222,7 +1214,7 @@ function planUI() {
 test('AI review lists unclassified papers first, then label changes, then moves, each unit with its own checkbox', () => {
   const html = planUI().suggestionsHTML(aiPlanFixture());
   const at = text => html.indexOf(text);
-  assert.ok(at('先归类还没有类别的论文') > 0 && at('先归类还没有类别的论文') < at('再调整现有分类') && at('再调整现有分类') < at('最后重新归类已分类的论文'));
+  assert.ok(at('归类未分类论文') > 0 && at('归类未分类论文') < at('调整现有分类') && at('调整现有分类') < at('重新归类'));
   for (const id of ['p:fresh-1','c:dup','c:junk','p:moved']) assert.match(html, new RegExp(`data-unit="${id}" checked`));
   assert.equal((html.match(/data-unit=/g) || []).length, 4, 'one checkbox per unit and nothing else');
   assert.match(html, /data-group/);                                  // the unclassified papers are grouped by where they go
@@ -1231,20 +1223,19 @@ test('AI review lists unclassified papers first, then label changes, then moves,
   assert.match(html, /data-select-all-units/); assert.match(html, /data-select-no-units/); assert.match(html, /data-ai-summary/);
 });
 
-test('AI review says which scope it covers and escapes model text', () => {
+test('AI review carries no scope note and escapes model text', () => {
   const html = planUI().suggestionsHTML(aiPlanFixture());
-  assert.match(html, /范围：项目「项目甲」/); assert.match(html, /<span>3 篇论文<\/span>/); assert.match(html, /<span>左边目录里显示 3 个类别<\/span>/);
-  assert.match(html, /与其他项目共用的类别只接收论文/);
+  assert.doesNotMatch(html, /范围：|与其他项目共用的类别只接收论文|左边目录里显示/);
   assert.match(html, /&lt;script&gt;/); assert.match(html, /&lt;img src=x&gt;/);
   assert.doesNotMatch(html, /<script>/); assert.doesNotMatch(html, /<img src=x>/);
   const all = planUI().suggestionsHTML({...aiPlanFixture(), scope:null});
-  assert.match(all, /范围：全部项目/); assert.match(all, /<span>3 篇论文<\/span>/); assert.doesNotMatch(all, /与其他项目共用/);
+  assert.doesNotMatch(all, /范围：|与其他项目共用/);
 });
 
-test('deleting a label shows the papers it moves, and a merge says how many papers follow it', () => {
+test('deleting a label shows the papers it moves, and a merge carries no explanatory count line', () => {
   const html = planUI().suggestionsHTML(aiPlanFixture());
-  assert.match(html, /1 篇论文改归到别的类别/); assert.match(html, /Held paper/);
-  assert.match(html, /2 篇论文随之并入/);
+  assert.match(html, /1 篇论文改归别的类别/); assert.match(html, /Held paper/);
+  assert.doesNotMatch(html, /2 篇论文随之并入/);
 });
 
 test('papers the model could not judge are marked as placed in 其他 for now', () => {
@@ -1254,14 +1245,14 @@ test('papers the model could not judge are marked as placed in 其他 for now', 
   assert.match(html, /依据不足，暂放/);
 });
 
-test('a plan with nothing to change says every paper already has a category and shows no checkbox', () => {
+test('a plan with nothing to change says so briefly and shows no checkbox', () => {
   const html = planUI().suggestionsHTML({...aiPlanFixture(), ai_units:[]});
-  assert.match(html, /所有论文都已有类别/); assert.doesNotMatch(html, /data-unit=/);
+  assert.match(html, /没有需要调整的内容/); assert.doesNotMatch(html, /所有论文都已有类别/); assert.doesNotMatch(html, /data-unit=/);
 });
 
 test('a plan without selectable units is refused instead of being applied as a whole', () => {
   const html = planUI().suggestionsHTML({ai_plan:{categories:[],new_categories:[],papers:[]}});
-  assert.match(html, /缺少可选项/); assert.doesNotMatch(html, /data-unit=/);
+  assert.match(html, /整理方案不完整/); assert.doesNotMatch(html, /data-unit=/);
 });
 
 test('ticking a deletion pulls in the deletion of its sub-categories, and unticking one unticks what needs it', () => {
@@ -1278,7 +1269,7 @@ test('ticking a deletion pulls in the deletion of its sub-categories, and untick
   assert.equal(sel.unclassifiedLeft(sel.all()), 0);
 });
 
-test('the dialog keeps the count, the unclassified warning and the apply button in step with the ticks', () => {
+test('the dialog keeps the count and the apply button in step with the ticks, with no unclassified warning', () => {
   const ui = planUI(), preview = aiPlanFixture();
   const listeners = {}, summary = {textContent:''}, submit = {textContent:'', disabled:false};
   const boxes = preview.ai_units.map(u => ({dataset:{unit:u.id}, checked:true, matches: s => s === '[data-unit]', closest: () => ({querySelectorAll: () => groupBoxes})}));
@@ -1289,13 +1280,13 @@ test('the dialog keeps the count, the unclassified warning and the apply button 
     querySelector: s => s === '[data-ai-summary]' ? summary : s === '[type=submit]' ? submit : buttons[s] ? Object.assign(buttons[s], {addEventListener:(k,fn)=>{buttons[s].fn=fn;}}) : null,
     addEventListener: (kind, fn) => { listeners[kind] = fn; }};
   ui.wireAIPlan(root, preview.ai_units);
-  assert.equal(summary.textContent, '已选 4 / 4 项 · 应用后没有未分类论文');
+  assert.equal(summary.textContent, '已选 4 / 4 项');
   assert.equal(submit.textContent, '应用所选（4 项）');
   boxes[0].checked = false; listeners.change({target: boxes[0]});   // untick the only unclassified paper
-  assert.equal(summary.textContent, '已选 3 / 4 项 · 应用后仍有 1 篇未分类');
+  assert.equal(summary.textContent, '已选 3 / 4 项');
   assert.equal(group.checked, false);
   buttons['[data-select-no-units]'].fn();
-  assert.equal(summary.textContent, '已选 0 / 4 项 · 应用后仍有 1 篇未分类');
+  assert.equal(summary.textContent, '已选 0 / 4 项');
   assert.equal(submit.disabled, true);
   buttons['[data-select-all-units]'].fn();
   assert.equal(submit.disabled, false); assert.ok(boxes.every(b => b.checked));
@@ -1303,12 +1294,11 @@ test('the dialog keeps the count, the unclassified warning and the apply button 
   assert.equal(boxes[0].checked, false); assert.ok(boxes.slice(1).every(b => b.checked));
 });
 
-test('the scope note escapes the project name', () => {
+test('the project name is never echoed unescaped into the review', () => {
   const ui = planUI();
   ui.S.snapshot.projects[0].name = '<img src=x onerror=alert(1)>';
   const html = ui.suggestionsHTML(aiPlanFixture());
   assert.doesNotMatch(html, /<img src=x/);
-  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
 });
 
 test('a new category shows where it will sit and why the model wants it', () => {
@@ -1317,7 +1307,8 @@ test('a new category shows where it will sit and why the model wants it', () => 
   const html = planUI().suggestionsHTML(preview);
   assert.match(html, /Models › 世界模型/);                      // the path, not just the bare name
   assert.match(html, /标题依据/);                                // the model's reason for creating it
-  const moved = html.slice(html.indexOf('最后重新归类已分类的论文'));
+  const moved = html.slice(html.indexOf('<h4>重新归类</h4>'));
+  assert.ok(html.includes('<h4>重新归类</h4>'));
   assert.match(moved, /Models › 世界模型/);                      // and in the move list too
 });
 

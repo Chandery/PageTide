@@ -56,8 +56,7 @@ test('useful rate counts only explicit useful vs irrelevant; too hard is left ou
   assert.equal(f.too_hard, 4);
   const html = P.feedbackHTML(f);
   assert.match(html, /75%/);
-  assert.match(html, /共 12 篇/);
-  assert.match(html, /“太难”不计入/);
+  assert.doesNotMatch(html, /共 \d+ 篇|不计入|样本还少|不推断|不表示|不算负面|本周新增|上周 \d/);   // the rule holds in the numbers; it is not explained on the page
 });
 
 test('with no explicit feedback there is no rate, and small samples are flagged', () => {
@@ -67,7 +66,7 @@ test('with no explicit feedback there is no rate, and small samples are flagged'
   assert.doesNotMatch(P.feedbackHTML(none), /\d+%/);
   const few = P.dashboard(insights({ signals: { saved: 3, positive: 2, negative: 1, too_hard: 0 } })).feedback;
   assert.equal(few.few, true);
-  assert.match(P.feedbackHTML(few), /样本还少/);
+  assert.doesNotMatch(P.feedbackHTML(few), /共 \d+ 篇|不计入|样本还少|不推断|不表示|不算负面|本周新增|上周 \d/);
 });
 
 test('activity chart: one evidence button per week, bars scaled to the busiest week, current week labelled', () => {
@@ -79,7 +78,8 @@ test('activity chart: one evidence button per week, bars scaled to the busiest w
   assert.match(html, /height:63\.6%/);  // 35 exposures of a 55-record peak
   assert.match(html, /本周/);
   const quiet = P.activityHTML(P.dashboard(insights({ timeline: { weeks: [week('2026-09-24', '2026-10-01')] } })).weeks);
-  assert.match(quiet, /不推断兴趣变化/);
+  assert.match(quiet, /还没有记录/);
+  assert.doesNotMatch(quiet, /共 \d+ 篇|不计入|样本还少|不推断|不表示|不算负面|本周新增|上周 \d/);
 });
 
 test('falling terms are not shown when the two weeks are not comparable', () => {
@@ -87,7 +87,7 @@ test('falling terms are not shown when the two weeks are not comparable', () => 
   const report = insights().weekly_change;
   const html = P.trendHTML(report);
   assert.doesNotMatch(html, /↓/);
-  assert.match(html, /这不表示兴趣下降/);
+  assert.doesNotMatch(html, /共 \d+ 篇|不计入|样本还少|不推断|不表示|不算负面|本周新增|上周 \d/);
   const comparable = P.trendHTML({ ...report, comparable: true, has_activity: true });
   assert.match(comparable, /↓ <span data-no-i18n>action<\/span>/);
 });
@@ -97,7 +97,7 @@ test('KPI markup escapes nothing unsafe and keeps the evidence action', () => {
   const m = P.dashboard(insights());
   const html = P.kpiHTML(m.kpis[3]);
   assert.match(html, /data-evidence="too_hard"/);
-  assert.match(html, /不算负面/);
+  assert.doesNotMatch(html, /共 \d+ 篇|不计入|样本还少|不推断|不表示|不算负面|本周新增|上周 \d/);
   assert.match(P.kpiHTML(m.activity), /data-evidence="week" data-start="2026-09-24T00:00:00\+00:00"/);
   const hostile = P.trendHTML({ ...insights().weekly_change, comparable: true, keyword_changes: { rising: [{ term: '<img src=x>', delta: 2 }], falling: [] } });
   assert.doesNotMatch(hostile, /<img/);

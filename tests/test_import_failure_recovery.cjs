@@ -159,6 +159,6 @@ test('late recovery detail cannot overwrite a different batch or a newly selecte
 test('actual recovery dynamic system strings translate while CJK filenames stay exact', async () => {
   const p = page({lang: 'en-US'}); await p.ready(); await p.api.startImport();
   assert.doesNotMatch(p.get('emptyImportTitle').textContent + p.get('emptyImportOptions').textContent + p.get('emptyReselect').textContent, /[㐀-鿿]/);
-  assert.match(p.get('emptyImportTitle').textContent, /No files were saved/);
+  assert.match(p.get('emptyImportTitle').textContent, /No files imported/);
   assert.match(p.get('failedList').innerHTML, /收藏.pdf/); assert.match(p.get('failedList').innerHTML, /not a PDF file/);
 });

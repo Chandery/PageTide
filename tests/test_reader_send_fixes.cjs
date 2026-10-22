@@ -30,7 +30,7 @@ test('actual send rejects mixed paper, project or quote version before API trans
 test('actual answer reports unknown billing as a reservation, not measured token use', async()=>{
   const f=fixture({ok:true,answer:'Bounded evidence',mode:'text',usage:{total_tokens:5500},usd:'0.00258',usage_unknown:true,usage_reserved:true});
   await f.ask('Explain');
-  assert.ok(f.notices.some(n=>n[0].includes('计费未确认，暂按上限占用')));
+  assert.ok(f.notices.every(n=>!n[0].includes('回答完成')&&!n[0].includes('用量未确认')));
   assert.ok(f.notices.every(n=>!n[0].includes('5500 token')));
 });
 test('actual send binds selected quote to reading project and PDF, despite unrelated top project',async()=>{
@@ -44,6 +44,6 @@ test('actual reply visibly discloses omitted retrieval passages and abstract exc
   const f=fixture({ok:true,answer:'Bounded public evidence',mode:'text',pages:[1],usage:{total_tokens:1},usd:'0',context_limits:{abstract_truncated:true,omitted_passages:2}});
   await f.ask('Explain this evidence');
   const message=f.messages.find(m=>m[0]==='ai');assert.ok(message);
-  assert.ok(message[3].includes('摘要仅为节选'));
-  assert.ok(message[3].includes('输入上限省略了 2 段检索内容'));
+  assert.ok(message[3].includes('命中第 1 页'));
+  assert.ok(message[3].every(part=>!part.includes('摘要仅为节选')&&!part.includes('太长')));
 });

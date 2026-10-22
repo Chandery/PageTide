@@ -171,6 +171,8 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         # project/report rather than the old synthetic English mislabel.
         self.app.set_project_language(pid, 'humanities', ['zh'])
         self.app.store.conn.execute("UPDATE papers SET metadata_language='zh', metadata_language_source='synthetic Chinese fixture' WHERE key IN ('zh-hit','zh-miss')")
+        from recommendation_fixtures import SYNTHETIC_PDF
+        self.app.store.conn.execute("UPDATE papers SET oa_json=? WHERE key IN ('zh-hit','zh-miss')", (SYNTHETIC_PDF,))
         self.app.store.conn.commit()
         self.assertEqual(self.app.build_batch(limit=1, project_id=pid)["cards"][0]["key"], "zh-hit")
 

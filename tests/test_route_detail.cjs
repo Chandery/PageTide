@@ -40,7 +40,7 @@ test('the edges are prerequisite, matched_to (with the terms that matched) and s
   assert.deepEqual(kinds('matched_to').map((e) => e.rank).sort(), [0, 0, 0, 1]);
   assert.match(kinds('matched_to').find((e) => e.source === 'rp:p1').title, /crystal growth/);
   assert.equal(kinds('similarity').length, 1);
-  assert.match(kinds('similarity')[0].title, /非引用关系/);
+  assert.equal(kinds('similarity')[0].title, '内容相近');
   assert.ok(out.edges.every((e) => ['prerequisite', 'matched_to', 'similarity'].includes(e.kind)));   // no cites, no stance
 });
 
@@ -73,9 +73,10 @@ test('a crowded unit spreads its papers over a grid instead of one line', () => 
   assert.equal(new Set(nodes.map((n) => `${n.x},${n.y}`)).size, 9);
 });
 
-test('the summary says what was left out', () => {
+test('the summary is just units and papers; left-out counts stay in the data, not the sentence', () => {
   const out = plain(D.layout(detail(), null));
-  assert.equal(D.summary(out.counts), '3 个学习单元 · 4 篇论文 · 1 篇没有对应的单元 · 另有 3 篇没有画出来');
+  assert.equal(D.summary(out.counts), '3 个学习单元 · 4 篇论文');
+  assert.equal(out.counts.unmatched, 1);assert.equal(out.counts.omitted, 3);
 });
 
 test('pending body verification is a separate row and matching tooltips identify current body terms',()=>{
@@ -85,6 +86,6 @@ test('pending body verification is a separate row and matching tooltips identify
   assert.equal(out.counts.matched,3);assert.equal(out.counts.unmatched,1);assert.equal(out.counts.pending,1);
   const at=id=>out.nodes.find(n=>n.id===id);
   assert.ok(at('rg:pending').y>at('rp:free').y);assert.ok(at('rp:pending').y>at('rg:pending').y);
-  assert.match(out.edges.find(e=>e.source==='rp:p1'&&e.kind==='matched_to').title,/标题或当前版本正文/);
-  assert.match(D.summary(out.counts),/1 篇正文待核验/);
+  assert.match(out.edges.find(e=>e.source==='rp:p1'&&e.kind==='matched_to').title,/检索词：crystal growth/);
+  assert.doesNotMatch(D.summary(out.counts),/正文待核验/);
 });

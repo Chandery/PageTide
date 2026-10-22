@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
+from recommendation_fixtures import SYNTHETIC_OA
 from app import eligibility, maintenance, paper_language, ranking
 from app.service import App
 
@@ -63,7 +64,7 @@ class TitleEvidenceTests(unittest.TestCase):
         self.assertEqual(result['language']['metadata_language'], 'en')
 
     def test_verified_language_priority_and_legacy_caller_compatibility(self):
-        paper = {'title': CHINESE_TITLE, 'abstract': 'Usable abstract'}
+        paper = {'title': CHINESE_TITLE, 'abstract': 'Usable abstract', 'oa': SYNTHETIC_OA}
         for status in ({'fulltext_status': 'verified'}, {}):
             result = eligibility.evaluate(POLICY, paper, {'metadata_language': 'en', 'fulltext_language': 'en', **status})
             self.assertTrue(result['eligible'])
@@ -100,7 +101,7 @@ class AppTitleGateTests(unittest.TestCase):
 
     def paper(self, key, title=CHINESE_TITLE, reported='en'):
         self.app.store.upsert_papers([{'key': key, 'title': title, 'abstract': 'World model learning and prediction from video.',
-                                     'published': '2026-01-01', 'language': reported,
+                                     'published': '2026-01-01', 'language': reported, 'oa': SYNTHETIC_OA,
                                      'metadata_language_source': 'OpenAlex'}], self.pid)
 
     def pool(self, key):

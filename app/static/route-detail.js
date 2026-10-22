@@ -64,20 +64,20 @@
       y += 70 + Math.ceil(keys.length / FREE_COLS) * PAPER_ROW + ROW_PAD;
     }
     detached(free, 'rg:unmatched', '没有对应的学习单元');
-    detached(pending, 'rg:pending', '正文待核验，学习匹配未确定');
+    detached(pending, 'rg:pending', '待匹配');
 
     const unitIds = new Set(units.map((u) => u.id));
     (detail.prereqs || []).forEach((e, i) => {
-      if (unitIds.has(e.from) && unitIds.has(e.to)) edges.push({ id: `rr:${i}`, source: unitId(e.from), target: unitId(e.to), kind: 'prerequisite', proposed: e.state === 'proposed', title: '要先读懂：上面的概念是下面概念的前置' });
+      if (unitIds.has(e.from) && unitIds.has(e.to)) edges.push({ id: `rr:${i}`, source: unitId(e.from), target: unitId(e.to), kind: 'prerequisite', proposed: e.state === 'proposed', title: '前置' });
     });
     matches.forEach((m, i) => {
       if (drawn.has(m.paper) && unitIds.has(m.unit)) edges.push({ id: `rm:${i}`, source: paperId(m.paper), target: unitId(m.unit), kind: 'matched_to', rank: m.rank,
-        title: m.source === 'local_body' ? `标题或当前版本正文用到了检索词：${(m.terms || []).join('、')}`
-          : m.terms && m.terms.length ? `标题或摘要用到了检索词：${m.terms.join('、')}` : '标题或摘要用到了这个概念的检索词' });
+        title: m.source === 'local_body' ? `检索词：${(m.terms || []).join('、')}`
+          : m.terms && m.terms.length ? `检索词：${m.terms.join('、')}` : '检索词匹配' });
     });
     ((relations && relations.edges) || []).forEach((e, i) => {
       if (e.source !== e.target && drawn.has(e.source) && drawn.has(e.target)) {
-        edges.push({ id: `rs:${i}`, source: paperId(e.source), target: paperId(e.target), kind: 'similarity', weight: e.weight, title: `内容相似度 ${Math.round((e.weight || 0) * 100)}%（非引用关系）` });
+        edges.push({ id: `rs:${i}`, source: paperId(e.source), target: paperId(e.target), kind: 'similarity', weight: e.weight, title: '内容相近' });
       }
     });
     const matchedCount = papers.length - free.length - pending.length;
@@ -87,9 +87,6 @@
   /* One sentence under the graph: what is drawn, and what was left out. */
   function summary(counts) {
     const parts = [`${counts.units} 个学习单元`, `${counts.papers} 篇论文`];
-    if (counts.unmatched) parts.push(`${counts.unmatched} 篇没有对应的单元`);
-    if (counts.pending) parts.push(`${counts.pending} 篇正文待核验`);
-    if (counts.omitted) parts.push(`另有 ${counts.omitted} 篇没有画出来`);
     return parts.join(' · ');
   }
 

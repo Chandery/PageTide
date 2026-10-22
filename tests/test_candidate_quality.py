@@ -141,15 +141,14 @@ class ServiceWindowTests(unittest.TestCase):
             self.app.guidance_search(self.session(), "semiconductor growth", all_years=True)
         self.assertIsNone(topic.call_args.kwargs["from_date"])
 
-    def test_refresh_defaults_to_the_hotspot_window_of_thirty_days_relative_to_today(self):
-        thirty_days_ago = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()
+    def test_refresh_defaults_to_a_relative_five_year_window_not_a_fixed_date(self):
         project = self.app.create_project("p", "manual", ["epitaxy"])["project_id"]
         with mock.patch.object(self.app.source, "discover_topic", return_value=[]) as topic:
             self.app.refresh_candidates(project_id=project)
-        self.assertEqual(topic.call_args.kwargs["from_date"], thirty_days_ago)
+        self.assertEqual(topic.call_args.kwargs["from_date"], sources.window_start(5))
         with mock.patch.object(self.app.source, "discover", return_value=[]) as legacy:
             self.app.refresh_candidates()
-        self.assertEqual(legacy.call_args.kwargs["from_date"], thirty_days_ago)
+        self.assertEqual(legacy.call_args.kwargs["from_date"], sources.window_start(5))
 
     def test_an_owner_time_preference_replaces_the_hotspot_window(self):
         from recommendation_fixtures import set_user_settings
@@ -166,16 +165,17 @@ class ServiceWindowTests(unittest.TestCase):
             self.app.refresh_candidates(project_id=project, from_date="2020-01-01")
         self.assertEqual(topic.call_args.kwargs["from_date"], "2020-01-01")
 
-    def test_recommendation_cards_carry_the_pdf_status(self):
+    def test_recommendation_cards_carry_the_pdf_status_and_a_paper_with_none_is_not_recommended(self):
         project = self.app.create_project("p", "manual", ["epitaxy"])["project_id"]
         recent = lambda days: (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
         self.app.store.upsert_papers([
             {"key": "a", "title": "epitaxy growth direct", "abstract": "epitaxy", "published": recent(3), "oa": DIRECT},
             {"key": "b", "title": "epitaxy growth page", "abstract": "epitaxy", "published": recent(2), "oa": PAGE_ONLY},
             {"key": "c", "title": "epitaxy growth none", "abstract": "epitaxy", "published": recent(1)}], project_id=project)
-        english_papers(self.app, project)
+        english_papers(self.app, project, pdf_source=False)
         cards = {c["key"]: c["pdf_status"] for c in self.app.build_batch(limit=5, project_id=project)["cards"]}
-        self.assertEqual(cards, {"a": "direct", "b": "page", "c": "none"})
+        # "page" (a landing page, possibly behind a login) stays; "none" (no PDF source at all) is not offered.
+        self.assertEqual(cards, {"a": "direct", "b": "page"})
 
 
 class RouteAndPageTests(unittest.TestCase):

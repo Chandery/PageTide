@@ -9,7 +9,7 @@ from collections import Counter
 from app import maintenance, route_batch
 from app.service import App
 from test_route_runtime import Fixture
-from recommendation_fixtures import english_papers
+from recommendation_fixtures import english_papers, SYNTHETIC_OA
 
 
 class BatchTests(Fixture):
@@ -110,7 +110,7 @@ class BatchTests(Fixture):
         self.app.projects.update_project(self.pid,name='Crystals',keywords=['photonic calibration'])
         with mock.patch.object(self.app.source,'discover_topic',return_value=[{
             'key':'deep','title':'Crystal lattice photonic calibration','abstract':'crystal lattice photonic calibration',
-            'language':'en','published':'2026-01-01'}]):
+            'language':'en','published':'2026-01-01','oa':SYNTHETIC_OA}]):
             self.app.refresh_candidates(project_id=self.pid)
         result=self.result()
         card=next(c for c in result['cards'] if c['key']=='deep')

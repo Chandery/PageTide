@@ -638,7 +638,7 @@ class HomeOffTests(Fixture):
     def test_the_page_tells_off_apart_from_missing(self):
         index = (ROOT / "app/static/index.html").read_text(encoding="utf-8")
         self.assertIn("route.enabled === false", index)
-        self.assertIn("路径模式已关闭", index)
+        self.assertNotIn("路径模式已关闭", index)   # the off state is a bare panel with a link, not a sentence
 
 
 class HomeTests(Fixture):

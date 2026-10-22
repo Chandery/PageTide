@@ -7,7 +7,7 @@ from . import ranking
 from .organization_terms import category_identity, category_label
 
 KINDS = {'saved', 'positive', 'negative', 'too_hard', 'understood', 'seed', 'term', 'inventory_term', 'feedback', 'week', 'exposed'}
-LABELS = {'positive': '有用', 'negative': '不相关', 'too_hard': '太难', 'understood': '已读懂', 'saved': '收藏', 'exposed': '曝光'}
+LABELS = {'positive': '有用', 'negative': '不相关', 'too_hard': '太难', 'understood': '已读懂', 'saved': '收藏', 'exposed': '推荐过'}
 INTEREST = ('useful', 'irrelevant')   # a later 'understood' or 'too_hard' never replaces one of these
 STOP = {'further', 'framework', 'model', 'models', 'using', 'propose', 'proposed', 'approach'}
 

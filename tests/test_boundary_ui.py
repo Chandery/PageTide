@@ -25,16 +25,18 @@ class BoundaryPageTests(unittest.TestCase):
         self.assertIn("{regenerate, brief}",js)
         self.assertNotIn("mapBoundary",js)
 
-    def test_goal_required_and_unspecified_background_are_explained(self):
+    def test_goal_is_marked_required_and_the_explanatory_notes_are_not_on_the_pages(self):
+        brief=read('route-brief.js')
+        self.assertIn("key === 'goal' ? '（必填）' : ''",brief)
         for page in ('route.html','project_creation.html'):
             text=read(page)
-            self.assertIn('仅学习目标必填',text)
-            self.assertIn('其他项可以跳过',text)
-            self.assertIn('已知基础留空表示未说明',text)
+            for gone in ('仅学习目标必填','其他项可以跳过','已知基础留空表示未说明'):
+                self.assertNotIn(gone,text)
 
     def test_the_concept_panel_shows_the_kind_and_the_reason_as_text_not_markup(self):
         js = read("route-editor.js")
-        self.assertIn("为什么在这里：</span><span data-no-i18n>${esc(concept.why)}", js)
+        self.assertIn('<div class="terms" data-no-i18n>${esc(concept.why)}</div>', js)
+        self.assertNotIn("为什么在这里", js)
 
 
 if __name__ == "__main__":

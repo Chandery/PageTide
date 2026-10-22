@@ -150,6 +150,8 @@
   .badge.saved { color:var(--good); }
   .route-panel { margin-top:calc(16px * var(--s)); padding:calc(18px * var(--s)) calc(22px * var(--s)); border:0; box-shadow:var(--sh-1); border-radius:var(--r-lg); background:var(--surface-1);
     display:grid; gap:calc(14px * var(--s)); font-size:calc(13px * var(--s)); line-height:1.6; }
+  .route-panel[hidden], #maintainNote:empty, #eligibilityNote:empty, #triageFailure[hidden] { display:none; }
+  .route-head .route-title { margin-right:auto; }
   .route-head, .route-foot { display:flex; align-items:center; justify-content:space-between; gap:calc(12px * var(--s)) calc(16px * var(--s)); flex-wrap:wrap; }
   .route-title { display:flex; align-items:baseline; gap:calc(8px * var(--s)); font-size:calc(15px * var(--s)); }
   .route-meter { display:flex; align-items:center; gap:calc(14px * var(--s)); }
@@ -605,19 +607,17 @@
 <body>
 <header class="top">
   <div class="brand"><img class="brand-mark" src="/brand-mark.svg" alt="" aria-hidden="true"><span class="wordmark">Paper<em>Dig</em>Helper</span></div>
-  <button class="project-btn" id="projectBtn" title="项目总览（⌥↑，或双指捏合）" aria-haspopup="dialog">
+  <button class="project-btn" id="projectBtn" title="项目总览" aria-haspopup="dialog">
     <i class="icon folder" aria-hidden="true"></i>
     <span id="currentProjectName">加载中...</span>
-    <kbd aria-hidden="true">⌥↑</kbd>
   </button>
-  <a class="project-edit" id="projectEdit" href="/project.html" title="管理这个项目：改名、删除">管理项目</a>
+  <a class="project-edit" id="projectEdit" href="/project.html">管理项目</a>
   <nav class="tabs" aria-label="主导航">
     <button class="tab active" data-view="today" aria-current="page"><i class="icon sparkles" aria-hidden="true"></i>今日</button>
     <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>
     <button class="tab" data-view="profile"><i class="icon profile" aria-hidden="true"></i>画像</button>
   </nav>
   <div class="right">
-    <div class="stat" id="stats"></div>
     <div class="controls">
       <div class="modes"><button class="tiny ghost" id="settingsBtn" title="AI 与接口设置" aria-label="AI 与接口设置"><i class="icon settings" aria-hidden="true"></i></button><button class="tiny ghost" id="modeBtn" title="切换明暗主题" aria-label="切换明暗主题"><i class="icon mode" aria-hidden="true"></i></button></div>
     </div>
@@ -629,7 +629,6 @@
   <div class="mc-desk"></div>
   <div class="mc-bar">
     <span class="mc-title">项目</span>
-    <span class="mc-hint">方向键选择 · 回车或双指张开进入 · Esc 返回</span>
     <button class="mc-add" type="button" title="新建项目" aria-label="新建项目"><i class="icon plus" aria-hidden="true"></i></button>
   </div>
   <div class="mc-stage" role="listbox" aria-label="项目"></div>
@@ -639,11 +638,11 @@
   <section id="view-today">
     <section class="hero">
       <div class="edition"><span class="live-dot"></span><span id="projectName">研究工作区</span></div>
-      <div class="view-heading"><h1>今日推荐</h1><span class="count" id="todayCount"></span></div>
+      <div class="view-heading"><h1>今日推荐</h1></div>
       <div class="row" style="margin-top:16px">
         <button class="primary" id="btnDaily">生成今日 5 篇</button>
         <button id="btnRefresh">抓取新论文</button>
-        <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label><span class="sub" id="autoAiHint"></span>
+        <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label>
       </div>
       <div class="sub" id="maintainNote" style="margin-top:8px"></div>
       <div class="sub err" id="triageFailure" role="alert" hidden style="margin-top:8px"></div>
@@ -664,12 +663,12 @@
     <button class="tiny ghost" id="readerToggleSide" title="页面缩略图">☰</button>
     <h2 id="readerTitle"></h2>
     <span class="stat" id="readerInfo"></span>
-    <div class="zoombar" title="触摸板双指捏合，或按住 ⌘/⌥ 滚动来缩放">
+    <div class="zoombar">
       <button class="tiny ghost" id="zoomOut" title="缩小">−</button><span id="zoomLabel">100%</span>
       <button class="tiny ghost" id="zoomIn" title="放大">+</button>
       <button class="tiny ghost" id="zoomFit" title="适应宽度">适宽</button>
     </div>
-    <button class="tiny" id="readerNative" title="用浏览器自带阅读器打开（原生清晰、带边栏）">浏览器打开</button>
+    <button class="tiny" id="readerNative">浏览器打开</button>
     <button class="tiny" id="readerAsk">对这篇提问</button>
   </div>
   <div class="rbody">
@@ -681,17 +680,17 @@
 <div class="petpanel" id="petPanel">
   <header>
     <div class="phead"><b id="petTitle">阅读助手</b><span class="ppaper" id="petPaper">未选择论文</span></div>
-    <button class="tiny ghost" id="petClear" title="开始新会话；旧记录保留，但不再用于接下来的回答">新会话</button>
+    <button class="tiny ghost" id="petClear" title="开始新会话">新会话</button>
     <button class="tiny ghost" id="petClose" title="关闭">✕</button>
   </header>
   <div class="plog" id="petLog" aria-live="polite"></div>
   <div class="pcompose">
     <div id="petRef"></div>
-    <textarea id="petInput" rows="1" placeholder="追问，例如：这个方法的核心假设是什么？"></textarea>
+    <textarea id="petInput" rows="1" placeholder="输入问题"></textarea>
     <div class="pfoot">
-      <span id="petFt" class="pft">全文未提取</span>
-      <button class="tiny ghost" id="petImg" type="button" aria-pressed="false" title="把当前页（有引用时为引用所在页）渲染成图片随下一个问题发送，估计约多 1500 token（未实测）。只作用于下一个问题，回答失败时保持开启；换论文时关闭。问题提到图/表时会自动附图。">附本页图</button>
-      <label class="switch" title="检索更多全文段落，消耗更多 token"><input type="checkbox" id="fullCtx"> 更多上下文</label>
+      <span id="petFt" class="pft"></span>
+      <button class="tiny ghost" id="petImg" type="button" aria-pressed="false" title="随下一个问题发送当前页图片，多耗 token">附本页图</button>
+      <label class="switch" title="多耗 token"><input type="checkbox" id="fullCtx"> 更多上下文</label>
       <button class="primary tiny" id="petSend">发送</button>
     </div>
   </div>
@@ -773,9 +772,6 @@ function md(text) {
 const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function renderStats() {
-  const s = state.stats || {};
-  $('#stats').innerHTML = `<span>文献 <b>${s.papers ?? 0}</b></span><span>收藏 <b>${s.saved ?? 0}</b></span>
-    <span>正例 <b>${s.positive ?? 0}</b></span><span>负例 <b>${s.negative ?? 0}</b></span><span>太难 <b>${s.too_hard ?? 0}</b></span>`;
   const proj = state.projects?.find(p => p.id === state.currentProject);
   $('#projectName').textContent = proj?.name || '研究工作区';
 }
@@ -787,7 +783,7 @@ function aiSlot(c) {
   if (c.summary) return `<div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
     ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>${failure}`;
   if (state.triaging || state.triagingKeys.has(c.key)) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
-  return failure || `<div class="ai-off">（尚未速览）</div>`;
+  return failure;
 }
 // The learning map: where the reader stands and why each card was chosen. Plain words, no counts of what was missed.
 // How many of today's papers are exploration (outside what can be read now), and why there are none when there are none.
@@ -795,49 +791,34 @@ function dailyButtonText() {
   if (state.route?.enabled !== false && state.route?.progress_verification_deferred) return '核验后生成推荐';
   return state.route?.enabled !== false && state.route?.goal_status === 'completed' ? '生成今日发现' : '生成今日 5 篇';
 }
-function exploreLine(route) {
-  if (route.progress_verification_deferred) return '正文证据核验未完成，请刷新后再生成';
-  const cards = state.cards || [], explored = cards.filter((c) => c.route && (c.route.kind === 'explore' || c.route.kind === 'explore_new'));
-  const watched = cards.filter((c) => c.route?.kind === 'watch').length;
-  const policy = route.goal_status === 'completed' ? '目标已完成，每日本地最多一篇发现；优先探索，再看持续关注的新进展。' : '每批最多三篇路径、一篇探索、一篇新进展；发现互相补位，再由路径补位。路径不足时少推，发现仍最多两篇。';
-  if (!cards.length) return policy;
-  const counts = `当前批次：探索 ${explored.length} 篇、新进展 ${watched} 篇。`;
-  const absent = '当前批次没有探索候选；探索可提出已有概念的新任务、前置缺口或新分支，学习价值待确认。';
-  return [policy,counts,...(explored.length ? [] : [absent])].join(' · ');
-}
 function renderRoute(route) {
   const panel = $('#routePanel');
   if (!panel) return;
   $('#btnDaily').textContent = dailyButtonText();
   if (window.PDH_ROUTE_BETA === false) {
-    // Learning-map mode is a beta setting, off by default: the home page only says which mode recommends.
-    panel.hidden = !state.currentProject;
-    panel.innerHTML = '<div class="route-head"><div class="route-title"><strong>热点模式</strong><span class="sub">按你的画像推最新论文</span></div></div>';
+    // Learning-map mode is a beta setting, off by default: hotspot mode needs no panel at all.
+    panel.hidden = true;
+    panel.innerHTML = '';
     return;
   }
   const link = state.currentProject ? `/route.html?project_id=${encodeURIComponent(state.currentProject)}` : '/route.html';
   const seg = (on) => `<div class="seg" role="radiogroup" aria-label="推荐方式"><button type="button" role="radio" aria-checked="${on}" data-route-mode="route">按学习图推荐</button><button type="button" role="radio" aria-checked="${!on}" data-route-mode="off">热点模式</button></div>`;
   if (!route) {
     panel.hidden = !state.currentProject;
-    panel.innerHTML = state.currentProject ? `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">这个项目还没有学习图</span></div><a class="btn" href="${link}">搭一张学习图</a></div>
-      <div class="sub">学习图把你想学的内容拆成概念，并画出“读懂 A 才能读 B”；推荐会先从你现在能读的概念里选论文。可以自己搭，也可以让 AI 起草。</div>` : '';
+    panel.innerHTML = state.currentProject ? `<div class="route-head"><div class="route-title"><strong>学习图</strong></div><a class="btn" href="${link}">搭一张学习图</a></div>` : '';
     return;
   }
   panel.hidden = false;
   if (route.enabled === false) {
-    panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">路径模式已关闭</span></div>${seg(false)}</div>
-      <div class="route-foot"><span class="sub">现在推荐按热点模式：按你的画像推最新论文。打开后，推荐会先从你现在能读的概念里选论文。</span><a class="btn" href="${link}">查看学习图</a></div>`;
+    panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong></div>${seg(false)}<a class="btn" href="${link}">查看学习图</a></div>`;
     return;
   }
   const goalDone = route.goal_done ?? route.done, goalTotal = route.goal_total ?? route.total;
   const pct = goalTotal ? Math.round(100 * (goalDone || 0) / goalTotal) : 0;
-  const goalLabel = route.progress_verification_deferred ? '正文证据核验中' : route.goal_status === 'completed' ? '当前目标已完成' : route.goal_status === 'needs_review' ? '目标或前置关系需要检查' : '当前目标学习中';
   const names = (route.frontier || []).map((f) => `<span class="kw"><span class="kw-v" data-no-i18n>${esc(f.name)}</span></span>`).join('');
-  panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong><span class="sub">路径模式</span></div>${seg(true)}</div>
-    <div class="route-meter"><div class="route-bar" role="img" aria-label="目标范围已满足 ${goalDone} / ${goalTotal} 个概念"><i style="width:${pct}%"></i></div><span>${goalLabel} · 目标范围已满足 ${goalDone} / ${goalTotal} 个概念</span></div>
-    <div class="route-now">${names ? `<span class="sub">现在在读：</span>${names}` : `<span class="sub">${goalLabel}</span>`}${route.progress_verification_deferred ? '<span class="sub">正文证据正在核验，当前进度暂不完整；稍后刷新。</span>' : ''}</div>
-    <div class="route-explore"><span class="sub">${exploreLine(route)}</span></div>
-    <div class="route-foot"><span class="sub">开启后推荐先从你现在能读的概念里选论文，各条分支各走各的，互不等待。</span><a class="btn" href="${link}">查看和调整学习图</a></div>`;
+  panel.innerHTML = `<div class="route-head"><div class="route-title"><strong>学习图</strong></div>${seg(true)}<a class="btn" href="${link}">查看学习图</a></div>
+    <div class="route-meter"><div class="route-bar" role="img" aria-label="${goalDone} / ${goalTotal}"><i style="width:${pct}%"></i></div><span>${goalDone} / ${goalTotal}</span></div>
+    ${names ? `<div class="route-now">${names}</div>` : ''}`;
 }
 $('#routePanel').addEventListener('click', async (event) => {
   const choice = event.target.closest('[data-route-mode]');
@@ -850,11 +831,11 @@ $('#routePanel').addEventListener('click', async (event) => {
 });
 const ROUTE_KINDS = { route: '路径', remedial: '补基础', explore: '探索', explore_new: '探索 · 新方向', watch: '新进展' };
 const ROUTE_TITLES = {
-  route: '状态：来自学习图。它属于你现在能读的概念。',
-  remedial: '状态：来自学习图。你把相关论文标为“太难”，所以先补一篇基础。',
-  explore: '状态：探索。这篇没展示过，可能提出已有概念的新任务、缺失前置或新分支。检索来源只是线索；学习价值待确认。点击后可让 AI 判断。',
-  explore_new: '状态：探索。这篇没展示过，和潜在方向的论文相近。相近只是线索；学习价值待确认。点击后可让 AI 判断。',
-  watch: '状态：新进展。这篇没展示过，属于已满足且勾选持续关注的概念，并有近期发布日期。它不增加学习任务。',
+  route: '来自学习图',
+  remedial: '先补一篇基础',
+  explore: '探索',
+  explore_new: '探索新方向',
+  watch: '新进展',
 };
 function routeBadge(c) {
   if (!c.route) return '';
@@ -862,18 +843,10 @@ function routeBadge(c) {
   if (!kind) return '';
   return `<span class="kw kw-${esc(c.route.kind)}" title="${esc(ROUTE_TITLES[c.route.kind])}"><span class="kw-k">${kind}</span>${c.route.name ? `<span class="kw-v" data-no-i18n>${esc(c.route.name)}</span>` : ''}</span>`;
 }
-function explorationEvidence(c) {
-  if (!['explore','explore_new'].includes(c.route?.kind)) return '';
-  const e=c.route.exploration_evidence;
-  if(!e) return '<div class="whyline">该历史探索未保存用途依据，请重新生成或自行核对。</div>';
-  const purposes={public_query:'用途：核对公开探索检索带来的新线索，学习价值待审核。',side_branch:'用途：补充未满足的侧枝单元，暂不计入当前目标进度。',direction_proposal:'用途：核对与明确正向资料相近的潜在方向，尚待审核。'};
-  return `<details class="whyline"><summary>探索用途与原文依据</summary><p>${purposes[e.kind] || ''}</p><p data-no-i18n>${esc(e.query || e.name || '')}</p>${e.quote ? `<q data-no-i18n>${esc(e.quote)}</q>` : ''}${(e.positive_basis || []).map(p=>`<p>正向资料：<span data-no-i18n>${esc(p.title)}</span></p>`).join('')}</details>`;
-}
-
 const PDF_BADGES = {
-  direct: ['直链 PDF', '已知合法的 PDF 下载链接（arXiv 或开放获取）'],
-  page: ['仅原文页', '这篇论文是开放获取的，但只给了原文网页，没有 PDF 直链'],
-  none: ['无 PDF 来源', '没有找到合法的 PDF 来源；可以自己下载后附加'],
+  direct: ['直链 PDF', '可直接下载'],
+  page: ['仅原文页', '没有 PDF 直链'],
+  none: ['无 PDF 来源', '可自行下载后附加'],
 };
 const pdfBadge = (status) => {
   const [text, tip] = PDF_BADGES[status] || PDF_BADGES.none;
@@ -884,20 +857,20 @@ const pdfBadge = (status) => {
 const isExploration = (c) => Boolean(c.route && /^explore/.test(c.route.kind || ''));
 function judgeAskHTML(c) {
   const busy = c.judgeBusy || Boolean(state.judgeJobs && state.judgeJobs.has(state.currentProject));
-  return `<div class="judge-ask"><span>这篇你认为有用。要让 AI 判断本项目全部待判断论文的学习价值吗？</span>`
-    + `<button class="tiny" data-judge="ask" data-key="${esc(c.key)}" ${busy ? 'disabled' : ''} title="点一次判断本项目全部待判断论文，自动依次分批，每批最多 3 篇；整次只计 1 次判断机会，可能有多次 AI 调用。只发送有用或选定种子的标题和摘要节选、完整有界学习图的概念说明和前置目标、已有提议，不发送笔记、画像或其他项目">${busy ? '正在判断全部…' : '判断全部待判断论文'}</button>`
+  return `<div class="judge-ask"><span>让 AI 看看这是不是一个新方向？</span>`
+    + `<button class="tiny" data-judge="ask" data-key="${esc(c.key)}" ${busy ? 'disabled' : ''} title="调用 AI；不发送笔记和画像">${busy ? '判断中…' : '判断'}</button>`
     + `<button class="tiny" data-judge="later" data-key="${esc(c.key)}">以后再说</button></div>`;
 }
 function judgeSummary(results) {
   return (results || []).map((r) => {
     const name = r.name ? `「${r.name}」` : '';
-    if (r.verdict === 'new') return `${name}已成为学习提议，请到学习图页预览并确认`;
+    if (r.verdict === 'new') return `${name}已成为学习提议`;
     if (r.verdict === 'join') return `并入了潜在方向${name}`;
-    if (r.verdict === 'covered') return `${r.nearest ? `「${r.nearest}」` : '学习图里已有的概念'}已覆盖这项学习任务`;
-    if (r.verdict === 'declined') return `${name || '这个方向'}你之前选了“不再提示”，不再收进来`;
-    if (r.verdict === 'full') return '潜在方向已经很多了，先加入或“不再提示”一些，这几篇还留在待判断里';
-    if (r.verdict === 'unusable') return 'AI 的回复不完整，这几篇还留在待判断里，可以再点一次';
-    return 'AI 看不出来，先不算新方向';
+    if (r.verdict === 'covered') return `${r.nearest ? `「${r.nearest}」` : '学习图里'}已覆盖`;
+    if (r.verdict === 'declined') return `${name || '这个方向'}已设为不再提示`;
+    if (r.verdict === 'full') return '潜在方向已满，请先处理一些';
+    if (r.verdict === 'unusable') return 'AI 回复不完整，可再点一次';
+    return 'AI 没看出来';
   }).join('；');
 }
 async function doJudge(key) {
@@ -916,8 +889,8 @@ async function doJudge(key) {
     if (progress) {
       toast(progress.message, progress.warning ? 'warn' : 'ok');
       if (progress.complete) prompts.forEach(clearPrompt);
-    } else if (!out.ok) toast(`未得到有效判断：${out.reason || 'AI 没有给出判断'} 今天还能判断 ${out.judges_left} 次。`, 'warn');
-    else { toast(`AI 判断完了：${judgeSummary(out.results)}。今天还能判断 ${out.judges_left} 次。`, 'ok'); if (card) clearPrompt(card); }
+    } else if (!out.ok) toast(`未得到判断：${out.reason || 'AI 没有给出判断'}`, 'warn');
+    else { toast(judgeSummary(out.results), 'ok'); if (card) clearPrompt(card); }
   } catch (e) { if (state.currentProject === projectId) toast(e.message, 'err'); }
   finally {
     jobs.delete(projectId); prompts.forEach(c => { c.judgeBusy = false; });
@@ -932,23 +905,15 @@ function cardHTML(c, i) {
   const exploring = c.route && /^explore/.test(c.route.kind || '');
   return `
   <article class="card${exploring ? ' is-explore' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
-    <div class="paper-topline"><span class="paper-number"><i class="icon book" aria-hidden="true"></i>${String(i + 1).padStart(2,'0')}</span>
-      ${c.summary ? '<span class="st st-done"><i class="icon sparkles" aria-hidden="true"></i>AI 已速览</span>' : '<span class="st st-pending">待速览</span>'}</div>
     <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
       ${c.work_type ? `<span>${esc(workTypeLabel(c.work_type))}</span>` : ''}
-      ${pdfBadge(c.pdf_status)}
-      ${saved ? '<span class="st st-saved"><i class="icon bookmark" aria-hidden="true"></i>已收藏</span>' : ''}
+      ${c.pdf_status === 'page' ? pdfBadge(c.pdf_status) : ''}
+      ${routeBadge(c)}
     </div>
-    ${routeBadge(c) ? `<div class="kws">${routeBadge(c)}</div>` : ''}
-    <div class="sub">${esc(PaperPolicy.report(c.language))}</div>
     <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '暂无摘要'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
-    <div class="whyline"><span>推荐理由：${esc(c.why)}</span></div>
-    ${explorationEvidence(c)}
-    ${c.task_scope?.conflicts?.length ? `<details class="whyline"><summary>当前固定目标与这篇历史推荐冲突，请重新生成</summary>${c.task_scope.conflicts.map(e => `<p>论文对象：<q data-no-i18n>${esc(e.paper_quote)}</q></p>${e.constraint.source.map(s => `<p>固定目标：<q data-no-i18n>${esc(s.quote)}</q></p>`).join('')}`).join('')}</details>` : ''}
-    ${c.route?.matching_evidence?.length ? `<details class="whyline"><summary>当前原文匹配依据（不代表掌握）</summary>${c.route.matching_evidence.map(e => `<p><span data-no-i18n>${esc(e.term)}</span> · <q data-no-i18n>${esc(e.quote)}</q></p>`).join('')}</details>` : ''}
     ${c.judgeAsk ? judgeAskHTML(c) : ''}
     <div class="actions">
       <span class="actions-fb">
@@ -966,7 +931,6 @@ function cardHTML(c, i) {
 }
 function renderCards() {
   if (state.view !== 'today') return;
-  $('#todayCount').textContent = `${state.cards.length} 篇推荐`;
   // Rebuilding the cards invalidates any hover state; otherwise a stale hoverKey
   // makes the next hover on the same card silently do nothing.
   clearTimeout(hoverTimer);
@@ -1046,7 +1010,7 @@ function usageLabel(u) {
   const ceiling = u.ceiling != null && Number.isFinite(Number(u.ceiling)) ? Number(u.ceiling).toLocaleString() : null;
   const pending = u.tokens_known === false || Number(u.pending_reservations) > 0 || u.usage_unknown || u.usage_reserved || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0;
   return [ceiling == null ? `今日 ${tokens} token` : `今日 ${tokens} / ${ceiling} token`,
-    u.dev ? '测试模式独立账本' : '',pending ? '含待确认预留' : ''].filter(Boolean).join(' · ');
+    u.dev ? '测试模式独立账本' : '',pending ? '含未确认的用量' : ''].filter(Boolean).join(' · ');
 }
 async function load() {
   const projectAtStart = state.currentProject;
@@ -1060,14 +1024,12 @@ async function load() {
   const aiReady = Boolean(state.provider && state.provider.configured);
   const autoAi = $('#autoAi');
   if (autoAi) {
-    autoAi.title = aiReady ? 'AI 速览已就绪' : '尚未配置模型 API；点击右上角设置填入密钥';
-    $('#autoAiHint').textContent = aiReady ? '' : '（未配置 API）';
+    autoAi.title = aiReady ? '' : '尚未配置 API';
   }
   const banner = document.getElementById('devbanner');
   banner.style.display = state.devMode ? 'block' : 'none';
   if (state.devMode) {
-    banner.innerHTML = '<b>测试模式</b> · 独立测试账本与额度，正式用量记录保持独立。' +
-      (state.usage ? ` ${esc(usageLabel(state.usage))}` : '');
+    banner.innerHTML = '<b>测试模式</b>';
   }
   state.stats = data.stats; state.profile = data.profile; state.summaries = data.summaries || {};
   try {
@@ -1082,47 +1044,22 @@ async function load() {
   state.maintenance = data.maintenance; state.route = data.route; renderStats(); renderCards(); renderProfile(); renderMaintenance(data.maintenance); renderRoute(data.route);
   renderEligibility(data.recommendation_eligibility);
   const u = state.usage;
-  const location = await api('/api/data-location');
-  const localLabel = document.createElement('span'); localLabel.textContent = '本地数据位置：';
-  const localPath = document.createElement('span'); localPath.dataset.noI18n = ''; localPath.textContent = location.data_dir;
-  $('#foot').replaceChildren(localLabel, localPath, ` · 服务端版本 ${state.version}`,
-    u ? ` · ${usageLabel(u)}` : '');
+  $('#foot').textContent = u ? usageLabel(u) : '';
 }
 // Opening-time upkeep: the server refreshes the candidate pool and builds today's batch when they are due.
 // It never starts an AI summary, never counts what was missed, and a failure leaves the page as it was.
 function renderMaintenance(m) {
   const note = $('#maintainNote');
   if (!note || !m) return;
-  const frequency = { daily: '每天', weekly: '每周', manual: '手动' }[m.frequency] || '每天';
-  const parts = [`更新频率：${frequency}`];
-  if (m.last_refresh) parts.push(`上次刷新 ${new Date(m.last_refresh).toLocaleString()}`);
-  if (m.last_error) parts.push(`上次刷新失败：${m.last_error}（已有内容不受影响）`);
-  note.textContent = parts.join(' · ');
+  note.textContent = m.last_error ? `上次刷新失败：${m.last_error}` : '';
 }
 function renderEligibility(snapshot) {
   const note=$('#eligibilityNote'), project=state.projects.find(p=>p.id===state.currentProject);
   note.replaceChildren();
   if (project?.language_policy?.status!=='ready') {
-    note.append('生成新推荐前，请选择项目学科和允许的论文语言。 ');
-    const link=document.createElement('a'); link.textContent='打开项目设置';
+    note.append('先选择论文语言。 ');
+    const link=document.createElement('a'); link.textContent='去设置';
     link.href='/project.html?project_id='+encodeURIComponent(state.currentProject || ''); note.append(link); return;
-  }
-  if (!snapshot || snapshot.policy_revision!==project.language_policy.revision) return;
-  const names={fixed_scope_conflict:n=>`固定目标冲突 ${n} 篇`,source_version_changed:n=>`PDF 版本变化 ${n} 篇`,source_verification_deferred:n=>`文件核验暂缓（可再次生成） ${n} 篇`,language_unknown:n=>`语言未知 ${n} 篇`,language_not_allowed:n=>`语言不符合设置 ${n} 篇`,no_readable_content:n=>`缺少可用摘要或当前正文 ${n} 篇`};
-  const parts=Object.entries(snapshot.excluded || {}).filter(([,n])=>n).map(([key,n])=>names[key] ? names[key](n) : `${key} ${n}`);
-  if (parts.length) {
-    const prefix=document.createElement('span'); prefix.textContent='上次生成时过滤：'; note.append(prefix);
-    parts.forEach((part,index)=>{if(index)note.append('；');const span=document.createElement('span');span.textContent=part;note.append(span);});
-  }
-  const conflicts=(snapshot.examples || []).filter(e=>e.task_scope?.conflicts?.length);
-  if(conflicts.length) {
-    const details=document.createElement('details'), summary=document.createElement('summary');
-    summary.textContent='查看固定目标过滤的原文依据'; details.append(summary);
-    for(const entry of conflicts) for(const conflict of entry.task_scope.conflicts) {
-      const paper=document.createElement('p'); paper.dataset.noI18n=''; paper.textContent=conflict.paper_quote; details.append(paper);
-      for(const source of conflict.constraint.source) { const row=document.createElement('p'), label=document.createElement('span'), quote=document.createElement('q'); label.textContent='固定目标：'; quote.dataset.noI18n=''; quote.textContent=source.quote; row.append(label,quote); details.append(row); }
-    }
-    note.append(details);
   }
 }
 async function autoMaintain() {
@@ -1135,7 +1072,7 @@ async function autoMaintain() {
       if (r.status && r.status.last_refresh !== (state.maintenance || {}).last_refresh) await load();
       return;
     }
-    $('#maintainNote').textContent = '正在更新候选论文…';
+    $('#maintainNote').textContent = '正在更新…';
     let job;
     for (let i = 0; i < 120; i++) { job = await api(`/api/jobs/${r.job.id}`); if (job.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
     if (job.state === 'failed') toast(`自动更新失败：${job.error}`, 'warn');
@@ -1150,7 +1087,7 @@ async function refreshStats() {   // the counts in the top bar follow a save mad
 
 // ------------------------------------------------------------- generation
 function aiUsageText(result) {
-  if (result.usage_unknown || result.usage_reserved) return '计费未确认，暂按上限占用';
+  if (result.usage_unknown || result.usage_reserved) return '用量未确认，暂按最大值计入';
   const usage = result.usage || {};
   const tokens = Number.isInteger(usage.total_tokens) ? usage.total_tokens
     : (Number.isInteger(usage.prompt_tokens) && Number.isInteger(usage.completion_tokens)
@@ -1161,8 +1098,8 @@ function aiUsageText(result) {
 function aiFailure(reason) {
   const detail = reason || '未知';
   if (/no API key|no provider/i.test(detail))
-    return `AI 未配置（${detail}）。点击右上角设置填入 API 密钥即可；在此之前保持本地模式。`;
-  return `AI 不可用（${detail}），保持本地模式。`;
+    return 'AI 未配置，请先在设置里填入 API 密钥';
+  return `AI 不可用：${detail}`;
 }
 function showTriageFailure(reason, key, projectId) {
   const text = reason ? aiFailure(reason) : '';
@@ -1203,7 +1140,7 @@ async function autoTriage() {
     const r = await api('/api/triage', body);
     if (state.currentProject !== projectId) return;
     if (!r.ok) { showTriageFailure(r.reason || '没有返回失败原因，请重新尝试', null, projectId); toast(aiFailure(r.reason), 'warn', 6000); }
-    else toast(`AI 已速览 ${r.items.length} 条 · ${aiUsageText(r)}`, 'ai');
+    else toast(`AI 已速览 ${r.items.length} 条`, 'ai');
     await load();
   } catch (e) { if (state.currentProject === projectId) { showTriageFailure(e.message, null, projectId); toast(`AI 速览失败：${e.message}`, 'err'); } }
   finally { state.triaging = false; renderCards(); }
@@ -1220,7 +1157,7 @@ async function triageOne(key) {
     const r = await api('/api/triage', body);
     if (state.currentProject !== projectId) return;
     if (!r.ok) { showTriageFailure(r.reason || '没有返回失败原因，请重新尝试', key, projectId); toast(aiFailure(r.reason), 'warn', 6000); }
-    else toast(`AI 已速览 · ${aiUsageText(r)}`, 'ai');
+    else toast('AI 已速览', 'ai');
     await load();
   } catch (e) { if (state.currentProject === projectId) { showTriageFailure(e.message, key, projectId); toast(`AI 速览失败：${e.message}`, 'err'); } }
   finally { state.triagingKeys.delete(key); renderCards(); }
@@ -1232,16 +1169,16 @@ $('#btnRefresh').onclick = async () => {
     const body = { pages: 1 };
     if (state.currentProject) body.project_id = state.currentProject;
     const job = await api('/api/refresh', body);
-    toast('后台抓取中（OpenAlex 公开元数据）…', 'warn');
+    toast('正在抓取…', 'warn');
     let r;
     for (let i = 0; i < 90; i++) { r = await api(`/api/jobs/${job.id}`); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
-    if (r.state === 'running') toast('抓取仍在后台进行，可以稍后查看。', 'warn');
+    if (r.state === 'running') toast('抓取仍在进行', 'warn');
     else if (r.state === 'failed') toast(`抓取失败：${r.error}`, 'err');
     else {
       const q = r.result || {};
-      if (q.reason_code === 'refresh_running') toast('该项目已有抓取任务正在运行。', 'warn');
-      else if (q.reason_code === 'route_recall_changed') toast('路线或抓取状态已变化，请重新抓取。', 'warn');
-      else toast(`新增 ${q.added || 0} 条${q.errors?.length ? `（${q.errors.length} 个查询未完成，请稍后重试）` : ''}`, q.errors?.length ? 'warn' : 'ok');
+      if (q.reason_code === 'refresh_running') toast('已有抓取在运行', 'warn');
+      else if (q.reason_code === 'route_recall_changed') toast('学习图已变化，请重新抓取', 'warn');
+      else toast(`新增 ${q.added || 0} 条${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
     }
     await load();
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
@@ -1282,9 +1219,9 @@ async function doFeedback(key, action) {
     if (state.currentProject) body.project_id = state.currentProject;
     const r = await api('/api/feedback', body);
     const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;   // "已读懂" is recorded from the library, on a saved paper
-    toast(r.saved ? '已收藏到论文库（卡片保留）'
-          : action === 'understood' ? '已记录：已读懂（只推进学习进度，不改变兴趣）'
-          : (r.interest_changed ? `已记录：${said}` : `已记录：${said}（不影响兴趣）`),
+    toast(r.saved ? '已收藏'
+          : action === 'understood' ? '已记录：已读懂'
+          : `已记录：${said}`,
           r.saved || r.interest_changed || action === 'understood' ? 'ok' : 'warn');
   }
   const card = state.cards.find(c => c.key === key);
@@ -1344,8 +1281,7 @@ $('#preview').addEventListener('mouseleave', scheduleHide);
 function showPreview(card) {
   const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
   const p = $('#preview');
-  p.innerHTML = `<h4 data-no-i18n>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>
-    <div class="phint">点击卡片打开详情页（含 PDF 预览）</div>`;
+  p.innerHTML = `<h4 data-no-i18n>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>`;
   p.style.left = '0px'; p.style.top = '0px';
   p.classList.add('show');
   const r = card.getBoundingClientRect();
@@ -1377,13 +1313,11 @@ async function openDetail(key) {
     $('#detail').innerHTML = `
       <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
       <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
-        <div class="detail-head"><span class="detail-kicker">论文详情</span><button class="detail-close ghost" id="backBtn" aria-label="关闭论文详情">×</button></div>
+        <div class="detail-head"><span></span><button class="detail-close ghost" id="backBtn" aria-label="关闭论文详情">×</button></div>
         <h2 data-no-i18n>${esc(d.title)}</h2>
         <div class="detail-meta">
           ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}
           ${d.work_type ? `<span>${esc(workTypeLabel(d.work_type))}</span>` : ''}
-          ${d.arxiv_id ? `<span>arXiv:${esc(d.arxiv_id)}</span>` : ''}
-          ${d.doi ? `<span>DOI</span>` : ''}${d.saved ? '<span class="badge saved">已收藏</span>' : ''}
         </div>
         <div class="detail-actions">
           <div class="actions-main">
@@ -1397,21 +1331,18 @@ async function openDetail(key) {
             <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
           </div>
         </div>
-        <section class="detail-section detail-projects"><h3>加入其他项目</h3>
+        ${(state.projects || []).filter(p => p.id !== state.currentProject).length ? `<section class="detail-section detail-projects"><h3>加入其他项目</h3>
           <div class="detail-project-row">
             <select id="dProjectTarget" aria-label="选择项目">
               ${(state.projects || []).filter(p => p.id !== state.currentProject).map(p => `<option value="${esc(p.id)}" ${joinedProjectIds.has(p.id) ? 'disabled' : ''}>${esc(p.name)}${joinedProjectIds.has(p.id) ? '（已加入）' : ''}</option>`).join('')}
             </select>
             <button class="tiny" id="dAddProject" ${state.projects.filter(p => p.id !== state.currentProject && !joinedProjectIds.has(p.id)).length ? '' : 'disabled'}>加入项目</button>
           </div>
-          <div class="hint">共享论文元数据；收藏、反馈和画像仍按项目独立记录。</div>
-          <div id="dProjectList" class="hint">${(d.projects || []).map(p => `${esc(p.name)} · ${esc(p.relation_kind || 'shared')}${p.source_project_name ? ` · 来源：${esc(p.source_project_name)}` : ''}`).join('<br>') || '尚未加入其他项目'}</div>
-        </section>
+        </section>` : ''}
         ${window.PDHPaperContext.html(d.context, d.key)}
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
-        <section class="detail-section"><h3>论文语言</h3><p>${esc(PaperPolicy.report(d.language))}</p></section>
-        <section class="detail-section"><h3>摘要</h3><div class="full">${d.abstract ? `<div data-no-i18n>${md(d.abstract)}</div>` : '暂无摘要'}</div></section>
+        ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div></section>` : ''}
       </aside>`;
     $('#detail').classList.remove('hidden');
     const close = closeDetail;
@@ -1473,22 +1404,20 @@ async function openSettings() {
     const data = await api('/api/settings');
     const p = data.provider || {};
     const status = p.configured
-      ? `<span class="badge ai">已配置</span><span class="sub">${p.source === 'environment' ? '来源：启动环境变量' : `来源：${esc(p.source || '')}`}</span>`
-      : '<span class="badge">未配置</span><span class="sub">AI 功能当前退化为本地模式，不会发起任何请求</span>';
+      ? `<span class="badge ai">已配置</span>`
+      : '<span class="badge">未配置</span>';
     $('#settingsPage').innerHTML = `
       <div class="page-inner">
         <button class="ghost" id="settingsBack">← 返回</button>
         <div class="label" style="margin-top:20px">AI 接口</div>
         <h2>模型 API 设置</h2>
-        <div class="sub">速览、追问、划词翻译与图表问答统一经过网关调用 ${esc(p.model || 'DeepSeek')}；日/月总用量不设上限，每次消耗仍记录在本地账本。</div>
         <div class="row" style="margin-top:14px">${status}</div>
         <div class="label">API Key</div>
         <div class="row">
-          <input type="password" id="apiKeyInput" aria-label="API Key" placeholder="sk-…（只保存在本机）" autocomplete="off">
+          <input type="password" id="apiKeyInput" aria-label="API Key" placeholder="sk-…" autocomplete="off">
           <button class="primary" id="apiKeySave">保存</button>
           <button class="tiny" id="apiKeyClear">清除</button>
         </div>
-        <div class="sub" style="margin-top:10px">密钥只写入本机数据目录并限制为本人可读，不会进入代码仓库，也不会在界面上回显。${p.key_file ? `位置：${esc(p.key_file)}` : ''}</div>
         <div class="sub" id="apiKeyStatus" role="status"></div>
       </div>`;
     $('#settingsPage').classList.remove('hidden');
@@ -1500,8 +1429,8 @@ async function openSettings() {
         const r = await api('/api/settings', { api_key: value });
         state.provider = r.provider;
         $('#apiKeyInput').value = '';
-        $('#apiKeyStatus').textContent = '已保存，AI 功能已就绪。';
-        toast('API Key 已保存，AI 功能可用', 'ai');
+        $('#apiKeyStatus').textContent = '已保存';
+        toast('API Key 已保存', 'ai');
         await load();
       } catch (e) { $('#apiKeyStatus').textContent = `保存失败：${e.message}`; }
     };
@@ -1509,7 +1438,7 @@ async function openSettings() {
       try {
         const r = await api('/api/settings', { clear: true });
         state.provider = r.provider;
-        $('#apiKeyStatus').textContent = '已清除，AI 功能将退化为本地模式。';
+        $('#apiKeyStatus').textContent = '已清除';
         toast('已清除 API Key', 'warn');
         await load();
       } catch (e) { $('#apiKeyStatus').textContent = `清除失败：${e.message}`; }
@@ -1568,7 +1497,6 @@ async function loadReadingSession() {
   pet.session = result.session.id;
   $('#petLog').innerHTML = ''; lastFol = null; addIntro();
   if (result.history?.length) {
-    addMsg('sys', '已载入当前会话最近的记录；后续回答只使用该会话的最近上下文');
     for (const row of result.history) addMsg(row.role === 'assistant' ? 'ai' : 'user', row.content);
   }
 }
@@ -1687,15 +1615,15 @@ document.addEventListener('focusin', event => {
 }, true);
 
 const PDF_REASONS = {
-  no_oa_source: '没有找到可合法下载的开放获取 PDF 来源。',
-  landing_page_only: '这篇论文是开放获取的，但 OpenAlex 没有给出 PDF 直链。可以打开原文页面下载，再用“附加本地 PDF”放进来。',
-  not_found: '来源站点上找不到这个文件。',
-  paywalled_or_blocked: '来源站点拒绝访问（可能需要订阅或登录）。本应用不会绕过付费墙。',
-  robots_disallowed: '来源站点的 robots.txt 不允许自动下载。',
-  rate_limited: '来源站点暂时限流，请稍后重试。',
-  not_pdf: '来源返回的不是 PDF（可能是登录页或落地页）。',
-  too_large: '文件超过大小上限，未下载。',
-  network_error: '网络不可用或来源站点无响应，请稍后重试。',
+  no_oa_source: '没有找到可下载的 PDF 来源。',
+  landing_page_only: '只有原文页面，没有 PDF 直链。',
+  not_found: '来源上找不到这个文件。',
+  paywalled_or_blocked: '来源拒绝访问（可能需要订阅或登录）。',
+  robots_disallowed: '来源不允许自动下载。',
+  rate_limited: '来源暂时限流，请稍后重试。',
+  not_pdf: '来源返回的不是 PDF。',
+  too_large: '文件太大，未下载。',
+  network_error: '网络不可用，请稍后重试。',
   invalid_url: '来源链接不是 https，已拒绝。',
 };
 const pdfReason = (code) => PDF_REASONS[code] || '无法获取 PDF。';
@@ -1733,7 +1661,7 @@ async function openReader(key, title, project = state.currentProject) {
   const box = $('#readerPages'), side = $('#readerSide'), reader = $('#reader');
   $('#readerTitle').textContent = title || '';
   $('#readerInfo').textContent = '';
-  box.innerHTML = '<div class="rload"><span class="spin"></span>正在获取并渲染 PDF…</div>';
+  box.innerHTML = '<div class="rload"><span class="spin"></span>加载中…</div>';
   side.innerHTML = '';
   reader.classList.remove('hidden');
   reader.classList.add('side');   // page thumbnails visible by default, like the native viewer
@@ -1753,7 +1681,7 @@ async function openReader(key, title, project = state.currentProject) {
   if (prepared?.sha256) { R.sha256 = prepared.sha256; url += '&sha256=' + encodeURIComponent(prepared.sha256); R.url = url; }
   if (prepared && prepared.ok === false) {
     showPdfFailure(box, key, title, prepared, project, current);
-    $('#readerInfo').textContent = '没有可用的 PDF';
+    $('#readerInfo').textContent = '无 PDF';
     R.loading = false; $('#petSend').disabled = pet.busy;
     return;
   }
@@ -1765,7 +1693,7 @@ async function openReader(key, title, project = state.currentProject) {
     if (!current()) { doc.destroy(); return; }
     const actualHash = await PDHReaderSource.hash(doc);
     if (!current()) { doc.destroy(); return; }
-    if (R.sha256 && actualHash !== R.sha256) throw new Error('PDF 版本已变化，请重新打开论文');
+    if (R.sha256 && actualHash !== R.sha256) throw new Error('PDF 版本已变化');
     R.sha256 = actualHash;
     const pages = [];
     for (let n = 1; n <= doc.numPages; n++) { pages.push(await doc.getPage(n)); if (!current()) { doc.destroy(); return; } }
@@ -1777,8 +1705,8 @@ async function openReader(key, title, project = state.currentProject) {
   } catch (e) {
     if (!current()) return;
     box.innerHTML = `<iframe src="${url}" style="width:min(1200px,96vw);height:calc(100vh - 120px);border:0;background:#fff"></iframe>`;
-    $('#readerInfo').textContent = '内置预览（无法划词）';
-    toast(`pdf.js 加载失败，改用浏览器内置预览：${e.message}`, 'warn', 6000);
+    $('#readerInfo').textContent = '内置预览';
+    toast(`阅读器没能加载：${e.message}`, 'warn', 6000);
   } finally {
     if (current()) { R.loading = false; $('#petSend').disabled = pet.busy; }
   }
@@ -2032,7 +1960,7 @@ async function extractFulltext(key, doc, sourcePages) {
 
 function setFulltextBadge(pages, chars) {
   const el = $('#petFt');
-  if (el) el.textContent = `全文已缓存 · ${pages} 页 / ${Math.round(chars / 1000)}k 字符`;
+  if (el) el.textContent = '';
 }
 
 async function pageImage(pageNumber) {
@@ -2190,7 +2118,7 @@ function followupRow(list) {
 }
 let lastFol = null;
 function addIntro() {
-  addMsg('sys', '点下面的问题直接问，或自己输入；也可以在 PDF 里选中文字后点「追问」。').appendChild(followupRow());
+  addMsg('sys', '').appendChild(followupRow());
 }
 addIntro();
 function addMsg(kind, text, followups, meta) {
@@ -2233,12 +2161,12 @@ async function ask(question) {
   if (!key) { toast('请先选择要提问的论文', 'warn'); return; }
   const current = () => epoch === pet.epoch && key === pet.key && project === pet.project;
   if (R.doc && !$('#reader').classList.contains('hidden') && (R.key !== key || R.project !== project)) {
-    toast('引用或页面与当前论文、项目不一致，请重新打开论文', 'err'); return;
+    toast('引用与当前论文不一致，请重新打开', 'err'); return;
   }
   const readerIdentity = R.doc && !$('#reader').classList.contains('hidden') ? {key:R.key, project_id:R.project, pdf_sha256:R.sha256, kind:'pdf'} : null;
   if (pet.referenceIdentity && (pet.referenceIdentity.key !== key || pet.referenceIdentity.project_id !== project ||
       (pet.referenceIdentity.kind === 'pdf' && !PDHReaderIdentity.matches(pet.referenceIdentity, readerIdentity)))) {
-    toast('引用或页面与当前论文、项目不一致，请重新打开论文', 'err'); return;
+    toast('引用与当前论文不一致，请重新打开', 'err'); return;
   }
   const evidence = pet.referenceIdentity || readerIdentity;
   openPet(); pet.busy = true;
@@ -2269,21 +2197,21 @@ async function ask(question) {
       if (!found) found = PDHFigure.findFigurePage(R.pageTexts || [], figure.kind, figure.number);   // local fallback when the server has no text
       located = Boolean(found);
       pageHint = found || here;   // still unknown -> send the page the user is looking at
-      imageNote = located ? '' : '（图注未定位，发送的是当前页）';
+      imageNote = '';
       thinking.textContent = located
-        ? `需要看图，正在渲染第 ${pageHint} 页…`
-        : `图注未找到，改为发送第 ${pageHint} 页…`;
+        ? `正在渲染第 ${pageHint} 页…`
+        : `图注未找到，改发第 ${pageHint} 页…`;
     } else {
       pageHint = here;
       located = true;
-      imageNote = quotedPage ? '（引用所在页）' : '（当前页）';
-      thinking.textContent = `正在渲染第 ${pageHint} 页给模型看…`;
+      imageNote = '';
+      thinking.textContent = `正在渲染第 ${pageHint} 页…`;
     }
     try {
       if (current() && PDHReaderIdentity.matches(readerIdentity, {key:R.key,project_id:R.project,pdf_sha256:R.sha256}))
         image = await pageImage(pageHint);
     } catch (e) { pageHint = null; image = null; imageNote = ''; }
-    if (!image) { thinking.textContent = '页面渲染失败，改用纯文本回答…'; keepSwitch(); }
+    if (!image) { thinking.textContent = '页面渲染失败，改用文本…'; keepSwitch(); }
   }
   try {
     await pet.sessionPromise;
@@ -2293,17 +2221,13 @@ async function ask(question) {
                                     context: $('#fullCtx') && $('#fullCtx').checked ? 'full' : 'normal' });
     if (!current()) { thinking.remove(); return; }
     thinking.remove();
-    const meta = r.ok ? [   // separate parts, so each is one phrase for the language pack
-      r.mode === 'vision' ? `视觉 · 第 ${r.page_hint || pageHint || '?'} 页${imageNote}` : '全文检索',
+    const metaParts = r.ok ? [
+      r.mode === 'vision' ? `视觉 · 第 ${r.page_hint || pageHint || '?'} 页` : '',
       r.pages && r.pages.length ? `命中第 ${r.pages.join(',')} 页` : '',
-      r.context_chars ? `${Math.round(r.context_chars / 1000)}k 字符` : '',
-      r.context_limits?.abstract_truncated ? '摘要仅为节选' : '',
-      r.context_limits?.omitted_passages ? `输入上限省略了 ${r.context_limits.omitted_passages} 段检索内容` : '',
-    ].filter(Boolean) : null;
+    ].filter(Boolean) : [];
+    const meta = metaParts.length ? metaParts : null;
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
     if (!r.ok) keepSwitch();
-    if (r.ok) toast(r.mode === 'vision' ? `回答完成 · ${aiUsageText(r)} · 视觉`
-                                         : `回答完成 · ${aiUsageText(r)}`, 'ai');
   } catch (e) { thinking.remove(); if (current()) { addMsg('sys', `失败：${e.message}`); keepSwitch(); } }
   finally { pet.busy = false; $('#petSend').disabled = Boolean(R.loading); }
 }
@@ -2320,7 +2244,6 @@ async function translate(text, rect) {
     pop.innerHTML = `<div class="tlabel">划词翻译</div>
       <div class="tbody"${r.ok ? ' data-no-i18n' : ''}>${
       r.ok ? window.PDH.md(r.translation) : esc(aiFailure(r.reason))}</div>
-      ${r.ok && (r.usage_unknown || r.usage_reserved) ? '<p class="meta">计费未确认，暂按上限占用</p>' : ''}
       <div class="row" style="margin-top:10px">
         <button class="tiny" id="transCopy">复制</button>
         <button class="tiny ghost" id="transClose">关闭</button></div>`;
@@ -2351,7 +2274,7 @@ $('#petClear').onclick = async () => {
     const result = await api('/api/qa/session', {key:pet.key, project_id:pet.project});
     if (epoch !== pet.epoch) return;
     pet.session = result.session.id; pet.epoch++; setReference(null); setAttachPage(false);
-    $('#petLog').innerHTML = ''; lastFol = null; addIntro(); toast('已开始新会话；旧记录保留，不再用于后续回答', 'ok');
+    $('#petLog').innerHTML = ''; lastFol = null; addIntro(); toast('已开始新会话', 'ok');
   } catch (error) { toast(`新会话未开始：${error.message}`, 'err'); }
   finally { button.disabled = false; }
 };
@@ -2376,7 +2299,7 @@ function setAttachPage(on) {
   $('#petImg').setAttribute('aria-pressed', String(pet.attachPage));
 }
 $('#petImg').onclick = () => {
-  if (!R.doc) { toast('先打开论文 PDF，才能附上页面图片', 'warn'); return; }
+  if (!R.doc) { toast('先打开论文 PDF', 'warn'); return; }
   setAttachPage(!pet.attachPage);
 };
 $('#petInput').addEventListener('input', growInput);

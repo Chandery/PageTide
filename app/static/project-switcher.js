@@ -187,9 +187,8 @@
       page.innerHTML = `
         <div class="mc-ph-top"><img src="/brand-mark.svg" alt=""><b>Paper<em>Dig</em>Helper</b><span class="mc-ph-pill">${esc(p.name)}</span></div>
         <div class="mc-ph-body">
-          <div class="mc-ph-edition">研究工作区</div>
           <h1>${esc(p.name)}</h1>
-          <div class="mc-ph-chips">${chips || '<span>尚无关键词</span>'}</div>
+          <div class="mc-ph-chips">${chips}</div>
           <div class="mc-ph-grid">${'<div><i></i><i></i><i></i></div>'.repeat(6)}</div>
         </div>`;
       page.dataset.w = view.w;
@@ -233,7 +232,7 @@
         win.appendChild(scaler);
         const label = document.createElement('div');
         label.className = 'mc-label';
-        label.innerHTML = `${p.id === current ? '<span class="mc-dot" title="当前项目"></span>' : ''}<span class="mc-name">${esc(p.name)}</span>${opts.onEdit ? `<button type="button" class="mc-edit" aria-label="管理项目：${esc(p.name)}" title="改名或删除">管理</button>` : ''}`;
+        label.innerHTML = `${p.id === current ? '<span class="mc-dot" title="当前项目"></span>' : ''}<span class="mc-name">${esc(p.name)}</span>${opts.onEdit ? `<button type="button" class="mc-edit" aria-label="管理项目：${esc(p.name)}">管理</button>` : ''}`;
         card.append(win, label);
         stage.appendChild(card);
         return card;

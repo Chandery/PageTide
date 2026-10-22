@@ -42,20 +42,14 @@ def decay(data_dir):return number(read(data_dir),'decayWindow',30,7,365)
 def boost(data_dir,default=0):return number(read(data_dir),'newPaperBoost',default,0,1)
 
 
-# Hotspot mode (the default recommendation path): recent papers, newest favoured. These apply only while the owner
-# has not chosen a time preference or a new-paper weight.
-HOTSPOT_DAYS=30
+# Hotspot mode (the default recommendation path): newest papers favoured by a weight, never cut off by age. The weight
+# applies only while the owner has not chosen one; a time window applies only if the owner chose one.
 HOTSPOT_BOOST=0.5
 
 
 def route_beta(data_dir):
     """Learning-map mode is available only after the owner switches it on in Settings (beta, default off)."""
     return read(data_dir).get('routeBeta') is True
-
-
-def hotspot_since(data_dir,today=None):
-    today=today or datetime.date.today()
-    return since(data_dir,today,default=(today-datetime.timedelta(days=HOTSPOT_DAYS)).isoformat())
 
 
 def validate(values):

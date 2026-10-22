@@ -25,12 +25,13 @@ test('every section of a full report is drawn', () => {
   assert.match(html, /论文数比上周 \+3/);
 });
 
-test('the five numbers each open their records, and show last week next to this week', () => {
+test('the five numbers each open their records, and show the change from last week briefly', () => {
   const html = W.kpis(report());
   assert.equal((html.match(/data-evidence="/g) || []).length, 5);
   assert.match(html, /data-evidence="understood" data-start="2026-10-01T00:00:00\+00:00" data-end="2026-10-08T00:00:00\+00:00"/);
-  assert.match(html, /上周 1 · 变化 \+2/);
-  assert.match(html, /上周 0 · 持平/);
+  assert.match(html, /较上周 \+2/);
+  assert.match(html, /与上周持平/);
+  assert.doesNotMatch(html, /变化 \+|· 持平/);
 });
 
 test('the week is seven columns, labelled by weekday and date, and the last one is today', () => {
@@ -46,27 +47,26 @@ test('a direction shows last week and this week, its papers and a neutral status
   assert.match(html, /新出现/);
   assert.match(html, /本周没有记录/);
   assert.match(html, /上周论文 2/);
-  assert.match(html, /其余 2/);
+  assert.doesNotMatch(html, /其余/);
   assert.doesNotMatch(html, /下降|不感兴趣|冷淡|流失|放弃|落后/);
 });
 
-test('the directions section discloses canonical alias counting before cards or an empty result', () => {
+test('the directions section no longer prints the canonical alias counting note, before cards or an empty result', () => {
   const message = '周报将 2 组同义类别按一个方向统计；论文库原类别与归属保留。';
   for (const extra of [{}, { directions: [] }]) {
     const html = W.directions(report({ ...extra, category_normalization: { message, merged_groups: 2 } }));
-    assert.ok(html.includes(`<p class="wk-note wk-normalization">${message}</p>`));
-    const result = html.indexOf(extra.directions ? '本周没有哪个方向' : '<div class="wk-dirs">');
-    assert.ok(html.indexOf(message) < result);
+    assert.ok(!html.includes(message));
+    assert.doesNotMatch(html, /wk-normalization/);
+    assert.match(html, extra.directions ? /本周没有记录/ : /<div class="wk-dirs">/);
   }
   assert.doesNotMatch(W.directions(report()), /wk-normalization/);
-  assert.doesNotMatch(W.directions(report({ category_normalization: { message: '' } })), /wk-normalization/);
   assert.doesNotMatch(W.directions(report({ category_normalization: { message: { text: 'wrong type' } } })), /wk-normalization|object Object/);
 });
 
-test('category normalization disclosure treats the server message as text', () => {
+test('a server category normalization message is never drawn, so it cannot inject markup', () => {
   const html = W.weeklyHTML(report({ category_normalization: { message: '<img src=x onerror=1> & "details"' } }));
-  assert.match(html, /&lt;img src=x onerror=1&gt; &amp; &quot;details&quot;/);
   assert.doesNotMatch(html, /<img src=x/);
+  assert.doesNotMatch(html, /onerror|&quot;details&quot;/);
 });
 
 test('titles, names and reasons are text, never markup', () => {
@@ -77,34 +77,41 @@ test('titles, names and reasons are text, never markup', () => {
   assert.ok(!hostile.includes('<img') && !hostile.includes('"><b>'));
 });
 
-test('the learning map section says what advanced, and that saving alone does not', () => {
-  assert.match(W.units(report()), /本周有“已读懂”记录的概念/);
+test('the learning map section shows progress without explanatory notes', () => {
   assert.match(W.units(report()), /已读懂 1 \/ 2 个概念/);
+  assert.doesNotMatch(W.units(report()), /本周有“已读懂”记录的概念|wk-adv/);
   const none = report({ units: { items: [], done: 0, total: 3, enabled: true, advanced: [] } });
-  assert.match(W.units(none), /收藏表示感兴趣，不推进学习进度/);
+  assert.match(W.units(none), /已读懂 0 \/ 3 个概念/);
+  assert.doesNotMatch(W.units(none), /收藏表示感兴趣|不推进学习进度|wk-adv/);
   assert.equal(W.units(report({ units: null })), '');
 });
 
-test('an empty week says so and does not read it as lost interest', () => {
+test('an empty week says so without extra reassurance', () => {
   const html = W.weeklyHTML(report({ has_activity: false, comparable: false, directions: [], picks: [], daily: [], units: null, highlights: { papers: 0, previous_papers: 0, directions: 0, judged: 0, seen: 0, seen_acted: 0 } }));
   assert.match(html, /本周还没有记录/);
-  assert.match(html, /没有记录不代表兴趣下降/);
-  assert.match(html, /本周没有哪个方向上有/);
+  assert.doesNotMatch(html, /没有记录不代表兴趣下降|wk-sub/);
+  assert.match(html, /<div class="profile-empty">本周没有记录<\/div>/);
   assert.doesNotMatch(html, /wk-dirs/);
 });
 
-test('being shown a paper is counted as seen, not as turned down', () => {
+test('exposure shows only the useful rate, with no seen-count or sample notes', () => {
   const html = W.exposure(report());
-  assert.match(html, /露出的论文：6 篇，其中你有明确动作的：2 篇。没有动作的不代表不感兴趣/);
   assert.match(html, /有用率 75%/);
+  assert.doesNotMatch(html, /露出的论文|没有动作的不代表不感兴趣|共 4 篇|太难/);
   assert.equal(W.exposure(report({ highlights: { seen: 0, judged: 0 } })), '');
-  assert.match(W.exposure(report({ highlights: { seen: 0, judged: 3, positive: 2 } })), /样本还少/);
+  assert.equal(W.exposure(report({ highlights: { seen: 6, seen_acted: 2, judged: 0 } })), '');
+  const small = W.exposure(report({ highlights: { seen: 0, judged: 3, positive: 2 } }));
+  assert.match(small, /有用率 67%/);
+  assert.doesNotMatch(small, /样本还少/);
 });
 
 test('terms that rose or fell open their papers, and an unscaled week is not compared', () => {
   assert.match(W.terms(report()), /data-term="dynamics"/);
-  assert.match(W.terms(report({ comparable: false })), /需要本周和上周都有记录/);
-  assert.match(W.terms(report({ keyword_changes: { rising: [], stable: [], falling: [] } })), /词项与上周持平/);
+  const unscaled = W.terms(report({ comparable: false }));
+  assert.match(unscaled, /暂无可比较的数据/);
+  assert.doesNotMatch(unscaled, /需要本周和上周都有记录|不表示兴趣下降/);
+  assert.doesNotMatch(unscaled, /wk-terms/);
+  assert.match(W.terms(report({ keyword_changes: { rising: [], stable: [], falling: [] } })), /与上周持平/);
 });
 
 test('saves that came without a rating still show in a direction that also has a not-relevant record', () => {
@@ -119,12 +126,11 @@ test('a useful paper is drawn once: its save is not a second colour', () => {
   assert.match(html, /<i class="k-positive" style="width:100\.0%">/);
 });
 
-test('directions beyond the list are announced, and a switched-off map says so', () => {
-  assert.match(W.directions(report({ more_directions: 3 })), /另有方向没有列出：3/);
-  assert.doesNotMatch(W.directions(report()), /另有方向没有列出/);
+test('no standing notes about unlisted directions or a switched-off map', () => {
+  assert.doesNotMatch(W.directions(report({ more_directions: 3 })), /另有方向没有列出/);
   const off = report(); off.units.enabled = false;
-  assert.match(W.units(off), /学习图现在是关闭状态/);
-  assert.doesNotMatch(W.units(report()), /关闭状态/);
+  assert.doesNotMatch(W.units(off), /关闭状态|wk-adv/);
+  assert.match(W.units(off), /已读懂 1 \/ 2 个概念/);
 });
 
 test('the unsorted bucket can be translated while a person\'s own category names are left alone', () => {

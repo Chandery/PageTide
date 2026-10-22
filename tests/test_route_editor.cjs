@@ -21,19 +21,19 @@ const graph = () => ({
 
 test('goal summary distinguishes completion, learning and structural review', () => {
   const R = load();
-  for (const [status, text] of [['completed', '当前目标已完成'], ['learning', '当前目标学习中'], ['needs_review', '目标或前置关系需要检查']]) {
+  for (const [status, text] of [['completed', '已完成'], ['learning', '学习中'], ['needs_review', '需检查']]) {
     const line = R.summaryText({goal_status: status, goal_done: 3, goal_total: 3, done: 3, total: 9});
-    assert.match(line, new RegExp(text));
-    assert.match(line, /3 \/ 3 个概念/);
-    assert.doesNotMatch(line, /3 \/ 9/);
+    assert.equal(line, `${text} · 3/3`);
+    assert.doesNotMatch(line, /3\/9/);
   }
 });
 
 test('watching does not claim mastery and new developments require satisfaction', () => {
   const R = load();
   assert.match(R.watchHTML(true, false), /data-route-watch checked/);
-  assert.match(R.watchHTML(true, false), /不改变掌握状态/);
-  assert.match(R.watchHTML(false, true), /开启后可推荐这个方向的新进展/);
+  assert.doesNotMatch(R.watchHTML(true, false), /不改变掌握状态/);   // the explanation is gone; only the checkbox remains
+  assert.doesNotMatch(R.watchHTML(false, true), /开启后可推荐这个方向的新进展/);
+  assert.match(R.watchHTML(false, true), /持续关注/);
   assert.doesNotMatch(R.watchHTML(false, true), /data-route-watch checked/);
 });
 
@@ -49,8 +49,8 @@ test('shape tells a branched map from a single line and counts entry points', ()
   const chain = { concepts: ['a', 'b', 'c', 'd'].map((id, i) => ({ id, name: id, hint: i + 1, state: 'active' })),
                   prereqs: [['a', 'b'], ['b', 'c'], ['c', 'd']].map(([from, to]) => ({ from, to, state: 'active' })) };
   assert.equal(R.shape(chain).chain, true);
-  assert.match(R.shapeText(R.shape(chain)), /一条单线/);
-  assert.match(R.shapeText(R.shape(g)), /1 个入口.*最多 2 个概念并行/);
+  assert.equal(R.shapeText(R.shape(chain)), '');   // the shape sentence is no longer shown
+  assert.equal(R.shapeText(R.shape(g)), '');
   assert.equal(R.shapeText(R.shape({ concepts: [], prereqs: [] })), '');
   const two = { concepts: chain.concepts.slice(0, 2), prereqs: chain.prereqs.slice(0, 1) };
   assert.equal(R.shape(two).chain, false);   // two concepts in a row is not "a line", it is a small map
@@ -84,15 +84,14 @@ test('the detail text names what a concept needs and what it opens, escapes name
   g.concepts[1].name = '<img src=x onerror=alert(1)>';
   const html = R.detailHTML(g, g.concepts[1], { progress: { c1: { status: 'satisfied' }, c2: { status: 'unlocked', useful: 1, irrelevant: 0, too_hard: 0, shown: 3 } } });
   assert.ok(!html.includes('<img'), html);
-  assert.match(html, /需要先读懂/);
-  assert.match(html, /读懂它之后可以读/);
+  assert.match(html, /先读懂：/);
+  assert.match(html, /之后可读：/);
   assert.match(html, /need[^"]* done/);
   const entry = R.detailHTML(g, g.concepts[0], {});
-  assert.match(entry, /这是一个入口/);
+  assert.doesNotMatch(entry, /先读懂/);   // an entry has no prerequisites, so it shows no line about them
   assert.doesNotMatch(html + entry, /落后|拖延|逾期|未读|欠/);
   const locked = R.detailHTML(g, g.concepts[3], { progress: { c1: { status: 'satisfied' }, c2: { status: 'unlocked' }, c3: { status: 'unlocked' }, c4: { status: 'locked' } } });
-  assert.match(locked, /只在等/);
-  assert.match(locked, /其他分支的进度不影响它/);
+  assert.doesNotMatch(locked, /只在等|其他分支的进度不影响它/);
 });
 
 test('a concept knows its prerequisites by name and the corpus label of each edge', () => {
@@ -202,8 +201,8 @@ test('status words describe where a concept stands, never disinterest, lateness 
   const R = load();
   assert.deepEqual(Object.keys(JSON.parse(JSON.stringify(R.STATUS))).sort(), ['archived', 'locked', 'proposed', 'satisfied', 'unlocked']);
   // the only allowed mention of disinterest is its explicit negation
-  for (const text of [...Object.values(R.STATUS), R.LOW_INTEREST_TITLE, R.LOCKED_TITLE]) assert.doesNotMatch(text.replace('不等于不喜欢', ''), /落后|欠|不喜欢|未完成|逾期|错过|没读|讨厌/);
-  assert.match(R.LOW_INTEREST_TITLE, /不等于不喜欢/);
+  for (const text of [...Object.values(R.STATUS), R.LOW_INTEREST_TITLE, R.LOCKED_TITLE]) assert.doesNotMatch(text, /落后|欠|不喜欢|未完成|逾期|错过|没读|讨厌/);
+  assert.equal(R.LOW_INTEREST_TITLE, '暂时排在后面');
 });
 
 test('a concept card summary reports only explicit counts', () => {
@@ -228,7 +227,7 @@ test('the actions offered for a concept depend on its state and are all reversib
 
 test('the progress summary line is plain', () => {
   const R = load();
-  assert.equal(R.summaryText({ done: 2, total: 5, exploration_share: 0.26 }), '已读懂 2 / 5 个概念');
+  assert.equal(R.summaryText({ done: 2, total: 5, exploration_share: 0.26 }), '已读懂 2/5');
   assert.doesNotMatch(R.summaryText({ done: 0, total: 0, exploration_share: 0.1 }), /NaN/);
 });
 
@@ -259,12 +258,10 @@ test('the prerequisite editor escapes concept names', () => {
   assert.doesNotMatch(R.needsEditorHTML(g, 'c4'), /<img/);
 });
 
-test('the low-interest tooltip names its real causes and the way back', () => {
+test('the low-interest tooltip is three words and carries no mechanism note', () => {
   const R = load();
-  assert.match(R.LOW_INTEREST_TITLE, /暂不优先/);
-  assert.match(R.LOW_INTEREST_TITLE, /不感兴趣/);
-  assert.match(R.LOW_INTEREST_TITLE, /不等于不喜欢/);
-  assert.match(R.LOW_INTEREST_TITLE, /恢复/);
+  assert.equal(R.LOW_INTEREST_TITLE, '暂时排在后面');
+  assert.doesNotMatch(R.LOW_INTEREST_TITLE, /不感兴趣|不等于不喜欢|恢复/);
 });
 
 test('a draft that replaces the saved map reuses the saved id of every concept with the same name', () => {
@@ -363,15 +360,13 @@ test('a direction row shows how far it is and what it has, all escaped, and is o
   const R = load();
   const html = R.candidateRowHTML(forming(), null);
   assert.match(html, /strain relaxation/);
-  assert.match(html, /证据 62%/);
-  assert.match(html, /论文 2\/3/);
-  assert.match(html, /你点过 2\/2/);
-  assert.match(html, /来源 1\/2/);
+  assert.doesNotMatch(html.replace(/<[^>]*>/g, ''), /%/);           // a score is never shown as a number (bar widths are not text)
+  assert.doesNotMatch(html.replace(/<[^>]*>/g, ''), /论文 2\/3|你点过 2\/2|来源 1\/2/);   // the gate counts are not on the row
   assert.match(html, /证据较少/);
   assert.match(html, /data-growth="select"/);
   assert.doesNotMatch(html, /data-growth="accept"|data-growth="reject"/);       // adding and turning down live in the panel you open
   const ready = R.candidateRowHTML(growth({ name: 'x <b>y</b>' }), null);
-  assert.match(ready, /可确认提议/);
+  assert.match(ready, /可加入/);
   assert.ok(!ready.includes('<b>y</b>') && ready.includes('&lt;b&gt;y&lt;/b&gt;'));
 });
 
@@ -391,10 +386,10 @@ test('only a ready direction can be added; every one can be turned down; edits t
   assert.ok(/disabled/.test(button(locked, 'accept')) && /disabled/.test(button(locked, 'reject')));
 });
 
-test('the panel says where the direction would sit', () => {
+test('the panel no longer carries the placement note', () => {
   const R = load();
-  assert.match(R.ghostDetailHTML(growth()), /加入后：Crystal basics/);
-  assert.match(R.ghostDetailHTML(forming()), /新的入口/);
+  assert.doesNotMatch(R.ghostDetailHTML(growth()), /加入后：Crystal basics/);   // the placement note is no longer shown
+  assert.doesNotMatch(R.ghostDetailHTML(forming()), /新的入口/);
 });
 
 test('the panel shows the model\'s introduction and barrier, marked as its opinion, escaped', () => {
@@ -403,9 +398,9 @@ test('the panel shows the model\'s introduction and barrier, marked as its opini
   assert.match(html, /位错滑移释放/);
   assert.match(html, /门槛：/);
   assert.match(html, /要先懂外延/);
-  assert.match(html, /AI 的判断，不是事实/);
+  assert.match(html, /AI 判断/);
   assert.ok(!html.includes('<i>应力</i>'));
-  assert.doesNotMatch(R.ghostDetailHTML(growth()), /AI 的判断/);                 // no brief yet: nothing to attribute
+  assert.doesNotMatch(R.ghostDetailHTML(growth()), /AI 判断/);                 // no brief yet: nothing to attribute
 });
 
 test('the waiting exploration papers are listed with the one button that asks the model, and it can be off', () => {
@@ -416,67 +411,58 @@ test('the waiting exploration papers are listed with the one button that asks th
   assert.match(html, /data-growth="judge"/);
   assert.ok(!html.includes('<b>1</b>') && html.includes('T &lt;b&gt;1&lt;/b&gt;'));
   assert.equal((html.match(/<li/g) || []).length, 3);                          // the first three are only a preview of the queue
-  assert.match(html, /今天还能判断 7 次/);
-  assert.match(html, /判断全部待判断论文/);
-  assert.match(html, /每批最多 3 篇/);
-  assert.match(html, /整次只计 1 次判断机会/);
-  assert.match(html, /不发送笔记、画像或其他项目/);
+  assert.doesNotMatch(html, /今天还能判断 7 次|每批最多 3 篇|整次只计 1 次判断机会/);
+  assert.match(html, />判断全部</);
+  assert.match(html, /title="调用 AI，只发送论文标题、摘要节选和学习图概念"/);
   assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 0 }, {}), /data-growth="judge" disabled/);
   assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 3 }, { busy: true }), /data-growth="judge" disabled/);
-  assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 3 }, { busy: true }), /正在判断全部/);
+  assert.match(R.pendingHTML({ pending: [{ key: 'a', title: 'T' }], judges_left: 3 }, { busy: true }), />正在判断…</);
 });
 
 test('queue progress uses backend counts and distinguishes partial, complete and legacy responses', () => {
  const R=load(), out={ok:true,requested:20,processed:20,pending:0,complete:true,model_calls:7,judges_left:9};
  const complete=R.judgeProgress(out);assert.equal(complete.complete,true);
- assert.match(complete.message,/20\/20 篇.*0 篇待判断.*9 次/);
+ assert.equal(complete.message,'判断完毕 · 20/20 篇');
  const partial=R.judgeProgress({...out,processed:9,pending:11,complete:false,reason:'预算不足'});
- assert.equal(partial.complete,false);assert.match(partial.message,/已停止.*9\/20 篇.*停止原因：预算不足/);
+ assert.equal(partial.complete,false);assert.equal(partial.message,'判断已停止 · 9/20 篇 · 还有 11 篇待判断 · 预算不足');
  const newPending=R.judgeProgress({...out,pending:2});
- assert.equal(newPending.complete,true);assert.match(newPending.message,/2 篇待判断.*当前待判断论文可以继续处理/);
+ assert.equal(newPending.complete,true);assert.equal(newPending.message,'判断完毕 · 20/20 篇 · 还有 2 篇待判断');
  assert.equal(complete.warning,false);assert.equal(partial.warning,true);
  const uncertain=R.judgeProgress({...out,reason_code:'network',reason:'Request or billing status is unknown'});
  assert.equal(uncertain.complete,true);assert.equal(uncertain.warning,true);
  assert.match(uncertain.message,/Request or billing status is unknown/);
  const noReason=R.judgeProgress({...out,reason_code:'network'});
- assert.equal(noReason.warning,true);assert.match(noReason.message,/计费状态/);
+ assert.equal(noReason.warning,true);assert.match(noReason.message,/调用状态需确认/);
  assert.equal(R.judgeProgress({ok:true,results:[],judges_left:9}),null);
 });
 
 test('what the model said is put in plain words, one phrase per group, and never as a fact about the reader', () => {
   const R = load();
   const text = R.judgeSummary([{ verdict: 'new', name: '应变弛豫' }, { verdict: 'join', name: '应变弛豫' }, { verdict: 'covered', nearest: 'Epitaxy' }, { verdict: 'covered' }, { verdict: 'unclear' }]);
-  assert.match(text, /「应变弛豫」是一个新分支提议/);
-  assert.match(text, /并入了潜在方向「应变弛豫」/);
-  assert.match(text, /「Epitaxy」已覆盖这项学习任务/);
-  assert.match(text, /学习图里已有的概念已覆盖这项学习任务/);
-  assert.match(text, /看不出来/);
-  assert.match(R.judgeSummary([{ verdict: 'declined', name: '应变弛豫' }]), /之前选了“不再提示”/);
-  assert.match(R.judgeSummary([{ verdict: 'full' }]), /还留在待判断里/);
-  assert.match(R.judgeSummary([{ verdict: 'unusable' }]), /回复不完整.*再点一次/);
+  assert.equal(text, '「应变弛豫」新分支；并入「应变弛豫」；「Epitaxy」已覆盖；已有概念已覆盖；AI 看不出来');
+  assert.equal(R.judgeSummary([{ verdict: 'declined', name: '应变弛豫' }]), '「应变弛豫」已不再提示');
+  assert.equal(R.judgeSummary([{ verdict: 'full' }]), '潜在方向已满');
+  assert.match(R.judgeSummary([{ verdict: 'unusable' }]), /回复不完整.*可再试/);
   assert.equal(R.judgeSummary([]), '');
 });
 
-test('the detail of a direction explains every gate, lists the papers with the ones you marked, and the parts in words', () => {
+test('the detail of a direction lists what is missing and the papers with the ones you marked, without gate or evidence-part tables', () => {
   const R = load();
   const html = R.ghostDetailHTML(forming());
-  assert.equal((html.match(/class="gate[ "]/g) || []).length, 4);
+  assert.equal((html.match(/class="gate[ "]/g) || []).length, 0);   // the per-gate rows are not on the surface any more
   assert.match(html, /还差 1 个不同来源/);
-  assert.match(html, /你明确点过的论文/);
-  assert.match(html, /属于这个方向的论文/);
-  assert.match(html, /证据量/);
-  assert.match(html, /0\.12\/0\.25/);              // strength is shown with decimals, the counts without
-  assert.match(html, /2\/3/);
+  assert.match(html, /还差 1 篇属于这个方向的论文/);
+  assert.doesNotMatch(html, /证据量|证据是怎么来的|growth-parts/);
+  assert.doesNotMatch(html.replace(/<[^>]*>/g, ''), /0\.12|0\.25|\d%/);   // never a decimal or a percentage as text
   assert.match(html, /你点过/);                    // the paper marker
   assert.match(html, /journal-a/);
-  assert.match(html, /加入后/);
+  assert.doesNotMatch(html, /加入后/);
   assert.ok(!html.includes('<b>relaxation</b>'));
 });
 
 test('the list says what to do when nothing is on file and never calls silence a reason', () => {
   const R = load();
-  assert.match(R.growthNote({ candidates: [] }), /还没有潜在方向/);
-  assert.match(R.growthNote({ candidates: [] }), /点“有用”收藏/);
+  assert.equal(R.growthNote({ candidates: [] }), '还没有潜在方向');
   assert.equal(R.growthNote({ candidates: [growth(), forming()] }), '');
   assert.equal(R.growthNote({ candidates: [], pending: [{ key: 'a', title: 'T' }] }), '');   // there is something to judge: the pending block says so
   assert.doesNotMatch(R.growthNote({ candidates: [] }), /落后|没读|不喜欢/);
@@ -523,7 +509,7 @@ test('the border is a track plus a filled part of the same outline, and a full s
 
 test('the status of a ghost node says it is a direction in the making and how far', () => {
   const R = load();
-  assert.deepEqual(JSON.parse(JSON.stringify(R.ghostStatus(forming()))), { key: 'ghost', label: '潜在方向 · 62%', title: R.ghostStatus(forming()).title });
+  assert.deepEqual(JSON.parse(JSON.stringify(R.ghostStatus(forming()))), { key: 'ghost', label: '潜在方向 · 证据中', title: R.ghostStatus(forming()).title });
   assert.match(R.ghostStatus(growth()).label, /可以加入/);
   assert.match(R.ghostStatus(forming()).title, /还差 1 篇属于这个方向的论文/);
 });
@@ -544,23 +530,21 @@ test('every concept has a role and a difficulty in words', () => {
   assert.deepEqual([1, 2, 3, 4].map((h) => R.HINT_TEXT[h]), ['入门', '基础', '进阶', '前沿']);
 });
 
-test('the detail says what the concept is, who wrote that, its role and its difficulty', () => {
+test('the detail says what the concept is and marks an AI-written intro, without role or difficulty lines', () => {
   const R = load(), g = mapOf();
   const ai = R.detailHTML(g, g.concepts[0], {});
   assert.match(ai, /晶体怎样长出来。/);
   assert.match(ai, /AI 写的/);
-  assert.match(ai, /角色：入口/);
-  assert.match(ai, /难度 1：入门/);
+  assert.doesNotMatch(ai, /角色：|难度 \d/);   // role and difficulty are no longer written out in the detail
   const mine = R.detailHTML(g, g.concepts[2], {});
-  assert.match(mine, /你写的/);
+  assert.doesNotMatch(mine, /你写的|AI 写的/);   // only an AI-written intro is marked; the reader's own is not
   assert.ok(!mine.includes('<b>here</b>') && mine.includes('&lt;b&gt;here&lt;/b&gt;'));
-  assert.match(mine, /角色：目标/);
 });
 
-test('a concept without an intro says so and offers the two ways to get one', () => {
+test('a concept without an intro shows no intro text and no author badge', () => {
   const R = load(), g = mapOf();
   const html = R.detailHTML(g, g.concepts[1], {});
-  assert.match(html, /还没有简介/);
+  assert.doesNotMatch(html, /还没有简介|concept-intro/);
   assert.doesNotMatch(html, /AI 写的|你写的/);
   assert.match(html, /data-concept-papers/);      // where the project's own papers go
   assert.match(html, /data-concept-examples/);    // where the public ones go
@@ -571,7 +555,7 @@ test('the papers of the project that fit a concept are listed with the matched w
   const html = R.matchedPapersHTML({ papers: [
     { key: 'a', title: 'Epitaxial <i>layers</i>', terms: ['epitaxy', 'epitaxial'], feedback: 'useful', familiarity: 'understood' },
     { key: 'b', title: 'Plain', terms: ['epitaxy'], feedback: null, familiarity: null }], total: 7 });
-  assert.match(html, /你的项目里有 7 篇用到了它的检索词/);
+  assert.doesNotMatch(html, /你的项目里有 7 篇用到了它的检索词/);
   assert.match(html, /epitaxy · epitaxial/);
   assert.match(html, /你点过有用/);
   assert.match(html, /你点过已读懂/);
@@ -582,7 +566,7 @@ test('the papers of the project that fit a concept are listed with the matched w
 
 test('no matching paper is said plainly', () => {
   const R = load();
-  assert.match(R.matchedPapersHTML({ papers: [], total: 0 }), /还没有论文用到它的检索词/);
+  assert.match(R.matchedPapersHTML({ papers: [], total: 0 }), /还没有相关论文/);
   assert.doesNotMatch(R.matchedPapersHTML({ papers: [], total: 0 }), /落后|没读|不喜欢/);
 });
 
@@ -626,11 +610,11 @@ test('current one-paper proposal can be confirmed while stale strong proposal ca
   const weak = {...forming(), can_accept: true, stale: false, proposal_type: 'new_task'};
   const html = R.ghostDetailHTML(weak);
   assert.match(html, /新任务/);
-  assert.match(html, /仅供参考/);
+  assert.doesNotMatch(html, /仅供参考/);
   assert.doesNotMatch(html.match(/<button[^>]+data-growth="accept"[^>]*>/)[0], /disabled/);
   const stale = R.ghostDetailHTML(growth({can_accept: false, stale: true}));
   assert.match(stale.match(/<button[^>]+data-growth="accept"[^>]*>/)[0], /disabled/);
-  assert.match(stale, /不会自动调用 AI/);
+  assert.doesNotMatch(stale, /不会自动调用 AI/);
   assert.match(R.ghostStatus(growth({stale:true})).label, /已过期/);
 });
 
@@ -642,9 +626,6 @@ test('missing prerequisite ghost points to dependent and cannot change stored ma
   assert.equal(JSON.stringify(graph), before);
 });
 
-test('judgment history exposes outdated status and escapes source prose', () => {
-  const html = load().judgementsHTML({judgements:[{stale:true,verdict:'covered',titles:['<script>x</script>'],reason:'<b>source</b>'}]});
-  assert.match(html, /已过期/);
-  assert.match(html, /&lt;script&gt;/);
-  assert.doesNotMatch(html, /<script>|<b>source/);
+test('judgment history is not drawn on the page', () => {
+  assert.equal(load().judgementsHTML({judgements:[{stale:true,verdict:'covered',titles:['<script>x</script>'],reason:'<b>source</b>'}]}), '');
 });

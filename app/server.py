@@ -1079,7 +1079,7 @@ class Handler(BaseHTTPRequestHandler):
                         shutil.rmtree(cache_dir)
                         cache_dir.mkdir(parents=True, exist_ok=True)
                 except OSError as exc:
-                    return self._json({'error': '缓存未完整清理：' + str(exc), 'preserved': ['pdf-archives', 'fulltext', 'notes', 'projects']}, 500)
+                    return self._json({'error': '清理没有完成：' + str(exc), 'preserved': ['pdf-archives', 'fulltext', 'notes', 'projects']}, 500)
                 self._json({"status": "cleared", 'removed': ['source-response-cache'],
                             'preserved': ['pdf-archives', 'fulltext', 'notes', 'projects']})
             else:

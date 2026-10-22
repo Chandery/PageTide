@@ -27,7 +27,7 @@ test('the confirmed brainstorm graph replaces only the automatic map and stage r
  const ai={concepts:[{id:'a',name:'概率基础',terms:['probability'],intro:'AI foundation',intro_by:'ai',origin:'plan'},{id:'b',name:'Latent dynamics',terms:['latent dynamics'],intro:'AI target',intro_by:'ai',origin:'plan'}],prereqs:[{from:'a',to:'b',origin:'plan',support:null}],targets:['b']};
  vm.createContext(context);vm.runInContext(functionSource('setDraft','\n  function addCandidates(')+';globalThis.set=setDraft;',context);
  context.set({learning_path:[{title:'Old stage',purpose:'Old'}],route_draft:{graph:ai,brief:{goal:'Study latent dynamics'},source:'ai_guidance'}});
- assert.equal(context.map.graph,ai);assert.equal(context.map.graph.prereqs.length,1);assert.equal(rows[0].title,'概率基础');assert.equal(rows.some(row=>row.title==='Old stage'),false);assert.equal(JSON.stringify(bound),'["a","b"]');assert.match(notice,/AI/);
+ assert.equal(context.map.graph,ai);assert.equal(context.map.graph.prereqs.length,1);assert.equal(rows[0].title,'概率基础');assert.equal(rows.some(row=>row.title==='Old stage'),false);assert.equal(JSON.stringify(bound),'["a","b"]');assert.equal(notice,'');
  context.map.userEdited=true;context.map.graph.concepts[0].name='我的基础';context.set({route_draft:{graph:graph(),source:'ai_guidance'}});assert.equal(context.map.graph.concepts[0].name,'我的基础');
 });
 test('missing discipline and language errors appear at their input and focus/scroll there',()=>{

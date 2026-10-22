@@ -408,10 +408,10 @@ def run_review(app, scope_project, profile, dry_run=False, cancelled=None):
                     if result.get('ok') and result.get('usage_unknown'):
                         code = 'usage_unknown'
                         message = ('The AI usage is not confirmed; the reserved budget is retained.'
-                                   if profile.get('language') == 'en-US' else 'AI 分类审阅的用量尚未确认；预算预留保留。')
+                                   if profile.get('language') == 'en-US' else 'AI 分类审阅的用量尚未确认；记录已保留。')
                     elif result.get('usage_unknown') and '预留' not in message and 'reserved' not in message.lower():
                         message += (' The reserved budget is retained until usage is confirmed.'
-                                    if profile.get('language') == 'en-US' else ' 用量尚未确认，预算预留保留。')
+                                    if profile.get('language') == 'en-US' else ' 用量尚未确认，记录已保留。')
                     stats.update(error_code=code, http_status=result.get('http_status'),
                                  usage_reserved=bool(result.get('usage_reserved') or result.get('usage_unknown')))
                     _check_cancel(cancelled)

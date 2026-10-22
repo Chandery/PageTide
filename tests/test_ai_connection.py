@@ -107,7 +107,7 @@ class AIConnectionTests(unittest.TestCase):
         self.assertTrue(result['usage_unknown']); self.assertTrue(result['usage_reserved'])
         self.assertIsNone(result['usage']); self.assertIsNone(result['usd'])
         self.assertEqual(result['reservation']['input'], 768)
-        self.assertIn('预留', result['reason']); self.assertNotIn('secret-should-not-echo', json.dumps(result))
+        self.assertIn('保留', result['reason']); self.assertNotIn('secret-should-not-echo', json.dumps(result))
 
     def test_rejected_request_with_release_failure_explains_both_causes(self):
         self.call.return_value = {'ok': False, 'tracking_failed': True, 'http_status': 401,

@@ -20,8 +20,8 @@ test('a paid invalid judgment refreshes remaining attempts and never claims AI w
  const {c,notices,calls}=mapContext({ok:false,reason_code:'bad_reply',reason:'未保存学习判断',judges_left:9});
  await c.judgeNow();assert.deepEqual(calls,['direction-judge','candidates']);
  assert.equal(c.growth.result.judges_left,9);assert.equal(c.growth.judging,false);
- assert.match(notices.at(-1)[0],/未得到有效判断/);assert.match(notices.at(-1)[0],/9 次/);
- assert.doesNotMatch(notices.at(-1)[0],/没有使用 AI|本地整理/);
+ assert.equal(notices.at(-1)[0],'未得到有效判断：未保存学习判断');
+ assert.doesNotMatch(notices.at(-1)[0],/没有使用 AI|本地整理|9 次/);
 });
 test('an unpaid approval refusal retains its reason and refreshed attempts',async()=>{
  const {c,notices}=mapContext({ok:false,reason_code:'not_approved',reason:'尚未批准',judges_left:10});
@@ -33,29 +33,29 @@ test('Today says invalid judgment and actual attempts without hiding the retry b
  const c=vm.createContext({state:{currentProject:'p',cards:[card]},api:async()=>({ok:false,reason:'未保存',judges_left:9}),
   renderCards:()=>{},toast:(...args)=>notices.push(args),PDHRoute:R});vm.runInContext(today,c);
  await c.doJudge('x');assert.equal(card.judgeBusy,false);assert.equal(card.judgeAsk,true);
- assert.match(notices.at(-1)[0],/未得到有效判断.*9 次/);assert.doesNotMatch(notices.at(-1)[0],/没有使用 AI/);
+ assert.equal(notices.at(-1)[0],'未得到判断：未保存');assert.doesNotMatch(notices.at(-1)[0],/没有使用 AI|9 次/);
 });
 
 test('the map reports the entire 20-paper snapshot with one request and one attempt',async()=>{
  const {c,notices,calls}=mapContext(queueResult());
  await c.judgeNow();
  assert.deepEqual(calls,['direction-judge','candidates']);
- assert.match(notices.at(-1)[0],/本次队列已判断完毕.*20\/20 篇.*0 篇待判断.*9 次/);
+ assert.equal(notices.at(-1)[0],'判断完毕 · 20/20 篇');
  assert.equal(notices.at(-1)[1],false);assert.equal(c.growth.judging,false);
- assert.ok(notices.some(([line])=>/正在判断全部 20 篇待判断论文/.test(line)));
+ assert.ok(notices.some(([line])=>line==='正在判断…'));
 });
 test('a complete map queue still warns when request or billing status is unknown',async()=>{
  const {c,notices}=mapContext(queueResult({reason_code:'network',reason:'Request or billing status is unknown'}));
  await c.judgeNow();
- assert.match(notices.at(-1)[0],/本次队列已判断完毕.*20\/20 篇.*Request or billing status is unknown/);
+ assert.equal(notices.at(-1)[0],'判断完毕 · 20/20 篇 · Request or billing status is unknown');
  assert.equal(notices.at(-1)[1],true);
 });
 test('a partial saved result reports counts and a stop reason without claiming completion',async()=>{
  const out=queueResult({processed:9,complete:false,pending:11,model_calls:4,reason:'本日 token 预算不足',results:[{verdict:'new',direction:'d1'}]});
  const {c,notices}=mapContext(out);
  await c.judgeNow();
- assert.match(notices.at(-1)[0],/本次判断已停止.*9\/20 篇.*11 篇待判断.*预算不足/);
- assert.doesNotMatch(notices.at(-1)[0],/已判断完毕|AI 判断完了/);
+ assert.equal(notices.at(-1)[0],'判断已停止 · 9/20 篇 · 还有 11 篇待判断 · 本日 token 预算不足');
+ assert.doesNotMatch(notices.at(-1)[0],/判断完毕|AI 判断完了/);
  assert.equal(notices.at(-1)[1],true);assert.equal(c.growth.selected,'d1');
 });
 test('a stopped job can be continued with counts from the next snapshot',async()=>{
@@ -64,7 +64,7 @@ test('a stopped job can be continued with counts from the next snapshot',async()
  c.api=async body=>{calls.push(body.action);return body.action==='candidates'?{judges_left:8,candidates:[],pending:[]}:queueResult({requested:11,processed:11,judges_left:8,model_calls:4});};
  await c.judgeNow();
  assert.deepEqual(calls,['direction-judge','candidates','direction-judge','candidates']);
- assert.match(notices.at(-1)[0],/本次队列已判断完毕.*11\/11 篇.*8 次/);
+ assert.equal(notices.at(-1)[0],'判断完毕 · 11/11 篇');
 });
 function todayContext(cards,result){
  const notices=[],calls=[],renders=[];
@@ -95,11 +95,11 @@ test('Today partial keeps all prompts, then a complete continuation clears them'
  const {c,notices,calls}=todayContext(cards,queueResult({processed:9,complete:false,pending:11,reason:'预算不足'}));
  await c.doJudge('x');
  assert.deepEqual(cards.map(card=>card.judgeAsk),[true,true]);assert.equal(notices.at(-1)[1],'warn');
- assert.match(notices.at(-1)[0],/9\/20 篇.*11 篇待判断.*预算不足/);
+ assert.match(notices.at(-1)[0],/9\/20 篇.*还有 11 篇待判断.*预算不足/);
  c.api=async(path,body)=>{calls.push(body);return queueResult({requested:11,processed:11,judges_left:8});};
  await c.doJudge('y');
  assert.equal(calls.length,2);assert.deepEqual(cards.map(card=>card.judgeAsk),[false,false]);
- assert.match(notices.at(-1)[0],/11\/11 篇.*8 次/);
+ assert.equal(notices.at(-1)[0],'判断完毕 · 11/11 篇');
 });
 test('Today complete snapshot can leave new papers pending without hiding their prompts',async()=>{
  let resolve;const cards=[{key:'x',judgeAsk:true}];
@@ -108,7 +108,7 @@ test('Today complete snapshot can leave new papers pending without hiding their 
  const added={key:'new',judgeAsk:true};cards.push(added);
  resolve(queueResult({pending:2}));await job;
  assert.equal(cards[0].judgeAsk,false);assert.equal(added.judgeAsk,true);
- assert.match(notices.at(-1)[0],/本次队列已判断完毕.*2 篇待判断.*当前待判断论文可以继续处理/);
+ assert.equal(notices.at(-1)[0],'判断完毕 · 20/20 篇 · 还有 2 篇待判断');
 });
 test('Today locks the project across cards and releases the lock after a stopped job',async()=>{
  let resolve;const cards=[{key:'x',judgeAsk:true},{key:'y',judgeAsk:true}];
@@ -126,7 +126,7 @@ test('a newly added Today prompt is disabled by the project lock and unlocked af
  c.esc=String;vm.runInContext(prompt,c);
  const job=c.doJudge('x'),added={key:'new',judgeAsk:true};cards.push(added);
  assert.match(c.judgeAskHTML(added),/data-judge="ask"[^>]*disabled/);
- assert.match(c.judgeAskHTML(added),/正在判断全部/);
+ assert.match(c.judgeAskHTML(added),/判断中…/);
  reject(Error('Connection interrupted'));await job;
  assert.equal(state.judgeJobs.has('p'),false);assert.equal(added.judgeAsk,true);
  assert.doesNotMatch(c.judgeAskHTML(added),/data-judge="ask"[^>]*disabled/);
@@ -145,7 +145,7 @@ test('a stale Today response cannot clear or notify a different project',async()
 test('Today legacy successful fixture retains its original summary and one-card dismissal',async()=>{
  const cards=[{key:'x',judgeAsk:true},{key:'y',judgeAsk:true}];
  const {c,notices}=todayContext(cards,{ok:true,results:[],judges_left:9});
- await c.doJudge('x');assert.match(notices.at(-1)[0],/AI 判断完了：proposal/);
+ await c.doJudge('x');assert.equal(notices.at(-1)[0],'proposal');
  assert.deepEqual(cards.map(card=>card.judgeAsk),[false,true]);
 });
 test('Useful shows the growth prompt, difficulty keeps interest, irrelevant clears the prompt',async()=>{

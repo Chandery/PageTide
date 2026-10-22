@@ -3,6 +3,7 @@
 The initial editor offers a bounded set of languages, including classical-language
 research. Metadata is a report, never evidence of the PDF's actual language.
 """
+import re
 import unicodedata
 
 
@@ -17,6 +18,24 @@ def metadata_code(value):
     # Preserve other two-letter reports for display, although the initial editor
     # exposes only LANGUAGES. Missing/invalid reports remain unknown.
     return value.lower() if isinstance(value, str) and len(value) == 2 and value.isascii() and value.isalpha() else None
+
+
+_EN_FUNCTION_WORDS = frozenset('the of and to in a is for we that on with this by are an as from be our which it can'.split())
+
+
+def abstract_language(abstract):
+    """'en' when an abstract is clearly English, else None. Used only when the source reported no language: OpenAlex
+    leaves it empty for most arXiv preprints. Conservative and local: at least 20 words, nearly all letters Latin, and
+    English function words common enough that French, German or Spanish text does not pass."""
+    text = abstract if isinstance(abstract, str) else ''
+    words = [w.lower() for w in re.findall(r'[A-Za-z]+', text)]
+    if len(words) < 20:
+        return None
+    letters = [c for c in text if c.isalpha()]
+    latin = sum(1 for c in letters if c.isascii())
+    if latin / len(letters) < 0.97:
+        return None
+    return 'en' if sum(w in _EN_FUNCTION_WORDS for w in words) / len(words) > 0.12 else None
 
 
 def title_metadata_evidence(title, metadata_language):

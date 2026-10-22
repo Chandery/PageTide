@@ -96,7 +96,7 @@ class EnglishServiceTests(unittest.TestCase):
         set_language(self.app.data, "en-US")
         english_papers(self.app, None)
         reason = self.app.build_batch(limit=5)["shortfall"]["reason"]
-        self.assertIn("Only 1 paper in the project pool is neither", reason)
+        self.assertIn("Only 1 paper is left that you have not seen or rated", reason)
 
     def test_explanations_follow_the_interface_language(self):
         self.app.store.upsert_papers([{"key": "ref1", "title": "World Model Planning with JEPA",

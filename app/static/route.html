@@ -18,20 +18,17 @@
 <div class="ai-draft" data-role="aiBox" hidden>
   <b data-role="briefTitle">学习需求</b>
   <div data-role="briefFields"></div>
-  <div class="map-note">仅学习目标必填；其他项可以跳过。已知基础留空表示未说明。</div>
-  <div class="map-note">创建和修改使用同一份五字段。可以把老师的文字或 MD 内容粘贴到结构意见，只把它当作需求。已知基础不自动标记掌握。</div>
-  <div class="map-note" data-role="aiWarn"></div>
-  <div class="map-note">创建只发送这五字段；修改再发送完整有界学习图的名称、检索词、简介和前置关系，不发送论文、笔记、画像、反馈或其他项目。新范围需要单独批准；未批准或 AI 关闭时仍可手动编辑。每个项目本地日最多 3 次创建或 2 次修改尝试。AI 草稿必须通过预览确认才改变现有学习图。</div>
-  <div class="row"><button type="button" class="primary small" data-role="aiGo">生成草稿（1 次调用）</button><button type="button" class="ghost small" data-role="aiCancel">关闭需求</button><span class="map-note" data-role="aiActivity" role="status" aria-live="polite"></span></div>
+  <div class="map-note" data-role="aiWarn" hidden></div>
+  <div class="row"><button type="button" class="primary small" data-role="aiGo" title="调用 1 次 AI，只发送这五项需求">生成草稿</button><button type="button" class="ghost small" data-role="aiCancel">关闭需求</button><span class="map-note" data-role="aiActivity" role="status" aria-live="polite"></span></div>
   <section data-role="revisionPreview" hidden>
     <div data-role="revisionSummary"></div>
     <div data-role="revisionGraph"></div>
-    <button type="button" class="primary small" data-role="revisionConfirm">确认这次修改</button>
+    <button type="button" class="primary small" data-role="revisionConfirm">确认修改</button>
   </section>
 </div>
 
 <section data-role="empty" hidden>
-  <p class="hint">这个项目还没有学习图。学习图把你想学的内容拆成概念，并画出“读懂 A 才能读 B”的关系；推荐会先从你现在能读的概念里选论文，各条分支按各自的进度推进，互不等待。</p>
+  <p class="hint">还没有学习图</p>
   <div class="map-actions">
     <button type="button" class="primary" data-role="aiOpen">让 AI 起草一张</button>
     <button type="button" class="ghost" data-role="startEmpty">自己搭一张</button>
@@ -44,7 +41,6 @@
     <div class="mode-pick"><div class="seg" role="radiogroup" aria-label="推荐方式" data-role="modeSeg"><button type="button" role="radio" aria-checked="true" data-mode="route">按学习图推荐</button><button type="button" role="radio" aria-checked="false" data-mode="off">热点模式</button></div>
       <span class="sub" data-role="modeNote"></span></div>
   </div>
-  <div class="map-note" data-role="legend">箭头从“要先读懂的概念”指向“依赖它的概念”。每个概念只等它自己的前置，不同分支互不等待；上下位置只表示要先读懂几层前置，不是必须读完一整层。“可以读”的概念正在被推荐，“未解锁”在等它的前置被读懂。沉默不会改变任何状态，“太难”只会让推荐先补基础，也不代表不感兴趣。收藏表示感兴趣，不等于读懂：先收藏进论文库，再在论文库里点“已读懂”才会推进进度。</div>
   <div class="map-shape" data-role="shape"></div>
   <div class="map-layout">
     <div data-role="graph"></div>
@@ -52,27 +48,25 @@
   </div>
   <div class="map-actions">
     <button type="button" class="ghost small" data-role="add">+ 添加概念</button>
-    <button type="button" class="ghost small" data-role="aiOpen2">按需求修改学习图</button>
-    <button type="button" class="ghost small" data-role="check">用公开文献核对</button>
-    <button type="button" class="primary small" data-role="save" hidden>保存对学习图的修改</button>
+    <button type="button" class="ghost small" data-role="aiOpen2" title="调用 1 次 AI，发送这五项需求和当前学习图的概念与前置">按需求修改学习图</button>
+    <button type="button" class="ghost small" data-role="check" title="只发送检索词到 OpenAlex">用公开文献核对</button>
+    <button type="button" class="primary small" data-role="save" hidden>保存修改</button>
     <button type="button" class="ghost small" data-role="discard" hidden>放弃修改</button>
   </div>
   <section class="growth" data-role="growth">
     <header><h3>潜在方向</h3><button type="button" class="ghost small" data-role="findGrowth">刷新</button></header>
-    <div class="map-note">方向代表可以单独学习的能力或知识单元。同一学习任务的论文优先补充已有节点或提议，不因方法、数据集或应用不同就另建方向。</div>
-    <div class="map-note">生长证据来自你明确认为有用或选作种子的论文，不限于探索位。“已读懂”只影响学习进度；导入、曝光、沉默不算兴趣。AI 可以提议新任务、前置缺口或新分支。点下面的某个方向，上面的图里才会出现它的位置和前置关系。证据数量与相似度仅供参考，不限制手动编辑；点“加入学习图”才会加入，加入后可以马上撤销。图或有效证据变化后旧提议会过期，不自动重判。</div>
     <div class="notice" data-role="growthNotice" hidden></div>
     <div data-role="growthList"></div>
   </section>
 </section>
 </div>
 <dialog class="route-quit" data-role="quitDialog" aria-labelledby="routeQuitTitle" aria-describedby="routeQuitHint">
-  <h2 id="routeQuitTitle">退出前处理本页修改</h2>
-  <p id="routeQuitHint">学习图、需求或 AI 内容尚未保存或确认。请返回检查并保存，或明确放弃本页未保存修改。退出不会自动确认 AI；已经保存的 AI 预览仍会保留。</p>
+  <h2 id="routeQuitTitle">有未保存的修改</h2>
+  <p id="routeQuitHint">学习图或需求尚未保存。</p>
   <div class="actions">
     <button type="button" class="primary" data-role="quitReview">返回检查并保存</button>
     <button type="button" data-role="quitCancel">取消退出</button>
-    <button type="button" data-role="quitDiscard">放弃本页未保存修改并退出</button>
+    <button type="button" data-role="quitDiscard">放弃修改并退出</button>
   </div>
 </dialog>
 <script src="/route-editor.js"></script>

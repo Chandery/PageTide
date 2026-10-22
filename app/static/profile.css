@@ -25,7 +25,7 @@
 .pd-status { font:600 calc(11.5px * var(--s))/1 -apple-system,BlinkMacSystemFont,sans-serif; padding:calc(5px * var(--s)) calc(8px * var(--s)); border-radius:999px; color:var(--good); background:var(--surface-2); border:1px solid var(--line); }
 .pd-status::before { content:""; display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; margin-right:calc(6px * var(--s)); vertical-align:1px; }
 .pd-status.is-frozen { color:var(--warn); }
-.pd-kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:calc(12px * var(--s)); margin:0 0 calc(14px * var(--s)); }
+.pd-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:calc(12px * var(--s)); margin:0 0 calc(14px * var(--s)); }
 .profile-page .pd-kpi { display:flex; flex-direction:column; align-items:stretch; gap:calc(4px * var(--s)); text-align:left; padding:calc(14px * var(--s)) calc(14px * var(--s)) calc(10px * var(--s)); border-radius:12px; background:var(--surface-1); min-width:0; }
 .pd-kpi-label { display:flex; align-items:center; gap:calc(7px * var(--s)); color:var(--muted); font-size:calc(12.5px * var(--s)); }
 .pd-kpi-tag { margin-left:auto; font-size:calc(10.5px * var(--s)); padding:calc(2px * var(--s)) calc(6px * var(--s)); border-radius:999px; background:var(--surface-2); }

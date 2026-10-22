@@ -48,12 +48,11 @@ class LabelFamiliesTests(unittest.TestCase):
 
     def test_the_card_uses_each_family_for_its_own_content(self):
         html = card_html()
-        self.assertIn('class="st st-done"', html)
-        self.assertIn('class="st st-pending"', html)
-        self.assertIn("st st-saved", html)
-        self.assertIn("pdfBadge(c.pdf_status)", html)
-        self.assertIn('class="kws"', html)                           # keywords sit on their own row, apart from the meta line
-        self.assertNotIn("badge", html)                              # the old one-size badge is gone from the card
+        # A card carries no status pills (2026-10-22): the AI summary shows itself, the save button shows saved.
+        for gone in ('st-done', 'st-pending', 'st-saved', 'class="kws"'):
+            self.assertNotIn(gone, html)
+        self.assertIn("c.pdf_status === 'page' ? pdfBadge(c.pdf_status)", html)   # only the case the reader must act on
+        self.assertIn("routeBadge(c)", html)
         self.assertIn('pdf-tag pdf-', index)
         route = index[index.index("function routeBadge"):index.index("const PDF_BADGES")]
         self.assertIn('class="kw kw-', route)

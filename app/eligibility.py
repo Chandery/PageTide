@@ -105,6 +105,15 @@ def defer_verification(scope, key):
                 _SCAN_CURSOR.popitem(last=False)
 
 
+def has_pdf_source(paper):
+    """Whether a legal PDF can be had for this paper: a PDF already stored here, an arXiv id, an https PDF link or an
+    open-access landing page from the source. A paper without any of them is not recommended: there would be nothing to read."""
+    if paper.get('current_pdf_path'):
+        return True
+    from .sources import pdf_availability
+    return pdf_availability(paper.get('arxiv_id'), paper['oa'] if 'oa' in paper else paper.get('oa_json')) != 'none'
+
+
 def evaluate(policy, paper, language, local_body=''):
     # Recompute from the current title, rather than trusting a cached/client
     # signal. _paper_language owns current-PDF proof; legacy direct callers
@@ -124,6 +133,8 @@ def evaluate(policy, paper, language, local_body=''):
             reason = 'title_language_unverified'
         elif not usable_abstract(paper.get('abstract')) and not usable_body(local_body):
             reason = 'no_readable_content'
+        elif not has_pdf_source(paper):
+            reason = 'no_pdf_source'
     return {'eligible': reason is None, 'reason': reason, 'language': language}
 
 
@@ -133,10 +144,11 @@ REASONS = {
     "source_disabled": ("该论文所属来源已在设置中关闭", "This paper’s source is disabled in settings"),
     'language_policy_required': ('请先在项目设置选择学科和允许的论文语言', 'Choose the discipline and allowed paper languages in project settings first'),
     'source_version_changed': ('PDF 版本已变化，请重新生成', 'The PDF version changed; generate again'),
-    'source_verification_deferred': ('本轮文件核验读取量已达上限，请再次生成', 'File verification reached its read limit; generate again'),
+    'source_verification_deferred': ('这次没来得及检查完所有文件，请再生成一次', 'Not every file could be checked this time; generate again'),
     'language_unknown': ('论文语言未知', 'Paper language is unknown'),
     'language_not_allowed': ('论文语言不符合项目设置', 'Paper language is not allowed by this project'),
     'title_language_unverified': ('标题文字与来源报告的英文语言存在冲突，请核验当前 PDF 的正文语言后再推荐',
                                   'The title script conflicts with the source English report; verify the current PDF body language before recommending'),
     'no_readable_content': ('没有可用摘要或当前版本的本地正文', 'No usable abstract or local text from the current PDF'),
+    'no_pdf_source': ('没有可用的 PDF 来源', 'No PDF source is known'),
 }

@@ -20,11 +20,11 @@ async function click(job) {
 }
 test('refresh messages preserve changed, busy, failure and incomplete job states', async () => {
   for (const [job, match] of [
-    [{state:'done', result:{reason_code:'route_recall_changed', errors:[{kind:'changed'}]}}, /状态已变化/],
-    [{state:'done', result:{reason_code:'refresh_running', errors:[{kind:'busy'}]}}, /已有抓取任务/],
-    [{state:'done', result:{added:2, errors:[{kind:'network_error'}]}}, /查询未完成/],
+    [{state:'done', result:{reason_code:'route_recall_changed', errors:[{kind:'changed'}]}}, /学习图已变化/],
+    [{state:'done', result:{reason_code:'refresh_running', errors:[{kind:'busy'}]}}, /已有抓取在运行/],
+    [{state:'done', result:{added:2, errors:[{kind:'network_error'}]}}, /部分查询未完成/],
     [{state:'failed', error:'fixture failure'}, /抓取失败/],
-    [{state:'running'}, /仍在后台/]]) {
+    [{state:'running'}, /仍在进行/]]) {
     const [message, kind] = await click(job);
     assert.match(message, match); assert.notEqual(kind, 'ok');
     assert.doesNotMatch(message, /限流/);

@@ -193,12 +193,12 @@ def archive_pdf(data_dir, sha256, source):
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     if digest.hexdigest() != sha256:
-        raise ValueError("PDF 内容与记录的校验值不一致")
+        raise ValueError("PDF 内容和记录的不一致")
     target_dir = Path(data_dir) / "pdfs"
     target = target_dir / f"import-{sha256[:24]}.pdf"
     if target.exists():
         if hashlib.sha256(target.read_bytes()).hexdigest() != sha256:
-            raise ValueError("已归档的 PDF 校验失败，请先核对或重新获取文件")
+            raise ValueError("已归档的 PDF 对不上，请先核对或重新获取文件")
         return target
     target_dir.mkdir(parents=True, exist_ok=True)
     import uuid
@@ -216,13 +216,13 @@ def archive_pdf(data_dir, sha256, source):
 # ---------------------------------------------------------- why the AI did not answer
 _REASONS = {
     "ai_off": ("AI 总开关已关闭", "The AI switch is off"),
-    "no_key": ("还没有配置 DeepSeek key，请到设置页填写", "No DeepSeek key is set; add one in Settings"),
+    "no_key": ("还没有配置 DeepSeek 密钥，请到设置页填写", "No DeepSeek key is set; add one in Settings"),
     "not_approved": ("这项 AI 调用还没有获得批准", "This AI call has not been approved"),
     "budget": ("已达到每日或每月的额度上限", "A daily or monthly budget ceiling was reached"),
     "http": ("DeepSeek 拒绝了这次请求", "DeepSeek rejected the request"),
     "request_format": ("应用的 AI 请求缺少 JSON 输出声明，请更新应用后重试；草稿已保留 (HTTP 400)",
                        "The app's AI request is missing its JSON output instruction; update the app and retry. Your draft was preserved (HTTP 400)"),
-    "network": ("请求没有成功（网络或超时）；这次预留的额度仍会计入", "The request did not complete (network or timeout); the reserved budget still counts"),
+    "network": ("请求没有成功（网络或超时）；这次的额度仍会计入", "The request did not complete (network or timeout); the budget for this call still counts"),
     "bad_reply": ("AI 回复为空或格式无效；请重新尝试，原有内容已保留", "The AI reply is empty or invalid; try again. Existing content was preserved"),
     "error": ("调用出现意外错误", "The call failed unexpectedly"),
     "dry_run": ("试运行：只预留额度，没有发送", "Dry run: budget reserved, nothing was sent"),
@@ -283,7 +283,7 @@ def degrade_reason(result, english=False):
             text = (f'The {period} {resource} budget ceiling was reached; check usage in Settings or wait for the next budget period.' if english
                     else f'已达到{"每日" if period == "daily" else "每月"}{resource}额度上限；请在设置中查看用量，或等待额度周期更新。')
     if result.get('usage_unknown') or result.get('usage_reserved'):
-        text += (' Billing is unknown; the budget reservation is retained.' if english else ' 计费状态未知，本次预算预留仍保留。')
+        text += (' Billing is unknown; the budget for this call still counts.' if english else ' 费用未知，本次额度仍会计入。')
     return code, text
 
 

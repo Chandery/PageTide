@@ -201,7 +201,7 @@ class SettingsPageTests(unittest.TestCase):
         self.assertIn('id="budgetLimits"', html)
         self.assertIn('id="testAiBtn"', html)
         self.assertIn('/api/ai-test', html)
-        self.assertIn('不设用量上限，仍记录消耗', html)
+        self.assertNotIn('不设用量上限，仍记录消耗', html)
         self.assertNotIn('预算上限（', html)
 
 

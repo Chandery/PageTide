@@ -199,18 +199,9 @@ test('connection test and unlimited accounting translate complete status sentenc
   }
 });
 
-test('actual Route batch sentences and badges translate in empty, watch-only and mixed batches',()=>{
+test('actual Route batch button and badge tooltips translate',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../app/static/index.html'),'utf8');
- const helpers=html.slice(html.indexOf('function dailyButtonText'),html.indexOf('function renderRoute'));
  const {i18n,context}=load('en-US',PACK);context.state={cards:[]};
- vm.runInContext(helpers,context);
- for(const goal_status of ['learning','completed']) {
-  for(const cards of [[],[{route:{kind:'watch'}}],[{route:{kind:'route'}},{route:{kind:'explore_new'}},{route:{kind:'watch'}}]]) {
-   context.state.cards=cards;
-   const line=context.exploreLine({goal_status});
-   assert.doesNotMatch(i18n.translate(line),/[㐀-鿿]/,line);
-  }
- }
  assert.doesNotMatch(i18n.translate('生成今日发现'),/[㐀-鿿]/);
  const badges=html.slice(html.indexOf('const ROUTE_KINDS'),html.indexOf('const PDF_BADGES'));
  vm.runInContext(badges+';globalThis.batchTitles=ROUTE_TITLES;',context);
@@ -259,15 +250,17 @@ test('whole-queue status, disclosure and busy text translate as actually rendere
  }
 });
 
-test('actual eligibility renderer keeps system counts translatable in separate nodes',()=>{
+test('actual eligibility renderer shows nothing when the project is ready and a translatable prompt when it is not',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../app/static/index.html'),'utf8');
  const fn=html.slice(html.indexOf('function renderEligibility('),html.indexOf('\nfunction ',html.indexOf('function renderEligibility(')+1));
  const {i18n,context}=load('en-US',PACK),note={children:[],replaceChildren(){this.children=[];},append(...nodes){this.children.push(...nodes);}};
  context.$=()=>note;context.state={currentProject:'p',projects:[{id:'p',language_policy:{status:'ready',revision:1}}]};
  context.document.createElement=()=>({children:[],textContent:'',append(...nodes){this.children.push(...nodes);}});
  vm.runInContext(fn,context);context.renderEligibility({policy_revision:1,excluded:{fixed_scope_conflict:2,language_unknown:1},examples:[]});
- assert.equal(note.children.filter(n=>typeof n==='object').length,3);
- for(const n of note.children.filter(n=>typeof n==='object'))assert.doesNotMatch(i18n.translate(n.textContent),/[㐀-鿿]/);
+ assert.equal(note.children.length,0);                                       // filter counts stay in the backend
+ context.state.projects[0].language_policy.status='required';context.renderEligibility(null);
+ assert.ok(note.children.length>0);
+ for(const n of note.children)assert.doesNotMatch(i18n.translate(typeof n==='string'?n:n.textContent),/[㐀-鿿]/);
 });
 test('import PDF validation errors and undone categories translate without changing a filename',()=>{
  const {i18n,context}=load('en-US',PACK);

@@ -12,12 +12,12 @@ EDITOR = (STATIC / "route-editor.js").read_text(encoding="utf-8")
 
 
 class GrowthPageTests(unittest.TestCase):
-    def test_the_page_has_the_section_and_explains_the_outline_and_what_counts_as_evidence(self):
+    def test_the_page_has_the_section_and_no_standing_explanation_of_the_outline_or_evidence(self):
         self.assertIn('data-role="findGrowth"', HTML)
         self.assertIn('data-role="growthList"', HTML)
-        for wanted in ("生长证据来自你明确认为有用或选作种子的论文", "不限于探索位", "点下面的某个方向，上面的图里才会出现",
-                       "“已读懂”只影响学习进度", "导入、曝光、沉默不算兴趣", "点“加入学习图”才会加入", "旧提议会过期，不自动重判"):
-            self.assertIn(wanted, HTML)
+        for gone in ("生长证据来自你明确认为有用或选作种子的论文", "不限于探索位", "点下面的某个方向，上面的图里才会出现",
+                     "“已读懂”只影响学习进度", "导入、被推荐过、没反应都不算兴趣", "点“加入学习图”才会加入", "旧提议会过期，不自动重判"):
+            self.assertNotIn(gone, HTML)
 
     def test_directions_are_read_when_the_page_opens_and_after_each_change_to_the_map_never_by_surprise_elsewhere(self):
         self.assertEqual(JS.count("action: 'candidates'"), 1)            # one request site, in loadGrowth
@@ -30,7 +30,7 @@ class GrowthPageTests(unittest.TestCase):
 
     def test_a_failed_read_only_affects_this_block(self):
         grow = JS[JS.index("async function loadGrowth()"):JS.index("part('findGrowth').onclick")]
-        self.assertIn("潜在方向没有读到", grow)
+        self.assertIn("潜在方向读取失败", grow)
         self.assertIn("catch (error)", grow)
 
     def test_the_ghosts_are_drawn_from_a_copy_and_never_enter_the_draft(self):
@@ -83,16 +83,18 @@ class ConceptUnderstandingPageTests(unittest.TestCase):
         self.assertIn("R.introInputHTML(state.pendingIntro)", JS)
         self.assertIn("context_excerpt", EDITOR[EDITOR.index("function introInputHTML"):EDITOR.index("function introInputHTML") + 1800])
 
-    def test_the_sentence_is_labelled_by_who_wrote_it_and_editing_it_makes_it_yours(self):
-        for wanted in ("这句话是 AI 写的；改过之后就算你写的。", "这句话是你写的。", "intro_by"):
-            self.assertIn(wanted, JS)
+    def test_the_author_is_tracked_but_the_explanatory_sentence_is_not_shown(self):
+        self.assertIn("intro_by", JS)       # editing an AI sentence still makes it the reader's own
+        for gone in ("这句话是 AI 写的；改过之后就算你写的。", "这句话是你写的。"):
+            self.assertNotIn(gone, JS)
 
     def test_the_edit_box_has_an_optional_ninety_character_introduction(self):
         self.assertIn('<textarea class="edit" data-role="i" maxlength="140"', JS)
-        self.assertIn("最多 140 字，可以不写", JS)
+        self.assertIn("简介（可不写）", JS)
+        self.assertNotIn("最多 140 字，可以不写", JS)
 
     def test_what_is_sent_out_is_said_beside_the_buttons(self):
-        for wanted in ("只发送概念名、检索词、项目名称和前 3 个关键词（合计前 40 个字），以及这个项目里匹配到该概念的最多 3 篇论文的标题和摘要节选", "只发送这个概念的第一个检索词去公开文献库搜一次，结果不保存"):
+        for wanted in ("调用 1 次 AI，只发送概念名、检索词、项目名和最多 3 篇相关论文的标题与摘要节选", "只发送第一个检索词到公开文献库"):
             self.assertIn(wanted, JS)
 
     def test_the_blocks_have_styles(self):

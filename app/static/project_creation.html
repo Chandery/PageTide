@@ -12,37 +12,35 @@
 <div class="container">
 <a class="back" href="/">← 返回主页</a>
 <h1>创建研究项目</h1>
-<p class="lead" data-route-beta>选一种方式开始。助手帮你确认目标、整理关键词和学习图；你检查后再创建，候选论文由你选择。</p><p class="lead" data-route-beta-off>选一种方式开始。助手帮你确认目标、整理关键词和检索式；你检查后再创建，候选论文由你选择。</p>
+<p class="lead" data-route-beta>选一种方式开始。</p><p class="lead" data-route-beta-off>选一种方式开始。</p>
 <div id="creationPaperPolicy"></div>
 <div id="creationQuitStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="modes" role="radiogroup" aria-label="创建方式">
   <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="quick">
     <span class="mode-title">快速创建</span><span class="badge ai">AI · 1 次调用</span>
-    <span class="mode-desc" data-route-beta>一句话说清目标，整理关键词、检索式和可编辑学习图，再查找候选论文，你看过再创建。</span><span class="mode-desc" data-route-beta-off>一句话说清目标，整理关键词和检索式，再查找候选论文，你看过再创建。</span>
+    <span class="mode-desc" data-route-beta>一句话说清目标，生成关键词、检索式和学习图。</span><span class="mode-desc" data-route-beta-off>一句话说清目标，生成关键词和检索式。</span>
   </button>
   <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="ai_guided">
-    <span class="mode-title">AI 引导</span><span class="badge ai">AI · 最多 6 轮</span>
-    <span class="mode-desc" data-route-beta>像和助手聊天：它追问，你回答，右边的关键词、检索式和学习路径随对话一起完善。</span><span class="mode-desc" data-route-beta-off>像和助手聊天：它追问，你回答，右边的关键词和检索式随对话一起完善。</span>
+    <span class="mode-title">AI 引导</span><span class="badge ai">AI · 对话</span>
+    <span class="mode-desc" data-route-beta>和助手对话，逐步完善关键词、检索式和学习图。</span><span class="mode-desc" data-route-beta-off>和助手对话，逐步完善关键词和检索式。</span>
   </button>
   <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="manual">
     <span class="mode-title">手动创建</span><span class="badge">不用 AI</span>
-    <span class="mode-desc">自己填关键词；种子论文可以粘贴 DOI / arXiv、按论文名称检索，或直接把 PDF 拖进来。</span>
+    <span class="mode-desc">自己填关键词和种子论文。</span>
   </button>
 </div>
 
 <label class="import-after"><input type="checkbox" id="importAfter"><span>创建后导入我已有的论文库</span></label>
-<p class="hint import-after-hint">已经有一批整理好的 PDF（或 Zotero 导出）时勾选：项目创建好后会直接进入导入页，不需要再用 AI 或学习模式重新搭建。</p>
 
 <!-- ===================================================================== 快速创建 -->
 <section id="quickForm" class="panel" aria-label="快速创建">
   <div id="quickStart">
     <div class="grid">
       <div class="field"><label for="quickName">项目名称</label><input id="quickName" maxlength="120" placeholder="例如：具身世界模型"></div>
-      <div class="field"><label for="quickGoal">研究目标</label><textarea id="quickGoal" rows="3" maxlength="4000" placeholder="你想理解或解决什么问题？中文、英文都可以"></textarea></div>
+      <div class="field"><label for="quickGoal">研究目标</label><textarea id="quickGoal" rows="3" maxlength="4000" placeholder="你想理解或解决什么问题？"></textarea></div>
     </div>
-    <p class="hint">会调用 1 次 AI 来整理关键词和检索式（输入上限约 1,200 token）。没有 key、被关闭或失败时，改用本地词项整理——本地只认英文词项，并且会明确告诉你原因。</p>
-    <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="quickGo">整理方向并查找论文</button></div>
+    <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="quickGo" title="调用 1 次 AI">整理方向并查找论文</button></div>
   </div>
   <div id="quickWork" hidden>
     <div class="activity" id="quickActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
@@ -56,9 +54,8 @@
   <div id="guidedStart">
     <div class="grid">
       <div class="field"><label for="guidedName">项目名称</label><input id="guidedName" maxlength="120" placeholder="例如：世界模型入门"></div>
-      <div class="field"><label for="guidedGoal">研究目标</label><textarea id="guidedGoal" rows="3" maxlength="4000" placeholder="描述你想理解的主题、应用或方法"></textarea></div>
+      <div class="field"><label for="guidedGoal">研究目标</label><textarea id="guidedGoal" rows="3" maxlength="4000" placeholder="你想理解的主题"></textarea></div>
     </div>
-    <p class="hint">开始后，助手会先回应你的目标并追问；你可以最多和 AI 来回 6 轮。没有拿到 AI 回答的那一轮不占名额，也可以一键重试。</p>
     <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="guidedGo">开始引导</button></div>
   </div>
   <div id="guidedWork" class="split" hidden>
@@ -68,7 +65,7 @@
       <div id="guideQuestion" class="guide-question" aria-live="polite" hidden></div>
       <div class="activity" id="guidedActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
       <div class="composer">
-        <textarea id="guideMessage" rows="2" maxlength="2000" placeholder="直接回答助手的问题；不确定也可以说“我不知道，请帮我选”（⌘/Ctrl + 回车发送）"></textarea>
+        <textarea id="guideMessage" rows="2" maxlength="2000" placeholder="回答助手（⌘/Ctrl + 回车发送）"></textarea>
         <button type="button" class="primary" id="guideSend">发送</button>
       </div>
     </div>
@@ -80,20 +77,19 @@
 <section id="manualForm" class="panel" aria-label="手动创建">
   <div class="grid">
     <div class="field"><label for="manualName">项目名称</label><input id="manualName" maxlength="120" placeholder="例如：计算机视觉研究"></div>
-    <div class="field"><label for="manualKeywordsInput">关键词</label><div class="chip-input" id="manualKeywords"><span class="chips"></span><input id="manualKeywordsInput" placeholder="输入后回车或逗号添加，例如：world models"></div></div>
+    <div class="field"><label for="manualKeywordsInput">关键词</label><div class="chip-input" id="manualKeywords"><span class="chips"></span><input id="manualKeywordsInput" placeholder="回车添加，例如：world models"></div></div>
   </div>
 
   <div class="field">
     <label for="seedInput">种子论文 <span class="opt">（可选）</span></label>
     <div class="seed-add">
-      <input id="seedInput" placeholder="粘贴 DOI / arXiv 编号 / 链接，或输入论文名称" autocomplete="off">
-      <button type="button" class="primary" id="seedAdd">添加</button>
+      <input id="seedInput" placeholder="DOI / arXiv 编号 / 链接，或论文名称" autocomplete="off">
+      <button type="button" class="primary" id="seedAdd" title="只发送标识符或标题到 OpenAlex">添加</button>
     </div>
     <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="拖入或选择 PDF">
       <input type="file" id="pdfPick" accept="application/pdf,.pdf" multiple hidden>
-      <strong>把论文 PDF 拖到这里</strong><span>或点击选择文件。会在本机读取首页，识别出是哪篇论文；原文件保存在项目里，不会上传。</span>
+      <strong>把论文 PDF 拖到这里</strong><span>或点击选择文件</span>
     </div>
-    <p class="hint" id="seedPrivacy">只有标识符（DOI、arXiv 编号）或你输入/识别出的标题会发送给 OpenAlex 做公开元数据查询；PDF 文件本身不离开这台电脑。</p>
     <p class="hint" id="seedNote" role="status" hidden></p>
     <div class="seed-search" id="seedSearch" hidden>
       <div class="seed-search-head"><strong id="seedSearchTitle"></strong><button type="button" class="ghost small" id="seedSearchClose">关闭</button></div>
@@ -118,20 +114,18 @@
 <template id="reviewTpl">
 <div class="review">
   <section class="rv-block">
-    <header><h3>关键词</h3><span class="hint">用于推荐排序，可以增删</span></header>
+    <header><h3>关键词</h3></header>
     <div class="chip-input" data-role="keywords"><span class="chips"></span><input placeholder="输入后回车添加"></div>
   </section>
   <section class="rv-block">
-    <header><h3>检索式</h3><span class="hint">每行一条，最多 6 条；查找论文时用前 3 条</span></header>
+    <header><h3>检索式</h3></header>
     <textarea data-role="queries" rows="3" placeholder="例如：world model embodied planning"></textarea>
   </section>
   <section class="rv-block" data-role="mapBlock" data-route-beta>
-    <header><h3>学习图</h3><span class="hint">学习阶段或目标先成为可编辑概念，确认后用于学习推荐；前置关系由你检查</span>
-      <button type="button" class="ghost small" data-role="mapGenerate">AI 细化学习图（1 次 AI）</button><button type="button" class="ghost small" data-role="mapRegen" hidden>重新生成</button><button type="button" class="ghost small" data-role="mapStart">自己搭一张</button></header>
+    <header><h3>学习图</h3>
+      <button type="button" class="ghost small" data-role="mapGenerate" title="调用 1 次 AI，只发送五项需求">AI 细化学习图（1 次 AI）</button><button type="button" class="ghost small" data-role="mapRegen" hidden>重新生成</button><button type="button" class="ghost small" data-role="mapStart">自己搭一张</button></header>
     <div class="activity" data-role="mapActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
     <div data-role="mapBrief"></div>
-  <div class="map-note">仅学习目标必填；其他项可以跳过。已知基础留空表示未说明。</div>
-    <div class="map-note">只发送五字段需求，不发送论文、笔记、画像或其他项目。老师的文字或 MD 内容可粘贴到结构意见；已知基础不自动标记掌握。创建最多 12 个初始概念，新范围未批准时仍可手动搭图。</div>
     <div class="notice" data-role="mapNotice" hidden></div>
     <div class="map-note" data-role="mapNote" hidden></div>
     <div class="map-shape" data-role="mapShape" hidden></div>
@@ -148,15 +142,14 @@
   </section>
   <section class="rv-block" data-role="pathBlock" data-route-beta>
     <header><h3>学习路径</h3><button type="button" class="ghost small" data-role="addPath">+ 添加阶段</button></header>
-    <p class="hint">每个阶段对应上方的一个学习概念。修改标题或目的会更新学习图；不会自动添加前置关系。</p>
     <div data-role="path"></div>
   </section>
   <section class="rv-block">
-    <header><h3>候选论文</h3><span class="hint">勾选后才会加入项目，AI 不替你选</span></header>
+    <header><h3>候选论文</h3></header>
     <div class="cand-toolbar">
       <button type="button" data-role="search">按检索式查找论文</button>
       <span class="status" data-role="searchStatus"></span>
-      <label class="years" title="默认只看近 10 年的论文；勾选后不限年份"><input type="checkbox" data-role="allYears"> 不限年份</label>
+      <label class="years"><input type="checkbox" data-role="allYears"> 不限年份</label>
       <span class="spacer"></span>
       <button type="button" class="ghost small" data-role="selectAll">全选</button>
       <button type="button" class="ghost small" data-role="selectNone">清空</button>
@@ -181,8 +174,8 @@
 <script src="/route-graph.js"></script>
 <script src="/paper-policy.js"></script>
 <dialog id="creationQuitDialog" class="pdh-confirm" aria-labelledby="creationQuitTitle" aria-describedby="creationQuitText">
-<h2 id="creationQuitTitle">退出前处理创建草稿</h2>
-<p id="creationQuitText">当前的输入、关键词、检索式、学习图或选择尚未提交为项目。取消退出或返回审阅可继续编辑；放弃未提交修改后退出不会创建项目，也不会确认 AI 内容。此前已保存的引导草稿仍保留。</p>
+<h2 id="creationQuitTitle">离开创建页？</h2>
+<p id="creationQuitText">还没有创建项目，未提交的内容会丢失。</p>
 <div id="creationQuitError" data-pdh-status role="alert" aria-live="assertive" aria-atomic="true"></div>
 <div class="pdh-confirm-actions creation-quit-actions"><button type="button" id="creationQuitCancel">取消退出</button><button type="button" id="creationQuitReview">返回审阅</button><button type="button" id="creationQuitDiscard">放弃未提交修改并退出</button></div>
 </dialog>

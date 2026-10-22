@@ -29,5 +29,5 @@ test('failed durable write keeps application open and reports the failure',async
   const {window,events}=setup(true);
   await window.PDHPrepareQuit();
   assert.equal(events.some(event=>event[0]==='quit'),false);
-  assert.ok(events.some(event=>event[0]==='toast' && event[1].includes('应用保持打开')));
+  assert.ok(events.some(event=>event[0]==='toast' && event[1].includes('草稿未保存')));
 });

@@ -33,7 +33,7 @@ test('cold origin theme uses saved backend choice and mode save merges preferenc
 for(const receipt of [{status:'cancelled'},{status:'saved',path:'/chosen/result.json'},{}])test('actual export handler honors receipt '+JSON.stringify(receipt),async()=>{
  const p=page();p.context.window.PDHSaveFile=async()=>receipt;await p.node('#exportBtn').onclick();
  const status=p.node('#exportStatus');assert.equal(p.node('#exportBtn').disabled,false);
- if(receipt.status==='cancelled'){assert.match(status.textContent,/已取消导出/);assert.doesNotMatch(status.textContent,/导出已保存/);}
+ if(receipt.status==='cancelled'){assert.match(status.textContent,/已取消/);assert.doesNotMatch(status.textContent,/导出已保存/);}
  else if(receipt.status==='saved')assert.match(status.textContent,/\/chosen\/result.json/);
  else{assert.match(status.textContent,/导出失败/);assert.equal(status.dataset.kind,'error');}
 });

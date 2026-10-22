@@ -165,7 +165,7 @@ def _batch_edit(method):
     """A review action (including a network lookup) cannot race commit/discard."""
     @wraps(method)
     def guarded(self, batch_id, *args, **kwargs):
-        with self._claim(f"library-import-edit:{batch_id}", "这个批次正在处理，请等待当前操作完成"):
+        with self._claim(f"library-import-edit:{batch_id}", "这次导入正在处理，请等待当前操作完成"):
             return method(self, batch_id, *args, **kwargs)
     return guarded
 
@@ -189,7 +189,7 @@ class LibraryImport:
     def _batch_row(self, batch_id):
         row = self.conn.execute("SELECT * FROM import_batches WHERE id=?", (str(batch_id),)).fetchone()
         if not row:
-            raise ValueError("导入批次不存在")
+            raise ValueError("这次导入不存在")
         return row
 
     @staticmethod
@@ -278,15 +278,15 @@ class LibraryImport:
 
     def ensure_open(self, batch_id):
         if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
-            raise ValueError("导入批次已关闭")
+            raise ValueError("这次导入已关闭")
 
     @_batch_edit
     def discard(self, batch_id):
         row = self._batch_row(batch_id)
         if row["status"] == "committing":
-            raise ValueError("批次正在提交")
+            raise ValueError("这次导入正在提交")
         if row["status"] == "committed":
-            raise ValueError("批次已提交")
+            raise ValueError("这次导入已提交")
         self.conn.execute("DELETE FROM import_items WHERE batch_id=?", (batch_id,))
         self._touch(batch_id, status="discarded")
         self.conn.commit()
@@ -380,7 +380,7 @@ class LibraryImport:
         # small local table is bounded even for adversarial repeated paths.
         if not exists and self.conn.execute('SELECT COUNT(*) FROM import_upload_failures WHERE batch_id=?',
                                             (batch_id,)).fetchone()[0] >= MAX_FILES * 2:
-            raise ValueError('本批文件尝试过多，请新建批次后继续')
+            raise ValueError('文件尝试的次数过多，请重新开始一次导入')
         attempt = uuid.uuid4().hex
         self.conn.execute("INSERT INTO import_upload_failures(batch_id,relative_path,attempt,message,updated_at) VALUES(?,?,?,'',?) "
                           'ON CONFLICT(batch_id,relative_path) DO UPDATE SET attempt=excluded.attempt,updated_at=excluded.updated_at',
@@ -409,7 +409,7 @@ class LibraryImport:
         """Stream one PDF into the batch's staging folder, hashing as it goes, and record it as pending."""
         batch = self._batch_row(batch_id)
         if batch["status"] not in OPEN_STATUSES:
-            raise ValueError("导入批次已关闭")
+            raise ValueError("这次导入已关闭")
         segments = clean_path(relative_path)
         path = "/".join(segments)
         length = int(length)
@@ -428,7 +428,7 @@ class LibraryImport:
         if shutil.disk_usage(folder).free < length + DISK_RESERVE_BYTES:
             raise ValueError("磁盘空间不足")
         sha, size = self._stream(folder, stream, length)
-        with self._claim(f"library-import-edit:{batch_id}", "这个批次正在处理，请稍后重传"):
+        with self._claim(f"library-import-edit:{batch_id}", "这次导入正在处理，请稍后重传"):
             try:
                 self.ensure_open(batch_id)
             except ValueError:
@@ -453,7 +453,7 @@ class LibraryImport:
             self._drop_unused_file(batch_id, sha)
             raise ValueError(f"一次最多导入 {MAX_FILES} 个文件，请分批导入")
         if existing and existing["committed"]:
-            raise ValueError("这条已导入，不能替换；请另建批次")
+            raise ValueError("这条已导入，不能替换；请另外再导入一次")
         if existing and existing["sha256"] == sha and existing["state"] != "failed":
             self.conn.execute("UPDATE import_upload_failures SET message='' WHERE batch_id=? AND relative_path=?", (batch_id, path))
             self.conn.commit()
@@ -573,7 +573,7 @@ class LibraryImport:
     def _start_resolution(self, batch_id):
         batch = self._batch_row(batch_id)
         if batch["status"] not in OPEN_STATUSES:
-            raise ValueError("导入批次已关闭")
+            raise ValueError("这次导入已关闭")
         self.conn.execute("UPDATE import_items SET state='pending' WHERE batch_id=? AND state='resolving' AND committed=0", (batch_id,))
         self._touch_open(batch_id, status="resolving", pause_reason=None)
         self.conn.commit()
@@ -604,7 +604,7 @@ class LibraryImport:
         sent anywhere. Refused while a resolver is running."""
         with self._single_flight():
             if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
-                raise ValueError("导入批次已关闭")
+                raise ValueError("这次导入已关闭")
             self._from_entries(batch_id)
             self._finish_unmatched(batch_id)
             self._touch(batch_id, status="review", pause_reason=None)
@@ -914,7 +914,7 @@ class LibraryImport:
         the PDFs they name when the batch is resolved. A second export replaces the entries not yet joined."""
         batch = self._batch_row(batch_id)
         if batch["status"] not in OPEN_STATUSES:
-            raise ValueError("导入批次已关闭")
+            raise ValueError("这次导入已关闭")
         name = _segment(unicodedata.normalize("NFC", str(filename or "")))[:MAX_NAME]
         fmt = reference_files.format_of(name)
         if not fmt:
@@ -1068,15 +1068,15 @@ class LibraryImport:
         Only matched, unresolved-PDF and already-known items go in. Choices left open, failures and exclusions
         are counted, not written. No feedback, seed or exposure is ever written: an import says what the person
         owns, not what they like."""
-        with self._claim(f"library-import-commit:{batch_id}", "这个批次正在提交，请稍候"):
+        with self._claim(f"library-import-commit:{batch_id}", "这次导入正在提交，请稍候"):
             batch = self._batch_row(batch_id)
             if batch["status"] in ("committed", "discarded"):
-                raise ValueError("批次已关闭")
+                raise ValueError("这次导入已关闭")
             counts = self.counts(batch_id)
             if counts.get("pending") or counts.get("resolving"):
                 raise ValueError("还有论文在匹配中，请等待完成后再提交")
             if counts.get("failed"):
-                raise ValueError("还有失败项，请补传、查找或明确排除后再提交；批次和已暂存文件仍保留")
+                raise ValueError("还有失败项，请补传、查找或明确排除后再提交；这次导入和已暂存的文件仍保留")
             options = clean_options(_loads(batch["options"], {}))
             project = batch["project_id"]
             self._touch(batch_id, status="committing")
@@ -1173,7 +1173,7 @@ class LibraryImport:
     def act(self, batch_id, item_id, action, index=None, text=None):
         """One decision of the person about one item. Nothing happens on its own; a failed lookup changes nothing."""
         if self._batch_row(batch_id)["status"] not in OPEN_STATUSES:
-            raise ValueError("导入批次已关闭")
+            raise ValueError("这次导入已关闭")
         if action not in ACTIONS:
             raise ValueError("操作无效")
         item = self.item(batch_id, item_id)
@@ -1304,7 +1304,7 @@ class LibraryImport:
         """Turn the folders the committed papers were found in into categories (one undo step). Safe to repeat."""
         batch = self._batch_row(batch_id)
         if batch["status"] != "committed":
-            raise ValueError("批次还没有提交")
+            raise ValueError("这次导入还没有提交")
         options = clean_options(_loads(batch["options"], {}))
         none = {"created_categories": 0, "reused_categories": 0, "added_memberships": 0, "already_present": 0,
                 "changed_papers": 0}

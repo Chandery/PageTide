@@ -145,27 +145,23 @@
         <select id="apiProvider">
           <option value="deepseek">DeepSeek</option>
         </select>
-        <small>当前仅支持 DeepSeek</small>
       </div>
       <div class="field">
         <label for="apiKey">API 密钥</label>
         <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" aria-describedby="apiKeyStatus aiTestStatus">
-        <small id="apiKeyStatus">密钥只写入应用数据目录的本地密钥文件（0600），不会保存在设置文件或回显</small>
-        <button type="button" id="testAiBtn">测试 AI</button>
-        <small>只发送一条固定测试消息。填写的密钥仅用于本次测试，不保存，也不更改 AI 开关；留空则使用已保存的密钥。</small>
+        <small id="apiKeyStatus"></small>
+        <button type="button" id="testAiBtn" title="调用 1 次 AI，只发送固定测试消息">测试 AI</button>
         <div id="aiTestStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
       <div class="field">
         <label class="inline">
           <input type="checkbox" id="aiEnabled" checked>
-          启用 AI（速览、问答、翻译）
+          启用 AI
         </label>
-        <small>关闭后 AI 功能不发送模型请求，推荐、画像和归档仍在本地运行；仍可手动测试 AI 连接。</small>
       </div>
       <div class="field">
         <label>AI 用量记录</label>
         <div id="budgetLimits" class="readonly-note">读取中…</div>
-        <small>不设用量上限，仍记录消耗。未确认用量的预留记录仍保留，待核对。</small>
       </div>
     </div>
 
@@ -176,14 +172,12 @@
         <input type="number" id="recommendCount" value="5" min="1" max="20">
       </div>
       <div class="field">
-        <label for="decayWindow">明确反馈衰减窗口（天）</label>
+        <label for="decayWindow">反馈的有效期（天）</label>
         <input type="number" id="decayWindow" value="30" min="7" max="365">
-        <small>超过此天数的明确兴趣反馈逐渐降权；种子与固定词不衰减，冻结后保持不变</small>
       </div>
       <div class="field">
-        <label for="newPaperBoost">新论文权重提升</label>
+        <label for="newPaperBoost">偏向新论文</label>
         <input type="number" id="newPaperBoost" value="0.5" min="0" max="1" step="0.1">
-        <small>热点模式下对相关候选增加近期权重（0–1，默认 0.5），不会把不相关论文提升为相关；0 表示不提升</small>
       </div>
     </div>
 
@@ -194,7 +188,6 @@
           <input type="checkbox" id="routeBeta">
           打开学习图模式（beta）
         </label>
-        <small>默认关闭，推荐使用热点模式：按你的画像推最新论文。打开后，主页可以切换到学习图模式，项目里的学习图、画像和周报里的学习图进度也会出现。关闭不会删除任何已建的学习图或进度。</small>
       </div>
     </div>
 
@@ -203,13 +196,13 @@
       <div class="field">
         <label class="inline">
           <input type="checkbox" id="sourceArxiv" checked>
-          arXiv（通过 OpenAlex 检索）
+          arXiv
         </label>
       </div>
       <div class="field">
         <label class="inline">
           <input type="checkbox" id="sourceOpenAlex" checked>
-          期刊与会议论文（OpenAlex）
+          期刊与会议论文
         </label>
       </div>
       <div class="field">
@@ -225,7 +218,6 @@
           <option value="weekly">每周</option>
           <option value="manual">手动</option>
         </select>
-        <small>打开应用时按此频率自动刷新候选论文，并在当天还没有一批时生成一批；不补发漏掉的日子，也不会自动调用 AI。选“手动”则什么都不会自动做。</small>
       </div>
       <div class="field">
         <label for="timePreference">时间偏好</label>
@@ -234,7 +226,6 @@
           <option value="month">最近 30 天</option>
           <option value="all">所有时间</option>
         </select>
-        <small>热点模式只在这段时间内发表的论文里推荐，默认最近 30 天。</small>
       </div>
     </div>
 
@@ -242,16 +233,14 @@
       <h2>存储与导出</h2>
       <div class="field">
         <label for="dataDir">数据目录</label>
-        <input type="text" id="dataDir" value="读取实际数据位置…" readonly>
-        <small>数据存储位置（只读）</small>
+        <input type="text" id="dataDir" value="读取中…" readonly>
       </div>
       <div class="field">
-        <button id="exportBtn" class="ghost" style="padding-left:0">导出结构化数据</button>
-        <small>导出全部项目、学习图、画像、笔记与历史的 JSON 快照。PDF 原文件和密钥不包含；PDF 归档请另外复制保存。</small><div id="exportStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
+        <button id="exportBtn" class="ghost" style="padding-left:0">导出数据</button>
+        <div id="exportStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
       <div class="field">
-        <button id="clearCacheBtn" class="danger">清除缓存</button>
-        <small>只清除可重建的元数据缓存；归档 PDF、全文、笔记和账本保留</small>
+        <button id="clearCacheBtn" class="danger">清除已下载的论文信息</button>
       </div>
     </div>
 
@@ -282,7 +271,7 @@
     }
 
     function safeAiTestText(value, testedKey) {
-      let text = String(value || '请求失败，请稍后手动重试。');
+      let text = String(value || '请求失败');
       for (const key of new Set([testedKey, $('#apiKey').value.trim()])) {
         if (key) text = text.split(key).join('[密钥已隐藏]');
       }
@@ -297,7 +286,7 @@
       button.disabled = true;
       const current = () => epoch === aiTestEpoch && $('#apiKey').value.trim() === key;
       const waiting = () => {
-        if (current()) window.PDHDialogs.notice(`正在测试 AI…已等待 ${Math.floor((Date.now() - started) / 1000)} 秒`, {target});
+        if (current()) window.PDHDialogs.notice('正在测试 AI…', {target});
       };
       waiting();
       const timer = setInterval(waiting, 1000);
@@ -307,18 +296,14 @@
         const data = await res.json();
         clearInterval(timer);
         if (!current()) return;
-        const elapsed = Number(data.elapsed_ms);
-        const seconds = ((Number.isFinite(elapsed) && elapsed >= 0 ? elapsed : Math.max(0, Date.now() - started)) / 1000).toFixed(1);
         if (!res.ok || data.ok !== true) {
-          window.PDHDialogs.notice(`AI 测试失败：${safeAiTestText(data.reason || data.error, key)} · 用时 ${seconds} 秒`, {target,kind:'error'});
+          window.PDHDialogs.notice(`AI 测试失败：${safeAiTestText(data.reason || data.error, key)}`, {target,kind:'error'});
         } else {
           const counts = data.usage || {};
-          const validCount = value => Number.isInteger(value) && value >= 0;
-          const total = validCount(counts.total_tokens) ? counts.total_tokens
-            : validCount(counts.prompt_tokens) && validCount(counts.completion_tokens) ? counts.prompt_tokens + counts.completion_tokens : null;
-          const usage = data.usage_reserved ? '本次用量未确认；预留记录保留，待核对。'
-            : data.usage_unknown || total == null ? '本次用量未确认，请查看用量记录。' : `本次 ${total} token`;
-          window.PDHDialogs.notice(`AI 测试成功 · ${safeAiTestText(data.provider || 'DeepSeek', key)} · ${safeAiTestText(data.model || '模型未知', key)} · 用时 ${seconds} 秒 · ${usage}`, {target,kind:'success'});
+          const total = Number.isInteger(counts.total_tokens) ? counts.total_tokens
+            : Number.isInteger(counts.prompt_tokens) && Number.isInteger(counts.completion_tokens) ? counts.prompt_tokens + counts.completion_tokens : null;
+          // one short cost word: an unknown amount is never shown as a number
+          window.PDHDialogs.notice(`AI 测试成功 · ${data.usage_reserved || data.usage_unknown || total == null ? '用量未确认' : `本次 ${total} token`}`, {target,kind:'success'});
         }
         // Refresh accounting alone: a connection test must not overwrite unsaved settings.
         try {
@@ -335,7 +320,7 @@
     }
 
     async function loadSettings() {
-      invalidateAiTest('设置已重新载入，请重新测试。');
+      invalidateAiTest('请重新测试');
       try {
         const res = await fetch('/api/user_settings');
         const data = await res.json();
@@ -355,9 +340,9 @@
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
-      $('#timePreference').value  = settings.timePreference  || 'month';
+      $('#timePreference').value  = settings.timePreference  || 'all';
 
-      try { const res=await fetch('/api/data-location'); if(!res.ok)throw new Error(); const data=await res.json(); $('#dataDir').value=data.data_dir; } catch { $('#dataDir').value='无法读取实际数据位置'; }
+      try { const res=await fetch('/api/data-location'); if(!res.ok)throw new Error(); const data=await res.json(); $('#dataDir').value=data.data_dir; } catch { $('#dataDir').value='无法读取'; }
       await loadGateway();
     }
 
@@ -366,8 +351,8 @@
       $('#budgetLimits').textContent = [   // one phrase per part: the language layer translates a " · " list part by part
         `今日 ${u.tokens ?? 0} token`, `本月 ${u.month_tokens ?? 0} token`,
         `今日消耗 $${u.usd ?? '0'}`, `本月消耗 $${u.month_usd ?? '0'}`,
-        u.tokens_known === false || u.month_tokens_known === false || Number(u.pending_reservations) > 0 || Number(u.month_pending_reservations) > 0 || u.usage_unknown || u.usage_reserved || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0 ? '含待确认预留' : '',
-        data.dev_mode ? '测试模式独立账本' : '',
+        u.tokens_known === false || u.month_tokens_known === false || Number(u.pending_reservations) > 0 || Number(u.month_pending_reservations) > 0
+          || u.usage_unknown || u.usage_reserved || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0 ? '含未确认的用量' : '',
       ].filter(Boolean).join(' · ');
     }
 
@@ -375,16 +360,11 @@
       $('#aiEnabled').checked = data.ai_enabled !== false;
       renderUsage(data);
       const oa = data.openalex || {};
-      const rl = oa.rate_limit || {};
-      const allowance = rl.remaining != null && rl.limit ? `OpenAlex 额度剩余 ${rl.remaining} / ${rl.limit}` : '';
-      const keyText = oa.configured
-        ? (oa.source === 'environment' ? '已配置（来自环境变量，不回显）' : '已配置密钥（不回显）；留空保存则保持不变')
-        : '未配置：使用匿名额度。密钥只写入本地密钥文件（0600），只发送给 OpenAlex 接口，不会发给 PDF 来源站点。';
-      $('#openalexKeyStatus').textContent = [keyText, allowance].filter(Boolean).join(' · ');
+      $('#openalexKeyStatus').textContent = oa.configured ? '已配置' : '未配置';
       const p = data.provider || {};
       $('#apiKeyStatus').textContent = p.configured
-        ? '已配置密钥（不回显）；留空保存则保持不变'
-        : '未配置密钥：AI 功能会降级为本地模式';
+        ? '已配置'
+        : '未配置密钥';
     }
 
     async function loadGateway() {
@@ -392,7 +372,7 @@
         const res = await fetch('/api/settings');
         if (!res.ok) throw new Error();
         renderGateway(await res.json());
-      } catch { $('#budgetLimits').textContent = '无法读取 AI 用量记录'; }
+      } catch { $('#budgetLimits').textContent = '无法读取用量'; }
     }
 
     async function postGateway(body) {
@@ -442,33 +422,33 @@
       } catch (e) {
         btn.disabled = false;
         btn.textContent = '保存设置';
-        window.PDHDialogs.notice(e && e.message && e.message !== '保存失败' ? e.message : '保存失败，请重试。', {target:$('#settingsStatus'),kind:'error'});
+        window.PDHDialogs.notice(e && e.message && e.message !== '保存失败' ? e.message : '保存失败', {target:$('#settingsStatus'),kind:'error'});
       }
     }
 
     $('#clearOpenalexKeyBtn').onclick = async () => {
       const button=$('#clearOpenalexKeyBtn');if(button.disabled)return;button.disabled=true;
       try { await postGateway({clear_openalex_key: true}); $('#openalexKey').value = ''; }
-      catch (e) { window.PDHDialogs.notice(e.message || '清除失败，请重试。', {target:$('#settingsStatus'),kind:'error'}); }
+      catch (e) { window.PDHDialogs.notice(e.message || '清除失败', {target:$('#settingsStatus'),kind:'error'}); }
       finally {button.disabled=false;}
     };
 
     $('#saveBtn').onclick  = saveSettings;
     $('#cancelBtn').onclick = () => window.location.href = '/';
     $('#testAiBtn').onclick = testAiConnection;
-    $('#apiKey').oninput = () => invalidateAiTest('密钥已更改，请重新测试。');
+    $('#apiKey').oninput = () => invalidateAiTest('请重新测试');
 
     $('#exportBtn').onclick = async () => {
       const button=$('#exportBtn'), target=$('#exportStatus');
       if(button.disabled)return;
       button.disabled=true;
-      window.PDHDialogs.notice('正在准备导出…',{target});
+      window.PDHDialogs.notice('导出中…',{target});
       try {
         const res=await fetch('/api/export');const data=await res.json();
         if(!res.ok)throw new Error(data.error||'导出失败');
         const filename=`paperdighelper-export-${new Date().toISOString().slice(0,10)}.json`;
         const result=await window.PDHSaveFile(filename,JSON.stringify(data,null,2));
-        if(result?.status==='cancelled')window.PDHDialogs.notice('已取消导出；数据保留。',{target});
+        if(result?.status==='cancelled')window.PDHDialogs.notice('已取消',{target});
         else if(result?.status==='saved')window.PDHDialogs.notice(`导出已保存：${result.path||filename}`,{target,kind:'success'});
         else throw new Error('未收到有效的保存回执');
       } catch(e) {window.PDHDialogs.notice(`导出失败：${e.message}`,{target,kind:'error'});}
@@ -480,12 +460,12 @@
       if(button.disabled)return;
       button.disabled=true;
       try {
-        if(!await window.PDHDialogs.confirm('清除可重建的元数据缓存？归档 PDF、全文、笔记和账本将保留。'))return;
+        if(!await window.PDHDialogs.confirm('清除已下载的论文信息？归档的 PDF 和笔记会保留。'))return;
         const res=await fetch('/api/cache',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_method:'DELETE'})});
-        const data=await res.json();if(!res.ok)throw new Error(data.error||'缓存清理失败');
-        const names={'source-response-cache':'元数据缓存','pdf-archives':'归档 PDF','fulltext':'全文','notes':'笔记','projects':'项目'};
-        window.PDHDialogs.notice(`已清除：${(data.removed||[]).map(x=>window.PDHi18n?.t(names[x]||x)||names[x]||x).join('、')||'无'}；保留：${(data.preserved||[]).map(x=>window.PDHi18n?.t(names[x]||x)||names[x]||x).join('、')||'查看数据目录'}。`,{target,kind:'success'});
-      } catch(e) {window.PDHDialogs.notice(`清理失败：${e.message}。请保留资料后重试。`,{target,kind:'error'});}
+        const data=await res.json();if(!res.ok)throw new Error(data.error||'清理失败');
+        const names={'source-response-cache':'已下载的论文信息','pdf-archives':'归档 PDF','fulltext':'全文','notes':'笔记','projects':'项目'};
+        window.PDHDialogs.notice(`已清除：${(data.removed||[]).map(x=>window.PDHi18n?.t(names[x]||x)||names[x]||x).join('、')||'无'}`,{target,kind:'success'});
+      } catch(e) {window.PDHDialogs.notice(`清理失败：${e.message}`,{target,kind:'error'});}
       finally {button.disabled=false;}
     };
 

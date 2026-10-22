@@ -68,7 +68,7 @@ test('reader hashes the loaded bytes, independent of a later document or metadat
   release();assert.equal(await pending,createHash('sha256').update(bytes).digest('hex'));
   assert.notEqual(await reader.hash(newDoc,webcrypto),await pending);
   await assert.rejects(reader.hash({getData:async()=>({byteLength:128*1024*1024+1})},webcrypto),/太大/);
-  await assert.rejects(reader.hash(newDoc,{}),/来源版本/);
+  await assert.rejects(reader.hash(newDoc,{}),/哪个 PDF 版本/);
 });
 function extractor(api){
   const source=fs.readFileSync('app/static/index.html','utf8');

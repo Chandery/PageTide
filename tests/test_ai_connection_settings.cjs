@@ -19,7 +19,7 @@ function deferred(p){let resolve;const calls=[];p.context.fetch=async(url,init)=
 
 test('settings replace daily/monthly caps with recorded usage and explicit connection test',()=>{
   const p=page();vm.runInContext("renderGateway({ai_enabled:false,limits:{daily_total_tokens:9,monthly_total_tokens:99,daily_usd:7,monthly_usd:70},usage:{tokens:23,month_tokens:45,usd:'0.003',month_usd:'0.006'}})",p.context);
-  assert.match(html,/不设用量上限，仍记录消耗/);assert.doesNotMatch(html,/预算上限（|上限变更需要 owner/);
+  assert.doesNotMatch(html,/不设用量上限，仍记录消耗/);assert.doesNotMatch(html,/预算上限（|上限变更需要 owner/);
   const usage=p.node('#budgetLimits').textContent;assert.match(usage,/23/);assert.match(usage,/45/);assert.match(usage,/\$0\.003/);assert.match(usage,/\$0\.006/);assert.doesNotMatch(usage,/\/|\$7|\$70/);
   assert.match(html,/id="testAiBtn"/);assert.match(html,/id="aiTestStatus"[^>]*role="status"/);
 });
@@ -29,10 +29,10 @@ test('actual test handler sends temporary input once without saving it or changi
   assert.equal(p.node('#testAiBtn').disabled,true);await p.node('#testAiBtn').onclick();
   assert.equal(d.calls.filter(x=>x.url==='/api/ai-test').length,1);
   assert.deepEqual(JSON.parse(d.calls[0].init.body),{api_key:'temporary-test-secret'});
-  p.tick(4100);assert.match(p.node('#aiTestStatus').textContent,/已等待 4 秒/);
+  p.tick(4100);assert.equal(p.node('#aiTestStatus').textContent,'正在测试 AI…');
   d.complete({ok:true,provider:'DeepSeek',model:'mock-model',elapsed_ms:4200,usage:{total_tokens:9}});await pending;
   assert.equal(d.calls.some(x=>x.init?.method==='POST'&&x.url!=='/api/ai-test'),false);assert.equal(p.node('#aiEnabled').checked,false);assert.equal(p.node('#apiKey').value,' temporary-test-secret ');
-  assert.match(p.node('#aiTestStatus').textContent,/成功.*mock-model.*4\.2.*9 token/);assert.equal(p.node('#aiTestStatus').dataset.kind,'success');
+  assert.match(p.node('#aiTestStatus').textContent,/成功.*本次 9 token/);assert.doesNotMatch(p.node('#aiTestStatus').textContent,/mock-model|4\.2/);assert.equal(p.node('#aiTestStatus').dataset.kind,'success');
   assert.equal(p.node('#testAiBtn').disabled,false);assert.equal(p.timers.size,0);
 });
 test('empty input omits a key so explicit disabled-AI test can use the stored credential',async()=>{
@@ -60,17 +60,17 @@ test('reloading settings invalidates a pending test result',async()=>{
 });
 test('successful connection with unknown usage preserves uncertainty rather than reporting zero tokens',async()=>{
   const p=page(),d=deferred(p);const pending=p.node('#testAiBtn').onclick();await turn();d.complete({ok:true,model:'mock',elapsed_ms:5,usage_unknown:true,usage_reserved:true});await pending;
-  assert.match(p.node('#aiTestStatus').textContent,/成功.*用量未确认.*预留/);assert.doesNotMatch(p.node('#aiTestStatus').textContent,/本次 0 token/);
+  assert.match(p.node('#aiTestStatus').textContent,/成功.*用量未确认/);assert.doesNotMatch(p.node('#aiTestStatus').textContent,/本次 0 token/);
 });
 test('known prompt and completion usage without a total is confirmed and summed in the actual handler',async()=>{
   const p=page(),d=deferred(p);const pending=p.node('#testAiBtn').onclick();await turn();
   d.complete({ok:true,model:'mock',elapsed_ms:5,usage_unknown:false,usage_reserved:false,usage:{prompt_tokens:10,completion_tokens:2}});await pending;
-  assert.match(p.node('#aiTestStatus').textContent,/本次 12 token/);assert.doesNotMatch(p.node('#aiTestStatus').textContent,/未确认|预留/);
+  assert.match(p.node('#aiTestStatus').textContent,/本次 12 token/);assert.doesNotMatch(p.node('#aiTestStatus').textContent,/未确认|已保留/);
 });
 test('unknown usage without a retained reservation never claims that a reservation exists',async()=>{
   const p=page(),d=deferred(p);const pending=p.node('#testAiBtn').onclick();await turn();
   d.complete({ok:true,model:'mock',elapsed_ms:5,usage_unknown:true,usage_reserved:false,usage:{prompt_tokens:10,completion_tokens:2,total_tokens:12}});await pending;
-  assert.match(p.node('#aiTestStatus').textContent,/用量未确认/);assert.doesNotMatch(p.node('#aiTestStatus').textContent,/预留记录保留|本次 12 token/);
+  assert.match(p.node('#aiTestStatus').textContent,/用量未确认/);assert.doesNotMatch(p.node('#aiTestStatus').textContent,/记录已保留|本次 12 token/);
 });
 test('transport failure releases the test button without an automatic retry',async()=>{
   const p=page();let attempts=0;p.context.fetch=async()=>{attempts++;throw new Error('network unavailable');};await p.node('#testAiBtn').onclick();
@@ -83,8 +83,8 @@ test('a slow usage refresh cannot overwrite a completed AI test with the waiting
 });
 test('settings keep pending usage explicitly uncertain even without aggregate ceilings',()=>{
   const p=page();vm.runInContext("renderUsage({usage:{tokens:900,month_tokens:1900,usd:'0.01',month_usd:'0.02',tokens_known:false,pending_reservations:1}})",p.context);
-  assert.match(p.node('#budgetLimits').textContent,/含待确认预留/);assert.doesNotMatch(p.node('#budgetLimits').textContent,/\/|undefined|null/);
-  vm.runInContext("renderUsage({usage:{tokens:0,month_tokens:1900,month_tokens_known:false,month_pending_reservations:1}})",p.context);assert.match(p.node('#budgetLimits').textContent,/含待确认预留/);
+  assert.match(p.node('#budgetLimits').textContent,/含未确认的用量/);assert.doesNotMatch(p.node('#budgetLimits').textContent,/\/|undefined|null/);
+  vm.runInContext("renderUsage({usage:{tokens:0,month_tokens:1900,month_tokens_known:false,month_pending_reservations:1}})",p.context);assert.match(p.node('#budgetLimits').textContent,/含未确认的用量/);
 });
 test('actual home handler renders unlimited runtime and finite developer usage without null crashes',async()=>{
   const source=fs.readFileSync(path.join(__dirname,'../app/static/index.html'),'utf8');
@@ -93,8 +93,8 @@ test('actual home handler renders unlimited runtime and finite developer usage w
     const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{style:{},dataset:{},textContent:'',replaceChildren(...items){this.content=items;}});return nodes.get(id);};
     const context={state:{currentProject:'p'},$:node,document:{getElementById:()=>node('#devbanner'),createElement:()=>({dataset:{}})},api:async url=>url.startsWith('/api/home')?{usage,dev_mode:usage.dev,stats:{},profile:{},cards:[]}:url==='/api/data-location'?{data_dir:'/test'}:{},renderStats(){},renderCards(){},renderProfile(){},renderMaintenance(){},renderRoute(){},renderEligibility(){},console};
     vm.createContext(context);vm.runInContext(source.split('\n').find(line=>line.startsWith('const esc ='))+'\n'+body,context);await context.load();
-    const footer=node('#foot').content.filter(x=>typeof x==='string').join('');assert.match(footer,/20|900/);assert.doesNotMatch(footer,/null|undefined/);
+    const footer=node('#foot').textContent;assert.match(footer,/20|900/);assert.doesNotMatch(footer,/null|undefined/);
     if(usage.ceiling==null)assert.doesNotMatch(footer,/\/ /);else assert.match(footer,/20 \/ 100/);
-    if(usage.tokens_known===false)assert.match(footer,/含待确认预留/);
+    if(usage.tokens_known===false)assert.match(footer,/含未确认的用量/);
   }
 });

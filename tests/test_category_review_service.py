@@ -298,7 +298,7 @@ class CategoryReviewServiceTests(unittest.TestCase):
         failure = result['ai_review']
         self.assertEqual(failure['error_code'], 'network')
         self.assertIn('超时', failure['error'])
-        self.assertIn('预留', failure['error'])
+        self.assertIn('额度', failure['error'])
         self.assertIsNone(failure['total_tokens'])
         self.assertFalse(failure['tokens_known'])
         self.assertEqual(len(self.app.gateway.calls), 1)
@@ -311,7 +311,7 @@ class CategoryReviewServiceTests(unittest.TestCase):
         self.assertEqual(failure['error_code'], 'http')
         self.assertEqual(failure['http_status'], 503)
         self.assertIn('503', failure['error'])
-        self.assertIn('预算', failure['error'])
+        self.assertIn('额度', failure['error'])
 
     def test_disabled_ai_is_reported_as_disabled_instead_of_successful_local_review(self):
         self.app.gateway.response = lambda *args: {'ok': False, 'disabled': True, 'reason': 'AI 已关闭'}

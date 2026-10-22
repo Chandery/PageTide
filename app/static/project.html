@@ -17,7 +17,7 @@
 <section class="settings-card" data-role="main" hidden>
   <h2>名称</h2>
   <form data-role="renameForm" class="row-form">
-    <label class="hint" for="projectName">项目名称（最多 120 个字符）</label>
+    <label class="hint" for="projectName">项目名称</label>
     <input id="projectName" data-role="name" maxlength="120" autocomplete="off">
     <div class="map-actions"><button type="submit" class="primary small" data-role="rename">保存名称</button></div>
   </form>
@@ -25,7 +25,7 @@
   <h2>推荐语言</h2>
   <form data-role="languageForm">
     <div data-role="paperPolicy"></div>
-    <div class="map-actions"><button type="submit" class="primary small" data-role="languageSave">保存论文语言</button></div>
+    <div class="map-actions"><button type="submit" class="primary small" data-role="languageSave">保存语言</button></div>
   </form>
 
   <h2>这个项目</h2>
@@ -34,9 +34,7 @@
 
   <h2>删除项目</h2>
   <div class="danger">
-    <p class="hint">删除会移除这个项目自己的内容：推荐记录、你的评价和收藏归属、学习图、画像和问答记录。论文本身的元数据、已下载的 PDF 和全文不会被删除，别的项目也不受影响。</p>
-    <p class="hint">删除前会先在本地数据目录里留一份数据库备份（只保留最近 3 份），误删时可以手动找回。</p>
-    <label class="hint" for="confirmName">请输入下面这个项目名称来确认：</label>
+    <label class="hint" for="confirmName">输入项目名称确认删除：</label>
     <div class="confirm-name" data-role="nameEcho" data-no-i18n></div>
     <input id="confirmName" data-role="confirm" autocomplete="off" placeholder="项目名称">
     <div class="map-actions"><button type="button" class="danger-button small" data-role="delete" disabled>删除这个项目</button></div>

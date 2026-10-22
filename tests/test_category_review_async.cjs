@@ -106,14 +106,14 @@ test('failed asynchronous job shows recoverable inline cause rather than disappe
   assert.equal(f.toasts.length,0);
 });
 
-test('local unclassified preview offers AI classification and manual category creation with a concrete reason', async () => {
+test('local unclassified preview offers AI classification and manual category creation without a standing explanation', async () => {
   const f = fixture(() => Promise.resolve({suggestions:{groups:[],pending_keys:['new-paper'],
     pending_details:[{key:'new-paper',code:'insufficient_group'}],scope:'p1',source:'local'}}));
   await f.ui.suggest('local');
   const html = f.dialogs.at(-1).html;
   assert.match(html,/data-review-ai/);
   assert.match(html,/data-review-create/);
-  assert.match(html,/本地检查至少需要两篇/);
+  assert.doesNotMatch(html,/本地检查至少需要两篇/);
 });
 
 test('clicking AI from an unclassified local preview dispatches one explicit AI review for the same scope', async () => {
@@ -205,13 +205,14 @@ test('ticking nothing applies nothing and says so', async () => {
   review.unitBoxes.forEach(box => { box.checked = false; });
   await review.querySelector('form').onsubmit({preventDefault(){}}); await tick();
   assert.equal(calls.filter(([,body]) => body?.action === 'apply-ai-review').length, 0);
-  assert.equal(review.querySelector('.org-dialog-error').textContent, '没有选择需要应用的整理项');
+  assert.equal(review.querySelector('.org-dialog-error').textContent, '请先选择');
 });
 
 test('a plan with no selectable change offers no apply button', async () => {
   const f = fixture(() => Promise.resolve({suggestions:{...aiPreview(), ai_units:[]}}));
   await f.ui.suggest();
-  assert.match(f.dialogs[1].html, /所有论文都已有类别/);
+  assert.match(f.dialogs[1].html, /没有需要调整的内容/);
+  assert.doesNotMatch(f.dialogs[1].html, /所有论文都已有类别/);
   assert.doesNotMatch(f.dialogs[1].html, /type="submit"/);
 });
 
@@ -233,7 +234,7 @@ test('a revision conflict while applying says in words that the library changed 
   await f.ui.suggest();
   const review = f.dialogs[1];
   await review.querySelector('form').onsubmit({preventDefault(){}}); await tick();
-  assert.equal(review.querySelector('.org-dialog-error').textContent, '类别或论文在预览之后变化了，请关闭后重新整理');
+  assert.equal(review.querySelector('.org-dialog-error').textContent, '类别或论文已变化，请重新整理');
 });
 
 test('a completed choice says how many more items were applied with it, for the choice to stay applicable', async () => {
@@ -241,7 +242,7 @@ test('a completed choice says how many more items were applied with it, for the 
     ? {...snap(2), apply_result:{classified_papers:0, changed_papers:2, merged_categories:2, also_applied:['c:child']}} : {suggestions:aiPreview()}));
   await f.ui.suggest();
   await f.dialogs[1].querySelector('form').onsubmit({preventDefault(){}}); await tick();
-  assert.match(f.toasts.at(-1)[0], /为保证能一起应用，另带上了 1 项整理内容/);
+  assert.match(f.toasts.at(-1)[0], /另带上了 1 项/);
 });
 
 test('the apply error sits in the footer that stays in view, next to the button', async () => {
@@ -257,5 +258,5 @@ test('papers still unclassified after a partial application are reported in the 
   await f.ui.suggest();
   await f.dialogs[1].querySelector('form').onsubmit({preventDefault(){}}); await tick();
   assert.match(f.toasts.at(-1)[0], /改名 1、合并 0、删除 0 个标签/);
-  assert.match(f.toasts.at(-1)[0], /仍有 3 篇未分类/);
+  assert.doesNotMatch(f.toasts.at(-1)[0], /仍有 3 篇未分类/);
 });

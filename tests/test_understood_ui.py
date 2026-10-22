@@ -17,7 +17,7 @@ class UnderstoodButtonTests(unittest.TestCase):
         self.assertIn('data-action="understood"', ORG)
 
     def test_the_library_button_is_for_saved_papers_and_names_its_project(self):
-        self.assertIn("先在某个项目里收藏这篇论文，才能标记已读懂", ORG)
+        self.assertIn("先收藏到项目", ORG)
         self.assertIn("data-project=", ORG)
 
     def test_it_sits_in_the_list_row_next_to_detail_and_edit_category(self):
@@ -25,8 +25,8 @@ class UnderstoodButtonTests(unittest.TestCase):
         for part in ('data-action="detail"', 'data-action="paper-membership"', "understoodButton(p)"):
             self.assertIn(part, row)
 
-    def test_the_button_says_it_does_not_change_interest(self):
-        self.assertIn("只推进学习进度，不改变兴趣画像", ORG)
+    def test_the_button_carries_no_explanatory_tooltip(self):
+        self.assertNotIn("只推进学习进度，不改变兴趣画像", ORG)
 
     def test_a_familiarity_label_is_not_kept_as_the_card_feedback(self):
         handler = INDEX[INDEX.index("async function doFeedback"):INDEX.index("$('#cards').addEventListener('click'")]
@@ -37,8 +37,8 @@ class UnderstoodButtonTests(unittest.TestCase):
         self.assertIn("/?view=profile", weekly)
         self.assertIn("get('view')", INDEX)
 
-    def test_the_learning_map_page_says_saving_is_not_understanding(self):
-        self.assertIn("收藏表示感兴趣，不等于读懂", (STATIC / "route.html").read_text(encoding="utf-8"))
+    def test_the_learning_map_page_no_longer_carries_the_saving_is_not_understanding_note(self):
+        self.assertNotIn("收藏表示感兴趣，不等于读懂", (STATIC / "route.html").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

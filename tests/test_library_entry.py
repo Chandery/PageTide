@@ -26,7 +26,7 @@ class LibraryEntryTests(unittest.TestCase):
         self.assertIn("<h2>论文库</h2>", ORG)
         self.assertIn('data-action="library">列表</button>', ORG)
         self.assertIn('data-action="graph">图谱</button>', ORG)
-        self.assertIn("['route', '学习图',", ORG)
+        self.assertIn("['route', '学习图']", ORG)
 
     def test_the_old_names_do_not_appear_in_text_the_person_reads(self):
         for name, text in (("index.html", INDEX), ("organization.js", ORG)):

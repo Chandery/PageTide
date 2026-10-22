@@ -99,18 +99,30 @@ class HotspotTests(Fixture):
             self.paper(f"new{i}", f"Crystal lattice growth {i}", "crystal lattice growth", published=day(2 + i))
         self.paper("old", "Crystal lattice growth classic", "crystal lattice growth", published=day(200))
 
-    def test_default_window_is_thirty_days(self):
+    def test_hotspot_prefers_new_papers_but_never_drops_old_ones(self):
+        """Recency is a weight, not a cutoff: with no recent papers the older ones are still recommended."""
         self.seed()
         keys = self.keys()
-        self.assertEqual(sorted(keys), ["new0", "new1", "new2"])
+        self.assertEqual(sorted(keys), ["new0", "new1", "new2", "old"])
+        self.assertEqual(keys[-1], "old")                      # same relevance, so the oldest is last
 
-    def test_the_owner_time_preference_wins(self):
+    def test_with_only_old_papers_they_are_recommended(self):
+        self.paper("old1", "Crystal lattice growth classic one", "crystal lattice growth", published=day(300))
+        self.paper("old2", "Crystal lattice growth classic two", "crystal lattice growth", published=day(500))
+        self.assertEqual(sorted(self.keys()), ["old1", "old2"])
+
+    def test_a_time_window_the_owner_chose_is_still_a_cutoff(self):
         self.seed()
-        self.assertIn("old", self.keys(timePreference="all"))
+        self.assertNotIn("old", self.keys(timePreference="month"))
 
-    def test_default_boost_puts_the_newest_first(self):
+    def test_the_newest_comes_first(self):
         self.seed()
         self.assertEqual(self.keys()[0], "new0")
+
+    def test_no_time_window_by_default(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(user_settings.since(tmp))
 
     def test_the_owner_boost_wins(self):
         self.assertEqual(user_settings.boost("/nonexistent", 0.5), 0.5)

@@ -17,15 +17,14 @@
       const option=doc.createElement('option'); option.value=value; option.textContent=text; select.append(option);
     });
     label.append(select);
-    const fixed=doc.createElement('p'); fixed.className='hint'; fixed.textContent='理工科只推荐英文论文。';
+    const fixed=doc.createElement('p'); fixed.className='hint'; fixed.textContent='仅英文论文';
     const choices=doc.createElement('div'); choices.className='paper-language-choices';
     const boxes=[];
     Object.entries(languages).forEach(([code,name]) => {
       const row=doc.createElement('label'), box=doc.createElement('input');
       box.type='checkbox'; box.value=code; row.append(box,doc.createTextNode(name)); choices.append(row); boxes.push(box);
     });
-    const hint=doc.createElement('p'); hint.className='hint'; hint.textContent='语言规则用于新推荐，已有论文仍可查看。来源报告语言用于初筛；仅允许英文时，题名与英文报告明显冲突需先核验全文语言。';
-    fieldset.append(legend,label,fixed,choices,hint); container.replaceChildren(fieldset);
+    fieldset.append(legend,label,fixed,choices); container.replaceChildren(fieldset);
     container.classList.add('paper-language-editor');
     function show() { fixed.hidden=select.value!=='stem'; choices.hidden=select.value!=='humanities'; }
     select.onchange=show;

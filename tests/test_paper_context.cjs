@@ -2,24 +2,25 @@
 const test=require('node:test'), assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
 const Context=require('../app/static/paper-context.js');
 const Policy=require('../app/static/paper-policy.js');
-test('category, multi-unit and purpose labels stay separate and escape all source text',()=>{
+test('category and unit names are shown with their jumps, escaped, and nothing is explained',()=>{
   const html=Context.html({project_id:'p"x',categories:[{name:'<b>category</b>'}],units:[{id:'a"x',name:'<img src=x>'},{id:'b',name:'Second'}],map_available:true,route_enabled:false,saved_in_project:true,recommendation:{kind:'watch',name:'Old name'}},'k"x');
-  for(const label of ['收藏类别','对应学习单元','本次推荐用途','关注新进展','Route 已关闭','在论文关系图中定位','在学习图中定位']) assert.ok(html.includes(label));
+  for(const label of ['收藏类别','学习单元','在论文关系图中定位','在学习图中定位']) assert.ok(html.includes(label));
+  for(const gone of ['本次推荐用途','关注新进展','学习图已关闭','对应关系','<p class="hint">']) assert.ok(!html.includes(gone),gone);
   assert.ok(!html.includes('<img'));assert.ok(!html.includes('<b>category'));
   assert.equal((html.match(/定位学习单元/g)||[]).length,2);
   assert.match(html,/data-key="k&quot;x"/);assert.match(html,/data-unit="a&quot;x"/);
 });
-test('unsaved papers have context but no graph navigation, unmatched saved papers retain both jumps',()=>{
+test('unsaved papers have no graph navigation; an unmatched saved paper keeps both jumps and says nothing more',()=>{
   const c={project_id:'p',categories:[],units:[],map_available:true,route_enabled:true,saved_in_project:false,recommendation:null};
   assert.ok(!Context.html(c,'k').includes('data-action="graph-navigate"'));
-  assert.match(Context.html({...c,saved_in_project:true},'k'),/没有对应的学习单元/);
+  assert.doesNotMatch(Context.html({...c,saved_in_project:true},'k'),/学习单元<\/b>|没有对应/);
   assert.equal((Context.html({...c,saved_in_project:true},'k').match(/data-action="graph-navigate"/g)||[]).length,2);
 });
 
-test('pending body verification never claims no matching unit and preserves paper navigation',()=>{
+test('pending matching offers a retry, never claims there is no unit, and keeps paper navigation',()=>{
   const html=Context.html({project_id:'p',categories:[],units:[],map_available:true,route_enabled:true,saved_in_project:true,matching_status:'pending'},'pending');
-  assert.match(html,/正文待核验，学习匹配未确定/);assert.ok(!html.includes('没有对应的学习单元'));
-  assert.match(html,/缺摘要时使用当前版本的正文/);assert.match(html,/在学习图中定位/);
+  assert.match(html,/data-action="learning-match-retry"/);assert.ok(!html.includes('没有对应的学习单元'));
+  assert.match(html,/在学习图中定位/);
 });
 function drawerFixture(){
   const source=fs.readFileSync('app/static/index.html','utf8');
@@ -46,7 +47,7 @@ test('reading from Today closes its stale detail and reopening rereads current l
   const {ctx,replies,node}=drawerFixture(), reads=[];
   ctx.window.PDH.openReader=(...args)=>{assert.equal(node('#detail').classList.contains('hidden'),true);reads.push(args);};
   const first=ctx.open('body');replies[0].resolve({key:'body',title:'Body paper',projects:[],context:{project_id:'p1',categories:[],units:[],map_available:true,route_enabled:true,saved_in_project:true}});await first;
-  assert.match(node('#detail').innerHTML,/没有对应的学习单元/);
+  assert.doesNotMatch(node('#detail').innerHTML,/New body match/);
   node('#dRead').onclick();assert.equal(node('#detail').classList.contains('hidden'),true);
   assert.deepEqual(reads,[['body','Body paper']]);
   const reopened=ctx.open('body');assert.equal(replies.length,2);
