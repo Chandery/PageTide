@@ -17,3 +17,9 @@ $ node --test tests/*.cjs (summary lines only)
 # fail 0
 
 Browser (Chromium preview pane, synthetic two-column Times PDF): 8-line selection painted as 8 boxes, 0 overlaps, none in the other column; native ::selection computed rgba(0,0,0,0); detail backdrop border-radius 0px, border 0px, full width. Not run: WebKit (the macOS app engine), real papers.
+
+## 构建记录（2026-10-22 10:56 CST，main 2224ee7）
+
+$ PYINSTALLER_CONFIG_DIR=$TMPDIR/pyinstaller-cache .local/desktop-build-env/bin/python scripts/build_desktop.py  (exit 0)
+$ cargo tauri build --bundles app  (exit 0; bundle at src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+Bundle check: app/static/reader-selection.js present (10:56); bundled index.html contains selLayer and the backdrop reset. Not done: launching the native window.
