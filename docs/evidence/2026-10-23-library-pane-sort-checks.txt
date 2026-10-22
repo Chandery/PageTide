@@ -32,3 +32,9 @@ Browser (Chromium preview, synthetic 70-paper library, temporary data deleted af
 - Sorting: 最新发表 / 最早发表 order by year, 标题 orders numerically (study 1, 9, 17, 25), the choice survives a reload;
   equal dates (one import) fall back to title order.
 Not checked: WebKit, the owner's real library.
+
+## 构建记录（2026-10-23 00:13 CST，main 4a52ccd）
+
+$ PYINSTALLER_CONFIG_DIR=$TMPDIR/pyinstaller-cache .local/desktop-build-env/bin/python scripts/build_desktop.py  (exit 0)
+$ cargo tauri build --bundles app  (finished; src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+Bundle check: static/organization.js has keepFocusCentered and the sort menu. Not done: launching the native window.
