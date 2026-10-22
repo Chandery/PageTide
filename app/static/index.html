@@ -718,6 +718,7 @@
 <script src="/reader-identity.js"></script>
 <script src="/reader-selection.js"></script>
 <script src="/reader-textfit.js"></script>
+<script src="/reader-page.js"></script>
 <script src="/save-file.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -1757,8 +1758,7 @@ async function layoutPages() {
   R.observer = new IntersectionObserver((entries) => {
     for (const en of entries) {
       if (en.isIntersecting) {
-        renderPage(Number(en.target.dataset.n), stage, nextJobs);
-        if (nextJobs.size <= R.pages.length) markCurrent(Number(en.target.dataset.n));
+        renderPage(Number(en.target.dataset.n), stage, nextJobs);   // pre-render only; the current page follows the view
       }
     }
   }, { root: box, rootMargin: '800px 0px' });
@@ -1928,6 +1928,18 @@ function markCurrent(n) {
   R.current = n;
   document.querySelectorAll('#readerSide .thumb').forEach((t) => t.classList.toggle('active', Number(t.dataset.n) === n));
 }
+function pageInView() {   // the page the reader is showing right now
+  const view = $('#readerPages').getBoundingClientRect();
+  const pages = [...$('#readerPages').querySelectorAll('.pgwrap')].map((wrap) => {
+    const box = wrap.getBoundingClientRect();
+    return { n: Number(wrap.dataset.n), top: box.top, bottom: box.bottom };
+  });
+  return PDHReaderPage.inView({ top: view.top, bottom: view.bottom }, pages);
+}
+let pageFrame = 0;
+$('#readerPages').addEventListener('scroll', () => {
+  if (!pageFrame) pageFrame = requestAnimationFrame(() => { pageFrame = 0; const n = pageInView(); if (n && n !== R.current) markCurrent(n); });
+}, { passive: true });
 
 /* --------------------------------------------------- full text + vision */
 
@@ -2196,7 +2208,7 @@ async function ask(question) {
   };   // restore only for the same visible PDF version
   if (readerIdentity && R.doc && (figure || forced)) {
     // The page the question is about: a quote's page, else the page in view.
-    const here = quotedPage || R.current || 1;
+    const here = quotedPage || pageInView() || R.current || 1;
     if (figure && figure.number) {
       // The server owns figure location because it holds the cached full text.
       let found = null;

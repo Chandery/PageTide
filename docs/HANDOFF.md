@@ -1,4 +1,10 @@
-# 当前工作单元：阅读器文字层对齐（2026-10-22）
+# 当前工作单元：阅读器“当前页”跟随屏幕（2026-10-22）
+
+worktree `reader-current-page`，基线 main `46b807e`。owner 报：停在第 4 页点“附本页图”，渲染的是第 5 页。原因：当前页由提前渲染页面的观察器设置，它会看到可视区下方 800px，下一页一进入这个范围就被当成当前页。现在当前页取屏幕中间那页（否则取露出最多的那页），发问时再现算一次。[变更记录](../changes/2026-10-22-reader-current-page.json)，[检查证据](evidence/2026-10-22-reader-current-page-checks.txt)（自审，非独立）。只在 Chromium 和合成 PDF 上测过。
+
+---
+
+# 上一工作单元：阅读器文字层对齐（2026-10-22）
 
 worktree `reader-text-align`，基线 main `7b07f22`。owner 报：划 learning 引用出来是 "t learning"，双击单词选不中。原因：pdf.js 给文字层用了猜出来的通用字体（这篇论文是 Nimbus Roman，被猜成 sans-serif），再把整行平均拉伸到印刷宽度；两端对齐的行多出来的宽度本该只在空格里，于是行中间错开最多一个词。修法：`reader-textfit.js` 在 pdf.js 建好文字层后，每行改用 PDF 自带的嵌入字体，多出的宽度放进空格（word-spacing），并修正换字体后的基线；拿不准的行保留 pdf.js 原样。[变更记录](../changes/2026-10-22-reader-text-align.json)，[检查证据](evidence/2026-10-22-reader-text-align-checks.txt)，[自审](evidence/2026-10-22-reader-text-align-self-review.md)（非独立审查）。
 
