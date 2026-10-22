@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from app.service import App, GUIDANCE_MAX_TURNS
+from app.service import App, GUIDANCE_CONFIRM_TURN
 
 
 class ProjectWorkflowTests(unittest.TestCase):
@@ -57,10 +57,10 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(project["creation_mode"], "ai_guided")
         self.assertEqual(self.app.store.project_papers(result["project_id"])[0]["relation_kind"], "imported")
 
-    def test_guidance_local_fallback_is_free_and_the_cap_counts_model_turns(self):
+    def test_guidance_local_fallback_is_free_and_only_model_turns_are_counted(self):
         session = self.app.create_guidance_session("本地项目", "稀疏检索")
         with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True, "reason": "no API key"}):
-            for i in range(GUIDANCE_MAX_TURNS + 1):
+            for i in range(GUIDANCE_CONFIRM_TURN + 1):
                 result = self.app.guidance_turn(session["id"], f"补充方向 {i}")
                 self.assertEqual(result["mode"], "local")
                 self.assertTrue(result["degraded"])
@@ -68,19 +68,16 @@ class ProjectWorkflowTests(unittest.TestCase):
         self.assertEqual(self.app.store.guidance_session(session["id"])["turn_count"], 0)
         payload = '{"reply":"好","draft":{"keywords":["a"],"search_queries":["a"],"learning_path":[],"next_question":""}}'
         with patch.object(self.app.gateway, "call", return_value={"ok": True, "content": payload}):
-            for i in range(GUIDANCE_MAX_TURNS):
+            for i in range(GUIDANCE_CONFIRM_TURN + 1):   # no cap on the AI conversation (owner 2026-10-22)
                 self.assertEqual(self.app.guidance_turn(session["id"], f"模型 {i}")["mode"], "ai")
-            with self.assertRaises(ValueError):
-                self.app.guidance_turn(session["id"], "再问一轮")
+        self.assertEqual(self.app.store.guidance_session(session["id"])["turn_count"], GUIDANCE_CONFIRM_TURN + 1)
 
-    def test_the_transcript_is_bounded_even_without_the_model(self):
-        from app.service import GUIDANCE_MAX_MESSAGES
+    def test_a_long_conversation_is_not_cut_off(self):
         session = self.app.create_guidance_session("长对话", "稀疏检索")
         with patch.object(self.app.gateway, "call", return_value={"ok": False, "degraded": True}):
-            with self.assertRaises(ValueError):
-                for i in range(GUIDANCE_MAX_MESSAGES):
-                    self.app.guidance_turn(session["id"], f"补充方向 {i}")
-        self.assertLessEqual(len(self.app.store.guidance_session(session["id"])["transcript"]), GUIDANCE_MAX_MESSAGES)
+            for i in range(45):
+                self.app.guidance_turn(session["id"], f"补充方向 {i}")
+        self.assertGreater(len(self.app.store.guidance_session(session["id"])["transcript"]), 45)
 
     def test_first_turn_on_the_goal_is_not_recorded_twice(self):
         # Quick creation sends the goal itself as the first turn to get a reply.
@@ -113,15 +110,15 @@ class ProjectWorkflowTests(unittest.TestCase):
                 result = self.app.guidance_turn(session["id"], "限定方法")
             self.assertEqual(result["mode"], "local")
 
-    def test_guidance_model_payload_is_bounded(self):
+    def test_guidance_model_payload_carries_the_whole_message(self):
         session = self.app.create_guidance_session("边界项目", "x" * 4000)
         captured = {}
         def fake(operation, messages, **kwargs):
             captured["text"] = messages[-1]["content"]
             return {"ok": False, "reason": "no key"}
         with patch.object(self.app.gateway, "call", side_effect=fake):
-            self.app.guidance_turn(session["id"], "y" * 2000)
-        self.assertLess(len(captured["text"]), 4200)
+            self.app.guidance_turn(session["id"], "y" * 6000)
+        self.assertIn("y" * 6000, captured["text"])
 
     def test_preview_stops_after_openalex_is_unavailable(self):
         from app.sources import SourceError

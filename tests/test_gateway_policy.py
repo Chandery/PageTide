@@ -91,11 +91,30 @@ class GatewayPolicyTests(unittest.TestCase):
         sent.assert_not_called(); self.assertIn('daily token ceiling', refused['reason'])
         self.unlimited()
         self.gateway.config['operations']['project_guidance']['owner_approved'] = False
+        self.gateway.config['provider']['context_tokens'] = 8000   # a request beyond the model window, kept small
         with mock.patch('app.gateway.urllib.request.urlopen') as sent:
             approval = self.gateway.call('project_guidance', [])
             oversized = self.gateway.call('daily_triage', [{'role': 'user', 'content': 'x' * 9000}])
         sent.assert_not_called(); self.assertIn('owner approval', approval['reason'])
         self.assertTrue(oversized['input_too_large']); self.assertFalse(self.gateway.ledger.exists())
+
+    def test_input_above_the_estimate_is_sent_and_only_the_model_window_refuses(self):
+        self.unlimited()
+        cap = self.gateway.config['operations']['daily_triage']['cap']
+        big = 'x' * (cap['input'] * 3)   # three times the registered estimate, well inside the 1M window
+        with mock.patch('app.gateway.urllib.request.urlopen', return_value=reply()) as sent:
+            result = self.gateway.call('daily_triage', [{'role': 'user', 'content': big}])
+        self.assertTrue(result['ok']); self.assertEqual(sent.call_count, 1)
+        body = json.loads(sent.call_args.args[0].data)
+        self.assertEqual(body['max_tokens'], cap['output'])   # structured operations keep their output guard
+        self.assertGreater(input_bound(body), cap['input'])
+        entries = self.gateway._entries()
+        self.assertEqual(len(entries), 1)   # the reservation is reconciled with the measured usage, not duplicated
+        self.gateway.config['provider']['context_tokens'] = input_bound(body) + cap['output'] - 1   # one token short
+        with mock.patch('app.gateway.urllib.request.urlopen') as sent:
+            refused = self.gateway.call('daily_triage', [{'role': 'user', 'content': big}])
+        sent.assert_not_called(); self.assertTrue(refused['input_too_large'])
+        self.assertEqual(len(self.gateway._entries()), 1)   # a refusal writes nothing
 
     def test_connection_test_uses_only_fixed_bounded_data_and_ephemeral_key_without_enabling_ai(self):
         self.gateway.set_enabled(False)

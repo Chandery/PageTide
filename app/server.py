@@ -661,7 +661,7 @@ class Handler(BaseHTTPRequestHandler):
             from .reader_context import session, history
             app = self._app(); key = (query.get('key') or [''])[0]
             current = session(app.store, key, requested_project)
-            self._json({'session': current, 'history': history(app.store, key, requested_project, current, limit=20)})
+            self._json({'session': current, 'history': history(app.store, key, requested_project, current)})   # the same turns the model receives
         elif route == "/api/user_settings":
             # GET settings from file
             settings_file = Path(self._data()) / "settings.json"

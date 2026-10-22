@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from app.gateway import input_bound
 from app.service import App
 
 
@@ -57,7 +58,11 @@ class GuidanceTruncationTests(unittest.TestCase):
         self.assert_length_reason(result)
         self.assertTrue(result["usage_unknown"])
         self.assertTrue(result["usage_reserved"])
-        self.assertEqual(result["usage"]["total_tokens"], 1700)
+        # The held reservation is what the request could cost: its input (at least the registered estimate)
+        # plus the model's maximum output that a guidance conversation asks for.
+        wire = json.loads(sent.call_args.args[0].data)
+        self.assertEqual(wire["max_tokens"], 384000)
+        self.assertEqual(result["usage"]["total_tokens"], max(1200, input_bound(wire)) + 384000)
 
     def test_parse_length_branch_keeps_specific_reason_instead_of_generic_bad_reply(self):
         with tempfile.TemporaryDirectory() as folder:

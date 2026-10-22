@@ -38,7 +38,7 @@
   <div id="quickStart">
     <div class="grid">
       <div class="field"><label for="quickName">项目名称</label><input id="quickName" maxlength="120" placeholder="例如：具身世界模型"></div>
-      <div class="field"><label for="quickGoal">研究目标</label><textarea id="quickGoal" rows="3" maxlength="4000" placeholder="你想理解或解决什么问题？"></textarea></div>
+      <div class="field"><label for="quickGoal">研究目标</label><textarea id="quickGoal" rows="3" placeholder="你想理解或解决什么问题？"></textarea></div>
     </div>
     <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="quickGo" title="调用 1 次 AI">整理方向并查找论文</button></div>
   </div>
@@ -54,18 +54,18 @@
   <div id="guidedStart">
     <div class="grid">
       <div class="field"><label for="guidedName">项目名称</label><input id="guidedName" maxlength="120" placeholder="例如：世界模型入门"></div>
-      <div class="field"><label for="guidedGoal">研究目标</label><textarea id="guidedGoal" rows="3" maxlength="4000" placeholder="你想理解的主题"></textarea></div>
+      <div class="field"><label for="guidedGoal">研究目标</label><textarea id="guidedGoal" rows="3" placeholder="你想理解的主题"></textarea></div>
     </div>
     <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="guidedGo">开始引导</button></div>
   </div>
   <div id="guidedWork" class="split" hidden>
     <div class="chat-col">
-      <div class="col-head"><strong>对话</strong><span class="hint" id="turnCounter"></span></div>
+      <div class="col-head"><strong>对话</strong></div>
       <div id="guideChat" class="chat" aria-live="polite"></div>
       <div id="guideQuestion" class="guide-question" aria-live="polite" hidden></div>
       <div class="activity" id="guidedActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
       <div class="composer">
-        <textarea id="guideMessage" rows="2" maxlength="2000" placeholder="回答助手（⌘/Ctrl + 回车发送）"></textarea>
+        <textarea id="guideMessage" rows="2" placeholder="回答助手（⌘/Ctrl + 回车发送）"></textarea>
         <button type="button" class="primary" id="guideSend">发送</button>
       </div>
     </div>

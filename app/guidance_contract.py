@@ -1,7 +1,6 @@
-"""Compact creation draft, within the approved 1200/500 request contract."""
+"""Compact creation draft: terse JSON reply contract; the user's goal and messages are sent whole."""
 import json
 
-from .gateway import input_bound, request_envelope
 from .route_revision import strict_json
 from . import project_brainstorm, pathgraph, ranking
 
@@ -52,39 +51,18 @@ def parse_graph(raw):
 
 def messages(goal, keywords, message, english=False, model='deepseek-flash', *,
              last_question='', summary='', turn=1, quick=False):
-    # The full goal, edits and transcript remain local. This operation always
-    # used bounded excerpts; the compact contract keeps them within its cap.
-    body = {'goal': goal[:120], 'keywords': [str(k)[:30] for k in keywords[:3]]}
+    # The goal, message, keywords, last question and summary are sent whole (owner 2026-10-22: the budget
+    # estimates, it never cuts the user's words); only the model's window can refuse the request.
+    body = {'goal': goal, 'keywords': [str(k) for k in keywords]}
     if message != goal:
-        body['message'] = message[:140]
+        body['message'] = message
     body['turn'] = project_brainstorm.plan_turn(turn, quick=quick)['turn']
+    for key, value in [('last_question', str(last_question or '')), ('summary', str(summary or ''))]:
+        if value:
+            body[key] = value
     system = SYSTEM + (' Text in English.' if english else ' Text in Chinese; query in English.')
-    # Fit the current question/answer first. Optional memory never takes space
-    # away from those excerpts or the current keyword excerpts.
-    while True:
-        result = [{'role': 'system', 'content': system},
-                  {'role': 'user', 'content': json.dumps(body, ensure_ascii=False, separators=(',', ':'))}]
-        if input_bound(request_envelope('project_guidance', model, 500, result)) <= 1200:
-            break
-        strings = [('goal', body['goal'])] + ([('message', body['message'])] if 'message' in body else [])
-        longest, value = max(strings, key=lambda pair: len(pair[1].encode('utf-8')))
-        if len(value) > 36:
-            body[longest] = value[:max(36, len(value) - 10)]
-        elif body['keywords']:
-            body['keywords'].pop()
-        else:
-            raise ValueError('引导片段仍超过输入预算，请缩短目标；完整原文保留在本地草稿')
-    for key, value in [('last_question', str(last_question or '')[:60]), ('summary', str(summary or '')[:80])]:
-        if not value:
-            continue
-        body[key] = value
-        candidate = [{'role': 'system', 'content': system},
-                     {'role': 'user', 'content': json.dumps(body, ensure_ascii=False, separators=(',', ':'))}]
-        if input_bound(request_envelope('project_guidance', model, 500, candidate)) <= 1200:
-            result = candidate
-        else:
-            body.pop(key)
-    return result
+    return [{'role': 'system', 'content': system},
+            {'role': 'user', 'content': json.dumps(body, ensure_ascii=False, separators=(',', ':'))}]
 
 
 def parse(content, finish_reason=None):

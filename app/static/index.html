@@ -1012,11 +1012,12 @@ const projectSwitcher = window.ProjectSwitcher.mount({
 // ------------------------------------------------------------------ load
 function usageLabel(u) {
   if (!u) return '';
-  const tokens = typeof u.tokens === 'number' ? u.tokens.toLocaleString() : '—';
+  // Confirmed use only: an unconfirmed call is held at its maximum (a whole answer's room), which is not spending.
+  const tokens = typeof u.tokens === 'number' ? Math.max(0, u.tokens - (Number(u.reserved_tokens) || 0)).toLocaleString() : '—';
   const ceiling = u.ceiling != null && Number.isFinite(Number(u.ceiling)) ? Number(u.ceiling).toLocaleString() : null;
   const pending = u.tokens_known === false || Number(u.pending_reservations) > 0 || u.usage_unknown || u.usage_reserved || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0;
   return [ceiling == null ? `今日 ${tokens} token` : `今日 ${tokens} / ${ceiling} token`,
-    u.dev ? '测试模式独立账本' : '',pending ? '含未确认的用量' : ''].filter(Boolean).join(' · ');
+    u.dev ? '测试模式独立账本' : '',pending ? '另有用量未确认' : ''].filter(Boolean).join(' · ');
 }
 async function load() {
   const projectAtStart = state.currentProject;

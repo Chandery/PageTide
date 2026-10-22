@@ -149,16 +149,35 @@ class AuditFixTests(unittest.TestCase):
             out = self.app.triage(self.rows, project_id=self.pid)
         self.assertFalse(out['ok']); self.assertEqual(self.app.store.summaries(), {})
 
-    def test_b03_complete_question_selection_and_history_stop_before_transport_and_ledger(self):
+    def test_b03_request_beyond_the_model_window_stops_before_transport_and_ledger(self):
+        # Only the model's own window refuses a request (owner 2026-10-22); shrink it so the cases stay small.
+        self.app.gateway.config['provider']['context_tokens'] = 20000
         with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}), \
              mock.patch('app.gateway.urllib.request.urlopen') as opened:
             for kwargs in [dict(question='x' * 150000), dict(question='q', selection='中' * 10000)]:
                 out = self.app.qa('a', project_id=self.pid, **kwargs)
-                self.assertFalse(out['ok']); self.assertIn('上限', out['reason'])
-            self.app.store.add_qa('a', 'assistant', 'old' * 3000, project_id=self.pid)
+                self.assertFalse(out['ok']); self.assertIn('最大长度', out['reason'])
+                self.assertIn('未发送', out['reason']); self.assertEqual(out['reason_code'], 'invalid_input')
+            self.app.store.add_qa('a', 'assistant', 'old' * 10000, project_id=self.pid)
             out = self.app.qa('a', 'short', project_id=self.pid)
-            self.assertFalse(out['ok'])
+            self.assertFalse(out['ok']); self.assertEqual(out['reason_code'], 'invalid_input')
         opened.assert_not_called(); self.assertFalse(self.app.gateway.ledger.exists())
+
+    def test_b03_long_question_selection_and_history_inside_the_window_are_sent_whole(self):
+        payload = {'choices': [{'message': {'content': json.dumps({'answer': 'Whole input seen', 'followups': []})}}],
+                   'usage': {'prompt_tokens': 100, 'completion_tokens': 20, 'total_tokens': 120}}
+        response = mock.MagicMock(); response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
+        question, selection, old = 'LONG_QUESTION ' + 'x' * 20000, 'LONG_SELECTION ' + '中' * 3000, 'OLD_TURN ' + 'old ' * 3000
+        self.app.store.add_qa('a', 'assistant', old, project_id=self.pid)
+        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}), \
+             mock.patch('app.gateway.urllib.request.urlopen', return_value=response) as opened:
+            out = self.app.qa('a', question, selection=selection, project_id=self.pid)
+        self.assertTrue(out['ok'])
+        envelope = json.loads(opened.call_args.args[0].data)
+        self.assertGreater(input_bound(envelope), 4200)   # the old estimate is not an admission limit
+        self.assertIn(question, envelope['messages'][-1]['content']); self.assertIn(selection, envelope['messages'][-1]['content'])
+        self.assertIn(old, json.dumps(envelope['messages'], ensure_ascii=False))
+        self.assertEqual(envelope['max_tokens'], 384000)
 
     def test_b04_bad_json_types_return_stable_failure_without_history(self):
         for answer, followups in [(123, []), ('answer', 'next'), ('answer', 123), ('answer', [123]), ('answer', {})]:
@@ -177,19 +196,29 @@ class AuditFixTests(unittest.TestCase):
             self.assertFalse(out['ok'], content); self.assertTrue(out['bad_reply'])
             self.assertEqual(self.app.qa_history('a', self.pid), [])
 
-    def test_b03_pdf_retrieval_is_bounded_without_cutting_question_or_selection(self):
+    def test_b03_pdf_retrieval_sends_every_passage_and_the_whole_abstract(self):
         self.app.save_fulltext('a', [{'page': i, 'text': 'world model planning evidence. ' * 80} for i in range(1, 12)])
-        payload = {'choices': [{'message': {'content': json.dumps({'answer': 'Limited excerpts only', 'followups': []})}}],
+        abstract = 'ABSTRACT_START ' + 'Public test abstract. ' * 100 + 'ABSTRACT_END'
+        self.app.store.conn.execute("UPDATE papers SET abstract=? WHERE key='a'", (abstract,)); self.app.store.conn.commit()
+        payload = {'choices': [{'message': {'content': json.dumps({'answer': 'Full excerpts', 'followups': []})}}],
                    'usage': {'prompt_tokens': 100, 'completion_tokens': 20, 'total_tokens': 120}}
         response = mock.MagicMock(); response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
         with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}), \
              mock.patch('app.gateway.urllib.request.urlopen', return_value=response) as opened:
             out = self.app.qa('a', 'KEEP_QUESTION world model', selection='KEEP_SELECTION', project_id=self.pid)
-        self.assertTrue(out['ok']); self.assertGreater(out['context_limits']['omitted_passages'], 0)
+        self.assertTrue(out['ok']); self.assertNotIn('context_limits', out)
         envelope = json.loads(opened.call_args.args[0].data)
-        self.assertLessEqual(input_bound(envelope), 4200)
+        self.assertGreater(input_bound(envelope), 4200)   # nothing is dropped to fit the old estimate
         text = envelope['messages'][-1]['content']
         self.assertIn('KEEP_QUESTION world model', text); self.assertIn('KEEP_SELECTION', text)
+        self.assertIn(abstract, text); self.assertNotIn('摘要节选', text); self.assertNotIn('预算未发送', text)
+        self.assertTrue(out['pages'])
+        for page in out['pages']:
+            self.assertIn(f'[第 {page} 页]', text)
+        retrieved = self.app.passages('a', 'KEEP_QUESTION world model', k=8)
+        self.assertGreater(len(retrieved), 1)
+        for hit in retrieved:   # every retrieved excerpt is in the request, none dropped for budget
+            self.assertIn(hit['text'], text)
 
     def test_gateway_malformed_choice_and_usage_types_are_stable_and_never_free(self):
         gateway = self.app.gateway
@@ -217,11 +246,17 @@ class AuditFixTests(unittest.TestCase):
         self.assertEqual(len(entries), 5); self.assertTrue(all(e['status'] == 'reserved' for e in entries))
         self.assertTrue(all(e['input'] > 0 and e['output'] > 0 and float(e['usd']) > 0 for e in entries))
 
-    def test_b10_compact_chinese_english_drafts_fit_registered_wire_and_reject_length(self):
+    def test_b10_compact_chinese_english_drafts_send_goal_message_and_keywords_whole_and_reject_length(self):
+        goal, message = '硫化物全固态锂电池界面稳定性' * 30, '关注正极而非锂金属负极' * 20
+        keywords = ['Li6PS5Cl', '界面反应', 'k3', 'k4', 'k5']
         for english in [False, True]:
-            messages = guidance_contract.messages('硫化物全固态锂电池界面稳定性' * 30,
-                ['Li6PS5Cl', '界面反应'], '关注正极而非锂金属负极' * 20, english)
-            self.assertLessEqual(input_bound(request_envelope('project_guidance', 'deepseek-flash', 500, messages)), 1200)
+            messages = guidance_contract.messages(goal, keywords, message, english,
+                                                  last_question='上一个问题' * 40, summary='目前确认' * 60)
+            body = json.loads(messages[-1]['content'])
+            self.assertEqual((body['goal'], body['message'], body['keywords']), (goal, message, keywords))
+            self.assertEqual((body['last_question'], body['summary']), ('上一个问题' * 40, '目前确认' * 60))
+            # The registered 1200 input is an estimate now; the compact request is simply larger than it.
+            self.assertGreater(input_bound(request_envelope('project_guidance', 'deepseek-flash', 500, messages)), 1200)
         with self.assertRaises(ValueError): guidance_contract.parse('{}', 'length')
 
     def test_b11_frozen_category_actions_are_aliased_and_full_directory_stays(self):
@@ -512,37 +547,46 @@ class AuditFixTests(unittest.TestCase):
         self.assertEqual(out['source_evidence'][0]['quote'], quote)
         self.assertEqual(growthproposal.INPUT_CAP, 8000); self.assertEqual(growthproposal.OUTPUT_CAP, 1000)
 
-    def test_b10_long_guidance_excerpts_are_visible_and_original_goal_survives(self):
+    def test_b10_long_guidance_goal_is_sent_whole_without_excerpt_notice_and_original_survives(self):
         goal = 'Learn world model planning. ' * 25 + 'Exclude surgical applications.'
         session = self.app.create_guidance_session('Public draft', goal)
         self.app.gateway = ReplyGateway(json.dumps({'reply': 'Review scope', 'draft': {
             'keywords': ['world model'], 'search_queries': ['world model planning'], 'learning_path': [], 'next_question': ''}}))
         result = self.app.guidance_turn(session['id'], goal)
-        self.assertEqual(result['mode'], 'ai'); self.assertTrue(result['context_limits']['goal_truncated'])
-        self.assertTrue(result['scope_notice']); self.assertEqual(result['session']['draft']['goal'], goal)
+        self.assertEqual(result['mode'], 'ai'); self.assertFalse(any(result['context_limits'].values()))
+        self.assertIsNone(result['scope_notice']); self.assertEqual(result['session']['draft']['goal'], goal)
+        self.assertEqual(result['context_excerpt']['goal'], goal)   # the whole goal, including its last sentence, was sent
         self.assertEqual(result['session']['transcript'][-1]['context_excerpt'], result['context_excerpt'])
 
-    def test_initial_full_local_goal_accepts_4000_but_later_messages_keep_2000(self):
-        response = json.dumps({'reply': 'Review the actual excerpt', 'draft': {
+    def test_guided_session_has_no_message_length_or_turn_limit_but_quick_creation_is_one_call(self):
+        response = json.dumps({'reply': 'Review the whole goal', 'draft': {
             'keywords': ['world model'], 'search_queries': ['world model planning'],
             'learning_path': [], 'next_question': ''}})
+        reply = {'ok': True, 'content': response, 'usage': {'total_tokens': 10}, 'usd': '0.0001', 'model': 'fake'}
         for mode in ('quick', 'ai_guided'):
-            goal = ('Public goal ' * 270)[:3000].strip()
+            goal = ('Public goal ' * 360)[:4000].strip()   # the longest goal a project holds; far above the old 1200 estimate
             session = self.app.create_guidance_session('Long goal', goal, creation_mode=mode)
-            with mock.patch.object(self.app.gateway, 'call', return_value={
-                    'ok': True, 'content': response, 'usage': {'total_tokens': 10}, 'usd': '0.0001', 'model': 'fake'}) as call:
+            with mock.patch.object(self.app.gateway, 'call', return_value=reply) as call:
                 out = self.app.guidance_turn(session['id'], goal)
-            self.assertEqual(out['mode'], 'ai'); self.assertTrue(out['scope_notice'])
+            self.assertEqual(out['mode'], 'ai'); self.assertIsNone(out['scope_notice'])
+            self.assertFalse(any(out['context_limits'].values()))
             self.assertEqual(out['session']['draft']['goal'], goal)
-            sent = call.call_args.args[1]
-            self.assertLessEqual(input_bound(request_envelope('project_guidance', 'deepseek-flash', 500, sent)), 1200)
+            self.assertEqual(json.loads(call.call_args.args[1][-1]['content'])['goal'], goal)
             if mode == 'ai_guided':
-                with mock.patch.object(self.app.gateway, 'call') as call:
-                    with self.assertRaises(ValueError): self.app.guidance_turn(session['id'], 'x' * 2001)
+                long_message = 'x' * 5000   # beyond the former 2000-character later-message limit
+                with mock.patch.object(self.app.gateway, 'call', return_value=reply) as call:
+                    out = self.app.guidance_turn(session['id'], long_message)
+                self.assertEqual(out['mode'], 'ai')
+                self.assertEqual(json.loads(call.call_args.args[1][-1]['content'])['message'], long_message)
+                with mock.patch.object(self.app.gateway, 'call') as call:   # only an empty message is refused
+                    with self.assertRaises(ValueError): self.app.guidance_turn(session['id'], '   ')
                 call.assert_not_called()
-        with mock.patch.object(self.app.gateway, 'call') as call:
-            with self.assertRaises(ValueError): self.app.create_guidance_session('Invalid', 'x' * 4001)
-        call.assert_not_called()
+            else:
+                with mock.patch.object(self.app.gateway, 'call') as call:
+                    with self.assertRaises(ValueError): self.app.guidance_turn(session['id'], 'one more')
+                call.assert_not_called()
+        self.assertTrue(self.app.create_guidance_session('Long goal', 'x' * 8000)['id'])   # no goal length cap
+        with self.assertRaises(ValueError): self.app.create_guidance_session('Invalid', '   ')
 
     def test_b21_creation_and_revision_keep_only_positive_ordered_brief_quotes(self):
         nodes = [{'id': 'c1', 'name': 'Representation', 'terms': ['representation'], 'why': 'Useful skill'},

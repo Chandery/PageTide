@@ -1,4 +1,10 @@
-# 当前工作单元：阅读器文字层对齐（2026-10-22）
+# 当前工作单元：预算只做预估，AI 对话不设上限（2026-10-22）
+
+worktree `ai-no-caps`，基线 main `46b807e`，类别 critical。owner 原话：“不要给 ai 对话设上限啊，预算只是用来预估的，并不是用来限制用户的”，回答长度选“对话放开，后台留保护”。单次 cap 改为预估；Gateway 只拒绝放不进模型窗口的请求；阅读器问答、附图问答、划词翻译、建项目对话请求模型最大输出，完整发送摘要、检索片段、会话历史、选区和消息，没有轮数和长度上限；后台结构化操作保留输出上限。用量显示只计已确认的用量。[ADR 0037](decisions/0037-budget-estimates-never-limit-conversation.md)，[变更记录](../changes/2026-10-22-ai-no-caps.json)，[检查](evidence/2026-10-22-ai-no-caps-checks.txt)，[审查](evidence/2026-10-22-ai-no-caps-review.md)（独立审查无阻塞项）。没有真实模型调用：长历史下的回答质量、延迟和真实账单未测。
+
+---
+
+# 上一工作单元：阅读器文字层对齐（2026-10-22）
 
 worktree `reader-text-align`，基线 main `7b07f22`。owner 报：划 learning 引用出来是 "t learning"，双击单词选不中。原因：pdf.js 给文字层用了猜出来的通用字体（这篇论文是 Nimbus Roman，被猜成 sans-serif），再把整行平均拉伸到印刷宽度；两端对齐的行多出来的宽度本该只在空格里，于是行中间错开最多一个词。修法：`reader-textfit.js` 在 pdf.js 建好文字层后，每行改用 PDF 自带的嵌入字体，多出的宽度放进空格（word-spacing），并修正换字体后的基线；拿不准的行保留 pdf.js 原样。[变更记录](../changes/2026-10-22-reader-text-align.json)，[检查证据](evidence/2026-10-22-reader-text-align-checks.txt)，[自审](evidence/2026-10-22-reader-text-align-self-review.md)（非独立审查）。
 

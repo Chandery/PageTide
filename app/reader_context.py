@@ -37,10 +37,11 @@ def assert_session(store, paper_key, project_id, expected):
         raise ValueError('阅读会话已变化，请在新会话中重新提问')
 
 
-def history(store, paper_key, project_id, current, limit=6):
+def history(store, paper_key, project_id, current, limit=None):
+    """The current reading session's turns, oldest first; the whole session unless a limit is given."""
     rows = store.conn.execute('''SELECT role, content, created_at FROM qa_history
         WHERE paper_key IS ? AND project_id IS ? AND id>? ORDER BY id DESC LIMIT ?''',
-        (paper_key, project_id, current['cursor'], limit)).fetchall()
+        (paper_key, project_id, current['cursor'], -1 if limit is None else limit)).fetchall()
     return [dict(row) for row in reversed(rows)]
 
 

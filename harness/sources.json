@@ -434,6 +434,14 @@
       "verification": "Official HTML HTTP 200, bytes=23982, SHA256=210f102275ccf1a6542f08a3bc9e4b4c7c83278cb74b35217bffa112df6363b2; after web timeout via stdlib urllib. No documented effective date or real billing/tokenizer measurement. Historical source records preserved. Checked at local2026-10-07/UTC2026-10-06; registry date uses UTC."
     },
     {
+      "id": "DS-LIMITS-20261022",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "verified_on": "2026-10-22",
+      "recheck_after_days": 30,
+      "claim": "deepseek-flash (DeepSeek-V4.1-Flash-1017) context length 1M tokens; maximum output 384K tokens (API max_tokens range 1..393216; 8K default in non-thinking mode when max_tokens is omitted, which the gateway never does). Window only; no live probe of a 1M-token request.",
+      "verification": "Official pricing page read through the web fetch tool on 2026-10-22 (local). No tokenizer parity: the gateway's UTF-8 byte bound is an upper bound on tokens, so admitting by bytes stays inside the token window."
+    },
+    {
       "id": "DS-CHAT-20261006",
       "url": "https://api-docs.deepseek.com/api/create-chat-completion",
       "verified_on": "2026-10-06",

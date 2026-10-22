@@ -348,11 +348,16 @@
 
     function renderUsage(data) {
       const u = data.usage || {};
+      // Confirmed use only: an unconfirmed call is held at its maximum (a whole answer's room), which is not spending.
+      const less = (total, held) => Math.max(0, Number(total ?? 0) - Number(held ?? 0));
+      const usd = (total, held) => String(Number(less(total, held).toFixed(6)));
+      const unconfirmed = Math.max(Number(u.pending_reservations) || 0, Number(u.month_pending_reservations) || 0);
       $('#budgetLimits').textContent = [   // one phrase per part: the language layer translates a " · " list part by part
-        `今日 ${u.tokens ?? 0} token`, `本月 ${u.month_tokens ?? 0} token`,
-        `今日消耗 $${u.usd ?? '0'}`, `本月消耗 $${u.month_usd ?? '0'}`,
-        u.tokens_known === false || u.month_tokens_known === false || Number(u.pending_reservations) > 0 || Number(u.month_pending_reservations) > 0
-          || u.usage_unknown || u.usage_reserved || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0 ? '含未确认的用量' : '',
+        `今日 ${less(u.tokens, u.reserved_tokens)} token`, `本月 ${less(u.month_tokens, u.month_reserved_tokens)} token`,
+        `今日消耗 $${usd(u.usd, u.reserved_usd)}`, `本月消耗 $${usd(u.month_usd, u.month_reserved_usd)}`,
+        unconfirmed > 0 ? `另有 ${unconfirmed} 次用量未确认`
+          : u.tokens_known === false || u.month_tokens_known === false || u.usage_unknown || u.usage_reserved
+            || Number(u.pending_requests) > 0 || Number(u.unknown_requests) > 0 ? '另有用量未确认' : '',
       ].filter(Boolean).join(' · ');
     }
 

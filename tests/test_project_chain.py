@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 from recommendation_fixtures import english_papers
-from app.service import App, GUIDANCE_MAX_TURNS
+from app.service import App, GUIDANCE_CONFIRM_TURN
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -100,9 +100,9 @@ class GuidedCreationTests(unittest.TestCase):
         with self.assertRaises(LookupError):
             self.app.cancel_guidance("missing")
 
-    def test_turns_without_an_ai_answer_do_not_use_up_the_six(self):
+    def test_turns_without_an_ai_answer_are_not_counted(self):
         session = self.app.create_guidance_session("离线", "latent planning")
-        for i in range(GUIDANCE_MAX_TURNS + 2):  # offline transport: every turn degrades to local
+        for i in range(GUIDANCE_CONFIRM_TURN + 2):  # offline transport: every turn degrades to local
             turn = self.app.guidance_turn(session["id"], f"方向 {i}")
             self.assertEqual((turn["mode"], turn["reason_code"]), ("local", "network"))
         self.assertEqual(self.app.store.guidance_session(session["id"])["turn_count"], 0)
@@ -168,14 +168,12 @@ class GuidedCreationTests(unittest.TestCase):
             result = self.app.guidance_search(session["id"], "q2")
         self.assertEqual((result["items"], result["error"]["kind"], result["total"]), ([], "unavailable", 1))
 
-    def test_after_six_turns_the_draft_can_still_be_edited_and_confirmed(self):
+    def test_the_conversation_goes_on_after_the_confirm_turn_and_the_draft_stays_editable(self):
         session = self.app.create_guidance_session("六轮", "latent planning")
         self.answer_like_the_model()
-        for i in range(GUIDANCE_MAX_TURNS):
+        for i in range(GUIDANCE_CONFIRM_TURN + 2):   # owner 2026-10-22: no cap on the AI conversation
             self.assertEqual(self.app.guidance_turn(session["id"], f"方向 {i}")["mode"], "ai")
-        with self.assertRaises(ValueError):
-            self.app.guidance_turn(session["id"], "第七轮")
-        self.assertEqual(self.urlopen.call_count, GUIDANCE_MAX_TURNS)  # no retry, nothing after the cap
+        self.assertEqual(self.urlopen.call_count, GUIDANCE_CONFIRM_TURN + 2)  # one call per turn, no retry
         edited = {"keywords": ["edited term"], "search_queries": ["edited query"]}
         with mock.patch.object(self.app.source, "discover_topic", return_value=[candidate("c1"), candidate("c2")]):
             preview = self.app.guidance_preview(session["id"], edited)

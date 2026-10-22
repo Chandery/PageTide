@@ -1,16 +1,16 @@
 """A lightweight runtime skill for agreeing a project's research direction.
 
-This is a bounded conversation policy, not a tool-using agent. The preferred
+This is a conversation policy, not a tool-using agent. The preferred
 sequence is goal -> scope -> starting point/time -> desired output -> review
 -> confirmation. Already explicit details are skipped; readiness permits
-confirmation at any time. Six turns is a ceiling, never a target questionnaire.
-The model sees RULES verbatim. The richer local phase table only supports the
-honest local fallback and tests; it is not claimed to be extra model context.
+confirmation at any time. From turn six the draft is offered for confirmation,
+but the conversation has no turn cap (owner 2026-10-22) and is never a target
+questionnaire. The model sees RULES verbatim. The richer local phase table only
+supports the honest local fallback and tests; it is not claimed to be extra model context.
 """
 
-# Compact enough to leave the current answer room in the 1200 full-wire cap.
 RULES = ('Coach:1gap;offer focus/tradeoff+2-3 choices;unsure:suggest;skip known;'
-         '6max/ready now;lastQ/summary;flag broad/conflict;'
+         'turn>=6:offer confirm,keep helping/ready now;lastQ/summary;flag broad/conflict;'
          'keep choice/no inferred excludes.')
 PHASES = ('goal', 'scope', 'start', 'output', 'review', 'confirm')
 
@@ -26,16 +26,16 @@ def plan_turn(turn, *, quick=False, known=(), ready=False):
         raise ValueError('引导轮次无效')
     if any(phase not in PHASES for phase in known):
         raise ValueError('引导阶段无效')
-    bounded = min(6, turn)
+    phase_turn = min(len(PHASES), turn)   # past the last phase the draft stays offered for confirmation
     if quick:
         return {'turn': 0, 'phase': 'draft', 'confirm': True}
     if ready:
-        return {'turn': bounded, 'phase': 'confirm', 'confirm': True}
-    index = bounded - 1
+        return {'turn': turn, 'phase': 'confirm', 'confirm': True}
+    index = phase_turn - 1
     while index < len(PHASES) - 1 and PHASES[index] in known:
         index += 1
     phase = PHASES[index]
-    return {'turn': bounded, 'phase': phase, 'confirm': phase == 'confirm'}
+    return {'turn': turn, 'phase': phase, 'confirm': phase == 'confirm'}
 
 
 _LOCAL = {

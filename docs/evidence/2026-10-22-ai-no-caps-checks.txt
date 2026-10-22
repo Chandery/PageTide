@@ -1,0 +1,20 @@
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 -m unittest discover -s tests -v (summary lines only)
+Ran 2257 tests in 86.081s
+OK
+
+$ node --test tests/*.cjs (summary lines only)
+# pass 499
+# fail 0
+
+$ python3 scripts/i18n_extract.py
+# 0 of 1131   (every Chinese UI string has an English entry)
+
+All provider traffic in tests is synthetic (mocked urlopen); isolated temporary ledgers. No real model call, no billing.

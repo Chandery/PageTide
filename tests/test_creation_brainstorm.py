@@ -117,15 +117,20 @@ class CreationBrainstormTests(unittest.TestCase):
         self.assertGreaterEqual(len(out['session']['draft']['choices']), 2)
         self.assertNotIn('哪个领域', out['session']['draft']['next_question'])
 
-    def test_wire_budget_fits_worst_unicode_and_memory_yields_before_current_answer(self):
+    def test_worst_unicode_and_memory_are_all_sent_whole_and_the_current_answer_is_never_displaced(self):
         for english in (False, True):
             plain = guidance_contract.messages('中' * 4000, ['中' * 120] * 20, '答' * 2000, english)
             contextual = guidance_contract.messages('中' * 4000, ['中' * 120] * 20, '答' * 2000, english,
                 last_question='问' * 500, summary='记' * 500, turn=6)
             plain_body, contextual_body = [json.loads(messages[-1]['content']) for messages in (plain, contextual)]
             self.assertEqual(contextual_body['message'], plain_body['message'])
-            for messages in (plain, contextual):
-                self.assertLessEqual(input_bound(request_envelope('project_guidance', 'deepseek-flash', 500, messages)), 1200)
+            for body in (plain_body, contextual_body):
+                self.assertEqual((body['goal'], body['message'], body['keywords']),
+                                 ('中' * 4000, '答' * 2000, ['中' * 120] * 20))
+            self.assertEqual((contextual_body['last_question'], contextual_body['summary']), ('问' * 500, '记' * 500))
+            for messages in (plain, contextual):   # far above the old 1200 estimate, still inside the model window
+                bound = input_bound(request_envelope('project_guidance', 'deepseek-flash', 500, messages))
+                self.assertGreater(bound, 1200); self.assertLess(bound, 1_000_000)
 
     def test_explicit_abandon_keeps_project_without_a_map_and_invalid_flags_do_not_create(self):
         session = self.app.create_guidance_session('Project', 'world model')

@@ -758,7 +758,7 @@ function setComposer(enabled) {
   guidedBusy = !enabled;
   $('#guideSend').disabled = !enabled;
   $('#guideMessage').disabled = !enabled;
-  $$('#guideQuestion button').forEach(button => { button.disabled = !enabled || (session?.turn_count || 0) >= 6; });
+  $$('#guideQuestion button').forEach(button => { button.disabled = !enabled; });
   if (review) review.setBusy(!enabled);
 }
 
@@ -796,19 +796,16 @@ function renderChat(live) {
   // Only the newest answer may be retried: older ones were followed by more conversation.
   $$('[data-retry]', chat).slice(0, -1).forEach((button) => button.remove());
   chat.scrollTop = chat.scrollHeight;
-  const used = session.turn_count || 0;
-  $('#turnCounter').textContent = `${used}/6 轮`;
-  $('#guideSend').disabled = guidedBusy || used >= 6;
+  $('#guideSend').disabled = guidedBusy;
   const question = $('#guideQuestion'), draft = session.draft || {};
   question.hidden = !(draft.next_question || draft.summary);
   question.innerHTML = `${draft.summary ? `<p class="hint"><b>目前确认：</b><span data-no-i18n>${esc(draft.summary)}</span></p>` : ''}
     ${draft.next_question ? `<p data-no-i18n>${esc(draft.next_question)}</p>` : ''}`;
   for (const choice of Array.isArray(draft.choices) ? draft.choices.slice(0, 3) : []) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'ghost small';
-    button.textContent = choice; button.setAttribute('data-no-i18n', ''); button.disabled = guidedBusy || used >= 6;
+    button.textContent = choice; button.setAttribute('data-no-i18n', ''); button.disabled = guidedBusy;
     button.onclick = () => guidedTurn({message: choice}); question.appendChild(button);
   }
-  if (used >= 6) $('#guideMessage').placeholder = '6 轮已用完，请直接编辑右侧草稿';
 }
 
 function showPending(text) {

@@ -14,11 +14,14 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from recommendation_fixtures import english_papers
-from app.gateway import BudgetExceeded, Gateway
+from app.gateway import BudgetExceeded, Gateway, input_bound
 from app.service import App
 
 ROOT = Path(__file__).resolve().parents[1]
 DAY, MONTH = "2026-09-30", "2026-09"
+# Developer-policy-sized ceilings (gateway.DEV_POLICY): large enough for a conversation's whole-answer reservation.
+DEV_SIZED_CEILINGS = {'daily_total_tokens': 5_000_000, 'monthly_total_tokens': 50_000_000,
+                      'daily_usd': '10.00', 'monthly_usd': '50.00'}
 
 
 class _Response(io.BytesIO):
@@ -130,6 +133,7 @@ class GatewayBudgetTests(unittest.TestCase):
         payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],
                    "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}}
         structured = ['route_growth_judge', 'daily_triage', 'project_guidance', 'route_map_create', 'route_map_revision', 'category_review']
+        self.gateway.config['policy'].update(DEV_SIZED_CEILINGS)   # a conversation holds a whole answer's room
         for operation in structured + ['paper_qa']:
             with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
                 result = self.gateway.call(operation, [{"role": "user", "content": "Return JSON."}])
@@ -137,7 +141,12 @@ class GatewayBudgetTests(unittest.TestCase):
             self.assertEqual(urlopen.call_count, 1)
             body = json.loads(urlopen.call_args[0][0].data)
             self.assertEqual(body["thinking"], {"type": "disabled"})
-            self.assertEqual(body["max_tokens"], self.gateway.config["operations"][operation]["cap"]["output"])
+            # Conversation operations ask for the model's longest answer; the background structured ones keep
+            # their registered output as a runaway guard.
+            conversation = self.gateway.config["operations"][operation].get("conversation", False)
+            self.assertEqual(body["max_tokens"], self.gateway.config["provider"]["max_output_tokens"]
+                             if conversation else self.gateway.config["operations"][operation]["cap"]["output"])
+            self.assertEqual(conversation, operation in {"project_guidance", "paper_qa"})
             if operation in structured:
                 self.assertEqual(body["temperature"], 0)
                 self.assertEqual(body["response_format"], {"type": "json_object"})
@@ -231,7 +240,15 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertIn("owner approval", result["reason"])
         self.assertEqual(self._rows(), [])
 
-    def test_approved_project_guidance_sends_once_within_its_cap(self):
+    def test_an_enabled_ceiling_judges_the_conversation_by_what_it_really_holds(self):
+        # The historic 55k/day ceiling cannot hold a conversation's whole-answer reservation: refused before sending.
+        with mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
+            result = self.gateway.call("paper_qa", [{"role": "user", "content": "x"}])
+        urlopen.assert_not_called(); self.assertFalse(result["ok"]); self.assertIn("daily token ceiling", result["reason"])
+        self.assertFalse(self.gateway.ledger.exists())
+
+    def test_approved_project_guidance_sends_once_requesting_the_model_maximum_output(self):
+        self.gateway.config['policy'].update(DEV_SIZED_CEILINGS)
         payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],
                    "usage": {"prompt_tokens": 300, "completion_tokens": 100, "total_tokens": 400}}
         with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
@@ -239,8 +256,29 @@ class GatewayBudgetTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(urlopen.call_count, 1)
         self.assertEqual(json.loads(urlopen.call_args[0][0].data)["max_tokens"],
-                         self.gateway.config["operations"]["project_guidance"]["cap"]["output"])
-        self.assertEqual([r["operation"] for r in self._rows()], ["project_guidance", "project_guidance"])
+                         self.gateway.config["provider"]["max_output_tokens"])
+        rows = self._rows()
+        self.assertEqual([r["operation"] for r in rows], ["project_guidance", "project_guidance"])
+        # The reservation held before sending covers what was actually requested; the measured usage then replaces it.
+        self.assertEqual(rows[0]["status"], "reserved")
+        self.assertEqual(rows[0]["output"], self.gateway.config["provider"]["max_output_tokens"])
+        self.assertGreaterEqual(rows[0]["input"], self.gateway.config["operations"]["project_guidance"]["cap"]["input"])
+        self.assertEqual((rows[1]["input"], rows[1]["output"]), (300, 100)); self.assertEqual(rows[1]["id"], rows[0]["id"])
+
+    def test_conversation_output_shrinks_to_the_window_left_by_the_input_and_nothing_else_is_cut(self):
+        payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],
+                   "usage": {"prompt_tokens": 300, "completion_tokens": 100, "total_tokens": 400}}
+        provider = self.gateway.config["provider"]
+        provider["context_tokens"], provider["max_output_tokens"] = 20000, 18000
+        content = "y" * 6000
+        with mock.patch("app.gateway.urllib.request.urlopen", return_value=_ok(payload)) as urlopen:
+            result = self.gateway.call("paper_qa", [{"role": "user", "content": content}])
+        self.assertTrue(result["ok"])
+        body = json.loads(urlopen.call_args[0][0].data)
+        self.assertEqual(body["messages"][0]["content"], content)
+        self.assertLess(body["max_tokens"], 18000)
+        self.assertLessEqual(input_bound(body) + body["max_tokens"], 20000)
+        self.assertEqual(self._rows()[0]["output"], body["max_tokens"])
 
     def test_approved_learning_path_plan_sends_once_with_its_own_cap_and_is_ledgered(self):
         payload = {"model": "deepseek-flash", "choices": [{"message": {"content": "{}"}}],

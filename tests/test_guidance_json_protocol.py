@@ -56,9 +56,11 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
                         self.assertIn('Return JSON', wire['messages'][0]['content'])
                         self.assertEqual(wire['max_tokens'], 500)
                         self.assertEqual(wire['thinking'], {'type': 'disabled'})
-                        self.assertLessEqual(input_bound(wire), 1200)
+                        body = json.loads(wire['messages'][-1]['content'])   # long text is sent whole, never an excerpt
+                        self.assertEqual((body['goal'], body['message']), (goal, message))
+                        self.assertEqual((body['last_question'], body['summary']), ('Which focus?', 'Simulation only'))
 
-    def test_worst_unicode_and_optional_memory_preserve_the_admitted_current_answer(self):
+    def test_worst_unicode_and_memory_are_all_sent_whole_beside_the_current_answer(self):
         for english in (False, True):
             for quick in (False, True):
                 with self.subTest(english=english, quick=quick):
@@ -69,10 +71,14 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
                     plain_body, memory_body = [json.loads(messages[-1]['content']) for messages in (plain, memory)]
                     for field in ('goal', 'message', 'keywords'):
                         self.assertEqual(memory_body[field], plain_body[field])
+                    self.assertEqual((plain_body['goal'], plain_body['message'], plain_body['keywords']),
+                                     ('中' * 4000, '答' * 2000, ['词' * 120] * 20))
+                    self.assertNotIn('last_question', plain_body); self.assertNotIn('summary', plain_body)
+                    self.assertEqual((memory_body['last_question'], memory_body['summary']), ('问' * 500, '记' * 500))
                     for messages in (plain, memory):
                         wire = request_envelope('project_guidance', 'deepseek-flash', 500, messages)
                         self.assertTrue(json_instruction(wire))
-                        self.assertLessEqual(input_bound(wire), 1200)
+                        self.assertGreater(input_bound(wire), 1200)   # the old estimate no longer shrinks the request
                         self.assertEqual(wire['max_tokens'], 500)
 
     def test_short_explicit_constraints_remain_in_the_actual_user_message(self):
@@ -143,8 +149,7 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
                         self.assertEqual(result['mode'], 'ai')
                         wire = json.loads(sent.call_args.args[0].data)
                         self.assertTrue(json_instruction(wire))
-                        self.assertLessEqual(input_bound(wire), 1200)
-                        self.assertEqual(wire['max_tokens'], 500)
+                        self.assertEqual(wire['max_tokens'], 384000)   # a conversation asks for the model's longest answer
                         self.assertIsNone(result['reason_code'])
                         self.assertEqual(result['session']['turn_count'], 1)
                         self.assertEqual(result['tokens'], 120)
@@ -177,7 +182,7 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
             self.assertEqual(success['session']['turn_count'], 1)
             self.assertEqual(success['tokens'], 120)
 
-    def test_long_app_goal_and_answer_keep_originals_and_visible_excerpt_notice(self):
+    def test_long_app_goal_and_answer_keep_originals_and_are_sent_whole_without_excerpt_notice(self):
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ,
                 {'DEEPSEEK_API_KEY': 'synthetic-guidance-key', 'PDH_DEV': '0'}):
             app = App(root=ROOT, data_dir=Path(directory))
@@ -192,13 +197,14 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
             self.assertEqual(result['mode'], 'ai')
             self.assertEqual(result['session']['draft']['goal'], goal)
             self.assertEqual(result['session']['transcript'][-2]['content'], answer)
-            self.assertTrue(result['context_limits']['goal_truncated'])
-            self.assertTrue(result['context_limits']['message_truncated'])
-            self.assertIn('excerpts', result['scope_notice'])
+            self.assertFalse(any(result['context_limits'].values()))
+            self.assertIsNone(result['scope_notice'])
             wire = json.loads(sent.call_args.args[0].data)
             self.assertTrue(json_instruction(wire))
-            self.assertLessEqual(input_bound(wire), 1200)
-            self.assertEqual(wire['max_tokens'], 500)
+            body = json.loads(wire['messages'][-1]['content'])
+            self.assertEqual((body['goal'], body['message']), (goal, answer))
+            self.assertGreater(input_bound(wire), 1200)   # the old estimate is not an admission limit
+            self.assertEqual(wire['max_tokens'], 384000)
 
     def test_registered_system_text_matches_the_actual_model_instruction(self):
         registered = (ROOT / 'prompts/project-guidance.md').read_text()

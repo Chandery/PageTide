@@ -349,18 +349,23 @@ class Gateway:
                 raise BudgetExceeded(f"operation awaiting owner approval: {operation}")
             cap_in, cap_out = op["cap"]["input"], op["cap"]["output"]
             reserve_usd = _cost(provider, cap_in, cap_out)
-            (day_tokens, day_usd), (month_tokens, month_usd) = self._usage(day, month)
-            policy = self.limits()
-            if policy['aggregate_limits_enabled']:
-                if day_tokens + cap_in + cap_out > policy["daily_total_tokens"]:
-                    raise BudgetExceeded(f"daily token ceiling ({day_tokens:,}/{policy['daily_total_tokens']:,} used)")
-                if month_tokens + cap_in + cap_out > policy["monthly_total_tokens"]:
-                    raise BudgetExceeded(f"monthly token ceiling ({month_tokens:,}/{policy['monthly_total_tokens']:,} used)")
-                if day_usd + reserve_usd > Decimal(str(policy["daily_usd"])):
-                    raise BudgetExceeded(f"daily USD ceiling (${day_usd:.4f}/${policy['daily_usd']} used)")
-                if month_usd + reserve_usd > Decimal(str(policy["monthly_usd"])):
-                    raise BudgetExceeded(f"monthly USD ceiling (${month_usd:.4f}/${policy['monthly_usd']} used)")
+            self.check_aggregate(day, month, cap_in + cap_out, reserve_usd)
             return cap_in, cap_out, reserve_usd
+
+    def check_aggregate(self, day, month, tokens, usd):
+        """Raise BudgetExceeded when explicitly enabled day/month ceilings cannot hold `tokens`/`usd`."""
+        policy = self.limits()
+        if not policy['aggregate_limits_enabled']:
+            return
+        (day_tokens, day_usd), (month_tokens, month_usd) = self._usage(day, month)
+        if day_tokens + tokens > policy["daily_total_tokens"]:
+            raise BudgetExceeded(f"daily token ceiling ({day_tokens:,}/{policy['daily_total_tokens']:,} used)")
+        if month_tokens + tokens > policy["monthly_total_tokens"]:
+            raise BudgetExceeded(f"monthly token ceiling ({month_tokens:,}/{policy['monthly_total_tokens']:,} used)")
+        if day_usd + usd > Decimal(str(policy["daily_usd"])):
+            raise BudgetExceeded(f"daily USD ceiling (${day_usd:.4f}/${policy['daily_usd']} used)")
+        if month_usd + usd > Decimal(str(policy["monthly_usd"])):
+            raise BudgetExceeded(f"monthly USD ceiling (${month_usd:.4f}/${policy['monthly_usd']} used)")
 
     def usage_today(self):
         import datetime
@@ -451,19 +456,36 @@ class Gateway:
                 cap_in, cap_out, reserve_usd = self.admit(operation, today, month)
             except BudgetExceeded as exc:
                 return {"ok": False, "degraded": True, "reason": str(exc)}
+            # The operation's cap is an estimate (owner 2026-10-22), never a reason to refuse or cut. Only the
+            # model's own window bounds a request; conversations ask for its longest answer, other operations
+            # keep cap.output as a guard against a runaway reply.
+            window = provider.get('context_tokens')
+            wanted = (provider.get('max_output_tokens') or cap_out
+                      if self.config["operations"][operation].get('conversation') else cap_out)
             try:
-                envelope = request_envelope(operation, provider["model"], cap_out, messages)
-                body = json.dumps(envelope, ensure_ascii=False, allow_nan=False).encode('utf-8')
+                envelope = request_envelope(operation, provider["model"], wanted, messages)
                 bound = input_bound(envelope)
+                if window and bound + min(wanted, cap_out) > window:
+                    return {"ok": False, "degraded": True, "invalid_input": True, "input_too_large": True,
+                            "usage_unknown": False, "input_bound": bound, "context_tokens": window,
+                            "reason": "这次的问题、资料和历史超过了模型一次能读的最大长度；请开始新会话或缩短选区。未发送请求。"}
+                if window and bound + wanted > window:   # a very long conversation leaves less room to answer
+                    wanted = window - bound
+                    envelope = request_envelope(operation, provider["model"], wanted, messages)
+                    bound = input_bound(envelope)
+                body = json.dumps(envelope, ensure_ascii=False, allow_nan=False).encode('utf-8')
                 if any(isinstance(m.get('content'), list) for m in messages) and operation != 'paper_vision_qa':
                     raise ValueError('images outside reader vision operation')
             except (UnicodeError, TypeError, ValueError, RecursionError):
                 return {"ok": False, "degraded": True, "invalid_input": True,
                         "usage_unknown": False, "reason": "invalid request text; nothing sent"}
-            if bound > cap_in:
-                return {"ok": False, "degraded": True, "invalid_input": True, "input_too_large": True,
-                        "usage_unknown": False, "input_bound": bound, "input_cap": cap_in,
-                        "reason": "完整问题、资料和历史超过本次输入上限；请缩短问题/选区，或开始新会话。未发送请求。"}
+            # Hold at least what this request can actually cost until the provider reports usage.
+            cap_in, cap_out = max(cap_in, bound), wanted
+            reserve_usd = _cost(provider, cap_in, cap_out)
+            try:   # explicitly enabled ceilings (developer policy) judge what is really held, not the estimate
+                self.check_aggregate(today, month, cap_in + cap_out, reserve_usd)
+            except BudgetExceeded as exc:
+                return {"ok": False, "degraded": True, "reason": str(exc)}
             if dry_run:
                 return {"ok": True, "dry_run": True, "operation": operation,
                         "input_bound": bound,

@@ -271,8 +271,8 @@ def degrade_reason(result, english=False):
                            else ('服务拒绝请求，请检查设置或缩短输入后重新尝试', 'The provider rejected the request; check Settings or shorten the input and try again'))
         text = pair[int(bool(english))] + f' (HTTP {status})'
     elif code == 'invalid_input' and result.get('input_too_large'):
-        text = ('The complete request exceeds its input limit; shorten the input or start a new session. Nothing was sent.' if english
-                else '完整请求超过本次输入上限；请缩短输入或开始新会话。未发送请求。')
+        text = ('This request is longer than the model can read at once; start a new session or shorten the selection. Nothing was sent.' if english
+                else '这次内容超过了模型一次能读的最大长度；请开始新会话或缩短选区。未发送请求。')
     elif code == 'bad_reply' and result.get('finish_reason') == 'length':
         text = ('The AI reply was truncated at this request\'s output limit; the structured draft was incomplete. Try again; existing content was preserved.' if english
                 else 'AI 回复被截断，达到本次输出长度上限；结构化草稿未完成，请重试，原有内容已保留。')

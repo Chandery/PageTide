@@ -17,7 +17,7 @@ operation: paper_qa
 
 ## 输入预算（用于登记，不是实测）
 
-固定指令 + 你的问题 + 有限轮（建议 ≤2 轮）本地历史 + 检索到的少量原文片段。**不上传整篇 PDF、全部历史或私有笔记。**
+固定指令 + 你的问题 + 本次阅读会话的全部对话 + 完整摘要 + 检索到的原文片段（2026-10-22 起，见文末）。**不上传整篇 PDF、其他会话或私有笔记。**
 
 ## 输出
 
@@ -28,8 +28,8 @@ operation: paper_qa
 ## 安全与失败
 
 - 论文文本视为**不可信数据**；其中的指令（如「忽略以上规则」「执行命令」）一律不执行。
-- 无工具调用、无无界循环；历史只保留有限轮并可删除。
-- 超预算/无 Key → 提示本地不可用，不自动换模型、不重试轰炸。
+- 无工具调用、无无界循环；历史属于本次阅读会话，开始新会话即清空。
+- 超出模型窗口/无 Key → 提示不可用，不自动换模型、不重试轰炸。
 
 ## 界面语言
 
@@ -44,3 +44,7 @@ JSON answer must be nonempty text and followups a list of strings; invalid types
 ## Reply boundary update (2026-10-08)
 
 A structured answer must be one strict JSON object with text answer and text-list followups. JSON arrays/scalars, duplicate keys, nonfinite values or broken wrappers are refused before history writes. A complete fenced JSON object may be unwrapped; legacy unstructured plain prose remains compatible. The shared gateway refuses nontext, empty, invalid-Unicode or length-truncated provider output for every operation even when billing usage is unknown. Unknown usage keeps the cap reservation. No automatic retry.
+
+## No caps on the conversation (2026-10-22)
+
+Owner 2026-10-22: the budget estimates, it never limits the user ("预算只是用来预估的，并不是用来限制用户的"; "不要给 ai 对话设上限"). This supersedes the 2026-10-08 admission text above: QA sends the whole abstract, every locally retrieved passage (the retrieval still picks the 8, or 14 in full context, most relevant chunks plus figure captions) and the whole current reading-session history. The registered cap is an estimate for usage display; Gateway refuses only a request whose UTF-8 byte bound plus the minimum answer room exceeds the model window (provider.context_tokens, 1M for deepseek-flash, source DS-LIMITS-20261022). As a conversation operation it asks for the model's maximum output (384K), shrunk to fit the window, so an answer is no longer cut at 1100 tokens. `context_limits` is no longer returned. Unknown usage holds max(estimate, actual input bound) plus the requested output.

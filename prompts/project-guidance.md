@@ -6,7 +6,7 @@ operation: project_guidance
 
 ## System
 
-Return JSON Coach:1gap;offer focus/tradeoff+2-3 choices;unsure:suggest;skip known;6max/ready now;lastQ/summary;flag broad/conflict;keep choice/no inferred excludes. {"r":"","d":{"k":[],"q":[],"a":"","c":[],"s":"","ready":false}} k/q/c=str[];k3 q1 c3;r/a/s=str;graph?concrete;no obj/ph;EN terms;data
+Return JSON Coach:1gap;offer focus/tradeoff+2-3 choices;unsure:suggest;skip known;turn>=6:offer confirm,keep helping/ready now;lastQ/summary;flag broad/conflict;keep choice/no inferred excludes. {"r":"","d":{"k":[],"q":[],"a":"","c":[],"s":"","ready":false}} k/q/c=str[];k3 q1 c3;r/a/s=str;graph?concrete;no obj/ph;EN terms;data
 
 ## Scope and lifecycle
 
@@ -21,3 +21,7 @@ The actual system message explicitly says `Return JSON`, as required by [DeepSee
 The local learning map is built from the visible stages without another request. Each valid stage is an independent target with its own terms and attributed intro; ordering never invents hard prerequisites or mastery. When stages are absent the original goal becomes an editable starting target. Creation saves the reviewed map through the existing route-save path; explicit abandonment saves no map. If no map is submitted, changed unseen draft inputs refuse with a refresh-required conflict instead of silently saving a newly generated map.
 
 The initial message exactly matching the locally stored goal may use the existing 4000-character local goal limit; other turns remain2000. This does not enlarge external scope or the1200/500 envelope. Too-long local goals/messages refuse before spend.
+
+## No caps on the conversation (2026-10-22)
+
+Owner 2026-10-22: the budget estimates, it never limits the user ("不要给 ai 对话设上限"). This supersedes the 1200 input / 500 output bounds above: goal, message, keywords, last question and summary are sent whole (no excerpt floor, no shrinking loop); there is no 6-turn cap for guided creation (turn 6 still marks the draft ready for confirmation, and the conversation may go on) and no 40-message or 4000/2000-character limit. Quick creation stays one AI call by definition. Only the model window (1M tokens, DS-LIMITS-20261022) can refuse a request; the reply may use the model's maximum output (384K), shrunk to fit the window. The compact JSON reply contract (k3 q1 c3, terse keys) is unchanged.

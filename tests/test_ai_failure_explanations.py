@@ -23,11 +23,16 @@ class FailureExplanationTests(unittest.TestCase):
                 else:
                     self.assertNotRegex(text, '[㐀-鿿]')
 
-    def test_input_limit_is_not_misreported_as_bad_text(self):
+    def test_input_beyond_the_model_window_is_not_misreported_as_bad_text(self):
         code, text = creation.degrade_reason({'invalid_input': True, 'input_too_large': True})
         self.assertEqual(code, 'invalid_input')
-        self.assertIn('输入上限', text)
+        self.assertIn('最大长度', text)
+        self.assertIn('新会话', text)
         self.assertIn('未发送', text)
+        self.assertNotIn('输入上限', text)   # no budget ceiling is blamed any more
+        code, text = creation.degrade_reason({'invalid_input': True, 'input_too_large': True}, english=True)
+        self.assertIn('longer than the model can read at once', text)
+        self.assertIn('Nothing was sent', text)
 
     def test_bad_reply_is_not_misreported_as_network_failure(self):
         code, text = creation.degrade_reason({'bad_reply': True, 'finish_reason': 'length',

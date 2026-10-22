@@ -959,12 +959,9 @@
     "无法识别的标识：请填 arXiv 编号、DOI 或 OpenAlex W 编号": "Unrecognised ID: enter an arXiv ID, DOI or OpenAlex W ID",
     "公开元数据缺少论文标题": "The public metadata has no title",
     "项目名称和研究目标必须是文本": "The project name and research goal must be text",
-    "研究目标不能为空且不能超过 4000 个字符": "The research goal must be 1–4000 characters",
     "引导创建模式无效": "Invalid guided creation mode",
     "引导会话不存在": "Guided session not found",
     "引导会话已结束": "The guided session has ended",
-    "已达到 6 轮引导上限，请确认或编辑当前草稿": "Reached the 6-round limit; confirm or edit the current draft",
-    "本轮内容不能为空且不能超过 2000 个字符": "This round's reply must be 1–2000 characters",
     "引导会话不存在或已结束": "Guided session not found or ended",
     "草稿格式无效": "Invalid draft format",
     "只有未确认的草稿可以取消": "Only an unconfirmed draft can be discarded",
@@ -2062,7 +2059,6 @@
     "只发送五项需求，不发送论文、笔记、画像或其他项目。老师的文字或 MD 内容可粘贴到结构意见；已知基础不自动标记掌握。创建最多 12 个初始概念，新范围未批准时仍可手动搭图。": "Only the five requirement items are sent. Papers, notes, profile and other projects are excluded. Paste teacher comments or Markdown text into structure feedback. Background does not mark mastery. Creation supports up to 12 initial concepts; manual editing works while this scope awaits approval.",
     "只整理已发生的本地活动，按日期统计。": "Only local activity that happened is summarised, by date.",
     "只清除已下载的论文信息；归档的 PDF、全文、笔记和用量记录保留": "Clears only the paper information downloaded earlier. Archived PDFs, full text, notes and usage records are kept.",
-    "含未确认的用量": "includes unconfirmed usage",
     "够了": "Enough",
     "学习图已关闭，但仍保留着。": "The learning map is off, but it is still kept.",
     "学习图或抓取状态已变化，请重新抓取。": "The learning map or fetch state changed. Fetch again.",
@@ -2141,7 +2137,6 @@
     "论文库主题": "Library topics",
     "历史版本": "Earlier versions",
     "{0} 条": "{0} records",
-    "6 轮已用完，请直接编辑右侧草稿": "6 turns used; edit the draft on the right",
     "AI · 对话": "AI · chat",
     "AI 不可用：{0}": "AI unavailable: {0}",
     "AI 判断": "Ask AI",
@@ -2186,7 +2181,6 @@
       "{0} paper moves to another category",
       "{0} papers move to other categories"
     ],
-    "{0}/6 轮": "{0}/6 turns",
     "{0}/{1} 篇": "{0}/{1}",
     "{0}已不再提示": "{0} will not be suggested again",
     "{0}已成为学习提议": "{0} is now a learning proposal",
@@ -2474,6 +2468,10 @@
     ],
     "AI 回复不可用": "AI reply unusable",
     "消息": "Message",
-    "AI 只看到部分内容": "AI saw only part of the input"
+    "AI 只看到部分内容": "AI saw only part of the input",
+    "另有用量未确认": "some usage is unconfirmed",
+    "另有 {0} 次用量未确认": "{0} calls with unconfirmed usage",
+    "研究目标不能为空": "The research goal cannot be empty",
+    "本轮内容不能为空": "This round's reply cannot be empty"
   }
 }

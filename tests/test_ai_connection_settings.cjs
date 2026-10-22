@@ -83,8 +83,13 @@ test('a slow usage refresh cannot overwrite a completed AI test with the waiting
 });
 test('settings keep pending usage explicitly uncertain even without aggregate ceilings',()=>{
   const p=page();vm.runInContext("renderUsage({usage:{tokens:900,month_tokens:1900,usd:'0.01',month_usd:'0.02',tokens_known:false,pending_reservations:1}})",p.context);
-  assert.match(p.node('#budgetLimits').textContent,/含未确认的用量/);assert.doesNotMatch(p.node('#budgetLimits').textContent,/\/|undefined|null/);
-  vm.runInContext("renderUsage({usage:{tokens:0,month_tokens:1900,month_tokens_known:false,month_pending_reservations:1}})",p.context);assert.match(p.node('#budgetLimits').textContent,/含未确认的用量/);
+  assert.match(p.node('#budgetLimits').textContent,/用量未确认/);assert.doesNotMatch(p.node('#budgetLimits').textContent,/\/|undefined|null/);
+  vm.runInContext("renderUsage({usage:{tokens:0,month_tokens:1900,month_tokens_known:false,month_pending_reservations:1}})",p.context);assert.match(p.node('#budgetLimits').textContent,/用量未确认/);
+});
+test('a held reservation is not shown as spending: settings show confirmed use and count the unconfirmed calls',()=>{
+  const p=page();vm.runInContext("renderUsage({usage:{tokens:385900,month_tokens:386900,usd:'0.4643',month_usd:'0.4743',reserved_tokens:385000,month_reserved_tokens:385000,reserved_usd:'0.4635',month_reserved_usd:'0.4635',tokens_known:false,pending_reservations:1,month_pending_reservations:1}})",p.context);
+  const text=p.node('#budgetLimits').textContent;
+  assert.match(text,/今日 900 token/);assert.match(text,/本月 1900 token/);assert.match(text,/今日消耗 \$0\.0008/);assert.match(text,/另有 1 次用量未确认/);
 });
 test('actual home handler renders unlimited runtime and finite developer usage without null crashes',async()=>{
   const source=fs.readFileSync(path.join(__dirname,'../app/static/index.html'),'utf8');
@@ -95,6 +100,6 @@ test('actual home handler renders unlimited runtime and finite developer usage w
     vm.createContext(context);vm.runInContext(source.split('\n').find(line=>line.startsWith('const esc ='))+'\n'+body,context);await context.load();
     const footer=node('#foot').textContent;assert.match(footer,/20|900/);assert.doesNotMatch(footer,/null|undefined/);
     if(usage.ceiling==null)assert.doesNotMatch(footer,/\/ /);else assert.match(footer,/20 \/ 100/);
-    if(usage.tokens_known===false)assert.match(footer,/含未确认的用量/);
+    if(usage.tokens_known===false)assert.match(footer,/用量未确认/);
   }
 });

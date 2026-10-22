@@ -39,3 +39,7 @@ The complete question, quote, current-session history, bounded local text and on
 ## Reply boundary update (2026-10-08)
 
 A structured answer must be one strict JSON object with text answer and text-list followups. JSON arrays/scalars, duplicate keys, nonfinite values or broken wrappers are refused before history writes. A complete fenced JSON object may be unwrapped; legacy unstructured plain prose remains compatible. The shared gateway refuses nontext, empty, invalid-Unicode or length-truncated provider output for every operation even when billing usage is unknown. Unknown usage keeps the cap reservation. No automatic retry.
+
+## No caps on the conversation (2026-10-22)
+
+Same rule as paper_qa (owner 2026-10-22: the budget estimates, it never limits the user): whole abstract, all retrieved passages and the whole reading-session history are sent with the page image; only the model window (1M tokens, DS-LIMITS-20261022) can refuse the request; the answer may use the model's maximum output (384K), shrunk to fit the window. The registered cap is an estimate.

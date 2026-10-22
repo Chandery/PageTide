@@ -53,11 +53,13 @@ test('explicitly dropping a map is the only route-null finalize request and does
  const finalContext={SESSION_KEY:'fixture',policyEditor:{disabled(){}},readCreationPolicy:()=>({discipline:'stem'}),session:{id:'s'},post:async(_,payload)=>{received=payload;return {project_id:'p'};},localStorage:{removeItem(){}},location:{},afterCreate:()=>'/project',creationLeaving:false};
  vm.createContext(finalContext);vm.runInContext(s.slice(s.indexOf('async function finalize('),s.indexOf('\nasync function createSession('))+';globalThis.finish=finalize;',finalContext);await finalContext.finish({draft:{},selectedKeys:[],route:null});assert.equal(received.skip_route,true);
 });
-test('guided question shows actionable choices, sends the chosen answer once and disables choices at round six',()=>{
+test('guided question shows actionable choices, sends the chosen answer once and keeps choices open after round six (no turn cap) until a turn is pending',()=>{
  const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{children:[],innerHTML:'',textContent:'',replaceChildren(){},appendChild(el){this.children.push(el);}});return nodes.get(id);};let sent;
  const context={$:node,$$:()=>[],session:{transcript:[],turn_count:1,draft:{summary:'已确认入门',next_question:'更想理解还是复现？',choices:['先理解','先复现'],ready:false}},guidedBusy:false,bubble(){},esc:v=>String(v),document:{createElement:()=>({setAttribute(){}})},guidedTurn:message=>{sent=message;}};
  vm.createContext(context);vm.runInContext(functionSource('renderChat','\nfunction showPending(')+';globalThis.render=renderChat;',context);context.render(null);const question=node('#guideQuestion');assert.match(question.innerHTML,/更想理解/);assert.equal(question.children.length,2);question.children[0].onclick();assert.equal(sent.message,'先理解');
- question.children=[];context.session.turn_count=6;context.render(null);assert.equal(question.children.every(button=>button.disabled),true);assert.equal(node('#guideSend').disabled,true);
+ question.children=[];context.session.turn_count=6;context.render(null);assert.equal(question.children.length,2);assert.equal(question.children.every(button=>button.disabled),false);assert.equal(node('#guideSend').disabled,false);
+ question.children=[];context.session.turn_count=40;context.render(null);assert.equal(question.children.every(button=>button.disabled),false);assert.equal(node('#guideSend').disabled,false);
+ question.children=[];context.guidedBusy=true;context.render(null);assert.equal(question.children.every(button=>button.disabled),true);assert.equal(node('#guideSend').disabled,true);
 });
 test('explicit AI graph planning rebuilds bound stage rows rather than re-adding the old stages on creation',async()=>{
  const rows=[{title:'Old local stage'}],slots=new Map(),part=name=>{if(!slots.has(name))slots.set(name,{querySelectorAll:()=>[],set innerHTML(value){if(name==='path')rows.length=0;}});return slots.get(name);};
