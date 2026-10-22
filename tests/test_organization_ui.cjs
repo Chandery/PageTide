@@ -386,7 +386,7 @@ test('category tree traverses nested folders and parent view deduplicates shared
   assert.deepEqual(Array.from(ui.visible(),p=>p.key),['shared','second']);
 });
 
-test('paper-only graph respects nested collapse and preserves shared papers', () => {
+test('paper-only graph draws every paper whatever is folded in the directory (folding is a sidebar matter)', () => {
   const ui=fixture();
   const snap=snapshot({directions:[{id:'a',name:'A'},{id:'b',name:'B',parent_id:'a'},{id:'c',name:'C'}],items:[
     {key:'shared',directions:['b','c']},{key:'inside',directions:['b']}],positions:{}});
@@ -395,22 +395,23 @@ test('paper-only graph respects nested collapse and preserves shared papers', ()
   assert.equal(expanded.filter(e=>e.data.kind==='hierarchy').length,0);
   const collapsed=ui.networkElements({...snap,collapsed:['a']},null);
   assert.equal(collapsed.filter(e=>e.data.key==='shared').length,1);
-  assert.equal(collapsed.filter(e=>e.data.key==='inside').length,0);
+  assert.equal(collapsed.filter(e=>e.data.key==='inside').length,1);     // was hidden when its parent category was folded
   assert.equal(collapsed.filter(e=>e.data.direction==='b').length,0);
   const nodeIds=new Set(collapsed.filter(e=>!e.data.source).map(e=>e.data.id));
   assert.ok(collapsed.filter(e=>e.data.source).every(e=>nodeIds.has(e.data.source)&&nodeIds.has(e.data.target)));
 });
 
-test('directory retains expansion for persisted collapsed leaf categories in graph mode', () => {
+test('a folded parent category keeps its expand control in graph mode; a leaf has none (a leaf cannot be folded)', () => {
   const ui=fixture();
-  ui.accept(snapshot({directions:[{id:'leaf',name:'Saved <leaf>',rank:0}],collapsed:['leaf'],items:[{key:'p',directions:['leaf']}]}));
+  ui.accept(snapshot({directions:[{id:'root',name:'Saved <root>',rank:0},{id:'leaf',name:'Saved <leaf>',parent_id:'root',rank:1}],collapsed:['root','leaf'],items:[{key:'p',directions:['leaf']}]}));
   ui.S.mode='graph';
   const markup=ui.sidebarHTML();
   assert.match(markup,/data-action="collapse"/);
   assert.match(markup,/aria-expanded="false"/);
-  assert.match(markup,/展开 Saved &lt;leaf&gt;/);
+  assert.match(markup,/展开 Saved &lt;root&gt;/);
+  assert.doesNotMatch(markup,/(展开|折叠) Saved &lt;leaf&gt;/);
   assert.match(markup,/org-category-menu/);
-  assert.doesNotMatch(markup,/Saved <leaf>/);
+  assert.doesNotMatch(markup,/Saved <root>|Saved <leaf>/);
 });
 
 test('reading viewport stays readable and centers a real paper in a dispersed corpus', () => {
@@ -464,10 +465,10 @@ test('category focus clears stale paper focus and locates uncategorized papers',
   cy.destroy();
 });
 
-test('selected category reveals folded papers without changing saved collapse or coordinates', () => {
+test('a folded category still shows its papers, without changing saved collapse or coordinates', () => {
   const ui=fixture(), snap=snapshot({collapsed:['d1'],positions:{'paper:paper:one':{x:123,y:456}}});
   const before=JSON.stringify(snap);
-  const elements=ui.networkElements(snap,null,snap.positions,new Set(['paper:one']));
+  const elements=ui.networkElements(snap,null,snap.positions);
   assert.equal(elements.filter(e=>e.data.key==='paper:one').length,1);
   assert.equal(JSON.stringify(snap),before);
   assert.ok(elements[0].data.size>=28);
@@ -635,13 +636,13 @@ test('named undo sends the event id it showed', async () => {
   assert.equal(calls[0]?.event, 41);
 });
 
-test('the camera never starts from a paper that is not drawn (collapsed category, removed paper)', () => {
+test('the camera never starts from a paper that is not drawn (a paper outside this view, a removed paper)', () => {
   const ui = fixture();
   const data = { directions: [{ id: 'd1', name: 'Models', rank: 0 }, { id: 'd2', name: 'Other', rank: 1 }],
-    items: [{ key: 'hidden', title: 'Hidden', directions: ['d1'] }, { key: 'shown', title: 'Shown', directions: ['d2'] }],
+    items: [{ key: 'shown', title: 'Shown', directions: ['d2'] }],
     collapsed: ['d1'], positions: {}, revision: 1, drafts: [] };
   const nodes = ui.networkElements(data, null).filter(e => !e.data.source);
-  assert.deepEqual([...nodes.map(n => n.data.key)], ['shown']);                // the paper being read is under a collapsed category
+  assert.deepEqual([...nodes.map(n => n.data.key)], ['shown']);
   assert.equal(ui.graphOrigin(nodes, 'hidden'), 'paper:shown');             // fall back to a node that exists
   assert.equal(ui.graphOrigin(nodes, 'shown'), 'paper:shown');
   assert.equal(ui.graphOrigin(nodes, 'removed-from-library'), 'paper:shown');
@@ -649,18 +650,17 @@ test('the camera never starts from a paper that is not drawn (collapsed category
   assert.equal(ui.graphOrigin([], 'hidden'), undefined);                    // an empty graph has no origin, and the caller guards it
 });
 
-test('every library row has a labelled detail button that opens the shared detail pane, again after it was closed', async () => {
+test('every library row selects its paper for the shared right pane, again after it was closed; the title no longer opens the reader', async () => {
   const ui = fixture(); ui.accept(snapshot());
   let listHtml = '';
   ui.S.root = { querySelector: (selector) => ({ set innerHTML(v) { if (selector === '.org-list') listHtml = v; }, get innerHTML() { return ''; }, indeterminate: false, hidden: false, classList: { toggle() {} } }) };
   ui.renderList();
-  assert.match(listHtml, /data-action="detail" data-key="paper:one"[^>]*>详情<\/button>/);
-  assert.match(listHtml, /data-action="read" data-key="paper:one"/);       // the title still opens the PDF
-  assert.ok(!/open-detail/.test(listHtml));                                  // there is one detail, not a second bigger one
-  assert.ok(!/org-icon[^>]*pencil/.test(listHtml));                          // and no icon-only duplicate of the same button
-  // the click handlers (no DOM here): the row button selects the paper for the shared pane, and the pane's × only clears the selection
+  assert.match(listHtml, /<article class="org-paper [^"]*" role="option"[^>]*data-action="select" data-key="paper:one"/);
+  assert.ok(!/data-action="read"/.test(listHtml));                           // reading is the pane's button, a double-click or Enter
+  assert.ok(!/>详情</.test(listHtml));                                       // there is one detail: the pane, not a button per row
+  // the click handlers (no DOM here): a row selects the paper for the shared pane, and the pane's × only clears the selection
   const source = fs.readFileSync(path.join(__dirname, '../app/static/organization.js'), 'utf8');
-  assert.match(source, /case 'detail': S\.key = b\.dataset\.key; S\.navigationToken\+\+; renderDetail\(\);/);
+  assert.match(source, /case 'select': selectPaper\(b\.dataset\.key\); break;/);
   assert.match(source, /case 'detail-close': S\.navigationToken\+\+; S\.key = null;/);
   assert.ok(!/openDetail/.test(source));                                      // the library never calls the Today drawer
 });
@@ -1116,7 +1116,7 @@ test('a new Map request clears unmatched papers before a failed or unavailable p
 });
 
 test('public pending navigation yields to a newer paper selection, closing or leaving the view',async()=>{
-  for(const action of ['detail','detail-close','leave']) {
+  for(const action of ['select','detail-close','leave']) {
     const ui=routeGraphFixture();let release;
     ui.publicUI.open=()=>new Promise(r=>{release=r;});
     const pending=ui.publicUI.navigate({key:'one',project:'p1',view:'papers'});

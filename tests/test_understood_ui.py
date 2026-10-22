@@ -20,9 +20,9 @@ class UnderstoodButtonTests(unittest.TestCase):
         self.assertIn("先收藏到项目", ORG)
         self.assertIn("data-project=", ORG)
 
-    def test_it_sits_in_the_list_row_next_to_detail_and_edit_category(self):
+    def test_it_sits_in_the_list_row_next_to_edit_category(self):
         row = ORG[ORG.index('<div class="org-paper-actions">'):ORG.index("</article>`).join('')")]
-        for part in ('data-action="detail"', 'data-action="paper-membership"', "understoodButton(p)"):
+        for part in ('data-action="paper-membership"', "understoodButton(p)"):
             self.assertIn(part, row)
 
     def test_the_button_carries_no_explanatory_tooltip(self):

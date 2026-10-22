@@ -37,7 +37,7 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .pdh-organization .org-direction-name { display:flex; align-items:center; gap:7px; width:100%; text-align:left; background:transparent; border:0; }
 .org-direction-name span { flex:1; min-width:0; overflow-wrap:anywhere; }
 .org-direction-name small { color:var(--org-muted); }
-.org-direction i, .org-tags i, .org-membership-row i { width:8px; height:8px; border-radius:50%; flex:none; display:inline-block; }
+.org-direction i, .org-membership-row i { width:8px; height:8px; border-radius:50%; flex:none; display:inline-block; }
 .org-direction-tools { display:flex; gap:3px; justify-content:flex-end; }
 .pdh-organization .org-direction-tools button { border:0; background:transparent; width:30px; padding:3px; }
 .pdh-organization .org-main { display:flex; flex-direction:column; width:auto; max-width:none; margin:0; padding:0; }
@@ -46,11 +46,7 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .org-list { overflow:auto; flex:1; }
 .org-paper { display:flex; gap:10px; align-items:flex-start; padding:14px 12px; border-bottom:1px solid var(--org-border); }
 .org-paper > input { margin-top:5px !important; }
-.pdh-organization .org-paper-open { display:block; flex:1; min-width:0; text-align:left; padding:0; border:0; background:transparent; }
-.org-paper-open strong { font-size:14px; line-height:1.55; display:block; overflow-wrap:anywhere; }
 .org-paper-meta { display:block; color:var(--org-muted); font-size:12px; margin-top:6px !important; }
-.org-tags { display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:6px; font-size:11px; color:var(--org-muted); }
-.org-tags > span { display:inline-flex; align-items:center; gap:4px; }
 .org-empty { padding:28px 16px; color:var(--org-muted); text-align:center; }
 .org-detail { border-left:1px solid var(--org-border); padding:12px 14px; overflow:auto; }
 .org-workspace:not(:has(.org-detail.has-paper)) { grid-template-columns:var(--org-side) minmax(0,1fr); }
@@ -134,6 +130,7 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-graph-legend-dot { width:10px; height:10px; border-radius:50%; flex:0 0 10px; }
 
 /* Reading scale and navigation affordances for the paper network. */
+.org-graph-hint:empty { display:none; }
 .org-graph-hint { position:absolute; bottom:12px; right:12px; max-width:calc(100% - 24px); padding:6px 10px; border:1px solid var(--org-border); border-radius:6px; background:var(--org-bg); color:var(--org-muted); font-size:12px; pointer-events:none; }
 .org-graph-legend { bottom:54px; max-height:38%; overflow:hidden; }
 .org-graph-legend-item { font-size:12px; }
@@ -210,7 +207,7 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 @media (max-width:1150px) { .org-workspace:has(.org-detail.has-paper) { grid-template-columns:var(--org-side) minmax(240px,1fr) minmax(320px,360px); } }
 
 /* view scope, project tags, cross-project mark, graph focus */
-.org-paper-open .org-projects, .org-detail-projects .org-projects { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+.org-detail-projects .org-projects { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
 .org-proj { font-size:11.5px; padding:1px 8px; border-radius:999px; border:1px solid var(--org-border); color:var(--org-muted); }
 .org-proj.is-current { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
 .org-proj.is-also, .org-proj.is-none { border-style:dashed; }
@@ -218,7 +215,6 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-cross { font-style:normal; font-size:10.5px; padding:0 6px; margin-left:6px; border-radius:999px; border:1px solid var(--org-border); color:var(--org-muted); white-space:nowrap; }
 .org-other-cats { display:block; margin:10px 8px 0; padding:4px 0; font-size:12px; background:transparent; border:0; color:var(--org-muted); text-decoration:underline; cursor:pointer; text-align:left; }
 .org-focus { position:absolute; top:10px; left:10px; z-index:2; background:var(--org-bg); }
-.org-overview { display:grid; gap:12px; justify-items:center; align-content:center; min-height:240px; padding:24px; text-align:center; }
 
 /* project tabs: the outermost level of the directory */
 .org-projects-panel { display:grid; gap:4px; margin:0 0 16px; padding:8px; border:1px solid var(--org-border); border-radius:12px; background:var(--surface-2); }
@@ -287,3 +283,60 @@ html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:
 .pdh-organization .seg button[aria-checked="true"] { background:var(--org-accent); color:var(--org-accent-ink); font-weight:600; }
 .pdh-organization .seg button:disabled { opacity:.45; }
 .org-graph-wrap.has-view .org-focus { top:50px; }
+
+/* Library as three panes: categories | papers | the selected paper (Zotero's layout). The right pane keeps its column
+   while the list is shown, so selecting never moves the list; on a narrow window it stacks below, only when a paper is
+   selected. All colours are theme variables, so light and dark follow the page. */
+@media (min-width:901px) {
+  .pdh-organization .org-workspace:has(.org-list:not([hidden])) { grid-template-columns:var(--org-side) minmax(0,1.15fr) minmax(320px,1fr); }
+  .pdh-organization .org-workspace:has(.org-list:not([hidden])) .org-detail:not(.has-paper) { display:block; }
+  .pdh-organization .org-workspace:has(.org-list:not([hidden])) .org-detail.has-paper { animation:none; box-shadow:none; }
+}
+.pdh-organization .org-paper { display:flex; align-items:center; gap:9px; position:relative; padding:7px 12px; cursor:default; outline-offset:-2px; }
+.pdh-organization .org-paper > input { margin:0 !important; }
+.pdh-organization .org-paper:hover { background:var(--org-subtle); }
+.pdh-organization .org-paper.is-active { background:var(--org-active); box-shadow:inset 2px 0 var(--mark); }
+.pdh-organization .org-paper:focus-visible { outline:2px solid var(--org-accent); }
+.org-paper-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; line-height:1.5; }
+.org-year { flex:none; min-width:2.6em; text-align:right; color:var(--org-muted); font-size:12px; font-variant-numeric:tabular-nums; }
+.org-note-mark { flex:none; color:var(--org-muted); font-size:13px; line-height:1; }
+/* The PDF glyph: filled = archived here, outline = can be downloaded, faint = web page only, blank = no source. */
+.org-pdf { flex:none; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; }
+.org-pdf svg { display:block; }
+.org-pdf path { fill:none; stroke:currentColor; stroke-width:1.3; stroke-linejoin:round; stroke-linecap:round; }
+.org-pdf.is-local { color:var(--org-ink); }
+.org-pdf.is-local path:first-child { fill:currentColor; }
+.org-pdf.is-local path:last-child { stroke:var(--org-bg); }
+.org-pdf.is-direct { color:var(--org-muted); }
+.org-pdf.is-page { color:color-mix(in srgb, var(--org-muted) 45%, transparent); }
+/* Row commands appear over the year on hover, on the chosen row and inside the focused one; the rest of the time the row is quiet. */
+.pdh-organization .org-paper-actions { display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); padding-left:8px; background:var(--org-subtle); }
+.pdh-organization .org-paper.is-active .org-paper-actions { background:var(--org-active); }
+.pdh-organization .org-paper:hover .org-paper-actions, .pdh-organization .org-paper:focus-within:not(:focus) .org-paper-actions { display:flex; }   /* the selected paper's actions live in the pane; the row keeps its title readable */
+/* The pane: whitespace first. */
+.pdh-organization .org-detail.has-paper { padding:16px 22px 28px; }
+.pdh-organization .org-detail.has-paper > .org-section-head.org-pane-head:first-child { position:static; margin:0 0 4px; padding:0; border:0; background:none; backdrop-filter:none; justify-content:flex-end; }
+.pdh-organization .org-detail.has-paper > .org-section-head.org-pane-head:first-child button { border:0; background:transparent; color:var(--org-muted); }
+.pdh-organization .org-detail .org-detail-title { font-size:18px !important; line-height:1.4 !important; margin:0 0 6px !important; }
+.pdh-organization .org-detail .org-detail-categories { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:10px 0 18px; padding:0; border:0; border-radius:0; background:none; }
+.pdh-organization .org-detail .org-detail-categories-head { display:contents; }
+.pdh-organization .org-detail .org-detail-categories-head > span { display:none; }
+.pdh-organization .org-detail .org-detail-categories-head > .org-link-button { order:2; color:var(--org-muted); }
+.pdh-organization .org-detail .org-detail-badge { min-height:24px; padding:1px 9px 1px 8px; font-size:12px; font-weight:500; }
+.pdh-organization .org-detail .org-notes { margin:0 0 18px; }
+.pdh-organization .org-detail .org-notes .org-section-head { margin-bottom:8px; }
+.pdh-organization .org-detail .org-notes .org-section-head h3 { color:var(--org-muted); font-size:12.5px; font-weight:600; }
+.pdh-organization .org-detail .org-note-view { min-height:0; padding:10px 12px; border-radius:8px; background:var(--org-subtle); font-size:13.5px; line-height:1.7; }
+.pdh-organization .org-detail .org-note-view > :first-child { margin-top:0; }
+.pdh-organization .org-detail .org-note-view > :last-child { margin-bottom:0; }
+.pdh-organization .org-detail .org-note-empty { display:block; width:100%; min-height:0; padding:10px 12px; border:1px dashed var(--org-border); border-radius:8px; background:transparent; color:var(--org-muted); text-align:left; }
+.pdh-organization .org-detail .org-abstract { margin:0 0 16px; padding:0 0 12px; border-bottom:1px solid var(--org-border); }
+.pdh-organization .org-detail .org-abstract summary { font-size:12.5px; font-weight:600; color:var(--org-muted); }
+.pdh-organization .org-detail .org-reading-tools { margin:0 0 18px; padding:0; border:0; }
+.pdh-organization .org-detail .org-detail-projects { margin:6px 0 0; }
+.pdh-organization .org-detail .org-detail-projects > span { display:none; }
+@media (max-width:900px) {
+  .pdh-organization .org-workspace:has(.org-list:not([hidden])), .pdh-organization .org-workspace:has(.org-detail.has-paper) { grid-template-columns:var(--org-side) minmax(0,1fr); }
+  .pdh-organization .org-detail:not(.has-paper) { display:none; }
+  .pdh-organization .org-paper-title { white-space:normal; }
+}

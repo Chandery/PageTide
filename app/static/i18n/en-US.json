@@ -679,7 +679,6 @@
     "查看类别：{0}": "View category: {0}",
     "查看未分类论文": "View uncategorized papers",
     "所属类别": "Categories",
-    "选择一篇论文": "Choose a paper",
     "关闭详情": "Close details",
     "笔记历史": "Note history",
     "保存笔记": "Save note",
@@ -1326,7 +1325,6 @@
     "论文·2 跳": "Paper · 2 links",
     "再多画一层相连的论文": "Also draw the next ring of linked papers",
     "{0} 篇论文一起画出来会看不清。先选一个类别（左侧目录），或在列表里选一篇论文看它周围的关系。": "{0} papers drawn together would be unreadable. Pick a category (left directory), or pick a paper to see what surrounds it.",
-    "仍然显示全部 {0} 篇": "Show all {0} anyway",
     "当前选择下没有可画的论文": "No papers to draw for this choice",
     "所有项目收藏的论文": "Papers saved in every project",
     "只看这个项目收藏的论文": "Only papers saved in this project",
@@ -2310,7 +2308,6 @@
     "无法读取": "Cannot read",
     "无法读取用量": "Cannot read usage",
     "无法退出：{0}": "Cannot quit: {0}",
-    "显示全部 {0} 篇": "Show all {0}",
     "暂不能加入": "Cannot add yet",
     "暂无可比较的数据": "Nothing to compare yet",
     "暂时排在后面": "Ranked lower for now",
@@ -2401,7 +2398,6 @@
     "草稿未保存：{0}": "Draft not saved: {0}",
     "视觉 · 第 {0} 页": "Vision · p. {0}",
     "论文将放在「未分类」": "Papers will go to “Uncategorized”",
-    "论文较多，先选一个类别或一篇论文": "Many papers; pick a category or a paper first",
     "请修复文件后重新选择": "Fix the files and choose again",
     "请先填写检索式或关键词": "Enter a search query or keywords first",
     "请先处理失败项": "Handle the failed items first",
@@ -2472,6 +2468,10 @@
     "另有用量未确认": "some usage is unconfirmed",
     "另有 {0} 次用量未确认": "{0} calls with unconfirmed usage",
     "研究目标不能为空": "The research goal cannot be empty",
-    "本轮内容不能为空": "This round's reply cannot be empty"
+    "本轮内容不能为空": "This round's reply cannot be empty",
+    "论文列表": "Paper list",
+    "已下载 PDF": "PDF downloaded",
+    "可下载 PDF": "PDF available to download",
+    "仅有网页": "Web page only"
   }
 }

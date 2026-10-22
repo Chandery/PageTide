@@ -27,13 +27,13 @@ class LayoutTests(unittest.TestCase):
         self.assertIn('role="dialog" aria-modal="true" aria-label="论文详情"', self.html)
         self.assertIn('class="detail-actions"', self.html)
 
-    def test_knowledge_detail_keeps_summary_open_and_groups_metadata(self):
+    def test_knowledge_detail_folds_the_abstract_and_groups_metadata(self):
         org_css = ORG_CSS.read_text()
         org_js = ORG_JS.read_text()
         self.assertIn('class="org-detail-meta"', org_js)
         self.assertIn('class="org-detail-badges"', org_js)
         self.assertIn('class="org-notes"', org_js)
-        self.assertIn('<details class="org-abstract" open>', org_js)
+        self.assertIn('<details class="org-abstract">', org_js)       # the user's note comes first; the abstract is folded
         self.assertIn('.org-detail.has-paper', org_css)
 
     def test_knowledge_detail_header_rules_do_not_leak_into_notes(self):
@@ -42,8 +42,8 @@ class LayoutTests(unittest.TestCase):
         org_css = ORG_CSS.read_text()
         self.assertNotIn('.org-detail.has-paper .org-section-head:first-child', org_css)
         self.assertIn('.org-detail.has-paper > .org-section-head:first-child', org_css)
-        # List cards stack title, date and category tags instead of inheriting a flex row.
-        self.assertIn('.pdh-organization .org-paper-open { display:block;', org_css)
+        # A list row is one dense line (glyph, title, mark, year); the pane carries the categories and the note.
+        self.assertIn('.org-paper-title { flex:1; min-width:0;', org_css)
 
     def test_assistant_quote_stays_compact_and_log_keeps_room(self):
         # A quoted selection once filled the whole panel and squeezed the log to nothing.

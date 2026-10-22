@@ -43,6 +43,7 @@ from .clustering import cluster, corpus_fingerprint
 from .organization_terms import category_identity, category_term
 from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
 from .db import now
+from .sources import pdf_availability
 
 
 def read_route(conn, project):
@@ -334,8 +335,12 @@ class Organization:
               WHERE g.undone=0 AND g.project_id=f.project_id AND g.paper_key=f.paper_key
                 AND g.action IN ('understood','too_hard'))"""):
             understood.setdefault(row[0], []).append(row[1])
+        archived_pdfs = {row[0]: row[1] for row in self.conn.execute("SELECT paper_key,path FROM pdfs")}
         for paper in papers:
             key = paper["key"]
+            # local = archived and the file is still there; otherwise what a legal source allows (direct/page/none).
+            path = archived_pdfs.get(key)
+            paper["pdf"] = "local" if path and os.path.isfile(path) else pdf_availability(paper.get("arxiv_id"), paper.get("oa_json"))
             paper["projects"] = owners.get(key, [])
             paper["understood_in"] = understood.get(key, [])
             paper["directions"] = data["memberships"].get(key, [])

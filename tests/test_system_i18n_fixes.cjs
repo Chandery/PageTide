@@ -156,8 +156,8 @@ function organization(b){
 test('actual library project tags and paper selectors retain user names in text and accessible labels',()=>{
   const b=browser('en-US'),ui=organization(b),p={key:'one',title:'收藏',projects:['p','other'],directions:[],understood_in:[]};
   ui.S.snapshot={projects:[{id:'p',name:'有用'},{id:'other',name:'收藏'}],directions:[],items:[p]};
-  ui.S.scope='p';ui.S.root=b.root;b.root.innerHTML='<div class="org-bulk"></div><div class="org-list"></div>';
-  ui.renderList();b.flush();
+  ui.S.scope='p';ui.S.root=b.root;b.root.innerHTML='<div class="org-bulk"></div><div class="org-list"></div><section id="tags"></section>';
+  ui.renderList();b.root.querySelector('#tags').innerHTML=ui.projectTags(p);b.flush();   // the project tags now sit in the right pane, not in the row
   const selected=b.root.querySelector('[data-select-key]');assert.equal(selected.getAttribute('aria-label'),'Select 收藏');
   const tag=b.root.querySelector('.is-current');assert.equal(tag.getAttribute('title'),null);assert.equal(tag.textContent,'有用');
   const also=b.root.querySelector('.is-also');assert.equal(also.getAttribute('title'),'收藏');assert.match(also.textContent,/Also in:收藏/);
@@ -200,7 +200,6 @@ test('actual library category names stay original in directory, breadcrumb and d
   assert.equal(b.root.querySelector('.org-directory-name').getAttribute('title'),'收藏');
   assert.equal(b.root.querySelector('.org-detail-badge').textContent,'收藏');
   assert.equal(b.root.querySelector('.org-detail-badge').getAttribute('data-id'),'d');assert.equal(b.root.querySelector('.org-detail-badge').getAttribute('title'),null);
-  assert.ok(b.root.querySelectorAll('.org-tags')[0].textContent.includes('收藏'));
 });
 
 test('actual persisted import rejection reports a file that failed to save, without claiming no transmission',()=>{

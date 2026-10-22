@@ -1,0 +1,54 @@
+Owner report 2026-10-22 (library): 1. saved papers do not show whether they have a PDF; 2. notes are important and must be visible
+without opening details (learn from Zotero's layout); 3. the graph on "全部论文" draws nothing.
+Self-review by the implementing agent, not independent. No browser check was done by the implementing agent.
+
+Failing tests first: tests/test_library_three_pane.cjs run against the unmodified app/static/organization.js: 22 tests, 0 pass, 22 fail.
+tests/test_organization_pdf.py against the unmodified app/organization.py: 4 errors (KeyError: 'pdf').
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit=0
+
+$ python3 scripts/harness.py check
+WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY
+PASS repository checks only; app gates/real billing are not implied
+exit=0
+
+$ python3 scripts/i18n_extract.py (last line)
+# 0 of 1132
+
+$ python3 -m unittest discover -s tests (summary lines only)
+Ran 2261 tests in 87.099s
+OK
+
+$ node --test tests/*.cjs (summary lines only)
+# tests 525
+# pass 525
+# fail 0
+
+Existing tests changed because they encoded the old behaviour the owner asked to change:
+  tests/test_organization_ui.cjs: folded categories hid papers in the graph; leaf categories had a chevron in graph mode;
+    the "详情" button and title-opens-reader row; the camera test relied on a folded category hiding a paper.
+  tests/test_system_i18n_fixes.cjs: project tags and category tags were asserted inside list rows (they now sit in the right pane).
+  tests/test_ui_layout.py: the abstract was open by default and the row used .org-paper-open (now folded, .org-paper-title).
+  tests/test_understood_ui.py: the row no longer has a "详情" button.
+
+Not run: any browser (Chromium or WebKit), a real library, a real paper, the real database, the desktop build.
+
+## Browser check by the coordinating agent (2026-10-22, Chromium preview, synthetic library)
+
+Synthetic data in a temporary folder (deleted afterwards): 70 saved papers in all four PDF states (3 local, the rest
+direct/page/none by turns), notes on 3, four categories (one nested), every category folded.
+- List: glyph per state; the read button is disabled only for 'none' (title "无 PDF 来源"); note mark on noted rows.
+- Single click selects and fills the right pane (title, year · source, category, note first, folded abstract, read
+  button); the reader stays closed. Double-click opens the reader. ArrowDown moves the selection.
+- Note: write → 完成 saves and survives a reload.
+- Graph, 全部论文, 70 papers with every category folded: drawn (before: blank canvas, and >60 papers asked to pick a
+  category first). Graph 560 px wide with the pane at 435 px on a 1360 px window.
+- Dark theme readable. At 820 px the pane stacks under the list (the note is below the list; edge case, left as is).
+Bugs found and fixed in this check (tests added, the first fails without its fix):
+1. A first note's ✎ mark appeared only after a reload → the list is redrawn on 完成.
+2. The selected row showed 编辑类别/已读懂 over its title → row actions show on hover or keyboard focus inside the row.
+3. "Cannot read properties of null (reading 'focus')" when 完成 closed a focused editor → guarded.
+After the fixes: node --test tests/*.cjs: pass 527, fail 0; python3 -m unittest discover -s tests: Ran 2261, OK;
+budget.py --check PASS; harness.py check PASS. Not checked: WebKit, a real library, large-library graph frame rate.

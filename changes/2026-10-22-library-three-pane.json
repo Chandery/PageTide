@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-library-three-pane",
+  "class": "standard",
+  "summary": "Library as three panes (categories | papers | selected paper) with the user's note first in the right pane, a PDF glyph and note mark per row, and a graph that always draws every paper (folding is sidebar-only, no 60-paper gate, no leaf chevrons, no empty hint pill). The organization snapshot gains a derived per-paper pdf state (local/direct/page/none).",
+  "tasks": [
+    "READ-01",
+    "GRAPH-01",
+    "PILOT-01"
+  ],
+  "requirements": [
+    "R-LOCAL"
+  ],
+  "files": [
+    "app/organization.py",
+    "app/static/i18n/en-US.json",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "changes/2026-10-22-library-three-pane.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-22-library-three-pane-checks.txt",
+    "tests/test_library_three_pane.cjs",
+    "tests/test_organization_pdf.py",
+    "tests/test_organization_ui.cjs",
+    "tests/test_system_i18n_fixes.cjs",
+    "tests/test_ui_layout.py",
+    "tests/test_understood_ui.py"
+  ],
+  "scope_note": "Worktree library-zotero from main ef6e8bd. Existing tests that encoded the old behaviour (folded categories hiding graph papers, leaf chevrons, row detail button, row tags, open abstract) were updated; each is listed in the evidence file.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Presentation and local reads only: the pdf state is derived from the pdfs table, an existing file check and stored open-access metadata. No model call, network request, prompt or stored-data change; AI 速览 is read from the already stored summary exactly as before.",
+    "before": "library rows had no PDF indicator; notes only in a drawer opened by a button; graph hid folded papers and drew nothing above 60 papers",
+    "after": "same data, shown differently; the snapshot carries one derived field per paper (a file-exists check per archived PDF)",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {"category": "budget", "command": "python3 scripts/budget.py --check", "exit_code": 0, "evidence": "docs/evidence/2026-10-22-library-three-pane-checks.txt"},
+    {"category": "repository", "command": "python3 scripts/harness.py check", "exit_code": 0, "evidence": "docs/evidence/2026-10-22-library-three-pane-checks.txt"},
+    {"category": "tests", "command": "python3 -m unittest discover -s tests -v", "exit_code": 0, "evidence": "docs/evidence/2026-10-22-library-three-pane-checks.txt"}
+  ],
+  "additional_checks": [
+    {"command": "node --test tests/*.cjs", "exit_code": 0, "scope": "525 Node tests including tests/test_library_three_pane.cjs (22 new)"},
+    {"command": "python3 scripts/i18n_extract.py", "exit_code": 0, "scope": "# 0 of 1132 (every interface string has an English entry)"}
+  ],
+  "reviews": [
+    {"kind": "self", "result": "passed", "reviewer": "Implementing agent; not independent", "evidence": "docs/evidence/2026-10-22-library-three-pane-checks.txt"}
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "No browser check was done: three-column widths, narrow-window stacking, dark/light PDF glyphs and the hover command overlay are untested visually.",
+    "Large-library graph performance is bounded by a category line cap (tested as an edge count) but no frame rate was measured.",
+    "The right pane no longer shows arXiv id, DOI or work type text (the open-paper link remains).",
+    "Four now-unused English entries were removed from en-US.json together with the 60-paper overview gate."
+  ]
+}
