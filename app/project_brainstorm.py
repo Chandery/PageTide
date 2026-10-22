@@ -51,18 +51,25 @@ _LOCAL = {
                 ['读懂代表论文', '比较两种方法', '完成一个小复现']),
                ('Choose a checkable outcome; a reproduction takes more time. Which fits?',
                 ['Understand representative papers', 'Compare two methods', 'Build a small reproduction'])),
-    'review': (('建议核对目标、关键词和学习图，再决定是否补充。接下来怎么做？',
+    'review': (('建议核对目标、关键词和检索式，再决定是否补充。接下来怎么做？',
                 ['核对当前草稿', '补充时间投入', '调整学习目标']),
-               ('Check the goal, keywords and map before continuing. What comes next?',
+               ('Check the goal, keywords and search queries before continuing. What comes next?',
                 ['Review the current draft', 'Add time available', 'Adjust the learning goal'])),
-    'confirm': (('当前草稿可以随时编辑。确认方向合适后，在下方检查学习图并创建。',
+    'confirm': (('当前草稿可以随时编辑。确认方向合适后，核对关键词和检索式并创建。',
                  ['查看当前草稿', '调整学习目标']),
-                ('Edit the draft as needed, then review the learning map before creating.',
+                ('Edit the draft as needed, then review the keywords and search queries before creating.',
                  ['Review the current draft', 'Adjust the learning goal'])),
+}
+# With the beta learning map on, the page also shows the map, so these two steps may name it.
+_LOCAL_WITH_MAP = {
+    'review': (('建议核对目标、关键词和学习图，再决定是否补充。接下来怎么做？', _LOCAL['review'][0][1]),
+               ('Check the goal, keywords and map before continuing. What comes next?', _LOCAL['review'][1][1])),
+    'confirm': (('当前草稿可以随时编辑。确认方向合适后，在下方检查学习图并创建。', _LOCAL['confirm'][0][1]),
+                ('Edit the draft as needed, then review the learning map before creating.', _LOCAL['confirm'][1][1])),
 }
 
 
-def local_followup(draft, message, english=False):
+def local_followup(draft, message, english=False, graph=False):
     """Local questions use only explicit choices; they never act as AI debate.
 
     A supplied goal is already known, so failure cannot restart at asking the
@@ -77,6 +84,6 @@ def local_followup(draft, message, english=False):
     choices = draft.get('choices') or []
     if message in choices and phase != 'confirm':
         phase = PHASES[PHASES.index(phase) + 1]
-    question, options = _LOCAL[phase][1 if english else 0]
+    question, options = (_LOCAL_WITH_MAP if graph and phase in _LOCAL_WITH_MAP else _LOCAL)[phase][1 if english else 0]
     return {'brainstorm_phase': phase, 'next_question': question, 'choices': options,
             'ready': phase == 'confirm'}

@@ -128,16 +128,11 @@ test('actual import row errors translate defaults and saved identity warnings wh
   b.root.innerHTML=b.context.renderRow({id:3,state:'failed',relative_path:'收藏.pdf',error:'条目 <img src=x onerror=1> 没有标题'});b.flush();
   assert.equal(b.root.querySelector('img'),null);assert.match(b.root.querySelector('.err').textContent,/Entry <img src=x onerror=1> has no title/);
 });
-test('actual intro-input excerpts translate their labels and stay exact; a partial-input receipt is one folded line',()=>{
+test('actual intro-input excerpts translate their labels and stay exact; a partial-input receipt is not drawn',()=>{
   const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.esc=b.context.PDHProfile.esc;
   b.root.innerHTML=b.context.PDHRoute.introInputHTML({scope_notice:'部分匹配论文因本次预算未发送；简介只依据下列节选起草。',context_excerpt:{concept:'收藏',terms:['有用'],goal:'种子',papers:[{title:'太难',abstract:'不相关'}]}});b.flush();
   assert.equal(b.root.querySelector('.map-note'),null);assert.doesNotMatch(b.text(),/部分匹配论文因本次预算未发送|Some matched papers/);
   assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());assert.match(b.text(),/收藏/);assert.match(b.text(),/不相关/);
-  const src=read('project-creation.js');vm.runInContext(src.slice(src.indexOf('function guidanceScopeHTML('),src.indexOf('function bubble(')),b.context);
-  b.root.innerHTML=b.context.guidanceScopeHTML({scope_notice:'AI 只看到了下列节选，完整目标和消息仍保存在本地。确认前请核对未发送的限制，或缩短输入后再引导。',context_excerpt:{goal:'收藏',message:'有用',keywords:['种子']}},null);b.flush();
-  assert.match(b.systems(),/AI saw only part of the input/);assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());   // one folded line, translated
-  assert.doesNotMatch(b.text(),/完整目标和消息仍保存在本地|still saved locally/);                                  // no standing notice
-  assert.match(b.text(),/收藏/);assert.match(b.text(),/有用/);assert.match(b.text(),/种子/);                          // the excerpts stay exact
 });
 test('actual learning-map undo describes the fixed system event in the current language',()=>{
   const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.R=b.context.PDHRoute;b.context.esc=b.context.PDHProfile.esc;

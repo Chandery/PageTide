@@ -800,7 +800,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if action == "turn":
                     self._json(app.guidance_turn(session_id, body.get("message"), bool(body.get("dry_run")),
-                                                 retry=bool(body.get("retry")), draft_edits=body.get("draft")))
+                                                 retry=bool(body.get("retry")), draft_edits=body.get("draft"),
+                                                 languages=body.get("languages"), base=body.get("base")))
                 elif action == "search":
                     self._json(app.guidance_search(session_id, body.get("query"), all_years=bool(body.get("all_years"))))
                 elif action == "preview":

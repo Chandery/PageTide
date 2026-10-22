@@ -30,6 +30,7 @@ function render() {
   part('name').value = project.name;
   part('nameEcho').textContent = project.name;
   const facts = [['关键词', (project.keywords || []).join('、') || '（还没有）', Boolean(project.keywords?.length)]];
+  if (project.goal_confirmation) facts.push(['创建时与 AI 确认的目标', project.goal_confirmation, true]);   // AI wording agreed in the creation conversation, read-only
   const list = part('facts');
   list.replaceChildren();
   facts.forEach(([key, value, userData]) => {
@@ -45,7 +46,7 @@ part('languageForm').onsubmit = async event => {
   event.preventDefault();
   if (state.busy) return;
   let value;
-  try {value=policyEditor.read();} catch(error) {notice(error.message); return;}
+  try {value=policyEditor.read();} catch(error) {policyEditor.error(error.message); return;}
   state.busy=true; policyEditor.disabled(true); part('languageSave').disabled=true;
   try {
     const out=await call(`/api/projects/${encodeURIComponent(projectId)}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'language',...value})});

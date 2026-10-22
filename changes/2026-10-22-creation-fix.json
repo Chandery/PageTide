@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-22-creation-fix",
+  "class": "critical",
+  "summary": "Project creation page: the project_guidance reply names its fields (reply/ask/queries/keywords/choices/summary) with their meaning so the assistant's question no longer lands in the search-phrase box; the parser and service keep questions and the person's own sentences out of keywords and queries; paper language becomes two check boxes (中文, 英文) instead of a discipline drop-down; plus duplicate goal bubble, saved goal confirmation, keyword hint, restored quick draft retry, beta-aware wording and removal of the dead partial-input receipt. Second round (independent review + coordinator real-model/browser run): the person's own keywords and queries are never replaced (the model only appends, new items, 5/2 per turn), the reply no longer repeats the question, goal/message prose cannot reach keywords or keyword-built queries, language rules apply to model-added phrases only, quick creation sends the person's edits, and smaller fixes listed in ADR 0038. Third round: who wrote each keyword/query is tracked (internal user_/removed_ sets in the draft) so the person's items stay, the model's current suggestions replace its earlier ones instead of piling up, deleted model items are not re-added, an empty or unusable model list keeps the page as it is, and the local fallback changes no list. Fourth round (second independent review): a deleted keyword-built query stays deleted, short goals/choices are not treated as prose, the reply-question splitter keeps abbreviations/quotes and strips repeated questions, the model is sent its own items apart from the person's (your_*/user_*), a deleted person item and case-only edits are tracked, a page that missed a turn (draft revision mismatch) cannot flip authorship, Chinese keywords need 中文, preview cleans legacy goal queries, removed items remembered up to 200.",
+  "tasks": [
+    "PILOT-01",
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-BUDGET",
+    "R-ROUTE-V2-01"
+  ],
+  "files": [
+    "app/eligibility.py",
+    "app/guidance_contract.py",
+    "app/paper_language.py",
+    "app/project.py",
+    "app/project_brainstorm.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/paper-policy.js",
+    "app/static/project-creation.css",
+    "app/static/project-creation.js",
+    "app/static/project-page.js",
+    "app/static/project_creation.html",
+    "changes/2026-10-22-creation-fix.json",
+    "docs/BUDGET.generated.md",
+    "docs/BUDGET.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0013-project-paper-language.md",
+    "docs/decisions/0038-creation-guidance-fields-and-language-checkboxes.md",
+    "docs/evidence/2026-10-22-creation-fix-checks.txt",
+    "docs/evidence/2026-10-22-creation-fix-self-review.md",
+    "harness/budget.json",
+    "harness/requirements.json",
+    "prompts/project-guidance.md",
+    "tests/test_ai_audit_fixes.py",
+    "tests/test_ai_scope_ui_fixes.cjs",
+    "tests/test_app_server.py",
+    "tests/test_creation_brainstorm.py",
+    "tests/test_creation_page_fixes.cjs",
+    "tests/test_creation_review_fixes.cjs",
+    "tests/test_gateway_http_diagnostics.py",
+    "tests/test_guidance_fields.py",
+    "tests/test_guidance_json_protocol.py",
+    "tests/test_guidance_truncation.py",
+    "tests/test_openalex_discovery.py",
+    "tests/test_paper_language_choice.py",
+    "tests/test_paper_policy.cjs",
+    "tests/test_project_chain.py",
+    "tests/test_system_i18n_fixes.cjs"
+  ],
+  "scope_note": "Worktree creation-fix from main ef6e8bd. The 2026-10-10 uncommitted fix in worktree creation-goal-simplify was read only and ported selectively (language checkboxes, goal confirmation saving, wording); its input loop, map removal and ADR number were not used.",
+  "budget_impact": {
+    "runtime": "changed",
+    "quantified": {
+      "period": "one project_guidance call, first turn of a guided conversation (18-character Chinese goal, no keywords); input is the Gateway input_bound UTF-8 byte upper bound, output the registered 300-token reference; peak cache-miss prices (input $0.30/M, output $1.20/M); arithmetic, not a measurement",
+      "before": {
+        "input_tokens": 961,
+        "output_tokens": 300,
+        "usd": "0.0006483"
+      },
+      "after": {
+        "input_tokens": 1757,
+        "output_tokens": 300,
+        "usd": "0.0008901"
+      }
+    },
+    "rationale": "The system prompt names and explains every reply field and the paper-language choice, so it grows from 328 to 1112 bytes and the request body gains the current queries and languages. A later turn (two keywords, last question, summary, current queries) goes from 1148 to 2019. No new call, no new trigger, no retry. After ADR 0037 the registered numbers are estimates: project_guidance reference input 800 -> 1600 and cap input 1200 -> 2400 were revised to match (harness/budget.json, regenerated BUDGET.generated.md). New outbound fields: the on-screen search phrases and the zh/en language choice, nothing else; no profile, seed id or library. Default path stays zero model tokens. The registered approval_note of project_guidance in harness/budget.json was rewritten to state the current scope factually and to record, for the owner's attention and without self-approval, that each turn now also sends the current search phrases and the zh/en choice; owner_approved is unchanged. Round four: the request splits the page's keywords/queries into the model's own and the person's (same page content, no new data category); the draft revision is an integer the page echoes back, not sent to the model.",
+    "before": "project_guidance first turn input bound 961, later turn 1148 (bytes upper bound); registered reference/cap input 800/1200",
+    "after": "first turn 1757, later turn 2019 (input_bound byte upper bound); registered reference/cap input 1600/2400 are estimates only after ADR 0037; output request unchanged (model maximum for a conversation operation)",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-22-creation-fix-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-22-creation-fix-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-22-creation-fix-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "514 Node tests (run from the worktree) including tests/test_creation_page_fixes.cjs and tests/test_paper_policy.cjs"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "0 of 1124 Chinese UI strings missing an English entry"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-22-creation-fix-self-review.md"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Second independent review (read-only) of the round 2-3 code: no blocking finding; the F1-F3, prompt-consistency and N1-N7 findings are fixed in round 4",
+      "evidence": "docs/evidence/2026-10-22-creation-fix-self-review.md"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Real-model run by the coordinator on the round-3 wording and code (90/90 AI turns, 0 replies with a question, 0 hand-written queries lost, 0 question/prose queries, Chinese queries only with 中文) and a Chromium browser walkthrough passed; the round-4 wording was re-run by the coordinator (99/99 AI turns, 0 hand-written queries lost, 0 of 33 deleted AI queries re-added, 0 replies with a question; evidence file). WebKit and billing parity are unmeasured.",
+    "Sentence detection (goal/message as prose, reply splitter, Chinese character range) is simple rules, not language understanding; a non-question statement placed in queries survives unless it equals ask, reply, or a sentence-like goal/message.",
+    "Origin tracking compares items by text: rewording a model item counts as deleting it and typing a new one; a stale page can still mark an item as the person's if it is in none of the stored draft, the removed items or the replaced items (replaced/removed are remembered up to 200).",
+    "The 5 keywords / 2 queries per-turn limits and the filler-word list are judgement calls.",
+    "project_guidance now sends the page's keywords/queries (split by author) and the zh/en choice, which the 2026-10-01 approval text did not name; recorded in harness/budget.json for the owner's attention, not approved by an agent."
+  ]
+}

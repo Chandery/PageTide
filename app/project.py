@@ -54,7 +54,7 @@ class ProjectManager:
         ]
         # Omit an unspecified discipline so historical NOT NULL defaults survive.
         # Revision 0 keeps that legacy default pending, never a chosen policy.
-        if language_policy:
+        if language_policy and language_policy.get('discipline'):
             fields.append('discipline')
             values.append(language_policy['discipline'])
         self.store.conn.execute(
@@ -81,7 +81,8 @@ class ProjectManager:
             "decay_window_days": row["decay_window_days"],
             "language_policy": policy_from_row(row),
             "guidance_transcript": json.loads(row["guidance_transcript"]) if row["guidance_transcript"] else None,
-            "recommended_learning_path": json.loads(row["recommended_learning_path"]) if row["recommended_learning_path"] else None
+            "recommended_learning_path": json.loads(row["recommended_learning_path"]) if row["recommended_learning_path"] else None,
+            "goal_confirmation": self.goal_confirmation(row["id"])
         }
 
     def list_projects(self):
@@ -98,10 +99,16 @@ class ProjectManager:
                 "creation_timestamp": row["creation_timestamp"],
                 "keywords": json.loads(row["keywords"]) if row["keywords"] else [],
                 "decay_window_days": row["decay_window_days"],
-                "language_policy": policy_from_row(row)
+                "language_policy": policy_from_row(row),
+                "goal_confirmation": self.goal_confirmation(row["id"])
             }
             for row in rows
         ]
+
+    def goal_confirmation(self, project_id):
+        """The goal agreed in the creation conversation ('' when there is none)."""
+        value = self.store.get_setting(f"project_goal_{project_id}", "")
+        return value if isinstance(value, str) else ""
 
     def update_project(self, project_id, name=None, keywords=None, decay_window_days=None):
         """Update project metadata."""
@@ -132,12 +139,18 @@ class ProjectManager:
         if not project:
             raise ValueError('项目不存在')
         old = project['language_policy']
-        if old['discipline'] == discipline and old['allowed_languages'] == allowed:
+        if (discipline is None or old['discipline'] == discipline) and set(old['allowed_languages']) == set(allowed) \
+                and old['status'] == 'ready':
             return project
         with self.store.conn:
-            self.store.conn.execute('''UPDATE projects SET discipline=?, allowed_languages=?,
-                language_policy_revision=language_policy_revision+1 WHERE id=?''',
-                (discipline, json.dumps(allowed), project_id))
+            if discipline is None:   # only languages were chosen: the legacy column keeps whatever it holds
+                self.store.conn.execute('''UPDATE projects SET allowed_languages=?,
+                    language_policy_revision=language_policy_revision+1 WHERE id=?''',
+                    (json.dumps(allowed), project_id))
+            else:
+                self.store.conn.execute('''UPDATE projects SET discipline=?, allowed_languages=?,
+                    language_policy_revision=language_policy_revision+1 WHERE id=?''',
+                    (discipline, json.dumps(allowed), project_id))
             self.store.conn.execute('DELETE FROM settings WHERE key=?', ('recommendation_eligibility_' + project_id,))
         return self.get_project(project_id)
 
@@ -180,7 +193,7 @@ class ProjectManager:
         for table in ("org_projects", "org_notes", "org_events", "org_drafts"):
             if table in existing:
                 self.store.conn.execute(f"DELETE FROM {table} WHERE project=?", (project_id,))
-        names = ("seed_keys", "profile_freeze", "project_default_terms", "last_refresh", "last_attempt", "last_error",
+        names = ("seed_keys", "profile_freeze", "project_default_terms", "project_goal", "last_refresh", "last_attempt", "last_error",
                  "route_plan_project", "recommendation_eligibility", "route_recall", "route_revision", "route_revision_attempt",
                  "import_seed_keys")
         self.store.conn.execute(

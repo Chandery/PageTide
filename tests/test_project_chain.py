@@ -66,7 +66,8 @@ class GuidedCreationTests(unittest.TestCase):
         self.app.guidance_turn(session["id"], "world models")
         system = json.loads(self.urlopen.call_args[0][0].data)["messages"][0]["content"]
         schema = json.loads(system[system.index("{"):system.rindex("}") + 1])
-        self.assertEqual(set(schema["d"]), {"k", "q", "a", "c", "s", "ready"})
+        self.assertEqual(set(schema), {"reply", "draft"})
+        self.assertEqual(set(schema["draft"]), {"keywords", "queries", "ask", "choices", "summary", "ready"})
 
     def test_draft_resumes_after_restart(self):
         session = self.app.create_guidance_session("可恢复", "world model planning")
