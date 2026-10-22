@@ -2463,6 +2463,12 @@
     "请至少选择一种论文语言": "Choose at least one paper language",
     "添加至少一个关键词后才能创建。": "Add at least one keyword to create the project.",
     "AI 还没有整理这个目标。": "The AI has not organised this goal yet.",
-    "创建时与 AI 确认的目标": "Goal agreed with the AI at creation"
+    "创建时与 AI 确认的目标": "Goal agreed with the AI at creation",
+    "最近收藏": "Recently saved",
+    "最早收藏": "First saved",
+    "最新发表": "Newest published",
+    "最早发表": "Oldest published",
+    "标题": "Title",
+    "排序": "Sort"
   }
 }

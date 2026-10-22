@@ -1,0 +1,34 @@
+Owner reports 2026-10-22/23: (1) the library's right pane should close like the graph's pane, the list taking the width
+back; (2) 在论文关系图中定位 did not centre the paper (screenshot: the paper at the graph's right edge, under the pane);
+(3) add list sorting by title, publication date, date saved. Self-review by the coordinating agent, not independent.
+
+Root cause of (2): when the graph is redrawn for a located paper, renderGraph kept the previous zoom/pan whenever every
+node had a saved position (prior && allPlaced), or fitted the visible papers; neither centred the located paper. A
+synthetic library without saved positions always took the fitting branch, which is why it first looked fine. Fix: a
+located paper (S.graphFocus) is centred first; the target is remembered so a later size change of the graph box (the
+pane opening, WebKit settling late) keeps it centred until the person drags, taps or wheel-zooms.
+
+Tests first: the two new centring tests fail on main's organization.js (checked by swapping the file) and pass after the
+fix. Note for future tests: objects made inside the page's vm sandbox are not plain objects to cytoscape (another realm),
+so headless graphs in tests must copy elements and viewport arguments (sizedGraph helper).
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+$ python3 -m unittest discover -s tests
+OK
+$ node --test tests/*.cjs
+# pass 543
+# fail 0
+$ python3 scripts/i18n_extract.py
+# 0 of 1131
+
+Browser (Chromium preview, synthetic 70-paper library, temporary data deleted afterwards):
+- List with nothing selected 1040 px wide; selecting a paper opens a 480 px pane (list 560 px); × closes it and the list
+  is 1040 px again.
+- With all 70 positions saved, the graph panned away, 在论文关系图中定位 from the list and from the graph pane: the paper at
+  (280, 281) in a 560 x 561 graph, i.e. centred. The same steps on main's code: (1216, 677), outside the graph.
+- Sorting: 最新发表 / 最早发表 order by year, 标题 orders numerically (study 1, 9, 17, 25), the choice survives a reload;
+  equal dates (one import) fall back to title order.
+Not checked: WebKit, the owner's real library.

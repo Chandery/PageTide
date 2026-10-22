@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-library-pane-sort",
+  "class": "standard",
+  "summary": "Library: the right pane opens with a selected paper and closes like the graph pane (the list takes the whole width while closed); 在论文关系图中定位 centres the paper even in a laid-out graph and keeps it centred when the graph box changes size; the list sorts by date saved, publication date or title, remembered on this computer.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "requirements": [
+    "R-LOCAL"
+  ],
+  "files": [
+    "app/static/i18n/en-US.json",
+    "app/static/organization.css",
+    "app/static/organization.js",
+    "changes/2026-10-23-library-pane-sort.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-23-library-pane-sort-checks.txt",
+    "tests/test_library_three_pane.cjs"
+  ],
+  "scope_note": "Worktree library-pane from main 899f310.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Presentation only: CSS, list ordering and graph camera in the browser. No model call, network or stored data change (the sort choice lives in localStorage).",
+    "before": "pane column always reserved in the list; a located paper could land outside the graph; list in stored order",
+    "after": "pane like the graph pane; located paper centred; five list orders",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {"category": "budget", "command": "python3 scripts/budget.py --check", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-library-pane-sort-checks.txt"},
+    {"category": "repository", "command": "python3 scripts/harness.py check", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-library-pane-sort-checks.txt"},
+    {"category": "tests", "command": "python3 -m unittest discover -s tests -v", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-library-pane-sort-checks.txt"}
+  ],
+  "additional_checks": [
+    {"command": "node --test tests/*.cjs", "exit_code": 0, "scope": "543 Node tests including the new pane, centring and sorting tests"}
+  ],
+  "reviews": [
+    {"kind": "self", "result": "passed", "reviewer": "Coordinating agent; not independent", "evidence": "docs/evidence/2026-10-23-library-pane-sort-checks.txt"}
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Checked in Chromium on a synthetic library, not in WebKit (the macOS app engine) or the owner's real library.",
+    "Title order puts Latin titles A–Z before Chinese titles by pinyin; a different mixed order would be a one-line change."
+  ]
+}

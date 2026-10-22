@@ -43,6 +43,8 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .pdh-organization .org-main { display:flex; flex-direction:column; width:auto; max-width:none; margin:0; padding:0; }
 .org-bulk { min-height:49px; display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding:8px 12px; border-bottom:1px solid var(--org-border); color:var(--org-muted); }
 .org-bulk label { display:flex; align-items:center; gap:7px; }
+.org-bulk select[data-sort] { margin-left:auto; width:auto; min-height:30px; padding:3px 26px 3px 10px; font-size:12.5px; color:var(--org-muted); background-color:transparent; border-color:transparent; cursor:pointer; }
+.org-bulk select[data-sort]:hover, .org-bulk select[data-sort]:focus-visible { color:var(--org-ink); border-color:var(--org-border); }
 .org-list { overflow:auto; flex:1; }
 .org-paper { display:flex; gap:10px; align-items:flex-start; padding:14px 12px; border-bottom:1px solid var(--org-border); }
 .org-paper > input { margin-top:5px !important; }
@@ -284,14 +286,9 @@ html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:
 .pdh-organization .seg button:disabled { opacity:.45; }
 .org-graph-wrap.has-view .org-focus { top:50px; }
 
-/* Library as three panes: categories | papers | the selected paper (Zotero's layout). The right pane keeps its column
-   while the list is shown, so selecting never moves the list; on a narrow window it stacks below, only when a paper is
-   selected. All colours are theme variables, so light and dark follow the page. */
-@media (min-width:901px) {
-  .pdh-organization .org-workspace:has(.org-list:not([hidden])) { grid-template-columns:var(--org-side) minmax(0,1.15fr) minmax(320px,1fr); }
-  .pdh-organization .org-workspace:has(.org-list:not([hidden])) .org-detail:not(.has-paper) { display:block; }
-  .pdh-organization .org-workspace:has(.org-list:not([hidden])) .org-detail.has-paper { animation:none; box-shadow:none; }
-}
+/* Library as three panes: categories | papers | the selected paper (Zotero's layout). The right pane opens when a paper
+   is selected and closes with ×, exactly as in the graph; while closed the list takes the whole width. On a narrow
+   window it stacks below. All colours are theme variables, so light and dark follow the page. */
 .pdh-organization .org-paper { display:flex; align-items:center; gap:9px; position:relative; padding:7px 12px; cursor:default; outline-offset:-2px; }
 .pdh-organization .org-paper > input { margin:0 !important; }
 .pdh-organization .org-paper:hover { background:var(--org-subtle); }

@@ -91,7 +91,8 @@ test('rows are a keyboard list: one tab stop on the selected row, the first row 
   const stops = html => html.split('<article').slice(1).map(r => /tabindex="0"/.test(r));
   assert.deepEqual(stops(part('.org-list').innerHTML), [true, false, false, false]);
   ui.S.key = 'page'; ui.renderList();
-  assert.deepEqual(stops(part('.org-list').innerHTML), [false, false, true, false]);
+  const rows = part('.org-list').innerHTML.split('<article').slice(1);
+  assert.deepEqual(rows.map(r => /tabindex="0"/.test(r)), rows.map(r => r.includes('data-key="page"')));   // the selected row, wherever the order puts it
   assert.match(part('.org-list').innerHTML, /role="listbox"|role="option"/);
 });
 
@@ -370,12 +371,108 @@ test('the graph hint pill is hidden while it has no text, and the overview style
 });
 
 // ---- layout and theme
-test('the library is three columns with the pane always reserved, stacks on a narrow window, and uses theme variables only', () => {
+// A headless graph of a fixed size that accepts objects made inside the page's sandbox (cytoscape's plain-object check
+// does not recognise another realm's objects, so the page's {zoom, pan} would be ignored in the test only).
+function sizedGraph(options, size) {
+  const plain = v => JSON.parse(JSON.stringify(v));
+  const cy = cytoscape({ ...options, elements: plain(options.elements || []), style: [], container: undefined, headless: true });
+  cy.width = () => size.w; cy.height = () => size.h; cy.resize = () => cy;
+  const viewport = cy.viewport.bind(cy), animate = cy.animate.bind(cy);
+  cy.viewport = v => viewport(plain(v));
+  cy.animate = (v, o) => { viewport(plain(v)); return cy; };          // the end state of the camera move, at once
+  return cy;
+}
+
+test('locating a paper in a laid-out graph centres it, instead of keeping the old view or fitting its neighbours', () => {
+  const ui = fixture();
+  const positions = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`paper:k${i}`, { x: i * 300, y: (i % 2) * 400 }]));
+  ui.accept({ ...many(8, ['a', 'b']), positions });                      // every paper already has a saved place
+  graphPage(ui);
+  // A real 600x500 graph: the elements are copied out of the page's sandbox so cytoscape accepts them.
+  ui.setCytoscape(options => sizedGraph(options, { w: 600, h: 500 }));
+  ui.S.mode = 'graph'; ui.S.filter = '*'; ui.S.focus = 'all';
+  ui.setMode();
+  assert.equal(ui.S.cy.nodes().length, 8);
+  ui.S.cy.viewport({ zoom: 1, pan: { x: -1500, y: 0 } });               // the person had looked elsewhere
+  ui.S.key = 'k7'; ui.S.focus = 'paper1'; ui.S.graphFocus = 'paper:k7';    // what 在论文关系图中定位 sets
+  ui.setMode();
+  const p = ui.S.cy.getElementById('paper:k7').renderedPosition();
+  assert.deepEqual([Math.round(p.x), Math.round(p.y)], [300, 250]);
+  ui.S.cy.destroy();
+});
+
+test('a located paper stays in the middle when the graph box changes size, until the person moves the graph', () => {
+  const ui = fixture();
+  const size = { w: 1200, h: 800 };
+  const cy = sizedGraph({ elements: [{ data: { id: 'paper:a' }, position: { x: 900, y: 300 } }, { data: { id: 'paper:b' }, position: { x: 100, y: 100 } }] }, size);
+  ui.S.cy = cy;
+  ui.focusGraph('paper:a');
+  const centred = () => { const p = cy.getElementById('paper:a').renderedPosition(); return [Math.round(p.x), Math.round(p.y)]; };
+  assert.deepEqual(centred(), [600, 400]);
+  size.w = 560;                                                         // the pane appears or WebKit settles the size late
+  ui.keepFocusCentered();
+  assert.deepEqual(centred(), [280, 400]);
+  ui.graphMovedByPerson();                                              // a drag or a wheel zoom
+  size.w = 900;
+  ui.keepFocusCentered();
+  assert.deepEqual(centred(), [280, 400]);                              // no longer pulled back
+});
+
+test('the pane opens with a selected paper and closes like the graph pane: closed, the list takes the whole width', () => {
   const css = fs.readFileSync(path.join(STATIC, 'organization.css'), 'utf8');
   const block = css.slice(css.indexOf('/* Library as three panes'));
   assert.ok(block.length > 200, 'three-pane block exists');
-  assert.match(block, /\.org-workspace:has\(\.org-list:not\(\[hidden\]\)\)\s*\{[^}]*grid-template-columns:var\(--org-side\) minmax\(0,\d?\.?\d*fr\) minmax\(/);
+  // Owner 2026-10-22: the list mode no longer keeps an empty column for the pane.
+  assert.doesNotMatch(css, /\.org-list:not\(\[hidden\]\)\)[^{]*\.org-detail:not\(\.has-paper\)\s*\{[^}]*display:block/);
+  assert.doesNotMatch(css, /\.org-workspace:has\(\.org-list:not\(\[hidden\]\)\)\s*\{[^}]*grid-template-columns/);
+  assert.match(css, /\.org-workspace:not\(:has\(\.org-detail\.has-paper\)\)\s*\{\s*grid-template-columns:var\(--org-side\) minmax\(0,1fr\);/);
+  assert.match(css, /\.org-workspace:has\(\.org-detail\.has-paper\)\s*\{\s*grid-template-columns:var\(--org-side\) minmax\(0,1fr\) minmax\(/);
   assert.match(block, /\.org-pdf\.is-local/); assert.match(block, /\.org-pdf\.is-direct/); assert.match(block, /\.org-pdf\.is-page/);
   assert.match(block, /@media \(max-width:900px\)/);
   assert.doesNotMatch(block, /#[0-9a-fA-F]{3,8}\b|rgba?\(/);          // light and dark both come from the theme variables
+});
+
+// ---- sorting the library list (owner 2026-10-23: by title, by publication date, by the date saved)
+const sortable = () => base({ items: [
+  { key: 'b', title: 'beta world models', published: '2021-05-01', saved_at: '2026-10-03T10:00:00+00:00', directions: [], pdf: 'none', note: '', note_version: 0 },
+  { key: 'a', title: 'Alpha planning', published: '2024-01-01', saved_at: '2026-10-01T10:00:00+00:00', directions: [], pdf: 'none', note: '', note_version: 0 },
+  { key: 'c', title: '中文标题', published: '', saved_at: null, directions: [], pdf: 'none', note: '', note_version: 0 },
+  { key: 'd', title: 'Diffusion policy 10', published: '2023-07-01', saved_at: '2026-10-02T10:00:00+00:00', directions: [], pdf: 'none', note: '', note_version: 0 }] });
+const listOrder = part => [...part('.org-list').innerHTML.matchAll(/data-action="select" data-key="([^"]+)"/g)].map(m => m[1]);
+
+test('the list sorts by date saved (newest first by default), publication date, or title; papers missing the date go last', () => {
+  const ui = fixture(); ui.accept(sortable()); const part = page(ui);
+  ui.renderList();
+  assert.deepEqual(listOrder(part), ['b', 'd', 'a', 'c']);                                   // 最近收藏
+  for (const [mode, order] of [['saved-asc', ['a', 'd', 'b', 'c']], ['published-desc', ['a', 'd', 'b', 'c']],
+                               ['published-asc', ['b', 'd', 'a', 'c']], ['title', ['a', 'b', 'd', 'c']]]) {
+    ui.S.sort = mode; ui.renderList();
+    assert.deepEqual(listOrder(part), order, mode);
+  }
+});
+
+test('papers saved together (one import) keep a stable title order inside the same date', () => {
+  const ui = fixture();
+  const same = '2026-10-05T08:00:00+00:00';
+  ui.accept(base({ items: ['Zeta', 'alpha', 'Beta'].map((t, i) => ({ key: `s${i}`, title: t, published: '2024', saved_at: same, directions: [], pdf: 'none', note: '', note_version: 0 })) }));
+  const part = page(ui);
+  for (const mode of ['saved-desc', 'saved-asc', 'published-desc']) {
+    ui.S.sort = mode; ui.renderList();
+    assert.deepEqual(listOrder(part), ['s1', 's2', 's0'], mode);
+  }
+});
+
+test('the list header offers the five orders as one quiet menu, and the choice is remembered', () => {
+  const ui = fixture(); ui.accept(sortable()); const part = page(ui);
+  ui.renderList();
+  const bulk = part('.org-bulk').innerHTML;
+  const options = [...bulk.matchAll(/<option value="([^"]+)"[^>]*>([^<]+)<\/option>/g)].map(m => [m[1], m[2]]);
+  assert.deepEqual(options, [['saved-desc', '最近收藏'], ['saved-asc', '最早收藏'], ['published-desc', '最新发表'], ['published-asc', '最早发表'], ['title', '标题']]);
+  assert.match(bulk, /<select data-sort aria-label="排序"/);
+  ui.setSort('title');
+  assert.equal(ui.S.sort, 'title');
+  assert.equal(ui.storedSort(), 'title');
+  assert.deepEqual(listOrder(part), ['a', 'b', 'd', 'c']);
+  ui.setSort('nonsense');
+  assert.equal(ui.S.sort, 'title');                                                          // unknown values are ignored
 });

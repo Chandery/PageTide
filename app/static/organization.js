@@ -150,6 +150,31 @@
     return base;
   }
   const visible = () => { const ids = categoryIds(S.filter); return scoped().filter(p => matches(p) && (S.filter === '*' || (S.filter === '' ? !memberships(p).length : memberships(p).some(id => ids.has(id))))); };
+  // The list's order (owner 2026-10-23): by the date saved, the publication date or the title; remembered on this computer.
+  const SORTS = [['saved-desc', '最近收藏'], ['saved-asc', '最早收藏'], ['published-desc', '最新发表'], ['published-asc', '最早发表'], ['title', '标题']];
+  const SORT_KEY = 'pdh.library.sort';
+  function storedSort() { try { return localStorage.getItem(SORT_KEY); } catch (_) { return null; } }
+  const sortMode = () => SORTS.some(([v]) => v === S.sort) ? S.sort : (S.sort = SORTS.some(([v]) => v === storedSort()) ? storedSort() : 'saved-desc');
+  function ordered(list) {
+    const mode = sortMode();
+    // A–Z first, then Chinese titles by pinyin (the Chinese collation alone would put every Chinese title first).
+    const collator = new Intl.Collator(['zh-CN', 'en'], { numeric: true, sensitivity: 'base' });
+    const title = p => String(p.title || p.key).trim(), han = p => /^[㐀-鿿]/.test(title(p));
+    const byTitle = (a, b) => (han(a) - han(b)) || collator.compare(title(a), title(b));
+    if (mode === 'title') return [...list].sort(byTitle);
+    const field = mode.startsWith('saved') ? 'saved_at' : 'published', newest = mode.endsWith('desc');
+    return [...list].sort((a, b) => {   // a paper without the date goes last either way; equal dates (one import) by title
+      const x = String(a[field] || ''), y = String(b[field] || '');
+      if (!x || !y) return ((!x) - (!y)) || byTitle(a, b);
+      return (newest ? y.localeCompare(x) : x.localeCompare(y)) || byTitle(a, b);
+    });
+  }
+  function setSort(mode) {
+    if (!SORTS.some(([v]) => v === mode)) return;
+    S.sort = mode;
+    try { localStorage.setItem(SORT_KEY, mode); } catch (_) { /* the order still applies for this session */ }
+    renderList();
+  }
   function report(error) { S.error = error.message || String(error); status(); window.PDH.toast(S.error, 'error'); }
   function status() {
     const node = $('[data-status]');
@@ -321,6 +346,7 @@
       const el = event.target;
       if (el.matches('[data-select-key]')) { el.checked ? S.selected.add(el.dataset.selectKey) : S.selected.delete(el.dataset.selectKey); renderBulk(); }
       if (el.matches('[data-select-all]')) { visible().forEach(p => el.checked ? S.selected.add(p.key) : S.selected.delete(p.key)); renderList(); }
+      if (el.matches('[data-sort]')) setSort(el.value);
     };
     renderData();
   }
@@ -354,7 +380,7 @@
   function renderSidebar() { $('.org-sidebar').innerHTML = sidebarHTML(); }
   function renderBulk() {
     const list = visible();
-    $('.org-bulk').innerHTML = `<strong class="org-breadcrumb" ${S.filter === '*' || S.filter === '' ? '' : 'data-no-i18n'} title="${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}">${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}</strong><label><input type="checkbox" data-select-all ${list.length && list.every(p => S.selected.has(p.key)) ? 'checked' : ''} aria-label="选择当前列表全部论文"> ${list.length} 篇</label><span>已选 ${S.selected.size}</span><button data-action="membership" ${S.selected.size ? '' : 'disabled'}>编辑类别</button>${S.selected.size ? '<button data-action="clear-selection">清除选择</button>' : ''}`;
+    $('.org-bulk').innerHTML = `<strong class="org-breadcrumb" ${S.filter === '*' || S.filter === '' ? '' : 'data-no-i18n'} title="${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}">${h(S.filter === '*' ? '全部论文' : S.filter === '' ? '未分类' : categoryPath(S.filter))}</strong><label><input type="checkbox" data-select-all ${list.length && list.every(p => S.selected.has(p.key)) ? 'checked' : ''} aria-label="选择当前列表全部论文"> ${list.length} 篇</label><span>已选 ${S.selected.size}</span><button data-action="membership" ${S.selected.size ? '' : 'disabled'}>编辑类别</button>${S.selected.size ? '<button data-action="clear-selection">清除选择</button>' : ''}<select data-sort aria-label="排序">${SORTS.map(([v, label]) => `<option value="${v}"${v === sortMode() ? ' selected' : ''}>${label}</option>`).join('')}</select>`;
     const cb = $('[data-select-all]'); cb.indeterminate = list.some(p => S.selected.has(p.key)) && !list.every(p => S.selected.has(p.key));
   }
   /* One PDF glyph per row: filled = archived on this computer, outline = can be downloaded, faint = only a web page,
@@ -367,7 +393,7 @@
   };
   function renderList() {
     renderBulk();
-    const list = visible(), stop = list.some(p => p.key === S.key) ? S.key : list[0]?.key;
+    const list = ordered(visible()), stop = list.some(p => p.key === S.key) ? S.key : list[0]?.key;
     $('.org-list').innerHTML = list.map(p => `<article class="org-paper ${S.key === p.key ? 'is-active' : ''}" role="option" aria-selected="${S.key === p.key}" tabindex="${p.key === stop ? 0 : -1}" data-action="select" data-key="${h(p.key)}"><input type="checkbox" data-select-key="${h(p.key)}" ${S.selected.has(p.key) ? 'checked' : ''} data-no-i18n aria-label="${h(systemLabel('选择 {paper}', {paper:p.title}))}">${pdfGlyph(p)}<span class="org-paper-title" title="${h(p.title || p.key)}">${h(p.title || p.key)}</span>${p.note ? '<span class="org-note-mark" role="img" aria-label="有笔记">✎</span>' : ''}<span class="org-year">${h(String(p.published || '').slice(0, 4))}</span><div class="org-paper-actions"><button type="button" data-action="paper-membership" data-key="${h(p.key)}">编辑类别</button>${understoodButton(p)}</div></article>`).join('') || '<p class="org-empty">没有符合条件的论文</p>';
   }
   // Which categories the open paper belongs to; each chip locates that category, and an
@@ -735,7 +761,9 @@
     S.motion = window.PDHGraphMotion?.create(S.cy, {reduced:()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches});
     if (originId) S.cy.getElementById(originId).addClass('org-origin');
     if (forceRadial) S.graphRadialPending = false;
-    if (prior && allPlaced) { S.cy.zoom(prior.zoom); S.cy.pan(prior.pan); }
+    S.viewTarget = null;
+    if (S.graphFocus && S.cy.getElementById(S.graphFocus).length) S.cy.viewport(focusViewport(S.graphFocus));   // a located paper is the middle
+    else if (prior && allPlaced) { S.cy.zoom(prior.zoom); S.cy.pan(prior.pan); }
     else if (forceRadial && originId) {
       const origin = S.cy.getElementById(originId), p = origin.length ? origin.position() : { x: 0, y: 0 }, zoom = Math.min(0.84, S.cy.maxZoom());
       S.cy.viewport({ zoom, pan: { x: S.cy.width()/2 - p.x*zoom, y: S.cy.height()/2 - p.y*zoom } });
@@ -796,7 +824,9 @@
     renderGraphLegend();
     S.motion?.enter(previousElements);
     S.graphSeen = new Set(S.cy.elements().map(e=>e.id()));
-    S.resizeObserver?.disconnect(); S.resizeObserver = new ResizeObserver(() => S.cy?.resize()); S.resizeObserver.observe(container);
+    S.cy.on('tapstart', graphMovedByPerson);   // a drag or a tap: the person takes the view over (a tap on a paper re-centres it)
+    if (!container.dataset?.moveWatch) { container.addEventListener?.('wheel', graphMovedByPerson, { passive: true }); if (container.dataset) container.dataset.moveWatch = '1'; }
+    S.resizeObserver?.disconnect(); S.resizeObserver = new ResizeObserver(keepFocusCentered); S.resizeObserver.observe(container);
   }
   /* ---- the second view: learning units + this project's papers. Its own cytoscape instance (S.rcy), its own node
      ids (ru:/rp:), laid out in memory by route-detail.js: it never touches S.cy, S.positions or a saved layout. */
@@ -965,7 +995,7 @@
   }
   function focusCategory() {
     const cy = S.cy; if (!cy) return;
-    S.graphFocus = null; highlightGraph(); cy.resize();
+    S.graphFocus = null; S.viewTarget = null; highlightGraph(); cy.resize();
     const keys = new Set(visible().map(p => p.key));
     const nodes = cy.nodes().filter(n => keys.has(n.data('key')));
     const target = graphViewport(nodes);
@@ -973,16 +1003,30 @@
     status();
     if (target) animateViewport(target);
   }
+  /* The view with paper node `id` in the middle. It is remembered, so a later change of the graph's size (the pane
+     opening, WebKit settling the layout late) keeps the paper in the middle until the person moves the graph. */
+  function focusViewport(id, zoom) {
+    const cy = S.cy, p = cy.getElementById(id).position();
+    zoom = zoom ?? Math.min(cy.maxZoom(), Math.max(1.15, Math.min(1.5, cy.zoom())));
+    S.viewTarget = { id, zoom };
+    return { zoom, pan: { x: cy.width()/2-p.x*zoom, y: cy.height()/2-p.y*zoom } };
+  }
+  function keepFocusCentered() {
+    const cy = S.cy; if (!cy) return;
+    cy.resize();
+    const t = S.viewTarget;
+    if (!t || !cy.getElementById(t.id).length) return;
+    cy.stop(true, false);
+    cy.viewport(focusViewport(t.id, t.zoom));
+  }
+  function graphMovedByPerson() { S.viewTarget = null; }
   function focusGraph(id) {
     const cy = S.cy; if (!cy) return;
     S.graphFocus = id; highlightGraph(); cy.resize();
     const node = id ? cy.getElementById(id) : null;
     S.motion?.pulse(node);
-    let target;
-    if (node?.length) {
-      const p = node.position(), zoom = Math.min(cy.maxZoom(), Math.max(1.15, Math.min(1.5, cy.zoom())));
-      target = { zoom, pan: { x: cy.width()/2-p.x*zoom, y: cy.height()/2-p.y*zoom } };
-    } else target = graphViewport(cy.nodes(), true);
+    S.viewTarget = null;
+    const target = node?.length ? focusViewport(id) : graphViewport(cy.nodes(), true);
     if (target) animateViewport(target);
   }
   function animateViewport(target) {
@@ -1549,5 +1593,5 @@
     const epoch = S.epoch;
     try { return await refresh(); } catch (error) { if (epoch === S.epoch) report(error); return false; }
   } };
-  if (typeof module !== 'undefined' && module.exports) module.exports = { onRootClick, onListKey, onListDblClick, selectPaper, markSelection, detailHTML, contextFor, navigatePaper, renderUnmatched, refresh, loadRelations, renderDetail, aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggest, suggestionsHTML, aiReviewHTML, planSelection, wireAIPlan, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, storeDraft, flushDrafts, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { onRootClick, onListKey, onListDblClick, selectPaper, markSelection, detailHTML, contextFor, navigatePaper, renderUnmatched, refresh, loadRelations, renderDetail, aiSummaryHTML, setMode, capturePositions, projectTabs, scopeItems, categoryStats, otherProjectCategories, projectTags, graphItems, reset, renderList, suggest, suggestionsHTML, aiReviewHTML, planSelection, wireAIPlan, undoHTML, renderUndo, sidebarHTML, treeRows, categoryIds, visible, editMembership, editDirection, deleteDirection, S, accept, draftFor, saveNote, persistDraft, storeDraft, flushDrafts, syncGraphSelection, closeDialog, cardId, safePaperURL, paperURL, confirmDraftVersion, mutate, changedPositions, graphSignature, cacheDraft, chooseDraftVariant, handle, networkElements, graphOrigin, detailCategoriesHTML, categoryColor, graphViewport, focusCategory, focusGraph, keepFocusCentered, graphMovedByPerson, ordered, setSort, storedSort, zoomGraph, routeAvailable, renderViewSeg, renderRouteGraph, routeStyle, focusRoute, focusRouteCategory, positionWriter, bindGraphDrag, radialPositions };
 })();
