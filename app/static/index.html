@@ -717,6 +717,7 @@
 <script src="/theme.js"></script>
 <script src="/reader-identity.js"></script>
 <script src="/reader-selection.js"></script>
+<script src="/reader-textfit.js"></script>
 <script src="/save-file.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -1912,8 +1913,10 @@ function renderPage(n, root = document, jobs = R.jobs) {
     textDiv.innerHTML = '';
     textDiv.style.setProperty('--scale-factor', String(vp.scale));
     textDiv.style.setProperty('--total-scale-factor', String(vp.scale));
-    const textLayer = new L.TextLayer({ textContentSource: await page.streamTextContent(), container: textDiv, viewport: vp });
+    const textContent = await page.getTextContent();
+    const textLayer = new L.TextLayer({ textContentSource: textContent, container: textDiv, viewport: vp });
     await textLayer.render();
+    window.PDHReaderTextFit?.apply(textLayer.textDivs, textContent.items, textContent.styles);   // text over the printed letters
     window.PDHReaderSelection?.current?.repaint();   // a page rebuilt at a new zoom keeps the selection drawn where the text now is
     return true;
   })().catch((e) => { toast(`第 ${n} 页渲染失败：${e.message}`, 'err'); return false; });

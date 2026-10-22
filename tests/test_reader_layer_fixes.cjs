@@ -27,7 +27,7 @@ test('actual paint wait completes if native animation frames stop and cancels sc
 test('actual renderPage success waits for canvas and text, failures cannot claim ready',async()=>{
  const fn=source.slice(source.indexOf('function renderPage('),source.indexOf('function markCurrent('));
  let finish,fail=false;const notes=[],canvas={style:{},getContext:()=>({})},text={innerHTML:'',style:{setProperty(){}}};
- const page={getViewport:()=>({width:80,height:100,scale:1}),render:()=>({promise:fail?Promise.reject(new Error('bad canvas')):new Promise(resolve=>finish=resolve)}),streamTextContent:async()=>({})};
+ const page={getViewport:()=>({width:80,height:100,scale:1}),render:()=>({promise:fail?Promise.reject(new Error('bad canvas')):new Promise(resolve=>finish=resolve)}),getTextContent:async()=>({items:[],styles:{}})};
  const root={querySelector:()=>({querySelector:()=>({querySelector:q=>q==='canvas'?canvas:text})})};
  const context={R:{pages:[page],renderedScale:1,jobs:new Map()},document:root,window:{devicePixelRatio:1},lib:async()=>({TextLayer:class{async render(){}}}),toast:msg=>notes.push(msg)};
  vm.createContext(context);vm.runInContext(fn,context);const pending=context.renderPage(1,root);let ready=false;pending.then(()=>ready=true);

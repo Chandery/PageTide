@@ -1,4 +1,12 @@
-# 当前工作单元：界面留白优先 + 推荐池规则（2026-10-22）
+# 当前工作单元：阅读器文字层对齐（2026-10-22）
+
+worktree `reader-text-align`，基线 main `7b07f22`。owner 报：划 learning 引用出来是 "t learning"，双击单词选不中。原因：pdf.js 给文字层用了猜出来的通用字体（这篇论文是 Nimbus Roman，被猜成 sans-serif），再把整行平均拉伸到印刷宽度；两端对齐的行多出来的宽度本该只在空格里，于是行中间错开最多一个词。修法：`reader-textfit.js` 在 pdf.js 建好文字层后，每行改用 PDF 自带的嵌入字体，多出的宽度放进空格（word-spacing），并修正换字体后的基线；拿不准的行保留 pdf.js 原样。[变更记录](../changes/2026-10-22-reader-text-align.json)，[检查证据](evidence/2026-10-22-reader-text-align-checks.txt)，[自审](evidence/2026-10-22-reader-text-align-self-review.md)（非独立审查）。
+
+只在 Chromium 预览里量过一篇真论文（空格落在字上的比例 28% → ≤2.2%）；WebKit 和真实双击没测，需要 owner 在 app 里确认。
+
+---
+
+# 上一工作单元：界面留白优先 + 推荐池规则（2026-10-22）
 
 在 worktree `preview-both` 上完成，基线 `a6f45b7`（换肤 + 学习图 beta 开关的预览合并），owner 于 2026-10-22 要求合并到 main 并构建 app。[变更记录](../changes/2026-10-22-minimal-ui-pool.json)，[ADR 0036](decisions/0036-minimal-surface-and-recommendation-pool.md)，[检查证据](evidence/2026-10-22-minimal-ui-pool-checks.txt)，[自审](evidence/2026-10-22-minimal-ui-pool-self-review.md)（非独立审查；类别 critical，发布前需要独立审查）。
 
