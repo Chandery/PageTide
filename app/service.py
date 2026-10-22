@@ -3348,6 +3348,41 @@ class App:
         self.store.remove_from_library(paper_key, project_id=project_id)
         return {"saved": False}
 
+    def retract_feedback(self, paper_key, action, project_id=None):
+        """Take back a familiarity mark ("已读懂", "太难") pressed by mistake: every record of it that is still in effect
+        for this paper in this project is undone, so the mark is gone even if it was recorded more than once. An
+        interest label (有用/不相关) is not touched."""
+        if action not in FAMILIARITY_ACTIONS:
+            raise ValueError("只能取消已读懂或太难")
+        if not project_id:   # the same project record_feedback would have used
+            project_id = (self.store.paper(paper_key) or {}).get('project_id') or self.get_default_project_id()
+        if not isinstance(project_id, str):
+            raise ValueError('论文不属于当前项目')
+        retracted = []
+        with self.store._lock:
+            if self.store.conn.in_transaction:
+                raise RuntimeError("Feedback undo requires an idle connection")
+            if not self.store.conn.execute('SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?', (project_id, paper_key)).fetchone():
+                raise ValueError('论文不属于当前项目')
+            current = (self.latest_feedback(project_id).get(paper_key) or {}).get('familiar')
+            if current and current['action'] == action and self._route_reconfirmation_needed(project_id, paper_key, current['id']):
+                # A learning-map revision stopped counting this mark: pressing it again confirms it anew, as one press
+                # always did (ROUTE_MODE_REWORK), rather than taking it away.
+                return {**self.record_feedback(paper_key, action, project_id=project_id), "retracted": [], "reconfirmed": True}
+            self.store.conn.execute('BEGIN IMMEDIATE')   # all or nothing
+            try:
+                for _ in range(50):   # bounded: each pass undoes the mark now in effect; an older 太难 then shows again
+                    current = (self.latest_feedback(project_id).get(paper_key) or {}).get('familiar')
+                    if not current or current['action'] != action or current['id'] in retracted:
+                        break
+                    self.store.conn.execute("UPDATE feedback SET undone=1, undone_at=? WHERE id=?", (now(), current['id']))
+                    retracted.append(current['id'])
+                self.store.conn.commit()
+            except BaseException:
+                self.store.conn.rollback()
+                raise
+        return {"retracted": retracted}
+
     def undo_feedback(self, feedback_id, project_id=None):
         with self.store._lock:
             if self.store.conn.in_transaction:

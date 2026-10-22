@@ -26,6 +26,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }) 
   ui.setReader = reader => { context.window.PDH.openReader = reader; };
   ui.setSummaries = summaries => { context.window.PDH.state.summaries = summaries; };
   ui.setCytoscape = factory => { context.window.cytoscape = factory; };
+  ui.setBeta = on => { context.window.PDH_ROUTE_BETA = on; };   // the learning-map setting (window.PDH_ROUTE_BETA)
   return ui;
 }
 
@@ -475,4 +476,62 @@ test('the list header offers the five orders as one quiet menu, and the choice i
   assert.deepEqual(listOrder(part), ['a', 'b', 'd', 'c']);
   ui.setSort('nonsense');
   assert.equal(ui.S.sort, 'title');                                                          // unknown values are ignored
+});
+
+// ---- "已读懂" (owner 2026-10-23): it belongs to the learning map, and a mistaken press can be taken back
+const understoodLib = (on) => base({ items: [{ key: 'u', title: 'Understood paper', published: '2024', projects: ['p1'],
+  understood_in: on ? ['p1'] : [], directions: [], pdf: 'none', note: '', note_version: 0 }] });
+
+test('with the learning map switched off there is no "已读懂" anywhere in the library', () => {
+  const ui = fixture(); ui.setBeta(false); ui.accept(understoodLib(false)); const part = page(ui);
+  ui.S.scope = 'p1'; ui.renderList();
+  assert.doesNotMatch(part('.org-list').innerHTML, /data-action="understood"|已读懂/);
+  ui.setBeta(true); ui.renderList();
+  assert.match(part('.org-list').innerHTML, /data-action="understood"/);
+});
+
+test('pressing "已读懂" again takes it back: the mark is retracted, not recorded a second time', async () => {
+  const calls = [];
+  const ui = fixture(async (url, body) => { calls.push(JSON.parse(JSON.stringify([url, body]))); return body.retract ? { retracted: [7] } : { feedback_id: 7 }; });
+  ui.setBeta(true); ui.accept(understoodLib(true)); const part = page(ui);
+  ui.S.scope = 'p1'; ui.renderList();
+  assert.match(part('.org-list').innerHTML, /aria-pressed="true"/);
+  await ui.handle('understood', { dataset: { key: 'u', project: 'p1' } });
+  assert.deepEqual(calls, [['/api/feedback', { key: 'u', action: 'understood', project_id: 'p1', retract: true }]]);
+  assert.deepEqual([...ui.S.snapshot.items[0].understood_in], []);
+  assert.match(part('.org-list').innerHTML, /aria-pressed="false"/);
+  await ui.handle('understood', { dataset: { key: 'u', project: 'p1' } });               // and pressing it once more marks it again
+  assert.deepEqual(calls[1], ['/api/feedback', { key: 'u', action: 'understood', project_id: 'p1' }]);
+  assert.deepEqual([...ui.S.snapshot.items[0].understood_in], ['p1']);
+});
+
+test('after a learning-map revision one press confirms the mark anew; a failed request changes nothing', async () => {
+  let reply = { retracted: [], reconfirmed: true, feedback_id: 9 };
+  const ui = fixture(async () => { if (reply instanceof Error) throw reply; return reply; });
+  ui.setBeta(true); ui.accept(understoodLib(true)); const part = page(ui);
+  ui.S.scope = 'p1'; ui.renderList();
+  await ui.handle('understood', { dataset: { key: 'u', project: 'p1' } });
+  assert.deepEqual([...ui.S.snapshot.items[0].understood_in], ['p1']);
+  assert.match(part('.org-list').innerHTML, /aria-pressed="true"/);
+  reply = new Error('网络错误');
+  await ui.handle('understood', { dataset: { key: 'u', project: 'p1' } });
+  assert.deepEqual([...ui.S.snapshot.items[0].understood_in], ['p1']);
+});
+
+test('with the learning map off the weekly report and the profile evidence say nothing about "已读懂"', () => {
+  const vm2 = require('node:vm');
+  const load = (file, beta) => {
+    const ctx = vm2.createContext({ window: { PDH_ROUTE_BETA: beta }, module: { exports: {} }, document: {} });
+    vm2.runInContext(fs.readFileSync(path.join(STATIC, file), 'utf8'), ctx);
+    return ctx;
+  };
+  const report = { stats: { saved: 2, understood: 1 }, previous_stats: {}, daily: [{ date: '2026-10-20', weekday: 1, saved: 1, understood: 1 }],
+    directions: [{ name: 'A', status: 'other', current: { saved: 0, understood: 0, papers: 1 }, previous: {} }],
+    units: { done: 1, total: 3, items: [{ name: 'U', status: 'satisfied', current: { understood: 1 } }] } };
+  for (const beta of [false, true]) {
+    const ctx = load('weekly-ui.js', beta);
+    const weekly = ctx.module.exports.weeklyHTML ? ctx.module.exports : ctx.window.PDHWeekly || ctx.PDHWeekly;
+    const html = weekly.weeklyHTML(report);
+    if (beta) assert.match(html, /已读懂/); else assert.doesNotMatch(html, /已读懂|学习图进度/);
+  }
 });

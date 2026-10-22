@@ -416,6 +416,7 @@
     return owners(p).includes(want) ? want : (S.scope === 'all' || !S.scope ? owners(p)[0] || null : null);
   };
   function understoodButton(p) {
+    if (window.PDH_ROUTE_BETA === false) return '';   // it moves the learning map on; with the map switched off it is not offered
     const project = understoodProject(p);
     if (!project) return `<button type="button" disabled title="先收藏到项目">已读懂</button>`;
     const on = (p.understood_in || []).includes(project);
@@ -1473,10 +1474,13 @@
       case 'clear-selection': S.selected.clear(); S.cy?.elements().unselect(); renderList(); break;
       case 'understood': {
         const key = b.dataset.key, project = b.dataset.project, p = item(key);
+        const on = (p?.understood_in || []).includes(project);   // pressed again: take the mark back
         try {
-          await window.PDH.api('/api/feedback', { key, action: 'understood', project_id: project });
-          if (p && !(p.understood_in || []).includes(project)) p.understood_in = [...(p.understood_in || []), project];
-          window.PDH.toast('已记录', 'ok');
+          const r = await window.PDH.api('/api/feedback', on ? { key, action: 'understood', project_id: project, retract: true }
+                                                             : { key, action: 'understood', project_id: project });
+          const marked = !on || !!r?.reconfirmed;   // after a learning-map revision one press confirms the mark anew
+          if (p) p.understood_in = marked ? [...new Set([...(p.understood_in || []), project])] : (p.understood_in || []).filter(id => id !== project);
+          window.PDH.toast(marked ? '已记录' : '已取消已读懂', 'ok');
         } catch (e) { window.PDH.toast(e.message, 'err'); }
         renderList(); break;
       }

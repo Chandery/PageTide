@@ -1,6 +1,7 @@
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -159,6 +160,52 @@ class ServiceTests(unittest.TestCase):
         profile = self.app.profile()
         self.assertNotIn("p1", profile["positive_feedback"] + profile["explicit_negatives"] + profile["too_hard_feedback"])
         self.assertEqual(self.app.stats()["understood"], 1)
+
+    def test_a_mistaken_understood_can_be_taken_back_even_when_recorded_twice(self):
+        pid = self.app.get_default_project_id()
+        self.app.store.save_to_library("p1", project_id=pid)
+        self.app.record_feedback("p1", "useful")
+        first = self.app.record_feedback("p1", "understood")["feedback_id"]
+        self.app.store.conn.execute('INSERT INTO feedback(paper_key,action,reason,created_at,project_id) VALUES (?,?,?,?,?)',
+                                    ("p1", "understood", None, "2099-01-01T00:00:00+00:00", pid))   # a second record (map reconfirmation)
+        self.app.store.conn.commit()
+        out = self.app.retract_feedback("p1", "understood", pid)
+        self.assertIn(first, out["retracted"]); self.assertEqual(len(out["retracted"]), 2)
+        entry = self.app.latest_feedback(pid)["p1"]
+        self.assertIsNone(entry.get("familiar"))
+        self.assertEqual(entry["action"], "useful")                  # the interest label stays
+        self.assertEqual(self.app.stats()["understood"], 0)
+        self.assertEqual(self.app.retract_feedback("p1", "understood", pid)["retracted"], [])   # nothing left: no error
+        with self.assertRaisesRegex(ValueError, "只能取消"):
+            self.app.retract_feedback("p1", "useful", pid)
+
+    def test_taking_back_understood_restores_the_state_before_it_and_touches_nothing_else(self):
+        pid = self.app.get_default_project_id()
+        other = self.app.create_project("Other")["project_id"]
+        for project in (pid, other):
+            self.app.store.save_to_library("p1", project_id=project)
+            self.app.store.conn.execute("INSERT OR IGNORE INTO project_papers(project_id,paper_key) VALUES (?,?)", (project, "p1"))
+        self.app.store.conn.commit()
+        self.app.record_feedback("p1", "too_hard", project_id=pid)
+        self.app.record_feedback("p1", "understood", project_id=pid)
+        self.app.record_feedback("p1", "understood", project_id=other)
+        self.app.retract_feedback("p1", "understood", pid)
+        self.assertEqual(self.app.latest_feedback(pid)["p1"]["familiar"]["action"], "too_hard")   # the press before comes back
+        self.assertEqual(self.app.latest_feedback(other)["p1"]["familiar"]["action"], "understood")   # other project untouched
+        with self.assertRaisesRegex(ValueError, "不属于当前项目"):
+            self.app.retract_feedback("no-such-paper", "understood", pid)
+        with self.assertRaisesRegex(ValueError, "不属于当前项目"):
+            self.app.retract_feedback("p1", "understood", "missing-project")
+
+    def test_after_a_learning_map_revision_one_press_confirms_the_mark_anew(self):
+        pid = self.app.get_default_project_id()
+        self.app.store.save_to_library("p1", project_id=pid)
+        first = self.app.record_feedback("p1", "understood", project_id=pid)["feedback_id"]
+        with mock.patch.object(self.app, "_route_reconfirmation_needed", return_value=True):
+            out = self.app.retract_feedback("p1", "understood", pid)
+        self.assertTrue(out["reconfirmed"]); self.assertEqual(out["retracted"], [])
+        self.assertNotEqual(out["feedback_id"], first)                    # a fresh record the map counts again
+        self.assertEqual(self.app.latest_feedback(pid)["p1"]["familiar"]["action"], "understood")
 
     def test_a_familiarity_label_does_not_replace_an_interest_label(self):
         self.app.record_feedback("p1", "useful")

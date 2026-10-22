@@ -392,6 +392,14 @@ class ServerSmokeTests(unittest.TestCase):
         with urllib.request.urlopen(request, timeout=5) as response:
             payload = json.loads(response.read())
         self.assertEqual((payload["action"], payload["interest_changed"], payload["saved"]), ("understood", False, False))
+        status, undone = self._post("/api/feedback", {"key": "p9", "action": "understood", "retract": True})
+        self.assertEqual((status, undone["retracted"]), (200, [payload["feedback_id"]]))
+        self.assertIsNone((app.latest_feedback(app.get_default_project_id()).get("p9") or {}).get("familiar"))
+        status, refused = self._post("/api/feedback", {"key": "p9", "action": "useful", "retract": True})
+        self.assertEqual(status, 400)                                  # only a familiarity mark can be taken back
+        status, refused = self._post("/api/feedback", {"key": "p9", "action": "understood", "retract": "true"})
+        self.assertEqual(status, 400)                                  # not a boolean: refused, never recorded instead
+        self.assertIsNone((app.latest_feedback(app.get_default_project_id()).get("p9") or {}).get("familiar"))
 
 
 if __name__ == "__main__":

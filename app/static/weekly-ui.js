@@ -10,6 +10,9 @@
   'use strict';
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const n = (value) => Number(value) || 0;
+  // "已读懂" moves the learning map on; with the map switched off in Settings it is not shown here either.
+  const mapOn = () => typeof window === 'undefined' || window.PDH_ROUTE_BETA !== false;
+  const shown = (list) => mapOn() ? list : list.filter((k) => k !== 'understood');
   const KINDS = ['saved', 'positive', 'understood', 'negative', 'too_hard'];
   const LABEL = { saved: '收藏', positive: '有用', understood: '已读懂', negative: '不相关', too_hard: '太难' };
   const STATUS = { new: '新出现', more: '比上周多', same: '与上周持平', fewer: '比上周少', quiet: '本周没有记录', other: '本周没有收藏或已读懂' };
@@ -40,7 +43,7 @@
 
   function kpis(r) {
     const now = r.stats || {}, before = r.previous_stats || {};
-    return `<section class="wk-kpis" aria-label="本周数字">${KINDS.map((k) => {
+    return `<section class="wk-kpis" aria-label="本周数字">${shown(KINDS).map((k) => {
       const diff = n(now[k]) - n(before[k]);
       return `<button type="button" class="wk-kpi k-${k}" ${evidence(k, r)}><span class="wk-kpi-label"><i></i>${LABEL[k]}</span><b>${n(now[k])}</b>`
         + `<span class="wk-kpi-delta">${diff ? `较上周 ${signed(diff)}` : '与上周持平'}</span></button>`;
@@ -49,7 +52,7 @@
 
   function days(r) {
     const list = r.daily || [];
-    const order = ['understood', 'positive', 'saved', 'negative', 'too_hard'];
+    const order = shown(['understood', 'positive', 'saved', 'negative', 'too_hard']);
     const totals = list.map((d) => order.reduce((sum, k) => sum + n(d[k]), 0));
     const peak = Math.max(1, ...totals);
     const cols = list.map((d, i) => {
@@ -66,7 +69,7 @@
   function segments(tally, papers) {
     // a "useful" is also a save, so only the saves that came without a rating of their own get their own colour
     const own = { ...tally, saved: Math.max(0, n(tally.saved) - n(tally.positive)) };
-    const parts = ['understood', 'positive', 'saved', 'negative', 'too_hard'].filter((k) => n(own[k]));
+    const parts = shown(['understood', 'positive', 'saved', 'negative', 'too_hard']).filter((k) => n(own[k]));
     const total = parts.reduce((sum, k) => sum + n(own[k]), 0);
     if (!total) return n(papers) ? '<i class="k-saved" style="width:100%"></i>' : '';
     return parts.map((k) => `<i class="k-${k}" style="width:${(n(own[k]) / total * 100).toFixed(1)}%"></i>`).join('');
@@ -78,9 +81,9 @@
     if (!list.length) return `<section class="wk-card">${head}${empty('本周没有记录')}</section>`;
     const widest = Math.max(1, ...list.flatMap((d) => [n(d.current.papers), n(d.previous.papers)]));
     const cards = list.map((d) => {
-      const counts = KINDS.filter((k) => n(d.current[k])).map((k) => `<span class="k-${k}"><i></i>${LABEL[k]} ${n(d.current[k])}</span>`).join('');
+      const counts = shown(KINDS).filter((k) => n(d.current[k])).map((k) => `<span class="k-${k}"><i></i>${LABEL[k]} ${n(d.current[k])}</span>`).join('');
       const papers = (d.papers || []).map((p) => `<li><span class="wk-paper-title" data-no-i18n>${esc(p.title)}</span>${(p.kinds || []).filter((k) => LABEL[k]).map((k) => `<em class="k-${k}">${LABEL[k]}</em>`).join('')}</li>`).join('');
-      return `<article class="wk-dir s-${esc(d.status)}"><header>${named('h4', d.name)}<span class="wk-pill s-${esc(d.status)}">${esc(STATUS[d.status] || '')}</span></header>`
+      return `<article class="wk-dir s-${esc(d.status)}"><header>${named('h4', d.name)}<span class="wk-pill s-${esc(d.status)}">${esc((d.status === 'other' && !mapOn() ? '本周没有收藏' : STATUS[d.status]) || '')}</span></header>`
         + `<div class="wk-bars"><div class="wk-track is-prev"><div class="wk-bar" style="width:${(n(d.previous.papers) / widest * 100).toFixed(1)}%">${segments(d.previous, d.previous.papers)}</div></div><span>上周论文 ${n(d.previous.papers)}</span>`
         + `<div class="wk-track"><div class="wk-bar" style="width:${(n(d.current.papers) / widest * 100).toFixed(1)}%">${segments(d.current, d.current.papers)}</div></div><span>本周论文 ${n(d.current.papers)}</span></div>`
         + (counts ? `<div class="wk-counts">${counts}</div>` : '')
@@ -91,6 +94,7 @@
   }
 
   function units(r) {
+    if (!mapOn()) return '';
     const u = r.units;
     if (!u) return '';
     const share = u.total ? Math.round(n(u.done) / n(u.total) * 100) : 0;

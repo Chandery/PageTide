@@ -67,6 +67,7 @@ function create(root, options) {
   let data, profile, project, pins=[], allTerms=false, history=false, generation=0, request=0, evidenceQuery=null, items=[], dialog=null;
   const api = options.api;
   function row(e, undo=false) {
+    if (window.PDH_ROUTE_BETA === false && (e.kind === 'understood' || e.action === 'understood')) return '';   // belongs to the learning map
     const tag = labels[e.kind] || labels[{useful:'positive',irrelevant:'negative'}[e.action]] || '论文证据';
     return `<div class="profile-feedback-row"><div>${button(`<span data-no-i18n>${esc(e.title)}</span>`,`class="paper-link" data-paper="${esc(e.key)}"`)}<div class="profile-note"><span>${esc(tag)}</span> · <span>${date(e.time)}</span></div>${e.reason ? `<div class="profile-note" data-no-i18n>${esc(e.reason)}</div>`:''}</div>${undo && e.feedback_id ? button('撤销',`data-undo="${e.feedback_id}"`):''}</div>`;
   }

@@ -927,8 +927,13 @@ class Handler(BaseHTTPRequestHandler):
             if not key or not action:
                 return self._json({"error": "key and action required"}, 400)
             project_id = body.get("project_id")
+            if "retract" in body and not isinstance(body["retract"], bool):
+                return self._json({"error": "retract must be true or false"}, 400)
             try:
-                self._json(app.record_feedback(key, action, body.get("reason"), project_id))
+                if body.get("retract") is True:   # take back a familiarity mark pressed by mistake
+                    self._json(app.retract_feedback(key, action, project_id))
+                else:
+                    self._json(app.record_feedback(key, action, body.get("reason"), project_id))
             except (ValueError, TypeError) as exc:
                 return self._json({"error": str(exc)}, 400)
         elif route == "/api/undo":

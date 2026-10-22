@@ -2469,6 +2469,9 @@
     "最新发表": "Newest published",
     "最早发表": "Oldest published",
     "标题": "Title",
-    "排序": "Sort"
+    "排序": "Sort",
+    "已取消已读懂": "Understood mark removed",
+    "本周没有收藏": "Nothing saved this week",
+    "只能取消已读懂或太难": "Only an Understood or Too hard mark can be taken back"
   }
 }
