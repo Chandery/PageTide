@@ -21,3 +21,9 @@ After: pages 1-18 between 0/562 and 14/693; worst 13/604 (2.2 %, page 11, tables
 Programmatic selection from the first letter of "learning" to the end of a later "learning": the copied text starts
 "learning framework" and ends "learning"; painted 3 boxes over the 3 lines.
 Not run: WebKit (the macOS app engine), a real (trusted) double-click, other papers.
+
+## 构建记录（2026-10-22 15:56 CST，main 752f5a3）
+
+$ PYINSTALLER_CONFIG_DIR=$TMPDIR/pyinstaller-cache .local/desktop-build-env/bin/python scripts/build_desktop.py  (exit 0)
+$ cargo tauri build --bundles app  (finished; bundle at src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+Bundle check: app/static/reader-textfit.js present (15:55); bundled index.html calls PDHReaderTextFit. Not done: launching the native window.
