@@ -202,7 +202,9 @@
   /* Paper details use the same calm right-hand reading rail as Connected Papers.
      The graph/list stays visible behind it, and the rail owns its own scroll. */
   #detail.detail-page { padding:0; overflow:hidden; background:transparent; animation:none; display:flex; justify-content:flex-end; }
-  #detail.detail-page .detail-scrim { position:absolute; inset:0; background:rgba(16,24,40,.16); opacity:0; transition:opacity .22s ease; }
+  /* The backdrop is a <button> (click to close), so it must shed every button look: no pill, border, padding or press. */
+  #detail.detail-page .detail-scrim { position:absolute; inset:0; background:rgba(16,24,40,.16); opacity:0; transition:opacity .22s ease;
+    border:0; border-radius:0; padding:0; margin:0; box-shadow:none; transform:none !important; cursor:default; }
   #detail.detail-page:not(.hidden) .detail-scrim { opacity:1; }
   #detail.detail-page .detail-panel { position:relative; z-index:1; width:min(calc(520px * var(--s)), 100vw); height:100%; margin:0; overflow:auto;
     padding:calc(28px * var(--s)) calc(34px * var(--s)) calc(44px * var(--s)); background:var(--surface-1); border-left:0;
@@ -272,7 +274,9 @@
   .reader .textLayer { position:absolute; text-align:initial; inset:0; overflow:clip; opacity:1; line-height:1;
                        text-size-adjust:none; forced-color-adjust:none; transform-origin:0 0; caret-color:CanvasText; z-index:0; }
   .reader .textLayer :is(span, br) { color:transparent; position:absolute; white-space:pre; cursor:text; transform-origin:0% 0%; }
-  .reader .textLayer ::selection { background:color-mix(in srgb, var(--accent) 45%, transparent); }
+  .reader .textLayer ::selection { background:transparent; }   /* painted per line by reader-selection.js instead */
+  .reader .selLayer { position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; }
+  .reader .selLayer i { position:absolute; display:block; background:#c3dafe; border-radius:2px; }
   .reader .textLayer br::selection { background:transparent; }
   .reader .textLayer .endOfContent { display:block; position:absolute; inset:100% 0 0; z-index:0; cursor:default; user-select:none; }
   .reader .rload { margin:auto; color:var(--muted); font-size:13px; display:flex; gap:10px; align-items:center; }
@@ -712,6 +716,7 @@
 <script src="/route-editor.js"></script>
 <script src="/theme.js"></script>
 <script src="/reader-identity.js"></script>
+<script src="/reader-selection.js"></script>
 <script src="/save-file.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
@@ -1909,6 +1914,7 @@ function renderPage(n, root = document, jobs = R.jobs) {
     textDiv.style.setProperty('--total-scale-factor', String(vp.scale));
     const textLayer = new L.TextLayer({ textContentSource: await page.streamTextContent(), container: textDiv, viewport: vp });
     await textLayer.render();
+    window.PDHReaderSelection?.current?.repaint();   // a page rebuilt at a new zoom keeps the selection drawn where the text now is
     return true;
   })().catch((e) => { toast(`第 ${n} 页渲染失败：${e.message}`, 'err'); return false; });
   jobs.set(n, job);
@@ -2038,6 +2044,7 @@ window.PDH.openReader = openReader;
 /* --------------------------------------------------------- selection bar */
 let selText = '', selRect = null, selPage = null;
 function hideSel() { $('#selbar').classList.remove('show'); }
+window.PDHReaderSelection?.install($('#reader'));   // draw the PDF selection one box per line
 function showSel(rect, text) {
   selText = text;
   selRect = rect;
