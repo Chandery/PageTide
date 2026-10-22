@@ -28,3 +28,9 @@ $ python3 scripts/i18n_extract.py
 Browser (Chromium preview, synthetic library, temporary data deleted afterwards): map off -> no 已读懂 button or text in
 the library; map on -> pressed states false -> true -> false and the understood count back to 0.
 Not checked: WebKit.
+
+## 构建记录（2026-10-23 00:36 CST，main 8dc2eea）
+
+$ PYINSTALLER_CONFIG_DIR=$TMPDIR/pyinstaller-cache .local/desktop-build-env/bin/python scripts/build_desktop.py  (exit 0)
+$ cargo tauri build --bundles app  (finished; src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+Bundle check: static/organization.js hides 已读懂 while the learning map is off. Not done: launching the native window.
