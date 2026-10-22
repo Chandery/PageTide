@@ -126,3 +126,12 @@ one AI query; base revision sent like the page:
   max tokens per call 784; max latency 2.4 s
   Ledger: 56,701 tokens, $0.025696 (developer ledger, reconciled; 0 pending)
 All three real runs together: 288 calls, 152,155 tokens, $0.071462 (developer ledgers).
+
+## 构建记录（2026-10-22 23:46 CST，main fb90bcd，合并论文库三栏与本单元）
+
+$ python3 -m unittest discover -s tests  (main checkout: Ran 2363 tests in 545.238s, OK)
+$ node --test tests/*.cjs  (pass 538, fail 0)
+$ python3 scripts/i18n_extract.py  (# 0 of 1125)
+$ PYINSTALLER_CONFIG_DIR=$TMPDIR/pyinstaller-cache .local/desktop-build-env/bin/python scripts/build_desktop.py  (exit 0)
+$ cargo tauri build --bundles app  (finished; src-tauri/target/release/bundle/macos/PaperDigHelper.app, 23:46)
+Bundle check: static/organization.js has the PDF glyph code, static/paper-policy.js has the language-checkbox error text; backend rebuilt after the merge commit. Not done: launching the native window, WebKit checks.
