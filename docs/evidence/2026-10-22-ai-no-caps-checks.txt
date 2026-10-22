@@ -18,3 +18,11 @@ $ python3 scripts/i18n_extract.py
 # 0 of 1131   (every Chinese UI string has an English entry)
 
 All provider traffic in tests is synthetic (mocked urlopen); isolated temporary ledgers. No real model call, no billing.
+
+## 构建记录（2026-10-22 20:27 CST，main 323e3fd，合并本单元与阅读器当前页修复）
+
+$ python3 -m unittest discover -s tests -v  (main checkout: Ran 2257 tests in 521.451s, OK; slow because test_harness walks build output and worktrees)
+$ node --test tests/*.cjs  (pass 503, fail 0)
+$ PYINSTALLER_CONFIG_DIR=$TMPDIR/pyinstaller-cache .local/desktop-build-env/bin/python scripts/build_desktop.py  (exit 0)
+$ cargo tauri build --bundles app  (finished; src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+Bundle check: static/reader-page.js present; bundled harness/budget.json has per_call_caps and max_output_tokens. Not done: launching the native window, any real model call.
