@@ -112,7 +112,7 @@ class GatewayHTTPDiagnosticsTests(unittest.TestCase):
         out, stream = self.request_error(error_payload(), status=503)
         self.assertFalse(out['ok']); self.assertEqual(out['http_status'], 503)
         self.assertTrue(out['usage_unknown']); self.assertTrue(out['usage_reserved'])
-        self.assertEqual(out['reservation']['input'], 1200)
+        self.assertEqual(out['reservation']['input'], self.gateway.config['operations']['project_guidance']['cap']['input'])   # the registered estimate
         self.assertNotIn('provider_error', out)
         self.assertEqual(stream.read_sizes, []); self.assertTrue(stream.closed)
         self.assertEqual(self.gateway.usage_today()['pending_reservations'], 1)

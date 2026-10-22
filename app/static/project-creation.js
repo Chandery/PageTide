@@ -73,15 +73,14 @@ function creationFieldError(field, message, focus = true) {
   } else { field.removeAttribute('aria-invalid'); field.removeAttribute('aria-describedby'); }
 }
 
+// The paper languages are two check boxes (中文, 英文): at least one must be ticked, and the error appears at the boxes.
 function readCreationPolicy() {
-  const container = $('#creationPaperPolicy'), select = container.querySelector('select');
-  const firstLanguage = container.querySelector('input[type=checkbox]');
   try {
     const value = policyEditor.read();
-    creationFieldError(select, '', false); creationFieldError(firstLanguage, '', false);
+    policyEditor.error('');
     return value;
   } catch (error) {
-    creationFieldError(select.value === 'humanities' ? firstLanguage : select, error.message);
+    policyEditor.error(error.message);
     return null;
   }
 }
@@ -248,7 +247,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     const count = keywords.get().length;
     part('summary').textContent = `已选 ${selected.size} 篇`;
     part('create').disabled = busy || !count;
-    part('create').title = count ? '' : '至少需要 1 个关键词';
+    part('keywordHint').hidden = busy || !!count;   // one quiet line at the field when nothing yet allows creating
     part('search').disabled = searching || busy;
     const locked = busy || map.generating || map.checking;
     $$('input, textarea, button', part('path')).forEach(el => { el.disabled = locked; });
@@ -694,10 +693,17 @@ function renderQuickNote(entry, live) {
   const note = $('#quickNote');
   note.hidden = false;
   note.innerHTML = `<div><span class="who">助手：</span><span data-no-i18n>${esc(entry.content || '')}</span></div>
-    ${guidanceScopeHTML(entry, live)}
     <div class="meta">${turnMeta(entry, live)} ${retryable(entry) ? '<button type="button" id="quickRetry">重试 AI</button>' : ''} ${settingsLink(entry)}</div>`;
   const retry = $('#quickRetry');
   if (retry) retry.onclick = async () => { if (await quickTurn({retry: true})) review.search(); };
+}
+
+// A restored quick draft the AI never answered: say so quietly and offer the one call again.
+function renderQuickIdle() {
+  const note = $('#quickNote');
+  note.hidden = false;
+  note.innerHTML = '<div class="meta"><span>AI 还没有整理这个目标。</span> <button type="button" id="quickRetry">整理方向并查找论文</button></div>';
+  $('#quickRetry').onclick = async () => { if (await quickTurn({retry: false})) review.search(); };
 }
 
 async function quickTurn({retry = false} = {}) {
@@ -706,7 +712,7 @@ async function quickTurn({retry = false} = {}) {
   if (review) review.setBusy(true);
   let result;
   try {
-    result = await post(`/api/project-guidance/sessions/${session.id}/turn`, {message: session.draft.goal, retry});
+    result = await post(`/api/project-guidance/sessions/${session.id}/turn`, {message: session.draft.goal, retry, draft: review ? review.draft() : undefined, base: session.draft.revision, languages: policyEditor.selected()});
   } catch (error) {
     quickAct.fail(`没能完成这一步：${error.message}`);
     const note = $('#quickNote');
@@ -739,6 +745,7 @@ $('#quickGo').onclick = async () => {
   } catch (error) {
     quickAct.stop(); stopQuick(); window.PDHDialogs.notice(error.message,{kind:'error'}); return;
   }
+  review.setDraft(session.draft);   // the review shows what the session holds before the call, so the call sends no stale lists
   if (await quickTurn()) await review.search();
 };
 
@@ -762,18 +769,6 @@ function setComposer(enabled) {
   if (review) review.setBusy(!enabled);
 }
 
-/* Only when the AI received part of the input: one quiet folded line, the excerpts it actually saw inside. */
-function guidanceScopeHTML(entry, live) {
-  const scope = entry.scope_notice ? entry : (live && live.scope_notice ? live : null);
-  if (!scope) return '';
-  const excerpt = scope.context_excerpt || {};
-  const lines = [['目标', excerpt.goal], ['消息', excerpt.message],
-    ['关键词', Array.isArray(excerpt.keywords) ? excerpt.keywords.join(' · ') : excerpt.keywords]]
-    .filter(([, value]) => typeof value === 'string')
-    .map(([label, value]) => `<p><b>${label}</b><span data-no-i18n>：${esc(value)}</span></p>`).join('');
-  return `<details><summary>AI 只看到部分内容</summary>${lines}</details>`;
-}
-
 function bubble(entry, live) {
   const el = document.createElement('div');
   const user = entry.role === 'user';
@@ -781,7 +776,6 @@ function bubble(entry, live) {
   const speaker = user ? '你：' : (entry.mode === 'local' ? '本地整理：' : '助手：');
   el.innerHTML = `<span class="who">${speaker}</span><span data-no-i18n>${esc(entry.content || '')}</span>`;
   if (!user) {
-    el.insertAdjacentHTML('beforeend', guidanceScopeHTML(entry, live));
     el.insertAdjacentHTML('beforeend', `<div class="meta">${turnMeta(entry, live)} ${retryable(entry) ? '<button type="button" data-retry>重试 AI</button>' : ''} ${settingsLink(entry)}</div>`);
     const retry = $('[data-retry]', el);
     if (retry) retry.onclick = () => guidedTurn({retry: true});
@@ -822,8 +816,10 @@ async function guidedTurn({message = '', retry = false} = {}) {
   if (guidedBusy) return false;
   setComposer(false);
   const chat = $('#guideChat');
+  const shown = session.transcript[session.transcript.length - 1];
   if (!retry && message) {
-    chat.appendChild(bubble({role: 'user', content: message}));
+    // The opening goal is already on screen as the first bubble; only a new message gets one.
+    if (!(shown && shown.role === 'user' && shown.content === message)) chat.appendChild(bubble({role: 'user', content: message}));
     $('#guideMessage').value = '';
   } else if (retry) {
     $$('.msg.assistant', chat).at(-1)?.remove();
@@ -833,7 +829,7 @@ async function guidedTurn({message = '', retry = false} = {}) {
   let result;
   try {
     result = await post(`/api/project-guidance/sessions/${session.id}/turn`, {
-      message: retry ? undefined : message, retry, draft: review.draft()});
+      message: retry ? undefined : message, retry, draft: review.draft(), base: session.draft.revision, languages: policyEditor.selected()});
   } catch (error) {
     guidedAct.fail(`这一轮没有发出去：${error.message}`);
     if (!retry && message) $('#guideMessage').value = message;   // nothing was recorded; keep what was typed
@@ -1207,7 +1203,7 @@ async function resume() {
     review = makeReview($('#quickReview'), {sessionId: () => session && session.id, onCreate: finalize});
     review.setDraft(saved.draft);
     const last = saved.transcript[saved.transcript.length - 1];
-    if (last && last.role === 'assistant') renderQuickNote(last, null);
+    if (last && last.role === 'assistant') renderQuickNote(last, null); else renderQuickIdle();
   } else {
     setMode('ai_guided');
     openGuidedWorkspace();

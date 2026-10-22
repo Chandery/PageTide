@@ -30,27 +30,26 @@ test('the confirmed brainstorm graph replaces only the automatic map and stage r
  assert.equal(context.map.graph,ai);assert.equal(context.map.graph.prereqs.length,1);assert.equal(rows[0].title,'概率基础');assert.equal(rows.some(row=>row.title==='Old stage'),false);assert.equal(JSON.stringify(bound),'["a","b"]');assert.equal(notice,'');
  context.map.userEdited=true;context.map.graph.concepts[0].name='我的基础';context.set({route_draft:{graph:graph(),source:'ai_guidance'}});assert.equal(context.map.graph.concepts[0].name,'我的基础');
 });
-test('missing discipline and language errors appear at their input and focus/scroll there',()=>{
- const events=[],nodes=new Map();const doc={createElement(){return {setAttribute(){},classList:{toggle(){}},textContent:''};}};
- const field=id=>{if(!nodes.has(id))nodes.set(id,{id,ownerDocument:doc,attrs:{},value:'',checked:false,parentElement:{appendChild(el){this.error=el;}},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];},addEventListener(){},scrollIntoView(){events.push(['scroll',id]);},focus(){events.push(['focus',id]);}});return nodes.get(id);};
- const choices=field('choices'),select=field('select'),check=field('checkbox'),container={querySelector(s){return s==='select'?select:s==='input[type=checkbox]'?check:choices;}};
- let reason='请选择理工科或文科';const context={document:doc,$:()=>container,policyEditor:{read(){throw new Error(reason);}}};vm.createContext(context);vm.runInContext(functionSource('creationFieldError','\n// Where to go once a project exists:')+';globalThis.read=readCreationPolicy;',context);
- assert.equal(context.read(),null);assert.equal(select.attrs['aria-invalid'],'true');assert.equal(select.parentElement.error.textContent,reason);assert.deepEqual(events.at(-1),['focus','select']);
- reason='请至少选择一种允许的论文语言';select.value='humanities';assert.equal(context.read(),null);assert.deepEqual(events.at(-1),['focus','checkbox']);
+test('a missing language choice is reported by the editor at its boxes, and a valid choice clears it; no drop-down is read',()=>{
+ const shown=[];let value=null;const container={querySelector(){throw new Error('the page must not look for a drop-down or a box itself');}};
+ const context={$:()=>container,policyEditor:{read(){if(!value)throw new Error('请至少选择一种论文语言');return value;},error(message){shown.push(message);}}};
+ vm.createContext(context);vm.runInContext(functionSource('creationFieldError','\n// Where to go once a project exists:')+';globalThis.read=readCreationPolicy;',context);
+ assert.equal(context.read(),null);assert.deepEqual(shown,['请至少选择一种论文语言']);
+ value={allowed_languages:['zh']};assert.deepEqual(JSON.parse(JSON.stringify(context.read())),{allowed_languages:['zh']});assert.equal(shown.at(-1),'');
 });
 test('confirm creation requires a reviewed graph and validates policy before creating',async()=>{
  const s=source(),start=s.indexOf("part('create').onclick = async () => {");assert.ok(start>=0);const end=s.indexOf('\n  refresh();\n  return',start),body=s.slice(start,end);
  let created=0,notice='',policyCalls=0;const slots=new Map(),part=name=>{if(!slots.has(name))slots.set(name,{checked:false,disabled:false,hidden:false,focus(){},scrollIntoView(){},querySelectorAll:()=>[]});return slots.get(name);};
- const context={part,$$:()=>[],map:{graph:graph(),generating:false,checking:false,editing:null,discarded:false},R,mapNotice(m){notice=m;},readCreationPolicy(){policyCalls++;return {discipline:'stem'};},readCreationBrief:()=>({goal:'Learn'}),busy:false,refresh(){},createAct:{start(){},stop(){},fail(){}},mapPayload:()=>({graph:graph()}),draft:()=>({keywords:['world model']}),selected:new Set(),onCreate:async payload=>{created++;assert.ok(payload.route.graph);}};
+ const context={part,$$:()=>[],map:{graph:graph(),generating:false,checking:false,editing:null,discarded:false},R,mapNotice(m){notice=m;},readCreationPolicy(){policyCalls++;return {allowed_languages:['en']};},readCreationBrief:()=>({goal:'Learn'}),busy:false,refresh(){},createAct:{start(){},stop(){},fail(){}},mapPayload:()=>({graph:graph()}),draft:()=>({keywords:['world model']}),selected:new Set(),onCreate:async payload=>{created++;assert.ok(payload.route.graph);}};
  vm.createContext(context);vm.runInContext(body,context);await part('create').onclick();assert.equal(created,0);assert.match(notice,/确认/);assert.equal(policyCalls,1);
  part('mapConfirm').checked=true;await part('create').onclick();assert.equal(created,1);
 });
 test('explicitly dropping a map is the only route-null finalize request and does not restore stage rows',async()=>{
  const slots=new Map(),part=name=>{if(!slots.has(name))slots.set(name,{querySelectorAll:()=>[]});return slots.get(name);};let committed=0,received;
  const s=source(),start=s.indexOf("part('create').onclick = async () => {"),end=s.indexOf('\n  refresh();\n  return',start);
- const context={part,$$:()=>[{commit(){committed++;}}],map:{graph:null,discarded:true},R,busy:false,readCreationPolicy:()=>({discipline:'stem'}),refresh(){},createAct:{start(){},stop(){},fail(){}},mapPayload:()=>null,draft:()=>({keywords:['planning']}),selected:new Set(),onCreate:async payload=>{received=payload;}};
+ const context={part,$$:()=>[{commit(){committed++;}}],map:{graph:null,discarded:true},R,busy:false,readCreationPolicy:()=>({allowed_languages:['en']}),refresh(){},createAct:{start(){},stop(){},fail(){}},mapPayload:()=>null,draft:()=>({keywords:['planning']}),selected:new Set(),onCreate:async payload=>{received=payload;}};
  vm.createContext(context);vm.runInContext(s.slice(start,end),context);await part('create').onclick();assert.equal(committed,0);assert.equal(received.route,null);
- const finalContext={SESSION_KEY:'fixture',policyEditor:{disabled(){}},readCreationPolicy:()=>({discipline:'stem'}),session:{id:'s'},post:async(_,payload)=>{received=payload;return {project_id:'p'};},localStorage:{removeItem(){}},location:{},afterCreate:()=>'/project',creationLeaving:false};
+ const finalContext={SESSION_KEY:'fixture',policyEditor:{disabled(){}},readCreationPolicy:()=>({allowed_languages:['en']}),session:{id:'s'},post:async(_,payload)=>{received=payload;return {project_id:'p'};},localStorage:{removeItem(){}},location:{},afterCreate:()=>'/project',creationLeaving:false};
  vm.createContext(finalContext);vm.runInContext(s.slice(s.indexOf('async function finalize('),s.indexOf('\nasync function createSession('))+';globalThis.finish=finalize;',finalContext);await finalContext.finish({draft:{},selectedKeys:[],route:null});assert.equal(received.skip_route,true);
 });
 test('guided question shows actionable choices, sends the chosen answer once and keeps choices open after round six (no turn cap) until a turn is pending',()=>{

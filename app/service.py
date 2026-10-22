@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import creation, eligibility, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, paper_language, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
+from . import creation, eligibility, guidance_contract, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, paper_language, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -1083,6 +1083,9 @@ class App:
         session = self.store.guidance_session(session_id)
         if session:
             session['draft'] = self._bounded_guidance_draft(session['draft'])
+            self._without_legacy_goal_query(session, session['draft'])
+            for field in self._ORIGIN_FIELDS:   # bookkeeping, not part of what the page shows
+                session['draft'].pop(field, None)
         if session and self.route_plan_state(session_id)["plan"]:
             session["draft"] = {**session["draft"], "route_plan": self.route_plan_state(session_id)["plan"]}
         return session
@@ -1656,13 +1659,73 @@ class App:
         # Create default project
         return self.projects.create_project("默认项目", "manual", [])
 
+    # Filler words of an English request ("I want to understand how ...") are not search terms.
+    _GUIDANCE_FILLER = frozenset("""want wants wanted understand understanding know like likes would could should need needs
+        about please help interested interest how what why who whom whose when where which does did doing done have has had
+        get gets make makes some any very just much many other etc way ways good best better able try trying think
+        look looking see find finding tell show learn study studying research explore exploring introduction intro
+        you your yours mine our ours they them their his her him she
+        also then there here been being were was will shall may might must not but nor yet""".split())
+
     @staticmethod
     def _guidance_terms(text, limit=20):
         terms = []
         for token in ranking.words(text or ""):
-            if token not in terms:
+            if token not in terms and token not in App._GUIDANCE_FILLER:
                 terms.append(token)
         return terms[:limit]
+
+    def _without_legacy_goal_query(self, session, draft):
+        """Sessions saved before 2026-10-22 began with the goal as their only query. With no AI turn yet that query is
+        the person's own sentence, not a search phrase."""
+        if (not session.get('turn_count') and len(draft['search_queries']) == 1
+                and guidance_contract.same_text(draft['search_queries'][0], draft['goal'])):
+            draft['search_queries'] = []
+        return draft
+
+    _ORIGIN_FIELDS = ('user_keywords', 'user_queries', 'removed_keywords', 'removed_queries',
+                      'replaced_keywords', 'replaced_queries')
+    REMEMBERED_ITEMS = 200   # most deleted / replaced items remembered per list
+
+    def _track_origins(self, stored, edits, stale=False):
+        """The keyword and query lists after the person's edits, with who wrote each item.
+
+        `stored` is the bounded stored draft, `edits` the raw draft the page sent (or None). An item the page shows that
+        the stored draft did not have, or whose text the person changed (even only its case or spacing), is the person's.
+        A model item missing from the page was deleted and is remembered as removed so the model cannot bring it back;
+        a person's item missing from the page is gone and remembered as removed the same way. A session saved before
+        this bookkeeping has no origin sets: everything it holds counts as the person's, so nothing they might have
+        written is ever replaced.
+
+        `stale` means the page was built from an older draft than the stored one (a reply it never received, or another
+        tab): its lists say nothing about deletions or authorship, so only items that exist in neither the stored draft,
+        the removed items nor the model items replaced since are taken, as the person's, and added."""
+        sent = self._bounded_guidance_draft(edits) if isinstance(edits, dict) else None
+        norm = guidance_contract._norm
+        out = {}
+        for field, user_key, removed_key, replaced_key in (
+                ('keywords', 'user_keywords', 'removed_keywords', 'replaced_keywords'),
+                ('search_queries', 'user_queries', 'removed_queries', 'replaced_queries')):
+            before = stored[field]
+            page = sent[field] if sent is not None and field in edits else before
+            legacy = user_key not in stored
+            was_user = {norm(item) for item in (before if legacy else stored[user_key])}
+            text = {norm(item): item for item in before}
+            previous = [] if legacy else stored.get(removed_key, [])
+            if stale:
+                known = set(text) | {norm(item) for item in previous} | {norm(item) for item in stored.get(replaced_key, [])}
+                fresh = [item for item in page if norm(item) not in known]
+                out.update({field: before + fresh, user_key: [item for item in before if norm(item) in was_user] + fresh,
+                            removed_key: previous})
+                continue
+            shown = {norm(item) for item in page}
+            user = [item for item in page if norm(item) in was_user or norm(item) not in text or text[norm(item)] != item]
+            removed = [item for item in previous if norm(item) not in shown]
+            for item in before:   # deleted from the page: the model's and the person's alike stay deleted
+                if norm(item) not in shown and norm(item) not in {norm(r) for r in removed}:
+                    removed.append(item)
+            out.update({field: page, user_key: user, removed_key: removed[-self.REMEMBERED_ITEMS:]})
+        return out
 
     @staticmethod
     def _bounded_guidance_draft(draft):
@@ -1691,7 +1754,18 @@ class App:
                 purpose = str(item.get("purpose") or "").strip()[:300]
                 if title:
                     path.append({"title": title, "purpose": purpose})
+        origins = {}
+        for field, limit in (('user_keywords', 20), ('user_queries', 6), ('removed_keywords', 200), ('removed_queries', 200),
+                             ('replaced_keywords', 200), ('replaced_queries', 200)):
+            if draft.get(field) is not None:   # internal bookkeeping: who wrote each keyword/query (absent in older sessions)
+                if not isinstance(draft[field], list):
+                    raise ValueError('引导草稿的 %s 必须是列表' % field)
+                items = [str(item).strip()[:180] for item in draft[field] if str(item).strip()]
+                origins[field] = items[:limit] if field.startswith('user_') else items[-limit:]   # newest last
+        if isinstance(draft.get('revision'), int) and not isinstance(draft['revision'], bool) and draft['revision'] >= 0:
+            origins['revision'] = draft['revision']   # which version of the draft a page's lists are based on
         out = {
+            **origins,
             "goal": str(draft.get("goal") or "").strip()[:4000],
             "creation_mode": draft.get("creation_mode") if draft.get("creation_mode") in {"quick", "ai_guided"} else "ai_guided",
             "keywords": keywords[:20],
@@ -1831,23 +1905,33 @@ class App:
         if creation_mode not in {"quick", "ai_guided"}:
             raise ValueError("引导创建模式无效")
         session_id = str(uuid.uuid4())
+        # No query yet: a search phrase comes from the model or from keywords, never from the person's own sentence.
         draft = self._bounded_guidance_draft({"goal": goal, "keywords": self._guidance_terms(goal),
-                                               "search_queries": [goal], "creation_mode": creation_mode})
+                                               "search_queries": [], "creation_mode": creation_mode,
+                                               "user_keywords": [], "user_queries": [], "removed_keywords": [], "removed_queries": [],
+                                               "replaced_keywords": [], "replaced_queries": [], "revision": 0})
         self.store.create_guidance_session(session_id, name, [{"role": "user", "content": goal}], draft)
         return self.guidance_session_view(session_id)
 
     def _local_guidance(self, session, message):
         draft = self._bounded_guidance_draft(session["draft"])
         en = self.english()
-        combined = f"{draft.get('goal', '')} {message}"
+        norm = guidance_contract._norm
+        gone = {norm(item) for item in draft.get("removed_keywords") or []}
         terms = draft["keywords"][:]
-        for term in self._guidance_terms(combined):
-            if term not in terms:
+        # Only the message can add terms: the goal's terms were seeded when the session began, and the model or the
+        # person may have replaced or deleted them since. Terms the person deleted never come back.
+        for term in self._guidance_terms(message if message != draft.get('goal') else ''):
+            if term not in terms and norm(term) not in gone:
                 terms.append(term)
-        query = " ".join(terms[:8]) or message[:180]
+        terms = terms[:20]
+        # The query is the person's own, or built from keywords. The tokenizer reads English only, so for Chinese
+        # input there is none, and the sentence the person typed is never copied into the search box.
         from .project_brainstorm import local_followup
-        draft.update({"keywords": terms[:20], "search_queries": [query],
-                      **local_followup(draft, message, en)})
+        queries = draft["search_queries"] or guidance_contract.clean_queries(
+            [], terms, [*guidance_contract.sentence_avoid(draft.get('goal', ''), message), *(draft.get('removed_queries') or [])])
+        draft.update({"keywords": terms, "search_queries": queries,
+                      **local_followup(draft, message, en, graph=user_settings.route_beta(self.data))})
         if not terms:
             # The local tokenizer is English-only and OpenAlex titles are mostly English.
             if en:
@@ -1860,19 +1944,25 @@ class App:
                     "or go straight to the candidate papers."), draft
         return "我已先按本地词项整理方向。你可以继续补充场景或方法，也可以直接查看候选论文。", draft
 
-    def guidance_turn(self, session_id, message, dry_run=False, retry=False, draft_edits=None):
+    def guidance_turn(self, session_id, message, dry_run=False, retry=False, draft_edits=None, languages=None, base=None):
         """One guidance turn. Only a turn the model actually answered is counted, so a missing key, an
         outage or an unreadable reply never moves the conversation on; ``retry`` re-asks the model
-        for the last message after such a turn instead of recording it a second time."""
+        for the last message after such a turn instead of recording it a second time. ``languages`` is the paper-language
+        choice on the page (codes such as zh/en): it is told to the model, and changes nothing else. ``base`` is the draft
+        revision the page's lists were built from; when it is not the stored one the page missed a turn, and its lists
+        are not trusted for deletions or authorship (see _track_origins)."""
         session = self.store.guidance_session(session_id)
         if not session:
             raise ValueError("引导会话不存在")
         if session["status"] != "draft":
             raise ValueError("引导会话已结束")
-        draft = self._bounded_guidance_draft(session["draft"])
-        if isinstance(draft_edits, dict):  # what the user changed on screen since the last turn
+        draft = self._without_legacy_goal_query(session, self._bounded_guidance_draft(session["draft"]))
+        revision = draft.get('revision', 0)
+        stale = type(base) is int and base != revision
+        draft.update(self._track_origins(draft, draft_edits, stale=stale))   # what the person changed on screen since the last turn
+        if isinstance(draft_edits, dict):
             edits = self._bounded_guidance_draft(draft_edits)
-            for field in ("keywords", "search_queries", "learning_path"):
+            for field in ("learning_path",):
                 if field in draft_edits:
                     draft[field] = edits[field]
             if 'learning_path' in draft_edits and edits['learning_path'] != session['draft'].get('learning_path', []):
@@ -1895,23 +1985,20 @@ class App:
         if not retry and not (not transcript[1:] and transcript and transcript[-1].get("role") == "user"
                               and transcript[-1].get("content") == message):
             transcript.append({"role": "user", "content": message})
-        from . import guidance_contract
+        beta = user_settings.route_beta(self.data)
+        chosen_languages = guidance_contract.language_codes(languages)
+        mine = {guidance_contract._norm(item) for item in draft['user_keywords']}
+        mine_queries = {guidance_contract._norm(item) for item in draft['user_queries']}
         messages = guidance_contract.messages(draft.get('goal', ''), draft.get('keywords', []), message,
                     self.english(), (self.gateway.config.get('provider') or {}).get('model', 'deepseek-flash')
                     if hasattr(self.gateway, 'config') else 'deepseek-flash',
                     last_question=draft.get('next_question', ''), summary=draft.get('summary', ''),
-                    turn=session['turn_count'] + 1, quick=draft['creation_mode'] == 'quick')
-        excerpt = json.loads(messages[-1]['content'])
-        sent_message = excerpt.get('message', excerpt.get('goal', '') if message == draft.get('goal') else '')
-        context_limits = {'goal_truncated': excerpt.get('goal', '') != draft.get('goal', ''),
-                          'message_truncated': sent_message != message,
-                          'keywords_truncated': excerpt.get('keywords', []) != draft.get('keywords', []),
-                          'question_truncated': excerpt.get('last_question', '') != draft.get('next_question', ''),
-                          'summary_truncated': excerpt.get('summary', '') != draft.get('summary', '')}
-        scope_notice = None
-        if any(context_limits.values()):
-            scope_notice = ("AI used only the excerpts shown below; the full goal and messages remain saved locally. Check the omitted constraints before confirming, or shorten the input."
-                            if self.english() else "AI 只看到了下列节选，完整目标和消息仍保存在本地。确认前请核对未发送的限制，或缩短输入后再引导。")
+                    turn=session['turn_count'] + 1, quick=draft['creation_mode'] == 'quick', graph=beta,
+                    languages=chosen_languages,
+                    your_keywords=[k for k in draft['keywords'] if guidance_contract._norm(k) not in mine],
+                    user_keywords=[k for k in draft['keywords'] if guidance_contract._norm(k) in mine],
+                    your_queries=[q for q in draft['search_queries'] if guidance_contract._norm(q) not in mine_queries],
+                    user_queries=[q for q in draft['search_queries'] if guidance_contract._norm(q) in mine_queries])
         started = time.monotonic()
         try:
             result = self.gateway.call("project_guidance", messages, dry_run=dry_run) or {}
@@ -1924,37 +2011,62 @@ class App:
             reason_code, reason = creation.degrade_reason(result, self.english())
         else:
             try:
-                payload = guidance_contract.parse(result.get('content'), result.get('finish_reason'))
+                payload = guidance_contract.parse(result.get('content'), result.get('finish_reason'), graph=beta, derive=False,
+                                                  avoid=guidance_contract.sentence_avoid(draft.get('goal', ''), message))
             except ValueError:
                 mode, reason_code = "local", "bad_reply"
                 reason_code, reason = creation.degrade_reason(
                     {**result, "bad_reply": True}, self.english())
             else:
-                if ('learning_path' in payload['draft'] and 'learning_graph' not in payload['draft']
-                        and payload['draft']['learning_path'] != draft['learning_path']):
-                    draft.pop('learning_graph', None)
-                draft = self._bounded_guidance_draft({**draft, **payload["draft"],
-                    'choices': payload['draft'].get('choices', []),
-                    'ready': payload['draft'].get('ready', False) or session['turn_count'] + 1 >= (
-                        GUIDANCE_QUICK_MAX_TURNS if draft["creation_mode"] == "quick" else GUIDANCE_CONFIRM_TURN),
-                    'learning_path_origin': 'ai' if ('learning_path' in payload['draft'] or 'learning_graph' in payload['draft'])
-                                            else draft.get('learning_path_origin', 'user')})
                 reply = payload['reply'].strip() or (
-                    "Draft updated; please check the keywords and learning path." if self.english()
-                    else "已更新项目草稿，请检查关键词和学习路径。")
+                    ("Draft updated; please check the keywords and learning path." if beta else
+                     "Draft updated; please check the keywords and search queries.") if self.english()
+                    else ("已更新项目草稿，请检查关键词和学习路径。" if beta else "已更新项目草稿，请检查关键词和检索式。"))
+                model = payload['draft']
+                if ('learning_path' in model and 'learning_graph' not in model
+                        and model['learning_path'] != draft['learning_path']):
+                    draft.pop('learning_graph', None)
+                # The person's own items stay, in page order. The model's current suggestions (up to 5 keywords and 2
+                # phrases) follow them and replace the model's earlier items; what the person deleted is not
+                # brought back; an empty or unusable list changes nothing. A phrase that repeats the goal, the
+                # message or the reply is prose, not a search phrase, and a Chinese phrase needs 中文 ticked; neither
+                # judgement touches what the person wrote.
+                prose = [*guidance_contract.sentence_avoid(draft.get('goal', ''), message), reply, model.get('next_question', '')]
+                page_keywords, page_queries = draft['keywords'], draft['search_queries']
+                keywords = guidance_contract.settle(page_keywords, draft['user_keywords'], draft['removed_keywords'],
+                                                    guidance_contract.vet_keywords(model['keywords'], chosen_languages),
+                                                    guidance_contract.MAX_KEYWORDS)
+                suggestions = guidance_contract.vet_queries(model['search_queries'], chosen_languages, prose)
+                queries = guidance_contract.settle(page_queries, draft['user_queries'], draft['removed_queries'],
+                                                   suggestions, guidance_contract.MAX_QUERIES)
+                queries = queries or guidance_contract.clean_queries([], keywords, prose + draft['removed_queries'])
+                # model items that this turn replaced are remembered, so a page that missed the turn cannot take them for new
+                norm = guidance_contract._norm
+                for field, before, after, own in (('replaced_keywords', page_keywords, keywords, draft['user_keywords']),
+                                                  ('replaced_queries', page_queries, queries, draft['user_queries'])):
+                    kept = {norm(item) for item in after}
+                    dropped = [item for item in before if norm(item) not in kept and norm(item) not in {norm(o) for o in own}]
+                    draft[field] = [item for item in draft.get(field, []) if norm(item) not in kept] + dropped
+                draft = self._bounded_guidance_draft({**draft, **model,
+                    'keywords': keywords, 'search_queries': queries,
+                    'summary': model.get('summary') or draft.get('summary', ''),
+                    'choices': model.get('choices', []),
+                    'ready': model.get('ready', False) or session['turn_count'] + 1 >= (
+                        GUIDANCE_QUICK_MAX_TURNS if draft["creation_mode"] == "quick" else GUIDANCE_CONFIRM_TURN),
+                    'learning_path_origin': 'ai' if ('learning_path' in model or 'learning_graph' in model)
+                                            else draft.get('learning_path_origin', 'user')})
         if mode == "local":
             reply, draft = self._local_guidance({**session, "draft": draft}, message)
-            scope_notice = None
             draft = self._bounded_guidance_draft(draft)
         tokens = (result.get("usage") or {}).get("total_tokens") if mode == "ai" else None
         entry = {"role": "assistant", "content": reply, "mode": mode}
         entry.update(_ai_receipt(result))
-        entry.update(context_limits=context_limits, context_excerpt=excerpt, scope_notice=scope_notice)
         if reason_code:
             entry["reason"], entry["reason_text"] = reason_code, reason
         if tokens:
             entry["tokens"] = tokens
         transcript.append(entry)
+        draft['revision'] = revision + 1
         self.store.update_guidance_session(
             session_id, transcript=transcript, draft=draft,
             turn_count=session["turn_count"] + (1 if mode == "ai" else 0))
@@ -1962,7 +2074,6 @@ class App:
                 "mode": mode, "degraded": mode == "local",
                 "reason_code": reason_code,
                 "reason": reason,
-                "context_limits": context_limits, "context_excerpt": excerpt, "scope_notice": scope_notice,
                 "tokens": tokens, "elapsed_ms": elapsed_ms, **_ai_receipt(result)}
 
     def guidance_search(self, session_id, query, all_years=False):
@@ -2007,13 +2118,15 @@ class App:
             raise ValueError("引导会话不存在或已结束")
         if draft is not None and not isinstance(draft, dict):
             raise ValueError("草稿格式无效")
-        incoming = {**session['draft'], **(draft or {})}
+        kept = self._without_legacy_goal_query(session, self._bounded_guidance_draft(session['draft']))
+        sent = {key: value for key, value in (draft or {}).items() if key not in self._ORIGIN_FIELDS and key != 'revision'}
+        incoming = {**session['draft'], **sent, **self._track_origins(kept, sent)}
         if incoming.get('learning_path') != session['draft'].get('learning_path'):
             incoming['learning_path_origin'] = 'user'
             incoming.pop('learning_graph', None)
         draft = self._bounded_guidance_draft(incoming)
         self.store.update_guidance_session(session_id, draft={**draft, "candidates": session["draft"].get("candidates") or []})
-        queries = draft["search_queries"] or draft["keywords"][:3] or [draft["goal"]]
+        queries = draft["search_queries"] or draft["keywords"][:3]   # never the goal: it is the person's sentence
         papers, errors, seen = [], [], set()
         for query in queries[:3]:
             result = self.guidance_search(session_id, query)
@@ -2089,7 +2202,7 @@ class App:
             raise ValueError('放弃学习图的选择无效')
         stored = self._bounded_guidance_draft(session["draft"])
         if draft is not None:
-            draft = {key: value for key, value in draft.items() if key != 'learning_graph'}
+            draft = {key: value for key, value in draft.items() if key != 'learning_graph' and key != 'revision' and key not in self._ORIGIN_FIELDS}
         incoming = self._bounded_guidance_draft({**stored, **(draft or {})})
         if route is None and not skip_route:
             if any(incoming[field] != stored[field] for field in ('goal', 'keywords', 'learning_path')):
@@ -2111,6 +2224,8 @@ class App:
                                      guidance_transcript=session["transcript"],
                                      learning_path=draft["learning_path"], route=route, language_policy=language_policy)
         project_id = result["project_id"]
+        if draft.get("summary"):   # the goal agreed in the conversation stays with the project
+            self.store.set_setting(f"project_goal_{project_id}", draft["summary"])
         for paper in chosen:
             paper["project_id"] = project_id
         if chosen:

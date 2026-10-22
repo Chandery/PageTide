@@ -184,24 +184,24 @@
     },
     "project_guidance": {
       "owner_approved": true,
-      "approval_note": "owner 于 2026-10-01 在会话中明确批准 project_guidance 真实调用（单会话最多 6 轮，沿用全局日/月上限）；无 key、AI 总开关关闭或超预算时仍降级为本地模式。",
+      "approval_note": "owner approved real project_guidance calls on 2026-10-01 in a session (at that time at most 6 turns per conversation, shared global daily/monthly limits). Current scope, stated factually: since 2026-10-22 (ADR 0037) a conversation has no turn or length cap and requests the model's maximum output; since 2026-10-22 (ADR 0038) each turn also sends the current search phrases and the paper-language choice (zh/en) in addition to goal, messages, keywords, last question and summary. The two ADR 0038 fields were not named in the original approval text: recorded here for the owner's attention, not self-approved, owner_approved is unchanged. Without a key, with the AI switch off or over budget the conversation falls back to local mode.",
       "prompt": "prompts/project-guidance.md",
       "trigger": "interactive",
       "enabled_by_default": false,
       "reference": {
-        "input": 800,
+        "input": 1600,
         "output": 300
       },
       "cap": {
-        "input": 1200,
+        "input": 2400,
         "output": 500
       },
       "input_cap_components": {
-        "instructions_and_schema": 350,
-        "bounded_conversation": 700,
+        "instructions_and_schema": 1100,
+        "bounded_conversation": 1150,
         "framing_and_margin": 150
       },
-      "scope": "one explicit project-creation conversation, no turn cap since 2026-10-22 (draft offered for confirmation from turn 6); current draft only, no other project data, no paper selection",
+      "scope": "one explicit project-creation conversation, no turn cap since 2026-10-22 (draft offered for confirmation from turn 6); current draft, its keywords and search queries, and the paper-language choice (zh/en) only, no other project data, no paper selection; estimates revised 2026-10-22 for the named-field prompt (ADR 0038), arithmetic not a measurement",
       "conversation": true
     },
     "paper_vision_qa": {

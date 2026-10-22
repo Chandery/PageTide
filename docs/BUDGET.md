@@ -52,7 +52,7 @@ Owner 明确要求“点击一次……肯定就全部看完”。现在一次�
 | `paper_qa` 有界追问 | 交互 | 2,600 | 650 | 4,200 | 1,100 |
 | `selection_translate` 划词 | 交互 | 700 | 200 | 1,200 | 500 |
 | `query_expand` 关键词扩展 | 交互，一次性 | 600 | 200 | 1,000 | 400 |
-| `project_guidance` 项目创建引导 | 交互，单会话最多 6 轮 | 800 | 300 | 1,200 | 500 |
+| `project_guidance` 项目创建引导 | 交互对话，无轮数上限（ADR 0037）；估算按 ADR 0038 的字段名提示重算 | 1,600 | 300 | 2,400 | 500 |
 
 **最低 AI 开启成本**（`daily_triage` 1/天 + `weekly_digest` 1/周，DeepSeek peak cache-miss 计价）：
 

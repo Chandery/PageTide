@@ -51,6 +51,7 @@ class CreationBrainstormTests(unittest.TestCase):
                 self.assertEqual(self.app.projects.get_project(result['project_id'])['creation_mode'], mode)
 
     def test_learning_steps_become_independent_targets_with_terms_and_provenance(self):
+        (Path(self.temp.name) / 'settings.json').write_text(json.dumps({'routeBeta': True}))   # a path is used only with the beta map on
         session = self.app.create_guidance_session('Project', 'world model planning')
         with mock.patch.object(self.app.gateway, 'call', return_value=answer(
                 learning_path=[{'title': 'World model', 'purpose': '理解预测环境'},
@@ -89,11 +90,15 @@ class CreationBrainstormTests(unittest.TestCase):
             value = json.loads(answer()['content'])
             value['draft'].pop(key)
             guidance_contract.parse(json.dumps(value))
-        for key, value in [('choices', 'not a list'), ('choices', [1]), ('choices', ['a'] * 4),
+        for key, value in [('choices', 'not a list'), ('choices', [1]),
                            ('summary', []), ('ready', 1)]:
             bad = json.loads(answer()['content']); bad['draft'][key] = value
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                 guidance_contract.parse(json.dumps(bad))
+
+    def test_too_many_choices_are_trimmed_not_refused(self):
+        value = json.loads(answer()['content']); value['draft']['choices'] = ['a'] * 4
+        self.assertEqual(guidance_contract.parse(json.dumps(value))['draft']['choices'], ['a'] * 3)
 
     def test_runtime_brainstorm_skill_covers_phases_and_skips_explicitly_known_parts(self):
         from app import project_brainstorm as skill
@@ -170,7 +175,11 @@ class CreationBrainstormTests(unittest.TestCase):
         pathgraph.validate(route['graph'], explicit=True)
         self.assertEqual(ai_guide.local_route_draft(draft), route)
 
+    def beta_on(self):
+        (Path(self.temp.name) / 'settings.json').write_text(json.dumps({'routeBeta': True}))
+
     def test_compact_model_graph_is_used_with_explicit_edges_terms_and_ai_provenance(self):
+        self.beta_on()   # the learning map is a beta setting; with it off a proposed map is ignored (test_guidance_fields)
         payload = {'reply': '先理解状态预测，再看如何规划。', 'draft': {
             'kw': ['world model'], 'queries': ['world model planning'], 'ask': '读论文还是复现？',
             'choices': ['读论文', '复现'], 'summary': '初学者，先理解机器人世界模型', 'ready': False,
@@ -192,7 +201,8 @@ class CreationBrainstormTests(unittest.TestCase):
         result = self.app.finalize_guidance(session['id'])
         self.assertEqual(without_feedback_cutoffs(self.app.route_get(result['project_id'])['graph']), route['graph'])
 
-    def test_invalid_ai_graph_is_refused_as_a_whole_and_keeps_the_reviewed_graph(self):
+    def test_invalid_ai_graph_is_dropped_as_a_whole_and_keeps_the_reviewed_graph_and_the_rest_of_the_reply(self):
+        self.beta_on()
         valid = {'nodes': [['a', 'World model', 'world model', 'Predict']], 'prereqs': [], 'targets': ['a']}
         invalid = [dict(valid, targets=[]), dict(valid, targets=['unknown']),
                    dict(valid, prereqs=[['a', 'a']]), dict(valid, nodes=valid['nodes'] * 4),
@@ -207,16 +217,20 @@ class CreationBrainstormTests(unittest.TestCase):
             with self.subTest(graph=graph):
                 payload = json.loads(answer()['content'])
                 payload['draft']['learning_graph'] = graph
-                with self.assertRaises(ValueError): guidance_contract.parse(json.dumps(payload))
+                draft = guidance_contract.parse(json.dumps(payload))['draft']   # no longer refused
+                self.assertNotIn('learning_graph', draft)
+                self.assertEqual(draft['next_question'], '先理解论文还是复现方法？')
         session = self.app.create_guidance_session('Project', 'world model')
         before = session['draft']['route_draft']
-        payload = json.loads(answer()['content']); payload['draft']['learning_graph'] = invalid[0]
+        payload = json.loads(answer(learning_path=[])['content']); payload['draft']['learning_graph'] = invalid[0]
         with mock.patch.object(self.app.gateway, 'call', return_value={'ok': True, 'content': json.dumps(payload)}):
             out = self.app.guidance_turn(session['id'], 'world model')
-        self.assertEqual(out['reason_code'], 'bad_reply')
+        self.assertEqual(out['mode'], 'ai')
+        self.assertEqual(out['session']['draft']['next_question'], '先理解论文还是复现方法？')
         self.assertEqual(out['session']['draft']['route_draft'], before)
 
     def test_actual_minified_contract_and_empty_graph_preserve_confirmed_map(self):
+        self.beta_on()
         complete = {'r': '按机器人规划收敛，先读论文。', 'd': {
             'k': ['world model'], 'q': ['world model planning'], 'a': '每周大约能投入多少时间？',
             'c': ['2小时', '5小时'], 's': '机器人规划，零基础，目标读懂论文，不涉及自动驾驶。', 'ready': False,

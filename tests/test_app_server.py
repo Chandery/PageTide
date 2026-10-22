@@ -110,6 +110,19 @@ class ServerSmokeTests(unittest.TestCase):
         status,out=self._post('/api/daily',{'project_id':out['project_id']})
         self.assertEqual(status,200);self.assertIsNone(out['batch_id']);self.assertEqual(out['reason_code'],'language_policy_required')
 
+    def test_language_choice_without_a_discipline_is_created_and_saved_over_http(self):
+        status,out=self._post('/api/projects',{'name':'Checkbox','language_policy':{'allowed_languages':['en','zh']}})
+        self.assertEqual(status,200); pid=out['project_id']
+        status,data=self._get('/api/projects')
+        policy=next(p for p in json.loads(data)['projects'] if p['id']==pid)['language_policy']
+        self.assertEqual((policy['status'],policy['allowed_languages']),('ready',['en','zh']))
+        status,out=self._post('/api/projects/'+pid,{'action':'language','allowed_languages':['zh']})
+        self.assertEqual(status,200); self.assertEqual(out['project']['language_policy']['allowed_languages'],['zh'])
+        status,_=self._post('/api/projects/'+pid,{'action':'language','allowed_languages':[]})
+        self.assertEqual(status,400)
+        status,_=self._post('/api/projects',{'name':'No language','language_policy':{'allowed_languages':[]}})
+        self.assertEqual(status,400)
+
     def test_fulltext_get_uses_current_physical_file_and_requested_version(self):
         import hashlib
         app=server.make_app(str(self.root))
@@ -220,6 +233,28 @@ class ServerSmokeTests(unittest.TestCase):
         self.assertEqual((outcome["status"], outcome["pdf_attached"]), ("resolved", True))
         status, body = self._get(f"/api/pdf/view?key={urllib.parse.quote(outcome['key'], safe='')}")
         self.assertEqual((status, body), (200, pdf))
+
+    def test_guidance_turn_route_forwards_the_language_choice_and_current_queries_to_the_model(self):
+        status, session = self._post("/api/project-guidance/sessions", {"name": "语言", "goal": "机器人规划"})
+        self.assertEqual(status, 201)
+        self.assertEqual(session["session"]["draft"]["search_queries"], [])
+        seen = []
+        def fake_call(self_, operation, messages, **kwargs):
+            seen.append(json.loads(messages[-1]["content"]))
+            return {"ok": False, "reason": "synthetic: no model in this test"}
+        with mock.patch("app.gateway.Gateway.call", fake_call):
+            status, turn = self._post(f"/api/project-guidance/sessions/{session['session']['id']}/turn",
+                {"message": "机器人规划", "languages": ["zh", "en"],
+                 "draft": {"keywords": ["planning"], "search_queries": ["robot planning"]}})
+        self.assertEqual(status, 200)
+        self.assertEqual((seen[0]["languages"], seen[0]["user_queries"], seen[0]["user_keywords"]),
+                         (["zh", "en"], ["robot planning"], ["planning"]))
+        self.assertEqual(turn["session"]["draft"]["search_queries"], ["robot planning"])   # the person's own phrase survives the local answer
+        with mock.patch("app.gateway.Gateway.call", fake_call):   # the page tells the server which draft revision it is based on
+            status, turn = self._post(f"/api/project-guidance/sessions/{session['session']['id']}/turn",
+                {"message": "继续", "base": 0, "draft": {"keywords": ["planning"], "search_queries": []}})
+        self.assertEqual(status, 200)
+        self.assertEqual(turn["session"]["draft"]["search_queries"], ["robot planning"])   # stale base: its deletion is not trusted
 
     def test_guidance_search_and_retry_routes(self):
         status, session = self._post("/api/project-guidance/sessions", {"name": "检索", "goal": "world models"})

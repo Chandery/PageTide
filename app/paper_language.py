@@ -1,7 +1,8 @@
 """Explicit project paper-language policy, independent of interface language.
 
-The initial editor offers a bounded set of languages, including classical-language
-research. Metadata is a report, never evidence of the PDF's actual language.
+A project's policy is the list of languages it accepts. The editor offers Chinese and English as check boxes;
+projects saved earlier with other languages keep them. Metadata is a report, never evidence of the PDF's actual
+language.
 """
 import re
 import unicodedata
@@ -65,10 +66,14 @@ def title_metadata_evidence(title, metadata_language):
 
 
 def validate_policy(discipline, allowed):
-    if discipline not in ('stem', 'humanities'):
-        raise ValueError('请选择理工科或文科')
+    """The allowed paper languages of a project: a policy is its language list.
+
+    `discipline` is a legacy value (the old stem/humanities choice) that people are no longer asked for. None means
+    only languages were chosen. A caller that still sends 'stem' keeps the old rule that it means English only."""
+    if discipline not in (None, 'stem', 'humanities'):
+        raise ValueError('论文语言设置格式无效')
     if not isinstance(allowed, list) or not allowed or len(allowed) > len(LANGUAGES):
-        raise ValueError('请至少选择一种允许的论文语言')
+        raise ValueError('请至少选择一种论文语言')
     if any(not isinstance(code, str) or code not in LANGUAGES for code in allowed):
         raise ValueError('论文语言不在支持的选项中')
     allowed = list(dict.fromkeys(allowed))
@@ -87,8 +92,11 @@ def validate_value(value):
 
 
 def policy_from_row(row):
+    """Ready once languages were chosen (revision above zero). The legacy `discipline` column is reported as it
+    is, but it never decides readiness: a database default such as 'cs_ai' is not a choice."""
     import json
+    allowed = json.loads(row['allowed_languages'] or '[]')
     return {'discipline': row['discipline'],
-            'allowed_languages': json.loads(row['allowed_languages'] or '[]'),
+            'allowed_languages': allowed,
             'revision': row['language_policy_revision'],
-            'status': 'ready' if row['discipline'] and row['language_policy_revision'] > 0 else 'pending'}
+            'status': 'ready' if allowed and row['language_policy_revision'] > 0 else 'pending'}

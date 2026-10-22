@@ -91,22 +91,24 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
         self.assertEqual(body['keywords'], ['world model'])
         self.assertTrue(json_instruction(request_envelope('project_guidance', 'deepseek-flash', 500, built)))
 
-    def test_guidance_prompt_marks_graph_as_optional_and_forbids_placeholder_copy(self):
+    def test_guidance_prompt_names_its_fields_marks_the_map_as_beta_only_and_forbids_placeholder_copy(self):
         system = guidance_contract.SYSTEM
-        self.assertIn('k/q/c=str[];k3 q1 c3', system)
-        self.assertIn('r/a/s=str', system)
-        self.assertIn('graph?concrete', system)
-        self.assertIn('no obj/ph', system)
-        self.assertNotIn('\"id\",\"name\"', system)
-        self.assertLessEqual(len(system.encode('utf-8')), 800)
+        self.assertIn('"queries":[]', system)
+        self.assertIn('never questions or sentences addressed to the user', system)
+        self.assertIn('no placeholders', system)
+        self.assertNotIn('graph', system)   # the map is asked for only while the beta map is on (MAP_HINT)
+        self.assertIn('graph?concrete goals only', guidance_contract.MAP_HINT)
+        self.assertNotIn('"id","name"', system)
+        self.assertLessEqual(len(system.encode('utf-8')), 1250)
 
-    def test_string_only_overproduction_is_bounded_without_accepting_objects(self):
+    def test_overproduction_is_bounded_and_a_question_in_queries_is_not_kept(self):
+        # This test used to expect q:['one?','two?'] to be accepted as queries: the bug the owner reported.
         payload = {'r': '先选一个方向。', 'd': {
             'k': ['one', 'two', 'three', 'four'], 'q': ['one?', 'two?'], 'a': '',
             'c': ['A'], 's': '', 'ready': False}}
         parsed = guidance_contract.parse(json.dumps(payload))
-        self.assertEqual(parsed['draft']['keywords'], ['one', 'two', 'three'])
-        self.assertEqual(parsed['draft']['search_queries'], ['one?'])
+        self.assertEqual(parsed['draft']['keywords'], ['one', 'two', 'three', 'four'])
+        self.assertEqual(parsed['draft']['search_queries'], ['one two three four'])
         bad = {'r': '先选一个方向。', 'd': {
             'k': [{'name': 'one'}], 'q': [], 'a': '', 'c': ['A'], 's': '', 'ready': False}}
         with self.assertRaises(ValueError):
@@ -197,8 +199,8 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
             self.assertEqual(result['mode'], 'ai')
             self.assertEqual(result['session']['draft']['goal'], goal)
             self.assertEqual(result['session']['transcript'][-2]['content'], answer)
-            self.assertFalse(any(result['context_limits'].values()))
-            self.assertIsNone(result['scope_notice'])
+            self.assertNotIn('context_limits', result)   # nothing is shortened, so there is nothing to report
+            self.assertNotIn('scope_notice', result)
             wire = json.loads(sent.call_args.args[0].data)
             self.assertTrue(json_instruction(wire))
             body = json.loads(wire['messages'][-1]['content'])

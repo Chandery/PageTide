@@ -552,11 +552,14 @@ class AuditFixTests(unittest.TestCase):
         session = self.app.create_guidance_session('Public draft', goal)
         self.app.gateway = ReplyGateway(json.dumps({'reply': 'Review scope', 'draft': {
             'keywords': ['world model'], 'search_queries': ['world model planning'], 'learning_path': [], 'next_question': ''}}))
+        sent = []
+        real_call = self.app.gateway.call
+        self.app.gateway.call = lambda op, messages, **kw: (sent.append(messages), real_call(op, messages, **kw))[1]
         result = self.app.guidance_turn(session['id'], goal)
-        self.assertEqual(result['mode'], 'ai'); self.assertFalse(any(result['context_limits'].values()))
-        self.assertIsNone(result['scope_notice']); self.assertEqual(result['session']['draft']['goal'], goal)
-        self.assertEqual(result['context_excerpt']['goal'], goal)   # the whole goal, including its last sentence, was sent
-        self.assertEqual(result['session']['transcript'][-1]['context_excerpt'], result['context_excerpt'])
+        self.assertEqual(result['mode'], 'ai')
+        self.assertNotIn('context_limits', result); self.assertNotIn('scope_notice', result)   # nothing is shortened, so nothing is reported
+        self.assertEqual(result['session']['draft']['goal'], goal)
+        self.assertEqual(json.loads(sent[0][-1]['content'])['goal'], goal)   # the whole goal, including its last sentence, was sent
 
     def test_guided_session_has_no_message_length_or_turn_limit_but_quick_creation_is_one_call(self):
         response = json.dumps({'reply': 'Review the whole goal', 'draft': {
@@ -568,8 +571,8 @@ class AuditFixTests(unittest.TestCase):
             session = self.app.create_guidance_session('Long goal', goal, creation_mode=mode)
             with mock.patch.object(self.app.gateway, 'call', return_value=reply) as call:
                 out = self.app.guidance_turn(session['id'], goal)
-            self.assertEqual(out['mode'], 'ai'); self.assertIsNone(out['scope_notice'])
-            self.assertFalse(any(out['context_limits'].values()))
+            self.assertEqual(out['mode'], 'ai'); self.assertNotIn('scope_notice', out)
+            self.assertNotIn('context_limits', out)
             self.assertEqual(out['session']['draft']['goal'], goal)
             self.assertEqual(json.loads(call.call_args.args[1][-1]['content'])['goal'], goal)
             if mode == 'ai_guided':
