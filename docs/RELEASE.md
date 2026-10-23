@@ -39,4 +39,4 @@ shasum -a 256 PaperDigHelper-macos-arm64.zip > PaperDigHelper-macos-arm64.zip.sh
 
 ## Windows 上没有验证的部分
 
-没有在 Windows 真机上运行过。`Cargo.lock` 需有网络的环境生成并提交（含 `rfd`、`tauri-plugin-single-instance`），CI 用 `--locked`。未验证：安装包与 WebView2 安装、原生保存对话框（`rfd`）、外部链接打开、退出时的草稿保护与后端进程清理、`msvcrt` 文件锁与父进程句柄检查在真实并发下的表现、单实例插件、启动失败消息框、`%APPDATA%` 下 SQLite（WAL）的行为、杀毒软件对未签名 PyInstaller 程序的拦截。Windows 的密钥文件没有 0600，依赖用户配置目录的默认 ACL。CI 里的单元测试与打包冒烟是第一次在 Windows 上运行，依赖 POSIX 的少数测试已显式跳过。
+没有在 Windows 真机上运行过。`Cargo.lock` 已提交（含 `rfd`、`tauri-plugin-single-instance`），CI 用 `--locked`；GitHub 的 Windows 运行器上单元测试、Node 测试、PyInstaller、打包冒烟和 NSIS 已通过，但那不是真机。未验证：安装包与 WebView2 安装、原生保存对话框（`rfd`）、外部链接打开、退出时的草稿保护与后端进程清理、`msvcrt` 文件锁与父进程句柄检查在真实并发下的表现、单实例插件、启动失败消息框、`%LOCALAPPDATA%\PaperDigHelperData` 下 SQLite（WAL）的行为、杀毒软件对未签名 PyInstaller 程序的拦截。Windows 的密钥文件没有 0600，依赖用户配置目录的默认 ACL。依赖 POSIX 的少数测试在 Windows 上已显式跳过；CI 的测试运行器在 Windows 上会容忍临时目录清理失败，并在末尾报告没能删除的目录数。仓库用 `.gitattributes` 固定 LF 换行（Windows 检出成 CRLF 会让按源码切片的 Node 测试失败）。

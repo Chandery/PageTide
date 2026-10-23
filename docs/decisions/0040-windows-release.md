@@ -13,7 +13,7 @@
 3. **数据与密钥保护**：POSIX 上密钥和备份仍是 0600；Windows 没有等价的 mode 位，保护来自每用户配置目录（`%LOCALAPPDATA%`）的默认 ACL。这是较弱的保证（同一 Windows 账户下的其他进程可读），不是“已加固”。
 4. **WebView2**：安装包嵌入 Microsoft 的 WebView2 bootstrapper（`embedBootstrapper`，静默）。系统已有运行时（Windows 11、较新的 Windows 10）时不下载任何东西；没有时 bootstrapper 需要联网下载运行时。没有选“固定版本运行时”（会让安装包增大约 150 MB 以上）。
 5. **未签名**：两个平台都不签名、不公证（没有证书，也不使用任何 secret）。用户首次打开会遇到 macOS Gatekeeper / Windows SmartScreen 提示，见 [RELEASE](../RELEASE.md)。
-6. **CI**：`.github/workflows/release.yml`，`workflow_dispatch` 与 `v*` 标签触发；`windows` 作业只读权限，跑测试、构建、冒烟、上传 artifact；`publish` 作业仅标签触发、仅它有 `contents: write`，把安装包与校验和传到该标签的 release（不存在则建草稿）。第三方 action 暂用主版本标签，改成提交 SHA 是后续项。
+6. **CI**：`.github/workflows/release.yml`，`workflow_dispatch` 与 `v*` 标签触发；`test-windows`（Python 与 Node 测试）和 `build-windows`（PyInstaller、打包冒烟、NSIS、校验和、artifact）并行，都只读权限；`publish` 需要两者通过，仅 `push` 到 `v*` 标签时运行，先核对标签等于 `tauri.conf.json` 与 `Cargo.toml` 的版本，仅它有 `contents: write`，把安装包与校验和传到该标签的 release（不存在则建草稿）。`.gitattributes`（`* text=auto eol=lf`）保证 Windows 检出仍是 LF。分支触发器 `windows-release` 是临时的，合并前移除。第三方 action 暂用主版本标签，改成提交 SHA 是后续项。
 7. **Windows 上的显式跳过测试**：依赖 POSIX 文件 mode、符号链接权限、`select` 管道或 macOS 路径的测试用 `skipIf(win32)` 并写明原因；0600 断言在 Windows 上只是不执行，其余照跑。
 
 ## 数据目录的选择（独立审查后）

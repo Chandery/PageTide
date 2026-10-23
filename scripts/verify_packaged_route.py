@@ -410,6 +410,12 @@ def main():
         launch(executable,data,home,restart)
         assert marker.read_bytes()==b'untouched default library'
         assert not (home/'Library/Application Support/PaperDigHelper').exists()
+        # Default state: with no settings.json the learning map is switched off and the page says so.
+        off=root/'data-beta-off'; off.mkdir(); (off/'AI_DISABLED').touch()
+        def beta_off(call):
+            assert 'window.PDH_ROUTE_BETA=false' in call('/',raw=True)
+            assert 'window.PDH_ROUTE_BETA=true' not in call('/',raw=True)
+        launch(executable,off,home,beta_off)
         inspected=App(data_dir=data)
         try:
             provenance=inspected.route_recall_sources(recall_pid)

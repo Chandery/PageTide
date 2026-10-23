@@ -267,12 +267,14 @@ class Handler(BaseHTTPRequestHandler):
         self._response_started = False
         try:
             super().handle_one_request()
-        except (ConnectionError, TimeoutError):
-            self.close_connection = True   # the client went away: nothing to answer
-        except Exception:
+        except Exception as exc:
+            self.close_connection = True
+            # A client that went away while we were writing a response is routine. The same error types raised
+            # before any response started come from handler code (e.g. an upstream timeout): log those.
+            if self._response_started and isinstance(exc, (ConnectionError, TimeoutError)):
+                return
             import traceback
             traceback.print_exc()
-            self.close_connection = True
             if not self._response_started:
                 try:
                     self._json({"error": "internal error"}, 500)

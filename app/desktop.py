@@ -15,20 +15,77 @@ from .service import App
 LOG_LIMIT_BYTES = 1_000_000
 
 
+class SizeCappedLog:
+    """Text stream for stderr that rotates <log> to <log>.1 once about `limit` bytes were written (also while the
+    process keeps running). Rotation is best effort: if the file cannot be replaced (Windows: held by another
+    process) it is truncated, and if that fails too the stream keeps appending. It never raises into the caller."""
+    encoding = "utf-8"
+    errors = "replace"
+
+    def __init__(self, path, limit=LOG_LIMIT_BYTES):
+        self.path, self.limit = Path(path), limit
+        self.handle, self.written = None, 0
+        self._open(rotate_if_large=True)
+
+    def _open(self, rotate_if_large=False):
+        try:
+            size = self.path.stat().st_size
+        except OSError:
+            size = 0
+        if rotate_if_large and size > self.limit:
+            size = self._rotate(size)
+        self.written = size
+        self.handle = self.path.open("a", encoding="utf-8", errors="replace", buffering=1)
+
+    def _rotate(self, size):
+        try:
+            os.replace(self.path, self.path.with_name(self.path.name + ".1"))
+            return 0
+        except OSError:
+            try:
+                self.path.write_bytes(b"")   # cannot rotate: at least cap the growth
+                return 0
+            except OSError:
+                return size
+
+    def write(self, text):
+        try:
+            if self.written + len(text) > self.limit and self.written:
+                self.handle.close()
+                self._open(rotate_if_large=True)
+            self.handle.write(text)
+            self.written += len(text.encode("utf-8", "replace"))
+        except (OSError, ValueError):
+            pass
+        return len(text)
+
+    def flush(self):
+        try:
+            self.handle.flush()
+        except (OSError, ValueError):
+            pass
+
+    def isatty(self):
+        return False
+
+    def writable(self):
+        return True
+
+    def close(self):
+        try:
+            self.handle.close()
+        except OSError:
+            pass
+
+
 def redirect_stderr_to_log(root, limit=LOG_LIMIT_BYTES):
     """Send stderr to <data>/logs/backend.log (size-capped: one rotated copy). The Windows shell has no console
     to inherit, so it sets PDH_LOG_STDERR=1. Only what the backend itself prints reaches stderr: the HTTP
     server's per-request log is silenced, so request paths (and the desktop token in them) are not logged."""
     logs = Path(root) / "logs"
     logs.mkdir(parents=True, exist_ok=True)
-    path = logs / "backend.log"
-    try:
-        if path.stat().st_size > limit:
-            os.replace(path, logs / "backend.log.1")
-    except FileNotFoundError:
-        pass
-    sys.stderr = path.open("a", encoding="utf-8", errors="replace", buffering=1)
-    return path
+    sys.stderr = SizeCappedLog(logs / "backend.log", limit)
+    return logs / "backend.log"
 
 
 def main():
@@ -49,14 +106,15 @@ def main():
     if bundled_seeds.exists() and (not seeds.exists() or seeds.stat().st_size < 100):
         shutil.copyfile(bundled_seeds, seeds)
     os.environ["PAPERDIGHELPER_DATA"] = str(root)
-    if os.environ.get("PDH_LOG_STDERR") == "1":
-        redirect_stderr_to_log(root)
     os.chdir(root)
     with (root / ".desktop.lock").open("a", encoding="utf-8") as lock:
         try:
             platform_compat.lock_exclusive(lock, blocking=False)
         except BlockingIOError:
             raise SystemExit("PaperDigHelper is already running.")
+        # After the lock: a second instance must say "already running", not fail on a log another backend holds.
+        if os.environ.get("PDH_LOG_STDERR") == "1":
+            redirect_stderr_to_log(root)
         httpd = build_server(port=0, root=resources, desktop_token=secrets.token_hex(32))
 
         def bootstrap():

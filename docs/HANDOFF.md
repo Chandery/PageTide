@@ -1,3 +1,13 @@
+# 当前工作单元：Windows 审查修正（2026-10-24，第六个提交）
+
+[变更记录](../changes/2026-10-24-windows-release-review-fixes.json)，[检查证据](evidence/2026-10-24-windows-release-review-fixes-checks.txt)。接在协调者的 `e60bac5`（`.gitattributes` 固定 LF：CI 第 5 轮里 Windows 检出成 CRLF，按源码切片的 5 个 Node 测试失败）之后；CI 第 6 轮已全绿。
+
+做了：`backend.log` 改到拿到实例锁之后再重定向，并用按写入字节数轮换的 `SizeCappedLog`（轮换失败依次退到截断、继续追加）；`TolerantCleanupTests` 在 Python < 3.10 跳过，并用 `/usr/bin/python3`（3.9.6）跑了改动的测试；`run_tests.py` 末尾报告清理不掉的临时目录数；处理线程里在响应开始前抛出的 ConnectionError/TimeoutError 也记录堆栈；编码守卫补了 `io.open`/`codecs.open`/位置参数/`os.popen` 等；冒烟脚本加了默认 beta 关闭的断言；发布工作流核对标签与 `tauri.conf.json`、`Cargo.toml` 两处版本；RELEASE.md 与 ADR 0040 更新。临时分支触发器保留。
+
+没验证：这些在 Windows 上的表现（CI 才知道）、标签核对步骤（没跑过）。没有独立审查本提交。
+
+---
+
 # 当前工作单元：Windows 第四轮 CI：UTF-8（2026-10-23，第五个提交）
 
 [变更记录](../changes/2026-10-23-windows-release-ci-run4.json)，[检查证据](evidence/2026-10-23-windows-release-ci-run4-checks.txt)。

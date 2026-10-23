@@ -135,17 +135,65 @@ class DesktopLogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             try:
                 path = desktop.redirect_stderr_to_log(tmp, limit=3)
-                print("first", file=sys.stderr)
+                sys.stderr.write("first\n")
                 sys.stderr.close()
                 path = desktop.redirect_stderr_to_log(tmp, limit=3)   # bigger than the cap: rotate
-                print("second", file=sys.stderr)
+                sys.stderr.write("second\n")
                 sys.stderr.close()
             finally:
                 sys.stderr = saved
             self.assertEqual(path.read_text(encoding="utf-8"), "second\n")
             self.assertEqual((path.parent / "backend.log.1").read_text(encoding="utf-8"), "first\n")
 
+    def test_growth_is_capped_while_the_process_keeps_running(self):
+        from app import desktop
+        with tempfile.TemporaryDirectory() as tmp:
+            log = desktop.SizeCappedLog(Path(tmp) / "backend.log", limit=100)
+            for number in range(50):
+                log.write("line %02d xxxxxxxxxx\n" % number)
+            log.close()
+            current = (Path(tmp) / "backend.log").stat().st_size
+            self.assertLessEqual(current, 100)
+            self.assertTrue((Path(tmp) / "backend.log.1").exists())
+            self.assertIn("line 49", (Path(tmp) / "backend.log").read_text(encoding="utf-8"))
 
+    def test_rotation_failure_falls_back_to_truncating_then_appending_and_never_raises(self):
+        from app import desktop
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "backend.log"
+            path.write_text("x" * 500, encoding="utf-8")
+            with mock.patch.object(desktop.os, "replace", side_effect=PermissionError("held by another process")):
+                log = desktop.SizeCappedLog(path, limit=100)   # too big at start: replace fails, file is truncated
+                log.write("hello\n")
+                log.close()
+            self.assertEqual(path.read_text(encoding="utf-8"), "hello\n")
+            with mock.patch.object(desktop.os, "replace", side_effect=PermissionError), \
+                 mock.patch.object(Path, "write_bytes", side_effect=PermissionError):
+                path.write_text("y" * 500, encoding="utf-8")
+                log = desktop.SizeCappedLog(path, limit=100)   # nothing works: keeps appending, no exception
+                log.write("more\n")
+                log.close()
+            self.assertTrue(path.read_text(encoding="utf-8").endswith("more\n"))
+
+    def test_a_second_instance_reports_already_running_without_touching_the_log(self):
+        import subprocess
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            with (data / ".desktop.lock").open("a", encoding="utf-8") as held:
+                pc.lock_exclusive(held, blocking=False)
+                env = dict(os.environ, PAPERDIGHELPER_DATA=str(data), PDH_LOG_STDERR="1")
+                done = subprocess.run([sys.executable, "-c", "from app.desktop import main; main()"], cwd=root, env=env,
+                                      stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      text=True, encoding="utf-8", errors="replace", timeout=60)
+                pc.unlock(held)
+            self.assertNotEqual(done.returncode, 0)
+            self.assertIn("already running", done.stderr)
+            self.assertFalse((data / "logs").exists())
+
+
+@unittest.skipIf(sys.version_info < (3, 10), "TemporaryDirectory(ignore_cleanup_errors=) needs Python 3.10+; the runner only uses it on Windows (CI: 3.11)")
 class TolerantCleanupTests(unittest.TestCase):
     def test_runner_makes_directory_cleanup_tolerant_after_a_gc(self):
         import importlib.util
@@ -220,6 +268,28 @@ class BuildPythonTests(unittest.TestCase):
             self.assertEqual(build.python_options(), ["--python-option", "X utf8"])
         with mock.patch.object(build.sys, "platform", "darwin"):
             self.assertEqual(build.python_options(), [])
+
+
+@unittest.skipIf(sys.version_info < (3, 10), "see TolerantCleanupTests")
+class LeakReportTests(unittest.TestCase):
+    def test_a_directory_that_survives_cleanup_is_counted(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("run_tests_leak", Path(__file__).resolve().parents[1] / "scripts" / "run_tests.py")
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+
+        class Directory(tempfile.TemporaryDirectory):
+            def cleanup(self):          # stands in for a cleanup that cannot delete (open handle)
+                pass
+
+        runner.make_cleanup_tolerant(Directory)
+        kept = Directory()
+        try:
+            kept.cleanup()
+            self.assertEqual(runner.LEAKED, [kept.name])
+        finally:
+            import shutil
+            shutil.rmtree(kept.name, ignore_errors=True)
 
 
 class AppCloseTests(unittest.TestCase):

@@ -14,6 +14,9 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+LEAKED = []   # directories tolerant cleanup could not remove (open handles): reported at the end, never silent
+
+
 def make_cleanup_tolerant(directory_class=tempfile.TemporaryDirectory):
     original_init, original_cleanup = directory_class.__init__, directory_class.cleanup
 
@@ -24,6 +27,8 @@ def make_cleanup_tolerant(directory_class=tempfile.TemporaryDirectory):
     def cleanup(self):
         gc.collect()
         original_cleanup(self)
+        if os.path.exists(self.name):
+            LEAKED.append(self.name)
 
     directory_class.__init__, directory_class.cleanup = init, cleanup
 
@@ -34,7 +39,10 @@ def main(argv):
     sys.path.insert(0, ROOT)
     os.chdir(ROOT)
     arguments = argv or ["-s", "tests"]
-    unittest.main(module=None, argv=["unittest", "discover", *arguments])
+    program = unittest.main(module=None, argv=["unittest", "discover", *arguments], exit=False)
+    if LEAKED:
+        print(f"{len(LEAKED)} temporary directories could not be removed (open handles)", file=sys.stderr)
+    sys.exit(0 if program.result.wasSuccessful() else 1)
 
 
 if __name__ == "__main__":
