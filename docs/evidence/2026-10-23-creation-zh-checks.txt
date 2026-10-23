@@ -97,3 +97,9 @@ x 2 repeats = 60 AI turns, all answered (mode ai). Dev ledger: 31,954 tokens, $0
 - zh+en (30 turns): queries one Chinese + one English in 30/30; keywords mixed in 27/30, all Chinese in 3/30
   (古汉语 guided r1 t1+t2, 江南 quick r1). Before e3399c4: all Chinese in 5/8. Residual: for those 3 drafts the daily
   OpenAlex feed falls back to the first three (Chinese) keywords until the person adds an English keyword.
+
+== Coordinator: main merge and release build (2026-10-23) ==
+main fast-forwarded f6bf5b0 -> 3b23cd3. On main: unittest 2785 OK; node --test pass 595 fail 0; i18n_extract # 0 of 1158;
+budget --check PASS; harness check PASS (recheck warning only); build_desktop.py + cargo tauri build --bundles app ->
+src-tauri/target/release/bundle/macos/PaperDigHelper.app. The creation page itself was not opened in a browser in this unit
+(no page code changed).
