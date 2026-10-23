@@ -99,7 +99,11 @@ def error_for(label, kind, status=None, code=None, secrets=()):
     parts = [f"{label}: {kind}"]
     if isinstance(status, int):
         parts.append(f"HTTP {status}")
-    safe = re.sub(r"[^A-Za-z0-9_.-]", "", str(code if code is not None else ""))[:32]
+    raw = str(code if code is not None else "")
+    for secret in secrets:          # a provider that echoes the key as its "code" must not leave most of it behind after cleaning
+        if secret and isinstance(secret, str):
+            raw = raw.replace(secret, "")
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "", raw)[:32]
     if safe:
         parts.append(f"code {safe}")
     text = " ".join(parts)
@@ -109,16 +113,29 @@ def error_for(label, kind, status=None, code=None, secrets=()):
     return SourceError(text, kind)
 
 
-def fetch_json(request, label, secrets=(), timeout=20, max_bytes=MAX_BODY):
+def _error_payload(exc):
+    """The decoded JSON body of an HTTP error, or None (no body, not JSON, not an object). Read at most 4 KB."""
+    try:
+        payload = json.loads(exc.read(4096).decode("utf-8", "replace"))
+    except Exception:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def fetch_json(request, label, secrets=(), timeout=20, max_bytes=MAX_BODY, on_429=None):
     """One request, no retry, no cache. Returns the parsed JSON, or raises SourceError with a kind.
     For search endpoints only: a 404 is reported as `unavailable`. A single-record lookup, where 404 means "no such
-    record", must not use this helper (OpenAlex lookups use OpenAlexClient._fetch)."""
+    record", must not use this helper (OpenAlex lookups use OpenAlexClient._fetch).
+    `on_429(payload_or_None)` returns the kind for an HTTP 429 (a source whose 429 may be a per-second limit, not a used-up day);
+    without it a 429 is quota_exhausted as before."""
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             raw = response.read(max_bytes + 1)
     except urllib.error.HTTPError as exc:
         # A search API answering 404 has no such service for this account (measured with Baidu, 2026-10-23): unavailable,
         # not "nothing found".
+        if exc.code == 429 and on_429 is not None:
+            raise error_for(label, on_429(_error_payload(exc)), status=429, secrets=secrets) from None
         kind = "unavailable" if exc.code == 404 else http_kind(exc.code)
         raise error_for(label, kind, status=exc.code, secrets=secrets) from None
     except http.client.InvalidURL:

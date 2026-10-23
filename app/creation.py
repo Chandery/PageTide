@@ -156,13 +156,14 @@ def merge_baidu(result, query, papers=(), problem=None, limit=12):
     how well the title matches the query, keeping each source's own order within a rank; a hit OpenAlex already has (same key
     or same title) is not repeated. Baidu hits make the status ok even when OpenAlex failed or found nothing."""
     items = list(result.get("items") or [])
-    seen = {i.get("key") for i in items} | {title_key(i.get("title")) for i in items}
+    seen = {i.get("key") for i in items} | {title_key(i.get("title")) for i in items} - {""}      # an empty title mark never merges papers
     for paper in papers:
         view = paper_view(paper)
-        if paper["key"] in seen or title_key(view["title"]) in seen:
+        mark = title_key(view["title"])
+        if paper["key"] in seen or (mark and mark in seen):
             continue
         remember_baidu(paper)
-        seen.update({paper["key"], title_key(view["title"])})
+        seen.update({paper["key"], mark} - {""})
         view["seed_id"] = paper.get("doi") or paper["key"]
         items.append(view)
     items.sort(key=lambda i: -seed_rank(query, i.get("title")))

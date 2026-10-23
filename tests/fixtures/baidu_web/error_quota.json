@@ -1,1 +1,1 @@
-{"code": "RATE_LIMIT_QPS", "message": "Exceeding QPS limit", "requestId": "x"}
+{"code": "18", "message": "Open api daily request limit reached (synthetic)", "requestId": "x"}

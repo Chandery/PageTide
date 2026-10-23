@@ -57,11 +57,15 @@ BAIDU_SCHOLAR_INFO = SourceInfo(
     key_url="https://console.bce.baidu.com/qianfan/ais/console/apiKey",      # UNVERIFIED address of the Qianfan API key page
     key_env="BAIDU_SCHOLAR_API_KEY", key_pattern=r"[A-Za-z0-9._~+/=:-]{8,512}",   # a '/' is allowed (the format is unverified)
     serves_languages=("zh", "en"), query_scripts=("cjk", "latin"), daily_cap=DAILY_CAP,
-    provider_quota="免费每天约 50 次；超出需向百度提工单（未验证）。本地每天最多 40 次，日界按北京时间（未验证）",
+    provider_quota="免费每天约 50 次；超出需向百度提工单（未验证）。本地每天最多 40 次（与百度搜索合计），日界按北京时间（未验证）",
     sends="含中文的项目关键词、创建项目时的检索词、种子论文标题检索（用你自己的密钥）；不含画像、笔记、论文库和私有 ID",
     claims_id="CH-BAIDU-SCHOLAR")
 
-_QUOTA = re.compile(r"quota|limit|exceed|too many|rate|额度|次数|频率|限流|超出", re.I)
+# A per-second limit (QPS, rate limit, 频率, 限流) is transient: the next minute works. A used-up allowance (quota, daily, limit/exceed
+# without a rate word, 额度, 次数, 超出) lasts until the day changes. Latin words are matched as whole words ("regenerate" is not "rate");
+# "_" is no boundary here because the provider's codes look like RATE_LIMIT_QPS.
+_QPS = re.compile(r"(?<![A-Za-z])qps(?![A-Za-z])|(?<![A-Za-z])rate[\s_-]*limit|too many requests|(?<![A-Za-z])rate(?![A-Za-z])|频率|限流|并发", re.I)
+_QUOTA = re.compile(r"(?<![A-Za-z])(?:quota|daily|exceed\w*|limit\w*)(?![A-Za-z])|额度|次数|超出", re.I)
 _AUTH = re.compile(r"auth|token|key|permission|credential|forbidden|unauthori|鉴权|认证|权限|授权|签名|密钥", re.I)
 _KEYWORD_SPLIT = re.compile(r"[;；,，、\n]")
 _pace_lock = threading.Lock()
@@ -76,7 +80,7 @@ def clean_query(text):
     """The query as sent: control characters become spaces, whitespace collapses, at most MAX_QUERY characters."""
     if not isinstance(text, str):
         return ""
-    return re.sub(r"\s+", " ", re.sub("[\x00-\x1f\x7f\u2028\u2029]", " ", text)).strip()[:MAX_QUERY].strip()
+    return re.sub(r"\s+", " ", re.sub("[\x00-\x1f\x7f\u2028\u2029]", " ", re.sub("[\ud800-\udfff]", "", text))).strip()[:MAX_QUERY].strip()
 
 
 def _page_url(value, upgrade=True):
@@ -115,13 +119,27 @@ def strip_ai_abstract(value, depth=0):
 
 def _classify(code, message):
     text = f"{code} {message}"
+    if _QPS.search(text):
+        return "unavailable"
     if _QUOTA.search(text):
         return "quota_exhausted"
     return "auth_required" if _AUTH.search(text) else "unavailable"
 
 
-def parse_search(payload):
-    """Papers (db.Store.upsert_papers shape) from a decoded response, or a SourceError with a kind."""
+def kind_for_429(payload):
+    """An HTTP 429 is a per-second limit (transient, "unavailable") unless its body names the daily allowance."""
+    if isinstance(payload, dict):
+        code, message = payload.get("code"), payload.get("message")
+        if code is None and isinstance(payload.get("error"), dict):
+            code, message = payload["error"].get("code") or payload["error"].get("type"), payload["error"].get("message")
+        if _classify(code, message) == "quota_exhausted":
+            return "quota_exhausted"
+    return "unavailable"
+
+
+def parse_search(payload, secrets=()):
+    """Papers (db.Store.upsert_papers shape) from a decoded response, or a SourceError with a kind. `secrets` (the key) are removed
+    from anything the provider's code or message could put into the error."""
     if not isinstance(payload, dict):
         raise error_for(LABEL, "bad_response")
     code, message = payload.get("code"), payload.get("message")
@@ -130,7 +148,7 @@ def parse_search(payload):
     if code is None:
         raise error_for(LABEL, "bad_response")
     if str(code).strip() != "0":
-        raise error_for(LABEL, _classify(code, message), code=code)
+        raise error_for(LABEL, _classify(code, message), code=code, secrets=secrets)
     items = payload.get("data")
     if items is None:
         return []
@@ -209,7 +227,7 @@ class BaiduScholar:
             if wait > 0:
                 time.sleep(wait)
             _last_request[0] = time.monotonic()
-        return fetch_json(self._request(url, api_key=key), self.label, secrets=(key, self.api_key), timeout=20)
+        return fetch_json(self._request(url, api_key=key), self.label, secrets=(key, self.api_key), timeout=20, on_429=kind_for_429)
 
     # ---------------------------------------------------------------- interface
     def search(self, query, since=None, page=1, per_page=10):
@@ -232,7 +250,7 @@ class BaiduScholar:
             try:
                 self._reserve()
                 payload = self._live(url, self.api_key)
-                papers = parse_search(payload)
+                papers = parse_search(payload, secrets=(self.api_key,))
             except SourceError as exc:
                 self._note_status(exc.kind)
                 raise
@@ -250,7 +268,7 @@ class BaiduScholar:
         if not key:
             raise error_for(self.label, "auth_required")
         self._reserve()
-        parse_search(self._live(self._url(VERIFY_WORD, 0), key))
+        parse_search(self._live(self._url(VERIFY_WORD, 0), key), secrets=(key, self.api_key))
         return {"ok": True}
 
     def pdf_routes(self, paper):

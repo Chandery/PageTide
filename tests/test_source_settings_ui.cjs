@@ -172,7 +172,7 @@ test('saving sends a typed source key as source_key and never a blank one',async
 test('the web row has a switch, one status word and a test button, and no key field of its own',()=>{
   const section=html.slice(html.indexOf('<h2>数据源</h2>'),html.indexOf('<h2>存储与导出</h2>'));
   for(const id of ['sourceBaiduWeb','baiduWebStatus','testBaiduWebBtn'])assert.match(section,new RegExp('id="'+id+'"'),id);
-  assert.match(section,/百度学术（百度搜索）/);
+  assert.match(section,/百度搜索/);
   assert.doesNotMatch(section,/id="baiduWebKey"|clearBaiduWeb|baiduWebKeyLink/);              // one key field for both Baidu rows
   assert.equal((section.match(/type="password"/g)||[]).length,2);                              // OpenAlex and Baidu: still two key fields
   assert.doesNotMatch(section,/<small|<p[ >]|readonly-note/);
@@ -265,4 +265,30 @@ test('clearing the shared key from the scholar row refreshes the web row too',as
   await p.node('#clearBaiduScholarKeyBtn').onclick();
   assert.deepEqual(JSON.parse(p.calls.at(-1).init.body),{clear_source_key:'baidu_scholar'});
   assert.equal(p.node('#baiduWebStatus').textContent,'需要密钥');
+});
+
+// ---- one Baidu block: a heading with the single key line, and the two switches under it.
+test('the Baidu block is one heading, one key line, and the two switches under it',()=>{
+  const section=html.slice(html.indexOf('<h2>数据源</h2>'),html.indexOf('<h2>存储与导出</h2>'));
+  const at=id=>section.indexOf('id="'+id+'"');
+  const heading=section.indexOf('class="source-name"');
+  assert.ok(heading>0,'a heading element for the block');
+  assert.match(section.slice(heading,heading+80),/>百度学术</);
+  const order=['baiduScholarKey','baiduScholarKeyStatus','testBaiduScholarBtn','clearBaiduScholarKeyBtn','baiduScholarKeyLink','sourceBaiduScholar','sourceBaiduWeb','baiduWebStatus','testBaiduWebBtn'].map(at);
+  assert.ok(order.every(i=>i>0),'every id is still there');
+  assert.ok(heading<order[0]);
+  assert.deepEqual([...order].sort((a,b)=>a-b),order,'key line first, then the scholar switch, then the web switch with its status and test');
+  assert.match(section,/百度学术接口/);                                    // the switch of the Baidu Scholar tool
+  assert.match(section,/<\/label>/);
+  assert.match(section.slice(at('sourceBaiduScholar'),at('sourceBaiduScholar')+120),/百度学术接口/);
+  assert.match(section.slice(at('sourceBaiduWeb'),at('sourceBaiduWeb')+120),/百度搜索/);
+  assert.doesNotMatch(section,/百度学术（百度搜索）/);
+  assert.equal((section.match(/id="baiduScholarKey"/g)||[]).length,1);   // one key field for the block
+  assert.doesNotMatch(section,/<small|<p[ >]|readonly-note/);
+});
+test('the block keeps the ids and the behaviour the rest of the page relies on',async()=>{
+  const p=page({confirm:()=>true,settings:{sourceBaiduWeb:true,baiduScholarConfirmed:true}});await vm.runInContext('loadSettings()',p.context);
+  assert.equal(p.node('#sourceBaiduWeb').checked,true);assert.equal(p.node('#sourceBaiduScholar').checked,false);
+  p.render(withSource('baidu_web',{configured:true}));assert.equal(p.node('#baiduWebStatus').textContent,'已配置');
+  assert.equal(p.node('#baiduScholarKeyStatus').textContent,'需要密钥');      // the key line shows the key's state; each switch is its own
 });

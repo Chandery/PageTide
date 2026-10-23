@@ -2194,7 +2194,7 @@ class App:
             answered += 1
             earlier = dict(known)              # a paper an EARLIER source already gave is not repeated, but gains this source's page
             for paper in found:
-                marks = (paper["key"], "title:" + baidu_web.title_mark(paper.get("title")))
+                marks = self._baidu_marks(paper)
                 twin = next((earlier[m] for m in marks if m in earlier), None)
                 if twin is not None:
                     if paper.get("oa") and twin is not paper:
@@ -2202,7 +2202,22 @@ class App:
                     continue
                 papers.append(paper)
                 known.update({m: paper for m in marks})
-        return papers, (None if answered or not problems else problems[0])
+        return papers, (None if answered or not problems else self._most_actionable(problems))
+
+    _ACTIONABLE = ("auth_required", "quota_exhausted", "network_error")      # then anything else, "unavailable" last
+
+    @classmethod
+    def _most_actionable(cls, kinds):
+        """The one failure kind to show when every Baidu source that was asked failed: the one the person can act on."""
+        rank = {kind: n for n, kind in enumerate(cls._ACTIONABLE)}
+        return min(kinds, key=lambda kind: (rank.get(kind, len(rank)), kind == "unavailable"))
+
+    @staticmethod
+    def _baidu_marks(paper):
+        """What makes two papers one when the Baidu sources are merged: the key, and the title when it has letters or characters
+        (a title of only punctuation, or none, compares equal to every other and must not merge different papers)."""
+        mark = baidu_web.title_mark(paper.get("title"))
+        return (paper["key"], "title:" + mark) if mark else (paper["key"],)
 
     def guidance_search(self, session_id, query, all_years=False, languages=None):
         """Candidate papers for ONE search query, merged into the session's candidate list.
@@ -2954,6 +2969,9 @@ class App:
                 if exc.kind in self.BAIDU_STOP:
                     break
                 continue
+            except Exception:         # one source's unexpected failure is a failed source, not a failed refresh
+                errors.append({"query": keyword, "kind": "unavailable", "error": "unexpected error", "source": "baidu_scholar"})
+                break
             # Baidu has no date sort, so a later page can hold only old papers: they are left out by the time window, but the
             # page was not empty, and only an empty page sends the cursor back to the first.
             found = self._not_older_than(page_papers, from_date)
@@ -2991,8 +3009,8 @@ class App:
         recency = user_settings.recency_filter(self.data)
         known = {}
         for paper in field:
-            known.setdefault(paper["key"], paper)
-            known.setdefault("title:" + baidu_web.title_mark(paper.get("title")), paper)
+            for mark in self._baidu_marks(paper):
+                known.setdefault(mark, paper)
         fresh = []
         for keyword in keywords:
             try:
@@ -3002,8 +3020,11 @@ class App:
                 if exc.kind in self.BAIDU_STOP:
                     break
                 continue
+            except Exception:         # one source's unexpected failure is a failed source, not a failed refresh
+                errors.append({"query": keyword, "kind": "unavailable", "error": "unexpected error", "source": "baidu_web"})
+                break
             for paper in self._not_older_than(found, from_date):
-                marks = (paper["key"], "title:" + baidu_web.title_mark(paper.get("title")))
+                marks = self._baidu_marks(paper)
                 twin = next((known[m] for m in marks if m in known), None)
                 if twin is not None:
                     if paper.get("oa"):

@@ -4,6 +4,7 @@ eligibility. Offline only: urlopen is replaced by a router that answers the Qian
 Every key here is a dummy.
 """
 import datetime
+import io
 import json
 import os
 import sys
@@ -55,7 +56,7 @@ def web_answer(*items):
     refs = []
     for paper_id, title, date in items:
         refs.append({"id": 1, "url": "https://xueshu.baidu.com/usercenter/paper/show?paperid=" + paper_id, "title": title + " ", "date": date, "type": "web",
-                     "content": f"{title} 来自 掌桥科研  喜欢0 阅读量: 4 作者: 张三 摘要: 这是一段足够长的中文摘要内容，用来测试合并。 关键词: 测试 年份: 2026 "})
+                     "content": f"{title} 来自 掌桥科研  喜欢0 阅读量: 4 作者: 张三 摘要: 这是一段足够长的中文摘要内容，用来测试合并。 关键词: 测试 "})
     return json.dumps({"request_id": "r", "references": refs}, ensure_ascii=False).encode()
 
 
@@ -98,8 +99,11 @@ class Net:
         return [c["body"]["messages"][0]["content"] for c in self.web]
 
 
-def http_error(code):
-    return urllib.error.HTTPError("https://qianfan.baidubce.com/x", code, "no", {}, None)
+def http_error(code, body=None):
+    return urllib.error.HTTPError("https://qianfan.baidubce.com/x", code, "no", {}, io.BytesIO(body) if body is not None else None)
+
+
+DAILY = b'{"code":"18","message":"Open api daily request limit reached (synthetic)"}'
 
 
 class WiringCase(unittest.TestCase):
@@ -266,11 +270,11 @@ class FeedBothSourcesTests(FeedCase):
         super().setUp()
         self.set_user_settings(self.app, sourceBaiduScholar=True)
 
-    def test_both_sources_are_asked_and_each_has_its_own_counter(self):
+    def test_both_sources_are_asked_and_they_share_one_counter(self):
         self.refresh()
         self.assertEqual(len(self.net.web), 3)
         self.assertEqual(len(self.net.scholar), 3)
-        self.assertEqual((self.app.adapters["baidu_web"].usage_today(), self.app.adapters["baidu_scholar"].usage_today()), (3, 3))
+        self.assertEqual((self.app.adapters["baidu_web"].usage_today(), self.app.adapters["baidu_scholar"].usage_today()), (6, 6))   # one allowance
 
     def test_a_paper_both_found_is_stored_once_and_keeps_both_pages(self):
         self.net.scholar_answer = scholar_answer(scholar_item("s-dup", TITLE_1))
@@ -327,7 +331,7 @@ class FeedErrorTests(FeedCase):
 
     def test_the_local_cap_is_quota_and_makes_no_call(self):
         day = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)).date().isoformat()
-        self.app.store.conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", ("source_usage:baidu_web:" + day, "40"))
+        self.app.store.conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", ("source_usage:baidu_scholar:" + day, "40"))
         self.app.store.conn.commit()
         result = self.refresh()
         self.assertEqual(self.net.web, [])
@@ -352,6 +356,81 @@ class FeedErrorTests(FeedCase):
         self.net.openalex_results = [work]
         self.refresh()
         self.assertIsNotNone(self.stored("https://doi.org/10.1/en7"))
+
+
+class BoundaryTests(FeedCase):
+    """An unexpected exception from one source is a failed source, not a crashed refresh, search or seed lookup."""
+
+    def setUp(self):
+        super().setUp()
+        self.set_user_settings(self.app, sourceBaiduScholar=True)
+
+    def errors(self, result, source):
+        return [e["kind"] for e in result["errors"] if e.get("source") == source]
+
+    def test_the_feed_survives_an_unexpected_exception_of_either_source(self):
+        with mock.patch.object(self.app.adapters["baidu_scholar"], "search", side_effect=RuntimeError("boom " + KEY)):
+            result = self.refresh()
+        self.assertEqual(self.errors(result, "baidu_scholar"), ["unavailable"])
+        self.assertEqual(len(self.net.web), 3)
+        self.assertIsNotNone(self.stored(KEY_1))
+        self.assertNotIn(KEY, json.dumps(result))
+        self.net.web.clear()
+        for cached in (self.root / "data" / "cache" / "baidu_web").glob("*.json"):
+            cached.unlink()
+        with mock.patch.object(self.app.adapters["baidu_web"], "search", side_effect=ValueError("boom " + KEY)):
+            result = self.refresh()
+        self.assertEqual(self.errors(result, "baidu_web"), ["unavailable"])
+        self.assertEqual(len(self.net.scholar), 3)
+        self.assertNotIn(KEY, json.dumps(result))
+
+    def test_creation_and_seed_search_survive_an_unexpected_exception_of_one_source(self):
+        with mock.patch.object(self.app.adapters["baidu_scholar"], "search", side_effect=RuntimeError("boom")), self.patched():
+            papers, problem = self.app._baidu_search("知识图谱", per_page=10, web_per_page=12)
+            result = self.app.seed_search(TITLE_1)
+        self.assertEqual((problem, [p["key"] for p in papers][:1]), (None, [KEY_1]))
+        self.assertEqual(result["items"][0]["key"], KEY_1)
+        with mock.patch.object(self.app.adapters["baidu_scholar"], "search", side_effect=RuntimeError("boom")), \
+                mock.patch.object(self.app.adapters["baidu_web"], "search", side_effect=RuntimeError("boom")):
+            self.assertEqual(self.app._baidu_search("知识图谱"), ([], "unavailable"))
+
+    def test_a_lone_surrogate_in_a_search_phrase_reaches_neither_source(self):
+        with self.patched():
+            self.app._baidu_search("知识图谱\ud800构建")
+        self.assertEqual(self.net.web_queries(), ["知识图谱构建"])
+        self.assertEqual([c["wd"] for c in self.net.scholar], ["知识图谱构建"])
+
+
+class EmptyTitleTests(FeedCase):
+    """A title of only punctuation (or none) has an empty comparison mark: it never makes two different papers one."""
+
+    def setUp(self):
+        super().setUp()
+        self.set_user_settings(self.app, sourceBaiduScholar=True)
+        self.net.scholar_answer = scholar_answer(scholar_item("s-punct", "。。。"))
+        self.net.web_answer = web_answer(("w-punct", "！！！", "2026-10-19 00:00:00"))
+
+    def test_creation_keeps_both(self):
+        with self.patched():
+            papers, problem = self.app._baidu_search("知识图谱")
+        self.assertEqual((problem, sorted(p["title"] for p in papers)), (None, ["。。。", "！！！"]))
+
+    def test_the_feed_keeps_both(self):
+        self.refresh()
+        self.assertEqual(self.app.store.conn.execute("SELECT COUNT(*) FROM papers WHERE title IN ('。。。','！！！')").fetchone()[0], 2)
+
+    def test_the_seed_merge_keeps_a_baidu_hit_beside_an_untitled_result(self):
+        from app import baidu_web, creation
+        hit = baidu_web.parse_search(json.loads(self.net.web_answer))
+        out = creation.merge_baidu({"status": "ok", "items": [{"key": "W1", "title": ""}]}, "查询", hit, None)
+        self.assertEqual(sorted(i["key"] for i in out["items"]), sorted(["W1", hit[0]["key"]]))
+
+    def test_the_same_nonempty_title_is_still_one_paper(self):
+        self.net.scholar_answer = scholar_answer(scholar_item("s-same", "同一个标题。"))
+        self.net.web_answer = web_answer(("w-same", "同一个 标题", "2026-10-19 00:00:00"))
+        with self.patched():
+            papers, _ = self.app._baidu_search("知识图谱")
+        self.assertEqual(len(papers), 1)
 
 
 class EligibilityTests(FeedCase):
@@ -477,22 +556,32 @@ class CreationTests(CreationCase):
         self.assertNotIn("baidu", result)
         self.assertIn(KEY_1, [i["key"] for i in result["items"]])
 
-    def test_a_status_appears_only_when_every_asked_source_failed(self):
+    def test_a_status_appears_only_when_every_asked_source_failed_and_shows_the_most_actionable_kind(self):
         self.set_user_settings(self.app, sourceBaiduScholar=True)
-        self.net.scholar_error = http_error(404)
-        self.net.web_error = http_error(429)
-        result, _ = self.search(query="知识图谱 失败")
-        self.assertEqual(result["baidu"], {"kind": "unavailable"})          # the first asked source's kind: one short status
+        cases = [(http_error(404), http_error(429, DAILY), "quota_exhausted"),          # scholar unavailable, web out of quota: quota shows
+                 (http_error(429, DAILY), http_error(404), "quota_exhausted"),
+                 (http_error(404), http_error(401), "auth_required"),
+                 (http_error(401), http_error(429, DAILY), "auth_required"),
+                 (urllib.error.URLError("offline"), http_error(404), "network_error"),
+                 (http_error(404), urllib.error.URLError("offline"), "network_error"),
+                 (http_error(429, DAILY), urllib.error.URLError("offline"), "quota_exhausted"),
+                 (http_error(404), http_error(500), "unavailable"),
+                 (http_error(429), http_error(404), "unavailable")]                   # a per-second limit is transient, not quota
+        for n, (scholar, web, expected) in enumerate(cases):
+            self.net.scholar_error, self.net.web_error = scholar, web
+            result, _ = self.search(query=f"知识图谱 失败{n}")
+            self.assertEqual(result["baidu"], {"kind": expected}, n)
+            self.assertNotIn(KEY, json.dumps(result))
         self.set_user_settings(self.app, sourceBaiduScholar=False)
+        self.net.web_error = http_error(429, DAILY)
         result, _ = self.search(query="知识图谱 只有网页")
         self.assertEqual(result["baidu"], {"kind": "quota_exhausted"})
-        self.assertNotIn(KEY, json.dumps(result))
 
     def test_a_web_failure_is_a_short_status_and_openalex_results_still_come(self):
         self.net.openalex_results = [{"id": "https://openalex.org/W2", "doi": "https://doi.org/10.9/2", "title": "Another survey", "publication_date": "2024-03-01",
                                       "type": "article", "ids": {}, "primary_location": {"source": {"display_name": "Journal"}},
                                       "abstract_inverted_index": {"graph": [0], "survey": [1]}}]
-        for error, kind in ((http_error(401), "auth_required"), (http_error(429), "quota_exhausted"), (urllib.error.URLError("offline " + KEY), "network_error")):
+        for error, kind in ((http_error(401), "auth_required"), (http_error(429, DAILY), "quota_exhausted"), (http_error(429), "unavailable"), (urllib.error.URLError("offline " + KEY), "network_error")):
             self.net.web_error = error
             result, _ = self.search(query=f"知识图谱{kind}")
             self.assertEqual(result["baidu"], {"kind": kind})
@@ -502,7 +591,7 @@ class CreationTests(CreationCase):
 
     def test_the_local_cap_is_a_quota_status_and_makes_no_call(self):
         day = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)).date().isoformat()
-        self.app.store.conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", ("source_usage:baidu_web:" + day, "40"))
+        self.app.store.conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", ("source_usage:baidu_scholar:" + day, "40"))
         self.app.store.conn.commit()
         result, _ = self.search()
         self.assertEqual((self.net.web, result["baidu"]), ([], {"kind": "quota_exhausted"}))
@@ -617,6 +706,23 @@ class SettingsTests(WiringCase):
                 result = self.app.test_source("baidu_web")
             self.assertEqual(result["kind"], kind)
             self.assertNotIn(KEY, json.dumps(result))
+
+    def test_a_per_second_limit_is_not_recorded_as_a_used_up_day(self):
+        self.net.web_error = http_error(429)
+        with self.patched():
+            result = self.app.test_source("baidu_web")
+        self.assertEqual(result["kind"], "unavailable")
+        self.assertEqual(self.app.sources_status()["baidu_web"]["status_kind"], "unavailable")
+        self.net.web_error = http_error(429, DAILY)
+        with self.patched():
+            self.assertEqual(self.app.test_source("baidu_web")["kind"], "quota_exhausted")
+
+    def test_both_test_buttons_count_in_the_one_allowance(self):
+        with self.patched():
+            self.app.test_source("baidu_web")
+            self.app.test_source("baidu_scholar")
+        status = self.app.sources_status()
+        self.assertEqual((status["baidu_web"]["used_today"], status["baidu_scholar"]["used_today"]), (2, 2))
 
     def test_a_typed_key_is_tested_without_saving_and_must_have_the_shared_format(self):
         with self.patched():

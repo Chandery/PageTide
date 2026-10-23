@@ -98,6 +98,11 @@
     .source-row .source-key button { padding: calc(5px * var(--s)) calc(10px * var(--s)); }
     .source-row .source-key a { font-size: calc(12px * var(--s)); color: var(--muted); }
     .source-row .source-key a:hover { color: var(--text); }
+    .source-row .source-name { font-size: calc(13px * var(--s)); font-weight: 500; color: var(--text); }
+    .source-row .source-option { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8px * var(--s)); margin: calc(8px * var(--s)) 0 0 calc(26px * var(--s)); }
+    .source-row .source-option label.inline { margin-bottom: 0; }
+    .source-row .source-option .source-state { margin-top: 0; min-width: 5em; font-size: calc(12px * var(--s)); color: var(--muted); }
+    .source-row .source-option button { padding: calc(5px * var(--s)) calc(10px * var(--s)); }
     /* — actions bar — */
     .actions {
       display: flex; gap: calc(10px * var(--s)); justify-content: flex-end;
@@ -220,10 +225,7 @@
         </div>
       </div>
       <div class="field source-row">
-        <label class="inline">
-          <input type="checkbox" id="sourceBaiduScholar">
-          百度学术
-        </label>
+        <div class="source-name">百度学术</div>
         <div class="source-key">
           <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度学术密钥" autocomplete="off">
           <span id="baiduScholarKeyStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
@@ -231,13 +233,17 @@
           <button type="button" id="clearBaiduScholarKeyBtn" class="ghost" hidden>清除</button>
           <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
         </div>
-      </div>
-      <div class="field source-row">
-        <label class="inline">
-          <input type="checkbox" id="sourceBaiduWeb">
-          百度学术（百度搜索）
-        </label>
-        <div class="source-key">
+        <div class="source-option">
+          <label class="inline">
+            <input type="checkbox" id="sourceBaiduScholar">
+            百度学术接口
+          </label>
+        </div>
+        <div class="source-option">
+          <label class="inline">
+            <input type="checkbox" id="sourceBaiduWeb">
+            百度搜索
+          </label>
           <span id="baiduWebStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
           <button type="button" id="testBaiduWebBtn" class="ghost">测试</button>
         </div>
@@ -300,7 +306,7 @@
     const SOURCE_ROWS = {
       openalex: {key:'#openalexKey', status:'#openalexKeyStatus', test:'#testOpenalexBtn', clear:'#clearOpenalexKeyBtn', link:'#openalexKeyLink'},
       baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink'},
-      // Baidu AI Search on xueshu.baidu.com uses the same Qianfan key: the field above is its field, so it has no key, clear or link of its own.
+      // Baidu search restricted to xueshu.baidu.com uses the same Qianfan key: the key line of the Baidu block is its field, so it has no key, clear or link of its own.
       baidu_web: {key:'#baiduScholarKey', status:'#baiduWebStatus', test:'#testBaiduWebBtn', shared:true},
     };
     const SOURCE_WORDS = {ok:'可用', auth_required:'密钥无效', quota_exhausted:'今日额度已用完', network_error:'无法连接',

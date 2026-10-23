@@ -4,6 +4,7 @@ Candidates while creating a project (guidance_search / guidance_preview) and the
 only when the user switched it on, a key is saved, and the text has Chinese characters (for candidates, also only when 中文 is
 ticked). Baidu failures are a short status, never an error that breaks the page.
 """
+import io
 import json
 import os
 import sys
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 FIXTURES = ROOT / "tests" / "fixtures" / "baidu_scholar"
 KEY = "bce-v3/ALTAK-dummyDummy0000/dummydummydummydummy0000"
+DAILY_QUOTA = b'{"code":"18","message":"Open api daily request limit reached (synthetic)"}'      # a 429 that names the daily allowance
 DOI_1 = "https://doi.org/10.1234/kg.2024.001"
 PAGE_1 = "https://xueshu.baidu.com/usercenter/paper/show?paperid=synthetic-p1"
 
@@ -177,7 +179,7 @@ class GuidanceSearchTests(Case):
     def test_a_baidu_failure_is_a_short_status_and_the_page_still_gets_openalex_results(self):
         self.net.openalex_results = [openalex_work(2, "Another survey")]
         for error, kind in ((urllib.error.HTTPError("https://qianfan.baidubce.com/x", 401, "no", {}, None), "auth_required"),
-                            (urllib.error.HTTPError("https://qianfan.baidubce.com/x", 429, "no", {}, None), "quota_exhausted"),
+                            (urllib.error.HTTPError("https://qianfan.baidubce.com/x", 429, "no", {}, io.BytesIO(DAILY_QUOTA)), "quota_exhausted"),
                             (urllib.error.URLError("offline " + KEY), "network_error")):
             self.net.baidu_error = error
             result, _ = self.search(query=f"知识图谱{kind}")
@@ -274,7 +276,7 @@ class SeedSearchTests(Case):
 
     def test_a_baidu_failure_never_breaks_the_search(self):
         self.net.openalex_results = [openalex_work(5, "知识图谱 embedding")]
-        self.net.baidu_error = urllib.error.HTTPError("https://qianfan.baidubce.com/x", 429, "no", {}, None)
+        self.net.baidu_error = urllib.error.HTTPError("https://qianfan.baidubce.com/x", 429, "no", {}, io.BytesIO(DAILY_QUOTA))
         result = self.seed_search()
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["baidu"], {"kind": "quota_exhausted"})

@@ -5,6 +5,7 @@ never seen live); the fixtures in tests/fixtures/baidu_scholar are synthetic rec
 shape. The key in these tests is a dummy value.
 """
 import datetime
+import io
 import json
 import os
 import re
@@ -351,7 +352,10 @@ class RequestTests(AdapterCase):
         self.assertEqual(self.counter_rows(), {})
 
     def test_failures_map_to_kinds_and_never_carry_the_key(self):
-        cases = ((http_error(401), "auth_required"), (http_error(403), "auth_required"), (http_error(429), "quota_exhausted"),
+        cases = ((http_error(401), "auth_required"), (http_error(403), "auth_required"),
+                 # a 429 is a per-second limit unless its body names the daily allowance: only the latter is "quota used up"
+                 (http_error(429), "unavailable"),
+                 (urllib.error.HTTPError("https://qianfan.baidubce.com/x", 429, "synthetic", {}, io.BytesIO(fixture("error_quota.json"))), "quota_exhausted"),
                  (http_error(500), "unavailable"), (http_error(503), "unavailable"), (http_error(400), "invalid_input"),
                  # measured 2026-10-23 with a valid key: the search address answers "404 page not found" when the service is
                  # not open to the account; that is the service being unavailable, never "no results"

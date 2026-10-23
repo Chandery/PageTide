@@ -14,8 +14,9 @@ and https links are present, the types of publishYear, whether aiAbstract comes 
 makes of it, and the key's format (segment lengths and character classes, never the key). The raw answer is saved under
 .local/source-smoke/ (git-ignored; it may contain paper text and an AI summary) and never committed.
 
-It spends one of the provider's calls (Baidu: about 50 free a day) and does not touch the app's database or its daily
-counter. Every Baidu field name in app/baidu_scholar.py is UNVERIFIED until this has run once with a real key.
+It spends one of the provider's calls (Baidu: about 50 free a day; for baidu_web the monthly quota of 1500) and does not touch
+the app's database or its daily counter, so the request is not counted locally: it uses Baidu's allowance without the app's count
+of 40 a day (shared by both Baidu sources) knowing about it. Every Baidu field name in app/baidu_scholar.py is UNVERIFIED until this has run once with a real key.
 """
 import argparse
 import datetime

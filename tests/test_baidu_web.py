@@ -4,6 +4,7 @@ Offline only: urlopen is replaced by a fake. tests/fixtures/baidu_web/success.js
 (2026-10-23, query 知识图谱, no key inside); the error shapes are unverified synthetic ones. Every key here is a dummy.
 """
 import datetime
+import io
 import json
 import os
 import sys
@@ -68,8 +69,12 @@ class FakeUrlopen:
         return [json.loads(c["data"].decode("utf-8")) for c in self.calls]
 
 
-def http_error(code):
-    return urllib.error.HTTPError(SEARCH_URL, code, "synthetic", {}, None)
+DAILY_BODY = b'{"code":"18","message":"Open api daily request limit reached (synthetic)"}'
+QPS_BODY = b'{"code":"RATE_LIMIT_QPS","message":"Exceeding QPS limit"}'
+
+
+def http_error(code, body=None):
+    return urllib.error.HTTPError(SEARCH_URL, code, "synthetic", {}, io.BytesIO(body) if body is not None else None)
 
 
 def answer(*references):
@@ -78,7 +83,7 @@ def answer(*references):
 
 def reference(paper_id="abc123", title="一个中文论文题目", content=None, date="2026-10-19 00:00:00", url=None):
     return {"id": 1, "url": url if url is not None else PAGE + paper_id, "title": title, "date": date, "type": "web", "website": "百度学术",
-            "content": content if content is not None else f"{title} 来自 掌桥科研  喜欢0 阅读量: 4 作者: 张三 , 李四 摘要: 这是一段足够长的中文摘要内容，用来测试解析。 关键词: 图谱 本体  年份: 2026 "}
+            "content": content if content is not None else f"{title} 来自 掌桥科研  喜欢0 阅读量: 4 作者: 张三 , 李四 摘要: 这是一段足够长的中文摘要内容，用来测试解析。 关键词: 图谱 本体 "}
 
 
 class WebCase(unittest.TestCase):
@@ -294,10 +299,12 @@ class ParseTests(WebCase):
         self.assertEqual(kind({"references": {"a": 1}}), "bad_response")
         self.assertEqual(kind(json.loads(fixture("references_not_list.json"))), "bad_response")
         self.assertEqual(kind(json.loads(fixture("error_auth.json"))), "auth_required")
-        self.assertEqual(kind(json.loads(fixture("error_quota.json"))), "quota_exhausted")
+        self.assertEqual(kind(json.loads(fixture("error_quota.json"))), "quota_exhausted")       # a daily allowance
+        self.assertEqual(kind(json.loads(fixture("error_qps.json"))), "unavailable")           # a per-second limit is transient
         self.assertEqual(kind({"code": 500, "message": "internal server problem"}), "unavailable")
         self.assertEqual(kind({"error": {"code": "x1", "message": "Token is invalid"}}), "auth_required")
-        self.assertEqual(kind({"error": {"type": "limit", "message": "too many requests"}}), "quota_exhausted")
+        self.assertEqual(kind({"error": {"type": "limit", "message": "limit reached"}}), "quota_exhausted")
+        self.assertEqual(kind({"error": {"type": "limit", "message": "too many requests"}}), "unavailable")
         self.assertEqual(kind({"code": "0"}), "bad_response")                       # a success code without references is not an answer
 
     def test_an_error_code_with_references_is_still_an_error(self):
@@ -447,12 +454,13 @@ class RequestTests(WebCase):
         self.assertEqual((fake.calls, self.counter_rows()), ([], {}))
 
     def test_failures_map_to_kinds_never_carry_the_key_and_are_not_retried(self):
-        cases = [(http_error(401), "auth_required"), (http_error(403), "auth_required"), (http_error(429), "quota_exhausted"),
+        cases = [(http_error(401), "auth_required"), (http_error(403), "auth_required"), (http_error(429), "unavailable"),
+                 (http_error(429, DAILY_BODY), "quota_exhausted"), (http_error(429, QPS_BODY), "unavailable"),
                  (http_error(404), "unavailable"), (http_error(400), "invalid_input"), (http_error(500), "unavailable"),
                  (http_error(503), "unavailable"), (urllib.error.URLError("dns " + DUMMY), "network_error"),
                  (TimeoutError(DUMMY), "network_error"), (b"<html>gateway</html>", "bad_response"), (b"", "bad_response"),
                  (fixture("error_auth.json"), "auth_required"), (fixture("error_quota.json"), "quota_exhausted"),
-                 (fixture("references_not_list.json"), "bad_response")]
+                 (fixture("error_qps.json"), "unavailable"), (fixture("references_not_list.json"), "bad_response")]
         for failure, kind in cases:
             fake = FakeUrlopen(failure, default=fixture("success.json"))
             with self.patched(fake):
@@ -479,28 +487,64 @@ class QuotaAndCacheTests(WebCase):
         self.assertEqual(list(seen[0].values()), ["1"])
         self.assertEqual(len(fake.calls), 1)
 
-    def test_the_counter_is_its_own_and_the_key_names_the_source_and_the_day(self):
+    def test_the_counter_is_the_one_both_baidu_sources_share(self):
         with self.patched(FakeUrlopen(fixture("success.json"))):
             self.adapter().search("知识图谱")
         (name, value), = self.counter_rows().items()
-        self.assertRegex(name, r"^source_usage:baidu_web:\d{4}-\d{2}-\d{2}$")
+        self.assertRegex(name, r"^source_usage:baidu_scholar:\d{4}-\d{2}-\d{2}$")       # the owner's 40 a day are for the one Qianfan key
         self.assertEqual(value, "1")
+        self.assertEqual(self.baidu_web.USAGE_PREFIX, self.baidu_scholar.USAGE_PREFIX)
 
-    def test_a_full_scholar_counter_does_not_block_web_and_the_other_way_round(self):
+    def scholar(self, **kwargs):
+        return self.baidu_scholar.BaiduScholar(self.tmp / "cache" / "baidu_scholar", self.tmp / "db.sqlite", api_key=DUMMY, **kwargs)
+
+    def both(self, web_fake, scholar_fake):
+        """One urlopen that answers the web search (POST) from `web_fake` and Baidu Scholar (GET) from `scholar_fake`."""
+        return self.patched(lambda request, timeout=None: (web_fake if request.get_method() == "POST" else scholar_fake)(request, timeout))
+
+    def test_both_sources_draw_from_one_daily_allowance_and_the_41st_request_is_refused_before_sending(self):
+        web, scholar = self.adapter(), self.scholar()
+        web_fake = FakeUrlopen(default=fixture("empty.json"))
+        scholar_fake = FakeUrlopen(default=(ROOT / "tests" / "fixtures" / "baidu_scholar" / "empty.json").read_bytes())
+        with self.both(web_fake, scholar_fake):
+            for i in range(20):
+                web.search(f"网{i}")
+                scholar.search(f"学{i}")
+            self.assertEqual((web.usage_today(), scholar.usage_today()), (40, 40))
+            for source, query in ((web, "网41"), (scholar, "学41")):
+                with self.assertRaises(self.sources.SourceError) as caught:
+                    source.search(query)
+                self.assertEqual(caught.exception.kind, "quota_exhausted")
+        self.assertEqual((len(web_fake.calls), len(scholar_fake.calls)), (20, 20))
+        self.assertEqual(list(self.counter_rows().values()), ["40"])
+
+    def test_a_full_counter_blocks_the_other_source_too_including_the_test_button(self):
         day = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)).date().isoformat()
         self.store.conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", ("source_usage:baidu_scholar:" + day, "40"))
         self.store.conn.commit()
-        with self.patched(FakeUrlopen(fixture("empty.json"))):
-            self.adapter().search("知识图谱")
-        self.assertEqual(self.adapter().usage_today(), 1)
-        self.store.conn.execute("UPDATE settings SET value='40' WHERE key=?", ("source_usage:baidu_web:" + day,))
-        self.store.conn.execute("UPDATE settings SET value='3' WHERE key=?", ("source_usage:baidu_scholar:" + day,))
+        fake = FakeUrlopen(fixture("empty.json"))
+        with self.patched(fake):
+            with self.assertRaises(self.sources.SourceError) as caught:
+                self.adapter().search("知识图谱")
+            self.assertEqual(caught.exception.kind, "quota_exhausted")
+            with self.assertRaises(self.sources.SourceError):
+                self.adapter().verify()
+        self.assertEqual(fake.calls, [])
+        self.store.conn.execute("UPDATE settings SET value='39' WHERE key=?", ("source_usage:baidu_scholar:" + day,))
         self.store.conn.commit()
-        scholar = self.baidu_scholar.BaiduScholar(self.tmp / "cache" / "baidu_scholar", self.tmp / "db.sqlite", api_key=DUMMY)
-        with mock.patch.object(self.baidu_scholar.urllib.request, "urlopen", FakeUrlopen(
-                (ROOT / "tests" / "fixtures" / "baidu_scholar" / "empty.json").read_bytes())):
-            scholar.search("知识图谱")
-        self.assertEqual(scholar.usage_today(), 4)
+        with self.patched(fake):
+            self.adapter().search("知识图谱")                                  # the 40th request of the day, made by the web source
+        scholar_fake = FakeUrlopen(default=(ROOT / "tests" / "fixtures" / "baidu_scholar" / "empty.json").read_bytes())
+        with mock.patch.object(self.baidu_scholar.urllib.request, "urlopen", scholar_fake):
+            with self.assertRaises(self.sources.SourceError) as caught:
+                self.scholar().search("别的词")
+        self.assertEqual((caught.exception.kind, scholar_fake.calls), ("quota_exhausted", []))
+
+    def test_a_cache_hit_of_either_source_is_not_counted(self):
+        with self.patched(FakeUrlopen(fixture("success.json"))):
+            self.adapter().search("知识图谱")
+            self.adapter().search("知识图谱")
+        self.assertEqual(list(self.counter_rows().values()), ["1"])
 
     def test_a_failed_request_still_counts(self):
         with self.patched(FakeUrlopen(http_error(500))):
@@ -590,8 +634,8 @@ class QuotaAndCacheTests(WebCase):
     def test_day_rollover_uses_the_utc_plus_8_date_and_prunes_old_counters(self):
         clock = {"now": datetime.datetime(2026, 10, 23, 15, 59, tzinfo=datetime.timezone.utc)}
         adapter = self.adapter(daily_cap=2, now=lambda: clock["now"])
-        old, scholar = "source_usage:baidu_web:2026-10-01", "source_usage:baidu_scholar:2026-10-01"
-        for name in (old, scholar):
+        old, other = "source_usage:baidu_scholar:2026-10-01", "source_usage:openalex:2026-10-01"
+        for name in (old, other):
             self.store.conn.execute("INSERT INTO settings(key,value) VALUES(?,?)", (name, "9"))
         self.store.conn.commit()
         with self.patched(FakeUrlopen(default=fixture("empty.json"))):
@@ -603,9 +647,9 @@ class QuotaAndCacheTests(WebCase):
             self.assertEqual(adapter.usage_today(), 0)
             adapter.search("四")
         rows = self.counter_rows()
-        self.assertEqual((rows["source_usage:baidu_web:2026-10-23"], rows["source_usage:baidu_web:2026-10-24"]), ("2", "1"))
+        self.assertEqual((rows["source_usage:baidu_scholar:2026-10-23"], rows["source_usage:baidu_scholar:2026-10-24"]), ("2", "1"))
         self.assertNotIn(old, rows)
-        self.assertIn(scholar, rows)                      # pruning never touches the other source's counters
+        self.assertIn(other, rows)                        # pruning never touches another counter
 
     def test_two_connections_never_reserve_more_than_the_cap(self):
         fake = FakeUrlopen(default=fixture("empty.json"))
@@ -786,6 +830,244 @@ class PageAndPolicyTests(WebCase):
         for value, expected in (("recent", "week"), ("month", "month"), ("all", None), ("odd", None), (None, None)):
             user_settings = self.settings(**({"timePreference": value} if value else {}))
             self.assertEqual(user_settings.recency_filter(self.tmp), expected, value)
+
+
+class DateTests(WebCase):
+    """The answer's `date` is probably a page or index date: a plausible 年份 in the content wins (unverified either way)."""
+
+    def paper(self, year=None, date="2026-10-19 00:00:00"):
+        tail = f" 关键词: 图谱 年份: {year} " if year is not None else ""
+        content = f"一个中文论文题目 作者: 张三 摘要: 这是一段足够长的中文摘要内容，用来测试解析。{tail}"
+        return self.baidu_web.parse_search({"references": [reference(content=content, date=date)]})[0]
+
+    def test_a_plausible_year_beats_a_date_of_another_year(self):
+        self.assertEqual(self.paper(2019)["published"], "2019-01-01")
+        self.assertEqual(self.paper(1998)["published"], "1998-01-01")
+
+    def test_the_same_year_keeps_the_full_date(self):
+        self.assertEqual(self.paper(2026)["published"], "2026-10-19")
+
+    def test_a_year_without_a_usable_date_is_january_first(self):
+        for date in (None, "", "yesterday", 5):
+            self.assertEqual(self.paper(2019, date=date)["published"], "2019-01-01", date)
+
+    def test_no_year_or_an_implausible_one_keeps_the_date_as_before(self):
+        self.assertEqual(self.paper(None)["published"], "2026-10-19")
+        for bad in ("0001", "1500", "2200", "9999", "abcd", ""):
+            self.assertEqual(self.paper(bad)["published"], "2026-10-19", bad)
+        self.assertIsNone(self.paper(None, date=None)["published"])
+
+    def test_parse_content_reports_the_year_only_when_plausible(self):
+        parse = self.baidu_web.parse_content
+        self.assertEqual(parse("摘要: 一段摘要内容。 关键词: 甲  年份: 2019 ", "")["year"], 2019)
+        for text in ("摘要: 一段摘要内容。", "摘要: 内容。 年份: 9999", "摘要: 内容。 年份: 12", "摘要: 内容。 年份: x2019"):
+            self.assertIsNone(parse(text, "")["year"], text)
+
+    def test_the_real_answer_is_unchanged_because_its_years_match_its_dates(self):
+        self.assertEqual([p["published"] for p in self.parse()], ["2026-10-19", "2026-10-07", "2026-10-18", "2026-10-22"])
+
+
+class MarkerTests(WebCase):
+    def test_a_marker_counts_only_at_its_first_occurrence_and_in_order(self):
+        parsed = self.baidu_web.parse_content("摘要: 本文由通讯作者：李四完成了实验，并给出了完整的结果。 关键词: 甲 乙", "")
+        self.assertEqual(parsed["authors"], [])
+        self.assertEqual(parsed["abstract"], "本文由通讯作者：李四完成了实验，并给出了完整的结果。")
+        self.assertEqual(parsed["keywords"], ["甲", "乙"])
+
+    def test_a_repeated_marker_stays_inside_the_text_of_the_first(self):
+        parsed = self.baidu_web.parse_content("作者: 甲 摘要: 第一段。 摘要: 第二段还在摘要里。 关键词: 乙", "")
+        self.assertEqual((parsed["authors"], parsed["abstract"], parsed["keywords"]), (["甲"], "第一段。 摘要: 第二段还在摘要里。", ["乙"]))
+
+    def test_a_marker_that_comes_too_early_is_text(self):
+        parsed = self.baidu_web.parse_content("关键词: 甲 摘要: 乙乙乙乙", "")
+        self.assertEqual((parsed["abstract"], parsed["authors"]), ("", []))
+        self.assertIn("摘要:", " ".join(parsed["keywords"]))
+
+    def test_the_normal_order_still_splits_every_part(self):
+        parsed = self.baidu_web.parse_content("作者: 甲, 乙 摘要: 丙丙丙。 关键词: 丁 戊  年份: 2020 ", "")
+        self.assertEqual((parsed["authors"], parsed["abstract"], parsed["keywords"], parsed["year"]), (["甲", "乙"], "丙丙丙。", ["丁", "戊"], 2020))
+
+
+class UnitTests(WebCase):
+    def test_every_non_ascii_character_counts_two(self):
+        units = self.baidu_web.query_units
+        self.assertEqual(units("“知识”…—"), 12)
+        self.assertEqual((units("é"), units("abc"), units("a“b")), (2, 3, 4))
+        cut = self.baidu_web.clean_query("“" * 40)
+        self.assertEqual((len(cut), units(cut)), (36, 72))
+        self.assertLessEqual(units(self.baidu_web.clean_query("—…" * 30)), 72)
+
+
+class SurrogateTests(WebCase):
+    def test_lone_surrogates_are_stripped_by_both_sources(self):
+        self.assertEqual(self.baidu_web.clean_query("知识\ud800图谱\udfff"), "知识图谱")
+        self.assertEqual(self.baidu_scholar.clean_query("知识\ud800图谱\udfff"), "知识图谱")
+        self.assertEqual(self.baidu_web.clean_query("\udc00"), "")
+
+    def test_a_query_with_a_lone_surrogate_is_sent_clean_and_does_not_raise(self):
+        fake = FakeUrlopen(fixture("empty.json"))
+        with self.patched(fake):
+            self.adapter().search("知识\ud800图谱")
+        self.assertEqual(fake.bodies()[0]["messages"][0]["content"], "知识图谱")
+        scholar_fake = FakeUrlopen((ROOT / "tests" / "fixtures" / "baidu_scholar" / "empty.json").read_bytes())
+        scholar = self.baidu_scholar.BaiduScholar(self.tmp / "cache" / "baidu_scholar", self.tmp / "db.sqlite", api_key=DUMMY)
+        with self.patched(scholar_fake):
+            scholar.search("知识\ud800图谱")
+        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(scholar_fake.calls[0]["url"]).query)["wd"], ["知识图谱"])
+
+    def test_a_query_that_is_only_surrogates_is_invalid_input(self):
+        with self.assertRaises(self.sources.SourceError) as caught:
+            self.adapter().search("\ud800\udfff")
+        self.assertEqual(caught.exception.kind, "invalid_input")
+
+
+class TypeTests(WebCase):
+    def test_only_strings_are_taken_as_title_content_url_and_date(self):
+        refs = [reference(paper_id="t1", title={"a": 1}), reference(paper_id="t2", title=123), reference(paper_id="t3", title=["列表标题"]),
+                reference(paper_id="c1", title="内容是字典的论文", content={"x": "摘要: 不应该出现"}),
+                reference(paper_id="u1", title="网址是字典的论文", url={"a": PAGE + "z"}),
+                reference(paper_id="d1", title="日期是字典的论文", date={"a": 1})]
+        out = {p["title"]: p for p in self.baidu_web.parse_search({"references": refs})}
+        self.assertEqual(sorted(out), ["内容是字典的论文", "日期是字典的论文", "网址是字典的论文"])
+        self.assertEqual(out["内容是字典的论文"]["abstract"], "")
+        self.assertNotIn("不应该出现", json.dumps(out, ensure_ascii=False))
+        self.assertEqual(out["网址是字典的论文"]["oa"]["pages"], [])
+        self.assertIsNone(out["日期是字典的论文"]["published"])
+        self.assertNotIn("{", "".join(p["title"] for p in out.values()))
+
+    def test_parse_content_ignores_anything_but_text(self):
+        for junk in ({"a": 1}, ["摘要: x"], 5, None, b"bytes"):
+            self.assertEqual(self.baidu_web.parse_content(junk, "题")["abstract"], "", junk)
+        self.assertEqual(self.baidu_web.parse_content("摘要: 内容内容。", {"a": 1})["abstract"], "内容内容。")
+
+
+class ClassifyTests(WebCase):
+    def kind(self, payload, module=None):
+        module = module or self.baidu_web
+        with self.assertRaises(self.sources.SourceError) as caught:
+            module.parse_search(payload)
+        return caught.exception.kind
+
+    def test_a_per_second_limit_is_transient_and_a_daily_allowance_is_quota(self):
+        cases = [({"code": "RATE_LIMIT_QPS", "message": "Exceeding QPS limit for Baidu Scholar"}, "unavailable"),
+                 ({"code": "x", "message": "rate limit exceeded"}, "unavailable"), ({"code": "x", "message": "Too many requests"}, "unavailable"),
+                 ({"code": "x", "message": "请求频率过高"}, "unavailable"), ({"code": "x", "message": "QPS超限"}, "unavailable"),
+                 ({"code": "x", "message": "触发限流"}, "unavailable"),
+                 ({"code": "18", "message": "Open api daily request limit reached"}, "quota_exhausted"),
+                 ({"code": "quota_exceeded", "message": "quota exceeded"}, "quota_exhausted"),
+                 ({"code": "x", "message": "Daily limit exceeded"}, "quota_exhausted"),
+                 ({"code": "x", "message": "额度已用完"}, "quota_exhausted"), ({"code": "x", "message": "今日调用次数超出"}, "quota_exhausted")]
+        for payload, expected in cases:
+            self.assertEqual(self.kind(payload), expected, payload)
+            self.assertEqual(self.kind(payload, self.baidu_scholar), expected, payload)
+
+    def test_words_that_merely_contain_rate_or_limit_are_not_quota(self):
+        for message in ("Please regenerate your api key", "Generate a new token", "moderate load", "the accelerator is busy"):
+            self.assertNotEqual(self.kind({"code": "E1", "message": message}), "quota_exhausted", message)
+            self.assertNotEqual(self.kind({"code": "E1", "message": message}, self.baidu_scholar), "quota_exhausted", message)
+        self.assertEqual(self.kind({"code": "E1", "message": "Please regenerate your api key"}), "auth_required")
+
+    def test_http_429_is_transient_unless_the_body_names_the_daily_allowance(self):
+        for body, expected in ((None, "unavailable"), (QPS_BODY, "unavailable"), (b"<html>slow down</html>", "unavailable"), (b"", "unavailable"),
+                               (DAILY_BODY, "quota_exhausted")):
+            for make in (self.adapter, self.scholar_adapter):
+                with self.patched(FakeUrlopen(http_error(429, body))):
+                    with self.assertRaises(self.sources.SourceError) as caught:
+                        make().search("词" + repr(body)[:12])
+                self.assertEqual(caught.exception.kind, expected, (body, make.__name__))
+                self.assertNotIn(DUMMY, str(caught.exception))
+
+    def scholar_adapter(self):
+        return self.baidu_scholar.BaiduScholar(self.tmp / "cache" / "baidu_scholar", self.tmp / "db.sqlite", api_key=DUMMY)
+
+    def test_other_statuses_are_unchanged(self):
+        sa = self.source_adapters
+        self.assertEqual(sa.http_kind(429), "quota_exhausted")          # OpenAlex and the others keep their mapping
+
+
+class SecretTests(WebCase):
+    def test_a_key_echoed_by_the_provider_never_reaches_an_error(self):
+        for module in (self.baidu_web, self.baidu_scholar):
+            with self.assertRaises(self.sources.SourceError) as caught:
+                module.parse_search({"code": DUMMY, "message": "bad " + DUMMY}, secrets=(DUMMY,))
+            text = str(caught.exception)
+            for part in (DUMMY, "dummyDummy0000", "ALTAK", "dummydummy"):
+                self.assertNotIn(part, text, part)
+
+    def test_error_for_removes_a_secret_from_the_code_before_cleaning_it(self):
+        text = str(self.source_adapters.error_for("L", "auth_required", status=401, code=DUMMY, secrets=[DUMMY]))
+        self.assertNotIn("dummy", text.lower())
+
+    def test_an_echoing_answer_is_clean_through_the_adapters(self):
+        echo = json.dumps({"code": DUMMY, "message": "bad " + DUMMY}).encode()
+        for make in (self.adapter,):
+            with self.patched(FakeUrlopen(echo)):
+                with self.assertRaises(self.sources.SourceError) as caught:
+                    make().search("回显")
+            self.assertNotIn("dummyDummy0000", str(caught.exception))
+        with self.patched(FakeUrlopen(echo)):
+            with self.assertRaises(self.sources.SourceError) as caught:
+                self.adapter().verify()
+        self.assertNotIn("dummyDummy0000", str(caught.exception))
+
+
+class StoredRowTests(WebCase):
+    def settings(self, **values):
+        (self.tmp / "settings.json").write_text(json.dumps(values))
+        from app import user_settings
+        return user_settings
+
+    def web_paper(self, key, **extra):
+        return {"key": key, "title": "一个中文论文题目", "abstract": "摘要内容", "project_id": None,
+                "oa": {"pages": [{"source": "baidu_web", "url": PAGE + key[6:]}], "via": ["baidu_web"]}, **extra}
+
+    def test_a_stored_baidu_row_without_facts_keeps_its_scholar_attribution(self):
+        self.store.upsert_papers([{"key": "baidu:x1", "title": "旧的中文论文题目", "abstract": "摘要内容", "project_id": None}])      # oa stays NULL
+        self.assertIsNone(self.store.paper("baidu:x1")["oa_json"])
+        self.store.upsert_papers([self.web_paper("baidu:x1")])
+        self.assertEqual(sorted(json.loads(self.store.paper("baidu:x1")["oa_json"])["via"]), ["baidu_scholar", "baidu_web"])
+        for values in (dict(sourceBaiduScholar=True), dict(sourceBaiduWeb=True)):
+            self.assertTrue(self.settings(sourceArxiv=False, sourceOpenAlex=False, **values).source_allowed(self.tmp, self.store.paper("baidu:x1")), values)
+
+    def test_a_new_web_paper_is_attributed_to_the_web_search_only(self):
+        self.store.upsert_papers([self.web_paper("baidu:x2")])
+        self.assertEqual(json.loads(self.store.paper("baidu:x2")["oa_json"])["via"], ["baidu_web"])
+        user_settings = self.settings(sourceArxiv=False, sourceOpenAlex=False, sourceBaiduScholar=True)
+        self.assertFalse(user_settings.source_allowed(self.tmp, self.store.paper("baidu:x2")))
+
+    def test_a_row_with_facts_or_another_key_form_is_left_alone(self):
+        self.store.upsert_papers([{"key": "baidu:x3", "title": "t", "project_id": None, "oa": {"pages": [], "via": ["baidu_web"]}}])
+        self.store.upsert_papers([self.web_paper("baidu:x3")])
+        self.assertEqual(json.loads(self.store.paper("baidu:x3")["oa_json"])["via"], ["baidu_web"])
+        self.store.upsert_papers([{"key": "https://doi.org/10.1/z", "title": "t", "project_id": None}])
+        self.store.upsert_papers([self.web_paper("https://doi.org/10.1/z")])
+        self.assertEqual(json.loads(self.store.paper("https://doi.org/10.1/z")["oa_json"])["via"], ["baidu_web"])
+
+
+class DocsTests(WebCase):
+    def section(self, name):
+        text = (ROOT / "docs" / "SOURCES.md").read_text(encoding="utf-8")
+        return next(p for p in text.split("\n## ")[1:] if f"`{name}`" in p.split("\n", 1)[0])
+
+    def test_the_smoke_request_is_said_to_use_the_monthly_quota_without_a_local_count(self):
+        for name in ("baidu_scholar", "baidu_web"):
+            body = self.section(name)
+            self.assertIn("source_smoke", body, name)
+            self.assertIn("不计入本地次数", body, name)
+        doc = (ROOT / "tools" / "source_smoke.py").read_text(encoding="utf-8").split('"""')[1]
+        self.assertIn("monthly", doc)
+        self.assertIn("not counted locally", doc)
+
+    def test_the_cache_is_described_with_its_full_content_text_and_the_authors_in_it(self):
+        body = self.section("baidu_web")
+        self.assertIn("完整的 `content` 文本", body)
+        self.assertIn("作者", body.split("缓存", 1)[1][:200])
+
+    def test_the_two_baidu_sources_are_said_to_share_one_daily_allowance(self):
+        for name in ("baidu_scholar", "baidu_web"):
+            self.assertIn("两个百度来源合计", self.section(name), name)
+        adr = (ROOT / "docs" / "decisions" / "0039-chinese-source-baidu-scholar-and-source-adapters.md").read_text(encoding="utf-8")
+        self.assertIn("合计", adr.split("## 增补", 1)[1])
 
 
 if __name__ == "__main__":

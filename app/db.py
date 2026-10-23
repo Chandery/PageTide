@@ -188,8 +188,13 @@ class Store:
             if paper.get("oa") is not None:
                 # Open-access status changes over time, so OpenAlex's newest report replaces its old fields; a source
                 # that only reports a page (Baidu Scholar) adds it without wiping them, and the other way round.
+                stored = self._stored_oa(paper["key"])
+                if stored is None and cur.rowcount == 0 and str(paper["key"]).startswith("baidu:"):
+                    # An older `baidu:` row with no facts stored is a Baidu Scholar paper without a page (every later Baidu row
+                    # carries `via`): keep that attribution when another Baidu source reports the paper too.
+                    stored = {"via": ["baidu_scholar"]}
                 self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
-                                  (json.dumps(merge_oa(self._stored_oa(paper["key"]), paper["oa"]), ensure_ascii=False), paper["key"]))
+                                  (json.dumps(merge_oa(stored, paper["oa"]), ensure_ascii=False), paper["key"]))
             if paper_project_id:
                 self.add_project_paper(paper_project_id, paper["key"],
                                        paper.get("relation_kind") or
