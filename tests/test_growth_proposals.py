@@ -3,6 +3,7 @@ import json
 import select
 import subprocess
 import sys
+import unittest
 from unittest import mock
 from test_route_growth import Fixture, reply, new
 from app.organization import Conflict
@@ -227,6 +228,7 @@ class GrowthProposalTests(Fixture):
         self.assertEqual(c['goal_impact'], 'targets_unchanged')
         self.assertEqual(self.app.route_candidate_accept(self.pid, c['id'])['goal_scope'], before)
 
+    @unittest.skipIf(sys.platform == "win32", "select.select cannot wait on a pipe on Windows")
     def test_another_process_cannot_make_a_second_call_and_crash_releases_claim(self):
         self.say(('s1', 'useful'))
         code = """import sys

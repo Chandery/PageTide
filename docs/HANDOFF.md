@@ -1,3 +1,17 @@
+# 当前工作单元：Windows x64 构建与 release 流程（2026-10-23）
+
+worktree `windows-release`，基线 main `ffe4836`，类别 critical。[变更记录](../changes/2026-10-23-windows-release.json)，[检查证据](evidence/2026-10-23-windows-release-checks.txt)，[ADR 0040](decisions/0040-windows-release.md)，[发布流程](RELEASE.md)。
+
+起因：owner 要求“做好包装，推到远程，release 要包括 macos 版本和 windows 版本”。
+
+做了什么：`app/platform_compat.py`（文件锁 fcntl / msvcrt、可选 register_at_fork、数据目录）；Rust 外壳的 Windows 分支（`.exe` 后端、`rundll32` 开链接、无控制台窗口、`rfd` 保存对话框、原子写）；`tauri.conf.json` 加 NSIS（当前用户安装、嵌入 WebView2 bootstrapper）与 `icon.ico`；`build_desktop.py` 支持 `PDH_BUILD_PYTHON` 与 `os.pathsep`；`verify_packaged_route.py` 去掉 `select`；`.github/workflows/release.yml`（windows 构建作业 + 仅标签触发的 publish 作业）；POSIX 专用测试显式跳过。
+
+验证了什么：macOS 上预算/harness/2832 个单元测试/603 个 Node 测试通过，macOS 的 Rust 路径 `cargo check` 通过。**没验证**：所有 Windows 代码路径都没编译或运行过（无 Windows、无网络）；`rfd` 是新 crate，`Cargo.lock` 没能离线更新，需联网 `cargo update`/构建后提交；工作流没执行过，CI 是第一次验证。没有独立审查。
+
+下一步：推送后看 CI 的 windows 作业，逐项修；在真 Windows 上手动验收（安装、WebView2、保存对话框、外链、退出清理）；第三方 action 改成 SHA 固定。
+
+---
+
 # 当前工作单元：抓取记录与诚实的计数（2026-10-23，第三个提交：独立审查后的修正）
 
 接在 `1a5041e` 之后。独立审查无阻断问题，修了：(1) `maintenance.manual_refresh` 与自动维护共用同一个按项目的 `_RUNNING` 守卫，忙时返回 `reason_code: refresh_running`（页面原有提示），记录时间取完成时刻，`include_distractors` 实验不记录，首次启动的引导抓取（`app/desktop.py`）也走它；(2) “点「生成今日 X 篇」查看”只在新链接里至少有一篇现在可被推荐时才出现，结果带 `new_recommendable`（`App.new_recommendable`，与 `build_batch` 共用 `_fresh_candidate` 规则和 `_seen_keys`；学习图模式按 build_batch 的路线池：未评价、可读、已发表，不看是否落在 frontier）；(3) 来源全关时手动抓取提示“数据源都已关闭”，记录行在非当年时带年份。没验证：第三个提交没有再做独立审查；没有在浏览器里看。

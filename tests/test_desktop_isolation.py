@@ -17,6 +17,7 @@ from app.db import Store
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@unittest.skipIf(sys.platform == "win32", "uses select.select on pipes, HOME and the macOS Library path; the Windows data-dir choice is covered by tests/test_platform_compat.py")
 class DesktopIsolationTests(unittest.TestCase):
     def _seed(self, directory, key):
         directory.mkdir(parents=True, exist_ok=True)

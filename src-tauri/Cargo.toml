@@ -17,6 +17,11 @@ objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["NSApplication", "NSResponder", "NSSavePanel", "NSWindow"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["NSString", "NSURL"] }
 
+[target.'cfg(windows)'.dependencies]
+# Native "Save as" dialog for exports on Windows (macOS uses NSSavePanel). default-features off:
+# the default `common-controls-v6` feature needs an application manifest we do not ship.
+rfd = { version = "0.15", default-features = false }
+
 [features]
 custom-protocol = ["tauri/custom-protocol"]
 default = ["custom-protocol"]

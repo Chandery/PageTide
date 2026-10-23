@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -7,6 +8,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCES = ROOT / "src-tauri" / "resources"
 SERVER_DIR = RESOURCES / "paperdighelper-server"
+SEP = os.pathsep  # --add-data SRC<sep>DEST: ':' on macOS/Linux, ';' on Windows (drive letters contain ':')
+
+
+def build_python():
+    """PDH_BUILD_PYTHON wins; else the local macOS build venv when present; else this interpreter."""
+    configured = os.environ.get("PDH_BUILD_PYTHON")
+    if configured:
+        return configured
+    venv = ROOT / ".local" / "desktop-build-env" / "bin" / "python"
+    return str(venv) if sys.platform == "darwin" and venv.exists() else sys.executable
 
 
 def main():
@@ -15,7 +26,7 @@ def main():
     SERVER_DIR.mkdir(parents=True)
     subprocess.run(
         [
-            str(ROOT / ".local" / "desktop-build-env" / "bin" / "python"),
+            build_python(),
             "-m", "PyInstaller",
             "--noconfirm",
             "--onedir",
@@ -25,11 +36,11 @@ def main():
             "--workpath", str(ROOT / ".local" / "desktop-work"),
             "--specpath", str(ROOT / ".local"),
             "--add-data",
-            f"{ROOT / 'app' / 'static'}:app/static",
+            f"{ROOT / 'app' / 'static'}{SEP}app/static",
             "--add-data",
-            f"{ROOT / 'harness' / 'budget.json'}:harness",
+            f"{ROOT / 'harness' / 'budget.json'}{SEP}harness",
             "--add-data",
-            f"{ROOT / 'harness' / 'seeds.json'}:harness",
+            f"{ROOT / 'harness' / 'seeds.json'}{SEP}harness",
             "--paths",
             str(ROOT),
             str(ROOT / "scripts" / "server_entry.py"),

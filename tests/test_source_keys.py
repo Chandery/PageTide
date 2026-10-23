@@ -80,7 +80,8 @@ class KeyStorageTests(unittest.TestCase):
                 self.assertNotIn(value, json.dumps(status))
                 path = self.keys.key_file(self.data, source)
                 self.assertEqual(path.name, f"{source}.key")
-                self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+                if sys.platform != "win32":  # 0600 file modes are POSIX-only; on Windows the per-user profile ACL is the protection.
+                    self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
                 self.assertEqual(self.keys.load(self.data, source), value)
                 self.assertFalse(self.keys.clear(self.data, source)["configured"])
                 self.assertIsNone(self.keys.load(self.data, source))
@@ -131,6 +132,7 @@ class KeyStorageTests(unittest.TestCase):
             if path.is_file():
                 self.assertNotIn(BAIDU, path.read_text())
 
+    @unittest.skipIf(sys.platform == "win32", "creating symlinks needs a privilege on Windows; the planted-link case is POSIX-only")
     def test_a_leftover_or_planted_temp_file_is_never_written_through(self):
         outside = self.data.parent / "outside-target.txt"
         outside.write_text("untouched")
@@ -142,7 +144,8 @@ class KeyStorageTests(unittest.TestCase):
         self.keys.save(self.data, "baidu_scholar", BAIDU)
         self.assertEqual(outside.read_text(), "untouched")
         self.assertEqual(self.keys.load(self.data, "baidu_scholar"), BAIDU)
-        self.assertEqual(stat.S_IMODE(self.keys.key_file(self.data, "baidu_scholar").stat().st_mode), 0o600)
+        if sys.platform != "win32":  # 0600 file modes are POSIX-only; on Windows the per-user profile ACL is the protection.
+            self.assertEqual(stat.S_IMODE(self.keys.key_file(self.data, "baidu_scholar").stat().st_mode), 0o600)
 
     def test_the_staging_file_is_created_exclusively_with_private_permissions(self):
         seen = []

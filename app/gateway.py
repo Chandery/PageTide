@@ -17,7 +17,7 @@ import urllib.request
 from decimal import Decimal
 from pathlib import Path
 
-from . import operation_lock
+from . import operation_lock, platform_compat
 
 BUDGET = Path("harness/budget.json")
 # Runtime-state paths are relative to the user data directory (App Support on
@@ -181,7 +181,7 @@ def _reset_admission_lock_after_fork():
     _LEDGER_LOCK = threading.Lock()
 
 
-os.register_at_fork(after_in_child=_reset_admission_lock_after_fork)
+platform_compat.after_fork_in_child(_reset_admission_lock_after_fork)
 
 
 class Gateway:

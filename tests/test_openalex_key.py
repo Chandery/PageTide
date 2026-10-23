@@ -39,7 +39,8 @@ class KeyStorageTests(unittest.TestCase):
         self.assertTrue(status["configured"])
         self.assertNotIn(DUMMY, json.dumps(status))
         path = openalex_key.key_file(self.data)
-        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+        if sys.platform != "win32":  # 0600 file modes are POSIX-only; on Windows the per-user profile ACL is the protection.
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
         self.assertEqual(openalex_key.load(self.data), DUMMY)
         openalex_key.clear(self.data)
         self.assertIsNone(openalex_key.load(self.data))

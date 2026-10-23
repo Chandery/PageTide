@@ -11,6 +11,9 @@ use tauri::{App, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, Webvi
 
 const GUARDED_QUIT: &str = "paperdighelper-prepare-quit";
 
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 #[cfg(target_os = "macos")]
 static NATIVE_QUIT_APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
 
@@ -171,8 +174,30 @@ fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, filena
         if let Err(error) = result { let _ = std::fs::remove_file(&temporary); return Err(error.to_string()); }
         return Ok(serde_json::json!({"status":"saved", "path":path, "bytes":content.len()}).to_string());
     }
-    #[cfg(not(target_os = "macos"))]
-    Err("Native export is currently supported on macOS".into())
+    #[cfg(windows)]
+    {
+        // rfd's blocking save dialog (IFileSaveDialog); it asks before overwriting. Then the same
+        // temp-file + rename shape as macOS. std::fs::rename replaces an existing destination on Windows.
+        let destination = rfd::FileDialog::new().set_file_name(filename.as_str()).save_file();
+        let Some(destination) = destination else { return Ok("{\"status\":\"cancelled\"}".into()); };
+        let parent = destination.parent().ok_or("Invalid export destination")?;
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
+        let temporary = parent.join(format!(".paperdighelper-export-{}-{}.tmp", std::process::id(), stamp));
+        let result = (|| -> std::io::Result<()> {
+            use std::io::Write;
+            // The per-user profile ACL protects the file; there is no POSIX mode to set.
+            let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&temporary)?;
+            file.write_all(content.as_bytes())?; file.sync_all()?;
+            drop(file);
+            std::fs::rename(&temporary, &destination)?;
+            Ok(())
+        })();
+        if let Err(error) = result { let _ = std::fs::remove_file(&temporary); return Err(error.to_string()); }
+        let path = destination.to_string_lossy().to_string();
+        return Ok(serde_json::json!({"status":"saved", "path":path, "bytes":content.len()}).to_string());
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
+    Err("Native export is currently supported on macOS and Windows".into())
 }
 
 #[tauri::command]
@@ -222,14 +247,24 @@ impl Drop for PythonProcess {
 }
 
 fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::Error>> {
-    let server = app.path().resource_dir()?.join("backend/paperdighelper-server");
-    let mut child = Command::new(server)
+    let name = if cfg!(windows) { "paperdighelper-server.exe" } else { "paperdighelper-server" };
+    let server = app.path().resource_dir()?.join("backend").join(name);
+    let mut command = Command::new(server);
+    command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
         .env_remove("PDH_DEV")
-        .env_remove("DEEPSEEK_API_KEY")
-        .spawn()?;
+        .env_remove("DEEPSEEK_API_KEY");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // A GUI-subsystem parent has no valid stderr to inherit, which would leave Python without
+        // sys.stderr; give it NUL. No console window for the backend; UTF-8 for files with Chinese text.
+        command.stderr(Stdio::null()).env("PYTHONUTF8", "1").creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    command.stderr(Stdio::inherit());
+    let mut child = command.spawn()?;
     let stdout = child.stdout.take().ok_or("missing server stdout")?;
     let process = PythonProcess(Mutex::new(Some(child)));
     let (sender, receiver) = mpsc::channel();
@@ -248,7 +283,16 @@ fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::E
 
 fn open_external(url: &Url) {
     if matches!(url.scheme(), "http" | "https") {
+        #[cfg(target_os = "macos")]
         let _ = Command::new("/usr/bin/open").arg(url.as_str()).spawn();
+        #[cfg(windows)]
+        {
+            // No shell: the already-validated, ASCII-serialized http(s) URL is a single argv entry,
+            // so `&`, `^` or `%` in it are never interpreted (unlike `cmd /C start`).
+            use std::os::windows::process::CommandExt;
+            let _ = Command::new("rundll32.exe").arg("url.dll,FileProtocolHandler").arg(url.as_str())
+                .creation_flags(CREATE_NO_WINDOW).spawn();
+        }
     }
 }
 

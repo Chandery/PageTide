@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sqlite3
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 from urllib.parse import quote
@@ -98,7 +99,8 @@ class OrganizationTests(unittest.TestCase):
 
     def test_backup_precedes_schema_and_preserves_wal_data(self):
         backup = Path(self.org.backup_path)
-        self.assertEqual(backup.stat().st_mode & 0o777, 0o600)
+        if sys.platform != "win32":  # 0600 file modes are POSIX-only; on Windows the per-user profile ACL is the protection.
+            self.assertEqual(backup.stat().st_mode & 0o777, 0o600)
         self.assertEqual(backup.parent.resolve(), self.path.parent.resolve())
         with sqlite3.connect(backup) as conn:
             self.assertEqual(conn.execute("SELECT note FROM library WHERE paper_key='a'").fetchone()[0], "legacy note")

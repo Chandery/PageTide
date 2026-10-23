@@ -753,7 +753,8 @@ class KeyFileTests(WiringCase):
         self.assertEqual(source_keys.load(self.app.data, "baidu_web"), KEY)
         self.assertTrue(source_keys.valid("baidu_web", KEY))
         self.assertFalse(source_keys.valid("baidu_web", "short"))
-        self.assertEqual(oct((self.root / "data" / "baidu_scholar.key").stat().st_mode & 0o777), "0o600")
+        if sys.platform != "win32":  # 0600 file modes are POSIX-only; on Windows the per-user profile ACL is the protection.
+            self.assertEqual(oct((self.root / "data" / "baidu_scholar.key").stat().st_mode & 0o777), "0o600")
         source_keys.clear(self.app.data, "baidu_web")
         self.assertFalse(source_keys.status(self.app.data, "baidu_scholar")["configured"])
 

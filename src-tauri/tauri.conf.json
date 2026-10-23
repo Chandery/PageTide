@@ -22,6 +22,7 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
+      "icons/icon.ico",
       "icons/icon.png"
     ],
     "resources": {
@@ -29,6 +30,20 @@
     },
     "category": "Productivity",
     "shortDescription": "Local-first paper discovery and reading companion",
-    "longDescription": "PaperDigHelper keeps recommendations, feedback, and reading data on your Mac."
+    "longDescription": "PaperDigHelper keeps recommendations, feedback, and reading data on your computer.",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "SimpChinese",
+          "English"
+        ],
+        "displayLanguageSelector": false
+      }
+    }
   }
 }

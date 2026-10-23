@@ -3,7 +3,7 @@
 ## Purpose and current phase
 PaperDigHelper's core is useful paper recommendations and a transparent, editable user profile learned from explicit feedback.
 The owner reset the old ABCD roadmap on 2026-09-11. Research reusable systems and validate recommendation/profile value before choosing an app stack.
-Current work is research and replanning. At the owner's request, the old app, incomplete reader fixes, dependencies and runtime generators have been removed. The reuse survey, stage plan and a **pre-build token budget proposal** are registered; the budget is unapproved and unmeasured. v1 = recommendation/profile core + PDF download/archive + AI triage with follow-up QA; owner confirmed English AI / world models, macOS-only, Zotero.
+Current work is research and replanning. At the owner's request, the old app, incomplete reader fixes, dependencies and runtime generators have been removed. The reuse survey, stage plan and a **pre-build token budget proposal** are registered; the budget is unapproved and unmeasured. v1 = recommendation/profile core + PDF download/archive + AI triage with follow-up QA; owner confirmed English AI / world models, macOS + Windows x64 desktop builds (widened 2026-10-23, [ADR 0040](docs/decisions/0040-windows-release.md)), Zotero.
 Read [HANDOFF](docs/HANDOFF.md), [DOMAIN](docs/DOMAIN.md), [ROADMAP](docs/ROADMAP.md), [RESEARCH](docs/RESEARCH.md) and [BRAINSTORM](docs/BRAINSTORM.md) before choosing work.
 
 ## Source of truth
@@ -80,7 +80,7 @@ A harness-only change may use `not_applicable` for runtime impact with an explan
 Human decisions, licenses and price/model freshness must be checked again before release or live billing tests.
 
 ## Environment and Git
-Target initially macOS arm64 with an 8 GB memory reference machine; this is a target, not a measured guarantee.
+Target macOS arm64 with an 8 GB memory reference machine, plus Windows x64 built by CI ([RELEASE](docs/RELEASE.md)); these are targets, not measured guarantees, and the Windows build has not been run on real hardware.
 Use a supported Node LTS when app scaffolding begins; do not treat an installed non-LTS Node as release support.
 Preserve the user's Git identity. Do not add co-author trailers (owner preference, 2026-09-11).
 Do not create remote repositories, push, install global dependencies, enable hooks or run paid evals without permission.

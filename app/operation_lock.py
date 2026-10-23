@@ -1,11 +1,12 @@
-"""Local macOS/Linux cross-process claims and serial sections; no network."""
+"""Local cross-process claims and serial sections; no network."""
 from contextlib import contextmanager
-import fcntl
 import hashlib
 import os
 from pathlib import Path
 import threading
 import weakref
+
+from . import platform_compat
 
 
 class _SerialState:
@@ -30,7 +31,7 @@ def _reset_serial_locks_after_fork():
     _SERIAL_REGISTRY_LOCK = threading.Lock()
 
 
-os.register_at_fork(after_in_child=_reset_serial_locks_after_fork)
+platform_compat.after_fork_in_child(_reset_serial_locks_after_fork)
 
 
 def _path(data_dir, scope):
@@ -64,13 +65,13 @@ def serial(data_dir, scope):
         with path.open('a') as handle:
             state.handle = handle
             try:
-                fcntl.flock(handle, fcntl.LOCK_EX)
+                platform_compat.lock_exclusive(handle)
                 state.depth = 1
                 try:
                     yield
                 finally:
                     state.depth = 0
-                    fcntl.flock(handle, fcntl.LOCK_UN)
+                    platform_compat.unlock(handle)
             finally:
                 state.handle = None
 
@@ -79,10 +80,10 @@ def serial(data_dir, scope):
 def claim(data_dir, scope):
     with _path(data_dir, scope).open('a') as handle:
         try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            platform_compat.lock_exclusive(handle, blocking=False)
         except BlockingIOError:
             raise ValueError('AI 正在判断，请稍候') from None
         try:
             yield
         finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            platform_compat.unlock(handle)

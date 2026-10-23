@@ -107,6 +107,7 @@ def _read_entries(data, started, finished, results):
 
 
 class GatewayProcessTests(unittest.TestCase):
+    @unittest.skipIf(sys.platform == "win32", "creating the symlink alias needs a privilege on Windows")
     def test_two_processes_cannot_both_reserve_the_last_envelope(self):
         context = multiprocessing.get_context('spawn')
         with tempfile.TemporaryDirectory() as data:
@@ -222,6 +223,7 @@ class GatewayProcessTests(unittest.TestCase):
                 results.close()
                 results.join_thread()
 
+    @unittest.skipIf(sys.platform == "win32", "creating the symlink alias needs a privilege on Windows")
     def test_nested_serial_sections_share_one_lock_across_gateway_instances(self):
         with tempfile.TemporaryDirectory() as data:
             first = Gateway(root=ROOT, data_dir=data, dev=False)

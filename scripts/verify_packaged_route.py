@@ -11,10 +11,11 @@ import http.cookiejar
 import json
 import os
 from pathlib import Path
-import select
+import queue
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -24,6 +25,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app.service import App
 from app import route_recall
+
+
+def read_line(stream, timeout):
+    """One line from a pipe within `timeout` seconds, or None (select.select cannot wait on pipes on Windows)."""
+    lines = queue.Queue()
+    threading.Thread(target=lambda: lines.put(stream.readline()), daemon=True).start()
+    try:
+        return lines.get(timeout=timeout)
+    except queue.Empty:
+        return None
 
 
 def launch(executable, data, home, check):
@@ -38,9 +49,9 @@ def launch(executable, data, home, check):
         process = subprocess.Popen([str(executable)], cwd=ROOT, env=env, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE, stderr=errors, text=True)
         try:
-            if not select.select([process.stdout], [], [], 30)[0]:
+            line = read_line(process.stdout, 30)
+            if line is None:
                 raise AssertionError('Backend did not announce readiness')
-            line = process.stdout.readline()
             if not line.startswith('PDH_READY '):
                 errors.seek(0)
                 raise AssertionError('Backend startup failed: '+errors.read()[-1000:])

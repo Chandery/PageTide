@@ -8,6 +8,7 @@ import json
 import os
 import stat
 import tempfile
+import sys
 import unittest
 import urllib.error
 import urllib.request
@@ -62,7 +63,8 @@ class GatewayKeyTests(unittest.TestCase):
         status = gateway.save_key("  sk-saved-secret  ")
         self.assertTrue(status["configured"])
         target = gateway.key_file()
-        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+        if sys.platform != "win32":  # 0600 file modes are POSIX-only; on Windows the per-user profile ACL is the protection.
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
         # The wrapper value is trimmed, not echoed back through status.
         self.assertNotIn("sk-saved-secret", json.dumps(status))
         gateway.clear_key()

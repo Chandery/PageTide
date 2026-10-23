@@ -1,5 +1,4 @@
-"""Owned loopback server for the macOS shell."""
-import fcntl
+"""Owned loopback server for the desktop shell (macOS, Windows)."""
 import json
 import os
 import secrets
@@ -8,7 +7,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import maintenance
+from . import maintenance, platform_compat
 from .server import build_server, stop_organization_workers
 from .service import App
 
@@ -20,7 +19,7 @@ def main():
     resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
     configured_data = os.environ.get("PAPERDIGHELPER_DATA")
     root = (Path(configured_data).expanduser().resolve() if configured_data else
-            Path.home() / "Library" / "Application Support" / "PaperDigHelper")
+            platform_compat.default_data_dir())
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     harness = root / "harness"
     harness.mkdir(exist_ok=True)
@@ -33,7 +32,7 @@ def main():
     os.chdir(root)
     with (root / ".desktop.lock").open("a") as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            platform_compat.lock_exclusive(lock, blocking=False)
         except BlockingIOError:
             raise SystemExit("PaperDigHelper is already running.")
         httpd = build_server(port=0, root=resources, desktop_token=secrets.token_hex(32))
