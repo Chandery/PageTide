@@ -43,17 +43,36 @@ _HAN = re.compile('[\u3400-\u9fff\uf900-\ufaff]')
 _KANA_HANGUL = re.compile('[\u3040-\u30ff\u31f0-\u31ff\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]')
 
 
+_SEPARATORS = re.compile(r'\||⸺|——|\s[-–]\s|\s:\s|[:：](?=\s*[A-Za-z])')
+
+
+def _first_segment(title):
+    """The part of a bilingual title before the first separator ('|', '⸺', '——', ' - ', ' – ', ' : ', or ':' / '：' followed
+    by Latin text) whose remainder is mostly Latin letters; the whole title when there is none."""
+    for match in _SEPARATORS.finditer(title):
+        rest = [c for c in title[match.end():] if c.isalpha()]
+        if rest and sum(1 for c in rest if c.isascii()) * 2 > len(rest):
+            return title[:match.start()]
+    return title
+
+
 def chinese_text_language(title, abstract):
     """'zh' when a title and abstract are clearly Chinese, else None. Used only when the source reported no language (Baidu
     Scholar reports none): at least four Han characters in the title and a strict majority of its letters, no kana or hangul
     anywhere (that would be Japanese or Korean), and an abstract, when there is a real one, with at least ten Han characters
     making up a tenth or more of its letters (an English abstract with a few Chinese terms does not pass; a bilingual one does).
-    Local and conservative; never stored back."""
+    The title test also accepts the first segment of a bilingual title ("中文题名 | English title", see _first_segment), so a
+    long English translation does not hide a plainly Chinese title. Local and conservative; never stored back."""
     title = title if isinstance(title, str) else ''
     abstract = abstract if isinstance(abstract, str) else ''
-    han = len(_HAN.findall(title))
-    letters = sum(1 for c in title if c.isalpha())
-    if han < 4 or han * 2 <= letters or _KANA_HANGUL.search(title) or _KANA_HANGUL.search(abstract):
+    if _KANA_HANGUL.search(title) or _KANA_HANGUL.search(abstract):
+        return None
+    for candidate in (title, _first_segment(title)):
+        han = len(_HAN.findall(candidate))
+        letters = sum(1 for c in candidate if c.isalpha())
+        if han >= 4 and han * 2 > letters:
+            break
+    else:
         return None
     if sum(1 for c in abstract if c.isalnum()) >= 10:
         abstract_han = len(_HAN.findall(abstract))

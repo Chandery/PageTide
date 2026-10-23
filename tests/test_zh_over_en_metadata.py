@@ -108,3 +108,50 @@ class EnglishOnlyProjectTests(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BilingualTitleTests(unittest.TestCase):
+    ONE = ("汉字音源意境溯源体系:六级溯源模型 ⸺ 本土汉字造字发生学新探索|Sound-Source and Contextual Origin System of "
+           "Chinese Characters: The Six-Level Tracing Model and a New Exploration of Native Character Genesis")
+    TWO = "21世纪以来汉语语气副词研究综述 : A Review of the Research on Chinese Modal Adverbs since the 21st Century"
+    CN = "本文综述汉语语气副词的研究现状，并讨论今后的研究方向与存在的问题。"
+    EN = EN_ABSTRACT
+
+    def zh(self, title, abstract=None):
+        from app.paper_language import chinese_text_language
+        return chinese_text_language(title, abstract)
+
+    def test_the_first_segment_of_a_bilingual_title_decides(self):
+        for title in (self.ONE, self.TWO):
+            for abstract in (None, "", self.CN):
+                with self.subTest(title=title[:12], abstract=abstract):
+                    self.assertEqual(self.zh(title, abstract), "zh")
+        for sep in ("|", " ⸺ ", "——", " - ", " – ", "：", ":"):
+            self.assertEqual(self.zh("汉语语气副词研究综述" + sep + "A review of modal adverbs in Chinese", None), "zh", sep)
+
+    def test_it_stays_not_chinese_when_it_should(self):
+        self.assertIsNone(self.zh(self.TWO, self.EN))
+        self.assertIsNone(self.zh("A Review of Modal Adverbs: 汉语语气副词研究综述", None))
+        self.assertIsNone(self.zh("麒麟、祖剌法与キリン | A study of the Qilin", None))
+        self.assertIsNone(self.zh("汉语语气副词研究 | 日本語の要旨", None))   # rest is not mostly Latin, whole title is not majority Han
+        self.assertIsNone(self.zh("汉语 | A review of modal adverbs in Chinese", None))   # only 2 Han in the segment
+
+    def test_a_title_that_already_passes_is_unchanged(self):
+        self.assertEqual(self.zh("知识图谱构建方法综述", None), "zh")
+        self.assertEqual(self.zh("知识图谱构建方法综述 | Survey", self.CN), "zh")
+
+    def test_both_service_paths_use_it(self):
+        for key, report, source in (("none", None, "title"), ("en", "en", "chinese_text_over_metadata")):
+            paper = {"title": self.TWO, "abstract": self.CN, "metadata_language": report,
+                     "metadata_language_source": "OpenAlex" if report else None}
+            tmp = tempfile.TemporaryDirectory()
+            self.addCleanup(tmp.cleanup)
+            root = Path(tmp.name)
+            (root / "harness").mkdir()
+            (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
+            (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+            app = App(root=str(root), data_dir=str(root / "data"))
+            self.addCleanup(app.store.close)
+            language = app._paper_language(paper)
+            self.assertEqual(language["metadata_language"], "zh", key)
+            self.assertIn(language["metadata_source"], ("title+abstract", source), key)

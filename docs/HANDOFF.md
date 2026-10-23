@@ -6,7 +6,7 @@ worktree `zh-title-language`，基线 main `9c448a3`，类别 standard。[变更
 
 做了什么：`App._paper_language` 里，来源报告恰为 `en` 且 `chinese_text_language(标题, 摘要)` 判为中文（无假名/谚文，摘要为空或也是中文）时，评估用的语言记为 `zh`，来源记为 `chinese_text_over_metadata`；不写回数据库；已核验的全文语言仍优先；`fr`/`ja` 等其它报告不动。动态推送、每日批次、创建候选都经 `_paper_language` 和 `eligibility.evaluate`，所以一致。仅英文项目里这类论文现在以 `language_not_allowed` 排除（以前是 `title_language_unverified`）；英文摘要配中文标题仍走旧的 `title_language_unverified`。
 
-没验证：没有在真实库上重跑；中文占比不足一半的中英双语标题（如 “汉字音源意境溯源体系…|Sound-Source…”、“21世纪以来汉语语气副词研究综述 : A Review of…”）仍不会被识别——无报告时是 `language_unknown`，报告为 `en` 时保持 `en`。
+第二个提交（协调者决定）：`chinese_text_language` 对中英双语标题只看第一段——在第一个满足“其后主要是拉丁字母”的分隔符（`|`、`⸺`、`——`、` - `、` – `、` : `、后接拉丁文的 `:`/`：`）处截断，再用原规则（至少 4 个汉字且占多数，全标题和摘要无假名/谚文，摘要规则不变）。整标题本来就通过时行为不变；英文标题加中文副标题、英文摘要、带假名标题仍不算中文；无报告路径和 `en` 覆盖路径都用它。\n\n没验证：没有在真实库上重跑；没有分隔符的中英混排标题仍不识别。
 
 ---
 

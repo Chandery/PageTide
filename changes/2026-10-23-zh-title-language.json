@@ -10,14 +10,13 @@
     "R-LOCAL"
   ],
   "files": [
-    "app/service.py",
+    "app/paper_language.py",
     "changes/2026-10-23-zh-title-language.json",
     "docs/HANDOFF.md",
     "docs/evidence/2026-10-23-zh-title-language-checks.txt",
-    "tests/test_baidu_refresh.py",
     "tests/test_zh_over_en_metadata.py"
   ],
-  "scope_note": "Worktree zh-title-language from main 9c448a3. One derivation in App._paper_language; every feed, daily-batch and creation path already reads language through it and eligibility.evaluate.",
+  "scope_note": "Worktree zh-title-language from main 9c448a3. One derivation in App._paper_language; every feed, daily-batch and creation path already reads language through it and eligibility.evaluate. Second commit (f6c49fe is the first, which changed app/service.py and tests/test_baidu_refresh.py): bilingual-title first-segment rule in app/paper_language.py; files lists this commit's paths.",
   "budget_impact": {
     "runtime": "zero",
     "rationale": "A local regex check on title and abstract at evaluation time; no model call, network, new storage or data leaving the machine.",
@@ -26,19 +25,43 @@
     "developer_usage": "none"
   },
   "checks": [
-    {"category": "budget", "command": "python3 scripts/budget.py --check", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"},
-    {"category": "repository", "command": "python3 scripts/harness.py check", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"},
-    {"category": "tests", "command": "python3 -m unittest discover -s tests -v", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"}
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"
+    }
   ],
   "additional_checks": [
-    {"command": "node --test tests/*.cjs", "exit_code": 0, "scope": "Node tests"}
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "Node tests"
+    }
   ],
   "reviews": [
-    {"kind": "self", "result": "passed", "reviewer": "Working agent; not independent", "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"}
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Working agent; not independent",
+      "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"
+    }
   ],
   "owner_approved": false,
   "open_risks": [
-    "Bilingual titles where Chinese is not the majority of letters (e.g. a Chinese title plus a long English translation) are still not recognised; with an en report they stay en.",
+    "Second commit: chinese_text_language also judges the first segment of a bilingual title (separators | ⸺ —— ' - ' ' – ' ' : ' and ':' before Latin text, remainder mostly Latin); a title whose Chinese part has no such separator is still not recognised.",
     "Not checked against the owner's real database; the evidence counts come from the coordinator's read-only copy."
   ]
 }
