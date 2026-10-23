@@ -244,8 +244,6 @@
             <input type="checkbox" id="sourceBaiduWeb">
             百度搜索
           </label>
-          <span id="baiduWebStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
-          <button type="button" id="testBaiduWebBtn" class="ghost">测试</button>
         </div>
       </div>
       <div class="field">
@@ -305,13 +303,15 @@
     // never text from the server, so a provider message or a key cannot reach the page.
     const SOURCE_ROWS = {
       openalex: {key:'#openalexKey', status:'#openalexKeyStatus', test:'#testOpenalexBtn', clear:'#clearOpenalexKeyBtn', link:'#openalexKeyLink'},
-      baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink'},
-      // Baidu search restricted to xueshu.baidu.com uses the same Qianfan key: the key line of the Baidu block is its field, so it has no key, clear or link of its own.
-      baidu_web: {key:'#baiduScholarKey', status:'#baiduWebStatus', test:'#testBaiduWebBtn', shared:true},
+      // The key line of the Baidu block holds the one Qianfan key of both Baidu sources. Its status word and its 测试 button are about
+      // the Baidu search (source baidu_web): that is the source that answers for a valid key; the Baidu Scholar tool does not for every
+      // account. The two switches under it are only checkboxes.
+      baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink', source:'baidu_web'},
     };
+    const sourceOf = (id) => SOURCE_ROWS[id].source || id;       // the source whose state a row shows and whose test its button runs
     const SOURCE_WORDS = {ok:'可用', auth_required:'密钥无效', quota_exhausted:'今日额度已用完', network_error:'无法连接',
       unavailable:'服务暂不可用', bad_response:'返回无法识别', invalid_input:'请求无效', not_found:'没有结果'};
-    const sourceTest = {openalex:{busy:false, epoch:0}, baidu_scholar:{busy:false, epoch:0}, baidu_web:{busy:false, epoch:0}};
+    const sourceTest = {openalex:{busy:false, epoch:0}, baidu_scholar:{busy:false, epoch:0}};
     let sourceInfo = {};
     let baiduConfirmed = false;
 
@@ -326,7 +326,7 @@
     function renderSourceRow(id) {
       if (sourceTest[id].busy && sourceTest[id].shownBusy) return;     // a running test keeps its own word
       const target = $(SOURCE_ROWS[id].status);
-      target.textContent = sourceBaseWord(sourceInfo[id]);
+      target.textContent = sourceBaseWord(sourceInfo[sourceOf(id)]);
       target.dataset.kind = '';
     }
 
@@ -341,7 +341,7 @@
     function renderSources(sources) {
       sourceInfo = sources || {};
       for (const id of Object.keys(SOURCE_ROWS)) {
-        const row = SOURCE_ROWS[id], info = sourceInfo[id];
+        const row = SOURCE_ROWS[id], info = sourceInfo[sourceOf(id)];
         if (!info) continue;
         renderSourceRow(id);
         if (row.link) {
@@ -373,7 +373,7 @@
       show('测试中…');
       try {
         const res = await fetch('/api/source-test', {method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(key ? {id, api_key:key} : {id})});
+          body:JSON.stringify(key ? {id: sourceOf(id), api_key:key} : {id: sourceOf(id)})});
         const data = await res.json();
         if (!current()) return;
         const kind = res.ok && typeof data.kind === 'string' && Object.prototype.hasOwnProperty.call(SOURCE_WORDS, data.kind) ? data.kind : null;
@@ -549,7 +549,6 @@
         const key = $('#apiKey').value.trim();
         if (key) await postGateway({api_key: key});
         for (const id of Object.keys(SOURCE_ROWS)) {
-          if (SOURCE_ROWS[id].shared) continue;          // its key is saved once, through the row that owns the field
           const value = $(SOURCE_ROWS[id].key).value.trim();
           if (value) await postGateway({source_key: {id, value}});
         }

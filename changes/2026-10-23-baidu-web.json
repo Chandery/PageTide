@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "2026-10-23-baidu-web",
   "class": "critical",
-  "summary": "A second Baidu source, baidu_web: Baidu AI Search (POST /v2/ai_search/web_search) restricted to xueshu.baidu.com, because the Baidu Scholar tool answers 404 for the owner's account. It shares the Qianfan key of Baidu Scholar (SourceInfo.key_shared_with; one key file, one field in Settings) and has its own switch, daily counter (cap 40), 24 h cache and status. Wired into the daily feed (Chinese projects with Chinese keywords), project-creation candidates and typed seed titles; papers both Baidu sources find are deduplicated by key and title; a Baidu Scholar failure never stops the web search. The parser is built on a trimmed real answer. Also records the Wanfang evaluation (paid, 10-day trial: considered, not adopted; no adapter). Follow-up after the independent review: the two Baidu sources share ONE daily counter (40 in total); the status line shows the most actionable kind; a plausible 年份 decides the year of `published`; a per-second limit (QPS, HTTP 429 without a daily-allowance body) is transient, not 'quota used up'; whole-word limit/rate matching; markers counted in order at their first occurrence; every non-ASCII character counts 2 of the 72 units; lone surrogates stripped; one source's unexpected exception is only that source's failure; string-only fields; no merging on empty title marks; echoed keys removed from errors; the Baidu settings regrouped into one block (heading, one key line, two switches); the shared confirm dialog centred.",
+  "summary": "A second Baidu source, baidu_web: Baidu AI Search (POST /v2/ai_search/web_search) restricted to xueshu.baidu.com, because the Baidu Scholar tool answers 404 for the owner's account. It shares the Qianfan key of Baidu Scholar (SourceInfo.key_shared_with; one key file, one field in Settings) and has its own switch, daily counter (cap 40), 24 h cache and status. Wired into the daily feed (Chinese projects with Chinese keywords), project-creation candidates and typed seed titles; papers both Baidu sources find are deduplicated by key and title; a Baidu Scholar failure never stops the web search. The parser is built on a trimmed real answer. Also records the Wanfang evaluation (paid, 10-day trial: considered, not adopted; no adapter). Follow-up after the independent review: the two Baidu sources share ONE daily counter (40 in total); the status line shows the most actionable kind; a plausible 年份 decides the year of `published`; a per-second limit (QPS, HTTP 429 without a daily-allowance body) is transient, not 'quota used up'; whole-word limit/rate matching; markers counted in order at their first occurrence; every non-ASCII character counts 2 of the 72 units; lone surrogates stripped; one source's unexpected exception is only that source's failure; string-only fields; no merging on empty title marks; echoed keys removed from errors; the Baidu settings regrouped into one block (heading, one key line, two switches); the shared confirm dialog centred. Third commit: the Baidu settings block has one 测试 button on the key line, which tests baidu_web; the two switches are only checkboxes.",
   "tasks": [
     "DATA-01",
     "PROJECT-01",
@@ -14,33 +14,16 @@
     "R-PDF"
   ],
   "files": [
-    "app/baidu_scholar.py",
-    "app/baidu_web.py",
-    "app/creation.py",
-    "app/db.py",
-    "app/service.py",
-    "app/source_adapters.py",
-    "app/static/dialogs.css",
-    "app/static/i18n/en-US.json",
     "app/static/settings.html",
     "changes/2026-10-23-baidu-web.json",
-    "docs/ARCHITECTURE.md",
     "docs/HANDOFF.md",
     "docs/PRODUCT.md",
     "docs/SOURCES.md",
     "docs/decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md",
     "docs/evidence/2026-10-23-baidu-web-checks.txt",
-    "tests/fixtures/baidu_web/error_qps.json",
-    "tests/fixtures/baidu_web/error_quota.json",
-    "tests/test_baidu_creation.py",
-    "tests/test_baidu_web.py",
-    "tests/test_baidu_web_wiring.py",
-    "tests/test_dialogs_css.cjs",
-    "tests/test_source_adapters.py",
-    "tests/test_source_settings_ui.cjs",
-    "tools/source_smoke.py"
+    "tests/test_source_settings_ui.cjs"
   ],
-  "scope_note": "Worktree baidu-web on main 582ce17. Critical: a new outbound request and provider adapter, a shared secret, new settings. Data sharing is the same as the already-approved Baidu Scholar source (owner approvals quoted in ADR 0039 and its 2026-10-23 addendum; owner_approved stays false). No migration, no model call, no network call in any test; no real database or key touched. Second commit on the same branch (follow-up to 7f5e3fe).",
+  "scope_note": "Worktree baidu-web on main 582ce17. Critical: a new outbound request and provider adapter, a shared secret, new settings. Data sharing is the same as the already-approved Baidu Scholar source (owner approvals quoted in ADR 0039 and its 2026-10-23 addendum; owner_approved stays false). No migration, no model call, no network call in any test; no real database or key touched. Second commit on the same branch (follow-up to 7f5e3fe). Third commit (settings key-line test targets baidu_web).",
   "budget_impact": {
     "runtime": "zero",
     "rationale": "No model call or token. At most one extra Baidu request per Chinese keyword/query when the web switch is on and the shared key is saved (up to 3 per project refresh, one per creation phrase, one per typed seed search), counted in its own local cap of 40 a day and answered from a 24 h cache when repeated. Baidu's own allowance is 1500 free calls a month; billing after that is unverified (owner to-do).",
@@ -72,12 +55,12 @@
     {
       "command": "node --test tests/*.cjs",
       "exit_code": 0,
-      "scope": "598 Node tests (594 + 4 new)"
+      "scope": "595 Node tests"
     },
     {
       "command": "python3 scripts/i18n_extract.py",
       "exit_code": 0,
-      "scope": "# 0 of 1158 (2 new English strings, 1 replaced)"
+      "scope": "# 0 of 1158"
     }
   ],
   "reviews": [

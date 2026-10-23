@@ -121,3 +121,51 @@ exit 0
 $ python3 scripts/harness.py review changes/2026-10-23-baidu-web.json   (run before the second commit)
 PASS repository checks only; app gates/real billing are not implied
 exit 0
+
+================================================================================
+Part 3: third commit - the Baidu settings block has one test button (on top of d849c8c)
+
+The coordinator looked at the previous layout in a real browser: two 测试 buttons, a duplicate "需要密钥" on the 百度搜索 row, and a key-line 测试
+that checked the Baidu Scholar tool, which answers 服务暂不可用 for the owner's valid key. Now the key line (key, status word, 测试, 清除, 获取) tests
+and shows the state of baidu_web (one request, counted in the shared 40 a day); the two switches are only checkboxes (baiduWebStatus and
+testBaiduWebBtn are gone). /api/source-test still accepts baidu_scholar. No Python change.
+
+Red first (tests changed, settings.html not yet):
+$ node --test tests/test_source_settings_ui.cjs
+  # tests 27  # pass 18  # fail 9      -> 9 red (status words, link/clear, the typed-key and empty-field tests now expect id baidu_web, the web row is
+                                          only a switch, clear/link on the key line, the key line test, the block order, the ids test)
+Tests changed: tests/test_source_settings_ui.cjs only. Of the 28 + 4 Node tests there before, the ones about the web row's own status/test were
+removed or rewritten for the key line (net 598 -> 595 Node tests). No existing test outside that file changed.
+
+Final checks of the third commit (worktree baidu-web, before the commit):
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit 0
+
+$ python3 scripts/harness.py check
+WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY
+PASS repository checks only; app gates/real billing are not implied
+exit 0
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 2752 tests in 97.246s
+
+OK
+exit 0
+
+$ node --test tests/*.cjs
+# tests 595
+# pass 595
+# fail 0
+# cancelled 0
+# skipped 0
+exit 0
+
+$ python3 scripts/i18n_extract.py
+# 0 of 1158
+exit 0
+
+$ python3 scripts/harness.py review changes/2026-10-23-baidu-web.json   (run before the third commit)
+PASS repository checks only; app gates/real billing are not implied
+exit 0
