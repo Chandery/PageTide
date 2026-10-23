@@ -10,8 +10,7 @@ from unittest import mock
 from app import operation_lock, platform_compat as pc
 
 
-@unittest.skipIf(sys.platform == "win32", "real fcntl branch; the Windows branch is exercised by the simulated tests below and by CI")
-class PosixLockTests(unittest.TestCase):
+class RealLockTests(unittest.TestCase):
     def test_exclusive_nonblocking_lock_conflicts_across_handles_and_releases(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "x.lock"
@@ -58,6 +57,19 @@ class WindowsBranchTests(unittest.TestCase):
         stack2 = mock.patch.object(pc, "msvcrt", fake, create=True)
         return stack, stack2
 
+    def test_unexpected_errors_are_not_reported_as_contention(self):
+        class Broken:
+            LK_NBLCK, LK_UNLCK = 2, 0
+
+            def locking(self, descriptor, mode, nbytes):
+                raise OSError(9, "bad file descriptor")
+
+        a, b = self.patched(Broken())
+        with a, b, tempfile.TemporaryFile("a+") as handle:
+            with self.assertRaises(OSError) as raised:
+                pc.lock_exclusive(handle)   # blocking: must raise, not poll forever
+            self.assertNotIsInstance(raised.exception, BlockingIOError)
+
     def test_nonblocking_lock_locks_byte_zero_and_maps_failure_to_blockingioerror(self):
         fake = FakeMsvcrt()
         a, b = self.patched(fake)
@@ -86,14 +98,116 @@ class WindowsBranchTests(unittest.TestCase):
         self.assertEqual(len(sleeps), 1)
 
 
+class ParentWatchTests(unittest.TestCase):
+    def test_posix_branch_compares_the_current_parent(self):
+        with mock.patch.object(pc, "IS_WINDOWS", False):
+            self.assertTrue(pc.parent_alive_check(os.getppid())())
+            self.assertFalse(pc.parent_alive_check(os.getppid() + 100000)())
+
+    def test_windows_branch_waits_on_a_process_handle(self):
+        class Kernel:
+            def __init__(self, handle, state):
+                self.handle, self.state, self.opened = handle, state, []
+
+            def OpenProcess(self, access, inherit, pid):
+                self.opened.append((access, inherit, pid))
+                return self.handle
+
+            def WaitForSingleObject(self, handle, milliseconds):
+                assert handle == self.handle and milliseconds == 0
+                return self.state[0]
+
+        state = [0x102]   # WAIT_TIMEOUT: still running
+        kernel = Kernel(7, state)
+        with mock.patch.object(pc, "IS_WINDOWS", True):
+            alive = pc.parent_alive_check(4321, kernel)
+            self.assertEqual(kernel.opened, [(0x00100000, 0, 4321)])   # SYNCHRONIZE only
+            self.assertTrue(alive())
+            state[0] = 0   # WAIT_OBJECT_0: the parent exited
+            self.assertFalse(alive())
+            self.assertFalse(pc.parent_alive_check(4321, Kernel(0, state))())   # cannot open: treated as gone
+
+
+class DesktopLogTests(unittest.TestCase):
+    def test_stderr_log_is_created_and_size_capped_with_one_rotated_copy(self):
+        from app import desktop
+        saved = sys.stderr
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                path = desktop.redirect_stderr_to_log(tmp, limit=3)
+                print("first", file=sys.stderr)
+                sys.stderr.close()
+                path = desktop.redirect_stderr_to_log(tmp, limit=3)   # bigger than the cap: rotate
+                print("second", file=sys.stderr)
+                sys.stderr.close()
+            finally:
+                sys.stderr = saved
+            self.assertEqual(path.read_text(encoding="utf-8"), "second\n")
+            self.assertEqual((path.parent / "backend.log.1").read_text(encoding="utf-8"), "first\n")
+
+
+class TolerantCleanupTests(unittest.TestCase):
+    def test_runner_makes_directory_cleanup_tolerant_after_a_gc(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("run_tests", Path(__file__).resolve().parents[1] / "scripts" / "run_tests.py")
+        runner = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runner)
+
+        class Directory(tempfile.TemporaryDirectory):
+            pass
+
+        runner.make_cleanup_tolerant(Directory)
+        with mock.patch.object(runner.gc, "collect") as collected:
+            directory = Directory()
+            self.assertTrue(directory._ignore_cleanup_errors)
+            directory.cleanup()
+            collected.assert_called_once()
+        self.assertFalse(tempfile.TemporaryDirectory()._ignore_cleanup_errors)   # the standard class is untouched
+
+
+class BuildPythonTests(unittest.TestCase):
+    def load(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("build_desktop", Path(__file__).resolve().parents[1] / "scripts" / "build_desktop.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_env_var_wins_and_macos_without_the_venv_fails_instead_of_falling_back(self):
+        build = self.load()
+        with mock.patch.dict(os.environ, {"PDH_BUILD_PYTHON": "/x/python"}):
+            self.assertEqual(build.build_python(), "/x/python")
+        env = {k: v for k, v in os.environ.items() if k != "PDH_BUILD_PYTHON"}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, env, clear=True):
+            build.ROOT = Path(tmp)
+            with mock.patch.object(build.sys, "platform", "darwin"):
+                with self.assertRaises(SystemExit):
+                    build.build_python()
+            with mock.patch.object(build.sys, "platform", "win32"):
+                self.assertEqual(build.build_python(), sys.executable)
+
+
+class AppCloseTests(unittest.TestCase):
+    def test_close_releases_the_database_and_is_idempotent(self):
+        from app.service import App
+        with tempfile.TemporaryDirectory() as tmp:
+            app = App(root=Path(__file__).resolve().parents[1], data_dir=Path(tmp) / "data")
+            app.close()
+            app.close()
+            with self.assertRaises(Exception):
+                app.store.conn.execute("select 1")
+
+
 class DataDirTests(unittest.TestCase):
     def test_macos_unchanged(self):
         self.assertEqual(pc.default_data_dir({}, "darwin", "/Users/u"), Path("/Users/u/Library/Application Support/PaperDigHelper"))
 
-    def test_windows_uses_appdata_then_roaming_fallback(self):
-        self.assertEqual(pc.default_data_dir({"APPDATA": "C:/Users/u/AppData/Roaming"}, "win32", "C:/Users/u"),
-                         Path("C:/Users/u/AppData/Roaming/PaperDigHelper"))
-        self.assertEqual(pc.default_data_dir({}, "win32", "C:/Users/u"), Path("C:/Users/u/AppData/Roaming/PaperDigHelper"))
+    def test_windows_uses_local_appdata_and_never_the_installer_directory(self):
+        self.assertEqual(pc.default_data_dir({"LOCALAPPDATA": "C:/Users/u/AppData/Local", "APPDATA": "C:/Users/u/AppData/Roaming"},
+                                             "win32", "C:/Users/u"), Path("C:/Users/u/AppData/Local/PaperDigHelperData"))
+        self.assertEqual(pc.default_data_dir({}, "win32", "C:/Users/u"), Path("C:/Users/u/AppData/Local/PaperDigHelperData"))
+        # NSIS currentUser installs into %LOCALAPPDATA%\PaperDigHelper; the library must be a different folder.
+        self.assertNotEqual(pc.default_data_dir({"LOCALAPPDATA": "C:/L"}, "win32", "C:/u").name, "PaperDigHelper")
 
     def test_other_posix_uses_xdg(self):
         self.assertEqual(pc.default_data_dir({"XDG_DATA_HOME": "/x"}, "linux", "/h"), Path("/x/PaperDigHelper"))

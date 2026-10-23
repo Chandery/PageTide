@@ -1,3 +1,15 @@
+# 当前工作单元：Windows 首轮 CI 之后的修正（2026-10-23，第二个提交）
+
+接在 `57153f7` 与协调者的 `f873d9b` 之后。[变更记录](../changes/2026-10-23-windows-release-ci-fixes.json)，[检查证据](evidence/2026-10-23-windows-release-ci-fixes-checks.txt)。`Cargo.lock` 已含 `rfd`（f873d9b），上一条 HANDOFF 里“没能更新”已过时；**新增的 `tauri-plugin-single-instance` 还不在锁里**，需有网络的人跑 cargo 并提交锁（CI 现在用 `--locked`）。
+
+首轮 CI：2832 项里 380 个错误，其中 376 个是临时目录清理时 SQLite 文件仍被占用（WinError 32），真问题只有 5 个。做了：工作流拆成并行的 `test-windows` 与 `build-windows`，`publish` 要求两者通过、仅标签 push、核对标签与 `tauri.conf.json` 版本；`scripts/run_tests.py`（仅 Windows：gc + 容忍清理错误）；`App.close()`；org HTTP 测试先建库（假设：第一次请求建库超过 10 秒，未实测）；`test_candidate_quality` 显式用 `default_project`（默认项目按秒级时间戳排序，慢机器上会变）；`test_harness` 用 `as_posix()`。
+
+审查项：锁测试在 Windows 上真跑（去掉 skip、符号链接别名在 Windows 用同一路径、`select` 换成线程读行）；worker 父进程检查在 Windows 用进程句柄；保存对话框改成异步、挂在窗口上、不占主线程；单实例插件；启动失败弹消息框；后端 stderr 写 `logs\backend.log`（1 MB 轮换）；数据目录改 `%LOCALAPPDATA%\PaperDigHelperData`（不与 NSIS 安装目录同名）；`rundll32` 绝对路径；macOS 缺 `.local/desktop-build-env` 时构建失败而不是回落；`cargo tauri build -- --locked`。
+
+没验证：所有 Windows 代码都没编译或运行；没有选 PyInstaller 的 UTF-8 运行时选项（不确定 6.16 是否支持），UTF-8 靠 Rust 外壳与 CI 环境变量；org HTTP 超时的原因是假设。没有独立审查本提交。
+
+---
+
 # 当前工作单元：Windows x64 构建与 release 流程（2026-10-23）
 
 worktree `windows-release`，基线 main `ffe4836`，类别 critical。[变更记录](../changes/2026-10-23-windows-release.json)，[检查证据](evidence/2026-10-23-windows-release-checks.txt)，[ADR 0040](decisions/0040-windows-release.md)，[发布流程](RELEASE.md)。

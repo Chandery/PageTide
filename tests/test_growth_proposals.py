@@ -1,10 +1,10 @@
 """Full-Map growth proposal contracts; every provider result is a local fixture."""
 import json
-import select
 import subprocess
 import sys
 import unittest
 from unittest import mock
+from pipe_helpers import read_line
 from test_route_growth import Fixture, reply, new
 from app.organization import Conflict
 
@@ -228,7 +228,6 @@ class GrowthProposalTests(Fixture):
         self.assertEqual(c['goal_impact'], 'targets_unchanged')
         self.assertEqual(self.app.route_candidate_accept(self.pid, c['id'])['goal_scope'], before)
 
-    @unittest.skipIf(sys.platform == "win32", "select.select cannot wait on a pipe on Windows")
     def test_another_process_cannot_make_a_second_call_and_crash_releases_claim(self):
         self.say(('s1', 'useful'))
         code = """import sys
@@ -244,8 +243,7 @@ app.route_direction_judge(sys.argv[3])
         child = subprocess.Popen([sys.executable, '-c', code, str(self.root), str(self.app.data), self.pid],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
-            self.assertTrue(select.select([child.stdout], [], [], 20)[0])
-            self.assertEqual(child.stdout.readline().strip(), 'CALL_STARTED')
+            self.assertEqual((read_line(child.stdout, 20) or '').strip(), 'CALL_STARTED')
             calls = self.gateway(reply([new(['p1'])]))
             with self.assertRaisesRegex(ValueError, '正在判断'):
                 self.app.route_direction_judge(self.pid)

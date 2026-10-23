@@ -4,6 +4,7 @@ macOS/Linux keep fcntl.flock exactly as before. Windows uses msvcrt.locking on b
 file (a lock held through one open handle conflicts with every other handle, in-process or
 not, like flock on separate open file descriptions).
 """
+import errno
 import os
 import sys
 import time
@@ -23,6 +24,9 @@ def _windows_try_lock(handle):
     try:
         msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
     except OSError as error:
+        # Only contention maps to "held"; anything else (bad descriptor...) must not turn into a poll loop.
+        if error.errno not in (errno.EACCES, errno.EDEADLK, errno.EAGAIN):
+            raise
         raise BlockingIOError(*error.args) from None
 
 
@@ -58,15 +62,42 @@ def after_fork_in_child(callback):
 
 
 def default_data_dir(environ=None, platform=None, home=None):
-    """Per-user data directory: ~/Library/Application Support on macOS, %APPDATA% on Windows."""
+    """Per-user data directory: ~/Library/Application Support on macOS, %LOCALAPPDATA%\\PaperDigHelperData on Windows.
+
+    Local (not Roaming): the library holds SQLite files and PDFs that must not roam. The folder is not
+    named PaperDigHelper because the NSIS per-user installer defaults to %LOCALAPPDATA%\\PaperDigHelper
+    and an uninstall must never be able to touch the library."""
     environ = os.environ if environ is None else environ
     platform = sys.platform if platform is None else platform
     home = Path(home) if home is not None else Path.home()
     if platform.startswith("win"):
-        appdata = environ.get("APPDATA")
-        base = Path(appdata) if appdata else home / "AppData" / "Roaming"
-        return base / "PaperDigHelper"
+        local = environ.get("LOCALAPPDATA")
+        base = Path(local) if local else home / "AppData" / "Local"
+        return base / "PaperDigHelperData"
     if platform == "darwin":
         return home / "Library" / "Application Support" / "PaperDigHelper"
     xdg = environ.get("XDG_DATA_HOME")
     return (Path(xdg) if xdg else home / ".local" / "share") / "PaperDigHelper"
+
+
+def parent_alive_check(parent_pid, kernel32=None):
+    """Return a zero-argument callable that is True while the process `parent_pid` is alive.
+
+    POSIX: the parent of this process is still `parent_pid` (an orphan is re-parented, so os.getppid()
+    changes). Windows never re-parents, so wait on a handle of the parent process instead (SYNCHRONIZE).
+    `kernel32` is injectable for tests.
+    """
+    if not IS_WINDOWS and kernel32 is None:
+        return lambda: os.getppid() == parent_pid
+    if kernel32 is None:
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        kernel32.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+        kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    synchronize, wait_timeout = 0x00100000, 0x102
+    handle = kernel32.OpenProcess(synchronize, 0, int(parent_pid))
+    if not handle:
+        return lambda: False   # cannot observe the parent: treat it as gone, exactly like an orphan
+    # WAIT_TIMEOUT with a zero wait means the process object is not signalled yet, i.e. still running.
+    return lambda: kernel32.WaitForSingleObject(handle, 0) == wait_timeout

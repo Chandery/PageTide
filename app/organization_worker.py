@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 
+from . import platform_compat
 from .db import Store
 from .organization import Organization
 
@@ -29,7 +30,8 @@ def main(args=None):
 
     def guard():
         deadline = time.monotonic() + 120
-        while os.getppid() == parent and time.monotonic() < deadline:
+        parent_alive = platform_compat.parent_alive_check(parent)
+        while parent_alive() and time.monotonic() < deadline:
             time.sleep(0.2)
         os._exit(1)  # Abrupt parent death must not leave an orphan writing the DB.
 

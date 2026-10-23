@@ -141,6 +141,7 @@ fn owned_page(window: &WebviewWindow, session: &DesktopSession) -> Result<(), St
     Ok(())
 }
 
+#[cfg(not(windows))]
 #[tauri::command]
 fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, filename: String, content: String) -> Result<String, String> {
     owned_page(&window, &session)?;
@@ -174,11 +175,22 @@ fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, filena
         if let Err(error) = result { let _ = std::fs::remove_file(&temporary); return Err(error.to_string()); }
         return Ok(serde_json::json!({"status":"saved", "path":path, "bytes":content.len()}).to_string());
     }
-    #[cfg(windows)]
-    {
-        // rfd's blocking save dialog (IFileSaveDialog); it asks before overwriting. Then the same
-        // temp-file + rename shape as macOS. std::fs::rename replaces an existing destination on Windows.
-        let destination = rfd::FileDialog::new().set_file_name(filename.as_str()).save_file();
+    #[cfg(not(any(target_os = "macos", windows)))]
+    Err("Native export is currently supported on macOS and Windows".into())
+}
+
+/// Windows: the modal "Save as" dialog runs on a blocking worker thread (never the main/UI thread, so the
+/// webview keeps painting and the quit guard keeps working) and is parented to the app window. Then the same
+/// temp-file + rename write as on macOS; std::fs::rename replaces an existing destination on Windows.
+#[cfg(windows)]
+#[tauri::command]
+async fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, filename: String, content: String) -> Result<String, String> {
+    owned_page(&window, &session)?;
+    if filename.is_empty() || filename.len() > 200 || filename.contains('/') || filename.contains('\\') || content.len() > 512 * 1024 * 1024 {
+        return Err("Invalid export filename or export exceeds 512 MB".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+        let destination = rfd::FileDialog::new().set_parent(&window).set_file_name(filename.as_str()).save_file();
         let Some(destination) = destination else { return Ok("{\"status\":\"cancelled\"}".into()); };
         let parent = destination.parent().ok_or("Invalid export destination")?;
         let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
@@ -194,10 +206,8 @@ fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, filena
         })();
         if let Err(error) = result { let _ = std::fs::remove_file(&temporary); return Err(error.to_string()); }
         let path = destination.to_string_lossy().to_string();
-        return Ok(serde_json::json!({"status":"saved", "path":path, "bytes":content.len()}).to_string());
-    }
-    #[cfg(not(any(target_os = "macos", windows)))]
-    Err("Native export is currently supported on macOS and Windows".into())
+        Ok(serde_json::json!({"status":"saved", "path":path, "bytes":content.len()}).to_string())
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -259,8 +269,10 @@ fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::E
     {
         use std::os::windows::process::CommandExt;
         // A GUI-subsystem parent has no valid stderr to inherit, which would leave Python without
-        // sys.stderr; give it NUL. No console window for the backend; UTF-8 for files with Chinese text.
-        command.stderr(Stdio::null()).env("PYTHONUTF8", "1").creation_flags(CREATE_NO_WINDOW);
+        // sys.stderr; give it NUL and have the backend write <data dir>/logs/backend.log itself
+        // (PDH_LOG_STDERR, size-capped, app/desktop.py). No console window for the backend; UTF-8 for
+        // files with Chinese text.
+        command.stderr(Stdio::null()).env("PYTHONUTF8", "1").env("PDH_LOG_STDERR", "1").creation_flags(CREATE_NO_WINDOW);
     }
     #[cfg(not(windows))]
     command.stderr(Stdio::inherit());
@@ -290,14 +302,29 @@ fn open_external(url: &Url) {
             // No shell: the already-validated, ASCII-serialized http(s) URL is a single argv entry,
             // so `&`, `^` or `%` in it are never interpreted (unlike `cmd /C start`).
             use std::os::windows::process::CommandExt;
-            let _ = Command::new("rundll32.exe").arg("url.dll,FileProtocolHandler").arg(url.as_str())
+            // Absolute path: never resolved through PATH or the current directory.
+            let system = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+            let rundll = std::path::Path::new(&system).join("System32").join("rundll32.exe");
+            let _ = Command::new(rundll).arg("url.dll,FileProtocolHandler").arg(url.as_str())
                 .creation_flags(CREATE_NO_WINDOW).spawn();
         }
     }
 }
 
 fn main() {
-    let result = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // Windows: a second launch focuses the running window instead of racing it for the data directory
+    // lock (the second backend would exit with "already running" and nobody would see why). The plugin must
+    // be registered first. macOS keeps its LaunchServices behaviour.
+    #[cfg(windows)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+    let result = builder
         .invoke_handler(tauri::generate_handler![save_export, complete_quit])
         .on_menu_event(|handle, event| {
             if event.id().as_ref() == GUARDED_QUIT {
@@ -360,6 +387,16 @@ fn main() {
         }),
         Err(error) => {
             eprintln!("PaperDigHelper startup failed: {error}");
+            // A GUI-subsystem Windows process has no console: without a dialog the user sees nothing.
+            #[cfg(windows)]
+            {
+                let _ = rfd::MessageDialog::new()
+                    .set_level(rfd::MessageLevel::Error)
+                    .set_title("PaperDigHelper")
+                    .set_description(format!("PaperDigHelper could not start.\n\n{error}\n\nDetails may be in the logs folder inside the PaperDigHelperData folder under %LOCALAPPDATA%."))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            }
             std::process::exit(1);
         }
     }

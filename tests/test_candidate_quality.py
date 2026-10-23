@@ -147,7 +147,10 @@ class ServiceWindowTests(unittest.TestCase):
             self.app.refresh_candidates(project_id=project)
         self.assertEqual(topic.call_args.kwargs["from_date"], sources.window_start(5))
         with mock.patch.object(self.app.source, "discover", return_value=[]) as legacy:
-            self.app.refresh_candidates()
+            # The migration's default project (no keywords) is named explicitly: with no project_id the "default"
+            # is the newest project by a one-second timestamp, so "p" (created in the same second on a fast
+            # machine, a later one on a slow runner) would sometimes win and take the topic path instead.
+            self.app.refresh_candidates(project_id="default_project")
         self.assertEqual(legacy.call_args.kwargs["from_date"], sources.window_start(5))
 
     def test_an_owner_time_preference_replaces_the_hotspot_window(self):

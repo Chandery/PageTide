@@ -1,0 +1,29 @@
+Follow-up to 57153f7 + f873d9b after the first Windows CI run 39951173677 (python tests: 2832 run, failures=1, errors=380, 751 tracebacks of PermissionError WinError 32 from TemporaryDirectory cleanup) and an independent review (no blocking issue). No Windows host, no network here.
+
+Analysis of the CI log (done offline from /tmp log, not re-run):
+- 376 errors = WinError 32 at TemporaryDirectory cleanup (open SQLite files). Addressed by scripts/run_tests.py (Windows only: gc.collect + ignore_cleanup_errors) and App.close(); NOT verified on Windows.
+- 3 errors test_organization_http TimeoutError (+ the server-side ConnectionAbortedError / "Unknown organization operation" traces, which are the server answering after the client had already timed out): all three tests make the first request against a database that does not exist yet; the passing tests call seed() first. Hypothesis: creating a fresh database inside the 10 s request timeout is too slow on the runner. Fix: create the DB in setUp. This is a hypothesis, not a measured cause.
+- test_candidate_quality ServiceWindowTests: refresh_candidates() with no project_id uses the newest project by a one-second timestamp; on a slow runner project "p" (keywords) is newer than the migration's default project, on a fast machine they tie and the default wins. Test now names project_id="default_project". App behaviour (tie order) unchanged.
+- test_harness: str(relative) uses backslashes on Windows, so a file meant to be copied was skipped; test now uses as_posix().
+
+Ran on macOS:
+$ python3 scripts/run_tests.py   (also python3 -m unittest discover -s tests -v: same discovery)
+Ran 2839 tests in 115.293s
+OK
+$ node --test tests/*.cjs
+# pass 603  # fail 0
+$ python3 scripts/i18n_extract.py
+# 0 of 1162
+$ python3 scripts/budget.py --check / harness check: PASS (see change record)
+$ cargo check --offline  (src-tauri with the two Windows-only dependencies temporarily removed, Cargo.toml and Cargo.lock restored)
+Finished `dev` profile - macOS Rust path compiles.
+
+New tests (macOS): tests/test_platform_compat.py - real lock test bodies now platform-neutral (run on Windows CI with real msvcrt), unexpected msvcrt errors are not polled forever, parent_alive_check POSIX branch and Windows branch with a fake kernel32, backend.log creation/rotation, tolerant-cleanup runner, build_desktop.build_python (darwin without venv fails), App.close(), data dir %LOCALAPPDATA%\PaperDigHelperData.
+Un-skipped for Windows: tests/test_gateway_process.py symlink-alias tests (same path on Windows), tests/test_growth_proposals.py (threaded read_line instead of select).
+
+NOT compiled / NOT run:
+- every cfg(windows) Rust block (async save_export with set_parent + spawn_blocking, single-instance plugin, MessageDialog on fatal startup, rundll32 by absolute path, PDH_LOG_STDERR env), the crates rfd 0.15 and tauri-plugin-single-instance "2" (Cargo.lock lacks the latter until someone with network runs cargo)
+- real msvcrt locking and ctypes OpenProcess/WaitForSingleObject
+- the reworked workflow (YAML parses; never executed); `cargo tauri build -- --locked`; the tag/version check
+- PYTHONUTF8 under PyInstaller: only set by the Rust shell and the CI job env; no `--python-option` / spec option added because I could not confirm PyInstaller 6.16 supports it.
+No model call, no developer-ledger usage.

@@ -12,21 +12,27 @@ SEP = os.pathsep  # --add-data SRC<sep>DEST: ':' on macOS/Linux, ';' on Windows 
 
 
 def build_python():
-    """PDH_BUILD_PYTHON wins; else the local macOS build venv when present; else this interpreter."""
+    """PDH_BUILD_PYTHON wins. On macOS the pinned local build venv is required (a silent fallback to
+    some other interpreter could ship a differently-built backend). Elsewhere: this interpreter."""
     configured = os.environ.get("PDH_BUILD_PYTHON")
     if configured:
         return configured
-    venv = ROOT / ".local" / "desktop-build-env" / "bin" / "python"
-    return str(venv) if sys.platform == "darwin" and venv.exists() else sys.executable
+    if sys.platform == "darwin":
+        venv = ROOT / ".local" / "desktop-build-env" / "bin" / "python"
+        if not venv.exists():
+            raise SystemExit(f"Missing {venv}; create the build env or set PDH_BUILD_PYTHON to the interpreter to use.")
+        return str(venv)
+    return sys.executable
 
 
 def main():
+    python = build_python()   # fail before deleting the previous resources
     if RESOURCES.exists():
         shutil.rmtree(RESOURCES)
     SERVER_DIR.mkdir(parents=True)
     subprocess.run(
         [
-            build_python(),
+            python,
             "-m", "PyInstaller",
             "--noconfirm",
             "--onedir",

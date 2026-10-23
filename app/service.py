@@ -86,6 +86,10 @@ class App:
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
 
+    def close(self):
+        """Release the database file (Windows cannot delete a directory holding an open SQLite file). Idempotent."""
+        self.store.close()
+
     # ------------------------------------------------------------ learning map
     def _route_org(self, project_id):
         return Organization(self.store, project=self._require_project(project_id))

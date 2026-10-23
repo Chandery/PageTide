@@ -106,8 +106,17 @@ def _read_entries(data, started, finished, results):
         finished.set()
 
 
+def _alias_of(data, name):
+    """A second spelling of the same data directory: a symlink on POSIX. Creating symlinks needs a
+    privilege on Windows, so there the same path is used; the lock still has to serialise across handles."""
+    if sys.platform == "win32":
+        return Path(data)
+    alias = Path(data) / name
+    alias.symlink_to(data, target_is_directory=True)
+    return alias
+
+
 class GatewayProcessTests(unittest.TestCase):
-    @unittest.skipIf(sys.platform == "win32", "creating the symlink alias needs a privilege on Windows")
     def test_two_processes_cannot_both_reserve_the_last_envelope(self):
         context = multiprocessing.get_context('spawn')
         with tempfile.TemporaryDirectory() as data:
@@ -120,8 +129,7 @@ class GatewayProcessTests(unittest.TestCase):
             results = context.Queue()
             first = context.Process(target=_race_gateway,
                 args=(data, paused, release, first_sent, results, True))
-            alias = Path(data) / 'same-data'
-            alias.symlink_to(data, target_is_directory=True)
+            alias = _alias_of(data, 'same-data')
             second = context.Process(target=_race_gateway,
                 args=(str(alias), paused, release, second_sent, results, False))
             first.start()
@@ -223,12 +231,10 @@ class GatewayProcessTests(unittest.TestCase):
                 results.close()
                 results.join_thread()
 
-    @unittest.skipIf(sys.platform == "win32", "creating the symlink alias needs a privilege on Windows")
     def test_nested_serial_sections_share_one_lock_across_gateway_instances(self):
         with tempfile.TemporaryDirectory() as data:
             first = Gateway(root=ROOT, data_dir=data, dev=False)
-            alias = Path(data) / 'alias'
-            alias.symlink_to(data, target_is_directory=True)
+            alias = _alias_of(data, 'alias')
             second = Gateway(root=ROOT, data_dir=alias, dev=False)
             done, errors = threading.Event(), []
             def nested():

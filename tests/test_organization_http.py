@@ -9,7 +9,11 @@ from app import server
 
 
 class OrganizationHTTPTests(unittest.TestCase):
-    setUp = test_app_server.ServerSmokeTests.setUp
+    def setUp(self):
+        test_app_server.ServerSmokeTests.setUp(self)
+        # Create and migrate the database before the first request. On a slow Windows runner the first
+        # request otherwise spends its whole 10 s client timeout creating a fresh database.
+        server.make_app(str(self.root)).close()
 
     def request_org(self, body=None, origin=None, host=None):
         headers = {"Content-Type": "application/json"}
