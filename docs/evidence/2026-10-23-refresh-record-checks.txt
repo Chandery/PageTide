@@ -55,3 +55,13 @@ $ python3 scripts/harness.py check
 PASS repository checks only; app gates/real billing are not implied
 $ python3 scripts/harness.py review changes/2026-10-23-refresh-record.json
 PASS repository checks only; app gates/real billing are not implied
+
+== Coordinator: browser check, main merge and release build (2026-10-23) ==
+Browser (worktree server, synthetic data dir, one fake record {fetched 33, new 10} at 10:44:05Z): the line under 抓取新论文
+read "最近抓取 10-23 18:44 · 抓到 33 篇，新 10 篇" (local UTC+8). Independent review (Opus, read-only) of e054285+1a5041e:
+no blocking issue; should-fix and nits fixed in c9d9066; the coordinator read the build_batch refactor in c9d9066 (the
+fresh-candidate rule is unchanged: seeds, date window, seen, feedback, eligible and not saved).
+main: zh-title-language fast-forwarded (90b9036), then refresh-record merged (f4107e0; docs/HANDOFF.md conflict resolved by
+keeping both sections). On main: unittest 2824 OK; node --test pass 603 fail 0; i18n_extract # 0 of 1162; budget --check
+PASS; harness check PASS (recheck warning only); build_desktop.py + cargo tauri build --bundles app ->
+src-tauri/target/release/bundle/macos/PaperDigHelper.app.
