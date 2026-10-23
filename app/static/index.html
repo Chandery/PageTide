@@ -115,7 +115,7 @@
   button:hover, .btn:hover { transform:translateY(-1px); }
   button:active, .btn:active { box-shadow:var(--sh-in-sm); transform:none; }
   button:disabled { opacity:.55; cursor:default; transform:none; }
-  button.primary { color:var(--accent); font-weight:650; }
+  button.primary, .btn.primary { color:var(--accent); font-weight:650; }
   button.ghost { box-shadow:none; background:transparent; }
   button.ghost:hover { box-shadow:var(--sh-out-sm); }
   .tiny, .btn.tiny { padding:calc(6px * var(--s)) calc(13px * var(--s)); font-size:calc(12.5px * var(--s)); }   /* .btn.tiny: a link styled as a small button must not be overridden by the later .btn rule */
@@ -425,8 +425,9 @@
     padding:calc(10px * var(--s)) calc(20px * var(--s)); font-size:calc(13.5px * var(--s)); border-radius:999px; }
   button:hover, .btn:hover { background:var(--surface-2); border-color:var(--line); transform:none; }
   button:active, .btn:active { transform:scale(.97); }
-  button.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:none; font-weight:700; }
-  button.primary:hover { background:color-mix(in srgb, var(--accent) 88%, #000); border-color:transparent; }
+  button.primary, .btn.primary { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); box-shadow:none; font-weight:700; }
+  button.primary:hover, .btn.primary:hover { background:color-mix(in srgb, var(--accent) 88%, #000); border-color:transparent; }
+  #readerPages.drop { outline:2px dashed var(--accent); outline-offset:-8px; }
   .saved, .badge.saved { color:var(--mark-text); }
   button.saved { color:var(--accent-text); background:var(--accent-soft); border-color:transparent; }
   button.ghost { background:transparent; border-color:transparent; box-shadow:none; }
@@ -1636,17 +1637,21 @@ const PDF_REASONS = {
 };
 const pdfReason = (code) => PDF_REASONS[code] || '无法获取 PDF。';
 
-// No PDF could be fetched: say why, link the paper's page when known, and let the user attach their own copy.
+// No PDF could be fetched: one short reason, up to three pages where the person can get the file (the first is the primary
+// button), and one control to pick a PDF; a PDF dropped anywhere on the area is attached the same way.
 function showPdfFailure(box, key, title, result, project, current = () => true) {
-  const link = result.landing_page
-    ? `<a class="btn tiny" href="${esc(result.landing_page)}" target="_blank" rel="noreferrer">打开原文页面</a>` : '';
+  const labels = { source_page: '百度学术', landing: '原文页面', publisher_page: '出版方' };
+  const offered = Array.isArray(result.pages) && result.pages.length ? result.pages
+    : result.landing_page ? [{ kind: 'landing', url: result.landing_page }] : [];
+  const links = offered.filter(p => p && typeof p.url === 'string' && p.url.startsWith('https://')).slice(0, 3)
+    .map((p, i) => `<a class="btn tiny${i ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${labels[p.kind] || '原文页面'}</a>`).join('');
   box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
-    <div class="pdf-fail-actions">${link}<label class="btn tiny">附加本地 PDF<input type="file" accept="application/pdf,.pdf" hidden></label></div>
+    <div class="pdf-fail-actions">${links}<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label></div>
     <div class="pdf-fail-note"></div></div>`;
   const input = box.querySelector('input[type=file]'), note = box.querySelector('.pdf-fail-note');
-  input.onchange = async () => {
-    const file = input.files[0];
+  const attach = async (file) => {
     if (!file || !current()) return;
+    if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''))) { note.textContent = '请选择 PDF 文件'; return; }
     note.textContent = '正在附加…';
     try {
       const response = await fetch('/api/seeds/pdf', { method: 'POST', body: file,
@@ -1658,6 +1663,10 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
       if (current()) openReader(key, title, project);
     } catch (e) { note.textContent = `附加失败：${e.message}`; }
   };
+  input.onchange = () => attach(input.files[0]);
+  box.ondragover = event => { event.preventDefault(); box.classList?.add('drop'); };
+  box.ondragleave = () => box.classList?.remove('drop');
+  box.ondrop = event => { event.preventDefault(); box.classList?.remove('drop'); return attach(event.dataTransfer?.files?.[0]); };
 }
 
 async function openReader(key, title, project = state.currentProject) {
@@ -1670,6 +1679,7 @@ async function openReader(key, title, project = state.currentProject) {
   $('#readerTitle').textContent = title || '';
   $('#readerInfo').textContent = '';
   box.innerHTML = '<div class="rload"><span class="spin"></span>加载中…</div>';
+  box.ondragleave = box.ondragover = box.ondrop = null; box.classList.remove('drop');   // an earlier failure's drop target ends here
   side.innerHTML = '';
   reader.classList.remove('hidden');
   reader.classList.add('side');   // page thumbnails visible by default, like the native viewer

@@ -43,6 +43,7 @@ from .clustering import cluster, corpus_fingerprint
 from .organization_terms import category_identity, category_term
 from .organization_facets import paper_signature, review as review_papers, structure_hash, suggest_groups
 from .db import now
+from .source_adapters import paper_url
 from .sources import pdf_availability
 
 
@@ -341,6 +342,10 @@ class Organization:
             # local = archived and the file is still there; otherwise what a legal source allows (direct/page/none).
             path = archived_pdfs.get(key)
             paper["pdf"] = "local" if path and os.path.isfile(path) else pdf_availability(paper.get("arxiv_id"), paper.get("oa_json"))
+            if not (paper.get("arxiv_id") or paper.get("doi") or paper.get("openalex_id")):
+                link = paper_url(paper)        # only a source page (Baidu Scholar) can link such a paper; the page derives the rest
+                if link:
+                    paper["url"] = link
             paper["projects"] = owners.get(key, [])
             paper["understood_in"] = understood.get(key, [])
             paper["directions"] = data["memberships"].get(key, [])

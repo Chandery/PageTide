@@ -25,7 +25,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
-from .sources import SourceError
+from .sources import SourceError, source_pages
 
 KEY_REQUIREMENTS = ("none", "optional", "required")
 KINDS = ("auth_required", "quota_exhausted", "network_error", "unavailable", "bad_response", "invalid_input", "not_found")
@@ -131,7 +131,9 @@ def paper_oa(paper):
     """The open-access facts of a paper dict, from `oa` (a dict) or `oa_json` (its stored text); {} when absent or broken."""
     if not isinstance(paper, dict):
         return {}
-    oa = paper.get("oa") if "oa" in paper else paper.get("oa_json")
+    oa = paper.get("oa")
+    if oa is None:
+        oa = paper.get("oa_json")
     if isinstance(oa, str):
         try:
             oa = json.loads(oa) if oa.strip() else None
@@ -166,3 +168,42 @@ def openalex_routes(paper):
     if landing and landing not in seen:
         routes.append(route("landing", landing, False, False, "原文页面"))
     return routes
+
+
+PAGE_LABELS = {"baidu_scholar": "百度学术"}   # label of a source's own page; the reader chooses its words by kind
+
+
+def _doi_url(value):
+    from .reference_files import _doi
+    doi = _doi(value)
+    return f"https://doi.org/{doi}" if doi else None
+
+
+def pdf_routes(paper):
+    """Every way to the paper's file, most direct first:
+    arXiv PDF (auto), OpenAlex's https PDF links (auto), [a DOI lookup of OpenAlex's facts happens in App.download_pdf],
+    OpenAlex's landing page (no login), a source's own page such as Baidu Scholar's (may need a login), the publisher
+    page behind the DOI (may need a login). A bare DOI is a route to a page, never a PDF source."""
+    routes = openalex_routes(paper)
+    seen = {r["url"] for r in routes}
+    for page in source_pages(paper_oa(paper)):
+        if page["url"] not in seen:
+            seen.add(page["url"])
+            routes.append(route("source_page", page["url"], False, True, PAGE_LABELS.get(page["source"], "来源页面")))
+    publisher = _doi_url(paper.get("doi")) if isinstance(paper, dict) else None
+    if publisher and publisher not in seen:
+        routes.append(route("publisher_page", publisher, False, True, "出版方"))
+    return routes
+
+
+def paper_url(paper, doi_must_be_link=False):
+    """The one link shown for a paper: arXiv, else its DOI, else OpenAlex, else the page of a source that reported it."""
+    if paper.get("arxiv_id"):
+        return f"https://arxiv.org/abs/{paper['arxiv_id']}"
+    doi = paper.get("doi") or ""
+    if doi and (not doi_must_be_link or doi.startswith("http")):
+        return doi
+    if paper.get("openalex_id"):
+        return paper["openalex_id"]
+    pages = source_pages(paper_oa(paper))
+    return pages[0]["url"] if pages else None

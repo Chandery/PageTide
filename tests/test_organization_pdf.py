@@ -68,3 +68,26 @@ class SnapshotPdfStateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SnapshotBaiduPageTests(unittest.TestCase):
+    """A paper only Baidu Scholar reported gets its Baidu page as the link; other papers' snapshot is unchanged."""
+
+    PAGE = "https://xueshu.baidu.com/usercenter/paper/show?paperid=p1"
+
+    def test_the_baidu_page_is_the_link_only_when_nothing_else_links(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = Store(Path(tmp) / "library.sqlite")
+            store.init()
+            oa = {"pages": [{"source": "baidu_scholar", "url": self.PAGE}], "via": ["baidu_scholar"]}
+            store.upsert_papers([{"key": "baidu:p1", "title": "百度论文", "abstract": "x", "oa": oa},
+                                 {"key": "doi", "title": "Has a DOI", "abstract": "x", "doi": "https://doi.org/10.1/x", "oa": oa},
+                                 {"key": "plain", "title": "Nothing", "abstract": "x"}])
+            for key in ("baidu:p1", "doi", "plain"):
+                store.save_to_library(key)
+            items = {p["key"]: p for p in Organization(store).snapshot()["items"]}
+            store.close()
+        self.assertEqual(items["baidu:p1"]["url"], self.PAGE)
+        self.assertEqual(items["baidu:p1"]["pdf"], "page")
+        self.assertNotIn("url", items["doi"])
+        self.assertNotIn("url", items["plain"])

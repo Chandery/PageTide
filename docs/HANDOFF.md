@@ -1,4 +1,16 @@
-# 当前工作单元：百度学术来源与来源适配接口——单元 A（2026-10-23）
+# 当前工作单元：百度学术——单元 B：每日推送、DOI 补全、语言、PDF 路线（2026-10-23）
+
+worktree `baidu-scholar`，接在单元 A（57f0d70）之后，类别 critical。[变更记录](../changes/2026-10-23-baidu-b.json)，[检查证据](evidence/2026-10-23-baidu-b-checks.txt)。owner 的四项选择与范围见 [ADR 0039](decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md)（原文引用，`owner_approved` 仍是 false）。
+
+做了什么：中文项目（语言含中文、百度开关打开、已配置密钥）的每日推送在 OpenAlex 之后用含汉字的关键词（每次最多 3 个）查百度，每个关键词每天问下一页（5 页一圈，空页回到第 1 页，游标在 `settings` 表）；新结果里的 DOI 合成一批问 OpenAlex，补 PDF 链接、arXiv 编号和语言（与百度页面合并，互不抹掉；期刊和 arXiv 开关都关着时不发）。百度不报告语言：评估时按标题和摘要判断是否中文（和英文摘要兜底同一套办法，不写回，OpenAlex 补全后的语言优先）。只有百度页面的论文算“有来源”可以被推荐，仍需要摘要。`download_pdf` 在只有百度页面但有 DOI 时问 OpenAlex 一次再试；仍失败时返回按“百度页面、OpenAlex 原文页面、出版方”排序的 `pages`；阅读器显示一行原因、至多三个页面按钮和“选择或拖入 PDF”，整个阅读区接受拖入的 PDF。论文链接按 arXiv → DOI → OpenAlex → 百度页面取。
+
+按 owner 允许的“顺手才接”，**学习图（beta）的刷新没有接百度**（它自己规划检索）。改了一条旧测试：`test_pdf_fetch.py` 里“非开放获取但有原文页面”现在是 `landing_page_only`（以前是 `no_oa_source`），另加了“没有任何页面仍是 `no_oa_source`”。
+
+没验证：百度的字段名与错误码、每页条数、`pageNum` 从 0 开始、5 页是否都有结果，全部来自文档，没有真实请求；游标的轮转只在假网络上测过。阅读器的拖入只有 Node 虚拟页测试，没有在浏览器或桌面壳里试过（桌面壳里拖放是否到达页面按之前的调研应该可以，未验证）。
+
+---
+
+# 上一工作单元：百度学术来源与来源适配接口——单元 A（2026-10-23）
 
 worktree `baidu-scholar`，基线 main `b8827e5`，类别 critical（`/api/settings` 新增字段、新增 `/api/source-test`、密钥文件、新的外发域名、合并 `oa_json` 的规则）。owner：“给软件接入中文的类似 openalex 的地方”，选百度学术，“要做个适配接口，能够快速的帮助用户下载 pdf，并且记录下这个需要 key，openalex 也一样，后续要写文档的”；数据外发与额度四项取舍和“一次全接”的范围是 owner 在对话里逐项选的（原文见 [ADR 0039](decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md)，`owner_approved` 仍是 false）。[变更记录](../changes/2026-10-23-baidu-a.json)，[检查证据](evidence/2026-10-23-baidu-a-checks.txt)。整个功能分三个单元提交：A 接口与设置（本单元）、B 每日推送与 PDF 路线、C 创建项目与种子检索。
 

@@ -381,6 +381,15 @@ class Store:
                           (json.dumps(merged, ensure_ascii=False) if merged is not None else None, paper_key))
         self.conn.commit()
 
+    def set_metadata_language_if_unknown(self, paper_key, code, source):
+        """Record a source's language report only where none is stored: a stored report is never replaced."""
+        from .paper_language import metadata_code
+        code = metadata_code(code)
+        if code:
+            self.conn.execute("UPDATE papers SET metadata_language=?, metadata_language_source=? WHERE key=? AND metadata_language IS NULL",
+                              (code, str(source)[:80], paper_key))
+            self.conn.commit()
+
     def record_fulltext_language(self, paper_key, language, pdf_sha256, method):
         from .paper_language import LANGUAGES
         if (not isinstance(pdf_sha256, str) or len(pdf_sha256) != 64

@@ -11,6 +11,7 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 
+from . import source_adapters
 from .sources import SourceError, fetch_seed_work, pdf_availability, slim
 
 PDF_MAX_BYTES = 60 * 1024 * 1024
@@ -87,8 +88,7 @@ def fetch_seed_paper(client, identifier, arxiv_id=None):
 def paper_view(paper, abstract_limit=1200):
     """What the creation page may show about a paper; never the stored/private state."""
     arxiv_id, doi = paper.get("arxiv_id"), paper.get("doi") or ""
-    url = (f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id
-           else doi if doi.startswith("http") else paper.get("openalex_id"))
+    url = source_adapters.paper_url(paper, doi_must_be_link=True)
     return {"key": paper.get("key"), "title": paper.get("title"),
             "abstract": (paper.get("abstract") or "")[:abstract_limit],
             "published": paper.get("published"), "source": paper.get("source"),

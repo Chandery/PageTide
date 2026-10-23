@@ -483,8 +483,13 @@ class AttachAndLandingTests(AppCase):
         self.assertEqual((result["ok"], result["reason"]), (False, "landing_page_only"))
         self.assertEqual(result["landing_page"], self.DREAMER_OA["landing_page"])
 
-    def test_not_open_access_without_source_is_still_no_oa_source(self):
+    def test_a_page_the_reader_can_open_is_landing_page_only_even_when_not_open_access(self):
+        # Changed 2026-10-23 (ADR 0039): any page where a person can get the file makes the reason landing_page_only.
         self.add(oa=dict(self.DREAMER_OA, is_oa=False, license=None))
+        self.assertEqual(self.download(Net({}))["reason"], "landing_page_only")
+
+    def test_not_open_access_without_any_page_is_still_no_oa_source(self):
+        self.add(oa=dict(self.DREAMER_OA, is_oa=False, license=None, landing_page=None))
         self.assertEqual(self.download(Net({}))["reason"], "no_oa_source")
 
     def test_failed_download_still_offers_the_landing_page(self):

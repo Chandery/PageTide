@@ -1,0 +1,58 @@
+Unit B of the Baidu Scholar work (after unit A, commit 57f0d70): daily feed, DOI enrichment, language, PDF routes and the reader's failure view.
+
+Owner 2026-10-23 (AskUserQuestion, recorded as quotes in ADR 0039; owner_approved stays false): "中文关键词发给百度" (keywords with Chinese characters, at most 3 per project per
+refresh, only keywords), "用 DOI 去 OpenAlex 查 PDF" (one batch per refresh, one lookup when the reader opens such a paper), "每天最多 40 次", "百度页面算“需要登录”的来源"
+(a paper whose only route is the Baidu page counts as `page` and may be recommended; 24 h cache; Baidu off by default). Scope "一次全接"; the learning-map (beta) refresh is
+NOT wired to Baidu (it plans its own queries, not trivial) and the docs say so.
+
+What leaves the machine in this unit, only with the Baidu switch on, a key saved, a project whose languages include Chinese and Chinese keywords: those keywords to
+qianfan.baidubce.com (<= 3 per project per refresh, each a cached page per day, local cap 40/day); the DOIs of new Baidu results to api.openalex.org in one batch (<= 50), and one
+DOI/id lookup when the reader opens a paper with only a Baidu page. Nothing else. No model call, no migration, no network call in any test.
+
+Red first, on a clean checkout of unit A (57f0d70) plus only the new/changed tests and fixtures:
+  python3 -m unittest tests.test_baidu_refresh tests.test_pdf_routes
+    Ran 66 tests ... FAILED (failures=21, errors=32)    -> 53 red, 13 already held (negative checks such as "English-only project never calls Baidu")
+  python3 -m unittest tests.test_organization_pdf tests.test_pdf_fetch     (one new test in each of the two files)
+    Ran 78 tests ... FAILED (failures=1, errors=1)      -> the 2 new/changed tests red
+  node --test tests/test_reader_pdf_failure.cjs
+    # tests 11  # pass 1  # fail 10                     (the file control already uploaded and attached before this unit)
+Green after the change: the same files all pass; full runs below.
+
+Existing test changed (it encoded behaviour this unit changes): tests/test_pdf_fetch.py::AttachAndLandingTests.test_not_open_access_without_source_is_still_no_oa_source
+asserted reason no_oa_source for a not-open-access paper that has an OpenAlex landing page; the reason is now landing_page_only whenever any page exists (brief item 6). It was
+replaced by two tests: a page makes it landing_page_only; with no page at all it is still no_oa_source. No other existing test changed.
+
+Decisions beyond the brief: the cursor wraps after 5 pages and restarts from page 1 after an empty page (the number of pages Baidu serves is unverified); the DOI lookup is skipped
+when both the arXiv and the journals switches are off (the user turned OpenAlex's sources off); Baidu errors carry source=baidu_scholar and kinds auth_required, quota_exhausted,
+network_error and unavailable end the Baidu part of that refresh; a Baidu-only paper in the library snapshot gets `url` = its Baidu page only when it has no arXiv id, DOI or
+OpenAlex id; the reader labels page buttons by kind (百度学术 / 原文页面 / 出版方) and offers at most three, https only; the zh language fallback records its source as
+"title+abstract" (or "title"); an unknown reply language from the lookup fills metadata_language only where none is stored.
+
+Not verified: every Baidu field and the page size / page numbering (see unit A); the cursor rotation only on a fake network; the reader's drop target only in Node virtual-page tests,
+not in a browser or the desktop shell.
+
+$ python3 scripts/budget.py --check | tail -2
+PASS budget arithmetic and generated document parity (no live API)
+(exit 0)
+
+$ python3 scripts/harness.py check | tail -3
+WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY
+PASS repository checks only; app gates/real billing are not implied
+(exit 0)
+
+$ python3 -m unittest discover -s tests 2>&1 | tail -4
+----------------------------------------------------------------------
+Ran 2536 tests in 94.334s
+
+OK
+(exit 0)
+
+$ node --test tests/*.cjs 2>&1 | grep -E "^# (tests|pass|fail)"
+# tests 574
+# pass 574
+# fail 0
+(exit 0)
+
+$ python3 scripts/i18n_extract.py | head -1
+# 0 of 1151
+(exit 0)

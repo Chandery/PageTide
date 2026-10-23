@@ -34,7 +34,7 @@ from pathlib import Path
 
 from . import source_adapters
 from .source_adapters import SourceInfo, error_for, fetch_json, paper_oa, route
-from .sources import SourceError
+from .sources import SOURCE_PAGE_DOMAINS, SourceError, page_url, source_pages
 
 LABEL = "Baidu Scholar"
 API_HOST = "qianfan.baidubce.com"
@@ -80,23 +80,8 @@ def clean_query(text):
 
 
 def _page_url(value, upgrade=True):
-    """An https page on baidu.com (or a subdomain), else None. `upgrade` turns http into https (the API has been seen to
-    return http links; a stored link is only trusted when it is already https)."""
-    text = _collapse(value)
-    try:
-        parts = urllib.parse.urlsplit(text)
-        host = (parts.hostname or "").lower()
-        port = parts.port
-    except ValueError:
-        return None
-    if parts.scheme == "http" and upgrade:
-        parts = parts._replace(scheme="https")
-    if parts.scheme != "https" or parts.username or parts.password or port not in (None, 443):
-        return None
-    if host != "baidu.com" and not host.endswith(".baidu.com"):
-        return None
-    url = urllib.parse.urlunsplit(parts)
-    return url if len(url) <= 500 else None
+    """An https page on baidu.com (or a subdomain), else None (see sources.page_url)."""
+    return page_url(_collapse(value), SOURCE_PAGE_DOMAINS[SOURCE_ID], upgrade=upgrade)
 
 
 def _year(value):

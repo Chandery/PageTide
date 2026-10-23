@@ -21,7 +21,7 @@ from .gateway import Gateway
 from .language import language
 from .organization import Conflict, Organization, read_route, route_detail as read_route_detail, paper_context
 from .project import ProjectManager
-from .sources import OpenAlex, SourceError, fetch_seed_work, pdf_availability, resolve_seed, slim, window_start
+from .sources import OA_FIELDS, OpenAlex, SourceError, fetch_seed_work, has_cjk, merge_oa, pdf_availability, resolve_seed, slim, window_start
 
 ACTIONS = ("useful", "irrelevant", "understood", "too_hard")
 INTEREST_ACTIONS = {"useful", "irrelevant"}
@@ -2801,8 +2801,7 @@ class App:
                 "key": row["key"], "title": row["title"], "abstract": row["abstract"] or "",
                 "published": row["published"], "source": row["source"], "work_type": row.get("work_type"),
                 "doi": row["doi"], "arxiv_id": row["arxiv_id"], "saved_at": row["saved_at"],
-                "url": (f"https://arxiv.org/abs/{row['arxiv_id']}" if row["arxiv_id"]
-                        else (row["doi"] or row["openalex_id"])),
+                "url": source_adapters.paper_url(row),
                 "summary": summaries.get(row["key"]),
             })
         return items
@@ -2828,8 +2827,7 @@ class App:
             "key": paper["key"], "title": paper["title"], "abstract": paper["abstract"] or "",
             "published": paper["published"], "source": paper["source"], "work_type": paper.get("work_type"),
             "doi": paper["doi"], "arxiv_id": paper["arxiv_id"],
-            "url": (f"https://arxiv.org/abs/{paper['arxiv_id']}" if paper["arxiv_id"]
-                    else (paper["doi"] or paper["openalex_id"])),
+            "url": source_adapters.paper_url(paper),
             "feedback": self.latest_feedback(project_id).get(key) if project_id else self.latest_feedback().get(key),
             "saved": self.store.in_library(key, project_id),
             "projects": self.store.paper_projects(key),
@@ -2851,6 +2849,85 @@ class App:
             values = []
         return [str(v).strip() for v in values if isinstance(v, str) and str(v).strip()]
 
+    BAIDU_KEYWORDS = 3        # Chinese keywords sent to Baidu Scholar per project and refresh (owner, 2026-10-23)
+    BAIDU_PER_PAGE = 10
+    BAIDU_PAGES = 5           # Baidu has no date sort: each day a keyword asks the next page of this cycle
+    BAIDU_STOP = ("auth_required", "quota_exhausted", "network_error", "unavailable")
+
+    def _add_baidu_candidates(self, project_id, field, from_date, errors, source_policy):
+        """Papers from Baidu Scholar for the daily feed, added to the OpenAlex `field`.
+
+        Only when the user switched Baidu on, a key is configured, the project accepts Chinese papers and has Chinese keywords
+        (at most BAIDU_KEYWORDS; only the keyword text is sent). Each keyword asks one page per day and moves to the next page
+        the next day, wrapping after BAIDU_PAGES or when a page comes back empty. A Baidu error goes into `errors` and ends
+        the Baidu part of this refresh; the OpenAlex results are kept. Results OpenAlex also found only gain the Baidu page;
+        the rest get one DOI lookup at OpenAlex for PDF links and language."""
+        adapter = self.adapters["baidu_scholar"]
+        if not source_policy.baidu or not adapter.api_key:
+            return field
+        policy = self.projects.get_project(project_id)["language_policy"]
+        if policy["status"] != "ready" or "zh" not in policy["allowed_languages"]:
+            return field
+        keywords = [k for k in self._project_keywords(project_id) if has_cjk(k)][:self.BAIDU_KEYWORDS]
+        if not keywords:
+            return field
+        today = self.batch_day()
+        cursor_key = "baidu_cursor_" + project_id
+        stored = self.store.get_setting(cursor_key)
+        cursor = dict(stored) if isinstance(stored, dict) else {}
+        by_key = {paper["key"]: paper for paper in field}
+        fresh = []
+        for keyword in keywords:
+            entry = cursor.get(keyword) if isinstance(cursor.get(keyword), dict) else {}
+            page = entry.get("page") if isinstance(entry.get("page"), int) and 0 <= entry["page"] <= self.BAIDU_PAGES else 0
+            if entry.get("day") != today:
+                page = page % self.BAIDU_PAGES + 1                 # first use: page 1; later days: the next page, wrapping
+            try:
+                found = adapter.search(keyword, since=from_date, page=page, per_page=self.BAIDU_PER_PAGE)
+            except SourceError as exc:
+                errors.append({"query": keyword, "kind": exc.kind, "error": str(exc)[-120:], "source": "baidu_scholar"})
+                if exc.kind in self.BAIDU_STOP:
+                    break
+                continue
+            cursor[keyword] = {"page": page if found or page == 1 else 0, "day": today}
+            for paper in found:
+                if paper["key"] in by_key:                             # also found by OpenAlex: keep that paper, add the page
+                    by_key[paper["key"]]["oa"] = merge_oa(by_key[paper["key"]].get("oa"), paper["oa"])
+                else:
+                    by_key[paper["key"]] = paper
+                    fresh.append(paper)
+        self.store.set_setting(cursor_key, cursor)
+        if fresh and (source_policy.arxiv or source_policy.general):
+            self._enrich_from_openalex(fresh, errors)
+        return list(field) + fresh
+
+    def _enrich_from_openalex(self, papers, errors):
+        """One batch lookup (at most 50 DOIs, public metadata) for papers a source reported without PDF links or a language.
+        OpenAlex's id, arXiv id, open-access facts (merged with the source's page) and language are added; the title and the
+        abstract stay the source's. A failure leaves the papers as they are."""
+        from .reference_files import _doi
+        dois = list(dict.fromkeys(paper["doi"] for paper in papers if paper.get("doi")))[:50]
+        if not dois:
+            return
+        try:
+            works = self.source.works_by_dois(dois)
+        except SourceError as exc:
+            errors.append({"query": "doi lookup", "kind": exc.kind, "error": str(exc)[-120:], "source": "openalex"})
+            return
+        known = {_doi(work.get("doi")): work for work in works if isinstance(work, dict) and _doi(work.get("doi"))}
+        for paper in papers:
+            work = known.get(_doi(paper.get("doi")))
+            if not work:
+                continue
+            report = slim(work)
+            paper["openalex_id"] = report["openalex_id"] or paper.get("openalex_id")
+            paper["arxiv_id"] = paper.get("arxiv_id") or report["arxiv_id"]
+            paper["oa"] = merge_oa(paper.get("oa"), report["oa"])
+            if report.get("work_type"):
+                paper["work_type"] = report["work_type"]
+            if report.get("metadata_language"):                        # absent stays absent: a stored language is never erased
+                paper["metadata_language"], paper["metadata_language_source"] = report["metadata_language"], "OpenAlex"
+
     def refresh_candidates(self, search=None, from_date=None, pages=1, per_page=100,
                            include_distractors=False, distractor_per_query=20, project_id=None):
         """Fast by default. A project uses at most three logical topic queries;
@@ -2861,9 +2938,11 @@ class App:
         if not project_id:
             project_id = self.get_default_project_id()
         errors = []
-        arxiv, general = user_settings.sources(self.data)
-        if not arxiv and not general:
+        source_policy = user_settings.source_policy(self.data)
+        arxiv, general = source_policy.arxiv, source_policy.general
+        if not arxiv and not general and not source_policy.baidu:
             return {"fetched":0,"added":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
+        openalex_on = arxiv or general
         source_options = {} if arxiv and general else {"source_arxiv":arxiv,"source_openalex":general}
         route = None if search else self._route_state(project_id)
         if route:
@@ -2873,7 +2952,7 @@ class App:
         from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
         keywords = [] if search else self._project_keywords(project_id)[:3]
         field = []
-        if keywords:
+        if keywords and openalex_on:
             seen = set()
             for keyword in keywords:
                 try:
@@ -2883,7 +2962,7 @@ class App:
                     errors.append({"query": keyword, "kind": exc.kind, "error": str(exc)[-120:]})
                     continue
                 field += [paper for paper in found if paper["key"] not in seen and not seen.add(paper["key"])]
-        else:
+        elif not keywords and openalex_on:
             search = search or "world model"
             try:
                 if not general or (arxiv and (search or project_id==self.get_default_project_id())):
@@ -2892,6 +2971,8 @@ class App:
                     field = self.source.discover_topic(search, from_date=from_date, order="recent", per_page=min(int(per_page),50), **source_options)
             except RuntimeError as exc:
                 field, errors = [], errors + [{"query": search, "error": str(exc)[-120:]}]
+        if not search:
+            field = self._add_baidu_candidates(project_id, field, from_date, errors, source_policy)
         papers = list(field)
         if include_distractors:
             extra, distractor_errors = self.source.distractors(from_date=from_date, per_query=distractor_per_query)
@@ -2900,7 +2981,6 @@ class App:
 
         # A fake/cached adapter must not evade the date and source policies.
         accepted, rejected = [], []
-        source_policy = user_settings.source_policy(self.data)
         today = self.batch_day()
         for paper in papers:
             if str(paper.get('published') or '') > today:
@@ -2945,6 +3025,10 @@ class App:
             # The source said nothing (OpenAlex, for most arXiv preprints): a clearly English abstract stands in. Never
             # overrides a report and is not stored; the title-script check below still guards a non-Latin title.
             reported, source = 'en', 'abstract'
+        elif not paper_language.metadata_code(reported) and paper_language.chinese_text_language(paper.get('title'), paper.get('abstract')):
+            # Baidu Scholar reports no language either: a clearly Chinese title (and abstract) stands in, the same way.
+            reported = 'zh'
+            source = 'title+abstract' if eligibility.usable_abstract(paper.get('abstract')) else 'title'
         return {'metadata_language': reported,
                 'metadata_source': source,
                 'fulltext_language': paper.get('verified_language') if verified else None,
@@ -3355,8 +3439,7 @@ class App:
                 "key": row["key"], "rank": row["rank"], "title": row["title"],
                 "abstract": row["abstract"], "published": row["published"], "source": row["source"], "work_type": row.get("work_type"),
                 "topic": row["topic"], "arxiv_id": row["arxiv_id"], "doi": row["doi"],
-                "url": (f"https://arxiv.org/abs/{row['arxiv_id']}" if row["arxiv_id"]
-                        else (row["doi"] or row["openalex_id"])),
+                "url": source_adapters.paper_url(row),
                 "why": explanation["why"],
                 "nearest_reference": explanation["nearest_reference"],
                 "nearest_score": explanation["nearest_score"],
@@ -3860,25 +3943,52 @@ class App:
         done = run(pdf_fetch.candidates(paper))
         if done:
             return done
-        if not paper.get("oa_json") and paper.get("openalex_id"):
-            # Papers stored before open-access data was kept: ask OpenAlex once (public metadata).
+        if not self._openalex_facts(paper) and (paper.get("openalex_id") or self._doi_url(paper)):
+            # Stored before open-access data was kept, or reported only by a source with no PDF links (Baidu Scholar): ask
+            # OpenAlex once (public metadata) by its id, else by the DOI. Its facts are merged with what is stored.
             try:
-                oa = slim(self.source.work(paper["openalex_id"]))["oa"]
+                report = slim(self.source.work(paper.get("openalex_id") or self._doi_url(paper)))
             except SourceError:
-                oa = None
-            if oa is not None:
-                self.store.set_paper_oa(paper_key, oa)
-                paper["oa_json"] = json.dumps(oa)
-                done = run(pdf_fetch.candidates(paper))
-                if done:
-                    return done
+                report = None
+            if report:
+                if report["oa"] is not None:
+                    self.store.set_paper_oa(paper_key, report["oa"])
+                    paper["oa_json"] = self.store.paper(paper_key)["oa_json"]
+                if report.get("metadata_language"):
+                    self.store.set_metadata_language_if_unknown(paper_key, report["metadata_language"], "OpenAlex")
+                if report["oa"] is not None:
+                    done = run(pdf_fetch.candidates(paper))
+                    if done:
+                        return done
+        pages = self._failure_pages(paper)
+        landing = next((p["url"] for p in pages if p["kind"] == "landing"), None)
+        reason = attempts[0]["reason"] if attempts else ("landing_page_only" if pages else "no_oa_source")
+        return {"ok": False, "reason": reason, "attempts": attempts, "landing_page": landing, "pages": pages}
+
+    @staticmethod
+    def _openalex_facts(paper):
+        """Whether OpenAlex has reported open-access facts for this stored paper (a Baidu page alone is not that)."""
         try:
-            oa = json.loads(paper.get("oa_json") or "null") or {}
+            oa = json.loads(paper.get("oa_json") or "null")
         except ValueError:
-            oa = {}
-        landing = oa.get("landing_page") if isinstance(oa.get("landing_page"), str) and oa["landing_page"].startswith("https://") else None
-        reason = attempts[0]["reason"] if attempts else ("landing_page_only" if oa.get("is_oa") and landing else "no_oa_source")
-        return {"ok": False, "reason": reason, "attempts": attempts, "landing_page": landing}
+            oa = None
+        return isinstance(oa, dict) and any(field in oa for field in OA_FIELDS)
+
+    @staticmethod
+    def _doi_url(paper):
+        from .reference_files import _doi
+        doi = _doi(paper.get("doi"))
+        return f"https://doi.org/{doi}" if doi else None
+
+    _PAGE_LABELS = {"source_page": ("百度学术", "Baidu Scholar"), "landing": ("原文页面", "Paper page"), "publisher_page": ("出版方", "Publisher")}
+
+    def _failure_pages(self, paper):
+        """Where a person can go to get the file when none could be fetched, in the order the reader offers them: the
+        source's own page (Baidu Scholar), OpenAlex's landing page, the publisher page behind the DOI."""
+        order = {"source_page": 0, "landing": 1, "publisher_page": 2}
+        routes = sorted((r for r in source_adapters.pdf_routes(paper) if r["kind"] in order), key=lambda r: order[r["kind"]])
+        return [{"kind": r["kind"], "label": self._PAGE_LABELS[r["kind"]][1 if self.english() else 0], "url": r["url"],
+                 "needs_login": r["needs_login"]} for r in routes]
 
     def attach_pdf(self, paper_key, pdf_id):
         """Attach a PDF the user supplied (uploaded to imports/ first) to an existing paper.

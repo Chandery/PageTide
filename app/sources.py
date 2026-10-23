@@ -41,9 +41,45 @@ def abstract_text(inverted):
     return " ".join(word for _, word in positions)
 
 
+SOURCE_PAGE_DOMAINS = {"baidu_scholar": "baidu.com"}   # a source's own pages: the only hosts its links may point to
+
+
+def page_url(value, domain, upgrade=False):
+    """`value` as an https URL on `domain` (or a subdomain), else None. No credentials in the URL, no odd port, no
+    whitespace. `upgrade` turns http into https (a source has been seen to return http links); a link that is already
+    stored is only trusted when it is https as it stands."""
+    text = value if isinstance(value, str) else ""
+    if not text or len(text) > 500 or re.search(r"\s", text):
+        return None
+    try:
+        parts = urllib.parse.urlsplit(text)
+        host, port = (parts.hostname or "").lower(), parts.port
+    except ValueError:
+        return None
+    if parts.scheme == "http" and upgrade:
+        parts = parts._replace(scheme="https")
+    if parts.scheme != "https" or parts.username or parts.password or port not in (None, 443):
+        return None
+    if host != domain and not host.endswith("." + domain):
+        return None
+    return urllib.parse.urlunsplit(parts)
+
+
+def source_pages(oa):
+    """The source pages (for example a Baidu Scholar page) in a paper's open-access facts that are safe to show."""
+    pages = []
+    for entry in (oa.get("pages") if isinstance(oa, dict) else None) or []:
+        domain = SOURCE_PAGE_DOMAINS.get(entry.get("source")) if isinstance(entry, dict) else None
+        url = page_url(entry.get("url"), domain) if domain else None
+        if url and url not in [p["url"] for p in pages]:
+            pages.append({"source": entry["source"], "url": url})
+    return pages
+
+
 def pdf_availability(arxiv_id, oa):
     """Whether a legal PDF is known for a paper: "direct" (arXiv, or an https PDF link OpenAlex reports),
-    "page" (open access but only a landing page) or "none". `oa` is the dict from slim(), its stored JSON, or None."""
+    "page" (only a page: OpenAlex's landing page, or a source page such as Baidu Scholar's, which may need a login)
+    or "none". A bare DOI is not a source. `oa` is the dict from slim(), its stored JSON, or None."""
     if isinstance(oa, str):
         try:
             oa = json.loads(oa) if oa.strip() else None
@@ -53,7 +89,9 @@ def pdf_availability(arxiv_id, oa):
     if arxiv_id or any(isinstance(u, str) and u.startswith("https://") for u in oa.get("pdf_urls") or []):
         return "direct"
     page = oa.get("landing_page")
-    return "page" if isinstance(page, str) and page.startswith("https://") else "none"
+    if isinstance(page, str) and page.startswith("https://"):
+        return "page"
+    return "page" if source_pages(oa) else "none"
 
 
 def window_start(years, today=None):
