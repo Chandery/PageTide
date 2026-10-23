@@ -37,6 +37,24 @@ def read_line(stream, timeout):
         return None
 
 
+def report_backend(process, errors, data, lines=200):
+    """On a failure print what the backend left behind: exit status and the tail of its stderr / backend.log.
+    poll() is None means the process is still running (the request failed inside a live server)."""
+    print('--- backend diagnostics ---', file=sys.stderr)
+    print('backend exit status (None = still running):', process.poll(), file=sys.stderr)
+    try:
+        errors.flush(); errors.seek(0); text=errors.read()
+    except Exception as exc:
+        text='(stderr unreadable: %r)' % (exc,)
+    print('backend stderr, last %d lines:' % lines, file=sys.stderr)
+    print('\n'.join(text.splitlines()[-lines:]), file=sys.stderr)
+    log=Path(data)/'logs'/'backend.log'
+    if log.exists():
+        print('backend.log, last %d lines:' % lines, file=sys.stderr)
+        print('\n'.join(log.read_text(encoding='utf-8',errors='replace').splitlines()[-lines:]), file=sys.stderr)
+    print('--- end backend diagnostics ---', file=sys.stderr, flush=True)
+
+
 def launch(executable, data, home, check):
     env = dict(os.environ, PAPERDIGHELPER_DATA=str(data), PAPERDIGHELPER_KEY_FILE=str(home/'missing-key.env'), DEEPSEEK_API_KEY='', PDH_DEV='0',
                http_proxy='http://127.0.0.1:9', https_proxy='http://127.0.0.1:9',
@@ -69,7 +87,11 @@ def launch(executable, data, home, check):
                     headers={'Content-Type':'application/json'})
                 with opener.open(request,timeout=15) as response: body=response.read()
                 return body.decode() if raw else json.loads(body)
-            check(call)
+            try:
+                check(call)
+            except BaseException:
+                report_backend(process, errors, data)
+                raise
             process.stdin.close(); assert process.wait(timeout=15)==0
             errors.seek(0); assert 'PDH_BOOTSTRAP_FAILED' not in errors.read()
         finally:

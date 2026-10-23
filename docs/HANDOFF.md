@@ -1,3 +1,11 @@
+# 当前工作单元：Windows 第三轮 CI（2026-10-23，第四个提交）
+
+[变更记录](../changes/2026-10-23-windows-release-ci-run3.json)，[检查证据](evidence/2026-10-23-windows-release-ci-run3-checks.txt)。
+
+测试那个失败是测试自己的假设错（Windows 上 CI 运行器已把 `TemporaryDirectory` 全局改成容忍清理）。冒烟测试的 `RemoteDisconnected` **原因未确认**：推断是处理线程里有未预料的异常，socketserver 只打印后断开连接。已加兜底（记录堆栈到 stderr、回 500），并让冒烟脚本失败时打印后端退出状态与 stderr / `backend.log` 末尾 200 行，下一轮 CI 应能看到真正原因。已排除（读代码）：stdin 监视、stdout 管道、超时。
+
+---
+
 # 当前工作单元：Windows 第二轮 CI 修正（2026-10-23，第三个提交）
 
 [变更记录](../changes/2026-10-23-windows-release-ci-run2.json)，[检查证据](evidence/2026-10-23-windows-release-ci-run2-checks.txt)。`tauri-plugin-single-instance` 已由协调者固定为 ~2.4.5（tauri 保持 2.11.5）。

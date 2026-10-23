@@ -162,7 +162,34 @@ class TolerantCleanupTests(unittest.TestCase):
             self.assertTrue(directory._ignore_cleanup_errors)
             directory.cleanup()
             collected.assert_called()   # the tempfile module may also collect on cleanup; at least our call
-        self.assertFalse(tempfile.TemporaryDirectory()._ignore_cleanup_errors)   # the standard class is untouched
+        # (No assertion about the stock class: on Windows the CI runner has already made it tolerant.)
+
+
+class SmokeDiagnosticsTests(unittest.TestCase):
+    def test_report_prints_exit_status_and_the_tail_of_stderr_and_the_backend_log(self):
+        import importlib.util
+        import io
+        from contextlib import redirect_stderr
+        spec = importlib.util.spec_from_file_location("vpr", Path(__file__).resolve().parents[1] / "scripts" / "verify_packaged_route.py")
+        vpr = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(vpr)
+
+        class Process:
+            def poll(self):
+                return 3
+
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryFile("w+") as errors:
+            errors.write("\n".join("line%d" % n for n in range(500)))
+            (Path(tmp) / "logs").mkdir()
+            (Path(tmp) / "logs" / "backend.log").write_text("from the log\n", encoding="utf-8")
+            out = io.StringIO()
+            with redirect_stderr(out):
+                vpr.report_backend(Process(), errors, tmp, lines=5)
+        text = out.getvalue()
+        self.assertIn("exit status (None = still running): 3", text)
+        self.assertIn("line499", text)
+        self.assertNotIn("line100\n", text)
+        self.assertIn("from the log", text)
 
 
 class BuildPythonTests(unittest.TestCase):

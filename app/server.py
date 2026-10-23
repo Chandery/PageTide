@@ -256,6 +256,29 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def end_headers(self):
+        self._response_started = True
+        super().end_headers()
+
+    def handle_one_request(self):
+        """An exception nobody anticipated must not just drop the connection (the page and the packaged smoke
+        test would only see "closed without response"). Log the traceback to stderr and answer 500 when no
+        response has started. Request paths are not logged: they can carry the desktop token."""
+        self._response_started = False
+        try:
+            super().handle_one_request()
+        except (ConnectionError, TimeoutError):
+            self.close_connection = True   # the client went away: nothing to answer
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            self.close_connection = True
+            if not self._response_started:
+                try:
+                    self._json({"error": "internal error"}, 500)
+                except Exception:
+                    pass
+
     def _app(self):
         return make_app(getattr(self.server, "root", "."))
 
