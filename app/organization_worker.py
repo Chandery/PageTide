@@ -11,6 +11,7 @@ from .organization import Organization
 
 
 def main(args=None):
+    platform_compat.force_utf8_std_streams()
     args = sys.argv[1:] if args is None else args
     if len(args) not in (2, 3, 4, 5):
         raise ValueError("database path and project required")

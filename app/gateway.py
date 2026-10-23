@@ -96,7 +96,7 @@ def input_bound(envelope):
 
 
 def load_budget(root="."):
-    return json.loads((Path(root) / BUDGET).read_text())
+    return json.loads((Path(root) / BUDGET).read_text(encoding="utf-8"))
 
 
 def dev_mode_enabled(root=".", data_dir=None):
@@ -109,7 +109,7 @@ def _read_env_key(path):
     try:
         if not path.is_file():
             return None
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             if line.startswith("DEEPSEEK_API_KEY="):
                 value = line.split("=", 1)[1].strip()
                 if value:
@@ -246,7 +246,7 @@ class Gateway:
             os.chmod(target.parent, 0o700)
         except OSError:
             pass
-        with target.open("w") as handle:
+        with target.open("w", encoding="utf-8") as handle:
             handle.write(f"DEEPSEEK_API_KEY={value}\n")
         try:
             os.chmod(target, 0o600)
@@ -286,7 +286,7 @@ class Gateway:
                 pass
         else:
             marker.parent.mkdir(parents=True, exist_ok=True)
-            marker.write_text("AI disabled by owner\n")
+            marker.write_text("AI disabled by owner\n", encoding="utf-8")
         return self.enabled()
 
     # ------------------------------------------------------------ accounting
@@ -307,7 +307,7 @@ class Gateway:
             if not self.ledger.exists():
                 return []
             plain, by_id = [], {}
-            for line in self.ledger.read_text().splitlines():
+            for line in self.ledger.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
                     continue
                 entry = json.loads(line)
@@ -391,7 +391,7 @@ class Gateway:
     def _append(self, entry):
         with self._ledger_serial():
             self.ledger.parent.mkdir(parents=True, exist_ok=True)
-            with self.ledger.open("a") as handle:
+            with self.ledger.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(entry) + "\n")
 
     def _record(self, date, operation, usage, usd, model, rid=None, status=None):

@@ -27,7 +27,7 @@ def money(value, name):
 
 
 def load(root=ROOT):
-    return json.loads((root / 'harness/budget.json').read_text())
+    return json.loads((root / 'harness/budget.json').read_text(encoding="utf-8"))
 
 
 def validate(config):
@@ -326,10 +326,10 @@ def main(argv=None):
         content = render(load())
         path = ROOT / 'docs/BUDGET.generated.md'
         if args.write:
-            path.write_text(content)
+            path.write_text(content, encoding="utf-8")
             print('Wrote docs/BUDGET.generated.md')
         elif args.check:
-            if not path.exists() or path.read_text() != content:
+            if not path.exists() or path.read_text(encoding="utf-8") != content:
                 raise ValueError('generated budget is stale; run --write and review the diff')
             print('PASS budget arithmetic and generated document parity (no live API)')
         else:

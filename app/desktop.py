@@ -32,6 +32,7 @@ def redirect_stderr_to_log(root, limit=LOG_LIMIT_BYTES):
 
 
 def main():
+    platform_compat.force_utf8_std_streams()
     if sys.argv[1:2] == ["--organization-worker"]:
         from .organization_worker import main as run_worker
         return run_worker(sys.argv[2:])
@@ -51,7 +52,7 @@ def main():
     if os.environ.get("PDH_LOG_STDERR") == "1":
         redirect_stderr_to_log(root)
     os.chdir(root)
-    with (root / ".desktop.lock").open("a") as lock:
+    with (root / ".desktop.lock").open("a", encoding="utf-8") as lock:
         try:
             platform_compat.lock_exclusive(lock, blocking=False)
         except BlockingIOError:

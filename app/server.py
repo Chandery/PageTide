@@ -85,7 +85,7 @@ def organization_job(db_path, project, operation="suggest", body=None):
             process = subprocess.Popen(command + [str(db_path), project, str(os.getpid()), operation]
                                        + (["stdin"] if body is not None else []),
                                        stdin=subprocess.PIPE if body is not None else subprocess.DEVNULL,
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
                                        cwd=str(Path(__file__).resolve().parents[1]))
             ORGANIZATION_PROCESSES.add(process)
         try:
@@ -689,7 +689,7 @@ class Handler(BaseHTTPRequestHandler):
             # GET settings from file
             settings_file = Path(self._data()) / "settings.json"
             if settings_file.exists():
-                settings = json.loads(settings_file.read_text())
+                settings = json.loads(settings_file.read_text(encoding="utf-8"))
             else:
                 settings = {}
             # Provider keys live only in the gateway key file, never here.

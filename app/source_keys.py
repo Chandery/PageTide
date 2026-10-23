@@ -51,7 +51,7 @@ def valid(source_id, value):
 def _read(info, path):
     prefix = f"{info.key_env}="
     try:
-        for line in Path(path).read_text().splitlines():
+        for line in Path(path).read_text(encoding="utf-8").splitlines():
             if line.startswith(prefix):
                 value = line[len(prefix):].strip()
                 if valid(info.id, value):
@@ -97,7 +97,7 @@ def save(data_dir, source_id, value):
     staged = target.with_name(f".{target.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     handle = os.open(str(staged), os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
-        with os.fdopen(handle, "w") as out:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
             out.write(f"{info.key_env}={value}\n")
         os.replace(staged, target)
     except BaseException:

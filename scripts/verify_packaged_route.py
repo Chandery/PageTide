@@ -63,9 +63,9 @@ def launch(executable, data, home, check):
     # Preserve HOME and replace the inherited KEY_FILE with a private absent path.
     # The private data/bundled resources also contain no keys; AI_DISABLED blocks calls.
     assert env.get('HOME') == os.environ.get('HOME')
-    with tempfile.TemporaryFile(mode='w+') as errors:
+    with tempfile.TemporaryFile(mode='w+', encoding='utf-8', errors='replace') as errors:
         process = subprocess.Popen([str(executable)], cwd=ROOT, env=env, stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE, stderr=errors, text=True)
+                                   stdout=subprocess.PIPE, stderr=errors, text=True, encoding='utf-8')
         try:
             line = read_line(process.stdout, 30)
             if line is None:
@@ -154,7 +154,7 @@ def main():
             payload={'results':[{'id':f'https://openalex.org/W{number}{i:02d}',
                 'title':f'Recall public study {number} {i}', 'publication_date':'2026-01-01',
                 'language':'en','ids':{}} for i in range(50)]}
-            (app.source.cache/(digest+'.json')).write_text(json.dumps(payload))
+            (app.source.cache/(digest+'.json')).write_text(json.dumps(payload), encoding="utf-8")
             return payload
         recall_state={}; recall_plans=[]
         with mock.patch.object(app.source,'_fetch',side_effect=cached_fixture):

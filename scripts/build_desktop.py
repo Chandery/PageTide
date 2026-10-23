@@ -25,6 +25,13 @@ def build_python():
     return sys.executable
 
 
+def python_options():
+    """Windows only: UTF-8 mode in the frozen exe. The bootloader does not honour PYTHONUTF8, so text files
+    were decoded with the cp1252 code page. PyInstaller 6.16 accepts `--python-option "X utf8"` (checked with
+    makespec). macOS is left as built before: its locale is already UTF-8."""
+    return ["--python-option", "X utf8"] if sys.platform == "win32" else []
+
+
 def main():
     python = build_python()   # fail before deleting the previous resources
     if RESOURCES.exists():
@@ -36,6 +43,7 @@ def main():
             "-m", "PyInstaller",
             "--noconfirm",
             "--onedir",
+            *python_options(),
             "--name",
             "paperdighelper-server",
             "--distpath", str(ROOT / ".local" / "desktop-dist"),

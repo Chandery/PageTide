@@ -28,7 +28,7 @@ EXCLUDED = {'.git', '.local', 'node_modules', '__pycache__', 'data', 'dist', 'ou
 
 
 def read_json(root, path):
-    return json.loads((root / path).read_text())
+    return json.loads((root / path).read_text(encoding="utf-8"))
 
 
 def local_file(root, path):
@@ -67,7 +67,7 @@ def check_links(root):
     for path in files(root):
         if path.suffix != '.md':
             continue
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         for link in re.findall(r'\[[^\]]*\]\(([^)]+)\)', text):
             url = link.split('#', 1)[0]
             if not url or re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*:', url):
@@ -193,13 +193,13 @@ def check_prompts_and_skills(root):
     all_ops = dict(config['operations'])
     all_ops.update(evaluation.get('operations', {}))
     for op_id, op in all_ops.items():
-        if local_file(root, op['prompt']) and f'operation: {op_id}' not in (root / op['prompt']).read_text():
+        if local_file(root, op['prompt']) and f'operation: {op_id}' not in (root / op['prompt']).read_text(encoding="utf-8"):
             errors.append(f'{op_id}: prompt operation header mismatch')
     skills = list((root / '.agents/skills').glob('*/SKILL.md'))
     if len(skills) != 4:
         errors.append('expected four project workflow skills')
     for skill in skills:
-        text = skill.read_text()
+        text = skill.read_text(encoding="utf-8")
         if not text.startswith('---\n') or f'name: {skill.parent.name}\n' not in text:
             errors.append(f'{skill}: invalid skill name/frontmatter')
         if not re.search(r'^description: .+', text, re.M):
@@ -308,12 +308,12 @@ def run_check(root=ROOT, strict=False, release=False, today=None):
     today = today or dt.datetime.now(dt.timezone.utc).date()
     required = ['AGENTS.md', 'README.md', 'docs/HANDOFF.md', 'docs/FEASIBILITY.md', 'docs/HARNESS.md']
     errors += [f'missing required file: {p}' for p in required if not local_file(root, p)]
-    if local_file(root, 'AGENTS.md') and len((root / 'AGENTS.md').read_text().splitlines()) > 110:
+    if local_file(root, 'AGENTS.md') and len((root / 'AGENTS.md').read_text(encoding="utf-8").splitlines()) > 110:
         errors.append('AGENTS.md exceeds 110-line navigation budget')
     config = budget.load(root)
     budget.validate(config)
     generated = root / 'docs/BUDGET.generated.md'
-    if not generated.exists() or generated.read_text() != budget.render(config):
+    if not generated.exists() or generated.read_text(encoding="utf-8") != budget.render(config):
         errors.append('generated budget differs from machine-readable baseline')
     errors += check_links(root) + check_tasks(root) + check_prompts_and_skills(root)
     source_errors, stale = check_sources(root, today)

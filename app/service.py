@@ -2427,7 +2427,7 @@ class App:
 
     def seeds(self, project_id=None):
         """Get seeds from harness/seeds.json. Global for now, will be project-scoped later."""
-        return json.loads((self.root / "harness" / "seeds.json").read_text())["seeds"]
+        return json.loads((self.root / "harness" / "seeds.json").read_text(encoding="utf-8"))["seeds"]
 
     IMPORT_SEEDS_PER_CALL = 20
     MAX_SEEDS = 40   # per project, the same ceiling as project creation
@@ -3179,7 +3179,7 @@ class App:
         if not project_id:
             project_id = self.get_default_project_id()
 
-        payload = json.loads(Path(path).read_text())
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
         papers = payload if isinstance(payload, list) else payload.get("all", [])
         normalized = [{"key": p["key"], "openalex_id": p.get("openalex_id"), "doi": p.get("doi"),
                        "arxiv_id": p.get("arxiv_id"), "title": p["title"], "abstract": p.get("abstract"),

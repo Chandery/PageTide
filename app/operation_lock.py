@@ -62,7 +62,7 @@ def serial(data_dir, scope):
             finally:
                 state.depth -= 1
             return
-        with path.open('a') as handle:
+        with path.open('a', encoding="utf-8") as handle:
             state.handle = handle
             try:
                 platform_compat.lock_exclusive(handle)
@@ -78,7 +78,7 @@ def serial(data_dir, scope):
 
 @contextmanager
 def claim(data_dir, scope):
-    with _path(data_dir, scope).open('a') as handle:
+    with _path(data_dir, scope).open('a', encoding="utf-8") as handle:
         try:
             platform_compat.lock_exclusive(handle, blocking=False)
         except BlockingIOError:

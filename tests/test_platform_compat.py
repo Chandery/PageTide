@@ -214,6 +214,14 @@ class BuildPythonTests(unittest.TestCase):
                 self.assertEqual(build.build_python(), sys.executable)
 
 
+    def test_utf8_python_option_only_on_windows(self):
+        build = self.load()
+        with mock.patch.object(build.sys, "platform", "win32"):
+            self.assertEqual(build.python_options(), ["--python-option", "X utf8"])
+        with mock.patch.object(build.sys, "platform", "darwin"):
+            self.assertEqual(build.python_options(), [])
+
+
 class AppCloseTests(unittest.TestCase):
     def test_close_releases_the_database_and_is_idempotent(self):
         from app.service import App

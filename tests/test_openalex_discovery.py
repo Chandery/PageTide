@@ -302,6 +302,14 @@ class CacheFreshnessTests(unittest.TestCase):
         portal.headers = {}
         self.assertEqual(len(self.fetch(mock.Mock(return_value=portal), ttl=100)["results"]), 1)
 
+    def test_a_file_time_a_few_milliseconds_ahead_of_the_clock_is_still_fresh(self):
+        # Windows file times can run slightly ahead of time.time(); that is not a moved-back clock.
+        self.fetch(Router([("W1", [work(1)])]), ttl=100)
+        self.age(-0.5)
+        router = Router([])
+        self.assertEqual(len(self.fetch(router, ttl=100)["results"]), 1)
+        self.assertEqual(router.urls, [])
+
     def test_a_cache_file_dated_in_the_future_counts_as_expired(self):
         self.fetch(Router([("W1", [work(1)])]), ttl=100)
         self.age(-10000)  # a clock that was moved backwards

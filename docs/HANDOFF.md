@@ -1,3 +1,15 @@
+# 当前工作单元：Windows 第四轮 CI：UTF-8（2026-10-23，第五个提交）
+
+[变更记录](../changes/2026-10-23-windows-release-ci-run4.json)，[检查证据](evidence/2026-10-23-windows-release-ci-run4-checks.txt)。
+
+**已确认**根因：冻结的 Windows exe 不认 `PYTHONUTF8`，按 cp1252 读 UTF-8 文件（`load_budget`），之前的断连就是这个异常逃出了处理线程。修法：`app/`、`scripts/` 里所有文本模式的文件读写与子进程管道都显式 `encoding="utf-8"`；新增静态测试 `tests/test_text_encoding.py` 防回退；stdin/stdout/stderr 在后端和分类 worker 里强制 UTF-8；Windows 构建加 `--python-option "X utf8"`（PyInstaller 6.16 帮助里有，makespec 能写进 spec，**实际在冻结 exe 里是否生效是推断**）。
+
+OpenAlex 缓存测试在 Windows 失败：**推断**是文件时间比 `time.time()` 超前几毫秒，被当成“未来日期”过期；加了 2 秒容差（明显的未来日期仍算过期）。
+
+没验证：冻结 exe 在 Windows 上重跑；守卫只覆盖 `app/` 与 `scripts/`。
+
+---
+
 # 当前工作单元：Windows 第三轮 CI（2026-10-23，第四个提交）
 
 [变更记录](../changes/2026-10-23-windows-release-ci-run3.json)，[检查证据](evidence/2026-10-23-windows-release-ci-run3-checks.txt)。

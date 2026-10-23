@@ -97,6 +97,10 @@ def pdf_availability(arxiv_id, oa):
     return "page" if source_pages(oa) else "none"
 
 
+# File modification times and time.time() come from different clocks on Windows and can differ by a few ms.
+CLOCK_SKEW_SECONDS = 2
+
+
 def window_start(years, today=None):
     """The date `years` years before today as YYYY-MM-DD (29 February becomes 28 February)."""
     today = today or datetime.date.today()
@@ -315,14 +319,14 @@ class OpenAlex:
                 pass  # one unusable header must not discard the others
         if len(note) > 1:
             try:
-                (self.cache / "ratelimit.json").write_text(json.dumps(note))
+                (self.cache / "ratelimit.json").write_text(json.dumps(note), encoding="utf-8")
             except OSError:
                 pass  # a note about the allowance must never break a lookup
 
     def rate_limit(self):
         """The allowance seen on the last response ({limit, remaining, ..., observed_at}) or None."""
         try:
-            note = json.loads((self.cache / "ratelimit.json").read_text())
+            note = json.loads((self.cache / "ratelimit.json").read_text(encoding="utf-8"))
             return note if isinstance(note, dict) and "observed_at" in note else None
         except (OSError, ValueError):
             return None
@@ -333,8 +337,8 @@ class OpenAlex:
         stale = None
         if cached.exists():
             try:
-                payload = json.loads(cached.read_text())
-                if ttl is None or 0 <= time.time() - cached.stat().st_mtime <= ttl:  # a future date (clock moved back) is stale
+                payload = json.loads(cached.read_text(encoding="utf-8"))
+                if ttl is None or -CLOCK_SKEW_SECONDS <= time.time() - cached.stat().st_mtime <= ttl:  # a clearly future date (clock moved back) is stale; file times can run a little ahead of time.time() on Windows
                     return payload
                 stale = payload  # expired: refetch, but keep it in case OpenAlex cannot be reached
             except ValueError:
@@ -351,7 +355,7 @@ class OpenAlex:
                     if stale is not None:
                         return stale  # e.g. a captive-portal page: the expired copy is still the better answer
                     raise SourceError(f"OpenAlex returned a non-JSON body: {url}", "bad_response") from exc
-                cached.write_text(body)
+                cached.write_text(body, encoding="utf-8")
                 time.sleep(KEYED_GAP_SECONDS if self.api_key else GAP_SECONDS)
                 return payload
             except http.client.InvalidURL as exc:

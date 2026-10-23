@@ -55,6 +55,15 @@ def unlock(handle):
     msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
 
 
+def force_utf8_std_streams():
+    """The frozen Windows exe ignores PYTHONUTF8 and uses the locale code page for pipes. Pin the std streams to
+    UTF-8 (undecodable input replaced, unencodable output never raises) so both ends of every pipe agree."""
+    for name, errors in (("stdin", "replace"), ("stdout", "replace"), ("stderr", "backslashreplace")):
+        stream = getattr(sys, name, None)
+        if stream is not None and hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors=errors)
+
+
 def after_fork_in_child(callback):
     """os.register_at_fork where it exists (not on Windows, which has no fork)."""
     if hasattr(os, "register_at_fork"):
