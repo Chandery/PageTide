@@ -169,3 +169,15 @@ exit 0
 $ python3 scripts/harness.py review changes/2026-10-23-baidu-web.json   (run before the third commit)
 PASS repository checks only; app gates/real billing are not implied
 exit 0
+
+== Coordinator: browser check, main merge and release build (2026-10-23) ==
+Browser (worktree server, synthetic data dir, 1000px): one Baidu block (key line + 测试 + 获取, then the switches
+百度学术接口 / 百度搜索); the shared confirm dialog is centred; key-line 测试 with a made-up key sent one real request
+to Baidu AI Search and showed 密钥无效 (no owner key was used; the owner's key was not available on this machine).
+main fast-forwarded 582ce17 -> 884db0e.
+$ python3 -m unittest discover -s tests   -> Ran 2752 tests, OK
+$ node --test tests/*.cjs                 -> pass 595, fail 0
+$ python3 scripts/i18n_extract.py         -> # 0 of 1158
+$ python3 scripts/budget.py --check; python3 scripts/harness.py check -> PASS (recheck warning only)
+$ build_desktop.py; cargo tauri build --bundles app -> src-tauri/target/release/bundle/macos/PaperDigHelper.app
+Not run: tools/source_smoke.py baidu_web with the owner's real key (owner to press 测试 in Settings after saving the key).
