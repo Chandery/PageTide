@@ -1061,6 +1061,9 @@ async function load() {
 function fetchedText(fetched, fresh) {   // "抓到 33 篇，新 10 篇" / "抓到 33 篇，没有新论文"
   return fresh > 0 ? `抓到 ${fetched} 篇，新 ${fresh} 篇` : `抓到 ${fetched} 篇，没有新论文`;
 }
+function fetchedHint(fetched, fresh, label) {   // today's list is already made: say where the new papers will come from
+  return `抓到 ${fetched} 篇，新 ${fresh} 篇，点「${label}」查看`;
+}
 function refreshRecordText(rec) {   // the last successful fetch, in the person's local time
   const at = new Date(rec && rec.at);
   if (!rec || isNaN(at)) return '';
@@ -1199,7 +1202,7 @@ $('#btnRefresh').onclick = async () => {
       const q = r.result || {};
       if (q.reason_code === 'refresh_running') toast('已有抓取在运行', 'warn');
       else if (q.reason_code === 'route_recall_changed') toast('学习图已变化，请重新抓取', 'warn');
-      else toast(`${fetchedText(q.fetched || 0, q.new_to_project || 0)}${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
+      else toast(`${(q.new_to_project || 0) > 0 && state.maintenance?.batch_today ? fetchedHint(q.fetched || 0, q.new_to_project, $('#btnDaily').textContent) : fetchedText(q.fetched || 0, q.new_to_project || 0)}${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
     }
     await load();
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }

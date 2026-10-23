@@ -129,6 +129,15 @@ class RecordTests(tm.Fixture):
         self.assertEqual([r["key"] for r in left], [])
 
 
+class BatchTodayTests(tm.Fixture):
+    def test_status_says_whether_today_already_has_a_batch(self):
+        self.assertFalse(maintenance.status(self.app, self.pid, at(5, 8))["batch_today"])
+        with mock.patch.object(self.app, "refresh_candidates", return_value={"fetched": 1, "added": 1, "new_to_project": 1, "field": 1, "errors": []}):
+            maintenance.run(self.app, self.pid, at(5, 8))
+        self.assertTrue(maintenance.status(self.app, self.pid, at(5, 9))["batch_today"])
+        self.assertFalse(maintenance.status(self.app, self.pid, at(6, 9))["batch_today"])
+
+
 class ManualRouteTests(tm.Fixture):
     def test_api_refresh_records_the_success(self):
         httpd = server.build_server(port=0, root=str(self.root))

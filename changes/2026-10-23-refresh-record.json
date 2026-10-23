@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "2026-10-23-refresh-record",
   "class": "feature",
-  "summary": "Every successful refresh (automatic and the 抓取新论文 button) is recorded per project with its time, papers fetched and papers new to the project; the home page shows it under the button (\"最近抓取 10-23 18:44 · 抓到 33 篇，新 10 篇\"), and the toast reports the same counts instead of `added`, which only counts rows new to the whole library and so read 0 whenever the papers were already stored.",
+  "summary": "(Second commit: after a manual fetch that links new papers while today's batch already exists, the toast says to click the generate button, using its current label; /api/home maintenance gains batch_today.) Every successful refresh (automatic and the 抓取新论文 button) is recorded per project with its time, papers fetched and papers new to the project; the home page shows it under the button (\"最近抓取 10-23 18:44 · 抓到 33 篇，新 10 篇\"), and the toast reports the same counts instead of `added`, which only counts rows new to the whole library and so read 0 whenever the papers were already stored.",
   "tasks": [
     "PILOT-01"
   ],
@@ -10,11 +10,7 @@
     "R-LOCAL"
   ],
   "files": [
-    "app/db.py",
     "app/maintenance.py",
-    "app/project.py",
-    "app/server.py",
-    "app/service.py",
     "app/static/i18n/en-US.json",
     "app/static/index.html",
     "changes/2026-10-23-refresh-record.json",
@@ -24,7 +20,7 @@
     "tests/test_refresh_record.py",
     "tests/test_refresh_status.cjs"
   ],
-  "scope_note": "Worktree refresh-record from main 9c448a3. Additive response fields (refresh result: new_to_project; /api/home maintenance: last_refresh_result); a manual refresh now also sets last_refresh, which moves the next automatic refresh (intended: a manual fetch counts as the day's fetch). No migration: the record is one settings key per project (last_refresh_result_<project>), removed with the project.",
+  "scope_note": "Worktree refresh-record from main 9c448a3. Additive response fields (refresh result: new_to_project; /api/home maintenance: last_refresh_result); a manual refresh now also sets last_refresh, which moves the next automatic refresh (intended: a manual fetch counts as the day's fetch). No migration: the record is one settings key per project (last_refresh_result_<project>), removed with the project. The files list is the second commit's change set (the first commit, e054285, covered app/db.py, app/project.py, app/server.py, app/service.py and the rest).",
   "budget_impact": {
     "runtime": "zero",
     "rationale": "Local bookkeeping and presentation; no model call, no extra request, no data leaves the machine.",
@@ -33,21 +29,49 @@
     "developer_usage": "none"
   },
   "checks": [
-    {"category": "budget", "command": "python3 scripts/budget.py --check", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"},
-    {"category": "repository", "command": "python3 scripts/harness.py check", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"},
-    {"category": "tests", "command": "python3 -m unittest discover -s tests -v", "exit_code": 0, "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"}
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    }
   ],
   "additional_checks": [
-    {"command": "node --test tests/*.cjs", "exit_code": 0, "scope": "599 Node tests"},
-    {"command": "python3 scripts/i18n_extract.py", "exit_code": 0, "scope": "# 0 of 1160"}
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "601 Node tests"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "# 0 of 1161"
+    }
   ],
   "reviews": [
-    {"kind": "self", "result": "passed", "reviewer": "Implementing agent; not independent", "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"}
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    }
   ],
   "owner_approved": false,
   "open_risks": [
     "No independent review yet (feature class; needed before release).",
     "Not looked at in a browser: the line is checked in a Node virtual page only.",
-    "A manual refresh that links new papers does not rebuild the visible list; see the HANDOFF note."
+    "A manual refresh still does not rebuild the visible list; the toast now points at the generate button when a batch already exists today (no automatic batch build)."
   ]
 }

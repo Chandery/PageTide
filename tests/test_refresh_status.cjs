@@ -7,9 +7,9 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), 'utf8');
 const handler = html.slice(html.indexOf("$('#btnRefresh').onclick ="), html.indexOf("function selectView("));
 const record = html.slice(html.indexOf('function fetchedText'), html.indexOf('function renderEligibility'));
-async function click(job) {
-  const button = {}, notices = [], calls = [];
-  const context = vm.createContext({$: () => button, state: {currentProject: 'p'},
+async function click(job, {batchToday, label = '生成今日 5 篇'} = {}) {
+  const button = {}, daily = {textContent: label}, notices = [], calls = [];
+  const context = vm.createContext({$: (s) => s === '#btnDaily' ? daily : button, state: {currentProject: 'p', maintenance: {batch_today: !!batchToday}},
     api: async (url, body) => {calls.push([url, body]); return url === '/api/refresh' ? {id: 'job-1'} : job;},
     toast: (message, kind) => notices.push([message, kind]), load: async () => {},
     setTimeout: callback => callback()});
@@ -63,3 +63,12 @@ test('a failure note and the success record are independent', () => {
   assert.match(els['#refreshRecord'].textContent, /^最近抓取 10-23 09:00/);
 });
 
+test('after a manual fetch with new papers and a batch already made today, the toast points at the button by its current label', async () => {
+  const done = {state:'done',result:{fetched:33,new_to_project:10,errors:[]}};
+  assert.deepEqual(await click(done, {batchToday: true}), ['抓到 33 篇，新 10 篇，点「生成今日 5 篇」查看','ok']);
+  assert.deepEqual(await click(done, {batchToday: true, label: '生成今日发现'}), ['抓到 33 篇，新 10 篇，点「生成今日发现」查看','ok']);
+  assert.deepEqual(await click(done, {batchToday: false}), ['抓到 33 篇，新 10 篇','ok']);
+  assert.deepEqual(await click({state:'done',result:{fetched:33,new_to_project:0,errors:[]}}, {batchToday: true}), ['抓到 33 篇，没有新论文','ok']);
+  const [message, kind] = await click({state:'done',result:{fetched:3,new_to_project:1,errors:[{kind:'network_error'}]}}, {batchToday: true});
+  assert.equal(message, '抓到 3 篇，新 1 篇，点「生成今日 5 篇」查看，部分查询未完成'); assert.equal(kind, 'warn');
+});

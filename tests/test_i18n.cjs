@@ -113,6 +113,11 @@ test('the last-fetch line and the fetch toast translate, singular and plural', (
   assert.equal(i18n.translate('最近抓取 10-23 18:44 · 抓到 1 篇，没有新论文'), 'Last fetch 10-23 18:44 · Fetched 1 paper, none new');
   assert.equal(i18n.translate('抓到 33 篇，没有新论文，部分查询未完成'), 'Fetched 33 papers, none new, some queries not finished');
 });
+test('the fetch toast that points at the generate button translates, label included', () => {
+  const { i18n } = load('en-US', PACK);
+  assert.equal(i18n.translate('抓到 33 篇，新 10 篇，点「生成今日 5 篇」查看'), 'Fetched 33 papers, 10 new, click “Pick today\'s 5” to see them');
+  assert.equal(i18n.translate('抓到 1 篇，新 1 篇，点「Pick today\'s 5」查看'), 'Fetched 1 paper, 1 new, click “Pick today\'s 5” to see them');
+});
 test('words, names and AI text are never half-translated', () => {
   const { i18n } = load('en-US', PACK);
   for (const text of ['收藏夹', '首页', '见第 3 页', '上篇', '撤销重做', '只看了第 3 页',

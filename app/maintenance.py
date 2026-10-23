@@ -145,6 +145,7 @@ def status(app, project_id, now=None):
             "last_refresh": app.store.get_setting(_key("last_refresh", project_id)),
             "last_attempt": app.store.get_setting(_key("last_attempt", project_id)),
             "last_error": app.store.get_setting(_key("last_error", project_id)) or None,
+            "batch_today": _has_batch_today(app, project_id, _now(now)),
             "last_refresh_result": app.store.get_setting(_key("last_refresh_result", project_id)) or None}
 
 
