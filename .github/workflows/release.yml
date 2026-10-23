@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
   push:
     tags: ["v*"]
+    branches: ["windows-release"]   # TEMPORARY: CI for the port branch; removed before merging to main
 
 # One run per ref; a newer push to the same ref waits instead of cancelling a release build.
 concurrency:
