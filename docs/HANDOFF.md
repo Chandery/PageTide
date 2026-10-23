@@ -1,4 +1,16 @@
-# 当前工作单元：百度学术——单元 B：每日推送、DOI 补全、语言、PDF 路线（2026-10-23）
+# 当前工作单元：百度学术——单元 C：创建项目候选与种子检索（2026-10-23）
+
+worktree `baidu-scholar`，接在单元 B（8f2c73a）之后，类别 feature。[变更记录](../changes/2026-10-23-baidu-c.json)，[检查证据](evidence/2026-10-23-baidu-c-checks.txt)。owner 选的范围是“一次全接”（见 [ADR 0039](decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md)，`owner_approved` 仍是 false）。
+
+做了什么：创建项目页的候选检索把勾选的论文语言随请求发给后端；勾选了中文、百度开关打开、已配置密钥、检索式含汉字时，每条检索式再问百度一次，结果和 OpenAlex 的并成一份候选（同一 DOI 只算一篇，补上百度页面）。手动种子检索框里输入含汉字的标题也会查百度，两边结果按标题吻合度排序，百度命中能直接加为种子（有 DOI 用 DOI，先问 OpenAlex，OpenAlex 没有才用记住的百度命中；没有 DOI 的用 `baidu:<id>`，只对刚搜到过的命中有效）。百度出问题（额度用完、密钥无效、网络、服务）只显示一句短状态，页面和 OpenAlex 结果照常。三条路径共用同一个每天 40 次的计数和 24 小时缓存。
+
+没做/没验证：创建时的候选没有做 OpenAlex 的 DOI 补全（PDF 链接和语言以后需要时再查）；学习图（beta）的刷新不接百度（单元 B 已说明）。百度的字段名与分页、命中数量都是文档推断，没有真实请求；页面只有 Node 虚拟页测试，没有在浏览器里点过。`baidu:` 标识放在进程内存里，应用重启后需要重新搜索才能加。
+
+三个单元全部完成后，真实密钥冒烟：`python3 tools/source_smoke.py baidu_scholar --query 知识图谱`（再加 `--wrong-key` 看拒绝时的样子）；独立审查还没有做。
+
+---
+
+# 上一工作单元：百度学术——单元 B：每日推送、DOI 补全、语言、PDF 路线（2026-10-23）
 
 worktree `baidu-scholar`，接在单元 A（57f0d70）之后，类别 critical。[变更记录](../changes/2026-10-23-baidu-b.json)，[检查证据](evidence/2026-10-23-baidu-b-checks.txt)。owner 的四项选择与范围见 [ADR 0039](decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md)（原文引用，`owner_approved` 仍是 false）。
 

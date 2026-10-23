@@ -2163,10 +2163,27 @@ class App:
                 "reason": reason,
                 "tokens": tokens, "elapsed_ms": elapsed_ms, **_ai_receipt(result)}
 
-    def guidance_search(self, session_id, query, all_years=False):
+    def _baidu_search(self, text, since=None, per_page=10, languages=None, require_zh=False):
+        """(papers, problem kind) from Baidu Scholar for project creation. Asked only when the user switched Baidu on, a key is
+        saved and the text has Chinese characters (for candidates also only when 中文 is ticked). A failure is a kind for a short
+        status, never an exception: it must not break the page."""
+        adapter = self.adapters["baidu_scholar"]
+        if not has_cjk(text) or not user_settings.baidu_scholar(self.data) or not adapter.api_key:
+            return [], None
+        if require_zh and "zh" not in guidance_contract.language_codes(languages):
+            return [], None
+        try:
+            return adapter.search(text, since=since, page=1, per_page=per_page), None
+        except SourceError as exc:
+            return [], exc.kind
+        except Exception:
+            return [], "unavailable"
+
+    def guidance_search(self, session_id, query, all_years=False, languages=None):
         """Candidate papers for ONE search query, merged into the session's candidate list.
 
-        The page calls this once per query so results appear as each query returns."""
+        The page calls this once per query so results appear as each query returns. With 中文 ticked (`languages`) and Chinese
+        characters in the query, Baidu Scholar is asked too (switch on, key saved); its problem comes back as `baidu`."""
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
             raise ValueError("引导会话不存在或已结束")
@@ -2180,25 +2197,38 @@ class App:
                 query, per_page=12, from_date=None if all_years else window_start(CREATION_WINDOW_YEARS))
         except Exception as exc:
             found, error = [], {"kind": getattr(exc, "kind", "error"), "message": str(exc)[-200:]}
+        baidu_papers, baidu_problem = self._baidu_search(query, since=None if all_years else window_start(CREATION_WINDOW_YEARS),
+                                                         languages=languages, require_zh=True)
         known = {p["key"]: p for p in draft["candidates"] if isinstance(p, dict) and p.get("key")}
-        items = []
-        for paper in found:
+        touched = {}          # key -> whether this call found it first; one item per paper, whichever source found it
+        for paper in [*found, *baidu_papers]:
             if not paper.get("key"):
                 continue
             entry = known.get(paper["key"])
+            if paper["key"] in touched:
+                if paper.get("oa"):
+                    entry["oa"] = merge_oa(entry.get("oa"), paper["oa"])      # also found by another source: add its page
+                continue
             is_new = entry is None
             if is_new:
                 if len(known) >= GUIDANCE_MAX_CANDIDATES:
                     continue
                 entry = known[paper["key"]] = {**paper, "matched_queries": []}
+            elif paper.get("oa") and entry.get("oa") != paper["oa"]:
+                entry["oa"] = merge_oa(entry.get("oa"), paper["oa"])
             if query not in entry.setdefault("matched_queries", []):
                 entry["matched_queries"].append(query)
-            items.append({**creation.paper_view(entry), "matched_queries": entry["matched_queries"], "new": is_new})
+            touched[paper["key"]] = is_new
+        items = [{**creation.paper_view(known[key]), "matched_queries": known[key]["matched_queries"], "new": new}
+                 for key, new in touched.items()]
         draft["candidates"] = list(known.values())
         self.store.update_guidance_session(session_id, draft=draft)
-        return {"query": query, "items": items, "total": len(known), "error": error}
+        result = {"query": query, "items": items, "total": len(known), "error": error}
+        if baidu_problem:
+            result["baidu"] = {"kind": baidu_problem}
+        return result
 
-    def guidance_preview(self, session_id, draft=None):
+    def guidance_preview(self, session_id, draft=None, languages=None):
         """All queries at once (kept for callers that do not stream); the page uses guidance_search."""
         session = self.store.guidance_session(session_id)
         if not session or session["status"] != "draft":
@@ -2214,9 +2244,10 @@ class App:
         draft = self._bounded_guidance_draft(incoming)
         self.store.update_guidance_session(session_id, draft={**draft, "candidates": session["draft"].get("candidates") or []})
         queries = draft["search_queries"] or draft["keywords"][:3]   # never the goal: it is the person's sentence
-        papers, errors, seen = [], [], set()
+        papers, errors, seen, baidu = [], [], set(), None
         for query in queries[:3]:
-            result = self.guidance_search(session_id, query)
+            result = self.guidance_search(session_id, query, languages=languages)
+            baidu = baidu or result.get("baidu")
             if result["error"]:
                 errors.append({"query": query, "kind": result["error"]["kind"], "error": result["error"]["message"]})
                 if result["error"]["kind"] == "unavailable":
@@ -2225,14 +2256,21 @@ class App:
                 if paper["key"] not in seen:
                     seen.add(paper["key"])
                     papers.append(paper)
-        return {"session": self.guidance_session_view(session_id), "items": papers[:30], "errors": errors}
+        out = {"session": self.guidance_session_view(session_id), "items": papers[:30], "errors": errors}
+        if baidu:
+            out["baidu"] = baidu
+        return out
 
     # ------------------------------------------------------- manual creation helpers
     def seed_lookup(self, text):
         return creation.lookup_seed(self.source, text)
 
     def seed_search(self, query):
-        return creation.search_seeds(self.source, query)
+        """The seed picker's paper-name search. With Baidu Scholar switched on and a key saved, a title with Chinese characters
+        is searched there too (only what the person typed is sent); hits can be added as seeds."""
+        result = creation.search_seeds(self.source, query)      # validates the query first
+        papers, problem = self._baidu_search(re.sub(r"\s+", " ", str(query)).strip(), per_page=8)
+        return creation.merge_baidu(result, str(query), papers, problem) if papers or problem else result
 
     def import_pdf(self, data, filename=""):
         return creation.import_pdf(self.data, data, filename)

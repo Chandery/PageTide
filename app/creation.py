@@ -12,7 +12,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 from . import source_adapters
-from .sources import SourceError, fetch_seed_work, pdf_availability, slim
+from .sources import SourceError, fetch_seed_work, pdf_availability, slim, title_key
 
 PDF_MAX_BYTES = 60 * 1024 * 1024
 IMPORT_TTL_SECONDS = 24 * 3600
@@ -24,18 +24,24 @@ _DOI = re.compile(r"10\.\d{4,9}/\S+")
 _DOI_URL = re.compile(r"https?://(?:dx\.)?doi\.org/(10\.\d{4,9}/\S+)", re.I)
 _OPENALEX = re.compile(r"(?:https?://openalex\.org/)?(W\d+)", re.I)
 _PDF_ID = re.compile(r"[0-9a-f]{64}")
+_BAIDU = re.compile(r"baidu:[A-Za-z0-9_.:-]{1,120}")
 
 # Resolved papers are remembered between the lookup and the project creation request, so a seed the
 # user already saw resolve is not fetched (and rate-limited) a second time. The App object is rebuilt
 # for every request, hence module state.
 _SEED_CACHE = OrderedDict()
 _SEED_LOCK = threading.Lock()
+# Baidu Scholar hits the person has seen in the seed search, kept the same way: such a paper may have no identifier OpenAlex
+# knows, so adding it as a seed uses what Baidu said (public metadata the person already saw), not a second request.
+_BAIDU_SEEDS = OrderedDict()
 
 
 def parse_seed(text):
     """(identifier for OpenAlex, arXiv id or None, dedupe key) or ValueError for free text."""
     seed = str(text or "").strip()
     seed = re.sub(r"^doi:\s*", "", seed, flags=re.I).rstrip(".,;")
+    if _BAIDU.fullmatch(seed):
+        return seed, None, seed
     match = _ARXIV.fullmatch(seed) or _ARXIV_URL.fullmatch(seed)
     if match:
         arxiv_id = match.group(1)
@@ -73,12 +79,42 @@ def _cached(identifier):
     return dict(paper) if paper else None
 
 
+def remember_baidu(paper):
+    with _SEED_LOCK:
+        for key in {paper["key"], str(paper.get("doi") or "").lower()} - {""}:
+            _BAIDU_SEEDS[key] = paper
+            _BAIDU_SEEDS.move_to_end(key)
+        while len(_BAIDU_SEEDS) > SEED_CACHE_LIMIT:
+            _BAIDU_SEEDS.popitem(last=False)
+
+
+def _remembered_baidu(identifier):
+    with _SEED_LOCK:
+        paper = _BAIDU_SEEDS.get(str(identifier).lower() if identifier.startswith("http") else identifier)
+    return dict(paper) if paper else None
+
+
 def fetch_seed_paper(client, identifier, arxiv_id=None):
-    """One slim public-metadata paper for a parsed identifier; SourceError on lookup failure."""
+    """One slim public-metadata paper for a parsed identifier; SourceError on lookup failure.
+
+    A `baidu:` identifier is a Baidu Scholar hit the person saw in the seed search; a DOI OpenAlex does not know falls back to
+    the same remembered hit."""
+    if identifier.startswith("baidu:"):
+        paper = _remembered_baidu(identifier)
+        if paper:
+            return paper
+        raise SourceError("Baidu Scholar hit is no longer remembered; search for it again", "not_found")
     paper = _cached(identifier)
     if paper:
         return paper
-    paper = slim(fetch_seed_work(client, identifier, arxiv_id) or {}, group="seed")
+    try:
+        work = fetch_seed_work(client, identifier, arxiv_id) or {}
+    except SourceError as exc:
+        remembered = _remembered_baidu(identifier) if exc.kind == "not_found" else None
+        if remembered:
+            return remembered
+        raise
+    paper = slim(work, group="seed")
     paper["arxiv_id"] = paper["arxiv_id"] or arxiv_id
     if paper.get("key") and paper.get("title"):
         _remember(paper)
@@ -100,6 +136,43 @@ def paper_view(paper, abstract_limit=1200):
 def source_failure(exc):
     kind = getattr(exc, "kind", None) or "failed"
     return {"status": kind, "error": str(exc)[:200]}
+
+
+_NON_WORD = re.compile(r"[\W_]+", re.UNICODE)
+
+
+def seed_rank(query, title):
+    """How well a title matches the typed query: 3 equal, 2 starts with it, 1 contains it, 0 otherwise. Spaces and punctuation
+    are ignored, so a Chinese title with a space in it still matches (sources.similarity treats a Chinese run as one word)."""
+    wanted, found = _NON_WORD.sub("", str(query or "").lower()), _NON_WORD.sub("", str(title or "").lower())
+    if not wanted or not found:
+        return 0
+    return 3 if found == wanted else 2 if found.startswith(wanted) else 1 if wanted in found else 0
+
+
+def merge_baidu(result, query, papers=(), problem=None, limit=12):
+    """A seed-search result with Baidu Scholar hits added. `papers` are Baidu hits (remembered so they can be added as seeds),
+    `problem` the kind of a Baidu failure, which is reported beside the hits and never fails the search. Hits are ordered by
+    how well the title matches the query, keeping each source's own order within a rank; a hit OpenAlex already has (same key
+    or same title) is not repeated. Baidu hits make the status ok even when OpenAlex failed or found nothing."""
+    items = list(result.get("items") or [])
+    seen = {i.get("key") for i in items} | {title_key(i.get("title")) for i in items}
+    for paper in papers:
+        view = paper_view(paper)
+        if paper["key"] in seen or title_key(view["title"]) in seen:
+            continue
+        remember_baidu(paper)
+        seen.update({paper["key"], title_key(view["title"])})
+        view["seed_id"] = paper.get("doi") or paper["key"]
+        items.append(view)
+    items.sort(key=lambda i: -seed_rank(query, i.get("title")))
+    out = dict(result)
+    if items:
+        out.update(status="ok", items=items[:limit])
+        out.pop("error", None)
+    if problem:
+        out["baidu"] = {"kind": problem}
+    return out
 
 
 def lookup_seed(client, text):

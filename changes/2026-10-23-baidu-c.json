@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-baidu-c",
+  "class": "feature",
+  "summary": "Baidu Scholar for project creation and seed search (unit C): the creation page sends the ticked paper languages with each candidate search; with Baidu on, a key saved, 中文 ticked and Chinese characters in the phrase, Baidu candidates are merged with OpenAlex's (one paper per DOI); Chinese titles typed in the seed box are searched at Baidu too, hits are ranked with OpenAlex's and can be added as seeds; a Baidu problem is one short fixed status and never breaks the page.",
+  "tasks": [
+    "DATA-01",
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-DISCOVERY",
+    "R-LOCAL"
+  ],
+  "files": [
+    "app/baidu_scholar.py",
+    "app/creation.py",
+    "app/server.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/project-creation.js",
+    "changes/2026-10-23-baidu-c.json",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/SOURCES.md",
+    "docs/decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md",
+    "docs/evidence/2026-10-23-baidu-c-checks.txt",
+    "tests/test_baidu_creation.py",
+    "tests/test_baidu_creation_ui.cjs",
+    "tests/test_source_adapters.py"
+  ],
+  "scope_note": "Worktree baidu-scholar, unit C on top of unit B (8f2c73a). New outbound data only when the user switched Baidu on (quoted owner approvals in ADR 0039; owner_approved stays false).",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "No model call or token. At most one Baidu request per creation search phrase (up to 3 per preview) and one per seed-box search, only with Baidu on and a key, counted in the shared local cap of 40 a day and answered from a 24 h cache when repeated.",
+    "before": "creation candidates and the seed search asked OpenAlex only",
+    "after": "same model cost (zero); one extra Baidu request per Chinese search when Baidu is on",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-c-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-c-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-c-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "581 Node tests (574 + 7 new)"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "# 0 of 1155 (4 new English strings added)"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent (Sonnet); not independent",
+      "evidence": "docs/evidence/2026-10-23-baidu-c-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Baidu's response shape, page size and ranking are UNVERIFIED; how many useful Chinese candidates it returns is unmeasured.",
+    "Seed hits without a DOI exist only in server memory until the project is created; after an app restart they must be searched for again.",
+    "The creation page and seed box were tested with Node virtual pages only, not in a browser.",
+    "Independent review not done by the implementing agent."
+  ]
+}

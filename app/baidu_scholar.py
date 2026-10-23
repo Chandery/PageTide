@@ -150,10 +150,10 @@ def _paper(item):
     paper_id = _collapse(item.get("paperId"))[:120]
     if doi:
         key = f"https://doi.org/{doi}"
-    elif paper_id:
+    elif paper_id and re.fullmatch(r"[A-Za-z0-9_.:-]{1,100}", paper_id):
         key = f"baidu:{paper_id}"
-    else:
-        key = "baidu:t-" + hashlib.sha1(title.casefold().encode("utf-8")).hexdigest()[:12]
+    else:      # no id, or one with characters a seed identifier could not carry: a stable hash of what there is
+        key = "baidu:t-" + hashlib.sha1((paper_id or title.casefold()).encode("utf-8")).hexdigest()[:16]
     year = _year(item.get("publishYear"))
     info = item.get("publishInfo")
     journal = _collapse(info.get("journalName") if isinstance(info, dict) else None)[:200]

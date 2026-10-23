@@ -196,6 +196,19 @@ class ParseTests(AdapterCase):
         self.assertIsNone(papers[4]["oa"])    # javascript: is never a link
         self.assertEqual(papers[3]["key"], "https://doi.org/10.5555/other.4")   # "doi:" prefix is understood
 
+    def test_a_paper_id_that_is_not_a_plain_token_gets_a_key_a_seed_identifier_can_carry(self):
+        from app import creation
+        payload = {"code": "0", "data": [{"paperId": "a b/c?d=e&f", "title": "标识里有奇怪字符的论文", "doi": ""},
+                                         {"paperId": "x" * 300, "title": "标识很长的论文", "doi": ""},
+                                         {"paperId": "plain-id_1.2:3", "title": "标识正常的论文", "doi": ""}]}
+        keys = [p["key"] for p in self.baidu_scholar.parse_search(payload)]
+        self.assertRegex(keys[0], r"^baidu:t-[0-9a-f]{16}$")
+        self.assertRegex(keys[1], r"^baidu:t-[0-9a-f]{16}$")
+        self.assertEqual(keys[2], "baidu:plain-id_1.2:3")
+        self.assertEqual(len(set(keys)), 3)
+        for key in keys:
+            self.assertEqual(creation.parse_seed(key)[0], key)
+
     def test_no_language_is_claimed(self):
         for paper in self.parse():
             self.assertNotIn("metadata_language", paper)

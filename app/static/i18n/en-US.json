@@ -2494,6 +2494,10 @@
     "原文页面": "Paper page",
     "出版方": "Publisher",
     "选择或拖入 PDF": "Choose or drop a PDF",
-    "请选择 PDF 文件": "Choose a PDF file"
+    "请选择 PDF 文件": "Choose a PDF file",
+    "百度学术：今日额度已用完": "Baidu Scholar: today's quota used up",
+    "百度学术：密钥无效": "Baidu Scholar: key rejected",
+    "百度学术：无法连接": "Baidu Scholar: cannot connect",
+    "百度学术：暂时不可用": "Baidu Scholar: unavailable for now"
   }
 }

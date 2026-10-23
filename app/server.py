@@ -824,9 +824,11 @@ class Handler(BaseHTTPRequestHandler):
                                                  retry=bool(body.get("retry")), draft_edits=body.get("draft"),
                                                  languages=body.get("languages"), base=body.get("base")))
                 elif action == "search":
-                    self._json(app.guidance_search(session_id, body.get("query"), all_years=bool(body.get("all_years"))))
+                    chosen = {"languages": body["languages"]} if "languages" in body else {}      # the paper languages ticked on the page
+                    self._json(app.guidance_search(session_id, body.get("query"), all_years=bool(body.get("all_years")), **chosen))
                 elif action == "preview":
-                    self._json(app.guidance_preview(session_id, body.get("draft")))
+                    chosen = {"languages": body["languages"]} if "languages" in body else {}
+                    self._json(app.guidance_preview(session_id, body.get("draft"), **chosen))
                 elif action == "route":
                     if 'brief' in body:
                         if set(body) - {'brief', 'regenerate', 'dry_run'}:

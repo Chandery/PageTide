@@ -231,6 +231,10 @@ const SEARCH_PROBLEMS = {
   unavailable: 'OpenAlex 暂时不可用，稍后再试。',
   network_error: '网络不通，没能连到 OpenAlex。',
 };
+// Baidu Scholar (when switched on in Settings) is one more source: a problem with it is one short status, never an error that
+// stops the search. Only these words are shown, whatever the server sent.
+const BAIDU_PROBLEMS = {quota_exhausted: '百度学术：今日额度已用完', auth_required: '百度学术：密钥无效', network_error: '百度学术：无法连接', unavailable: '百度学术：暂时不可用'};
+const baiduNote = (result) => (result && result.baidu && result.baidu.kind ? (BAIDU_PROBLEMS[result.baidu.kind] || BAIDU_PROBLEMS.unavailable) : '');
 
 /* ------------------------------------------------------------------ review area */
 function makeReview(root, {sessionId, onCreate, createLabel}) {
@@ -536,15 +540,16 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     searching = true; notice(''); refresh();
     const before = candidates.size;
     if (!candidates.size) skeletons(3);
-    let problem = null;
+    let problem = null, baiduProblem = '';
     for (let i = 0; i < queries.length; i += 1) {
       searchAct.start(`正在查找（${i + 1}/${queries.length}）`);
       part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇…` : '查找中…';
       let result;
       try {
-        result = await post(`/api/project-guidance/sessions/${sessionId()}/search`, {query: queries[i], all_years: part('allYears').checked});
+        result = await post(`/api/project-guidance/sessions/${sessionId()}/search`, {query: queries[i], all_years: part('allYears').checked, languages: policyEditor.selected()});
       } catch (error) { problem = {kind: 'request', message: error.message}; break; }
       addCandidates(result.items);
+      baiduProblem = baiduProblem || baiduNote(result);
       if (result.error) {
         problem = result.error;
         if (result.error.kind === 'unavailable') break;   // more queries only add waiting
@@ -555,7 +560,9 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     searching = false;
     part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇` : '';
     if (problem) {
-      notice(SEARCH_PROBLEMS[problem.kind] || `部分检索失败：${problem.message}`);
+      notice([SEARCH_PROBLEMS[problem.kind] || `部分检索失败：${problem.message}`, baiduProblem].filter(Boolean).join(' '));
+    } else if (baiduProblem) {
+      notice(baiduProblem, false);
     } else if (!candidates.size) {
       notice('没有找到论文', false);
     } else if (candidates.size === before) {
@@ -880,6 +887,8 @@ const seedKeywords = makeChips($('#manualKeywords'), () => manualRefresh());
 const seeds = [];
 let seedSeq = 0, queue = Promise.resolve();
 const queued = (fn) => { const run = queue.then(fn, fn); queue = run.catch(() => {}); return run; };   // one OpenAlex lookup at a time
+// A hit from OpenAlex is added by its OpenAlex id; a Baidu Scholar hit by the DOI or `baidu:` id the server gave it (seed_id).
+const seedIdentifier = (paper) => paper.openalex_id || paper.seed_id;
 const seedFailure = (r) => ({
   not_found: 'OpenAlex 里没有这篇',
   unavailable: 'OpenAlex 暂时不可用，稍后重试',
@@ -988,9 +997,10 @@ async function openSeedSearch(query) {
   searchAct.stop();
   $('#seedSearchList').innerHTML = '';
   const notice = $('#seedSearchNotice');
-  if (!result.items.length) {
-    notice.hidden = false; notice.classList.toggle('error', result.status !== 'empty');
-    notice.textContent = result.status === 'empty' ? '没有找到' : seedFailure(result);
+  const baiduProblem = baiduNote(result);
+  if (!result.items.length || baiduProblem) {
+    notice.hidden = false; notice.classList.toggle('error', !!result.items.length ? false : result.status !== 'empty');
+    notice.textContent = [result.items.length ? '' : result.status === 'empty' ? '没有找到' : seedFailure(result), baiduProblem].filter(Boolean).join(' ');
   }
   for (const paper of result.items) {
     const hit = document.createElement('div');
@@ -1140,7 +1150,7 @@ $('#manualCreate').onclick = async () => {
   seedKeywords.commit();
   if (!validateCreationStart($('#manualName'))) return;
   const payload = seeds.filter((s) => s.status === 'resolved')
-    .map((s) => (s.pdfId ? {identifier: s.paper.openalex_id, pdf_id: s.pdfId} : s.paper.openalex_id));
+    .map((s) => (s.pdfId ? {identifier: seedIdentifier(s.paper), pdf_id: s.pdfId} : seedIdentifier(s.paper)));
   $('#manualCreate').disabled = true;
   manualAct.start('正在创建项目…');
   let result;
