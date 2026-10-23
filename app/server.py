@@ -852,8 +852,8 @@ class Handler(BaseHTTPRequestHandler):
             include_distractors = bool(body.get("distractors"))
             pages = int(body.get("pages", 1))
             project_id = body.get("project_id")
-            job = _job_start("refresh", lambda: make_app(getattr(self.server, "root", ".")).refresh_candidates(
-                pages=pages, include_distractors=include_distractors, project_id=project_id))
+            job = _job_start("refresh", lambda: maintenance.manual_refresh(
+                make_app(getattr(self.server, "root", ".")), project_id, pages=pages, include_distractors=include_distractors))
             self._json(job)
         elif route == "/api/route":
             from .organization import Conflict

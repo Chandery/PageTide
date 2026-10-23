@@ -1487,7 +1487,7 @@ class App:
         scope = (str(self.data.resolve()), project_id)
         with self._RECALL_LOCK:
             if scope in self._RECALL_BUSY:
-                return {'fetched': 0, 'added': 0, 'field': 0, 'errors': [{'kind': 'busy', 'error': 'Route refresh is already running'}], 'reason_code': 'refresh_running'}
+                return {'fetched': 0, 'added': 0, 'new_to_project': 0, 'field': 0, 'errors': [{'kind': 'busy', 'error': 'Route refresh is already running'}], 'reason_code': 'refresh_running'}
             self._RECALL_BUSY.add(scope)
         try:
             state = self.store.get_setting('route_recall_' + project_id) or {}
@@ -1516,8 +1516,9 @@ class App:
                     stored = self.store.get_setting('route_recall_' + project_id) or {}
                     if not current or stored != state or self._route_recall_plan(project_id, current, from_date=from_date, per_page=per_page)['signature'] != planned['signature']:
                         self.store.conn.rollback()
-                        return {'fetched': 0, 'added': 0, 'field': 0, 'errors': [{'kind': 'changed', 'error': 'Route recall inputs changed; refresh again'}], 'reason_code': 'route_recall_changed'}
-                    added = self.store.upsert_papers(list(papers.values()), project_id=project_id, commit=False)
+                        return {'fetched': 0, 'added': 0, 'new_to_project': 0, 'field': 0, 'errors': [{'kind': 'changed', 'error': 'Route recall inputs changed; refresh again'}], 'reason_code': 'route_recall_changed'}
+                    stats = {}
+                    added = self.store.upsert_papers(list(papers.values()), project_id=project_id, commit=False, stats=stats)
                     updated = route_recall.record(planned, state, results, time.time())
                     updated['configuration'] = {'from_date': from_date, 'per_page': max(1, min(50, int(per_page)))}
                     self.store.conn.execute('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
@@ -1526,7 +1527,7 @@ class App:
                 except Exception:
                     self.store.conn.rollback()
                     raise
-            return {'fetched': len(papers), 'added': added, 'field': len(papers), 'errors': errors,
+            return {'fetched': len(papers), 'added': added, 'new_to_project': stats['linked'], 'field': len(papers), 'errors': errors,
                     'query_plan': planned['queries'], 'recall_signature': planned['signature']}
         finally:
             with self._RECALL_LOCK:
@@ -3106,7 +3107,7 @@ class App:
         source_policy = user_settings.source_policy(self.data)
         arxiv, general = source_policy.arxiv, source_policy.general
         if not arxiv and not general and not source_policy.baidu and not source_policy.baidu_web:
-            return {"fetched":0,"added":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
+            return {"fetched":0,"added":0,"new_to_project":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
         openalex_on = arxiv or general
         source_options = {} if arxiv and general else {"source_arxiv":arxiv,"source_openalex":general}
         route = None if search else self._route_state(project_id)
@@ -3114,7 +3115,7 @@ class App:
             if include_distractors:
                 raise ValueError('Route refresh is limited to three themes; turn Route off for distractor experiments')
             if not openalex_on:       # only Baidu is on, and the learning-map refresh does not use it: nothing to ask
-                return {"fetched":0,"added":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
+                return {"fetched":0,"added":0,"new_to_project":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
             return self._refresh_route_candidates(project_id, route, from_date, per_page)
         from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
         keywords = [] if search else self._feed_keywords(project_id)
@@ -3163,8 +3164,9 @@ class App:
         for paper in papers:
             paper["project_id"] = project_id
 
-        added = self.store.upsert_papers(papers)
-        return {"fetched": len(papers), "added": added, "field": len(papers), "errors": errors, "rejected_publications": rejected}
+        stats = {}
+        added = self.store.upsert_papers(papers, stats=stats)
+        return {"fetched": len(papers), "added": added, "new_to_project": stats["linked"], "field": len(papers), "errors": errors, "rejected_publications": rejected}
 
     def import_candidates(self, path, project_id=None):
         """Load a frozen candidate JSON (e.g. from the DATA-01 experiments) for offline/dev use."""
