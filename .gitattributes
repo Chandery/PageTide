@@ -1,0 +1,12 @@
+# Text files keep LF line endings on every checkout, Windows included: tests read source files and cut them at "\n\n",
+# and the packaged app ships the same bytes on every platform.
+* text=auto eol=lf
+
+# Binary files are never converted.
+*.png binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.sqlite binary
+*.woff binary
+*.woff2 binary
