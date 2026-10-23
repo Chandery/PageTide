@@ -193,6 +193,20 @@ class CallPolicyTests(RefreshCase):
         self.assertEqual(self.net.openalex, [])                  # not even the DOI lookup: the user switched OpenAlex's sources off
         self.assertGreater(result["fetched"], 0)
 
+    def test_with_only_baidu_on_neither_the_distractor_probe_nor_the_learning_map_refresh_reaches_openalex(self):
+        self.set_user_settings(self.app, sourceArxiv=False, sourceOpenAlex=False)
+        with mock.patch.object(self.app.source, "distractors", side_effect=AssertionError("OpenAlex is switched off")):
+            result = self.refresh(include_distractors=True)
+        self.assertEqual(self.net.openalex, [])
+        self.assertGreater(result["fetched"], 0)
+        self.net.baidu.clear()
+        self.set_user_settings(self.app, routeBeta=True)
+        with mock.patch.object(self.app, "_refresh_route_candidates", side_effect=AssertionError("no OpenAlex source is on")), \
+                mock.patch.object(self.app, "_route_state", return_value={"graph": {}}):
+            result = self.refresh()
+        self.assertEqual(result["reason_code"], "sources_disabled")
+        self.assertEqual(self.net.baidu, [])
+
     def test_everything_off_is_still_sources_disabled(self):
         self.set_user_settings(self.app, sourceArxiv=False, sourceOpenAlex=False, sourceBaiduScholar=False)
         result = self.refresh()
@@ -229,6 +243,21 @@ class CursorTests(RefreshCase):
             self.refresh()
             seen.append(sorted({c["page"] for c in self.net.baidu}))
         self.assertEqual(seen, [[0], [1], [2], [3], [0]])   # page 3 came back empty: the next day starts at the first page
+
+    def test_a_page_whose_papers_are_all_too_old_is_not_an_empty_page(self):
+        # Baidu has no date sort: a later page often holds only old papers. They are filtered out by the time window, but the
+        # page itself was not empty, so the cursor still moves on instead of falling back to page 1 for ever.
+        self.set_user_settings(self.app, timePreference="month")
+        pages = []
+        for n in range(4):
+            self.today = (datetime.date(2026, 10, 23) + datetime.timedelta(days=n)).isoformat()
+            self.net.baidu.clear()
+            shutil.rmtree(self.root / "data" / "cache" / "baidu_scholar", ignore_errors=True)
+            self.refresh()
+            pages.append(sorted({c["page"] for c in self.net.baidu}))
+        self.assertEqual(pages, [[0], [1], [2], [3]])
+        keys = {r[0] for r in self.app.store.conn.execute("SELECT key FROM papers WHERE key LIKE 'baidu:%'")}
+        self.assertEqual(keys, {"baidu:synthetic-p3"})                  # only the paper without a year (unknown, so kept) passed the window
 
     def test_a_cursor_belongs_to_its_keyword_and_project(self):
         self.refresh()
@@ -303,6 +332,22 @@ class EnrichmentTests(RefreshCase):
         self.net.openalex_doi_results = [openalex_work(42, DOI_1, language=None)]
         self.refresh()
         self.assertEqual(self.stored(DOI_1)["metadata_language"], "zh")
+
+    def test_a_later_lookup_fills_the_openalex_id_of_a_stored_baidu_paper_and_the_switches_follow(self):
+        from app import user_settings
+        self.net.openalex_doi_results = []
+        self.refresh()
+        self.assertIsNone(self.stored(DOI_1)["openalex_id"])
+        self.net.openalex_doi_results = [openalex_work(42, DOI_1)]
+        for cached in (self.root / "data" / "cache").glob("*.json"):            # OpenAlex's answer of the first refresh is cached for days
+            cached.unlink()
+        self.refresh()
+        row = self.stored(DOI_1)
+        self.assertEqual(row["openalex_id"], "https://openalex.org/W42")          # an existing row gets the id too
+        self.set_user_settings(self.app, sourceBaiduScholar=False, sourceOpenAlex=True)
+        self.assertTrue(user_settings.source_allowed(self.app.data, row))
+        self.app.store.upsert_papers([{"key": DOI_1, "title": "t", "openalex_id": "https://openalex.org/W99"}])
+        self.assertEqual(self.stored(DOI_1)["openalex_id"], "https://openalex.org/W42")      # a stored id is never replaced
 
     def test_baidu_papers_carry_no_language_before_enrichment(self):
         self.net.openalex_doi_results = []

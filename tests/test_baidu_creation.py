@@ -252,6 +252,15 @@ class SeedSearchTests(Case):
         self.assertNotIn("seed_id", next(i for i in result["items"] if i["key"] == "https://doi.org/10.9/5"))
         self.assertNotIn("baidu", result)
 
+    def test_a_title_the_page_read_out_of_a_dropped_pdf_is_not_sent_to_baidu(self):
+        with self.patched():
+            result = self.app.seed_search("知识图谱构建方法综述", typed=False)
+        self.assertEqual(self.net.baidu, [])
+        self.assertNotIn("baidu", result)
+        with self.patched():
+            self.app.seed_search("知识图谱构建方法综述", typed=True)
+        self.assertEqual(len(self.net.baidu), 1)
+
     def test_no_baidu_for_english_text_or_when_off_or_without_a_key(self):
         self.seed_search("knowledge graph embedding")
         self.assertEqual(self.net.baidu, [])
@@ -384,6 +393,14 @@ class RouteTests(Case):
         self.assertEqual(self.net.baidu, [])
         self.post(port, f"/api/project-guidance/sessions/{sid}/preview", {"draft": {"keywords": ["数字人文"], "search_queries": ["数字人文"]}, "languages": ["zh"]})
         self.assertEqual([c["wd"] for c in self.net.baidu], ["数字人文"])
+
+    def test_the_seed_route_sends_only_typed_text_to_baidu(self):
+        port = self.serve()
+        self.post(port, "/api/seeds/search", {"query": "知识图谱构建方法", "typed": False})
+        self.assertEqual(self.net.baidu, [])
+        self.post(port, "/api/seeds/search", {"query": "知识图谱构建方法", "typed": True})
+        self.post(port, "/api/seeds/search", {"query": "信息抽取方法研究"})
+        self.assertEqual(len(self.net.baidu), 2)
 
     def test_the_seed_route_returns_the_baidu_note(self):
         port = self.serve()

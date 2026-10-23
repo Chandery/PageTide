@@ -175,6 +175,9 @@ class Store:
                  paper["title"], paper.get("abstract"), paper.get("published"),
                  paper.get("source"), paper.get("topic"), paper.get("group_name"), paper_project_id, now()))
             added += cur.rowcount
+            for column in ("openalex_id", "arxiv_id"):       # a later lookup fills a blank identifier; a stored one is never replaced
+                if paper.get(column):
+                    self.conn.execute(f"UPDATE papers SET {column}=? WHERE key=? AND ({column} IS NULL OR {column}='')", (paper[column], paper["key"]))
             if isinstance(paper.get('work_type'),str) and paper['work_type']:
                 self.conn.execute('UPDATE papers SET work_type=? WHERE key=?',(paper['work_type'][:80],paper['key']))
             if 'metadata_language' in paper or 'language' in paper:

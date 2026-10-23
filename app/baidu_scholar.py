@@ -102,13 +102,15 @@ def _doi(value):
     return normalise(value)
 
 
-def strip_ai_abstract(payload):
-    """The payload without any AI summary field (the model's text is not the paper's abstract); what gets cached."""
-    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
-        return payload
-    items = [{k: v for k, v in item.items() if "aiabstract" not in str(k).lower().replace("_", "")} if isinstance(item, dict) else item
-             for item in payload["data"]]
-    return {**payload, "data": items}
+def strip_ai_abstract(value, depth=0):
+    """The value without any AI summary field, at any depth (the model's text is not the paper's abstract); what gets cached."""
+    if depth > 8:
+        return None
+    if isinstance(value, dict):
+        return {k: strip_ai_abstract(v, depth + 1) for k, v in value.items() if "aiabstract" not in str(k).lower().replace("_", "")}
+    if isinstance(value, list):
+        return [strip_ai_abstract(v, depth + 1) for v in value]
+    return value
 
 
 def _classify(code, message):

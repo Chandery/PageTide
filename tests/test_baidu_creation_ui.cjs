@@ -90,3 +90,12 @@ test('the seed search shows a Baidu problem beside the hits, and only a failure 
   const empty=seedPage({status:'empty',items:[]});await empty.open('知识图谱构建');
   assert.equal(empty.node('#seedSearchNotice').textContent,'没有找到');
 });
+
+test('only a title the person typed goes to Baidu: the automatic search over titles read from a PDF says so',()=>{
+  const automatic=source.match(/post\('\/api\/seeds\/search', \{query: title, typed: false\}\)/g)||[];
+  assert.equal(automatic.length,1);
+  const body=slice('async function pdfProcess(','function addPdfFiles');
+  assert.match(body,/typed: false/);
+  const typed=source.match(/post\('\/api\/seeds\/search', \{query(?:: title)?\}\)/g)||[];
+  assert.equal(typed.length,2);                                       // the seed box and the help row's retry, both typed by the person
+});

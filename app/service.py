@@ -2265,11 +2265,13 @@ class App:
     def seed_lookup(self, text):
         return creation.lookup_seed(self.source, text)
 
-    def seed_search(self, query):
+    def seed_search(self, query, typed=True):
         """The seed picker's paper-name search. With Baidu Scholar switched on and a key saved, a title with Chinese characters
-        is searched there too (only what the person typed is sent); hits can be added as seeds."""
+        the person typed is searched there too (only that text is sent); hits can be added as seeds. A title the page read out of
+        a dropped PDF (`typed` false) is never sent to Baidu: it is not something the person typed, and a folder of PDFs would
+        use up the day's allowance."""
         result = creation.search_seeds(self.source, query)      # validates the query first
-        papers, problem = self._baidu_search(re.sub(r"\s+", " ", str(query)).strip(), per_page=8)
+        papers, problem = self._baidu_search(re.sub(r"\s+", " ", str(query)).strip(), per_page=8) if typed else ([], None)
         return creation.merge_baidu(result, str(query), papers, problem) if papers or problem else result
 
     def import_pdf(self, data, filename=""):
@@ -2921,13 +2923,16 @@ class App:
             if entry.get("day") != today:
                 page = page % self.BAIDU_PAGES + 1                 # first use: page 1; later days: the next page, wrapping
             try:
-                found = adapter.search(keyword, since=from_date, page=page, per_page=self.BAIDU_PER_PAGE)
+                page_papers = adapter.search(keyword, since=None, page=page, per_page=self.BAIDU_PER_PAGE)
             except SourceError as exc:
                 errors.append({"query": keyword, "kind": exc.kind, "error": str(exc)[-120:], "source": "baidu_scholar"})
                 if exc.kind in self.BAIDU_STOP:
                     break
                 continue
-            cursor[keyword] = {"page": page if found or page == 1 else 0, "day": today}
+            # Baidu has no date sort, so a later page can hold only old papers: they are left out by the time window, but the
+            # page was not empty, and only an empty page sends the cursor back to the first.
+            found = self._not_older_than(page_papers, from_date)
+            cursor[keyword] = {"page": page if page_papers or page == 1 else 0, "day": today}
             for paper in found:
                 if paper["key"] in by_key:                             # also found by OpenAlex: keep that paper, add the page
                     by_key[paper["key"]]["oa"] = merge_oa(by_key[paper["key"]].get("oa"), paper["oa"])
@@ -2938,6 +2943,12 @@ class App:
         if fresh and (source_policy.arxiv or source_policy.general):
             self._enrich_from_openalex(fresh, errors)
         return list(field) + fresh
+
+    @staticmethod
+    def _not_older_than(papers, from_date):
+        """Papers whose year is not before the year of `from_date`; a paper with an unknown year stays."""
+        floor = int(str(from_date)[:4]) if from_date and str(from_date)[:4].isdigit() else None
+        return [p for p in papers if not floor or not p.get("published") or int(str(p["published"])[:4]) >= floor]
 
     def _enrich_from_openalex(self, papers, errors):
         """One batch lookup (at most 50 DOIs, public metadata) for papers a source reported without PDF links or a language.
@@ -2986,6 +2997,8 @@ class App:
         if route:
             if include_distractors:
                 raise ValueError('Route refresh is limited to three themes; turn Route off for distractor experiments')
+            if not openalex_on:       # only Baidu is on, and the learning-map refresh does not use it: nothing to ask
+                return {"fetched":0,"added":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
             return self._refresh_route_candidates(project_id, route, from_date, per_page)
         from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
         keywords = [] if search else self._project_keywords(project_id)[:3]
@@ -3012,7 +3025,7 @@ class App:
         if not search:
             field = self._add_baidu_candidates(project_id, field, from_date, errors, source_policy)
         papers = list(field)
-        if include_distractors:
+        if include_distractors and openalex_on:
             extra, distractor_errors = self.source.distractors(from_date=from_date, per_query=distractor_per_query)
             papers += extra
             errors += distractor_errors

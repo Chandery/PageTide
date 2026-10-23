@@ -804,7 +804,7 @@ class Handler(BaseHTTPRequestHandler):
                 if route.endswith("resolve"):
                     self._json(app.seed_lookup(body.get("input")))
                 else:
-                    self._json(app.seed_search(body.get("query")))
+                    self._json(app.seed_search(body.get("query"), typed=body.get("typed") is not False))
             except (ValueError, TypeError) as exc:
                 return self._json({"error": str(exc)}, 400)
         elif route == "/api/project-guidance/sessions":

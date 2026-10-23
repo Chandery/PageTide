@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-baidu-d",
+  "class": "critical",
+  "summary": "Fixes after the independent review of the Baidu Scholar work: stricter page links (backslash and host tricks refused), a page-rotation cursor that ignores the year window, no OpenAlex request when only Baidu is on, titles read out of dropped PDFs never sent to Baidu, nested aiAbstract removed before caching, exclusive private staging for key files, and blank identifiers of stored papers filled by a later lookup.",
+  "tasks": [
+    "DATA-01",
+    "PDF-01"
+  ],
+  "requirements": [
+    "R-DISCOVERY",
+    "R-LOCAL",
+    "R-PDF"
+  ],
+  "files": [
+    "app/baidu_scholar.py",
+    "app/db.py",
+    "app/server.py",
+    "app/service.py",
+    "app/source_keys.py",
+    "app/sources.py",
+    "app/static/project-creation.js",
+    "changes/2026-10-23-baidu-d.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md",
+    "docs/evidence/2026-10-23-baidu-d-checks.txt",
+    "tests/test_baidu_creation.py",
+    "tests/test_baidu_creation_ui.cjs",
+    "tests/test_baidu_refresh.py",
+    "tests/test_source_adapters.py",
+    "tests/test_source_keys.py"
+  ],
+  "scope_note": "Worktree baidu-scholar on top of unit C (b078489). Critical because it tightens what leaves the machine (typed titles only, no OpenAlex request when its switches are off) and how keys are written. Owner approvals stay quoted in ADR 0039; owner_approved stays false.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "No model call or token. The changes remove requests (PDF-derived titles, OpenAlex when only Baidu is on) or leave counts unchanged.",
+    "before": "automatic seed searches over PDF titles could spend the Baidu allowance",
+    "after": "only typed titles reach Baidu; same model cost (zero)",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-d-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-d-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-d-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "582 Node tests (581 + 1 new)"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "# 0 of 1155"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent (Sonnet); not independent",
+      "evidence": "docs/evidence/2026-10-23-baidu-d-checks.txt"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Separate review agent (Opus), read-only, covering units A-C; no blocking finding; 2 should-fix and 6 minor items, all but two minor ones fixed here (see evidence)",
+      "evidence": "docs/evidence/2026-10-23-baidu-d-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "A DOI-keyed paper without an OpenAlex id that Baidu also reported follows only the Baidu switch.",
+    "Baidu's response shape, page size and page numbering are still UNVERIFIED; no real request has been made.",
+    "*.baidu.com links are allowed as the brief says; a Baidu redirect page such as www.baidu.com/link would be an open redirect on Baidu's side.",
+    "The settings, reader and creation pages were tested with Node virtual pages only, not in a browser."
+  ]
+}

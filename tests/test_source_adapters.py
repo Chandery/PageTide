@@ -252,6 +252,38 @@ class ParseTests(AdapterCase):
         self.assertEqual(self.baidu_scholar.parse_search({"code": 0, "data": None}), [])
 
 
+class PageUrlTests(AdapterCase):
+    """A stored or returned page link is shown as a button and opened by a browser, which reads some URLs differently from Python."""
+
+    def test_urls_a_browser_would_read_differently_are_refused(self):
+        page_url = self.sources.page_url
+        for bad in ("https://evil.example\\xueshu.baidu.com/p", "https://xueshu.baidu.com\\@evil.example/p", "https://xueshu.baidu.com/p\\q",
+                    "https://xueshu.baidu.com%5c@evil.example/", "https://xueshu.baidu.com@evil.example/", "https://xueshu.baidu.com:443@evil.example/",
+                    "https://x\u00fceshu.baidu.com/p", "https://xueshu.baidu.com./p", "https://xueshu_baidu.com/p", "https://xueshu.baidu.com/p\x00q",
+                    "https://xueshu.baidu.com/p\nq", "//xueshu.baidu.com/p", "https:xueshu.baidu.com/p", "https://baidu.com.evil.example/p",
+                    "https://xueshu.baidu.com:8443/p", "ftp://xueshu.baidu.com/p"):
+            self.assertIsNone(page_url(bad, "baidu.com", upgrade=True), repr(bad))
+
+    def test_ordinary_baidu_pages_pass(self):
+        page_url = self.sources.page_url
+        self.assertEqual(page_url("https://xueshu.baidu.com/usercenter/paper/show?paperid=a%2Fb&x=1#top", "baidu.com"),
+                         "https://xueshu.baidu.com/usercenter/paper/show?paperid=a%2Fb&x=1#top")
+        self.assertEqual(page_url("http://xueshu.baidu.com/p", "baidu.com", upgrade=True), "https://xueshu.baidu.com/p")
+        self.assertIsNone(page_url("http://xueshu.baidu.com/p", "baidu.com"))
+        self.assertEqual(page_url("https://XUESHU.Baidu.com/p", "baidu.com"), "https://xueshu.baidu.com/p")
+        self.assertEqual(page_url("https://baidu.com/p", "baidu.com"), "https://baidu.com/p")
+
+    def test_such_a_link_is_dropped_everywhere_a_page_is_read(self):
+        hostile = "https://evil.example\\xueshu.baidu.com/p"
+        payload = {"code": "0", "data": [{"paperId": "h1", "title": "链接有问题的论文", "doi": "", "url": hostile}]}
+        self.assertIsNone(self.baidu_scholar.parse_search(payload)[0]["oa"])
+        stored = {"pages": [{"source": "baidu_scholar", "url": hostile}], "via": ["baidu_scholar"]}
+        self.assertEqual(self.sources.source_pages(stored), [])
+        self.assertEqual(self.sources.pdf_availability(None, stored), "none")
+        self.assertEqual(self.adapter().pdf_routes({"oa": stored}), [])
+        self.assertEqual(self.source_adapters.pdf_routes({"oa": stored}), [])
+
+
 class RequestTests(AdapterCase):
     def test_request_shape_and_where_the_key_goes(self):
         fake = FakeUrlopen(fixture("success.json"))
@@ -399,6 +431,18 @@ class QuotaAndCacheTests(AdapterCase):
         self.assertNotIn(AI_TEXT, content)
         self.assertNotIn("aiAbstract", content)
         self.assertIn("synthetic-p1", content)
+
+    def test_a_nested_ai_summary_is_not_cached_either(self):
+        nested = {"code": "0", "data": [{"paperId": "n1", "title": "带嵌套摘要字段的论文", "doi": "", "url": "https://xueshu.baidu.com/p/n1",
+                                         "extra": {"aiAbstract": AI_TEXT, "list": [{"ai_abstract": AI_TEXT}, {"keep": "x"}]}}], "ai_abstract": AI_TEXT}
+        stripped = self.baidu_scholar.strip_ai_abstract(nested)
+        self.assertNotIn(AI_TEXT, json.dumps(stripped, ensure_ascii=False))
+        self.assertEqual(stripped["data"][0]["extra"]["list"][1], {"keep": "x"})
+        with self.patched(FakeUrlopen(json.dumps(nested).encode())):
+            self.adapter().search("嵌套")
+        content = next((self.tmp / "cache" / "baidu_scholar").iterdir()).read_text(encoding="utf-8")
+        self.assertNotIn(AI_TEXT, content)
+        self.assertIn("n1", content)
 
     def test_an_expired_or_corrupt_cache_entry_is_refetched(self):
         fake = FakeUrlopen(default=fixture("success.json"))

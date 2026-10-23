@@ -1065,7 +1065,7 @@ async function pdfProcess(item, file) {
   for (const title of found.titles) {
     seedUpdate(item, {stage: '正在检索…'});
     let result;
-    try { result = await queued(() => post('/api/seeds/search', {query: title})); }
+    try { result = await queued(() => post('/api/seeds/search', {query: title, typed: false})); }   // read out of a PDF, not typed: never sent to Baidu
     catch (error) { lastFailure = {status: 'failed', error: error.message}; continue; }
     if (result.status !== 'ok' && result.status !== 'empty') { lastFailure = result; continue; }
     const best = result.items.map((p) => ({p, score: PDF.similarity(title, p.title)})).sort((a, b) => b.score - a.score)[0];

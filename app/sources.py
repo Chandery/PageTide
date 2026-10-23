@@ -45,24 +45,27 @@ SOURCE_PAGE_DOMAINS = {"baidu_scholar": "baidu.com"}   # a source's own pages: t
 
 
 def page_url(value, domain, upgrade=False):
-    """`value` as an https URL on `domain` (or a subdomain), else None. No credentials in the URL, no odd port, no
-    whitespace. `upgrade` turns http into https (a source has been seen to return http links); a link that is already
-    stored is only trusted when it is https as it stands."""
+    """`value` as an https URL on `domain` (or a subdomain), else None.
+
+    Browsers read some URLs differently from Python's parser (a backslash is a path separator to them, a percent sign or an
+    "@" in the host part hides another host), so anything with a backslash, a control character or whitespace is refused and the
+    host part must be plain ASCII letters, digits, dots and hyphens with no credentials and no port. The host is returned in
+    lower case. `upgrade` turns http into https (a source has been seen to return http links); a link that is already stored is
+    only trusted when it is https as it stands."""
     text = value if isinstance(value, str) else ""
-    if not text or len(text) > 500 or re.search(r"\s", text):
+    if not text or len(text) > 500 or re.search(r"[\s\\\x00-\x1f\x7f]", text):
         return None
     try:
         parts = urllib.parse.urlsplit(text)
-        host, port = (parts.hostname or "").lower(), parts.port
     except ValueError:
         return None
-    if parts.scheme == "http" and upgrade:
-        parts = parts._replace(scheme="https")
-    if parts.scheme != "https" or parts.username or parts.password or port not in (None, 443):
+    scheme = "https" if parts.scheme == "http" and upgrade else parts.scheme
+    host = parts.netloc.lower()
+    if scheme != "https" or not re.fullmatch(r"[a-z0-9.-]+", host):
         return None
     if host != domain and not host.endswith("." + domain):
         return None
-    return urllib.parse.urlunsplit(parts)
+    return urllib.parse.urlunsplit((scheme, host, parts.path, parts.query, parts.fragment))
 
 
 def source_pages(oa):

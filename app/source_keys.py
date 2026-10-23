@@ -7,6 +7,7 @@ always had. Each key is sent only as an Authorization header to its own provider
 """
 import os
 import re
+import uuid
 from pathlib import Path
 
 from . import source_adapters
@@ -72,20 +73,34 @@ def save(data_dir, source_id, value):
         raise ValueError(f"{info.provider.split('（')[0]} 密钥格式无效")
     target = key_file(data_dir, source_id)
     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    staged = target.with_name(target.name + ".tmp")
-    handle = os.open(str(staged), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(handle, "w") as out:
-        out.write(f"{info.key_env}={value}\n")
-    os.chmod(staged, 0o600)
-    os.replace(staged, target)
+    # A fresh, exclusively created, private staging file (never a name someone could have left or linked beforehand), then an
+    # atomic replace: the key is never visible to others, never written through a link and never half-written.
+    staged = target.with_name(f".{target.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    handle = os.open(str(staged), os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    try:
+        with os.fdopen(handle, "w") as out:
+            out.write(f"{info.key_env}={value}\n")
+        os.replace(staged, target)
+    except BaseException:
+        staged.unlink(missing_ok=True)
+        raise
     return status(data_dir, source_id)
+
+
+def _leftovers(data_dir, source_id):
+    """Staging files an interrupted save (or an older version) may have left for this source's key."""
+    name = key_file(data_dir, source_id).name
+    folder = Path(data_dir)
+    yield folder / f"{name}.tmp"
+    yield from folder.glob(f".{name}.*.tmp")
 
 
 def clear(data_dir, source_id):
     info = _info(source_id)
     if info is not None:
-        try:
-            key_file(data_dir, source_id).unlink()
-        except FileNotFoundError:
-            pass
+        for path in (key_file(data_dir, source_id), *_leftovers(data_dir, source_id)):
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
     return status(data_dir, source_id)

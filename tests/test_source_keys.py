@@ -131,6 +131,43 @@ class KeyStorageTests(unittest.TestCase):
             if path.is_file():
                 self.assertNotIn(BAIDU, path.read_text())
 
+    def test_a_leftover_or_planted_temp_file_is_never_written_through(self):
+        outside = self.data.parent / "outside-target.txt"
+        outside.write_text("untouched")
+        self.addCleanup(lambda: outside.unlink())
+        (self.data / "baidu_scholar.key.tmp").symlink_to(outside)
+        stale = self.data / ".baidu_scholar.key.1234.tmp"
+        stale.write_text("OLD-SECRET")
+        os.chmod(stale, 0o644)
+        self.keys.save(self.data, "baidu_scholar", BAIDU)
+        self.assertEqual(outside.read_text(), "untouched")
+        self.assertEqual(self.keys.load(self.data, "baidu_scholar"), BAIDU)
+        self.assertEqual(stat.S_IMODE(self.keys.key_file(self.data, "baidu_scholar").stat().st_mode), 0o600)
+
+    def test_the_staging_file_is_created_exclusively_with_private_permissions(self):
+        seen = []
+        real_open = os.open
+
+        def spy(path, flags, mode=0o777, *args, **kwargs):
+            if str(path).endswith(".tmp"):
+                seen.append((flags, mode))
+            return real_open(path, flags, mode, *args, **kwargs)
+        with mock.patch.object(os, "open", spy):
+            self.keys.save(self.data, "baidu_scholar", BAIDU)
+        self.assertEqual(len(seen), 1)
+        flags, mode = seen[0]
+        self.assertTrue(flags & os.O_EXCL and flags & os.O_CREAT)
+        self.assertEqual(mode, 0o600)
+        self.assertEqual([p.name for p in self.data.iterdir()], ["baidu_scholar.key"])      # nothing left behind
+
+    def test_clearing_also_removes_leftover_staging_files(self):
+        self.keys.save(self.data, "baidu_scholar", BAIDU)
+        (self.data / "baidu_scholar.key.tmp").write_text(f"BAIDU_SCHOLAR_API_KEY={BAIDU}\n")
+        (self.data / ".baidu_scholar.key.99.tmp").write_text(f"BAIDU_SCHOLAR_API_KEY={BAIDU}\n")
+        (self.data / "openalex.key.tmp").write_text("keep me: another source")
+        self.keys.clear(self.data, "baidu_scholar")
+        self.assertEqual(sorted(p.name for p in self.data.iterdir()), ["openalex.key.tmp"])
+
     def test_the_openalex_wrapper_is_the_same_storage(self):
         from app import openalex_key
         openalex_key.save(self.data, OPENALEX)

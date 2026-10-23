@@ -1,4 +1,10 @@
-# 当前工作单元：百度学术——单元 C：创建项目候选与种子检索（2026-10-23）
+# 当前工作单元：百度学术——独立审查后的修复（2026-10-23）
+
+worktree `baidu-scholar`，接在单元 C（b078489）之后，类别 critical。[变更记录](../changes/2026-10-23-baidu-d.json)，[检查证据](evidence/2026-10-23-baidu-d-checks.txt)（含独立审查的结论和逐条处理）。独立审查（单独的只读代理，Opus）没有发现阻断问题，给了 2 个建议修复和 6 个小问题：百度页面链接用反斜杠可以绕过主机校验（已改严）；翻页游标把“按年份过滤后为空”当成“这页为空”（已改）；只开百度时两条旧路径仍会碰 OpenAlex（已改）；PDF 里读出的标题也会发给百度并耗额度（现在只发用户键入的）；嵌套的 `aiAbstract` 会进缓存（已递归剔除）；密钥文件的暂存写法不够稳（已改）；已有百度行补全后没有写回 `openalex_id`（已补空白处）。没改：服务端的中文错误文案在英文界面里是中文（与已有的 OpenAlex 密钥错误一样，界面只显示固定词表）；DOI 为键的论文被百度后来也报告时只跟百度开关走（见 ADR）。
+
+---
+
+# 上一工作单元：百度学术——单元 C：创建项目候选与种子检索（2026-10-23）
 
 worktree `baidu-scholar`，接在单元 B（8f2c73a）之后，类别 feature。[变更记录](../changes/2026-10-23-baidu-c.json)，[检查证据](evidence/2026-10-23-baidu-c-checks.txt)。owner 选的范围是“一次全接”（见 [ADR 0039](decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md)，`owner_approved` 仍是 false）。
 
