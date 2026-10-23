@@ -40,3 +40,5 @@ Independent review (separate agent, read-only): no blocking finding; every fetch
 (OpenAlex verify, Baidu search/verify); single-record lookups use OpenAlexClient._fetch and keep not_found; the daily feed
 now stops at the first Baidu keyword on a 404 instead of spending up to 3 counted calls. Its wording and evidence findings
 are fixed (SOURCES.md wording, this re-read record, these check outputs, a docstring warning).
+
+Release build 2026-10-23 13:41 CST, main 92d6e1a: build_desktop.py exit 0; cargo tauri build --bundles app finished (src-tauri/target/release/bundle/macos/PaperDigHelper.app).
