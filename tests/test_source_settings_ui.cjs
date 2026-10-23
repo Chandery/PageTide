@@ -7,6 +7,7 @@ const KEY='bce-v3/ALTAK-dummyDummy0000/dummydummydummydummy0000';
 const SOURCES={
   openalex:{needs_key:false,key:'optional',configured:false,status_kind:null,used_today:null,daily_cap:null,key_url:'https://help.openalex.org/api-reference/authentication'},
   baidu_scholar:{needs_key:true,key:'required',configured:false,status_kind:null,used_today:0,daily_cap:40,key_url:'https://console.bce.baidu.com/qianfan/ais/console/apiKey'},
+  baidu_web:{needs_key:true,key:'required',configured:false,status_kind:null,used_today:0,daily_cap:40,key_url:'https://console.bce.baidu.com/qianfan/ais/console/apiKey'},
 };
 function page({sources=SOURCES,settings={},confirm}={}){
   const nodes=new Map(),calls=[],confirms=[];
@@ -165,4 +166,103 @@ test('saving sends a typed source key as source_key and never a blank one',async
   const keyPosts=p.posts().filter(c=>c.url==='/api/settings'&&/source_key|openalex_key/.test(c.init.body)).map(c=>JSON.parse(c.init.body));
   assert.deepEqual(keyPosts,[{source_key:{id:'baidu_scholar',value:KEY}}]);
   const settingsFile=p.posts().filter(c=>c.url==='/api/user_settings').pop().init.body;assert.ok(!settingsFile.includes(KEY));
+});
+
+// ---- the second Baidu row: Baidu AI Search restricted to xueshu.baidu.com. It shares the Qianfan key of the Baidu Scholar row.
+test('the web row has a switch, one status word and a test button, and no key field of its own',()=>{
+  const section=html.slice(html.indexOf('<h2>数据源</h2>'),html.indexOf('<h2>存储与导出</h2>'));
+  for(const id of ['sourceBaiduWeb','baiduWebStatus','testBaiduWebBtn'])assert.match(section,new RegExp('id="'+id+'"'),id);
+  assert.match(section,/百度学术（百度搜索）/);
+  assert.doesNotMatch(section,/id="baiduWebKey"|clearBaiduWeb|baiduWebKeyLink/);              // one key field for both Baidu rows
+  assert.equal((section.match(/type="password"/g)||[]).length,2);                              // OpenAlex and Baidu: still two key fields
+  assert.doesNotMatch(section,/<small|<p[ >]|readonly-note/);
+  assert.ok(section.indexOf('id="sourceBaiduWeb"')>section.indexOf('id="sourceBaiduScholar"'));
+});
+test('the web switch is off by default and follows the stored setting',async()=>{
+  let p=page();await vm.runInContext('loadSettings()',p.context);assert.equal(p.node('#sourceBaiduWeb').checked,false);
+  p=page({settings:{sourceBaiduWeb:true}});await vm.runInContext('loadSettings()',p.context);assert.equal(p.node('#sourceBaiduWeb').checked,true);
+  p=page({settings:{sourceBaiduWeb:'yes'}});await vm.runInContext('loadSettings()',p.context);assert.equal(p.node('#sourceBaiduWeb').checked,false);
+  p=page({settings:{sourceBaiduScholar:true}});await vm.runInContext('loadSettings()',p.context);assert.equal(p.node('#sourceBaiduWeb').checked,false);   // the other switch is not this one
+});
+test('the web row shows the status of the shared key in one word',()=>{
+  const p=page(),word=()=>p.node('#baiduWebStatus').textContent;
+  p.render();assert.equal(word(),'需要密钥');
+  p.render(withSource('baidu_web',{configured:true}));assert.equal(word(),'已配置');
+  p.render(withSource('baidu_web',{configured:true,status_kind:'auth_required'}));assert.equal(word(),'密钥无效');
+  p.render(withSource('baidu_web',{configured:true,status_kind:'unavailable'}));assert.equal(word(),'已配置');
+  p.render(withSource('baidu_web',{configured:true,used_today:40}));assert.equal(word(),'今日额度已用完');
+  p.render({...withSource('baidu_web',{configured:true}),baidu_scholar:{...SOURCES.baidu_scholar,configured:true,used_today:40}});
+  assert.equal(word(),'已配置');                                                                 // each row has its own daily count
+});
+test('the clear button and the get link belong to the scholar row only',()=>{
+  const p=page();p.render({...SOURCES,baidu_web:{...SOURCES.baidu_web,configured:true},baidu_scholar:{...SOURCES.baidu_scholar,configured:true}});
+  assert.equal(p.node('#clearBaiduScholarKeyBtn').hidden,false);assert.equal(p.node('#baiduScholarKeyLink').href,SOURCES.baidu_scholar.key_url);
+});
+test('the web test button sends only the id when the shared field is empty, and the typed key when it is not',async()=>{
+  let p=page(),d=deferred(p);let pending=p.node('#testBaiduWebBtn').onclick();await turn();
+  assert.deepEqual(JSON.parse(d.sent[0].init.body),{id:'baidu_web'});
+  assert.equal(p.node('#baiduWebStatus').textContent,'测试中…');
+  d.complete({ok:false,kind:'unavailable'});await pending;
+  assert.equal(p.node('#baiduWebStatus').textContent,'服务暂不可用');assert.equal(p.node('#baiduWebStatus').dataset.kind,'error');
+  assert.equal(p.node('#testBaiduWebBtn').disabled,false);
+  p=page();d=deferred(p);p.node('#baiduScholarKey').value='  '+KEY+' ';pending=p.node('#testBaiduWebBtn').onclick();await turn();
+  assert.deepEqual(JSON.parse(d.sent[0].init.body),{id:'baidu_web',api_key:KEY});
+  d.complete({ok:true,kind:'ok'});await pending;
+  assert.equal(p.node('#baiduWebStatus').textContent,'可用');assert.equal(p.node('#baiduScholarKeyStatus').textContent,'');       // the other row is untouched
+  assert.equal(p.node('#baiduScholarKey').value,'  '+KEY+' ');
+});
+test('editing the shared key field invalidates a pending test of either Baidu row',async()=>{
+  const p=page(),d=deferred(p);p.node('#baiduScholarKey').value='old-key/0000000000';const pending=p.node('#testBaiduWebBtn').onclick();await turn();
+  p.node('#baiduScholarKey').value='new-key/1111111111';p.node('#baiduScholarKey').oninput();
+  d.complete({ok:true,kind:'ok'});await pending;
+  assert.notEqual(p.node('#baiduWebStatus').textContent,'可用');assert.equal(p.node('#testBaiduWebBtn').disabled,false);
+});
+test('a transport failure on the web row never shows the key',async()=>{
+  const p=page();p.node('#baiduScholarKey').value=KEY;
+  p.context.fetch=async()=>{throw new Error('network down while sending '+KEY);};
+  await p.node('#testBaiduWebBtn').onclick();
+  const shown=p.node('#baiduWebStatus').textContent;assert.equal(shown,'无法连接');assert.ok(!shown.includes(KEY));
+});
+test('switching the web search on asks once, declining leaves it off, and the answer is the same one Baidu Scholar uses',async()=>{
+  const p=page({confirm:()=>false});await vm.runInContext('loadSettings()',p.context);
+  p.node('#sourceBaiduWeb').checked=true;await p.node('#sourceBaiduWeb').onchange();
+  assert.equal(p.confirms.length,1);assert.match(p.confirms[0],/百度学术/);assert.match(p.confirms[0],/中文/);
+  assert.equal(p.node('#sourceBaiduWeb').checked,false);
+  const q=page({confirm:()=>true});await vm.runInContext('loadSettings()',q.context);
+  q.node('#sourceBaiduWeb').checked=true;await q.node('#sourceBaiduWeb').onchange();
+  assert.equal(q.node('#sourceBaiduWeb').checked,true);
+  q.node('#sourceBaiduScholar').checked=true;await q.node('#sourceBaiduScholar').onchange();         // already confirmed through the web row
+  assert.equal(q.confirms.length,1);
+  await vm.runInContext('saveSettings()',q.context);
+  const saved=JSON.parse(q.posts().filter(c=>c.url==='/api/user_settings').pop().init.body).settings;
+  assert.equal(saved.sourceBaiduWeb,true);assert.equal(saved.sourceBaiduScholar,true);assert.equal(saved.baiduScholarConfirmed,true);
+});
+test('a stored confirmation is not asked for again by the web switch and switching off never asks',async()=>{
+  const p=page({settings:{baiduScholarConfirmed:true}});await vm.runInContext('loadSettings()',p.context);
+  p.node('#sourceBaiduWeb').checked=true;await p.node('#sourceBaiduWeb').onchange();
+  p.node('#sourceBaiduWeb').checked=false;await p.node('#sourceBaiduWeb').onchange();
+  assert.equal(p.confirms.length,0);
+});
+test('an unconfirmed web switch stays off in the saved settings',async()=>{
+  const p=page({confirm:()=>false});await vm.runInContext('loadSettings()',p.context);
+  p.node('#sourceBaiduWeb').checked=true;                                                                   // ticked without the change handler
+  await vm.runInContext('saveSettings()',p.context);
+  const saved=JSON.parse(p.posts().filter(c=>c.url==='/api/user_settings').pop().init.body).settings;
+  assert.equal(saved.sourceBaiduWeb,false);
+});
+test('saving sends the shared key once, as the scholar key, and never a second time for the web row',async()=>{
+  const p=page({settings:{baiduScholarConfirmed:true}});await vm.runInContext('loadSettings()',p.context);
+  p.node('#baiduScholarKey').value=' '+KEY+' ';p.node('#sourceBaiduWeb').checked=true;
+  await vm.runInContext('saveSettings()',p.context);
+  const keyPosts=p.posts().filter(c=>c.url==='/api/settings'&&/source_key|openalex_key/.test(c.init.body)).map(c=>JSON.parse(c.init.body));
+  assert.deepEqual(keyPosts,[{source_key:{id:'baidu_scholar',value:KEY}}]);
+  const saved=JSON.parse(p.posts().filter(c=>c.url==='/api/user_settings').pop().init.body).settings;
+  assert.equal(saved.sourceBaiduWeb,true);assert.ok(!JSON.stringify(saved).includes(KEY));
+});
+test('clearing the shared key from the scholar row refreshes the web row too',async()=>{
+  const p=page();p.node('#baiduScholarKey').value='typed';
+  p.context.fetch=async(url,init)=>{p.calls.push({url,init});return {ok:true,json:async()=>({ai_enabled:true,usage:{},sources:SOURCES})};};
+  await p.node('#clearBaiduScholarKeyBtn').onclick();
+  assert.deepEqual(JSON.parse(p.calls.at(-1).init.body),{clear_source_key:'baidu_scholar'});
+  assert.equal(p.node('#baiduWebStatus').textContent,'需要密钥');
 });

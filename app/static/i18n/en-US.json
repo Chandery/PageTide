@@ -2491,6 +2491,8 @@
     "需要密钥": "Key needed",
     "测试中…": "Testing…",
     "开启后，含中文的关键词会发给百度学术（使用你自己的密钥）。继续吗？": "Once on, keywords containing Chinese are sent to Baidu Scholar with your own key. Continue?",
+    "百度学术（百度搜索）": "Baidu Scholar (via Baidu Search)",
+    "开启后，含中文的关键词会通过百度搜索发给百度学术（使用你自己的密钥）。继续吗？": "Once on, keywords containing Chinese are sent to Baidu Scholar through Baidu Search with your own key. Continue?",
     "原文页面": "Paper page",
     "出版方": "Publisher",
     "选择或拖入 PDF": "Choose or drop a PDF",

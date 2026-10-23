@@ -1,9 +1,13 @@
 """API keys of the paper sources that use one (SourceInfo.key is "optional" or "required").
 
-One 0600 file per source inside the data directory (`<source id>.key`, e.g. openalex.key, baidu_scholar.key); never
+One 0600 file per key inside the data directory (`<source id>.key`, e.g. openalex.key, baidu_scholar.key); never
 settings.json, never echoed, never part of a URL, a cache name, a log line or an error. An environment variable
 (SourceInfo.key_env) overrides the file. The file holds one `<KEY_ENV>=<key>` line, the format the OpenAlex key file has
 always had. Each key is sent only as an Authorization header to its own provider's https host (see the adapters).
+
+A source may share another's key (SourceInfo.key_shared_with): Baidu AI Search on xueshu.baidu.com (`baidu_web`) uses the Qianfan
+key of Baidu Scholar. Its key file, environment variable and format are then the other source's, and saving or clearing the key
+through either source changes the one key both use (App.save_source_key updates every adapter that shares it).
 """
 import os
 import re
@@ -18,14 +22,29 @@ def _info(source_id):
     return info if info is not None and info.key != "none" else None
 
 
+def owner_id(source_id):
+    """The id of the source that owns the key `source_id` uses (itself unless it shares another's); None for a source without a key."""
+    info = _info(source_id)
+    if info is None:
+        return None
+    return info.key_shared_with if info.key_shared_with and _info(info.key_shared_with) is not None else info.id
+
+
+def sharing(source_id):
+    """Every keyed source that uses the same key as `source_id` (including itself), in registry order."""
+    owner = owner_id(source_id)
+    return [i.id for i in source_adapters.all_infos() if i.key != "none" and owner_id(i.id) == owner] if owner else []
+
+
 def key_file(data_dir, source_id):
-    if _info(source_id) is None:
+    owner = owner_id(source_id)
+    if owner is None:
         raise ValueError("该数据源没有密钥")
-    return Path(data_dir) / f"{source_id}.key"
+    return Path(data_dir) / f"{owner}.key"
 
 
 def valid(source_id, value):
-    info = _info(source_id)
+    info = _info(owner_id(source_id))
     return info is not None and isinstance(value, str) and re.fullmatch(info.key_pattern, value) is not None
 
 
@@ -43,7 +62,7 @@ def _read(info, path):
 
 
 def load(data_dir, source_id):
-    info = _info(source_id)
+    info = _info(owner_id(source_id))
     if info is None:
         return None
     env = (os.environ.get(info.key_env) or "").strip()
@@ -52,7 +71,7 @@ def load(data_dir, source_id):
 
 def status(data_dir, source_id):
     """Configured state for the UI; never the key."""
-    info = _info(source_id)
+    info = _info(owner_id(source_id))
     if info is None:
         return {"configured": False, "source": None}
     env = (os.environ.get(info.key_env) or "").strip()
@@ -65,7 +84,7 @@ def status(data_dir, source_id):
 
 
 def save(data_dir, source_id, value):
-    info = _info(source_id)
+    info = _info(owner_id(source_id))
     if info is None:
         raise ValueError("该数据源没有密钥")
     value = value.strip() if isinstance(value, str) else value
@@ -96,7 +115,7 @@ def _leftovers(data_dir, source_id):
 
 
 def clear(data_dir, source_id):
-    info = _info(source_id)
+    info = _info(owner_id(source_id))
     if info is not None:
         for path in (key_file(data_dir, source_id), *_leftovers(data_dir, source_id)):
             try:

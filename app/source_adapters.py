@@ -1,12 +1,12 @@
 """Source adapter interface: what every paper source says about itself and how new code talks to it.
 
-A source is a place papers come from (arXiv and journals through OpenAlex, Baidu Scholar). `SourceInfo` constants are
+A source is a place papers come from (arXiv and journals through OpenAlex, Baidu Scholar, Baidu AI Search on xueshu.baidu.com). `SourceInfo` constants are
 the single truth about a source: whether it needs a key, where the key comes from, what it gives, what is sent to the
 provider and what the daily allowance is. docs/SOURCES.md is written from them and a unit test fails when the two
 disagree. Existing callers keep talking to `App.source` (the OpenAlex client); only new code uses the registry
 `App.adapters`.
 
-Adapter protocol (duck typed; `BaiduScholar` and `sources.OpenAlex` both follow it):
+Adapter protocol (duck typed; `BaiduScholar`, `BaiduWeb` and `sources.OpenAlex` follow it):
     info                                   the SourceInfo
     search(query, since=None, page=1, per_page=10) -> list of dicts in the shape db.Store.upsert_papers takes
     verify(api_key=None) -> {"ok": True}   one fresh request with a fixed public word; nothing is stored; a typed key
@@ -48,6 +48,7 @@ class SourceInfo:
     provider_quota: str         # the provider's own allowance, as text
     sends: str                  # what leaves the machine, as text
     claims_id: str              # id in harness/sources.json holding the checked external facts
+    key_shared_with: str = ""   # id of the source whose key (file, environment variable, format) this one uses; "" = its own
 
 
 ARXIV_INFO = SourceInfo(
@@ -71,7 +72,8 @@ OPENALEX_INFO = SourceInfo(
 def all_infos():
     """Every registered source, in the order the settings page lists them."""
     from .baidu_scholar import BAIDU_SCHOLAR_INFO
-    return (ARXIV_INFO, OPENALEX_INFO, BAIDU_SCHOLAR_INFO)
+    from .baidu_web import BAIDU_WEB_INFO
+    return (ARXIV_INFO, OPENALEX_INFO, BAIDU_SCHOLAR_INFO, BAIDU_WEB_INFO)
 
 
 def info(source_id):
@@ -175,7 +177,7 @@ def openalex_routes(paper):
     return routes
 
 
-PAGE_LABELS = {"baidu_scholar": "百度学术"}   # label of a source's own page; the reader chooses its words by kind
+PAGE_LABELS = {"baidu_scholar": "百度学术", "baidu_web": "百度学术"}   # label of a source's own page; the reader chooses its words by kind
 
 
 def _doi_url(value):

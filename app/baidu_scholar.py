@@ -182,6 +182,10 @@ def request_for(url, key):
 
 class BaiduScholar:
     info = BAIDU_SCHOLAR_INFO
+    # What a subclass (baidu_web.BaiduWeb: the same provider, key, quota mechanism and cache, another endpoint) changes.
+    label = LABEL
+    usage_prefix = USAGE_PREFIX
+    status_key = STATUS_KEY
 
     def __init__(self, cache_dir, db_path, api_key=None, daily_cap=DAILY_CAP, now=None):
         self.cache = Path(cache_dir)          # created on the first write, never for a source that is not used
@@ -205,13 +209,13 @@ class BaiduScholar:
             if wait > 0:
                 time.sleep(wait)
             _last_request[0] = time.monotonic()
-        return fetch_json(self._request(url, api_key=key), LABEL, secrets=(key, self.api_key), timeout=20)
+        return fetch_json(self._request(url, api_key=key), self.label, secrets=(key, self.api_key), timeout=20)
 
     # ---------------------------------------------------------------- interface
     def search(self, query, since=None, page=1, per_page=10):
         text = clean_query(query)
         if not text:
-            raise error_for(LABEL, "invalid_input")
+            raise error_for(self.label, "invalid_input")
         try:
             page_number = max(int(page), 1) - 1
         except (TypeError, ValueError):
@@ -224,7 +228,7 @@ class BaiduScholar:
         papers = self._read_cache(url)
         if papers is None:
             if not self.api_key:
-                raise error_for(LABEL, "auth_required")
+                raise error_for(self.label, "auth_required")
             try:
                 self._reserve()
                 payload = self._live(url, self.api_key)
@@ -244,7 +248,7 @@ class BaiduScholar:
         against the daily allowance (it spends one of the provider's), nothing is cached and no paper is stored."""
         key = api_key or self.api_key
         if not key:
-            raise error_for(LABEL, "auth_required")
+            raise error_for(self.label, "auth_required")
         self._reserve()
         parse_search(self._live(self._url(VERIFY_WORD, 0), key))
         return {"ok": True}
@@ -260,6 +264,10 @@ class BaiduScholar:
         return routes
 
     # ---------------------------------------------------------------- cache
+    @staticmethod
+    def _parse(payload):
+        return parse_search(payload)
+
     def _cache_path(self, url):
         return self.cache / f"{hashlib.sha256(url.encode()).hexdigest()[:16]}.json"
 
@@ -268,7 +276,7 @@ class BaiduScholar:
         try:
             if time.time() - path.stat().st_mtime > CACHE_TTL_SECONDS or path.stat().st_mtime > time.time() + 60:
                 return None
-            return parse_search(json.loads(path.read_text(encoding="utf-8")))
+            return self._parse(json.loads(path.read_text(encoding="utf-8")))
         except FileNotFoundError:
             return None
         except (OSError, ValueError, SourceError):
@@ -297,7 +305,7 @@ class BaiduScholar:
 
     def usage_today(self):
         with contextlib.closing(self._connect()) as conn:
-            row = conn.execute("SELECT value FROM settings WHERE key=?", (USAGE_PREFIX + self._day().isoformat(),)).fetchone()
+            row = conn.execute("SELECT value FROM settings WHERE key=?", (self.usage_prefix + self._day().isoformat(),)).fetchone()
         try:
             return int(row[0]) if row else 0
         except (TypeError, ValueError):
@@ -307,18 +315,18 @@ class BaiduScholar:
         """Count one call BEFORE it is made. One statement does the check and the increment, so two connections (even two
         processes) can never reserve more than the cap; no row changed means the cap is reached and no request is made."""
         day = self._day()
-        cutoff = USAGE_PREFIX + (day - datetime.timedelta(days=KEEP_DAYS)).isoformat()
+        cutoff = self.usage_prefix + (day - datetime.timedelta(days=KEEP_DAYS)).isoformat()
         try:
             with contextlib.closing(self._connect()) as conn, conn:
-                conn.execute("DELETE FROM settings WHERE key LIKE ? AND key < ?", (USAGE_PREFIX + "%", cutoff))
+                conn.execute("DELETE FROM settings WHERE key LIKE ? AND key < ?", (self.usage_prefix + "%", cutoff))
                 changed = conn.execute(
                     "INSERT INTO settings(key,value) VALUES(:k,'1') ON CONFLICT(key) DO UPDATE SET "
                     "value=CAST(value AS INTEGER)+1 WHERE CAST(value AS INTEGER) < :cap",
-                    {"k": USAGE_PREFIX + day.isoformat(), "cap": int(self.daily_cap)}).rowcount
+                    {"k": self.usage_prefix + day.isoformat(), "cap": int(self.daily_cap)}).rowcount
         except sqlite3.Error:
-            raise error_for(LABEL, "unavailable") from None      # no record of the count: do not call
+            raise error_for(self.label, "unavailable") from None      # no record of the count: do not call
         if changed < 1:
-            raise error_for(LABEL, "quota_exhausted")
+            raise error_for(self.label, "quota_exhausted")
 
     def _note_status(self, kind):
         """The last outcome of a live request: a kind and a time, nothing else."""
@@ -326,4 +334,4 @@ class BaiduScholar:
         with contextlib.suppress(sqlite3.Error):
             with contextlib.closing(self._connect()) as conn, conn:
                 conn.execute("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                             (STATUS_KEY, value))
+                             (self.status_key, value))

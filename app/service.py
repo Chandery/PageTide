@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import creation, eligibility, guidance_contract, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, paper_language, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
-from . import baidu_scholar, source_adapters, source_keys
+from . import baidu_scholar, baidu_web, source_adapters, source_keys
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -75,10 +75,13 @@ class App:
         self.store.init()
         self.source = OpenAlex(self.data / "cache", api_key=openalex_key.load(self.data))
         # Source adapters (app/source_adapters.py): only new code uses this registry; old callers keep using self.source.
-        # Nothing is created or sent for Baidu Scholar here: its folder appears on the first live answer.
+        # Nothing is created or sent for the Baidu sources here: their folders appear on the first live answer. Baidu AI Search
+        # (baidu_web) uses the Qianfan key of Baidu Scholar: source_keys.load gives both the same one.
         self.adapters = {"openalex": self.source,
                          "baidu_scholar": baidu_scholar.BaiduScholar(self.data / "cache" / "baidu_scholar", self.store.path,
-                                                                     api_key=source_keys.load(self.data, "baidu_scholar"))}
+                                                                     api_key=source_keys.load(self.data, "baidu_scholar")),
+                         "baidu_web": baidu_web.BaiduWeb(self.data / "cache" / "baidu_web", self.store.path,
+                                                         api_key=source_keys.load(self.data, "baidu_web"))}
         self.pdf_fetcher = pdf_fetch.shared_fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
@@ -1660,8 +1663,9 @@ class App:
         return info
 
     def _set_source_key(self, source_id, key):
-        self.adapters[source_id].api_key = key
-        self.store.conn.execute("DELETE FROM settings WHERE key=?", ("source_status:" + source_id,))   # a new key starts clean
+        for shared in source_keys.sharing(source_id):          # sources that use one key (the two Baidu rows) change together
+            self.adapters[shared].api_key = key
+            self.store.conn.execute("DELETE FROM settings WHERE key=?", ("source_status:" + shared,))   # a new key starts clean
         self.store.conn.commit()
 
     def save_source_key(self, source_id, value):
@@ -2163,21 +2167,42 @@ class App:
                 "reason": reason,
                 "tokens": tokens, "elapsed_ms": elapsed_ms, **_ai_receipt(result)}
 
-    def _baidu_search(self, text, since=None, per_page=10, languages=None, require_zh=False):
-        """(papers, problem kind) from Baidu Scholar for project creation. Asked only when the user switched Baidu on, a key is
-        saved and the text has Chinese characters (for candidates also only when 中文 is ticked). A failure is a kind for a short
-        status, never an exception: it must not break the page."""
-        adapter = self.adapters["baidu_scholar"]
-        if not has_cjk(text) or not user_settings.baidu_scholar(self.data) or not adapter.api_key:
+    def _baidu_search(self, text, since=None, per_page=10, languages=None, require_zh=False, web_per_page=None):
+        """(papers, problem kind) from the Baidu sources for project creation: Baidu Scholar and Baidu AI Search restricted to
+        xueshu.baidu.com (`baidu_web`), each asked only when its own switch is on, the shared key is saved and the text has Chinese
+        characters (for candidates also only when 中文 is ticked). Papers found by both are one (same key or same title). A failure
+        is a kind for a short status, never an exception: it must not break the page, and it is reported only when every
+        source that was asked failed (a working source makes the other's trouble noise)."""
+        if not has_cjk(text):
             return [], None
         if require_zh and "zh" not in guidance_contract.language_codes(languages):
             return [], None
-        try:
-            return adapter.search(text, since=since, page=1, per_page=per_page), None
-        except SourceError as exc:
-            return [], exc.kind
-        except Exception:
-            return [], "unavailable"
+        papers, problems, answered, known = [], [], 0, {}
+        for source_id, switched_on, size in (("baidu_scholar", user_settings.baidu_scholar(self.data), per_page),
+                                             ("baidu_web", user_settings.baidu_web(self.data), web_per_page or per_page)):
+            adapter = self.adapters[source_id]
+            if not switched_on or not adapter.api_key:
+                continue
+            try:
+                found = adapter.search(text, since=since, page=1, per_page=size)
+            except SourceError as exc:
+                problems.append(exc.kind)
+                continue
+            except Exception:
+                problems.append("unavailable")
+                continue
+            answered += 1
+            earlier = dict(known)              # a paper an EARLIER source already gave is not repeated, but gains this source's page
+            for paper in found:
+                marks = (paper["key"], "title:" + baidu_web.title_mark(paper.get("title")))
+                twin = next((earlier[m] for m in marks if m in earlier), None)
+                if twin is not None:
+                    if paper.get("oa") and twin is not paper:
+                        twin["oa"] = merge_oa(twin.get("oa"), paper["oa"])
+                    continue
+                papers.append(paper)
+                known.update({m: paper for m in marks})
+        return papers, (None if answered or not problems else problems[0])
 
     def guidance_search(self, session_id, query, all_years=False, languages=None):
         """Candidate papers for ONE search query, merged into the session's candidate list.
@@ -2198,7 +2223,7 @@ class App:
         except Exception as exc:
             found, error = [], {"kind": getattr(exc, "kind", "error"), "message": str(exc)[-200:]}
         baidu_papers, baidu_problem = self._baidu_search(query, since=None if all_years else window_start(CREATION_WINDOW_YEARS),
-                                                         languages=languages, require_zh=True)
+                                                         languages=languages, require_zh=True, web_per_page=12)
         known = {p["key"]: p for p in draft["candidates"] if isinstance(p, dict) and p.get("key")}
         touched = {}          # key -> whether this call found it first; one item per paper, whichever source found it
         for paper in [*found, *baidu_papers]:
@@ -2944,6 +2969,50 @@ class App:
             self._enrich_from_openalex(fresh, errors)
         return list(field) + fresh
 
+    BAIDU_WEB_PER_PAGE = 20     # top_k of the daily feed's web search (12 for creation candidates, 8 for seeds)
+
+    def _add_baidu_web_candidates(self, project_id, field, from_date, errors, source_policy):
+        """Papers from Baidu AI Search restricted to xueshu.baidu.com (`baidu_web`) for the daily feed, added to `field`.
+
+        Same conditions as Baidu Scholar's part: the web switch is on, the (shared) key is configured, the project accepts Chinese
+        papers and has Chinese keywords (at most BAIDU_KEYWORDS, only the keyword text is sent). One request per keyword, no
+        paging; a search_recency_filter only when the owner chose a time window (otherwise recency is a ranking weight). A paper
+        another source already has (same key or same title) is not added again but gains this source's page. An error goes into
+        `errors` (source baidu_web) and a 4xx-type or network error ends the web part; Baidu Scholar's trouble never stops it."""
+        adapter = self.adapters["baidu_web"]
+        if not source_policy.baidu_web or not adapter.api_key:
+            return field
+        policy = self.projects.get_project(project_id)["language_policy"]
+        if policy["status"] != "ready" or "zh" not in policy["allowed_languages"]:
+            return field
+        keywords = [k for k in self._project_keywords(project_id) if has_cjk(k)][:self.BAIDU_KEYWORDS]
+        if not keywords:
+            return field
+        recency = user_settings.recency_filter(self.data)
+        known = {}
+        for paper in field:
+            known.setdefault(paper["key"], paper)
+            known.setdefault("title:" + baidu_web.title_mark(paper.get("title")), paper)
+        fresh = []
+        for keyword in keywords:
+            try:
+                found = adapter.search(keyword, since=None, page=1, per_page=self.BAIDU_WEB_PER_PAGE, recency=recency)
+            except SourceError as exc:
+                errors.append({"query": keyword, "kind": exc.kind, "error": str(exc)[-120:], "source": "baidu_web"})
+                if exc.kind in self.BAIDU_STOP:
+                    break
+                continue
+            for paper in self._not_older_than(found, from_date):
+                marks = (paper["key"], "title:" + baidu_web.title_mark(paper.get("title")))
+                twin = next((known[m] for m in marks if m in known), None)
+                if twin is not None:
+                    if paper.get("oa"):
+                        twin["oa"] = merge_oa(twin.get("oa"), paper["oa"])
+                    continue
+                fresh.append(paper)
+                known.update({m: paper for m in marks})
+        return list(field) + fresh
+
     @staticmethod
     def _not_older_than(papers, from_date):
         """Papers whose year is not before the year of `from_date`; a paper with an unknown year stays."""
@@ -2989,7 +3058,7 @@ class App:
         errors = []
         source_policy = user_settings.source_policy(self.data)
         arxiv, general = source_policy.arxiv, source_policy.general
-        if not arxiv and not general and not source_policy.baidu:
+        if not arxiv and not general and not source_policy.baidu and not source_policy.baidu_web:
             return {"fetched":0,"added":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
         openalex_on = arxiv or general
         source_options = {} if arxiv and general else {"source_arxiv":arxiv,"source_openalex":general}
@@ -3024,6 +3093,7 @@ class App:
                 field, errors = [], errors + [{"query": search, "error": str(exc)[-120:]}]
         if not search:
             field = self._add_baidu_candidates(project_id, field, from_date, errors, source_policy)
+            field = self._add_baidu_web_candidates(project_id, field, from_date, errors, source_policy)
         papers = list(field)
         if include_distractors and openalex_on:
             extra, distractor_errors = self.source.distractors(from_date=from_date, per_query=distractor_per_query)

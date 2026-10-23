@@ -60,7 +60,7 @@ def validate(values):
             v=values[key]
             if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or not low<=v<=high or (integer and int(v)!=v):
                 raise ValueError(f'{key} must be between {low} and {high}')
-    for key in ('sourceArxiv','sourceOpenAlex','sourceBaiduScholar','baiduScholarConfirmed','routeBeta'):
+    for key in ('sourceArxiv','sourceOpenAlex','sourceBaiduScholar','sourceBaiduWeb','baiduScholarConfirmed','routeBeta'):
         if key in values and not isinstance(values[key],bool):raise ValueError(f'{key} must be boolean')
     for key,allowed in {'theme':('light','dark','auto'),'language':('zh-CN','en-US'),'timePreference':('recent','month','all'),'updateFrequency':('daily','weekly','manual'),'apiProvider':('deepseek',)}.items():
         if key in values and values[key] not in allowed:raise ValueError(f'Invalid {key}')
@@ -72,33 +72,55 @@ def baidu_scholar(data_dir):
     return read(data_dir).get('sourceBaiduScholar') is True
 
 
+def baidu_web(data_dir):
+    """Baidu AI Search on xueshu.baidu.com (same data as Baidu Scholar, same Qianfan key) is off until the user switches it on."""
+    return read(data_dir).get('sourceBaiduWeb') is True
+
+
+def recency_filter(data_dir):
+    """The search_recency_filter of the Baidu web search: only a time window the owner chose ("recent" = 7 days = week, "month");
+    "all", no choice or anything else means no filter (recency is then a ranking weight, never a cut-off)."""
+    return {'recent':'week','month':'month'}.get(read(data_dir).get('timePreference'))
+
+
 class SourcePolicy:
     """Which sources the user has switched on, and the one rule that says whether a paper may be shown or recommended."""
 
-    def __init__(self,arxiv,general,baidu):
-        self.arxiv,self.general,self.baidu=arxiv,general,baidu
+    def __init__(self,arxiv,general,baidu,baidu_web=False):
+        self.arxiv,self.general,self.baidu,self.baidu_web=arxiv,general,baidu,baidu_web
 
     @staticmethod
     def is_arxiv(paper):
         return bool(paper.get('arxiv_id')) or 'arxiv' in str(paper.get('source') or '').casefold()
 
     @staticmethod
-    def from_baidu(paper):
-        """Whether Baidu Scholar reported the paper (its key form, or the sources listed in its open-access facts)."""
+    def baidu_reporters(paper):
+        """Which Baidu sources reported the paper: the sources listed in its open-access facts (`via`); a `baidu:` key with none
+        listed is the older Baidu Scholar form. Empty when Baidu did not report it."""
         from .source_adapters import paper_oa
-        return str(paper.get('key') or '').startswith('baidu:') or 'baidu_scholar' in (paper_oa(paper).get('via') or [])
+        via=paper_oa(paper).get('via') or []
+        found={name for name in ('baidu_scholar','baidu_web') if name in via}
+        if not found and str(paper.get('key') or '').startswith('baidu:'):found={'baidu_scholar'}
+        return found
+
+    @staticmethod
+    def from_baidu(paper):
+        """Whether a Baidu source reported the paper."""
+        return bool(SourcePolicy.baidu_reporters(paper))
 
     def allows(self,paper):
-        """arXiv papers follow the arXiv switch; a paper only Baidu reported follows the Baidu switch; one both OpenAlex and
-        Baidu reported is allowed while either of its sources is on; the rest follow the journals-and-conferences switch."""
+        """arXiv papers follow the arXiv switch; a paper only Baidu reported follows the switch of the Baidu source(s) that reported
+        it (either, when both did); one both OpenAlex and Baidu reported is allowed while either of its sources is on; the rest
+        follow the journals-and-conferences switch."""
         if self.is_arxiv(paper):return self.arxiv
-        if not self.from_baidu(paper):return self.general
-        return bool(paper.get('openalex_id') and self.general) or self.baidu
+        reporters=self.baidu_reporters(paper)
+        if not reporters:return self.general
+        return bool(paper.get('openalex_id') and self.general) or ('baidu_scholar' in reporters and self.baidu) or ('baidu_web' in reporters and self.baidu_web)
 
 
 def source_policy(data_dir):
     arxiv,general=sources(data_dir)
-    return SourcePolicy(arxiv,general,baidu_scholar(data_dir))
+    return SourcePolicy(arxiv,general,baidu_scholar(data_dir),baidu_web(data_dir))
 
 
 def source_allowed(data_dir,paper):

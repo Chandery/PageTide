@@ -232,6 +232,16 @@
           <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
         </div>
       </div>
+      <div class="field source-row">
+        <label class="inline">
+          <input type="checkbox" id="sourceBaiduWeb">
+          百度学术（百度搜索）
+        </label>
+        <div class="source-key">
+          <span id="baiduWebStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
+          <button type="button" id="testBaiduWebBtn" class="ghost">测试</button>
+        </div>
+      </div>
       <div class="field">
         <label for="updateFrequency">更新频率</label>
         <select id="updateFrequency">
@@ -290,10 +300,12 @@
     const SOURCE_ROWS = {
       openalex: {key:'#openalexKey', status:'#openalexKeyStatus', test:'#testOpenalexBtn', clear:'#clearOpenalexKeyBtn', link:'#openalexKeyLink'},
       baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink'},
+      // Baidu AI Search on xueshu.baidu.com uses the same Qianfan key: the field above is its field, so it has no key, clear or link of its own.
+      baidu_web: {key:'#baiduScholarKey', status:'#baiduWebStatus', test:'#testBaiduWebBtn', shared:true},
     };
     const SOURCE_WORDS = {ok:'可用', auth_required:'密钥无效', quota_exhausted:'今日额度已用完', network_error:'无法连接',
       unavailable:'服务暂不可用', bad_response:'返回无法识别', invalid_input:'请求无效', not_found:'没有结果'};
-    const sourceTest = {openalex:{busy:false, epoch:0}, baidu_scholar:{busy:false, epoch:0}};
+    const sourceTest = {openalex:{busy:false, epoch:0}, baidu_scholar:{busy:false, epoch:0}, baidu_web:{busy:false, epoch:0}};
     let sourceInfo = {};
     let baiduConfirmed = false;
 
@@ -326,9 +338,11 @@
         const row = SOURCE_ROWS[id], info = sourceInfo[id];
         if (!info) continue;
         renderSourceRow(id);
-        $(row.link).href = info.key_url || '#';
-        $(row.link).hidden = !info.key_url;
-        $(row.clear).hidden = !info.configured;
+        if (row.link) {
+          $(row.link).href = info.key_url || '#';
+          $(row.link).hidden = !info.key_url;
+        }
+        if (row.clear) $(row.clear).hidden = !info.configured;
       }
     }
 
@@ -448,6 +462,7 @@
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
       $('#sourceBaiduScholar').checked = settings.sourceBaiduScholar === true;      // off until the user switches it on
+      $('#sourceBaiduWeb').checked = settings.sourceBaiduWeb === true;
       baiduConfirmed = settings.baiduScholarConfirmed === true;
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
       $('#timePreference').value  = settings.timePreference  || 'all';
@@ -518,6 +533,7 @@
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
         sourceBaiduScholar: $('#sourceBaiduScholar').checked && baiduConfirmed,
+        sourceBaiduWeb: $('#sourceBaiduWeb').checked && baiduConfirmed,
         baiduScholarConfirmed: baiduConfirmed,
         updateFrequency: $('#updateFrequency').value,
         timePreference:  $('#timePreference').value,
@@ -527,6 +543,7 @@
         const key = $('#apiKey').value.trim();
         if (key) await postGateway({api_key: key});
         for (const id of Object.keys(SOURCE_ROWS)) {
+          if (SOURCE_ROWS[id].shared) continue;          // its key is saved once, through the row that owns the field
           const value = $(SOURCE_ROWS[id].key).value.trim();
           if (value) await postGateway({source_key: {id, value}});
         }
@@ -549,7 +566,13 @@
     for (const id of Object.keys(SOURCE_ROWS)) {
       const row = SOURCE_ROWS[id];
       $(row.test).onclick = () => testSource(id);
-      $(row.key).oninput = () => { sourceTest[id].epoch++; sourceTest[id].shownBusy = false; renderSourceRow(id); };
+      $(row.key).oninput = () => {          // every row that uses this field is invalidated by an edit of it
+        for (const other of Object.keys(SOURCE_ROWS)) {
+          if (SOURCE_ROWS[other].key !== row.key) continue;
+          sourceTest[other].epoch++; sourceTest[other].shownBusy = false; renderSourceRow(other);
+        }
+      };
+      if (!row.clear) continue;
       $(row.clear).onclick = async () => {
         const button = $(row.clear);
         if (button.disabled) return;
@@ -565,6 +588,15 @@
       const box = $('#sourceBaiduScholar');
       if (!box.checked || baiduConfirmed) return;
       if (await window.PDHDialogs.confirm('开启后，含中文的关键词会发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
+      else box.checked = false;
+    };
+
+    // The same question for Baidu AI Search on xueshu.baidu.com: the same keywords go to Baidu with the same key, so one answer
+    // (baiduConfirmed) serves both Baidu rows.
+    $('#sourceBaiduWeb').onchange = async () => {
+      const box = $('#sourceBaiduWeb');
+      if (!box.checked || baiduConfirmed) return;
+      if (await window.PDHDialogs.confirm('开启后，含中文的关键词会通过百度搜索发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
       else box.checked = false;
     };
 

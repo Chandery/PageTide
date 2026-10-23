@@ -240,7 +240,7 @@ class ServiceTests(ServiceCase):
     def test_status_payload_has_no_secret_and_reports_the_state_in_words_of_kinds(self):
         app = self.make_app()
         status = app.sources_status()
-        self.assertEqual(set(status), {"openalex", "baidu_scholar"})
+        self.assertEqual(set(status), {"openalex", "baidu_scholar", "baidu_web"})
         self.assertEqual(status["baidu_scholar"], {"needs_key": True, "key": "required", "configured": False, "status_kind": None,
                                                    "used_today": 0, "daily_cap": 40, "key_url": status["baidu_scholar"]["key_url"]})
         self.assertTrue(status["baidu_scholar"]["key_url"].startswith("https://"))

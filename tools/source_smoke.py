@@ -3,8 +3,13 @@
 
     python3 tools/source_smoke.py baidu_scholar --query 知识图谱            # the saved key (or BAIDU_SCHOLAR_API_KEY)
     python3 tools/source_smoke.py baidu_scholar --query 知识图谱 --wrong-key  # how a refused key answers
+    python3 tools/source_smoke.py baidu_web --query 知识图谱                  # Baidu AI Search restricted to xueshu.baidu.com (POST)
 
-It prints only: HTTP status, the response code, the number of items, hasMore, the field names of the items, whether DOIs
+`baidu_web` uses the same Qianfan key (BAIDU_SCHOLAR_API_KEY or baidu_scholar.key). It prints only: HTTP status, the top-level
+field names, the number of references, their field names, how many the app's parser reads with authors / an abstract / keywords,
+how many patents it leaves out, one date sample and the key's format; never paper text.
+
+For `baidu_scholar` it prints only: HTTP status, the response code, the number of items, hasMore, the field names of the items, whether DOIs
 and https links are present, the types of publishYear, whether aiAbstract comes back by default, what the app's own parser
 makes of it, and the key's format (segment lengths and character classes, never the key). The raw answer is saved under
 .local/source-smoke/ (git-ignored; it may contain paper text and an AI summary) and never committed.
@@ -26,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app import baidu_scholar, source_keys  # noqa: E402
+from app import baidu_scholar, baidu_web, source_keys  # noqa: E402
 from app.sources import SourceError  # noqa: E402
 
 WRONG_KEY = "wrong-key-for-smoke-test-0000000000"
@@ -95,9 +100,39 @@ def summarise(status, payload, key=None):
     return lines
 
 
+def summarise_web(status, payload, key=None):
+    """Lines describing the answer of the web search. Names and counts only, never paper text."""
+    lines = [f"HTTP {status}"]
+    if not isinstance(payload, dict):
+        return lines + ["body is not a JSON object"]
+    lines.append(f"code: {_clean(payload.get('code'), key, 40)!r}, message: {_clean(payload.get('message'), key)!r}")
+    lines.append("top-level fields: " + ", ".join(sorted(map(str, payload))))
+    refs = payload.get("references")
+    if isinstance(refs, list):
+        objects = [r for r in refs if isinstance(r, dict)]
+        lines.append(f"references: {len(refs)}")
+        lines.append("reference fields: " + ", ".join(sorted({str(k) for r in objects for k in r})))
+        urls = [str(r.get("url") or "") for r in objects]
+        lines.append(f"xueshu https page: {sum(baidu_web._page_url(u, upgrade=False) is not None for u in urls)}, other or none: "
+                     f"{sum(baidu_web._page_url(u, upgrade=False) is None for u in urls)}")
+        parsed = [baidu_web.parse_content(r.get("content"), r.get("title") or "") for r in objects]
+        kept = [p for p in parsed if not p["patent"]]
+        lines.append(f"with authors: {sum(bool(p['authors']) for p in kept)}, with abstract: {sum(bool(p['abstract']) for p in kept)}, "
+                     f"with keywords: {sum(bool(p['keywords']) for p in kept)}, patents left out: {len(parsed) - len(kept)}")
+        dates = [r.get("date") for r in objects if isinstance(r.get("date"), str) and r.get("date")]
+        lines.append(f"date sample: {_clean(dates[0], key, 30) if dates else 'none'}")
+    else:
+        lines.append(f"references: {type(refs).__name__} (not a list)")
+    try:
+        lines.append(f"parsed by app: {len(baidu_web.parse_search(payload))}")
+    except SourceError as exc:
+        lines.append(f"kind from the app's parser: {exc.kind}")
+    return lines
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("source", choices=["baidu_scholar"])
+    parser.add_argument("source", choices=["baidu_scholar", "baidu_web"])
     parser.add_argument("--query", default=baidu_scholar.VERIFY_WORD, help="public search word (default %(default)s)")
     parser.add_argument("--wrong-key", action="store_true", help="send a fixed dummy key to see how a refused key answers")
     parser.add_argument("--data-dir", help="where baidu_scholar.key lives (default: PAPERDIGHELPER_DATA or the macOS app folder)")
@@ -106,16 +141,18 @@ def main(argv=None):
     data_dir = Path(args.data_dir) if args.data_dir else default_data_dir()
     found = (WRONG_KEY, "fixed dummy") if args.wrong_key else find_key(data_dir)
     if not found:
-        print(f"no key: set {ENV} or save one in Settings (looked in {data_dir / 'baidu_scholar.key'}). Nothing was sent.")
+        print(f"no key: set {ENV} or save one in Settings (looked in {data_dir / 'baidu_scholar.key'}, the key both Baidu sources use). Nothing was sent.")
         return 2
     key, where = found
-    query = baidu_scholar.clean_query(args.query)
-    url = baidu_scholar.BaiduScholar._url(query, 0)
-    print(f"source: baidu_scholar   query: {query}   key from: {where}")
+    web = args.source == "baidu_web"
+    query = baidu_web.clean_query(args.query) if web else baidu_scholar.clean_query(args.query)
+    request = (baidu_web.request_for(baidu_web.request_body(query, 10), key) if web
+               else baidu_scholar.request_for(baidu_scholar.BaiduScholar._url(query, 0), key))
+    print(f"source: {args.source}   query: {query}   key from: {where}")
     print("key format: " + json.dumps(describe_key(key), ensure_ascii=False))
     status, body = None, b""
     try:
-        with urllib.request.urlopen(baidu_scholar.request_for(url, key), timeout=20) as response:
+        with urllib.request.urlopen(request, timeout=20) as response:
             status, body = getattr(response, "status", 200), response.read(MAX_BODY)
     except urllib.error.HTTPError as exc:
         status = exc.code
@@ -129,16 +166,18 @@ def main(argv=None):
     raw_dir = Path(args.raw_dir) if args.raw_dir else ROOT / ".local" / "source-smoke"
     raw_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    saved = raw_dir / f"baidu_scholar-{stamp}-{'wrongkey' if args.wrong_key else 'ok'}.json"
+    saved = raw_dir / f"{args.source}-{stamp}-{'wrongkey' if args.wrong_key else 'ok'}.json"
     text = body.decode("utf-8", "replace").replace(key, "***")
     saved.write_text(text, encoding="utf-8")
     try:
         payload = json.loads(text)
     except ValueError:
         payload = None
-    for line in summarise(status, payload, key):
+    for line in (summarise_web if web else summarise)(status, payload, key):
         print(line)
     print(f"raw answer saved: {saved}")
+    if web:
+        return 0 if status == 200 and isinstance(payload, dict) and isinstance(payload.get("references"), list) else 1
     return 0 if status == 200 and isinstance(payload, dict) and str(payload.get("code")) == "0" else 1
 
 

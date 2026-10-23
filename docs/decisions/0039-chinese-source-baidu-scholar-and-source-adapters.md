@@ -56,3 +56,20 @@
 ## 不变
 
 不加后端、遥测或云同步；所有模型调用仍走 Gateway，本功能不调用任何模型，核心路径零模型 token；原件、来源引用不改；不从“没点”推断不喜欢。
+
+## 增补（2026-10-23）：百度 AI 搜索限定百度学术站点（`baidu_web`），第二个百度来源
+
+**为什么**：2026-10-23 的真实检查（[证据](../evidence/2026-10-23-baidu-live-checks.txt)）表明，百度学术工具（`GET /v2/tools/baidu_scholar/search`）对 owner 的账号返回“404 page not found”，文档里的路径与一条编造的路径表现相同；同一把千帆密钥调用百度 AI 搜索（`POST https://qianfan.baidubce.com/v2/ai_search/web_search`）返回 HTTP 200，加上 `search_filter.match.site ["xueshu.baidu.com"]` 后返回了近期的中文论文。owner 原话：“先加上百度搜索限定百度学术的通道，试一下这个吧，看看可以不”。
+
+**数据外发与批准**：与上面已批准的百度学术完全相同的数据范围，批准沿用 owner 2026-10-23 的原话——“中文关键词发给百度”（含汉字的项目关键词、创建项目的检索式、键入的种子标题，用 owner 自己的千帆密钥）、“每天最多 40 次”、“百度页面算“需要登录”的来源”，范围“一次全接”。没有新增任何外发内容；只是多一个端点。`owner_approved` 仍是 false，不由 agent 自填。**待办（owner）**：百度 AI 搜索免费额度是每月 1500 次，之后按量计费；“限定站点”被文档标为付费功能、目前限时免费——请保持计费关闭，或在千帆控制台确认超额的处理。
+
+**决定**：
+
+1. 新适配器 `app/baidu_web.py`（`SourceInfo.id = "baidu_web"`，标签“百度学术（百度搜索）”）。它**共用百度学术的千帆密钥**：`SourceInfo.key_shared_with = "baidu_scholar"`，`source_keys` 把它的密钥文件、环境变量（`BAIDU_SCHOLAR_API_KEY`）和格式都解析到百度学术那一把；设置页只有一个密钥框，新的一行只有开关（默认关闭）、一个状态词和测试按钮；保存或清除密钥会同时更新两个适配器。第一次打开开关时用同一个一次性确认（`baiduScholarConfirmed`，文案点明含中文关键词会通过百度搜索发给百度学术）。
+2. 请求只含 `messages`（单轮，查询最长 72 个单位，汉字算 2）、`search_source "baidu_search_v2"`、`resource_type_filter [{type: web, top_k}]` 和 `search_filter.match.site ["xueshu.baidu.com"]`；只有 owner 选了时间范围（设置里“时间偏好”为最近/一个月）时才加 `search_recency_filter`（week/month），“全部”或没选就是没有过滤——否则时效只是排序权重。top_k：每日推送 20、创建候选 12、种子 8。不请求网页以外的任何资源，不发 `edition`，不用 `range` 时间过滤。密钥仍只作为不可重定向的请求头发给 `qianfan.baidubce.com`（https）。
+3. 解析：`content` 形如“题名 来自 站点  喜欢N 阅读量: N 作者: … 摘要: … 关键词: … 年份: …”，取作者、摘要、关键词，去掉题名和计数噪声；没有 `摘要:` 标记时，剩余文字至少 40 个字符才当摘要。作者能读出来，但 `papers` 表没有放作者的地方，本变更不加迁移，所以不存。专利（有“申请(专利)号”“发明人”）不是论文，略去。键是 `baidu:<paperid>`（取自页面链接，与百度学术的无 DOI 键同一命名空间），`published` 取 `date` 的日期部分（**含义未验证**），没有 DOI、期刊，不报告语言，页面链接只收 https 的 `xueshu.baidu.com`（复用同一个链接校验，含反斜杠、`@`、百分号、端口一律拒绝）。`oa.via` 总是 `["baidu_web"]`（没有页面时 `pages` 为空），这样来源开关始终管得到这篇论文。
+4. 额度与缓存：自己的每日计数 `source_usage:baidu_web:<日期>`（北京时间，上限 40），与百度学术分别计数、请求前原子预留、失败也计数、不重试；24 小时缓存按请求内容（含站点、top_k、时间范围）的哈希命名，缓存里每条只留页面、题名、日期和内容，不留 `markdown_content`、`snippet` 等。状态记在 `source_status:baidu_web`。
+5. 接线：和百度学术相同的三处（中文项目且有含汉字关键词的每日推送；勾选中文的创建候选；键入的种子标题），每处只在 `sourceBaiduWeb` 打开且共用密钥已配置时才问。两个百度来源都开时两个都问，按 `baidu:` 键和标题（忽略大小写、空格和标点）去重，后到的那篇只给先到的补上自己的页面；百度学术“服务暂不可用”（现在对 owner 的账号就是这样）不会阻止网页搜索，反之亦然。创建/种子页的那一句状态（`baidu: {kind}`）只在被问到的百度来源**全部**失败时出现。来源开关：`SourcePolicy` 按 `oa.via` 判断哪个百度来源报告了论文，只由网页搜索报告的论文只受 `sourceBaiduWeb` 管，两个都报告过的任一开着即可，没有 `via` 的旧 `baidu:` 键仍算百度学术。
+6. 万方（`ai.wfdata.com`）：owner 订阅后发现收费、试用只有十天，已评估且**不采用**；探测记录在 `harness/sources.json` 的 `CH-WANFANG-OPEN` 和 [SOURCES](../SOURCES.md)，没有适配器。
+
+**未验证项（保持可见）**：`date` 的含义、错误响应的形状（非 200 按 HTTP 状态分类，200 且有 `code`/`message` 而没有 `references` 的按信息文字分类）、超额是否计费、站点限定是否会收费、日界时区、72 个单位的精确计法、百度 AI 搜索一次最多返回几条有效论文。`tools/source_smoke.py baidu_web` 用真实密钥跑一次即可核对。

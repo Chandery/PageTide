@@ -1,0 +1,55 @@
+Baidu AI Search restricted to xueshu.baidu.com (source baidu_web), 2026-10-23. Worktree baidu-web on main 582ce17.
+No network access, no real key, no real database, no .app build in this unit. The only real data is tests/fixtures/baidu_web/success.json:
+a trimmed copy (5 of 7 references) of the real answer saved by the coordinator on 2026-10-23 (it contains no key).
+
+Red first (new/changed tests added, no production code yet):
+$ python3 -m unittest tests.test_baidu_web tests.test_baidu_web_wiring tests.test_source_adapters tests.test_source_keys tests.test_source_smoke
+  Ran 245 tests ... FAILED (failures=27, errors=99)      -> 126 red
+    tests/test_baidu_web.py          73 tests: 73 errors (module app.baidu_web does not exist)
+    tests/test_baidu_web_wiring.py   57 tests: 25 failures + 21 errors = 46 red (the other 11 are negative cases such as "switch off -> no call", which pass before the code exists)
+    tests/test_source_adapters.py    1 failure (the registered-sources test, now four sources)
+    tests/test_source_keys.py        1 failure (sources_status now has baidu_web)
+    tests/test_source_smoke.py       5 errors (summarise_web / the baidu_web argument do not exist)
+$ node --test tests/test_source_settings_ui.cjs
+  # tests 28  # pass 17  # fail 11                         -> 11 red (12 new tests, 1 of them passes without the code)
+Then two tests were added to tests/test_baidu_web.py while implementing (a page-less paper still says which source reported it; title comparison) and one assertion
+to the both-sources creation test.
+
+Existing tests changed (2):
+  tests/test_source_adapters.py  test_registered_sources_are_the_three_... -> ..._four_...: all_infos() now ends with baidu_web.
+  tests/test_source_keys.py      test_status_payload_...: set(sources_status()) now includes "baidu_web".
+No other existing test was edited. No migration, no model call, no network call in any test.
+
+Independent review: NOT done (the implementing agent only). Critical class: needed before release.
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+exit 0
+
+$ python3 scripts/harness.py check
+WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY
+PASS repository checks only; app gates/real billing are not implied
+exit 0
+
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 2712 tests in 98.038s
+
+OK
+exit 0
+
+$ node --test tests/*.cjs
+# tests 594
+# pass 594
+# fail 0
+# cancelled 0
+# skipped 0
+exit 0
+
+$ python3 scripts/i18n_extract.py
+# 0 of 1157
+exit 0
+
+$ python3 scripts/harness.py review changes/2026-10-23-baidu-web.json   (run before the commit: it covers the whole uncommitted change set)
+PASS repository checks only; app gates/real billing are not implied
+exit 0

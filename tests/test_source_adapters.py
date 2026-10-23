@@ -94,9 +94,9 @@ class AdapterCase(unittest.TestCase):
 
 
 class SourceInfoTests(AdapterCase):
-    def test_registered_sources_are_the_three_the_settings_page_shows(self):
+    def test_registered_sources_are_the_four_the_settings_page_shows(self):
         ids = [info.id for info in self.source_adapters.all_infos()]
-        self.assertEqual(ids, ["arxiv", "openalex", "baidu_scholar"])
+        self.assertEqual(ids, ["arxiv", "openalex", "baidu_scholar", "baidu_web"])
 
     def test_every_source_info_is_complete(self):
         known = {s["id"] for s in json.loads((ROOT / "harness" / "sources.json").read_text())["sources"]}

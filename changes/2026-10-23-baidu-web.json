@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-baidu-web",
+  "class": "critical",
+  "summary": "A second Baidu source, baidu_web: Baidu AI Search (POST /v2/ai_search/web_search) restricted to xueshu.baidu.com, because the Baidu Scholar tool answers 404 for the owner's account. It shares the Qianfan key of Baidu Scholar (SourceInfo.key_shared_with; one key file, one field in Settings) and has its own switch, daily counter (cap 40), 24 h cache and status. Wired into the daily feed (Chinese projects with Chinese keywords), project-creation candidates and typed seed titles; papers both Baidu sources find are deduplicated by key and title; a Baidu Scholar failure never stops the web search. The parser is built on a trimmed real answer. Also records the Wanfang evaluation (paid, 10-day trial: considered, not adopted; no adapter).",
+  "tasks": [
+    "DATA-01",
+    "PROJECT-01",
+    "PDF-01"
+  ],
+  "requirements": [
+    "R-DISCOVERY",
+    "R-LOCAL",
+    "R-PDF"
+  ],
+  "files": [
+    "app/baidu_scholar.py",
+    "app/baidu_web.py",
+    "app/service.py",
+    "app/source_adapters.py",
+    "app/source_keys.py",
+    "app/sources.py",
+    "app/static/i18n/en-US.json",
+    "app/static/settings.html",
+    "app/user_settings.py",
+    "changes/2026-10-23-baidu-web.json",
+    "docs/ARCHITECTURE.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/SOURCES.md",
+    "docs/decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md",
+    "docs/evidence/2026-10-23-baidu-web-checks.txt",
+    "harness/sources.json",
+    "tests/fixtures/baidu_web/empty.json",
+    "tests/fixtures/baidu_web/error_auth.json",
+    "tests/fixtures/baidu_web/error_quota.json",
+    "tests/fixtures/baidu_web/references_not_list.json",
+    "tests/fixtures/baidu_web/success.json",
+    "tests/test_baidu_web.py",
+    "tests/test_baidu_web_wiring.py",
+    "tests/test_source_adapters.py",
+    "tests/test_source_keys.py",
+    "tests/test_source_settings_ui.cjs",
+    "tests/test_source_smoke.py",
+    "tools/source_smoke.py"
+  ],
+  "scope_note": "Worktree baidu-web on main 582ce17. Critical: a new outbound request and provider adapter, a shared secret, new settings. Data sharing is the same as the already-approved Baidu Scholar source (owner approvals quoted in ADR 0039 and its 2026-10-23 addendum; owner_approved stays false). No migration, no model call, no network call in any test; no real database or key touched.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "No model call or token. At most one extra Baidu request per Chinese keyword/query when the web switch is on and the shared key is saved (up to 3 per project refresh, one per creation phrase, one per typed seed search), counted in its own local cap of 40 a day and answered from a 24 h cache when repeated. Baidu's own allowance is 1500 free calls a month; billing after that is unverified (owner to-do).",
+    "before": "only Baidu Scholar (404 for the owner's account) could add Chinese papers",
+    "after": "same model cost (zero); one extra Baidu request per Chinese search when the web switch is on",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-web-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-web-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-baidu-web-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "594 Node tests (582 + 12 new)"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "# 0 of 1157 (2 new English strings added)"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent (Sonnet); not independent",
+      "evidence": "docs/evidence/2026-10-23-baidu-web-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "The error response shape of the Baidu AI Search, the meaning of its `date` field, billing after the 1500 free calls a month and whether the site filter becomes a paid feature are UNVERIFIED (owner to-do: keep billing off or confirm in the Qianfan console).",
+    "Only one real answer (7 references for one query, 2026-10-23) was available: how often content lacks an abstract or keywords, and how many papers a query returns, is unmeasured. The two Baidu sources may use different ids for the same paper, so the same paper can occasionally be stored twice on different days.",
+    "The settings row was tested with Node virtual pages only, not in a browser; no real key was used by this change, so tools/source_smoke.py baidu_web has not been run against Baidu.",
+    "Independent review not done by the implementing agent (critical class: needed before release)."
+  ]
+}

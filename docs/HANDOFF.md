@@ -1,3 +1,17 @@
+# 当前工作单元：第二个百度来源 `baidu_web`（百度 AI 搜索限定百度学术站点）与万方评估（2026-10-23）
+
+worktree `baidu-web`，基线 main `582ce17`，类别 critical（新的外发请求、提供方适配器、设置项、密钥共用）。[变更记录](../changes/2026-10-23-baidu-web.json)，[检查证据](evidence/2026-10-23-baidu-web-checks.txt)（含先红后绿的数量）。起因：百度学术工具对 owner 的账号返回 404，同一把密钥调用百度 AI 搜索（`POST /v2/ai_search/web_search`）正常，限定 `xueshu.baidu.com` 后返回近期中文论文；owner 原话“先加上百度搜索限定百度学术的通道，试一下这个吧，看看可以不”。数据范围与批准沿用已批准的百度学术（[ADR 0039 增补](decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md) 引了原话；`owner_approved` 仍是 false）。
+
+做了什么：`app/baidu_web.py`（适配器：解析、请求体、72 单位查询裁剪、POST、密钥只作为不可重定向的请求头发给千帆 https 主机、自己的每日计数 `source_usage:baidu_web:<日期>` 上限 40 请求前原子预留、24 小时缓存按请求体哈希、失败也计数不重试）；`SourceInfo.key_shared_with` 让它和百度学术共用一把密钥（`source_keys` 解析到 `baidu_scholar.key` 与 `BAIDU_SCHOLAR_API_KEY`，保存/清除同时更新两个适配器）；设置页多一行“百度学术（百度搜索）”（开关默认关、一个状态词、测试，没有第二个密钥框，确认沿用同一次一次性确认）；每日推送（中文项目、含汉字关键词，最多 3 个，top_k 20；owner 选了时间范围才加 `search_recency_filter`）、创建候选（top_k 12）、种子标题（top_k 8）三处接线；两个百度来源都开时按键和标题（忽略大小写、空格、标点）去重，后到的只给先到的补页面；百度学术“服务暂不可用”不阻止网页搜索，反之亦然；创建/种子页的一句状态只在被问到的百度来源全部失败时出现。来源开关：只由网页搜索报告的论文只受 `sourceBaiduWeb` 管（`oa.via` 判断；没有 `via` 的旧 `baidu:` 键仍算百度学术）。`tools/source_smoke.py baidu_web`。`docs/SOURCES.md` 新增 `baidu_web` 一节和“万方：考虑过但没有采用”一节；`harness/sources.json` 新增 `CH-BAIDU-WEB-SEARCH`、`CH-WANFANG-OPEN`。
+
+先看这几处：解析用的是 2026-10-23 的**真实**响应（精简后放在 `tests/fixtures/baidu_web/success.json`，里面没有密钥）；专利（有“申请(专利)号”“发明人”）被当成非论文略去；作者能解析但不存（`papers` 表没有放作者的地方，没加迁移）；`date` 的含义未验证，只取日期部分当 `published`；没有 DOI，所以不去 OpenAlex 补全；PDF 只能由用户在 xueshu.baidu.com 页面登录下载后拖进阅读器。
+
+改了的旧测试：`tests/test_source_adapters.py` 的“已注册来源”现在是四个；`tests/test_source_keys.py` 里 `sources_status()` 的键集合多了 `baidu_web`。其余旧测试没动。
+
+没做/没验证：百度 AI 搜索的错误响应形状、`date` 的含义、免费额度（每月 1500 次）之后是否对 owner 的账号计费、“限定站点”是否会收费、日界时区、72 个单位的精确计法——都未验证（**待办（owner）**：保持计费关闭或在千帆控制台确认）；用真实密钥跑一次 `python3 tools/source_smoke.py baidu_web --query 知识图谱` 核对；设置页新行只有 Node 虚拟页测试，没有在浏览器里点过；独立审查没做（critical，发布前需要）。
+
+---
+
 # 当前工作单元：百度学术——独立审查后的修复（2026-10-23）
 
 worktree `baidu-scholar`，接在单元 C（b078489）之后，类别 critical。[变更记录](../changes/2026-10-23-baidu-d.json)，[检查证据](evidence/2026-10-23-baidu-d-checks.txt)（含独立审查的结论和逐条处理）。独立审查（单独的只读代理，Opus）没有发现阻断问题，给了 2 个建议修复和 6 个小问题：百度页面链接用反斜杠可以绕过主机校验（已改严）；翻页游标把“按年份过滤后为空”当成“这页为空”（已改）；只开百度时两条旧路径仍会碰 OpenAlex（已改）；PDF 里读出的标题也会发给百度并耗额度（现在只发用户键入的）；嵌套的 `aiAbstract` 会进缓存（已递归剔除）；密钥文件的暂存写法不够稳（已改）；已有百度行补全后没有写回 `openalex_id`（已补空白处）。没改：服务端的中文错误文案在英文界面里是中文（与已有的 OpenAlex 密钥错误一样，界面只显示固定词表）；DOI 为键的论文被百度后来也报告时只跟百度开关走（见 ADR）。
