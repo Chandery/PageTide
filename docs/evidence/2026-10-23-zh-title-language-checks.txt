@@ -25,3 +25,28 @@ $ node --test tests/*.cjs
 # duration_ms 834.713041
 $ python3 scripts/i18n_extract.py
 # 0 of 1158
+
+Third commit (independent review fixes): red before code 3 failures of 16 in tests/test_zh_over_en_metadata.py; green after.
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+$ python3 scripts/harness.py check
+WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY
+PASS repository checks only; app gates/real billing are not implied
+$ python3 -m unittest discover -s tests
+Database migrated from version 0 to 9
+.
+----------------------------------------------------------------------
+Ran 2801 tests in 98.328s
+
+OK
+$ node --test tests/*.cjs
+# pass 595
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 789.916542
+$ python3 scripts/i18n_extract.py
+# 0 of 1158
+$ python3 scripts/harness.py review changes/2026-10-23-zh-title-language.json (final tree)
+PASS repository checks only; app gates/real billing are not implied

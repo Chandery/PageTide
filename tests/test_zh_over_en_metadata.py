@@ -97,7 +97,7 @@ class EnglishOnlyProjectTests(Base):
         self.add("p")
         self.add("english", language="en", title="World models for robotic planning", abstract=EN_ABSTRACT)
         reasons = self.reasons()
-        self.assertEqual(reasons["p"], "language_not_allowed")
+        self.assertEqual(reasons["p"], "title_language_unverified")
         self.assertIsNone(reasons["english"])
         self.assertEqual(self.batch_keys(), {"english"})
 
@@ -105,9 +105,6 @@ class EnglishOnlyProjectTests(Base):
         self.add("p", abstract=EN_ABSTRACT)
         self.assertEqual(self.reasons()["p"], "title_language_unverified")
 
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class BilingualTitleTests(unittest.TestCase):
@@ -141,7 +138,7 @@ class BilingualTitleTests(unittest.TestCase):
         self.assertEqual(self.zh("知识图谱构建方法综述 | Survey", self.CN), "zh")
 
     def test_both_service_paths_use_it(self):
-        for key, report, source in (("none", None, "title"), ("en", "en", "chinese_text_over_metadata")):
+        for key, report, source in (("none", None, "title+abstract"), ("en", "en", "chinese_text_over_metadata")):
             paper = {"title": self.TWO, "abstract": self.CN, "metadata_language": report,
                      "metadata_language_source": "OpenAlex" if report else None}
             tmp = tempfile.TemporaryDirectory()
@@ -154,4 +151,62 @@ class BilingualTitleTests(unittest.TestCase):
             self.addCleanup(app.store.close)
             language = app._paper_language(paper)
             self.assertEqual(language["metadata_language"], "zh", key)
-            self.assertIn(language["metadata_source"], ("title+abstract", source), key)
+            self.assertEqual(language["metadata_source"], source, key)
+
+
+QUOTING = ("This paper re-reads the chapter on human nature in Mencius, quoting 性善 and 四端 and 仁义礼智 and 恻隐之心 "
+           "and 羞恶之心 beside Western readings of virtue, and argues that the usual translations miss the argument.")
+MENCIUS = "《孟子》性善说新解 : A New Interpretation of Mencius"
+
+
+class StricterOverrideTests(Base):
+    def test_an_english_abstract_quoting_chinese_does_not_override_an_en_report(self):
+        from app.paper_language import chinese_text_language
+        self.assertEqual(chinese_text_language(MENCIUS, QUOTING), "zh")          # the no-report path keeps the tenth rule
+        self.add("m", title=MENCIUS, abstract=QUOTING)
+        language = self.app._paper_language(self.app._recommendation_rows(paper_key="m")[0])
+        self.assertEqual((language["metadata_language"], language["metadata_source"]), ("en", "OpenAlex"))
+        self.add("none", language=None, title=MENCIUS, abstract=QUOTING)
+        language = self.app._paper_language(self.app._recommendation_rows(paper_key="none")[0])
+        self.assertEqual((language["metadata_language"], language["metadata_source"]), ("zh", "title+abstract"))
+
+    def test_a_majority_chinese_or_missing_abstract_still_overrides(self):
+        self.add("a", title=MENCIUS, abstract=ABSTRACT)
+        self.add("b", title=MENCIUS, abstract=None)
+        for key in ("a", "b"):
+            language = self.app._paper_language(self.app._recommendation_rows(paper_key=key)[0])
+            self.assertEqual(language["metadata_source"], "chinese_text_over_metadata", key)
+
+
+class BilingualEndToEndTests(Base):
+    TITLE = "21世纪以来汉语语气副词研究综述 : A Review of the Research on Chinese Modal Adverbs since the 21st Century"
+
+    def test_a_bilingual_title_with_an_en_report_is_eligible_in_a_chinese_project(self):
+        self.add("p", title=self.TITLE)
+        self.assertIsNone(self.reasons()["p"])
+        self.assertEqual(self.batch_keys(), {"p"})
+
+
+class BilingualEnglishOnlyTests(Base):
+    allowed = ["en"]
+
+    def test_the_same_paper_waits_for_pdf_verification_in_an_english_project(self):
+        self.add("p", title=BilingualEndToEndTests.TITLE)
+        self.assertEqual(self.reasons()["p"], "title_language_unverified")
+        self.assertEqual(self.batch_keys(), set())
+        language = self.app._paper_language(self.app._recommendation_rows(paper_key="p")[0])
+        from app import eligibility
+        result = eligibility.evaluate({"status": "ready", "allowed_languages": ["en"]}, {"title": BilingualEndToEndTests.TITLE, "abstract": ABSTRACT, "oa": SYNTHETIC_OA}, language)
+        self.assertTrue(result["language"]["title_metadata_conflict"])
+
+    def test_verifying_the_pdf_as_english_rescues_it(self):
+        from app import eligibility
+        paper = {"key": "p", "title": BilingualEndToEndTests.TITLE, "abstract": ABSTRACT, "metadata_language": "en",
+                 "metadata_language_source": "OpenAlex", "verified_language": "en", "verified_method": "text",
+                 "current_pdf_sha256": "abc", "oa": SYNTHETIC_OA}
+        language = self.app._paper_language(paper, digest="abc")
+        self.assertTrue(eligibility.evaluate({"status": "ready", "allowed_languages": ["en"]}, paper, language)["eligible"])
+
+
+if __name__ == "__main__":
+    unittest.main()

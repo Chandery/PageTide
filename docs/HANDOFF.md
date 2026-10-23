@@ -4,9 +4,13 @@ worktree `zh-title-language`，基线 main `9c448a3`，类别 standard。[变更
 
 起因：协调者在真实库副本里看到 zh 项目“古汉语”把 6 篇明显的中文论文按 `language_not_allowed` 排除，因为 OpenAlex 把它们标成 `en`。
 
-做了什么：`App._paper_language` 里，来源报告恰为 `en` 且 `chinese_text_language(标题, 摘要)` 判为中文（无假名/谚文，摘要为空或也是中文）时，评估用的语言记为 `zh`，来源记为 `chinese_text_over_metadata`；不写回数据库；已核验的全文语言仍优先；`fr`/`ja` 等其它报告不动。动态推送、每日批次、创建候选都经 `_paper_language` 和 `eligibility.evaluate`，所以一致。仅英文项目里这类论文现在以 `language_not_allowed` 排除（以前是 `title_language_unverified`）；英文摘要配中文标题仍走旧的 `title_language_unverified`。
+做了什么：`App._paper_language` 里，来源报告恰为 `en` 且 `chinese_text_language(标题, 摘要)` 判为中文（无假名/谚文，摘要为空或也是中文）时，评估用的语言记为 `zh`，来源记为 `chinese_text_over_metadata`；不写回数据库；已核验的全文语言仍优先；`fr`/`ja` 等其它报告不动。动态推送和每日批次都经 `_paper_language` 和 `eligibility.evaluate`，所以一致；创建候选本来就不按语言过滤，加入项目后才走同一条判定。仅英文项目里这类论文现在以 `language_not_allowed` 排除（以前是 `title_language_unverified`）；英文摘要配中文标题仍走旧的 `title_language_unverified`。
 
-第二个提交（协调者决定）：`chinese_text_language` 对中英双语标题只看第一段——在第一个满足“其后主要是拉丁字母”的分隔符（`|`、`⸺`、`——`、` - `、` – `、` : `、后接拉丁文的 `:`/`：`）处截断，再用原规则（至少 4 个汉字且占多数，全标题和摘要无假名/谚文，摘要规则不变）。整标题本来就通过时行为不变；英文标题加中文副标题、英文摘要、带假名标题仍不算中文；无报告路径和 `en` 覆盖路径都用它。\n\n没验证：没有在真实库上重跑；没有分隔符的中英混排标题仍不识别。
+第二个提交（协调者决定）：`chinese_text_language` 对中英双语标题只看第一段——在第一个满足“其后主要是拉丁字母”的分隔符（`|`、`⸺`、`——`、` - `、` – `、` : `、后接拉丁文的 `:`/`：`）处截断，再用原规则（至少 4 个汉字且占多数，全标题和摘要无假名/谚文，摘要规则不变）。整标题本来就通过时行为不变；英文标题加中文副标题、英文摘要、带假名标题仍不算中文；无报告路径和 `en` 覆盖路径都用它。
+
+没验证：没有在真实库上重跑；没有分隔符的中英混排标题仍不识别。
+
+第三个提交（独立审查后）：覆盖 `en` 报告时摘要更严——真实摘要必须汉字占字母严格过半（英文摘要里引几个中文词不再翻成中文；无报告路径仍是十分之一规则）。仅英文项目里“`en` 报告被中文文字推翻”的论文保持原因 `title_language_unverified`（核验 PDF 为英文即可放行），不再是 `language_not_allowed`，且语言信息里带 `title_metadata_conflict`。补了双语标题端到端测试（中文项目可推荐、英文项目等待核验）。
 
 ---
 

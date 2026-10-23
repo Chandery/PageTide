@@ -10,13 +10,15 @@
     "R-LOCAL"
   ],
   "files": [
+    "app/eligibility.py",
     "app/paper_language.py",
+    "app/service.py",
     "changes/2026-10-23-zh-title-language.json",
     "docs/HANDOFF.md",
     "docs/evidence/2026-10-23-zh-title-language-checks.txt",
     "tests/test_zh_over_en_metadata.py"
   ],
-  "scope_note": "Worktree zh-title-language from main 9c448a3. One derivation in App._paper_language; every feed, daily-batch and creation path already reads language through it and eligibility.evaluate. Second commit (f6c49fe is the first, which changed app/service.py and tests/test_baidu_refresh.py): bilingual-title first-segment rule in app/paper_language.py; files lists this commit's paths.",
+  "scope_note": "Worktree zh-title-language from main 9c448a3. One derivation in App._paper_language; every feed, daily-batch and creation path already reads language through it and eligibility.evaluate. Second commit (f6c49fe is the first, which changed app/service.py and tests/test_baidu_refresh.py): bilingual-title first-segment rule in app/paper_language.py; files lists this commit's paths. Third commit (independent review): strict majority-Han abstract when overriding an en report; en-only projects keep title_language_unverified for such papers; end-to-end and exact-source tests. files lists this commit's paths (the harness requires exact current paths); the first commit also changed tests/test_baidu_refresh.py.",
   "budget_impact": {
     "runtime": "zero",
     "rationale": "A local regex check on title and abstract at evaluation time; no model call, network, new storage or data leaving the machine.",
@@ -56,6 +58,12 @@
       "kind": "self",
       "result": "passed",
       "reviewer": "Working agent; not independent",
+      "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Separate review agent, read-only; no blocking issue; should-fix items (loose abstract rule on the en-override path, en-only reason, HANDOFF claim about creation candidates) fixed in the third commit",
       "evidence": "docs/evidence/2026-10-23-zh-title-language-checks.txt"
     }
   ],

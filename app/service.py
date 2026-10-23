@@ -3197,7 +3197,7 @@ class App:
             # Baidu Scholar reports no language either: a clearly Chinese title (and abstract) stands in, the same way.
             reported = 'zh'
             source = 'title+abstract' if eligibility.usable_abstract(paper.get('abstract')) else 'title'
-        elif paper_language.metadata_code(reported) == 'en' and paper_language.chinese_text_language(paper.get('title'), paper.get('abstract')):
+        elif paper_language.metadata_code(reported) == 'en' and paper_language.chinese_text_language(paper.get('title'), paper.get('abstract'), strict_abstract=True):
             # OpenAlex often labels Chinese works "en". Only that report, and only against clearly Chinese text (no kana or
             # hangul, a Chinese-or-missing abstract), is overridden; other reports stay. A verified full-text language still
             # wins in eligibility. Derived here, never stored.

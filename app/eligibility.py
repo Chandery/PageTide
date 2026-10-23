@@ -127,6 +127,12 @@ def evaluate(policy, paper, language, local_body=''):
         reported = (language.get('fulltext_language') if fulltext_verified else None) or language.get('metadata_language')
         if not reported:
             reason = 'language_unknown'
+        elif (language.get('metadata_source') == 'chinese_text_over_metadata' and not fulltext_verified
+              and policy['allowed_languages'] == ['en']):
+            # The source said English but the text is clearly Chinese: an English-only project keeps it out, yet the person can
+            # still rescue it by verifying the PDF (the same reason as the title-script gate).
+            reason = 'title_language_unverified'
+            language = {**language, 'title_metadata_conflict': True, 'title_warning': 'title_metadata_conflict'}
         elif reported not in policy['allowed_languages']:
             reason = 'language_not_allowed'
         elif policy['allowed_languages'] == ['en'] and language['title_metadata_conflict'] and not fulltext_verified:
