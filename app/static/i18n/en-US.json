@@ -171,6 +171,7 @@
       "({0} query skipped by rate limiting)",
       "({0} queries skipped by rate limiting)"
     ],
+    "数据源都已关闭": "All data sources are switched off",
     "最近抓取 {0}": "Last fetch {0}",
     "最近抓取 {0} · {1}": "Last fetch {0} · {1}",
     "抓到 {0} 篇，新 {1} 篇": [

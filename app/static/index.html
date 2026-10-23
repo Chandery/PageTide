@@ -1068,7 +1068,8 @@ function refreshRecordText(rec) {   // the last successful fetch, in the person'
   const at = new Date(rec && rec.at);
   if (!rec || isNaN(at)) return '';
   const two = (n) => String(n).padStart(2, '0');
-  const when = `${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+  const year = at.getFullYear() === new Date().getFullYear() ? '' : `${at.getFullYear()}-`;   // only a record from an earlier year needs one
+  const when = `${year}${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
   return `最近抓取 ${when} · ${fetchedText(rec.fetched || 0, rec.new_to_project || 0)}`;
 }
 function renderMaintenance(m) {
@@ -1202,7 +1203,8 @@ $('#btnRefresh').onclick = async () => {
       const q = r.result || {};
       if (q.reason_code === 'refresh_running') toast('已有抓取在运行', 'warn');
       else if (q.reason_code === 'route_recall_changed') toast('学习图已变化，请重新抓取', 'warn');
-      else toast(`${(q.new_to_project || 0) > 0 && state.maintenance?.batch_today ? fetchedHint(q.fetched || 0, q.new_to_project, $('#btnDaily').textContent) : fetchedText(q.fetched || 0, q.new_to_project || 0)}${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
+      else if (q.reason_code === 'sources_disabled') toast('数据源都已关闭', 'warn');
+      else toast(`${(q.new_recommendable || 0) > 0 && state.maintenance?.batch_today ? fetchedHint(q.fetched || 0, q.new_to_project || 0, $('#btnDaily').textContent) : fetchedText(q.fetched || 0, q.new_to_project || 0)}${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
     }
     await load();
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }

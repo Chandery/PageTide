@@ -153,7 +153,7 @@ class Store:
     # ---------------------------------------------------------------- papers
     def upsert_papers(self, papers, project_id=None, commit=True, stats=None):
         """Insert papers, assigning to default project if project_id not specified. Returns how many rows are new to the
-        library; a caller that passes `stats` also gets `stats['linked']`, how many project links were new."""
+        library; a caller that passes `stats` also gets `stats['linked']` (how many project links were new) and `stats['linked_keys']`."""
         # Get default project once if needed
         default_project_id = None
         if not project_id and papers:
@@ -166,6 +166,7 @@ class Store:
                 default_project_id = default_row["id"] if default_row else None
 
         added = linked = 0
+        linked_keys = []
         for paper in papers:
             paper_project_id = paper.get("project_id") or project_id or default_project_id
             cur = self.conn.execute(
@@ -197,12 +198,14 @@ class Store:
                 self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
                                   (json.dumps(merge_oa(stored, paper["oa"]), ensure_ascii=False), paper["key"]))
             if paper_project_id:
-                linked += self.add_project_paper(paper_project_id, paper["key"],
-                                                 paper.get("relation_kind") or
-                                                 ("seed" if paper.get("group_name") == "seed" else "discovered"),
-                                                 paper.get("source_project_id"), commit=False)
+                if self.add_project_paper(paper_project_id, paper["key"],
+                                          paper.get("relation_kind") or
+                                          ("seed" if paper.get("group_name") == "seed" else "discovered"),
+                                          paper.get("source_project_id"), commit=False):
+                    linked += 1
+                    linked_keys.append(paper["key"])
         if stats is not None:
-            stats["linked"] = linked
+            stats["linked"], stats["linked_keys"] = linked, linked_keys
         if commit:
             self.conn.commit()
         return added

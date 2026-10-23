@@ -8,6 +8,7 @@ import sys
 import threading
 from pathlib import Path
 
+from . import maintenance
 from .server import build_server, stop_organization_workers
 from .service import App
 
@@ -42,7 +43,7 @@ def main():
                 app = App(root=resources, data_dir=root)
                 if not app.store.papers():
                     app.ensure_seed_papers()
-                    app.refresh_candidates(pages=1, per_page=100)
+                    maintenance.manual_refresh(app, pages=1, per_page=100)
                 app.store.conn.close()
             except Exception as exc:
                 print(f"PDH_BOOTSTRAP_FAILED {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)

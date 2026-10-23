@@ -1,3 +1,9 @@
+# 当前工作单元：抓取记录与诚实的计数（2026-10-23，第三个提交：独立审查后的修正）
+
+接在 `1a5041e` 之后。独立审查无阻断问题，修了：(1) `maintenance.manual_refresh` 与自动维护共用同一个按项目的 `_RUNNING` 守卫，忙时返回 `reason_code: refresh_running`（页面原有提示），记录时间取完成时刻，`include_distractors` 实验不记录，首次启动的引导抓取（`app/desktop.py`）也走它；(2) “点「生成今日 X 篇」查看”只在新链接里至少有一篇现在可被推荐时才出现，结果带 `new_recommendable`（`App.new_recommendable`，与 `build_batch` 共用 `_fresh_candidate` 规则和 `_seen_keys`；学习图模式按 build_batch 的路线池：未评价、可读、已发表，不看是否落在 frontier）；(3) 来源全关时手动抓取提示“数据源都已关闭”，记录行在非当年时带年份。没验证：第三个提交没有再做独立审查；没有在浏览器里看。
+
+---
+
 # 当前工作单元：抓取记录与诚实的计数（2026-10-23）
 
 worktree `refresh-record`，基线 main `9c448a3`，类别 feature。[变更记录](../changes/2026-10-23-refresh-record.json)，[检查证据](evidence/2026-10-23-refresh-record-checks.txt)。owner 报告“新建项目不自动抓取、手动抓取新增 0 条”；协调者查真实库发现抓取其实成功（创建后 9 秒自动链接了 10 篇），`新增 N 条` 报的是 `upsert_papers` 的 `added`，只算对整个 `papers` 表是新的行，别的项目或几分钟前已存的论文只被链接、不计数。

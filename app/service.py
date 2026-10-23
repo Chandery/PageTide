@@ -1487,7 +1487,7 @@ class App:
         scope = (str(self.data.resolve()), project_id)
         with self._RECALL_LOCK:
             if scope in self._RECALL_BUSY:
-                return {'fetched': 0, 'added': 0, 'new_to_project': 0, 'field': 0, 'errors': [{'kind': 'busy', 'error': 'Route refresh is already running'}], 'reason_code': 'refresh_running'}
+                return {'fetched': 0, 'added': 0, 'new_to_project': 0, 'new_recommendable': 0, 'field': 0, 'errors': [{'kind': 'busy', 'error': 'Route refresh is already running'}], 'reason_code': 'refresh_running'}
             self._RECALL_BUSY.add(scope)
         try:
             state = self.store.get_setting('route_recall_' + project_id) or {}
@@ -1516,7 +1516,7 @@ class App:
                     stored = self.store.get_setting('route_recall_' + project_id) or {}
                     if not current or stored != state or self._route_recall_plan(project_id, current, from_date=from_date, per_page=per_page)['signature'] != planned['signature']:
                         self.store.conn.rollback()
-                        return {'fetched': 0, 'added': 0, 'new_to_project': 0, 'field': 0, 'errors': [{'kind': 'changed', 'error': 'Route recall inputs changed; refresh again'}], 'reason_code': 'route_recall_changed'}
+                        return {'fetched': 0, 'added': 0, 'new_to_project': 0, 'new_recommendable': 0, 'field': 0, 'errors': [{'kind': 'changed', 'error': 'Route recall inputs changed; refresh again'}], 'reason_code': 'route_recall_changed'}
                     stats = {}
                     added = self.store.upsert_papers(list(papers.values()), project_id=project_id, commit=False, stats=stats)
                     updated = route_recall.record(planned, state, results, time.time())
@@ -1527,7 +1527,8 @@ class App:
                 except Exception:
                     self.store.conn.rollback()
                     raise
-            return {'fetched': len(papers), 'added': added, 'new_to_project': stats['linked'], 'field': len(papers), 'errors': errors,
+            return {'fetched': len(papers), 'added': added, 'new_to_project': stats['linked'],
+                    'new_recommendable': self.new_recommendable(project_id, stats['linked_keys']), 'field': len(papers), 'errors': errors,
                     'query_plan': planned['queries'], 'recall_signature': planned['signature']}
         finally:
             with self._RECALL_LOCK:
@@ -3107,7 +3108,7 @@ class App:
         source_policy = user_settings.source_policy(self.data)
         arxiv, general = source_policy.arxiv, source_policy.general
         if not arxiv and not general and not source_policy.baidu and not source_policy.baidu_web:
-            return {"fetched":0,"added":0,"new_to_project":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
+            return {"fetched":0,"added":0,"new_to_project":0,"new_recommendable":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
         openalex_on = arxiv or general
         source_options = {} if arxiv and general else {"source_arxiv":arxiv,"source_openalex":general}
         route = None if search else self._route_state(project_id)
@@ -3115,7 +3116,7 @@ class App:
             if include_distractors:
                 raise ValueError('Route refresh is limited to three themes; turn Route off for distractor experiments')
             if not openalex_on:       # only Baidu is on, and the learning-map refresh does not use it: nothing to ask
-                return {"fetched":0,"added":0,"new_to_project":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
+                return {"fetched":0,"added":0,"new_to_project":0,"new_recommendable":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
             return self._refresh_route_candidates(project_id, route, from_date, per_page)
         from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
         keywords = [] if search else self._feed_keywords(project_id)
@@ -3166,7 +3167,8 @@ class App:
 
         stats = {}
         added = self.store.upsert_papers(papers, stats=stats)
-        return {"fetched": len(papers), "added": added, "new_to_project": stats["linked"], "field": len(papers), "errors": errors, "rejected_publications": rejected}
+        return {"fetched": len(papers), "added": added, "new_to_project": stats["linked"],
+                "new_recommendable": self.new_recommendable(project_id, stats["linked_keys"]), "field": len(papers), "errors": errors, "rejected_publications": rejected}
 
     def import_candidates(self, path, project_id=None):
         """Load a frozen candidate JSON (e.g. from the DATA-01 experiments) for offline/dev use."""
@@ -3366,6 +3368,45 @@ class App:
                       else '论文、学习图、反馈或语言设置已变化，请重新生成')
             return {'batch_id': None, 'cards': [], 'reason': reason, 'reason_code': 'recommendation_changed'}
 
+    def _seen_keys(self, project_id):
+        return {r["paper_key"] for r in self.store.conn.execute("""
+            SELECT DISTINCT e.paper_key FROM exposures e
+            JOIN batches b ON e.batch_id = b.id
+            WHERE b.project_id = ?
+        """, (project_id,))}
+
+    @staticmethod
+    def _fresh_candidate(p, day, since, seeds, seen, feedback, saved):
+        """The batch's rule for a paper it may show as new: eligible, not saved, not a seed, published by today and inside the
+        time window, never shown and never rated. build_batch and new_recommendable both use it."""
+        published = p.get("published")
+        return (p["key"] not in seeds and (not published or str(published) <= day) and (not since or str(published or "") >= since)
+                and p["key"] not in seen and p["key"] not in feedback and p["key"] not in saved and p["_eligibility"]["eligible"])
+
+    def new_recommendable(self, project_id, keys):
+        """How many of these papers a batch built now could show (a local check; no network, no model). A learning map
+        accepts any unrated, readable, dated paper, as build_batch's route pool does."""
+        keys = set(keys)
+        if not keys:
+            return 0
+        policy = self.projects.get_project(project_id)['language_policy']
+        if policy['status'] != 'ready':
+            return 0
+        try:
+            papers = self.recommendation_pool(project_id, policy=policy, paper_keys=keys)
+        except ValueError:
+            return 0
+        day, source_policy = self.batch_day(), user_settings.source_policy(self.data)
+        for p in papers:
+            if not source_policy.allows(p):
+                p['_eligibility'] = {**p['_eligibility'], 'eligible': False, 'reason': 'source_disabled'}
+        feedback, saved = self.latest_feedback(project_id), self.saved_keys(project_id)
+        if self._route_state(project_id):
+            return sum(1 for p in papers if p['_eligibility']['eligible'] and p['key'] not in saved and p['key'] not in feedback
+                       and (not p.get('published') or str(p['published']) <= day))
+        seeds, seen, since = set(self.seed_keys(project_id)), self._seen_keys(project_id), user_settings.since(self.data)
+        return sum(1 for p in papers if self._fresh_candidate(p, day, since, seeds, seen, feedback, saved))
+
     def saved_keys(self, project_id):
         """Papers in this project's library. They stay in the retrieval corpus and the profile's reference texts,
         but are not recommendation candidates: an imported library would otherwise come back as "new" papers."""
@@ -3421,22 +3462,14 @@ class App:
                     'eligibility': snapshot, 'shortfall': {'reason': reason, 'available': 0, 'requested': limit}}
 
         # Get seen papers for this project
-        if exclude_seen:
-            seen = {r["paper_key"] for r in self.store.conn.execute("""
-                SELECT DISTINCT e.paper_key FROM exposures e
-                JOIN batches b ON e.batch_id = b.id
-                WHERE b.project_id = ?
-            """, (project_id,))}
-        else:
-            seen = set()
+        seen = self._seen_keys(project_id) if exclude_seen else set()
 
         feedback = self.latest_feedback(project_id)
         saved = self.saved_keys(project_id)   # the person's own library is never offered back as new
         readable = lambda p: p['_eligibility']['eligible'] and p['key'] not in saved
         seeds=set(self.seed_keys(project_id))
         since=user_settings.since(self.data)
-        in_time=lambda p: (not p.get("published") or str(p["published"]) <= eligibility_day) and (not since or str(p.get("published") or "") >= since)
-        fresh = [p for p in papers if p["key"] not in seeds and in_time(p) and p["key"] not in seen and p["key"] not in feedback and readable(p)]    # never shown, never rated
+        fresh = [p for p in papers if self._fresh_candidate(p, eligibility_day, since, seeds, seen, feedback, saved)]    # never shown, never rated
         route = self._route_state(project_id,verification_budget=verification_budget)
         if route and route.get('progress_verification_deferred'):
             return {'batch_id':None,'cards':[],'reason_code':'route_progress_verification_pending',

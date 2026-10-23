@@ -64,11 +64,22 @@ test('a failure note and the success record are independent', () => {
 });
 
 test('after a manual fetch with new papers and a batch already made today, the toast points at the button by its current label', async () => {
-  const done = {state:'done',result:{fetched:33,new_to_project:10,errors:[]}};
+  const done = {state:'done',result:{fetched:33,new_to_project:10,new_recommendable:4,errors:[]}};
   assert.deepEqual(await click(done, {batchToday: true}), ['抓到 33 篇，新 10 篇，点「生成今日 5 篇」查看','ok']);
   assert.deepEqual(await click(done, {batchToday: true, label: '生成今日发现'}), ['抓到 33 篇，新 10 篇，点「生成今日发现」查看','ok']);
   assert.deepEqual(await click(done, {batchToday: false}), ['抓到 33 篇，新 10 篇','ok']);
   assert.deepEqual(await click({state:'done',result:{fetched:33,new_to_project:0,errors:[]}}, {batchToday: true}), ['抓到 33 篇，没有新论文','ok']);
-  const [message, kind] = await click({state:'done',result:{fetched:3,new_to_project:1,errors:[{kind:'network_error'}]}}, {batchToday: true});
+  // new links that the next batch could not show (no PDF, other language, outside the time window) promise nothing
+  assert.deepEqual(await click({state:'done',result:{fetched:33,new_to_project:10,new_recommendable:0,errors:[]}}, {batchToday: true}), ['抓到 33 篇，新 10 篇','ok']);
+  const [message, kind] = await click({state:'done',result:{fetched:3,new_to_project:1,new_recommendable:1,errors:[{kind:'network_error'}]}}, {batchToday: true});
   assert.equal(message, '抓到 3 篇，新 1 篇，点「生成今日 5 篇」查看，部分查询未完成'); assert.equal(kind, 'warn');
+});
+test('a manual fetch with every source switched off says so instead of reporting 0 papers', async () => {
+  const [message, kind] = await click({state:'done',result:{fetched:0,added:0,new_to_project:0,errors:[],reason_code:'sources_disabled'}});
+  assert.equal(message, '数据源都已关闭'); assert.equal(kind, 'warn');
+});
+test('the line shows the year only when the record is not from this year', () => {
+  const old = new Date(new Date().getFullYear() - 1, 11, 30, 18, 44).toISOString();
+  const els = render({last_refresh_result: {at: old, fetched: 3, new_to_project: 1}});
+  assert.equal(els['#refreshRecord'].textContent, `最近抓取 ${new Date(old).getFullYear()}-12-30 18:44 · 抓到 3 篇，新 1 篇`);
 });
