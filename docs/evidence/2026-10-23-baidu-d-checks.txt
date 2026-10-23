@@ -42,3 +42,12 @@ $ node --test tests/*.cjs 2>&1 | grep -E "^# (tests|pass|fail)"
 $ python3 scripts/i18n_extract.py | head -1
 # 0 of 1155
 (exit 0)
+
+## 构建记录（2026-10-23 12:57 CST，main ed632a8，合并百度学术 A-D）
+
+$ python3 -m unittest discover -s tests  (main checkout: Ran 2575 tests in 543.761s, OK)
+$ node --test tests/*.cjs  (pass 582, fail 0)
+$ python3 scripts/budget.py --check / harness.py check  (PASS / PASS)
+$ PYINSTALLER_CONFIG_DIR=$TMPDIR/pyinstaller-cache .local/desktop-build-env/bin/python scripts/build_desktop.py  (exit 0)
+$ cargo tauri build --bundles app  (finished; src-tauri/target/release/bundle/macos/PaperDigHelper.app)
+Coordinator browser check (Chromium, synthetic data): settings rows (arXiv / 期刊与会议论文 key optional / 百度学术 needs key, 测试, 获取); first switch-on confirm dialog; a format-valid fake key shows 密钥无效 (auth_required) and the response does not echo the key; reader failure box for a Baidu-only paper shows one line, 百度学术 (primary) and 出版方 links and 选择或拖入 PDF; a dropped PDF is uploaded, attached and opened. Not done: real-key smoke test, creation/seed UI with real Baidu results, WebKit.
