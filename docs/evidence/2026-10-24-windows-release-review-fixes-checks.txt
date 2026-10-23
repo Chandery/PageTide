@@ -21,3 +21,13 @@ $ python3 scripts/verify_packaged_route.py <source-backend wrapper>   PASS (sour
 
 NOT verified: Windows behaviour of SizeCappedLog / the leak report / the new smoke step (CI), the workflow tag-check step (never run).
 No model call, no developer-ledger usage.
+
+== Coordinator: final CI, main merge, macOS release build and v0.1.0 tag (2026-10-24) ==
+CI on windows-release: run 39970626923 (e60bac5) green; run 40008550772 (691fbf9) green: test-windows (Python + Node tests)
+and build-windows (PyInstaller, packaged smoke, NSIS, checksum, artifact). The temporary branch trigger was removed (0655d07)
+and main fast-forwarded to it. On main: unittest 2850 OK; node --test pass 603 fail 0; i18n_extract # 0 of 1162;
+budget --check PASS; harness check PASS (recheck warning only). macOS: build_desktop.py + cargo tauri build --bundles app
+(Mach-O arm64); scripts/verify_packaged_route.py against the macOS frozen backend: PASS.
+macOS asset: PaperDigHelper-0.1.0-macos-arm64.zip (21,900,524 bytes)
+sha256 efb6d938cd39ed9b95241ca52ccdd15cabc4b8afac1831fd6ac867dec00337c7
+Not done: no run on a real Windows machine; both builds unsigned.
