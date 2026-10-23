@@ -2004,7 +2004,7 @@ class App:
         self.store.create_guidance_session(session_id, name, [{"role": "user", "content": goal}], draft)
         return self.guidance_session_view(session_id)
 
-    def _local_guidance(self, session, message):
+    def _local_guidance(self, session, message, languages=()):
         draft = self._bounded_guidance_draft(session["draft"])
         en = self.english()
         norm = guidance_contract._norm
@@ -2020,11 +2020,17 @@ class App:
         # input there is none, and the sentence the person typed is never copied into the search box.
         from .project_brainstorm import local_followup
         queries = draft["search_queries"] or guidance_contract.clean_queries(
-            [], terms, [*guidance_contract.sentence_avoid(draft.get('goal', ''), message), *(draft.get('removed_queries') or [])])
+            [], terms, [*guidance_contract.sentence_avoid(draft.get('goal', ''), message), *(draft.get('removed_queries') or [])],
+            languages)
         draft.update({"keywords": terms, "search_queries": queries,
                       **local_followup(draft, message, en, graph=user_settings.route_beta(self.data))})
         if not terms:
             # The local tokenizer is English-only and OpenAlex titles are mostly English.
+            if guidance_contract.chinese_first(languages):
+                if en:
+                    return ("Local mode found no keywords in this description. "
+                            "Add keywords or search queries in Chinese, e.g. 上古汉语, 出土文献."), draft
+                return "本地模式没有从这段描述里提取到关键词。请直接补充中文关键词或检索式，例如 上古汉语、出土文献。", draft
             if en:
                 return ("Local mode only recognises English terms and found no keywords in this description. "
                         "Add English keywords or search queries, e.g. world model, robot manipulation."), draft
@@ -2156,7 +2162,7 @@ class App:
                     'learning_path_origin': 'ai' if ('learning_path' in model or 'learning_graph' in model)
                                             else draft.get('learning_path_origin', 'user')})
         if mode == "local":
-            reply, draft = self._local_guidance({**session, "draft": draft}, message)
+            reply, draft = self._local_guidance({**session, "draft": draft}, message, chosen_languages)
             draft = self._bounded_guidance_draft(draft)
         tokens = (result.get("usage") or {}).get("total_tokens") if mode == "ai" else None
         entry = {"role": "assistant", "content": reply, "mode": mode}
@@ -2930,6 +2936,17 @@ class App:
         self._check_matching_rows_current([context_row])
         return result
 
+    def _feed_keywords(self, project_id):
+        """The (up to three) keywords the daily feed asks OpenAlex for: the first three, but the first English ones when the
+        project accepts English and has some (a mixed project's Chinese keywords go to Baidu, not to the English search)."""
+        keywords = self._project_keywords(project_id)
+        policy = (self.projects.get_project(project_id) or {}).get("language_policy") or {}
+        if policy.get("status") == "ready" and "en" in policy.get("allowed_languages", []):
+            english = [k for k in keywords if not has_cjk(k)]
+            if english and len(english) < len(keywords):
+                return english[:3]
+        return keywords[:3]
+
     def _project_keywords(self, project_id):
         row = self.store.conn.execute("SELECT keywords FROM projects WHERE id=?", (project_id,)).fetchone()
         try:
@@ -3100,7 +3117,7 @@ class App:
                 return {"fetched":0,"added":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
             return self._refresh_route_candidates(project_id, route, from_date, per_page)
         from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
-        keywords = [] if search else self._project_keywords(project_id)[:3]
+        keywords = [] if search else self._feed_keywords(project_id)
         field = []
         if keywords and openalex_on:
             seen = set()

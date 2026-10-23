@@ -56,3 +56,33 @@ The fixes themselves were not independently re-reviewed.
 
 Open risks: no real-model run (needs owner authorisation and the developer ledger); the claim "fixed" only holds if the model follows the new
 prompt; page code unchanged and not looked at in a browser.
+
+==== Second commit (follow-up), 2026-10-23 ====
+A) Real-model results (coordinator, owner-authorized development testing, DeepSeek via the gateway in dev mode; script
+/tmp/claude-501/real_zh_test.py, log /tmp/claude-501/zh-run1.log, outside the repository; no secrets here): 7 goals x quick+guided x 2 repeats =
+40 real AI turns, developer ledger 22,250 tokens / $0.0099.
+  - zh only (4 goals): every turn all-Chinese keywords and 2 Chinese queries.
+  - en only: English.
+  - zh+en: queries always one Chinese + one English, but keywords ALL Chinese in 5 of 8 turns.
+  A small sample, not a quality or billing measurement. The fix below has NOT been re-run against the real model.
+Fixes: prompt "zh+en=keywords alternate Chinese and English starting with Chinese,queries one each" (1240 -> 1287 bytes; 1112 at the start of
+the unit; ceilings in three test files raised 1250 -> 1300); App._feed_keywords: a project that accepts English and has both English and
+Chinese keywords asks OpenAlex for the first three English ones (Baidu keeps the first three Chinese ones); otherwise the first three as before.
+Review fixes: B1 no rebuild from Chinese keywords unless the model gave English queries (earlier Chinese queries stay when it gave nothing
+usable); B2 single Latin words/acronyms kept in zh-only mode; B3 term_in_text CJK branch ignores spaces next to Chinese characters; B4 documented;
+B5 _local_guidance takes the languages (<= 2 Chinese keywords joined; zh-only no-keyword hint asks for Chinese keywords, Simplified Chinese
+and English UI variants); B6 prompts/project-guidance.md wording.
+Red first: tests added to tests/test_guidance_zh.py before the code: 33 tests, FAILED (failures=9) -> 9 red (8 new tests, one of them with 3
+failing sub-cases); the earlier 25 stayed green. One earlier test changed on purpose (single Latin word 'paleography' is now kept in zh-only mode).
+Green: tests.test_guidance_zh Ran 33 OK; full results below.
+Prompt size: SYSTEM 1112 -> 1240 (first commit) -> 1287 bytes (1283 chars). Gateway input_bound, first turn, 18-char goal, zh+en: 1757 ->
+1885 -> 1932; arithmetic at $0.30/M input + 300 output tokens at $1.20/M: $0.000887 -> $0.000925 -> $0.000940 per call. harness/budget.json
+(estimates 1600 / cap 2400) not changed.
+Final checks of the second commit:
+$ python3 -m unittest discover -s tests              Ran 2785 tests ... OK   (2777 + 8 new)
+$ node --test tests/*.cjs                            # tests 595  # pass 595  # fail 0
+$ python3 scripts/i18n_extract.py                    # 0 of 1158
+$ python3 scripts/budget.py --check                  PASS
+$ python3 scripts/harness.py check                   PASS (same external-source WARN as before)
+Independent review of the first commit (Opus, read-only) before this commit: no blocking issue; the six findings above are what this commit fixes.
+The second commit's own changes were not independently re-reviewed.

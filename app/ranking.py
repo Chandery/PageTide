@@ -111,11 +111,16 @@ def topical_words(text):
 PHRASE_SEPARATOR = r"(?:[ \t\-]+|[ \t\-]*(?:\r\n|\n|\r|\u2028)[ \t\-]*)"
 
 
+_CJK_EDGE_SPACE = re.compile(r"(?<=[\u3400-\u9fff\uf900-\ufaff])\s+|\s+(?=[\u3400-\u9fff\uf900-\ufaff])")
+
+
 def term_in_text(text, term):
     """Whole phrase evidence using the same explicit science identities as the ranker."""
     value, query = scientific_text(text).casefold(), scientific_text(term).casefold().strip()
     if not query:return False
-    if cjk_tokens(query):return query in value
+    if cjk_tokens(query):
+        # spaces next to a Chinese character carry no meaning ("LLM 推理" and "LLM推理" are the same term)
+        return _CJK_EDGE_SPACE.sub("", query) in _CJK_EDGE_SPACE.sub("", value)
     parts=[re.escape(p) for p in re.split(r"[\s\-]+",query) if p]
     return bool(parts and re.search(r"(?<![a-z0-9_])"+PHRASE_SEPARATOR.join(parts)+r"s?(?![a-z0-9_])",value))
 

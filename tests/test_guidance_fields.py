@@ -79,7 +79,7 @@ class WireContractTests(unittest.TestCase):
         self.assertIn('Chinese', system)
 
     def test_prompt_is_still_small_and_nothing_is_cut_from_the_user_input(self):
-        self.assertLessEqual(len(guidance_contract.SYSTEM.encode('utf-8')), 1250)
+        self.assertLessEqual(len(guidance_contract.SYSTEM.encode('utf-8')), 1300)
         built = guidance_contract.messages('中' * 4000, ['词'] * 20, '答' * 2000, queries=['q' * 100] * 3,
                                            languages=['zh', 'en'], last_question='问' * 500, summary='记' * 500)
         body = json.loads(built[-1]['content'])
@@ -750,7 +750,7 @@ class RoundThree(unittest.TestCase):
         self.assertIn('replace your earlier', system)
         self.assertIn('the user\'s own, kept anyway', system)
         self.assertNotIn('NEW', system)
-        self.assertLessEqual(len(system.encode('utf-8')), 1250)
+        self.assertLessEqual(len(system.encode('utf-8')), 1300)
 
 
 class RoundFour(unittest.TestCase):
@@ -871,7 +871,7 @@ class RoundFour(unittest.TestCase):
         system = guidance_contract.SYSTEM
         for token in ('your_keywords', 'your_queries', 'user_keywords', 'user_queries', 'repeat'):
             self.assertIn(token, system)
-        self.assertLessEqual(len(system.encode('utf-8')), 1250)
+        self.assertLessEqual(len(system.encode('utf-8')), 1300)
         self.assertIn(system, (Path(__file__).resolve().parents[1] / 'prompts/project-guidance.md').read_text())
 
     # ---- N1 / N2

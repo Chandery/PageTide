@@ -99,7 +99,7 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
         self.assertNotIn('graph', system)   # the map is asked for only while the beta map is on (MAP_HINT)
         self.assertIn('graph?concrete goals only', guidance_contract.MAP_HINT)
         self.assertNotIn('"id","name"', system)
-        self.assertLessEqual(len(system.encode('utf-8')), 1250)
+        self.assertLessEqual(len(system.encode('utf-8')), 1300)
 
     def test_overproduction_is_bounded_and_a_question_in_queries_is_not_kept(self):
         # This test used to expect q:['one?','two?'] to be accepted as queries: the bug the owner reported.

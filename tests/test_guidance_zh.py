@@ -36,8 +36,12 @@ class PromptTests(unittest.TestCase):
         self.assertIn('zh+en', system)
         self.assertIn('otherwise English', system)
 
+    def test_the_prompt_asks_a_mixed_project_for_alternating_keywords_starting_with_chinese(self):
+        self.assertIn('alternate Chinese and English', gc.SYSTEM)
+        self.assertIn('starting with Chinese', gc.SYSTEM)
+
     def test_the_prompt_stays_compact(self):
-        self.assertLessEqual(len(gc.SYSTEM.encode('utf-8')), 1250)
+        self.assertLessEqual(len(gc.SYSTEM.encode('utf-8')), 1300)
 
     def test_the_language_choice_still_reaches_the_model_as_input(self):
         for chosen in (['zh'], ['en'], ['zh', 'en']):
@@ -47,7 +51,7 @@ class PromptTests(unittest.TestCase):
 
 class VetTests(unittest.TestCase):
     def test_zh_only_keeps_chinese_keywords_and_drops_english_ones_when_a_chinese_one_exists(self):
-        mixed = ['上古汉语', 'Old Chinese', 'LLM 推理', 'paleography']
+        mixed = ['上古汉语', 'Old Chinese', 'LLM 推理', 'historical phonology']
         self.assertEqual(gc.vet_keywords(mixed, ['zh']), ['上古汉语', 'LLM 推理'])
 
     def test_zh_only_keeps_english_suggestions_rather_than_an_empty_draft(self):
@@ -65,6 +69,15 @@ class VetTests(unittest.TestCase):
     def test_zh_plus_en_keeps_both_languages_with_at_most_one_chinese_query(self):
         self.assertEqual(gc.vet_keywords(['上古汉语', 'Old Chinese'], ['zh', 'en']), ['上古汉语', 'Old Chinese'])
         self.assertEqual(gc.vet_queries(['上古汉语', '出土文献', 'Old Chinese'], ['zh', 'en']), ['上古汉语', 'Old Chinese'])
+
+    def test_nothing_usable_from_the_model_never_rebuilds_the_queries(self):
+        for queries in ([], [''], ['你想研究哪个朝代？']):
+            self.assertEqual(gc.vet_queries(queries, ['zh'], keywords=ZH_KEYWORDS), [])
+
+    def test_zh_only_keeps_standalone_latin_terms_beside_chinese_ones_but_not_english_phrases(self):
+        mixed = ['上古汉语', 'RLHF', 'Transformer', 'BERT', 'Old Chinese phonology', 'GPT-4']
+        self.assertEqual(gc.vet_keywords(mixed, ['zh']), ['上古汉语', 'RLHF', 'Transformer', 'BERT', 'GPT-4'])
+        self.assertEqual(gc.vet_keywords(['RLHF', 'Old Chinese phonology'], ['zh']), ['RLHF', 'Old Chinese phonology'])
 
     def test_zh_with_other_languages_than_en_counts_as_chinese_alone_and_other_languages_stay_english(self):
         self.assertEqual(gc.vet_keywords(['上古汉语', 'Old Chinese'], ['zh', 'ja']), ['上古汉语'])
@@ -174,6 +187,29 @@ class TurnTests(unittest.TestCase):
         self.assertEqual(out['session']['draft']['search_queries'], ['上古汉语 汉语历史语言学'])
         self.assertEqual(out['session']['draft']['keywords'], ZH_KEYWORDS)
 
+    def test_a_later_turn_with_no_usable_queries_keeps_the_earlier_chinese_queries(self):
+        self.quick(reply(ZH_KEYWORDS, ['上古汉语 出土文献', '汉语历史音韵学']), mode='ai_guided')
+        for queries in ([], [''], ['你想研究哪个朝代？']):
+            with self.subTest(queries=queries):
+                session = self.app.guidance_session_view(self.sid)
+                page = {'keywords': session['draft']['keywords'], 'search_queries': session['draft']['search_queries']}
+                with mock.patch.object(self.app.gateway, 'call', return_value=reply(ZH_KEYWORDS, queries)):
+                    out = self.app.guidance_turn(self.sid, '继续', languages=['zh'], base=session['draft']['revision'], draft_edits=page)
+                self.assertEqual(out['session']['draft']['search_queries'], ['上古汉语 出土文献', '汉语历史音韵学'])
+
+    def test_local_fallback_joins_at_most_two_chinese_keywords_and_does_not_ask_a_chinese_user_for_english(self):
+        session = self.app.create_guidance_session('P', GOAL, 'ai_guided')
+        edits = {'keywords': ZH_KEYWORDS, 'search_queries': []}
+        out = self.app.guidance_turn(session['id'], '继续', dry_run=True, languages=['zh'], draft_edits=edits)
+        self.assertEqual(out['mode'], 'local')
+        self.assertEqual(out['session']['draft']['search_queries'], ['上古汉语 汉语历史语言学'])
+        empty = self.app.create_guidance_session('P', GOAL, 'ai_guided')
+        out = self.app.guidance_turn(empty['id'], GOAL, dry_run=True, languages=['zh'])
+        self.assertNotIn('英文', out['reply'])
+        self.assertIn('中文', out['reply'])
+        plain = self.app.guidance_turn(self.app.create_guidance_session('P', GOAL, 'ai_guided')['id'], GOAL, dry_run=True)
+        self.assertIn('英文', plain['reply'])
+
     def test_the_chat_text_language_still_follows_the_interface(self):
         self.quick(reply(ZH_KEYWORDS, []))
         self.assertTrue(self.system.endswith('Text in Chinese.'))
@@ -199,6 +235,13 @@ class SearchTests(Case):
 
 
 class DownstreamTests(unittest.TestCase):
+    def test_a_chinese_term_matches_whatever_the_spacing_around_latin_words(self):
+        for text in ('本文研究LLM推理能力', '本文研究 LLM 推理 能力', '研究LLM 推理'):
+            self.assertTrue(ranking.term_in_text(text, 'LLM 推理'), text)
+            self.assertTrue(ranking.term_in_text(text, 'LLM推理'), text)
+        self.assertFalse(ranking.term_in_text('本文研究推理', 'LLM 推理'))
+        self.assertTrue(ranking.term_in_text('上古 汉语研究', '上古汉语'))
+
     def test_chinese_project_keywords_match_chinese_papers_in_local_ranking(self):
         keyword = '上古汉语'
         self.assertTrue({'上古', '古汉', '汉语'} <= set(ranking.tokenize(keyword)))
@@ -218,6 +261,27 @@ class DownstreamTests(unittest.TestCase):
             project_id = app.create_project('中文项目', 'ai_guided', ZH_KEYWORDS)['project_id']
             self.assertEqual(app.profile(project_id)['pinned_terms'], ZH_KEYWORDS)
             self.assertEqual(app._project_keywords(project_id), ZH_KEYWORDS)
+
+
+class FeedKeywordTests(Case):
+    """The daily feed: Baidu gets the Chinese keywords, OpenAlex the first English ones when the project accepts English."""
+    MIXED = ['古汉语', '音韵学', '出土文献', 'Old Chinese', 'phonology', '词汇语义']
+
+    def feed(self, keywords, languages):
+        pid = self.app.create_project('P' + '|'.join(languages), 'manual', keywords)['project_id']
+        self.app.set_project_language(pid, None, languages)
+        with mock.patch.object(self.app.source, 'discover_topic', return_value=[]) as topic, self.patched():
+            self.app.refresh_candidates(project_id=pid)
+        return [call.args[0] for call in topic.call_args_list]
+
+    def test_a_mixed_project_sends_english_keywords_to_openalex_and_chinese_ones_to_baidu(self):
+        self.assertEqual(self.feed(self.MIXED, ['zh', 'en']), ['Old Chinese', 'phonology'])
+        self.assertEqual([c['wd'] for c in self.net.baidu], ['古汉语', '音韵学', '出土文献'])
+
+    def test_other_projects_keep_the_first_three_keywords(self):
+        self.assertEqual(self.feed(self.MIXED, ['zh']), ['古汉语', '音韵学', '出土文献'])
+        self.assertEqual(self.feed(['古汉语', '音韵学'], ['zh', 'en']), ['古汉语', '音韵学'])   # nothing English to prefer
+        self.assertEqual(self.feed(['a one', 'b two', 'c three', 'd four'], ['en']), ['a one', 'b two', 'c three'])
 
 
 if __name__ == '__main__':

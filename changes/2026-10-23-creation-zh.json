@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "2026-10-23-creation-zh",
   "class": "critical",
-  "summary": "Project creation (quick and AI-guided) follows the paper languages ticked on the page. Owner 2026-10-23: \"勾选了汉语之后，创建还是使用英文，现在要适配中文啊\". The guidance system prompt no longer hard-codes English keywords/queries: with 中文 and not 英文 the model is asked for Chinese terms (English acronyms inside Chinese terms allowed), with both for a mix (keywords about half each, queries one each), otherwise English as before. vet_keywords/vet_queries/clean_queries: 中文 without 英文 keeps Chinese suggestions (up to the normal limits, two Chinese queries), drops English ones when a Chinese one is left, keeps an all-English reply rather than an empty draft, and builds the query from the first two Chinese keywords when the reply only has English queries; items the person wrote or deleted are set aside before that judgement; the person's own items are never filtered. Prompt 1112 -> 1240 bytes. The empty 检索式 in the owner's screenshot could not be reproduced.",
+  "summary": "Project creation (quick and AI-guided) follows the paper languages ticked on the page. Owner 2026-10-23: \"勾选了汉语之后，创建还是使用英文，现在要适配中文啊\". The guidance system prompt no longer hard-codes English keywords/queries: with 中文 and not 英文 the model is asked for Chinese terms (English acronyms inside Chinese terms allowed), with both for a mix (keywords about half each, queries one each), otherwise English as before. vet_keywords/vet_queries/clean_queries: 中文 without 英文 keeps Chinese suggestions (up to the normal limits, two Chinese queries), drops English ones when a Chinese one is left, keeps an all-English reply rather than an empty draft, and builds the query from the first two Chinese keywords when the reply only has English queries; items the person wrote or deleted are set aside before that judgement; the person's own items are never filtered. Prompt 1112 -> 1240 bytes. The empty 检索式 in the owner's screenshot could not be reproduced. Second commit: after a real-model dev run (40 turns; zh-only all Chinese, zh+en keywords all Chinese in 5 of 8 turns) the prompt asks for keywords alternating Chinese and English starting with Chinese, and the daily feed asks OpenAlex for the first three English keywords of a mixed project (Baidu keeps the Chinese ones); review fixes: no query rebuild when the model gave nothing usable, single Latin words kept in zh-only mode, term_in_text ignores spaces next to Chinese characters, the local fallback knows the languages. Prompt now 1287 bytes.",
   "tasks": [
     "PILOT-01",
     "PROJECT-01"
@@ -14,6 +14,7 @@
   ],
   "files": [
     "app/guidance_contract.py",
+    "app/ranking.py",
     "app/service.py",
     "changes/2026-10-23-creation-zh.json",
     "docs/HANDOFF.md",
@@ -21,10 +22,10 @@
     "docs/evidence/2026-10-23-creation-zh-checks.txt",
     "prompts/project-guidance.md",
     "tests/test_guidance_fields.py",
-    "tests/test_guidance_zh.py",
-    "tests/test_openalex_discovery.py"
+    "tests/test_guidance_json_protocol.py",
+    "tests/test_guidance_zh.py"
   ],
-  "scope_note": "Worktree creation-zh on main f6bf5b0. Critical: the project_guidance prompt changed (audit-budget skill). No new outbound data (languages was already in the request), no new call, no retry, no migration; no network, real key, real database or model call in any test. owner_approved stays false.",
+  "scope_note": "Worktree creation-zh on main f6bf5b0. Critical: the project_guidance prompt changed (audit-budget skill). No new outbound data (languages was already in the request), no new call, no retry, no migration; no network, real key, real database or model call in any test. owner_approved stays false. Second commit adds the daily-feed keyword choice (app/service.py _feed_keywords) and ranking.term_in_text spacing; no new outbound data.",
   "budget_impact": {
     "runtime": "changed",
     "quantified": {
@@ -35,15 +36,15 @@
         "usd": "0.0008871"
       },
       "after": {
-        "input_tokens": 1885,
+        "input_tokens": 1932,
         "output_tokens": 300,
-        "usd": "0.0009249"
+        "usd": "0.0009396"
       }
     },
-    "rationale": "The system prompt grows from 1112 to 1240 bytes (language rule per ticked-language combination). No new call, trigger or retry; harness/budget.json estimates (reference input 1600, cap 2400) are unchanged because +128 bytes is inside them and they are estimates only since ADR 0037.",
+    "rationale": "The system prompt grows from 1112 to 1287 bytes (language rule per ticked-language combination). No new call, trigger or retry; harness/budget.json estimates (reference input 1600, cap 2400) are unchanged because +175 bytes is inside them and they are estimates only since ADR 0037.",
     "before": "keywords/queries asked in English whatever was ticked",
-    "after": "keywords/queries asked in the ticked languages; +128 bytes of prompt per call",
-    "developer_usage": "none: no real model call in this unit"
+    "after": "keywords/queries asked in the ticked languages; +175 bytes of prompt per call",
+    "developer_usage": "First commit none. Second commit: no call by the implementing agent; the coordinator's owner-authorised real-model run before it used 22,250 tokens / $0.0099 (40 turns, developer ledger, outside the repository)."
   },
   "checks": [
     {
@@ -81,7 +82,7 @@
     {
       "kind": "independent",
       "result": "passed",
-      "reviewer": "Separate review agent (Opus), read-only; no blocking finding on the code; should-fix findings fixed in the same commit and not re-reviewed",
+      "reviewer": "Separate review agent (Opus), read-only, of the first commit: no blocking finding; its should-fix and nit findings fixed in the second commit and not re-reviewed",
       "evidence": "docs/evidence/2026-10-23-creation-zh-checks.txt"
     },
     {
@@ -93,10 +94,11 @@
   ],
   "owner_approved": false,
   "open_risks": [
-    "No real-model run: whether DeepSeek follows the new language rule is unmeasured; if it still answers only in English in 中文-only mode the English is kept (by design, no empty draft), so the owner's symptom could persist. A real-model check needs the owner's authorisation and the developer ledger.",
+    "Real-model run (40 turns, small sample): zh-only gave all-Chinese terms; zh+en keywords were all Chinese in 5 of 8 turns before the second commit. The alternating-keywords prompt and the English-first OpenAlex choice are NOT re-run on the real model. If the model still answers only English in 中文-only mode the English is kept by design.",
     "The empty 检索式 in the owner's screenshot was not reproduced; the service always yields a query when keywords exist, so the cause may be elsewhere (older build, page state).",
     "The beta learning-map hint still asks for English terms; the local fallback cannot extract keywords from a Chinese goal; OpenAlex in the daily feed takes the first three keywords, so with mixed languages their order decides.",
     "The page code was not changed and not looked at in a browser.",
-    "The review fixes were not independently re-reviewed."
+    "The review fixes were not independently re-reviewed.",
+    "route_recall still takes the first three project keywords whatever their language; a person who deletes the rebuilt Chinese query and gets only English queries again has to write one themselves."
   ]
 }

@@ -1,3 +1,13 @@
+# 当前工作单元：中文创建的真实模型结果与审查修正（2026-10-23，第二个提交）
+
+同一 worktree `creation-zh`，接在 `591c95f` 之后，同一份[变更记录](../changes/2026-10-23-creation-zh.json)、[检查证据](evidence/2026-10-23-creation-zh-checks.txt)（第二部分）和 ADR 0038 的第二次补充。协调者做了 40 次真实 AI 回合（owner 授权，开发账本 22,250 token / $0.0099）：只勾中文时关键词和检索式都是中文；中文加英文时检索式一中一英，但 8 回合里 5 回合关键词全是中文，会让每日推送的 OpenAlex（取前三个关键词）搜不到英文。
+
+改了：提示改为中英交替且从中文开始（总共 1112 → 1287 字节）；`_feed_keywords`：接受英文的项目既有英文又有中文关键词时，OpenAlex 取前三个英文关键词，百度仍取含中文的前三个；独立审查的修正——模型没给可用检索式时不再重拼并保留上一轮的中文检索式、只勾中文时孤立的拉丁词/缩写保留、`term_in_text` 忽略汉字旁边的空格、本地整理按语言拼检索式和给提示、文档措辞。
+
+没验证：新的“交替”提示和英文优先的 OpenAlex 选择没有再用真实模型跑；第二个提交没有再做独立审查；`route_recall` 仍取前三个关键词。
+
+---
+
 # 当前工作单元：创建项目按勾选的论文语言给关键词和检索式（2026-10-23）
 
 worktree `creation-zh`，基线 main `f6bf5b0`，类别 critical（提示词变更）。[变更记录](../changes/2026-10-23-creation-zh.json)，[检查证据](evidence/2026-10-23-creation-zh-checks.txt)，[ADR 0038 补充](decisions/0038-creation-guidance-fields-and-language-checkboxes.md)。owner 原话：“勾选了汉语之后，创建还是使用英文，现在要适配中文啊”。
