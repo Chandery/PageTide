@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-refresh-record",
+  "class": "feature",
+  "summary": "(Third commit: review fixes - manual refresh shares the per-project guard, records the completion time, skips distractor runs, first-launch fetch is recorded; the generate-button hint only when a newly linked paper is recommendable (new_recommendable); sources_disabled and year-in-line nits. Second commit: toast points at the generate button when today's batch exists; maintenance status gains batch_today.) Every successful refresh (automatic and the 抓取新论文 button) is recorded per project with its time, papers fetched and papers new to the project; the home page shows it under the button (\"最近抓取 10-23 18:44 · 抓到 33 篇，新 10 篇\"), and the toast reports the same counts instead of `added`, which only counts rows new to the whole library and so read 0 whenever the papers were already stored.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "requirements": [
+    "R-LOCAL"
+  ],
+  "files": [
+    "app/db.py",
+    "app/desktop.py",
+    "app/maintenance.py",
+    "app/service.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "changes/2026-10-23-refresh-record.json",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-23-refresh-record-checks.txt",
+    "tests/test_refresh_record.py",
+    "tests/test_refresh_status.cjs"
+  ],
+  "scope_note": "Worktree refresh-record from main 9c448a3. Additive response fields (refresh result: new_to_project; /api/home maintenance: last_refresh_result); a manual refresh now also sets last_refresh, which moves the next automatic refresh (intended: a manual fetch counts as the day's fetch). No migration: the record is one settings key per project (last_refresh_result_<project>), removed with the project. The files list is the third commit's change set (fixes after the independent review; earlier commits e054285 and 1a5041e).",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Local bookkeeping and presentation; no model call, no extra request, no data leaves the machine.",
+    "before": "toast 新增 N 条 (rows new to the library); the manual button did not update last_refresh; no record of a fetch",
+    "after": "toast and a line under the button give fetched / new-to-project; a manual fetch is recorded",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "603 Node tests"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "# 0 of 1162"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent; not independent",
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    },
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Separate review agent (Opus), read-only, of e054285+1a5041e: no blocking issue; two should-fix items and three nits, fixed in the third commit",
+      "evidence": "docs/evidence/2026-10-23-refresh-record-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not looked at in a browser: the line is checked in a Node virtual page only.",
+    "A manual refresh still does not rebuild the visible list; the toast now points at the generate button when a batch already exists today (no automatic batch build).",
+    "The independent review covered the first two commits; the third commit's fixes have only the implementer's self-review.",
+    "new_recommendable on a learning map counts unrated, readable, dated papers (build_batch's route pool) and ignores whether the frontier would pick them."
+  ]
+}

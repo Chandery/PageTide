@@ -171,6 +171,33 @@
       "({0} query skipped by rate limiting)",
       "({0} queries skipped by rate limiting)"
     ],
+    "数据源都已关闭": "All data sources are switched off",
+    "最近抓取 {0}": "Last fetch {0}",
+    "最近抓取 {0} · {1}": "Last fetch {0} · {1}",
+    "抓到 {0} 篇，新 {1} 篇": [
+      "Fetched {0} paper, {1} new",
+      "Fetched {0} papers, {1} new"
+    ],
+    "抓到 {0} 篇，新 {1} 篇，点「{2}」查看": [
+      "Fetched {0} paper, {1} new, click “{2}” to see them",
+      "Fetched {0} papers, {1} new, click “{2}” to see them"
+    ],
+    "抓到 {0} 篇，新 {1} 篇，点「{2}」查看{3}": [
+      "Fetched {0} paper, {1} new, click “{2}” to see them{3}",
+      "Fetched {0} papers, {1} new, click “{2}” to see them{3}"
+    ],
+    "抓到 {0} 篇，没有新论文": [
+      "Fetched {0} paper, none new",
+      "Fetched {0} papers, none new"
+    ],
+    "抓到 {0} 篇，新 {1} 篇{2}": [
+      "Fetched {0} paper, {1} new{2}",
+      "Fetched {0} papers, {1} new{2}"
+    ],
+    "抓到 {0} 篇，没有新论文{1}": [
+      "Fetched {0} paper, none new{1}",
+      "Fetched {0} papers, none new{1}"
+    ],
     "新增 {0} 条{1}": [
       "{0} new paper {1}",
       "{0} new papers {1}"

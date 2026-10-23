@@ -151,8 +151,9 @@ class Store:
         self.conn.close()
 
     # ---------------------------------------------------------------- papers
-    def upsert_papers(self, papers, project_id=None, commit=True):
-        """Insert papers, assigning to default project if project_id not specified."""
+    def upsert_papers(self, papers, project_id=None, commit=True, stats=None):
+        """Insert papers, assigning to default project if project_id not specified. Returns how many rows are new to the
+        library; a caller that passes `stats` also gets `stats['linked']` (how many project links were new) and `stats['linked_keys']`."""
         # Get default project once if needed
         default_project_id = None
         if not project_id and papers:
@@ -164,7 +165,8 @@ class Store:
                 ).fetchone()
                 default_project_id = default_row["id"] if default_row else None
 
-        added = 0
+        added = linked = 0
+        linked_keys = []
         for paper in papers:
             paper_project_id = paper.get("project_id") or project_id or default_project_id
             cur = self.conn.execute(
@@ -196,10 +198,14 @@ class Store:
                 self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
                                   (json.dumps(merge_oa(stored, paper["oa"]), ensure_ascii=False), paper["key"]))
             if paper_project_id:
-                self.add_project_paper(paper_project_id, paper["key"],
-                                       paper.get("relation_kind") or
-                                       ("seed" if paper.get("group_name") == "seed" else "discovered"),
-                                       paper.get("source_project_id"), commit=False)
+                if self.add_project_paper(paper_project_id, paper["key"],
+                                          paper.get("relation_kind") or
+                                          ("seed" if paper.get("group_name") == "seed" else "discovered"),
+                                          paper.get("source_project_id"), commit=False):
+                    linked += 1
+                    linked_keys.append(paper["key"])
+        if stats is not None:
+            stats["linked"], stats["linked_keys"] = linked, linked_keys
         if commit:
             self.conn.commit()
         return added
@@ -207,7 +213,8 @@ class Store:
     def add_project_paper(self, project_id, paper_key, relation_kind="shared",
                           source_project_id=None, commit=True):
         """Link a canonical paper to a project. An existing link keeps its kind (a seed is
-        never downgraded by a later discovery/share); only promotion to 'seed' applies."""
+        never downgraded by a later discovery/share); only promotion to 'seed' applies.
+        Returns True when the link did not exist before."""
         if relation_kind not in {"discovered", "seed", "imported", "shared"}:
             raise ValueError("关系类型无效")
         if not self.conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone():
@@ -216,6 +223,8 @@ class Store:
             raise ValueError("来源项目不存在")
         if not self.conn.execute("SELECT 1 FROM papers WHERE key=?", (paper_key,)).fetchone():
             raise ValueError("论文不存在")
+        is_new = not self.conn.execute("SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?",
+                                       (project_id, paper_key)).fetchone()
         self.conn.execute(
             """INSERT INTO project_papers(project_id,paper_key,relation_kind,added_at,source_project_id)
                VALUES (?,?,?,?,?) ON CONFLICT(project_id,paper_key) DO UPDATE SET
@@ -225,6 +234,7 @@ class Store:
             (project_id, paper_key, relation_kind or "shared", now(), source_project_id))
         if commit:
             self.conn.commit()
+        return is_new
 
     def remove_project_paper(self, project_id, paper_key):
         if not self.conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone():

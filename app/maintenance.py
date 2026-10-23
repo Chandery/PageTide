@@ -65,6 +65,55 @@ def _key(name, project_id):
     return f"{name}_{project_id}"
 
 
+def refresh_ok(result):
+    """The success rule: no errors, or at least one paper fetched despite them."""
+    errors = result.get("errors") or []
+    return not errors or result.get("fetched", 0) > 0
+
+
+def record_success(app, project_id, result, now=None):
+    """Remember a successful refresh: `last_refresh` (drives refresh_due) and, for a real fetch, its time and counts.
+    A skipped refresh (it carries a reason_code, e.g. every source switched off) fetched nothing and leaves no counts."""
+    now = _now(now)
+    app.store.set_setting(_key("last_refresh", project_id), now.isoformat())
+    app.store.set_setting(_key("last_error", project_id), "")
+    if not result.get("reason_code"):
+        app.store.set_setting(_key("last_refresh_result", project_id), {
+            "at": now.isoformat(), "fetched": int(result.get("fetched", 0)),
+            "new_to_project": int(result.get("new_to_project", 0))})
+
+
+def _claim(project_id):
+    with _LOCK:
+        if project_id in _RUNNING:
+            return False
+        _RUNNING.add(project_id)
+        return True
+
+
+def _release(project_id):
+    with _LOCK:
+        _RUNNING.discard(project_id)
+
+
+def manual_refresh(app, project_id=None, now=None, **options):
+    """The 抓取新论文 button (and the first-launch fetch): the same refresh under the same per-project guard as the
+    automatic one, so the two never run together. A successful one is recorded at its completion time like the
+    automatic one (a manual fetch counts as the day's fetch); a failed one leaves the last success untouched; an
+    include_distractors run is an experiment and is not recorded."""
+    project_id = project_id or app.get_default_project_id()
+    if not _claim(project_id):
+        return {"fetched": 0, "added": 0, "new_to_project": 0, "new_recommendable": 0, "field": 0,
+                "errors": [{"kind": "busy", "error": "Refresh is already running"}], "reason_code": "refresh_running"}
+    try:
+        result = app.refresh_candidates(project_id=project_id, **options)
+        if refresh_ok(result) and not options.get("include_distractors"):
+            record_success(app, project_id, result, _now(now))
+        return result
+    finally:
+        _release(project_id)
+
+
 def _recently_attempted(app, project_id, now):
     attempt = _parse(app.store.get_setting(_key("last_attempt", project_id)))
     return attempt is not None and attempt <= now and (now - attempt).total_seconds() < RETRY_AFTER_SECONDS
@@ -116,16 +165,17 @@ def status(app, project_id, now=None):
     return {"frequency": frequency(app.data),
             "last_refresh": app.store.get_setting(_key("last_refresh", project_id)),
             "last_attempt": app.store.get_setting(_key("last_attempt", project_id)),
-            "last_error": app.store.get_setting(_key("last_error", project_id)) or None}
+            "last_error": app.store.get_setting(_key("last_error", project_id)) or None,
+            "batch_today": _has_batch_today(app, project_id, _now(now)),
+            "last_refresh_result": app.store.get_setting(_key("last_refresh_result", project_id)) or None}
 
 
 def run(app, project_id, now=None):
     """Refresh if due, then build today's batch if there is none. Blocking; call it from a job."""
+    injected = now is not None   # a test clock stays; otherwise the record carries the time the refresh finished
     now = _now(now)
-    with _LOCK:
-        if project_id in _RUNNING:
-            return {"skipped": "already running", "refreshed": False, "batch": False}
-        _RUNNING.add(project_id)
+    if not _claim(project_id):
+        return {"skipped": "already running", "refreshed": False, "batch": False}
     try:
         wanted = plan(app, project_id, now)
         out = {"frequency": wanted["frequency"], "refreshed": False, "added": 0, "batch": False, "errors": []}
@@ -134,13 +184,12 @@ def run(app, project_id, now=None):
             try:
                 result = app.refresh_candidates(project_id=project_id)
                 errors = result.get("errors") or []
-                ok = not errors or result.get("fetched", 0) > 0
+                ok = refresh_ok(result)
                 detail = (errors[0].get("error") or errors[0].get("kind") or "refresh failed") if errors else ""
             except Exception as exc:  # the batch and the app must not depend on the network being up
                 result, ok, errors, detail = {}, False, [], f"{type(exc).__name__}: {exc}"
             if ok:
-                app.store.set_setting(_key("last_refresh", project_id), now.isoformat())
-                app.store.set_setting(_key("last_error", project_id), "")
+                record_success(app, project_id, result, now if injected else _now(None))
                 out.update(refreshed=True, added=result.get("added", 0), errors=errors)
             else:
                 app.store.set_setting(_key("last_error", project_id), str(detail)[:200])
@@ -150,5 +199,4 @@ def run(app, project_id, now=None):
             out["batch"] = bool(built.get("batch_id"))
         return out
     finally:
-        with _LOCK:
-            _RUNNING.discard(project_id)
+        _release(project_id)

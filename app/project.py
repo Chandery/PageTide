@@ -193,7 +193,7 @@ class ProjectManager:
         for table in ("org_projects", "org_notes", "org_events", "org_drafts"):
             if table in existing:
                 self.store.conn.execute(f"DELETE FROM {table} WHERE project=?", (project_id,))
-        names = ("seed_keys", "profile_freeze", "project_default_terms", "project_goal", "last_refresh", "last_attempt", "last_error",
+        names = ("seed_keys", "profile_freeze", "project_default_terms", "project_goal", "last_refresh", "last_refresh_result", "last_attempt", "last_error",
                  "route_plan_project", "recommendation_eligibility", "route_recall", "route_revision", "route_revision_attempt",
                  "import_seed_keys")
         self.store.conn.execute(

@@ -1,0 +1,57 @@
+Work unit: refresh-record (worktree from main 9c448a3). Offline; no real DB, no network, no model.
+
+Red before code: tests/test_refresh_record.py 13 tests -> 11 errors + 1 failure (12 red; the project-deletion test passed vacuously);
+tests/test_refresh_status.cjs 4 tests -> 4 fail (pass 0).
+
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+$ python3 -m unittest discover -s tests
+----------------------------------------------------------------------
+Ran 2798 tests in 98.943s
+
+OK
+$ node --test tests/*.cjs
+# pass 599
+# fail 0
+$ python3 scripts/i18n_extract.py
+# 0 of 1160
+$ python3 scripts/harness.py check
+WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY
+PASS repository checks only; app gates/real billing are not implied
+$ python3 scripts/harness.py review changes/2026-10-23-refresh-record.json
+PASS repository checks only; app gates/real billing are not implied
+
+Second commit (toast points at the generate button). Red before code: test_refresh_record.py BatchTodayTests 1 error; node refresh_status + i18n: 2 fail (31 pass).
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+$ python3 -m unittest discover -s tests
+Ran 2799 tests in 98.424s
+
+OK
+$ node --test tests/*.cjs
+# pass 601
+# fail 0
+$ python3 scripts/i18n_extract.py
+# 0 of 1161
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+$ python3 scripts/harness.py review changes/2026-10-23-refresh-record.json
+PASS repository checks only; app gates/real billing are not implied
+
+Third commit (independent-review fixes: shared guard, completion time, new_recommendable, nits).
+Red before code: test_refresh_record.py 23 tests -> 5 errors + 3 failures; test_refresh_status.cjs 7 tests -> 3 fail.
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+$ python3 -m unittest discover -s tests
+Ran 2808 tests in 98.230s
+
+OK
+$ node --test tests/*.cjs
+# pass 603
+# fail 0
+$ python3 scripts/i18n_extract.py
+# 0 of 1162
+$ python3 scripts/harness.py check
+PASS repository checks only; app gates/real billing are not implied
+$ python3 scripts/harness.py review changes/2026-10-23-refresh-record.json
+PASS repository checks only; app gates/real billing are not implied

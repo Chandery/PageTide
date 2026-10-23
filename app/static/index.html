@@ -649,6 +649,7 @@
         <button id="btnRefresh">抓取新论文</button>
         <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label>
       </div>
+      <div class="sub" id="refreshRecord" style="margin-top:8px" hidden></div>
       <div class="sub" id="maintainNote" style="margin-top:8px"></div>
       <div class="sub err" id="triageFailure" role="alert" hidden style="margin-top:8px"></div>
       <div class="sub" id="eligibilityNote" style="margin-top:8px"></div>
@@ -1057,10 +1058,25 @@ async function load() {
 }
 // Opening-time upkeep: the server refreshes the candidate pool and builds today's batch when they are due.
 // It never starts an AI summary, never counts what was missed, and a failure leaves the page as it was.
+function fetchedText(fetched, fresh) {   // "抓到 33 篇，新 10 篇" / "抓到 33 篇，没有新论文"
+  return fresh > 0 ? `抓到 ${fetched} 篇，新 ${fresh} 篇` : `抓到 ${fetched} 篇，没有新论文`;
+}
+function fetchedHint(fetched, fresh, label) {   // today's list is already made: say where the new papers will come from
+  return `抓到 ${fetched} 篇，新 ${fresh} 篇，点「${label}」查看`;
+}
+function refreshRecordText(rec) {   // the last successful fetch, in the person's local time
+  const at = new Date(rec && rec.at);
+  if (!rec || isNaN(at)) return '';
+  const two = (n) => String(n).padStart(2, '0');
+  const year = at.getFullYear() === new Date().getFullYear() ? '' : `${at.getFullYear()}-`;   // only a record from an earlier year needs one
+  const when = `${year}${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+  return `最近抓取 ${when} · ${fetchedText(rec.fetched || 0, rec.new_to_project || 0)}`;
+}
 function renderMaintenance(m) {
-  const note = $('#maintainNote');
+  const note = $('#maintainNote'), line = $('#refreshRecord');
   if (!note || !m) return;
   note.textContent = m.last_error ? `上次刷新失败：${m.last_error}` : '';
+  if (line) { line.textContent = refreshRecordText(m.last_refresh_result); line.hidden = !line.textContent; }
 }
 function renderEligibility(snapshot) {
   const note=$('#eligibilityNote'), project=state.projects.find(p=>p.id===state.currentProject);
@@ -1187,7 +1203,8 @@ $('#btnRefresh').onclick = async () => {
       const q = r.result || {};
       if (q.reason_code === 'refresh_running') toast('已有抓取在运行', 'warn');
       else if (q.reason_code === 'route_recall_changed') toast('学习图已变化，请重新抓取', 'warn');
-      else toast(`新增 ${q.added || 0} 条${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
+      else if (q.reason_code === 'sources_disabled') toast('数据源都已关闭', 'warn');
+      else toast(`${(q.new_recommendable || 0) > 0 && state.maintenance?.batch_today ? fetchedHint(q.fetched || 0, q.new_to_project || 0, $('#btnDaily').textContent) : fetchedText(q.fetched || 0, q.new_to_project || 0)}${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
     }
     await load();
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }

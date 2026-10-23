@@ -1,3 +1,23 @@
+# 当前工作单元：抓取记录与诚实的计数（2026-10-23，第三个提交：独立审查后的修正）
+
+接在 `1a5041e` 之后。独立审查无阻断问题，修了：(1) `maintenance.manual_refresh` 与自动维护共用同一个按项目的 `_RUNNING` 守卫，忙时返回 `reason_code: refresh_running`（页面原有提示），记录时间取完成时刻，`include_distractors` 实验不记录，首次启动的引导抓取（`app/desktop.py`）也走它；(2) “点「生成今日 X 篇」查看”只在新链接里至少有一篇现在可被推荐时才出现，结果带 `new_recommendable`（`App.new_recommendable`，与 `build_batch` 共用 `_fresh_candidate` 规则和 `_seen_keys`；学习图模式按 build_batch 的路线池：未评价、可读、已发表，不看是否落在 frontier）；(3) 来源全关时手动抓取提示“数据源都已关闭”，记录行在非当年时带年份。没验证：第三个提交没有再做独立审查；没有在浏览器里看。
+
+---
+
+# 当前工作单元：抓取记录与诚实的计数（2026-10-23）
+
+worktree `refresh-record`，基线 main `9c448a3`，类别 feature。[变更记录](../changes/2026-10-23-refresh-record.json)，[检查证据](evidence/2026-10-23-refresh-record-checks.txt)。owner 报告“新建项目不自动抓取、手动抓取新增 0 条”；协调者查真实库发现抓取其实成功（创建后 9 秒自动链接了 10 篇），`新增 N 条` 报的是 `upsert_papers` 的 `added`，只算对整个 `papers` 表是新的行，别的项目或几分钟前已存的论文只被链接、不计数。
+
+做了什么：抓取结果多了 `fetched`（过日期/来源策略后返回的篇数）和 `new_to_project`（此前没链接到本项目的篇数，由 `add_project_paper` 返回“链接是否新建”并经 `upsert_papers(stats=)` 汇总，不用迁移）；`added` 保留。每次成功抓取（自动 `maintenance.run` 和按钮 `/api/refresh`，成功 = 无错误或 fetched>0）记 `last_refresh`（仍驱动 `refresh_due`）和 `last_refresh_result_<项目>`（时间、fetched、new_to_project），失败不覆盖上次成功，删项目一并清掉；带 `reason_code` 的跳过（如来源全关）不写计数。`/api/home` 的 maintenance 带 `last_refresh_result`；首页按钮下一行小灰字“最近抓取 10-23 18:44 · 抓到 33 篇，新 10 篇”（没有新的写“没有新论文”，没记录就隐藏），手动抓取后的提示是同样的计数，保留“部分查询未完成”。
+
+注意：以前手动按钮不更新 `last_refresh`；现在会，所以手动抓一次后当天不会再自动抓（有意：手动抓取算当天抓取）。
+
+新论文什么时候可见：抓取只把论文链接进项目池，不建批次；首页显示的是最新一批（`cards` 读 `latest_batch`）。新论文要等“生成今日 5 篇”（`/api/daily`，每次按未展示过的重新选）或下次自动批次（`maintenance.run` 仅在当天还没有批次且有未见论文时建）才会出现。自动维护抓取后若当天没有批次会顺带建一批（所以自动抓到的论文通常进了当天那批）；已有批次的话，之后手动抓到的新论文当天看不到，列表在“生成今日 5 篇”之前不变。第二个提交已做提示：手动抓取 new_to_project>0 且当天已有批次（`maintenance.status` 新增 `batch_today`）时，提示写成“抓到 N 篇，新 M 篇，点「<#btnDaily 当前文字>」查看”；当天还没有批次时提示不变；不自动建批次。
+
+没验证：没有在浏览器里看新行；没有独立审查；真实库、真实网络都没碰。
+
+---
+
 # 当前工作单元：中文标题压过 OpenAlex 的 “en” 语言标注（2026-10-23）
 
 worktree `zh-title-language`，基线 main `9c448a3`，类别 standard。[变更记录](../changes/2026-10-23-zh-title-language.json)，[检查证据](evidence/2026-10-23-zh-title-language-checks.txt)。
