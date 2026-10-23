@@ -1,5 +1,6 @@
 """Named undo (layout saves are never what the button undoes) and nested suggestion apply."""
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -131,12 +132,13 @@ class NamedUndoTests(unittest.TestCase):
         self.assertIn("label", {row[1] for row in store.conn.execute("PRAGMA table_info(org_events)")})
         backup = Path(org.backup_path)  # private pre-migration copy, still without the column
         self.addCleanup(backup.unlink)
-        with sqlite3.connect(backup) as conn:
+        # `with sqlite3.connect()` only ends a transaction; it does not close, and Windows cannot delete an open file.
+        with closing(sqlite3.connect(backup)) as conn:
             self.assertNotIn("label", {row[1] for row in conn.execute("PRAGMA table_info(org_events)")})
         self.assertIsNone(Organization(store).backup_path)  # no second migration, no second copy
         self.assertIsNone(org.snapshot()["undo"])
         self.assertEqual(org.action({"action": "undo"})["directions"], [])
-        with sqlite3.connect(path) as conn:
+        with closing(sqlite3.connect(path)) as conn:
             self.assertEqual(conn.execute("PRAGMA integrity_check").fetchone()[0], "ok")
 
 

@@ -1,3 +1,13 @@
+# 当前工作单元：Windows 第二轮 CI 修正（2026-10-23，第三个提交）
+
+[变更记录](../changes/2026-10-23-windows-release-ci-run2.json)，[检查证据](evidence/2026-10-23-windows-release-ci-run2-checks.txt)。`tauri-plugin-single-instance` 已由协调者固定为 ~2.4.5（tauri 保持 2.11.5）。
+
+第二轮 CI：测试只剩 2 个失败，都是测试自己的问题（一个 sqlite 连接没关；`gc.collect` 断言过严）。打包冒烟测试的 `KeyError: 'bx0'` **不是 Windows 的 bug**：脚本落后于主线——学习图是默认关闭的 beta 设置，且没有 PDF 来源的论文不会被推荐。在 macOS 上用源码后端复现并修好，脚本现在端到端通过（不是打包二进制的运行）。Windows 上清理临时目录失败改为容忍。
+
+没验证：Windows 上冻结的 exe 跑这个脚本、NSIS 步骤。
+
+---
+
 # 当前工作单元：Windows 首轮 CI 之后的修正（2026-10-23，第二个提交）
 
 接在 `57153f7` 与协调者的 `f873d9b` 之后。[变更记录](../changes/2026-10-23-windows-release-ci-fixes.json)，[检查证据](evidence/2026-10-23-windows-release-ci-fixes-checks.txt)。`Cargo.lock` 已含 `rfd`（f873d9b），上一条 HANDOFF 里“没能更新”已过时；**新增的 `tauri-plugin-single-instance` 还不在锁里**，需有网络的人跑 cargo 并提交锁（CI 现在用 `--locked`）。

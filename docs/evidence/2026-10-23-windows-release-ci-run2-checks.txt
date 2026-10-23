@@ -1,0 +1,22 @@
+Follow-up after CI run 2 (39955415353) on 5d3955e + b962084. No Windows host, no network here.
+
+CI run 2 findings and causes:
+1. test_organization_undo.test_old_event_table_gains_label_column WinError 32: the test used `with sqlite3.connect(...) as conn`, which only ends a transaction and never closes, so the backup file stayed open when the cleanup unlinked it. App code (Organization._backup) closes its connections. Test-only fix: contextlib.closing.
+2. TolerantCleanupTests "collect called 2 times": tempfile itself also calls gc.collect on cleanup; the test now asserts "called", not "once". Not a bug.
+3. Packaged smoke test KeyError 'bx0': NOT a Windows bug. Reproduced on macOS by running the script against a wrapper that starts scripts/server_entry.py from source. Cause: the script predates two later main-line gates - the learning-map mode is a beta setting that is off by default (route_recall_sources returns {} when off), and papers without any PDF source are not recommended (eligibility no_pdf_source). Fix in scripts/verify_packaged_route.py: write settings.json {routeBeta: true} into the disposable data dir; give the recommended fixture papers an `oa.pdf_urls` link; tolerate TemporaryDirectory cleanup failure on Windows only (win32 -> ignore_cleanup_errors, Python 3.10+). The smoke-test assertions themselves are unchanged.
+
+Ran on macOS:
+$ python3 scripts/verify_packaged_route.py <wrapper that execs: PYTHONPATH=<worktree> python3 scripts/server_entry.py>
+PASS fresh packaged backend: ... (the full script passes end to end against the source backend; this is NOT a packaged-binary run)
+$ python3 scripts/run_tests.py
+Ran 2839 tests in 116.403s
+OK
+$ node --test tests/*.cjs
+# pass 603  # fail 0
+$ python3 scripts/i18n_extract.py
+# 0 of 1162
+$ python3 scripts/budget.py --check
+PASS budget arithmetic and generated document parity (no live API)
+
+NOT verified: the frozen Windows .exe running this script (CI), the NSIS step (never ran in run 2), any other Windows-only behaviour in the remaining smoke-test steps (stdin close / process.wait on Windows, proxy variables).
+No model call, no developer-ledger usage.

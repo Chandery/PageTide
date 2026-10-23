@@ -80,10 +80,15 @@ def launch(executable, data, home, check):
 
 def main():
     executable=Path(sys.argv[1]).resolve(); assert executable.is_file()
-    with tempfile.TemporaryDirectory(prefix='pdh-packaged-route-') as tmp:
+    # Windows cannot delete a directory holding an open file: tolerate a failed cleanup there only (after a gc),
+    # so a real failure above is reported instead of being buried under WinError 32.
+    options={'ignore_cleanup_errors':True} if sys.platform=='win32' else {}
+    with tempfile.TemporaryDirectory(prefix='pdh-packaged-route-',**options) as tmp:
         root=Path(tmp); data=root/'data'; home=root/'home';home.mkdir();data.mkdir()
         marker=home/'default-library-marker'; marker.write_bytes(b'untouched default library')
         (data/'AI_DISABLED').touch()
+        # The learning map is a beta mode, off until the owner switches it on in Settings; this script exercises it.
+        (data/'settings.json').write_text(json.dumps({'routeBeta': True}), encoding='utf-8')
         app=App(data_dir=data)
         pid=app.create_project('Quality fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         pending=app.create_project('Legacy pending')['project_id']
@@ -97,7 +102,7 @@ def main():
         app.route_manual(batch_pid,batch_ids['Crystal foundation'],'mastered')
         app.route_watch(batch_pid,batch_ids['Crystal foundation'],True)
         app.store.upsert_papers([{'key':kind+str(i),'title':term+' study '+str(i),'abstract':term+' methods and measurement',
-                 'language':'en','published':'2026-01-01'} for kind,term in [('bp','epitaxy'),('bx','photonic calibration'),('bw','crystal lattice')] for i in range(6)],batch_pid)
+                 'language':'en','published':'2026-01-01','oa':{'pdf_urls':['https://example.org/'+kind+str(i)+'.pdf']}} for kind,term in [('bp','epitaxy'),('bx','photonic calibration'),('bw','crystal lattice')] for i in range(6)],batch_pid)
         def cache_batch_exploration(fixture_app):
             # Synthetic cached public query results, rather than purposeless fillers.
             state={}
@@ -140,6 +145,7 @@ def main():
                 for key,lang,abstract in [('en','en','Useful model learning abstract'),('zh','zh','有效中文论文摘要'),
                     ('unknown',None,'An English abstract is not a language report'),('link','en',''),('body','en','')]]
         papers[3]['oa']={'pdf_urls':['https://example.org/link.pdf']}
+        for paper in (papers[0],papers[1]): paper['oa']={'pdf_urls':['https://example.org/'+paper['key']+'.pdf']}   # a paper without any PDF source is not recommended
         app.store.upsert_papers(papers,pid)
         app.store.add_project_paper(pending,'link','imported')
         app.store.create_batch('2026-01-01',['link'],project_id=pending)
