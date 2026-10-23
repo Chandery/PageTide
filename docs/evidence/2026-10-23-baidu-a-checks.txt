@@ -1,0 +1,58 @@
+Unit A of the Baidu Scholar work: source adapter interface, per-source keys, Baidu Scholar adapter (called only by the
+settings page's test button), merge of open-access facts, one source-switch rule, settings page rows, smoke tool, docs.
+
+Owner 2026-10-23: "给软件接入中文的类似 openalex 的地方" -> 百度学术，"但是要做个适配接口，能够快速的帮助用户下载 pdf，并且记录下这个需要
+key，openalex 也一样，后续要写文档的". Owner's four recorded choices (AskUserQuestion, 2026-10-23): "中文关键词发给百度", "用 DOI 去
+OpenAlex 查 PDF", "每天最多 40 次", "百度页面算“需要登录”的来源"; scope "一次全接". Recorded as quotes in ADR 0039;
+owner_approved stays false in the change record.
+
+Nothing is sent to Baidu automatically in this unit: the only caller of BaiduScholar is App.test_source (settings page test button,
+one fixed public word). No model call, no migration (number 005 is reserved by the old channels branch), no network call in any test.
+
+Red first (clean checkout of b8827e5 plus only the new test files and fixtures):
+  python3 -m unittest tests.test_source_adapters tests.test_source_keys tests.test_source_smoke
+    Ran 102 tests ... FAILED (failures=6, errors=95)   -> 101 red, 1 already held (key never written to settings.json)
+  node --test tests/test_source_settings_ui.cjs
+    # tests 16  # pass 0  # fail 16
+  (An earlier red run before the stale-quota-status test and the smoke-tool tests existed: 92 tests, failures=6, errors=85.)
+Green after the change: the same files 102/102 OK, node 16/16 pass.
+
+Existing tests changed: none. New tests: tests/test_source_adapters.py (62), tests/test_source_keys.py (31), tests/test_source_smoke.py (9),
+tests/test_source_settings_ui.cjs (16), fixtures in tests/fixtures/baidu_scholar/ (synthetic reconstructions of the UNVERIFIED documented shape).
+
+Decisions beyond the brief: SourceInfo has an extra field `provider`; `arxiv` is registered as a SourceInfo (no key, served through OpenAlex) so the
+documentation test covers the three rows of the settings page; a failed or timed-out Baidu request still counts against the daily cap (the
+provider may count it) and is never retried; the typed key of the test button is validated against the source's key pattern before any
+request; a recorded "quota used up" status from an earlier UTC+8 day is not reported; the first-switch-on confirmation is remembered in
+settings.json as baiduScholarConfirmed (a boolean, not a secret); the source test works while the Baidu switch is off (it is an explicit click).
+
+Not verified (kept labelled UNVERIFIED in code, ADR 0039, docs/SOURCES.md and harness/sources.json CH-BAIDU-SCHOLAR): every Baidu field name and type,
+the error-code shape, the key format, the address of the Qianfan key page, the day boundary time zone, whether over-quota is refused or billed,
+whether aiAbstract is returned by default, whether pageNum starts at 0. No real request was made. The settings page was exercised only
+through Node virtual-page tests, not in a browser.
+
+$ python3 scripts/budget.py --check | tail -2
+PASS budget arithmetic and generated document parity (no live API)
+(exit 0)
+
+$ python3 scripts/harness.py check | tail -3
+WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY
+PASS repository checks only; app gates/real billing are not implied
+(exit 0)
+
+$ python3 -m unittest discover -s tests 2>&1 | tail -4
+----------------------------------------------------------------------
+Ran 2468 tests in 93.669s
+
+OK
+(exit 0)
+
+$ node --test tests/*.cjs 2>&1 | grep -E "^# (tests|pass|fail)"
+# tests 563
+# pass 563
+# fail 0
+(exit 0)
+
+$ python3 scripts/i18n_extract.py | head -1
+# 0 of 1149
+(exit 0)

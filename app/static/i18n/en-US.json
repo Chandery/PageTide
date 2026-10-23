@@ -2472,6 +2472,24 @@
     "排序": "Sort",
     "已取消已读懂": "Understood mark removed",
     "本周没有收藏": "Nothing saved this week",
-    "只能取消已读懂或太难": "Only an Understood or Too hard mark can be taken back"
+    "只能取消已读懂或太难": "Only an Understood or Too hard mark can be taken back",
+    "密钥（可选）": "Key (optional)",
+    "期刊与会议论文密钥": "Journals and conferences key",
+    "密钥": "Key",
+    "百度学术密钥": "Baidu Scholar key",
+    "测试": "Test",
+    "获取": "Get a key",
+    "百度学术": "Baidu Scholar",
+    "可用": "Works",
+    "密钥无效": "Key rejected",
+    "今日额度已用完": "Today's quota used up",
+    "无法连接": "Cannot connect",
+    "服务暂不可用": "Service unavailable",
+    "返回无法识别": "Unrecognised reply",
+    "请求无效": "Invalid request",
+    "没有结果": "Nothing found",
+    "需要密钥": "Key needed",
+    "测试中…": "Testing…",
+    "开启后，含中文的关键词会发给百度学术（使用你自己的密钥）。继续吗？": "Once on, keywords containing Chinese are sent to Baidu Scholar with your own key. Continue?"
   }
 }

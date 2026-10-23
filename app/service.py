@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import creation, eligibility, guidance_contract, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, paper_language, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
+from . import baidu_scholar, source_adapters, source_keys
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -73,6 +74,11 @@ class App:
         self.store = Store(self.data / "paperdighelper.sqlite")
         self.store.init()
         self.source = OpenAlex(self.data / "cache", api_key=openalex_key.load(self.data))
+        # Source adapters (app/source_adapters.py): only new code uses this registry; old callers keep using self.source.
+        # Nothing is created or sent for Baidu Scholar here: its folder appears on the first live answer.
+        self.adapters = {"openalex": self.source,
+                         "baidu_scholar": baidu_scholar.BaiduScholar(self.data / "cache" / "baidu_scholar", self.store.path,
+                                                                     api_key=source_keys.load(self.data, "baidu_scholar"))}
         self.pdf_fetcher = pdf_fetch.shared_fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
@@ -1634,14 +1640,95 @@ class App:
         return {**openalex_key.status(self.data), "rate_limit": self.source.rate_limit()}
 
     def save_openalex_key(self, value):
-        status = openalex_key.save(self.data, value)
-        self.source.api_key = openalex_key.load(self.data)
-        return status
+        return self.save_source_key("openalex", value)
 
     def clear_openalex_key(self):
-        status = openalex_key.clear(self.data)
-        self.source.api_key = openalex_key.load(self.data)  # an environment key, if any, stays in force
+        return self.clear_source_key("openalex")
+
+    # ---------------------------------------------------------------- source keys and tests (settings page)
+    _SOURCE_REASONS = {   # one short word per outcome: never provider text, never a key
+        "ok": ("可用", "Works"), "auth_required": ("密钥无效", "Key rejected"), "quota_exhausted": ("今日额度已用完", "Daily quota used up"),
+        "network_error": ("无法连接", "Cannot connect"), "unavailable": ("服务暂不可用", "Service unavailable"),
+        "bad_response": ("返回无法识别", "Unrecognised reply"), "invalid_input": ("请求无效", "Invalid request"),
+        "not_found": ("没有结果", "Nothing found")}
+
+    @staticmethod
+    def _keyed_source(source_id):
+        info = source_adapters.info(source_id)
+        if info is None or info.key == "none":
+            raise ValueError("未知的数据源")
+        return info
+
+    def _set_source_key(self, source_id, key):
+        self.adapters[source_id].api_key = key
+        self.store.conn.execute("DELETE FROM settings WHERE key=?", ("source_status:" + source_id,))   # a new key starts clean
+        self.store.conn.commit()
+
+    def save_source_key(self, source_id, value):
+        self._keyed_source(source_id)
+        status = source_keys.save(self.data, source_id, value)
+        self._set_source_key(source_id, source_keys.load(self.data, source_id))
         return status
+
+    def clear_source_key(self, source_id):
+        self._keyed_source(source_id)
+        status = source_keys.clear(self.data, source_id)
+        self._set_source_key(source_id, source_keys.load(self.data, source_id))   # an environment key, if any, stays in force
+        return status
+
+    @staticmethod
+    def _status_kind(recorded):
+        """The recorded outcome as a kind. 'Quota used up' renews with the provider's day (UTC+8), so an older note says
+        nothing about today and is not reported; a refused key stays refused until a new key is saved."""
+        if not isinstance(recorded, dict) or not isinstance(recorded.get("kind"), str):
+            return None
+        if recorded["kind"] == "quota_exhausted":
+            try:
+                at = datetime.fromisoformat(recorded["at"])
+            except (KeyError, TypeError, ValueError):
+                return None
+            at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
+            day = lambda moment: (moment.astimezone(timezone.utc) + timedelta(hours=8)).date()
+            if day(at) != day(datetime.now(timezone.utc)):
+                return None
+        return recorded["kind"]
+
+    def sources_status(self):
+        """Per keyed source: whether it needs a key, whether one is configured, the last outcome as a kind, today's calls.
+        No secret, no provider text."""
+        out = {}
+        for info in source_adapters.all_infos():
+            if info.key == "none":
+                continue
+            recorded = self.store.get_setting("source_status:" + info.id)
+            usage = getattr(self.adapters.get(info.id), "usage_today", None)
+            out[info.id] = {"needs_key": info.key == "required", "key": info.key,
+                            "configured": source_keys.status(self.data, info.id)["configured"],
+                            "status_kind": self._status_kind(recorded),
+                            "used_today": usage() if usage else None, "daily_cap": info.daily_cap, "key_url": info.key_url}
+        return out
+
+    def test_source(self, source_id, api_key=None):
+        """One explicit test request with a fixed public word. A typed key is used for this request only (not saved, and
+        the recorded status stays as it was); without one the saved key is tested and the outcome is recorded."""
+        info = self._keyed_source(source_id)
+        if api_key is not None:
+            api_key = api_key.strip() if isinstance(api_key, str) else api_key
+            if not source_keys.valid(source_id, api_key):
+                raise ValueError("请提供有效的单行密钥")
+        kind = "ok"
+        try:
+            self.adapters[source_id].verify(api_key=api_key)
+        except SourceError as exc:
+            kind = exc.kind if exc.kind in self._SOURCE_REASONS else "unavailable"
+        except Exception:     # a parser or network bug must not leak details into a settings page
+            kind = "unavailable"
+        if api_key is None:
+            self.store.set_setting("source_status:" + source_id,
+                                   {"kind": kind, "at": datetime.now(timezone.utc).replace(microsecond=0).isoformat()})
+        needs_key = kind == "auth_required" and info.key == "required" and not (api_key or source_keys.load(self.data, source_id))
+        words = ("需要密钥", "Key needed") if needs_key else self._SOURCE_REASONS[kind]
+        return {"ok": kind == "ok", "kind": kind, "reason": words[1] if self.english() else words[0]}
 
     def language(self):
         """Interface language from the settings page; "zh-CN" unless "en-US" is chosen."""
@@ -2813,13 +2900,13 @@ class App:
 
         # A fake/cached adapter must not evade the date and source policies.
         accepted, rejected = [], []
+        source_policy = user_settings.source_policy(self.data)
         today = self.batch_day()
         for paper in papers:
             if str(paper.get('published') or '') > today:
                 rejected.append({'key':paper['key'],'published':paper.get('published'),'reason':'future_publication_date'})
                 continue
-            is_arxiv=bool(paper.get('arxiv_id')) or 'arxiv' in str(paper.get('source') or '').casefold()
-            if (is_arxiv and not arxiv) or (not is_arxiv and not general):continue
+            if not source_policy.allows(paper):continue
             accepted.append(paper)
         papers=accepted
         rejected += list(getattr(self.source,'rejected_publications',[]))
@@ -3054,11 +3141,10 @@ class App:
         if not current_project or current_project['language_policy']['revision'] != policy['revision']:
             raise RecommendationChanged()
         counts = defaultdict(int)
-        arxiv,general=user_settings.sources(self.data)
+        source_policy=user_settings.source_policy(self.data)
         for p in papers:
-            is_arxiv=bool(p.get('arxiv_id')) or 'arxiv' in str(p.get('source') or '').casefold()
             exclusion=('future_publication_date' if str(p.get('published') or '')>eligibility_day
-                       else 'source_disabled' if (is_arxiv and not arxiv) or (not is_arxiv and not general) else None)
+                       else 'source_disabled' if not source_policy.allows(p) else None)
             if exclusion:
                 p['_eligibility']={**p['_eligibility'],'eligible':False,'reason':exclusion}
             if not p['_eligibility']['eligible']:

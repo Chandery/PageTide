@@ -91,6 +91,13 @@
     button.danger:hover { background: color-mix(in srgb, var(--bad) 8%, transparent); }
     button.ghost { border-color: transparent; background: transparent; }
     button.ghost:hover { background: var(--surface-2); }
+    /* — data sources: one row each (switch, key, one status word, test, clear, get) — */
+    .source-row .source-key { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8px * var(--s)); margin: calc(8px * var(--s)) 0 0 calc(26px * var(--s)); }
+    .source-row .source-key input[type="password"] { flex: 1 1 calc(180px * var(--s)); width: auto; min-width: 0; }
+    .source-row .source-key .source-state { margin-top: 0; min-width: 5em; font-size: calc(12px * var(--s)); color: var(--muted); }
+    .source-row .source-key button { padding: calc(5px * var(--s)) calc(10px * var(--s)); }
+    .source-row .source-key a { font-size: calc(12px * var(--s)); color: var(--muted); }
+    .source-row .source-key a:hover { color: var(--text); }
     /* — actions bar — */
     .actions {
       display: flex; gap: calc(10px * var(--s)); justify-content: flex-end;
@@ -199,17 +206,31 @@
           arXiv
         </label>
       </div>
-      <div class="field">
+      <div class="field source-row">
         <label class="inline">
           <input type="checkbox" id="sourceOpenAlex" checked>
           期刊与会议论文
         </label>
+        <div class="source-key">
+          <input type="password" id="openalexKey" placeholder="密钥（可选）" aria-label="期刊与会议论文密钥" autocomplete="off">
+          <span id="openalexKeyStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
+          <button type="button" id="testOpenalexBtn" class="ghost">测试</button>
+          <button type="button" id="clearOpenalexKeyBtn" class="ghost" hidden>清除</button>
+          <a id="openalexKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
+        </div>
       </div>
-      <div class="field">
-        <label for="openalexKey">OpenAlex API 密钥（可选）</label>
-        <input type="password" id="openalexKey" placeholder="" autocomplete="off">
-        <small id="openalexKeyStatus">读取中…</small>
-        <button id="clearOpenalexKeyBtn" class="ghost" style="padding-left:0">清除 OpenAlex 密钥</button>
+      <div class="field source-row">
+        <label class="inline">
+          <input type="checkbox" id="sourceBaiduScholar">
+          百度学术
+        </label>
+        <div class="source-key">
+          <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度学术密钥" autocomplete="off">
+          <span id="baiduScholarKeyStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
+          <button type="button" id="testBaiduScholarBtn" class="ghost">测试</button>
+          <button type="button" id="clearBaiduScholarKeyBtn" class="ghost" hidden>清除</button>
+          <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
+        </div>
       </div>
       <div class="field">
         <label for="updateFrequency">更新频率</label>
@@ -262,6 +283,91 @@
     let settings = {};
     let aiTestBusy = false;
     let aiTestEpoch = 0;
+
+    // Data sources that take a key: one row each. A test result is shown as one short word and is ignored when the key
+    // changes or the page reloads meanwhile (the same protection as the AI test). Only the word table below is ever shown,
+    // never text from the server, so a provider message or a key cannot reach the page.
+    const SOURCE_ROWS = {
+      openalex: {key:'#openalexKey', status:'#openalexKeyStatus', test:'#testOpenalexBtn', clear:'#clearOpenalexKeyBtn', link:'#openalexKeyLink'},
+      baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink'},
+    };
+    const SOURCE_WORDS = {ok:'可用', auth_required:'密钥无效', quota_exhausted:'今日额度已用完', network_error:'无法连接',
+      unavailable:'服务暂不可用', bad_response:'返回无法识别', invalid_input:'请求无效', not_found:'没有结果'};
+    const sourceTest = {openalex:{busy:false, epoch:0}, baidu_scholar:{busy:false, epoch:0}};
+    let sourceInfo = {};
+    let baiduConfirmed = false;
+
+    function sourceBaseWord(info) {
+      if (!info) return '';
+      if (info.needs_key && !info.configured) return '需要密钥';
+      if (info.configured && info.status_kind === 'auth_required') return '密钥无效';
+      if (info.status_kind === 'quota_exhausted' || (info.daily_cap && Number(info.used_today) >= Number(info.daily_cap))) return '今日额度已用完';
+      return info.configured ? '已配置' : '未配置';
+    }
+
+    function renderSourceRow(id) {
+      if (sourceTest[id].busy && sourceTest[id].shownBusy) return;     // a running test keeps its own word
+      const target = $(SOURCE_ROWS[id].status);
+      target.textContent = sourceBaseWord(sourceInfo[id]);
+      target.dataset.kind = '';
+    }
+
+    function invalidateSourceTests() {
+      for (const id of Object.keys(SOURCE_ROWS)) {
+        sourceTest[id].epoch++;
+        sourceTest[id].shownBusy = false;
+        renderSourceRow(id);
+      }
+    }
+
+    function renderSources(sources) {
+      sourceInfo = sources || {};
+      for (const id of Object.keys(SOURCE_ROWS)) {
+        const row = SOURCE_ROWS[id], info = sourceInfo[id];
+        if (!info) continue;
+        renderSourceRow(id);
+        $(row.link).href = info.key_url || '#';
+        $(row.link).hidden = !info.key_url;
+        $(row.clear).hidden = !info.configured;
+      }
+    }
+
+    function safeSourceText(value, typedKey, fieldKey) {
+      let text = String(value || '请求失败');
+      for (const key of new Set([typedKey, fieldKey])) {
+        if (key) text = text.split(key).join('[密钥已隐藏]');
+      }
+      return text;
+    }
+
+    async function testSource(id) {
+      const row = SOURCE_ROWS[id], state = sourceTest[id];
+      if (state.busy) return;
+      state.busy = true;
+      const button = $(row.test), target = $(row.status), field = $(row.key);
+      const key = field.value.trim(), epoch = ++state.epoch;
+      const current = () => epoch === state.epoch && field.value.trim() === key;
+      const show = (word, kind) => window.PDHDialogs.notice(safeSourceText(word, key, field.value.trim()), {target, kind});
+      button.disabled = true;
+      state.shownBusy = true;
+      show('测试中…');
+      try {
+        const res = await fetch('/api/source-test', {method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(key ? {id, api_key:key} : {id})});
+        const data = await res.json();
+        if (!current()) return;
+        const kind = res.ok && typeof data.kind === 'string' && Object.prototype.hasOwnProperty.call(SOURCE_WORDS, data.kind) ? data.kind : null;
+        if (kind === 'ok' && data.ok === true) show(SOURCE_WORDS.ok, 'success');
+        else show(kind && kind !== 'ok' ? SOURCE_WORDS[kind] : '请求失败', 'error');
+      } catch (error) {
+        if (current()) show('无法连接', 'error');
+      } finally {
+        state.busy = false;
+        state.shownBusy = false;
+        button.disabled = false;
+        if (!current()) renderSourceRow(id);        // an ignored result leaves the base word, not the waiting word
+      }
+    }
 
     function invalidateAiTest(message) {
       aiTestEpoch++;
@@ -321,6 +427,7 @@
 
     async function loadSettings() {
       invalidateAiTest('请重新测试');
+      invalidateSourceTests();
       try {
         const res = await fetch('/api/user_settings');
         const data = await res.json();
@@ -333,12 +440,15 @@
       $('#apiProvider').value    = settings.apiProvider    || 'deepseek';
       $('#apiKey').value         = '';
       $('#openalexKey').value    = '';
+      $('#baiduScholarKey').value = '';
       $('#recommendCount').value = settings.recommendCount ?? 5;
       $('#decayWindow').value    = settings.decayWindow    ?? 30;
       $('#newPaperBoost').value  = settings.newPaperBoost  ?? 0.5;
       $('#routeBeta').checked    = settings.routeBeta === true;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
+      $('#sourceBaiduScholar').checked = settings.sourceBaiduScholar === true;      // off until the user switches it on
+      baiduConfirmed = settings.baiduScholarConfirmed === true;
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
       $('#timePreference').value  = settings.timePreference  || 'all';
 
@@ -364,8 +474,9 @@
     function renderGateway(data) {
       $('#aiEnabled').checked = data.ai_enabled !== false;
       renderUsage(data);
-      const oa = data.openalex || {};
-      $('#openalexKeyStatus').textContent = oa.configured ? '已配置' : '未配置';
+      const sources = {...(data.sources || {})};
+      if (!sources.openalex && data.openalex) sources.openalex = {needs_key:false, configured:!!data.openalex.configured};
+      renderSources(sources);
       const p = data.provider || {};
       $('#apiKeyStatus').textContent = p.configured
         ? '已配置'
@@ -406,6 +517,8 @@
         routeBeta:      $('#routeBeta').checked,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
+        sourceBaiduScholar: $('#sourceBaiduScholar').checked && baiduConfirmed,
+        baiduScholarConfirmed: baiduConfirmed,
         updateFrequency: $('#updateFrequency').value,
         timePreference:  $('#timePreference').value,
       };
@@ -413,8 +526,10 @@
         await postGateway({ai_enabled: $('#aiEnabled').checked});
         const key = $('#apiKey').value.trim();
         if (key) await postGateway({api_key: key});
-        const openalexKey = $('#openalexKey').value.trim();
-        if (openalexKey) await postGateway({openalex_key: openalexKey});
+        for (const id of Object.keys(SOURCE_ROWS)) {
+          const value = $(SOURCE_ROWS[id].key).value.trim();
+          if (value) await postGateway({source_key: {id, value}});
+        }
         const saved = await fetch('/api/user_settings', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -431,11 +546,26 @@
       }
     }
 
-    $('#clearOpenalexKeyBtn').onclick = async () => {
-      const button=$('#clearOpenalexKeyBtn');if(button.disabled)return;button.disabled=true;
-      try { await postGateway({clear_openalex_key: true}); $('#openalexKey').value = ''; }
-      catch (e) { window.PDHDialogs.notice(e.message || '清除失败', {target:$('#settingsStatus'),kind:'error'}); }
-      finally {button.disabled=false;}
+    for (const id of Object.keys(SOURCE_ROWS)) {
+      const row = SOURCE_ROWS[id];
+      $(row.test).onclick = () => testSource(id);
+      $(row.key).oninput = () => { sourceTest[id].epoch++; sourceTest[id].shownBusy = false; renderSourceRow(id); };
+      $(row.clear).onclick = async () => {
+        const button = $(row.clear);
+        if (button.disabled) return;
+        button.disabled = true;
+        try { await postGateway({clear_source_key: id}); $(row.key).value = ''; }
+        catch (e) { window.PDHDialogs.notice(e.message || '清除失败', {target:$('#settingsStatus'),kind:'error'}); }
+        finally { button.disabled = false; }
+      };
+    }
+
+    // Chinese keywords go to Baidu with the user's own key: one question, the first time the switch is turned on.
+    $('#sourceBaiduScholar').onchange = async () => {
+      const box = $('#sourceBaiduScholar');
+      if (!box.checked || baiduConfirmed) return;
+      if (await window.PDHDialogs.confirm('开启后，含中文的关键词会发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
+      else box.checked = false;
     };
 
     $('#saveBtn').onclick  = saveSettings;

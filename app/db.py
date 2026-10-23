@@ -8,6 +8,8 @@ import sqlite3
 import uuid
 from pathlib import Path
 
+from .sources import merge_oa
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS papers (
   key TEXT PRIMARY KEY,              -- DOI or OpenAlex ID or normalized title
@@ -181,9 +183,10 @@ class Store:
                     (metadata_code(paper.get('metadata_language', paper.get('language'))),
                      str(paper.get('metadata_language_source') or 'metadata')[:80], paper['key']))
             if paper.get("oa") is not None:
-                # Open-access status changes over time, so the newest report replaces the old one.
+                # Open-access status changes over time, so OpenAlex's newest report replaces its old fields; a source
+                # that only reports a page (Baidu Scholar) adds it without wiping them, and the other way round.
                 self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
-                                  (json.dumps(paper["oa"], ensure_ascii=False), paper["key"]))
+                                  (json.dumps(merge_oa(self._stored_oa(paper["key"]), paper["oa"]), ensure_ascii=False), paper["key"]))
             if paper_project_id:
                 self.add_project_paper(paper_project_id, paper["key"],
                                        paper.get("relation_kind") or
@@ -362,9 +365,20 @@ class Store:
             "SELECT path, source_url, sha256, bytes, source_kind, license, fetched_at FROM pdf_versions "
             "WHERE paper_key=? ORDER BY id", (paper_key,))]
 
+    def _stored_oa(self, paper_key):
+        """The open-access facts stored for a paper as a dict, or None (nothing stored, or text that is not JSON)."""
+        row = self.conn.execute("SELECT oa_json FROM papers WHERE key=?", (paper_key,)).fetchone()
+        try:
+            stored = json.loads(row["oa_json"]) if row and row["oa_json"] else None
+        except ValueError:
+            stored = None
+        return stored if isinstance(stored, dict) else None
+
     def set_paper_oa(self, paper_key, oa):
+        """Merge a report into the stored open-access facts (see sources.merge_oa); None clears them."""
+        merged = merge_oa(self._stored_oa(paper_key), oa) if oa is not None else None
         self.conn.execute("UPDATE papers SET oa_json=? WHERE key=?",
-                          (json.dumps(oa, ensure_ascii=False) if oa is not None else None, paper_key))
+                          (json.dumps(merged, ensure_ascii=False) if merged is not None else None, paper_key))
         self.conn.commit()
 
     def record_fulltext_language(self, paper_key, language, pdf_sha256, method):

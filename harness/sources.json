@@ -504,6 +504,14 @@
       "recheck_after_days": 30,
       "claim": "JSON Output requires response_format json_object plus a system/user prompt containing json and an output example; reasonable max_tokens and response validation remain necessary.",
       "verification": "Official Chinese JSON Output page successfully opened with web on2026-10-09 after English-page timeout. Offline protocol-aware transport reproduces missing-instruction rejection; no new live provider or billing probe, no historical screenshot error body captured."
+    },
+    {
+      "id": "CH-BAIDU-SCHOLAR",
+      "url": "https://cloud.baidu.com/doc/qianfan/s/Amkw9qpzd",
+      "verified_on": "2026-10-02",
+      "recheck_after_days": 30,
+      "claim": "Baidu Scholar search through Baidu Qianfan: GET https://qianfan.baidubce.com/v2/tools/baidu_scholar/search with 'Authorization: Bearer <key>', params wd (keyword), pageNum (from 0), enable_ai_abstract (optional). Response {code ('0' = success), message, requestId, hasMore, data[]} with data items abstract, aiAbstract, doi, keyword (';'-separated), paperId, publishYear (int, 0 if unknown), title, url, publishInfo.journalName. No authors, citation counts or PDF link. Free plan 50 calls/day; beyond that an approved support ticket is required. Page updated 2026-03-13. The app (ADR 0039) uses it only with the user's own key, sends neither enable_ai_abstract nor enable_abstract and never stores aiAbstract.",
+      "verification": "Official Qianfan doc page read 2026-10-02 by an earlier research pass (spec and abridged example response); that record was ported unchanged from the unmerged channels branch (docs/decisions/0012 there) and NOT re-read on 2026-10-23: no network was available, so verified_on stays 2026-10-02 and a recheck is due. The page does not say how the key is created (separate Qianfan 'API KEY' page), lists no error codes, no page size, and its curl example says enable_abstract while its parameter table says enable_ai_abstract. UNVERIFIED and assumed in code: the key format (app allows letters, digits and . _ ~ + / = : -), the address of the Qianfan key page (SourceInfo.key_url), the time zone of the daily reset (UTC+8), whether the quota is refused rather than billed when exceeded (owner must confirm in the Qianfan console), the error-code shape (classified from message text) and whether aiAbstract comes back by default. No live call from this app yet: the first is tools/source_smoke.py run by the owner's coordinator."
     }
   ]
 }

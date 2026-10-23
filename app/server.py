@@ -682,7 +682,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self._same_origin():
             return self._json({"error": "cross-origin request denied"}, 403)
         route = urlparse(self.path).path
-        if route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test"):
+        if route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test", "/api/source-test"):
             # These routes mutate the local library, the learning map or store a credential: also cap the body.
             limit = {"/api/organization": 2_000_000, "/api/route": 1_000_000}.get(route, 8_000)
             try:
@@ -714,6 +714,19 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 return self._json({"error": "request must be an object"}, 400)
             app = self._app()
+            if "source_key" in body or "clear_source_key" in body:
+                # One key per source that uses one; the value is stored in that source's 0600 file and never echoed.
+                try:
+                    if "clear_source_key" in body:
+                        app.clear_source_key(body["clear_source_key"])
+                    else:
+                        item = body["source_key"]
+                        if not isinstance(item, dict) or set(item) != {"id", "value"} or not isinstance(item["value"], str):
+                            raise ValueError("密钥请求无效")
+                        app.save_source_key(item["id"], item["value"])
+                except ValueError as exc:
+                    return self._json({"error": str(exc)}, 400)
+                return self._json(self._settings_payload(app))
             if "openalex_key" in body or body.get("clear_openalex_key"):
                 try:
                     app.clear_openalex_key() if body.get("clear_openalex_key") else app.save_openalex_key(body["openalex_key"])
@@ -731,6 +744,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": str(exc)}, 400)
             return self._json(self._settings_payload(app))
         app = self._app()
+        if route == '/api/source-test':
+            if (set(body) - {'id', 'api_key'} or not isinstance(body.get('id'), str)
+                    or ('api_key' in body and not isinstance(body['api_key'], str))):
+                return self._json({'error': '测试请求仅接受数据源 id 和可选的单行密钥'}, 400)
+            try:
+                return self._json(app.test_source(body['id'], body.get('api_key')))
+            except ValueError as exc:
+                return self._json({'error': str(exc)}, 400)
         if route == '/api/ai-test':
             if set(body) - {'api_key'} or ('api_key' in body and not isinstance(body['api_key'], str)):
                 return self._json({'error': '测试请求仅接受可选的单行 API 密钥'}, 400)
@@ -1136,7 +1157,7 @@ class Handler(BaseHTTPRequestHandler):
     def _settings_payload(app):
         """Provider, switch and accounting policy; never a saved or transient key."""
         limits = app.gateway.limits()
-        return {"provider": app.provider_status(), "openalex": app.openalex_status(), "dev_mode": app.gateway.dev,
+        return {"provider": app.provider_status(), "openalex": app.openalex_status(), "sources": app.sources_status(), "dev_mode": app.gateway.dev,
                 "ai_enabled": app.gateway.enabled(), "usage": app.usage(),
                 "aggregate_limits_enabled": bool(limits.get('aggregate_limits_enabled', True)),
                 "limits": {k: limits[k] for k in ("daily_total_tokens", "monthly_total_tokens",

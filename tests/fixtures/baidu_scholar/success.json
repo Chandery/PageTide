@@ -1,0 +1,72 @@
+{
+  "code": "0",
+  "message": "success",
+  "requestId": "req-synthetic-0001",
+  "hasMore": true,
+  "data": [
+    {
+      "paperId": "synthetic-p1",
+      "title": "  知识图谱\n构建方法综述 ",
+      "abstract": "本文综述知识图谱的构建方法。",
+      "aiAbstract": "AI-GENERATED-SUMMARY-MUST-NOT-BE-STORED",
+      "doi": "10.1234/KG.2024.001",
+      "keyword": "知识图谱;信息抽取；本体构建",
+      "publishYear": 2024,
+      "publishInfo": {
+        "journalName": "情报学报"
+      },
+      "url": "https://xueshu.baidu.com/usercenter/paper/show?paperid=synthetic-p1"
+    },
+    {
+      "paperId": "synthetic-p2",
+      "title": "数字人文研究进展",
+      "abstract": "没有 DOI 的论文。",
+      "doi": "",
+      "keyword": [
+        "数字人文",
+        "文本挖掘"
+      ],
+      "publishYear": "2021",
+      "publishInfo": {
+        "journalName": "图书馆论坛"
+      },
+      "url": "http://xueshu.baidu.com/usercenter/paper/show?paperid=synthetic-p2"
+    },
+    {
+      "paperId": "synthetic-p3",
+      "title": "年份未知的论文",
+      "abstract": "年份为 0 表示未知。",
+      "doi": null,
+      "keyword": "",
+      "publishYear": 0,
+      "publishInfo": null,
+      "url": "https://xueshu.baidu.com/usercenter/paper/show?paperid=synthetic-p3"
+    },
+    {
+      "paperId": "synthetic-p4",
+      "title": "链接指向其他站点的论文",
+      "abstract": "链接不属于百度。",
+      "doi": "doi:10.5555/other.4",
+      "keyword": "其他",
+      "publishYear": 2019,
+      "publishInfo": {
+        "journalName": "测试期刊"
+      },
+      "url": "https://evil.example.com/paper/4"
+    },
+    {
+      "paperId": "synthetic-p5",
+      "title": "缺少标题字段的下一条是坏数据",
+      "abstract": "x",
+      "doi": "",
+      "keyword": "",
+      "publishYear": 2020,
+      "url": "javascript:alert(1)"
+    },
+    {
+      "title": "",
+      "paperId": "synthetic-p6"
+    },
+    "not-an-item"
+  ]
+}

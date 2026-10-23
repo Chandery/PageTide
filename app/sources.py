@@ -168,27 +168,93 @@ def slim(work, group="field"):
 
 
 class SourceError(RuntimeError):
-    """A public-metadata fetch failed; kind is not_found, network_error, unavailable, invalid_input or bad_response."""
+    """A source request failed. kind is one of not_found, network_error, unavailable, invalid_input, bad_response,
+    auth_required (the key is missing or refused) or quota_exhausted (the allowance is used up); see source_adapters."""
 
     def __init__(self, message, kind):
         super().__init__(message)
         self.kind = kind
 
 
+OA_FIELDS = ("is_oa", "oa_status", "pdf_urls", "landing_page", "license", "version")   # what OpenAlex reports (oa_of)
+
+
+def _union(old, new, ident):
+    out, seen = [], set()
+    for item in list(old if isinstance(old, list) else []) + list(new if isinstance(new, list) else []):
+        marker = ident(item)
+        if marker not in seen:
+            seen.add(marker)
+            out.append(item)
+    return out
+
+
+def merge_oa(old, new):
+    """Open-access facts after a new report. Two sources report them and neither may wipe the other.
+
+    OpenAlex's six fields (OA_FIELDS) are replaced only when the new report carries them (open-access status changes
+    over time, so its newest report wins); `pages` (source pages such as a Baidu Scholar page) and `via` (which sources
+    reported a page) are combined without duplicates; anything else in the new report is taken as is. A value that is
+    not a dict counts as nothing."""
+    old = old if isinstance(old, dict) else None
+    new = new if isinstance(new, dict) else None
+    if new is None:
+        return old
+    if old is None:
+        return dict(new)
+    merged = dict(old)
+    for key, value in new.items():
+        if key == "pages":
+            merged[key] = _union(old.get("pages"), value, lambda p: (p.get("source"), p.get("url")) if isinstance(p, dict) else repr(p))
+        elif key == "via":
+            merged[key] = _union(old.get("via"), value, lambda v: v)
+        else:
+            merged[key] = value
+    return merged
+
+
 class OpenAlex:
+    VERIFY_WORD = "world model"   # fixed public word for the settings page's test button
+
     def __init__(self, cache_dir, api_key=None):
         self.cache = Path(cache_dir)
         self.cache.mkdir(parents=True, exist_ok=True)
         self.api_key = api_key
         self.rejected_publications = []
 
-    def _request(self, url):
+    # ---- source adapter interface (app/source_adapters.py); existing callers keep using the methods below
+    @property
+    def info(self):
+        from .source_adapters import OPENALEX_INFO
+        return OPENALEX_INFO
+
+    def search(self, query, since=None, page=1, per_page=10):
+        """Papers for a query by relevance, in upsert_papers shape (see discover_topic)."""
+        return self.discover_topic(query, per_page=per_page, from_date=since, order="relevance", page=max(int(page or 1), 1))
+
+    def verify(self, api_key=None):
+        """One fresh request with a fixed public word. The typed key is used instead of the saved one when given.
+        Nothing is cached or stored (not even the allowance note)."""
+        from .source_adapters import error_for, fetch_json
+        key = api_key or self.api_key
+        url = f"{API}?{urllib.parse.urlencode({'search': self.VERIFY_WORD, 'per-page': 1})}"
+        payload = fetch_json(self._request(url, api_key=key), "OpenAlex", secrets=(key, self.api_key))
+        if not isinstance(payload, dict):
+            raise error_for("OpenAlex", "bad_response", secrets=(key, self.api_key))
+        return {"ok": True}
+
+    def pdf_routes(self, paper):
+        from .source_adapters import openalex_routes
+        return openalex_routes(paper)
+
+    def _request(self, url, api_key=None):
         """The key goes in a header, only to the OpenAlex API host over https. It is an unredirected
         header, so a redirect cannot carry it elsewhere, and it never appears in a URL, cache key or error."""
         request = urllib.request.Request(url, headers={"User-Agent": UA})
         parts = urllib.parse.urlsplit(url)
-        if self.api_key and parts.scheme == "https" and parts.hostname == "api.openalex.org":
-            request.add_unredirected_header("Authorization", f"Bearer {self.api_key}")
+        key = api_key or self.api_key
+        if key and parts.scheme == "https" and parts.hostname == "api.openalex.org":
+            request.add_unredirected_header("Authorization", f"Bearer {key}")
         return request
 
     def _note_rate_limit(self, headers):

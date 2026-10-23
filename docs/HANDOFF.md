@@ -1,4 +1,14 @@
-# 当前工作单元：“已读懂”可取消，学习图关闭时不出现（2026-10-23）
+# 当前工作单元：百度学术来源与来源适配接口——单元 A（2026-10-23）
+
+worktree `baidu-scholar`，基线 main `b8827e5`，类别 critical（`/api/settings` 新增字段、新增 `/api/source-test`、密钥文件、新的外发域名、合并 `oa_json` 的规则）。owner：“给软件接入中文的类似 openalex 的地方”，选百度学术，“要做个适配接口，能够快速的帮助用户下载 pdf，并且记录下这个需要 key，openalex 也一样，后续要写文档的”；数据外发与额度四项取舍和“一次全接”的范围是 owner 在对话里逐项选的（原文见 [ADR 0039](decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md)，`owner_approved` 仍是 false）。[变更记录](../changes/2026-10-23-baidu-a.json)，[检查证据](evidence/2026-10-23-baidu-a-checks.txt)。整个功能分三个单元提交：A 接口与设置（本单元）、B 每日推送与 PDF 路线、C 创建项目与种子检索。
+
+做了什么：`app/source_adapters.py`（`SourceInfo` 常量、错误类别与只含类别的错误信息、`search/verify/pdf_routes` 协议）、`app/source_keys.py`（每个来源一个 0600 密钥文件，`openalex.key` 格式不变，`openalex_key.py` 变成薄包装）、`app/baidu_scholar.py`（千帆适配器：请求前原子预留日额度 40 次、24 小时缓存、不存 AI 摘要、失败不重试）、`sources.merge_oa`（OpenAlex 与百度两个写入者互不抹掉）、`user_settings.SourcePolicy`（原来四处复制的来源开关规则合成一处）、设置页“数据源”每个来源一行（开关、密钥、状态词、测试、清除、获取；百度默认关闭，第一次打开确认一次）、`tools/source_smoke.py`、[SOURCES](SOURCES.md)（将来用户文档的骨架，有测试保证与代码一致）。**应用不会自动向百度发请求**，只有设置页“测试”按钮会发一个固定词；没有数据库迁移（编号 005 被旧 channels 分支占用）。
+
+没做/没验证：百度返回的所有字段名、错误码形状、密钥格式、密钥页面地址、日界时区、超额是拒绝还是计费，都**未验证**（代码里和 ADR 里逐项标注，解析全部容错）。真实密钥冒烟：`python3 tools/source_smoke.py baidu_scholar --query 知识图谱`（再加 `--wrong-key` 看拒绝时的样子），在有密钥的终端里跑；它花百度一次调用，原始返回存 `.local/source-smoke/`。设置页没有在任何浏览器里实际走查，只有 Node 的虚拟页测试。
+
+---
+
+# 上一工作单元：“已读懂”可取消，学习图关闭时不出现（2026-10-23）
 
 worktree `understood-toggle`，基线 main `829575c`，类别 critical（`/api/feedback` 新增 `retract` 字段）。owner：“论文库的已读懂按错了不能取消；这个东西是伴随学习图的，设置关掉了就不应该有了”。学习图关闭时，论文库不再有“已读懂”按钮，周报的“已读懂”格子、每日堆叠、方向条和“学习图进度”卡片、画像证据里的“已读懂”行也不显示；学习图打开时，再按一次即取消（同一论文在本项目里仍生效的“已读懂”记录全部撤销，一次事务），学习图修订后需要重新确认时一次按下就重新记录。取消后若之前点过“太难”，会恢复成“太难”（论文库不显示太难）。[变更记录](../changes/2026-10-23-understood-toggle.json)，[检查证据](evidence/2026-10-23-understood-toggle-checks.txt)（独立审查无阻塞项，建议项已修）。
 
