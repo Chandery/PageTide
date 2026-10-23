@@ -523,7 +523,7 @@ class ChineseLanguageTests(unittest.TestCase):
             self.assertIsNone(self.zh(title, "本文综述知识图谱的构建方法。"))
         self.assertEqual(self.zh("知识图谱构建方法综述", 5), "zh")
 
-    def test_the_service_uses_it_only_when_the_source_reported_nothing(self):
+    def test_the_service_uses_it_when_nothing_or_only_en_was_reported(self):
         from app.service import App
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "harness").mkdir()
@@ -535,7 +535,9 @@ class ChineseLanguageTests(unittest.TestCase):
                 language = app._paper_language(dict(row))
                 self.assertEqual((language["metadata_language"], language["metadata_source"]), ("zh", "title+abstract"))
                 reported = app._paper_language({**row, "metadata_language": "en", "metadata_language_source": "OpenAlex"})
-                self.assertEqual((reported["metadata_language"], reported["metadata_source"]), ("en", "OpenAlex"))
+                self.assertEqual((reported["metadata_language"], reported["metadata_source"]), ("zh", "chinese_text_over_metadata"))
+                other = app._paper_language({**row, "metadata_language": "fr", "metadata_language_source": "OpenAlex"})
+                self.assertEqual((other["metadata_language"], other["metadata_source"]), ("fr", "OpenAlex"))
                 self.assertIsNone(app._paper_language({"title": "Knowledge graphs", "abstract": ""})["metadata_language"])
                 stored = app.store.conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0]
                 self.assertEqual(stored, 0)                          # never written back

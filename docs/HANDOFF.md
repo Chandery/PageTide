@@ -1,3 +1,15 @@
+# 当前工作单元：中文标题压过 OpenAlex 的 “en” 语言标注（2026-10-23）
+
+worktree `zh-title-language`，基线 main `9c448a3`，类别 standard。[变更记录](../changes/2026-10-23-zh-title-language.json)，[检查证据](evidence/2026-10-23-zh-title-language-checks.txt)。
+
+起因：协调者在真实库副本里看到 zh 项目“古汉语”把 6 篇明显的中文论文按 `language_not_allowed` 排除，因为 OpenAlex 把它们标成 `en`。
+
+做了什么：`App._paper_language` 里，来源报告恰为 `en` 且 `chinese_text_language(标题, 摘要)` 判为中文（无假名/谚文，摘要为空或也是中文）时，评估用的语言记为 `zh`，来源记为 `chinese_text_over_metadata`；不写回数据库；已核验的全文语言仍优先；`fr`/`ja` 等其它报告不动。动态推送、每日批次、创建候选都经 `_paper_language` 和 `eligibility.evaluate`，所以一致。仅英文项目里这类论文现在以 `language_not_allowed` 排除（以前是 `title_language_unverified`）；英文摘要配中文标题仍走旧的 `title_language_unverified`。
+
+没验证：没有在真实库上重跑；中文占比不足一半的中英双语标题（如 “汉字音源意境溯源体系…|Sound-Source…”、“21世纪以来汉语语气副词研究综述 : A Review of…”）仍不会被识别——无报告时是 `language_unknown`，报告为 `en` 时保持 `en`。
+
+---
+
 # 当前工作单元：中文创建的真实模型结果与审查修正（2026-10-23，第二个提交）
 
 同一 worktree `creation-zh`，接在 `591c95f` 之后，同一份[变更记录](../changes/2026-10-23-creation-zh.json)、[检查证据](evidence/2026-10-23-creation-zh-checks.txt)（第二部分）和 ADR 0038 的第二次补充。协调者做了 40 次真实 AI 回合（owner 授权，开发账本 22,250 token / $0.0099）：只勾中文时关键词和检索式都是中文；中文加英文时检索式一中一英，但 8 回合里 5 回合关键词全是中文，会让每日推送的 OpenAlex（取前三个关键词）搜不到英文。
