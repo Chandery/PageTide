@@ -108,12 +108,17 @@ def error_for(label, kind, status=None, code=None, secrets=()):
 
 
 def fetch_json(request, label, secrets=(), timeout=20, max_bytes=MAX_BODY):
-    """One request, no retry, no cache. Returns the parsed JSON, or raises SourceError with a kind."""
+    """One request, no retry, no cache. Returns the parsed JSON, or raises SourceError with a kind.
+    For search endpoints only: a 404 is reported as `unavailable`. A single-record lookup, where 404 means "no such
+    record", must not use this helper (OpenAlex lookups use OpenAlexClient._fetch)."""
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             raw = response.read(max_bytes + 1)
     except urllib.error.HTTPError as exc:
-        raise error_for(label, http_kind(exc.code), status=exc.code, secrets=secrets) from None
+        # A search API answering 404 has no such service for this account (measured with Baidu, 2026-10-23): unavailable,
+        # not "nothing found".
+        kind = "unavailable" if exc.code == 404 else http_kind(exc.code)
+        raise error_for(label, kind, status=exc.code, secrets=secrets) from None
     except http.client.InvalidURL:
         raise error_for(label, "invalid_input", secrets=secrets) from None
     except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):

@@ -1,0 +1,42 @@
+Baidu Scholar live checks, 2026-10-23 (coordinator, owner's terminal, owner's key; raw answers in .local/source-smoke/, not
+committed; the key itself never printed or committed; the temporary key file was deleted after use).
+
+Owner report: "key 填上了 ... 测试显示没有结果". The app's test showed 没有结果 because a 404 was classified not_found.
+
+tools/source_smoke.py baidu_scholar --query 知识图谱
+  owner's key (format bce-v3/ALTAK-.../..., 3 segments): HTTP 404, body "404 page not found" (plain text)
+  --wrong-key: HTTP 401 {code 216003, InvalidHTTPAuthHeader "Fail to parse apikey authorization", requestId} -> auth_required
+curl variants with the owner's key, all GET .../v2/tools/baidu_scholar/search?wd=知识图谱:
+  doc example; +pageNum=0; +Accept json; +Content-Type json; +X-Appbuilder-Request-Id: 404 "404 page not found"
+  (once, in a burst: 429 {code RATE_LIMIT_QPS, "Exceeding QPS limit for Baidu Scholar"})
+  repeated after the owner switched the key to all-application permissions and after a 60 s wait: 404 again
+POST /v2/ai_search/web_search with the same key: 200; with search_filter.match.site ["xueshu.baidu.com"] and the query
+  知识图谱: 7 references, recent Chinese papers, title + xueshu.baidu.com link + date + snippet (authors, abstract start), no DOI.
+
+Conclusion: the code's request matches the official documentation and the key is valid; the scholar tool answers 404 for
+this account (not open to it, or retired; unknown). Owner chose to check the Qianfan console before adding any other channel.
+
+Change in this unit: a search API's HTTP 404 is classified unavailable (settings status 服务暂不可用), not not_found
+(没有结果); harness/sources.json CH-BAIDU-SCHOLAR re-dated with these measurements; docs/SOURCES.md says what 服务暂不可用
+means.
+
+Documentation re-read: the official page https://cloud.baidu.com/doc/qianfan/s/Amkw9qpzd was fetched and read on
+2026-10-23 around 13:25 CST (web fetch tool, during the diagnosis): same GET address, headers (Authorization Bearer,
+Content-Type json, optional X-Appbuilder-Request-Id), parameters (wd; pageNum from 0; enable_ai_abstract default false,
+while its curl example says enable_abstract), response fields (code "0", message, requestId, hasMore, data[] with abstract,
+aiAbstract, doi, keyword, paperId, publishYear int, title, url, publishInfo.journalName), 50 free calls/day then a
+ticket; no error-code table. The Baidu AI Search page https://cloud.baidu.com/doc/qianfan/s/2mh4su4uy was read the same
+way (POST /v2/ai_search/web_search; resource types web/video/image/aladdin, no scholar type; search_filter.match.site up
+to 100 sites, "付费功能，目前限时免费"; 1500 free calls/month). This is why CH-BAIDU-SCHOLAR verified_on moved to 2026-10-23.
+
+Checks on this change (worktree baidu-404):
+$ python3 -m unittest discover -s tests          -> OK (2575 tests)
+$ node --test tests/*.cjs                         -> pass 582, fail 0
+$ python3 scripts/budget.py --check               -> PASS
+$ python3 scripts/harness.py check                -> PASS (existing recheck warnings: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY)
+$ python3 scripts/harness.py review changes/2026-10-23-baidu-404-unavailable.json -> PASS
+Red first: the added 404 case failed on the old fetch_json (FAILED failures=1) and passes now.
+Independent review (separate agent, read-only): no blocking finding; every fetch_json caller is a search or verify call
+(OpenAlex verify, Baidu search/verify); single-record lookups use OpenAlexClient._fetch and keep not_found; the daily feed
+now stops at the first Baidu keyword on a 404 instead of spending up to 3 counted calls. Its wording and evidence findings
+are fixed (SOURCES.md wording, this re-read record, these check outputs, a docstring warning).
