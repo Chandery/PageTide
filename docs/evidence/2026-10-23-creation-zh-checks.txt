@@ -86,3 +86,14 @@ $ python3 scripts/budget.py --check                  PASS
 $ python3 scripts/harness.py check                   PASS (same external-source WARN as before)
 Independent review of the first commit (Opus, read-only) before this commit: no blocking issue; the six findings above are what this commit fixes.
 The second commit's own changes were not independently re-reviewed.
+
+== Coordinator: second real-model run after e3399c4 (owner-authorized dev testing, 2026-10-23) ==
+Script /tmp/claude-501/real_zh_test.py, log /tmp/claude-501/zh-run2.log (no secrets). Real App -> Gateway -> DeepSeek, dev
+mode, temporary data folder, no source search. 10 goals (4 zh-only, 5 zh+en, 1 en-only) x quick (1 turn) + guided (2 turns)
+x 2 repeats = 60 AI turns, all answered (mode ai). Dev ledger: 31,954 tokens, $0.013982 (first run: 22,250 tokens, $0.009898).
+- zh only (24 turns): every query Chinese (2/2); keywords all Chinese except one kept Latin term "sim-to-real" in the
+  robot goal (10 turns; the intended single-Latin-term rule).
+- en only (6 turns): all English.
+- zh+en (30 turns): queries one Chinese + one English in 30/30; keywords mixed in 27/30, all Chinese in 3/30
+  (古汉语 guided r1 t1+t2, 江南 quick r1). Before e3399c4: all Chinese in 5/8. Residual: for those 3 drafts the daily
+  OpenAlex feed falls back to the first three (Chinese) keywords until the person adds an English keyword.
