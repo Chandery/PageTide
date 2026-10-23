@@ -1,0 +1,58 @@
+Creation guidance follows the ticked paper languages, 2026-10-23. Worktree creation-zh on main f6bf5b0.
+Owner (verbatim, 2026-10-23): "勾选了汉语之后，创建还是使用英文，现在要适配中文啊".
+No network, no real key, no real database, no real model call, no .app build in this unit. Every model reply in the tests is a fake;
+whether the real model follows the new prompt is NOT measured.
+
+Root cause: guidance_contract.SYSTEM said "queries=up to 2 literature search phrases in English" and "keywords=up to 5 English terms" and
+only allowed one Chinese query when zh was listed; vet_queries kept at most one Chinese query. Baidu (Scholar / AI search) and the daily
+feed need Chinese words.
+Empty 检索式 from the screenshot: NOT reproduced. With a fake model returning no queries / English / two Chinese / the goal / a question, the
+service always ended with a query when keywords existed (the model's, or built from the keywords). Not proven to be the cause of the screenshot.
+
+Red first (tests/test_guidance_zh.py, written before the code):
+$ python3 -m unittest tests.test_guidance_zh        (22 tests, first draft)  FAILED (failures=9, errors=3) -> 12 red; after fixing a test helper bug 11 red
+Final test file (25 tests) against the unchanged app/ code (git stash of app/): Ran 25, FAILED (failures=11, errors=2) -> 13 red, 12 pass
+(the 12 that pass are regression guards: en-only unchanged, own items kept, chat language, downstream ranking/pinned terms).
+Changed old tests: test_guidance_fields (zh alone now keeps both Chinese queries), test_openalex_discovery (prompt wording); both expected.
+
+Green after the code:
+$ python3 -m unittest tests.test_guidance_zh        Ran 25 tests ... OK
+$ python3 -m unittest discover -s tests              Ran 2777 tests ... OK   (before this unit: 2752 + 25 new)
+$ node --test tests/*.cjs                            # tests 595  # pass 595  # fail 0
+$ python3 scripts/i18n_extract.py                    # 0 of 1158
+$ python3 scripts/budget.py --check                  PASS budget arithmetic and generated document parity (no live API)
+$ python3 scripts/harness.py check                   PASS (WARN external sources need recheck: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY, as before)
+
+Prompt size (guidance_contract.SYSTEM, UTF-8 bytes = system text before the UI-language suffix):
+  before 1112 chars / 1112 bytes, after 1236 chars / 1240 bytes (+128 bytes); registered test ceiling 1250 unchanged.
+  Gateway input_bound, first turn, 18-character Chinese goal, no keywords, languages zh+en: 1757 -> 1885 (arithmetic upper bound, not a
+  measurement); peak cache-miss price $0.30/M input + 300 output tokens at $1.20/M: $0.0008871 -> $0.0009249 per call.
+  harness/budget.json project_guidance (reference input 1600, cap 2400, input_cap_components) NOT changed: +128 bytes is inside the
+  existing estimate and the numbers are estimates only since ADR 0037.
+
+Downstream (verified by tests, no code change needed):
+  - project keywords become the profile's pinned_terms; profile_vector uses ranking.tokenize = words + Chinese character bigrams, so a
+    Chinese keyword vector matches a Chinese paper (tests/test_guidance_zh.py DownstreamTests).
+  - ranking.term_in_text matches Chinese pinned terms as whole phrases (CJK branch).
+  - daily feed: _baidu_refresh sends the first 3 keywords that contain Chinese to Baidu (existing tests/test_baidu_refresh.py); OpenAlex gets
+    the first 3 keywords (Chinese ones go to the relevance search; discover_topic skips the strict title/abstract filter for CJK).
+  - candidate search after a zh-only quick create: guidance_preview sent both Chinese queries to the Baidu fake and a Chinese query to the
+    OpenAlex fake (SearchTests).
+Known limits (unchanged): beta learning-map hint still says "EN terms" (parse_graph requires English search terms); local fallback (AI did not
+answer) cannot extract keywords from a Chinese goal; OpenAlex takes the first 3 keywords, so with a mixed list their order decides.
+
+Independent review (separate Opus agent, read-only, 2026-10-23): no blocking finding on the code; blocking only that this record and this
+file did not exist yet (now written). Should-fix, all fixed in this commit:
+  3. language preference judged before the person's own/deleted items were set aside -> English suggestions could vanish (test added);
+  4. docs said English queries are replaced by a Chinese one but later turns kept the old list -> vet_queries now returns the built Chinese
+     phrase, which replaces the earlier ones (test added); docs reworded;
+  5. prompt said "zh only"/"en only or absent" but code means "zh without en" -> prompt now "zh without en ... otherwise English", tests for
+     zh+ja, zh+la, de, en+de, ja;
+  6. stale guidance_turn docstring updated; 7. vacuous tests tightened (all-combinations test asserts keywords and queries, assertGreaterEqual).
+  Noted, not changed: a lone English acronym keyword is dropped when Chinese ones exist in zh-without-en mode; the keyword-built Chinese
+  phrase only tries the first two Chinese keywords (a deleted phrase is not rebuilt); the reviewer's point 2 (the real model may still answer in
+  English; then the English is kept) is an open risk, below.
+The fixes themselves were not independently re-reviewed.
+
+Open risks: no real-model run (needs owner authorisation and the developer ledger); the claim "fixed" only holds if the model follows the new
+prompt; page code unchanged and not looked at in a browser.

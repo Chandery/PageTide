@@ -507,10 +507,10 @@ class RoundTwo(unittest.TestCase):
         self.assertEqual(out['mode'], 'ai')
 
     # ---- S5: language rules for phrases the model adds
-    def test_a_chinese_phrase_from_the_model_needs_zh_ticked_and_at_most_one_is_kept(self):
+    def test_a_chinese_phrase_from_the_model_needs_zh_ticked_and_at_most_one_is_kept_beside_english(self):
         goal = '机器人规划'
         reply = ok(named(queries=['世界模型 规划', '机器人 规划']))
-        for languages, expected in ((['en'], []), ([], []), (['zh', 'en'], ['世界模型 规划']), (['zh'], ['世界模型 规划'])):
+        for languages, expected in ((['en'], []), ([], []), (['zh', 'en'], ['世界模型 规划']), (['zh'], ['世界模型 规划', '机器人 规划'])):   # 中文 alone: both (2026-10-23)
             with self.subTest(languages=languages):
                 out = self.turn(goal, goal, reply, languages=languages)
                 chinese = [q for q in self.draft_of(out)['search_queries'] if any('\u3400' <= c <= '\u9fff' for c in q)]

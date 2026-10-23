@@ -2039,7 +2039,8 @@ class App:
         """One guidance turn. Only a turn the model actually answered is counted, so a missing key, an
         outage or an unreadable reply never moves the conversation on; ``retry`` re-asks the model
         for the last message after such a turn instead of recording it a second time. ``languages`` is the paper-language
-        choice on the page (codes such as zh/en): it is told to the model, and changes nothing else. ``base`` is the draft
+        choice on the page (codes such as zh/en): it is told to the model, and decides which of the model's new keywords
+        and phrases are kept (Chinese or English, see guidance_contract.vet_keywords / vet_queries). ``base`` is the draft
         revision the page's lists were built from; when it is not the stored one the page missed a turn, and its lists
         are not trusted for deletions or authorship (see _track_origins)."""
         session = self.store.guidance_session(session_id)
@@ -2124,13 +2125,21 @@ class App:
                 # judgement touches what the person wrote.
                 prose = [*guidance_contract.sentence_avoid(draft.get('goal', ''), message), reply, model.get('next_question', '')]
                 page_keywords, page_queries = draft['keywords'], draft['search_queries']
+                # Items the person wrote or deleted never come from the model, so they must not count when the language
+                # preference decides what is left (a deleted Chinese keyword must not make the English ones vanish too).
+                new = lambda items, own, gone: [i for i in items if guidance_contract._norm(i) not in
+                                                {guidance_contract._norm(o) for o in [*own, *gone]}]
                 keywords = guidance_contract.settle(page_keywords, draft['user_keywords'], draft['removed_keywords'],
-                                                    guidance_contract.vet_keywords(model['keywords'], chosen_languages),
+                                                    guidance_contract.vet_keywords(
+                                                        new(model['keywords'], draft['user_keywords'], draft['removed_keywords']),
+                                                        chosen_languages),
                                                     guidance_contract.MAX_KEYWORDS)
-                suggestions = guidance_contract.vet_queries(model['search_queries'], chosen_languages, prose)
+                suggestions = guidance_contract.vet_queries(
+                    new(model['search_queries'], draft['user_queries'], draft['removed_queries']),
+                    chosen_languages, prose, keywords)
                 queries = guidance_contract.settle(page_queries, draft['user_queries'], draft['removed_queries'],
                                                    suggestions, guidance_contract.MAX_QUERIES)
-                queries = queries or guidance_contract.clean_queries([], keywords, prose + draft['removed_queries'])
+                queries = queries or guidance_contract.clean_queries([], keywords, prose + draft['removed_queries'], chosen_languages)
                 # model items that this turn replaced are remembered, so a page that missed the turn cannot take them for new
                 norm = guidance_contract._norm
                 for field, before, after, own in (('replaced_keywords', page_keywords, keywords, draft['user_keywords']),

@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-23-creation-zh",
+  "class": "critical",
+  "summary": "Project creation (quick and AI-guided) follows the paper languages ticked on the page. Owner 2026-10-23: \"勾选了汉语之后，创建还是使用英文，现在要适配中文啊\". The guidance system prompt no longer hard-codes English keywords/queries: with 中文 and not 英文 the model is asked for Chinese terms (English acronyms inside Chinese terms allowed), with both for a mix (keywords about half each, queries one each), otherwise English as before. vet_keywords/vet_queries/clean_queries: 中文 without 英文 keeps Chinese suggestions (up to the normal limits, two Chinese queries), drops English ones when a Chinese one is left, keeps an all-English reply rather than an empty draft, and builds the query from the first two Chinese keywords when the reply only has English queries; items the person wrote or deleted are set aside before that judgement; the person's own items are never filtered. Prompt 1112 -> 1240 bytes. The empty 检索式 in the owner's screenshot could not be reproduced.",
+  "tasks": [
+    "PILOT-01",
+    "PROJECT-01"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-BUDGET",
+    "R-DISCOVERY"
+  ],
+  "files": [
+    "app/guidance_contract.py",
+    "app/service.py",
+    "changes/2026-10-23-creation-zh.json",
+    "docs/HANDOFF.md",
+    "docs/decisions/0038-creation-guidance-fields-and-language-checkboxes.md",
+    "docs/evidence/2026-10-23-creation-zh-checks.txt",
+    "prompts/project-guidance.md",
+    "tests/test_guidance_fields.py",
+    "tests/test_guidance_zh.py",
+    "tests/test_openalex_discovery.py"
+  ],
+  "scope_note": "Worktree creation-zh on main f6bf5b0. Critical: the project_guidance prompt changed (audit-budget skill). No new outbound data (languages was already in the request), no new call, no retry, no migration; no network, real key, real database or model call in any test. owner_approved stays false.",
+  "budget_impact": {
+    "runtime": "changed",
+    "quantified": {
+      "period": "one project_guidance call, first turn of a guided conversation (18-character Chinese goal, no keywords, languages zh+en); input is the Gateway input_bound UTF-8 byte upper bound, output the registered 300-token reference; peak cache-miss prices (input $0.30/M, output $1.20/M); arithmetic, not a measurement",
+      "before": {
+        "input_tokens": 1757,
+        "output_tokens": 300,
+        "usd": "0.0008871"
+      },
+      "after": {
+        "input_tokens": 1885,
+        "output_tokens": 300,
+        "usd": "0.0009249"
+      }
+    },
+    "rationale": "The system prompt grows from 1112 to 1240 bytes (language rule per ticked-language combination). No new call, trigger or retry; harness/budget.json estimates (reference input 1600, cap 2400) are unchanged because +128 bytes is inside them and they are estimates only since ADR 0037.",
+    "before": "keywords/queries asked in English whatever was ticked",
+    "after": "keywords/queries asked in the ticked languages; +128 bytes of prompt per call",
+    "developer_usage": "none: no real model call in this unit"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-creation-zh-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-creation-zh-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-23-creation-zh-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "595 Node tests"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "# 0 of 1158"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "independent",
+      "result": "passed",
+      "reviewer": "Separate review agent (Opus), read-only; no blocking finding on the code; should-fix findings fixed in the same commit and not re-reviewed",
+      "evidence": "docs/evidence/2026-10-23-creation-zh-checks.txt"
+    },
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Implementing agent (Sonnet); not independent",
+      "evidence": "docs/evidence/2026-10-23-creation-zh-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "No real-model run: whether DeepSeek follows the new language rule is unmeasured; if it still answers only in English in 中文-only mode the English is kept (by design, no empty draft), so the owner's symptom could persist. A real-model check needs the owner's authorisation and the developer ledger.",
+    "The empty 检索式 in the owner's screenshot was not reproduced; the service always yields a query when keywords exist, so the cause may be elsewhere (older build, page state).",
+    "The beta learning-map hint still asks for English terms; the local fallback cannot extract keywords from a Chinese goal; OpenAlex in the daily feed takes the first three keywords, so with mixed languages their order decides.",
+    "The page code was not changed and not looked at in a browser.",
+    "The review fixes were not independently re-reviewed."
+  ]
+}

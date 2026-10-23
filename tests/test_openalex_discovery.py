@@ -441,7 +441,7 @@ class ServiceWiringTests(unittest.TestCase):
         with mock.patch.object(self.app.gateway, "call", side_effect=spy):
             self.app.guidance_turn(sid, "更关注外延生长", dry_run=False)
         self.assertIn(guidance_contract.SYSTEM, captured['system'])
-        self.assertIn('search phrases in English', captured['system'])   # the field description; the UI suffix no longer says it again
+        self.assertIn('zh without en=all Chinese', captured['system'])   # the language rule follows the ticked languages; the UI suffix no longer says English
         self.assertIn('Text in Chinese', captured['system'])
         self.assertEqual(captured['body']['message'], '更关注外延生长')
         self.assertIn(guidance_contract.SYSTEM, (ROOT / "prompts" / "project-guidance.md").read_text(encoding="utf-8"))
