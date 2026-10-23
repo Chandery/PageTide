@@ -23,9 +23,9 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["NSS
 # application manifest we do not ship; without it the dialogs still work, in the classic style) and `xdg-portal`
 # (Linux only, irrelevant here).
 rfd = { version = "0.15", default-features = false }
-# Second launch focuses the running window. Resolved by cargo to the newest 2.x that accepts tauri 2.11.x;
-# the exact version is fixed by Cargo.lock once someone with network access runs cargo.
-tauri-plugin-single-instance = "2"
+# Second launch focuses the running window. Held at 2.4.x: 2.5+ requires tauri ^2.12 and the app is on tauri 2.11
+# (crates.io dependency data, checked 2026-10-23); Cargo.lock has 2.4.5.
+tauri-plugin-single-instance = "~2.4.5"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
