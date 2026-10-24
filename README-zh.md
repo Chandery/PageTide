@@ -23,9 +23,11 @@
 
 [![下载 PageTide](https://img.shields.io/badge/下载-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
-<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide：推荐贴合你研究的论文" width="880"></a>
-
 </div>
+
+https://github.com/user-attachments/assets/7897ab24-b2d3-4a2c-b658-a51cfc40690b
+
+<p align="center"><sub>🎵 配乐：Pumpupthemind</sub></p>
 
 每天有两万篇新论文发表，真正与你有关的寥寥几篇。PageTide 是一个桌面应用：每天早上替你检索 arXiv、OpenAlex 和百度学术，挑出贴合你研究方向的论文，并用一句话讲清每篇说了什么。收藏好的、标记不要的，画像就越来越准。所有数据都留在你自己的电脑上。
 
@@ -148,12 +150,6 @@
 
 <p align="center"><img src="docs/assets/readme/zh-weekly.png" alt="周报（演示数据）" width="720"></p>
 
-## 🎬 实际演示
-
-<!-- 30 s promo video: paste the github.com/user-attachments/... URL here on its own line (mp4 under 10 MB) -->
-
-这里将嵌入一段 30 秒的演示视频：从创建项目到对论文提问。
-
 ## 🔒 隐私优先
 
 > [!NOTE]
@@ -228,7 +224,7 @@ PageTide 会自己检查更新并弹出提示，也可以在设置里点“检�
 
 ## 🙏 致谢
 
-Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。
+Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。宣传视频配乐来自 Pumpupthemind。
 
 ## 📄 许可证
 

@@ -23,9 +23,11 @@ English · <a href="README-zh.md">简体中文</a>
 
 [![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
-<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide: papers that fit your research" width="880"></a>
-
 </div>
+
+https://github.com/user-attachments/assets/7897ab24-b2d3-4a2c-b658-a51cfc40690b
+
+<p align="center"><sub>🎵 Music by Pumpupthemind</sub></p>
 
 Twenty thousand new papers come out every day, and only a handful matter to you. PageTide is a desktop app that searches arXiv, OpenAlex and Baidu Scholar for you each morning, picks the papers that fit what you work on, and explains each one in a line. Save the good ones, mark the rest, and your profile gets sharper. Everything stays on your computer.
 
@@ -148,12 +150,6 @@ Once a week, see what you saved, what you skipped and which directions grew.
 
 <p align="center"><img src="docs/assets/readme/en-weekly.png" alt="Weekly report on demo data" width="720"></p>
 
-## 🎬 See it in action
-
-<!-- 30 s promo video: paste the github.com/user-attachments/... URL here on its own line (mp4 under 10 MB) -->
-
-A 30-second walkthrough of PageTide, from creating a project to asking a question about a paper, will be embedded here.
-
 ## 🔒 Private by design
 
 > [!NOTE]
@@ -228,7 +224,7 @@ If PageTide saves you time, a star on GitHub helps other researchers find it. �
 
 ## 🙏 Acknowledgments
 
-Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev).
+Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev). Promo video music by Pumpupthemind.
 
 ## 📄 License
 
