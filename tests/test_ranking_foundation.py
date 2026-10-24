@@ -67,7 +67,8 @@ class ReasonAndKeywordTests(unittest.TestCase):
         root = Path(tmp.name)
         (root / "harness").mkdir()
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(root), data_dir=str(root / "data"))
         from recommendation_fixtures import legacy_recommendation_settings
         legacy_recommendation_settings(self.app, route_beta=False)
@@ -109,7 +110,8 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         root = Path(tmp.name)
         (root / "harness").mkdir()
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(root), data_dir=str(root / "data"))
         from recommendation_fixtures import legacy_recommendation_settings
         legacy_recommendation_settings(self.app)

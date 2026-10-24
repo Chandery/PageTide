@@ -106,9 +106,8 @@ def main():
     root = (Path(configured_data).expanduser().resolve() if configured_data else
             platform_compat.default_data_dir())
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    harness = root / "harness"
-    harness.mkdir(exist_ok=True)
-    shutil.copyfile(resources / "harness" / "budget.json", harness / "budget.json")
+    (root / "app").mkdir(exist_ok=True)
+    shutil.copyfile(resources / "app" / "budget.json", root / "app" / "budget.json")
     os.environ["PAGETIDE_DATA"] = str(root)
     os.chdir(root)
     with (root / ".desktop.lock").open("a", encoding="utf-8") as lock:

@@ -35,7 +35,8 @@ class DemoCase(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         (self.root / "harness").mkdir()
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.data = self.root / "data"
         for patcher in (mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data), "DEEPSEEK_API_KEY": "x"}),
                         mock.patch.object(socket.socket, "connect", _loopback_only),

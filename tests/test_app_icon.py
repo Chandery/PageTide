@@ -1,8 +1,8 @@
-"""The app icon comes from one source (docs/design/brand/pagetide/PageTide-icon.png) and every file is the right size.
+"""The app icon comes from one source (assets/brand/PageTide-icon.png) and every file is the right size.
 
 Regression kept from the previous icon: the 1x 16/32 px icns slots must be ic04/ic05 ARGB entries (what
 iconutil writes). macOS decodes PNG data stored under icp4/icp5 as noise, so the app icon looked garbled on
-non-Retina external displays (Retina uses the @2x PNG slots). See docs/design/brand/pagetide/build_icons.py.
+non-Retina external displays (Retina uses the @2x PNG slots). See assets/brand/build_icons.py.
 """
 import struct as _struct
 import zlib
@@ -14,9 +14,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ICONS = ROOT / "src-tauri" / "icons"
 ICNS = ICONS / "icon.icns"
-SOURCE = ROOT / "docs" / "design" / "brand" / "pagetide" / "PageTide-icon.png"
+SOURCE = ROOT / "assets" / "brand" / "PageTide-icon.png"
 
-spec = importlib.util.spec_from_file_location("build_icons", ROOT / "docs/design/brand/pagetide/build_icons.py")
+spec = importlib.util.spec_from_file_location("build_icons", ROOT / "assets/brand/build_icons.py")
 build_icons = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(build_icons)
 

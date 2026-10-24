@@ -142,8 +142,9 @@ class ServedPageTests(unittest.TestCase):
         root = Path(self.tmp.name)
         (root / "harness").mkdir()
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (root / "harness" / "budget.json").write_text(
-            (Path(__file__).resolve().parents[1] / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text(
+            (Path(__file__).resolve().parents[1] / "app" / "budget.json").read_text())
         self.root = root
         self.httpd = server.build_server(port=0, root=str(root))
         self.port = self.httpd.server_address[1]

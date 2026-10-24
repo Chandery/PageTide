@@ -418,7 +418,8 @@ class StartupHook(Base):
     def _root(self):
         root = Path(self.tmp.name) / "root"
         (root / "harness").mkdir(parents=True)
-        (root / "harness" / "budget.json").write_text((Path(__file__).resolve().parents[1] / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text((Path(__file__).resolve().parents[1] / "app" / "budget.json").read_text())
         return root
 
     def test_building_the_server_never_opens_the_library_and_the_cleanup_runs_once(self):

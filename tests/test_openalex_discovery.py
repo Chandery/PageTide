@@ -371,7 +371,8 @@ class ServiceWiringTests(unittest.TestCase):
         self.root = Path(tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
         self.addCleanup(self.app.store.close)
 

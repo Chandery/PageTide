@@ -93,7 +93,7 @@ class DesktopIsolationTests(unittest.TestCase):
             after = {p.relative_to(default): p.read_bytes() for p in default.rglob("*") if p.is_file()}
             self.assertEqual(before, after, "Explicit isolation changed the default library")
             self.assertTrue((directory / ".desktop.lock").is_file())
-            self.assertTrue((directory / "harness" / "budget.json").is_file())
+            self.assertTrue((directory / "app" / "budget.json").is_file())
 
     def test_default_library_remains_supported(self):
         with tempfile.TemporaryDirectory() as tmp:

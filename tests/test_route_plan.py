@@ -15,8 +15,8 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "scripts"))
-import budget
+sys.path.insert(0, str(ROOT / "tests"))
+import budget_cost as budget
 from app import pathgraph as pg
 from app import routeplan, sources
 from app.service import App
@@ -39,7 +39,8 @@ class Fixture(unittest.TestCase):
         self.root = Path(tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
         self.addCleanup(self.app.store.close)
         self.session = self.app.create_guidance_session("半导体生长", "我想系统了解半导体晶体生长")["id"]
@@ -60,7 +61,7 @@ class Fixture(unittest.TestCase):
 
 class RegistryTests(unittest.TestCase):
     def setUp(self):
-        self.cfg = json.loads((ROOT / "harness" / "budget.json").read_text())
+        self.cfg = json.loads((ROOT / "app" / "budget.json").read_text())
         self.op = self.cfg["operations"]["learning_path_plan"]
 
     def test_the_operation_is_registered_bounded_and_the_owner_approved_the_raised_cap(self):
@@ -367,7 +368,7 @@ class PlanTests(Fixture):
         self.assertEqual(self.app.route_plan(self.session)["reason_code"], "bad_reply")
 
     def test_the_worst_case_input_fits_the_registered_cap_by_a_pessimistic_estimate(self):
-        cfg = json.loads((ROOT / "harness" / "budget.json").read_text())["operations"]["learning_path_plan"]
+        cfg = json.loads((ROOT / "app" / "budget.json").read_text())["operations"]["learning_path_plan"]
         english = routeplan.messages("字" * 5000, ["关" * 500] * 20, True)
         chars = sum(len(m["content"]) for m in english)
         self.assertLessEqual(chars * 1.5, cfg["cap"]["input"] - cfg["input_cap_components"]["framing_and_margin"] + 150)

@@ -13,4 +13,4 @@
 
 ## 应用里怎么用（2026-10-24，ADR 0044）
 
-`build_icons.py` 从 `PageTide-icon.png` 与 `PageTide-wordmark.png` 生成 `src-tauri/icons/*`、`app/static/favicon.png`、`wordmark.png`、`wordmark-dark.png`（需要 Pillow）。素材本身原样保留作来源；图标设计由 owner 于 2026-10-24 选定，字标随同一次交付。旧海狮图标在 `docs/design/logo/`，不再使用。
+`build_icons.py` 从 `PageTide-icon.png` 与 `PageTide-wordmark.png` 生成 `src-tauri/icons/*`、`app/static/favicon.png`、`wordmark.png`、`wordmark-dark.png`（需要 Pillow）。素材本身原样保留作来源；图标设计由 owner 于 2026-10-24 选定，字标随同一次交付。旧海狮图标已不再使用。

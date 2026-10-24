@@ -13,8 +13,8 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "scripts"))
-import budget
+sys.path.insert(0, str(ROOT / "tests"))
+import budget_cost as budget
 from app import routeplan, server
 from app.service import App
 from app.sources import SourceError
@@ -35,7 +35,8 @@ class Fixture(unittest.TestCase):
         self.root = Path(tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
         self.addCleanup(self.app.store.close)
         self.pid = self.app.create_project("Crystals", "manual", ["epitaxy"])["project_id"]
@@ -59,7 +60,7 @@ class Fixture(unittest.TestCase):
 
 class RegistryTests(unittest.TestCase):
     def setUp(self):
-        self.cfg = json.loads((ROOT / "harness" / "budget.json").read_text())
+        self.cfg = json.loads((ROOT / "app" / "budget.json").read_text())
         self.op = self.cfg["operations"]["concept_intro"]
 
     def test_it_is_registered_bounded_and_the_owners_approval_is_recorded_in_their_words(self):
@@ -105,7 +106,7 @@ class RegistryTests(unittest.TestCase):
 
 class JudgeRegistryTests(unittest.TestCase):
     def setUp(self):
-        self.cfg = json.loads((ROOT / "harness" / "budget.json").read_text())
+        self.cfg = json.loads((ROOT / "app" / "budget.json").read_text())
         self.op = self.cfg["operations"]["direction_judge"]
 
     def test_it_is_registered_bounded_and_the_owners_approval_is_recorded_in_their_words(self):

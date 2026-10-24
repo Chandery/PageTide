@@ -1303,7 +1303,7 @@
     "先点“确定”或“取消”，再选别的概念。": "Click \"OK\" or \"Cancel\" first, then pick another concept.",
     "正在处理上一步，请稍候再修改。": "The previous step is still running; please wait before editing.",
     "保存草稿时，你在现在这张图上做的“已掌握 / 手动解锁”标记和你自己写的简介只会保留给名字相同的概念。": "When you save the draft, the \"already known / unlocked by hand\" marks you made on the current map and the introductions you wrote are kept only for concepts with the same name.",
-    "“为已有项目起草学习图”这项 AI 调用还在等你批准（harness/budget.json 里的 learning_path_plan_project）。批准之前，可以自己搭学习图。": "The AI call \"draft a learning map for an existing project\" is still waiting for your approval (learning_path_plan_project in harness/budget.json). Until then you can build the map yourself.",
+    "“为已有项目起草学习图”这项 AI 调用还在等你批准（app/budget.json 里的 learning_path_plan_project）。批准之前，可以自己搭学习图。": "The AI call \"draft a learning map for an existing project\" is still waiting for your approval (learning_path_plan_project in app/budget.json). Until then you can build the map yourself.",
     "请先写下你想学什么": "Please write down what you want to learn first",
     "目标最多 {0} 个字符": "The goal can be at most {0} characters",
     "正在生成学习图，请稍候": "A learning map is being drafted; please wait",

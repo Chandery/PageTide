@@ -23,8 +23,9 @@ class PackagedRouteIsolationTests(unittest.TestCase):
             home = root / 'home'; home.mkdir()
             data = root / 'data'; data.mkdir()
             (data / 'harness').mkdir()
-            config = json.loads((ROOT / 'harness/budget.json').read_text())
-            (data / 'harness/budget.json').write_text(json.dumps(config))
+            config = json.loads((ROOT / 'app/budget.json').read_text())
+            (data / 'app').mkdir(exist_ok=True)
+            (data / 'app/budget.json').write_text(json.dumps(config))
             fake_key = root / 'fake-host.env'
             fake_key.write_text('DEEPSEEK_API_KEY=synthetic-host-key\n')
             host_home = root / 'host-home'; host_home.mkdir()

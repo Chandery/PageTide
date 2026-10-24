@@ -3,7 +3,7 @@
 The old abbreviation PDH / pdh (CSS classes, storage keys, globals, env prefix) is banned the same way.
 Scope: app/, scripts/, src-tauri sources and manifests, .github and app/static; no exception (the GitHub repository
 was renamed to Chandery/PageTide on 2026-10-25). Historical
-records (changes/, docs/evidence/, past ADRs, HANDOFF entries) are facts of their time and are not scanned.
+records (past ADRs) are facts of their time and are not scanned.
 """
 import re
 import unittest

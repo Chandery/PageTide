@@ -136,7 +136,8 @@ class LanguageDataDirTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=False):
             os.environ.pop("PAGETIDE_DATA", None)
             (Path(tmp) / "harness").mkdir()
-            (Path(tmp) / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+            (Path(tmp) / "app").mkdir(exist_ok=True)
+            (Path(tmp) / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
             self.assertEqual(Path(server.data_dir(tmp)), App(root=tmp).data)
             os.environ["PAGETIDE_DATA"] = str(Path(tmp) / "elsewhere")
             self.assertEqual(Path(server.data_dir(tmp)), App(root=tmp, data_dir=os.environ["PAGETIDE_DATA"]).data)
@@ -199,7 +200,8 @@ class LanguageRouteTests(unittest.TestCase):
         root = Path(self.tmp.name)
         (root / "harness").mkdir()
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.data = root / "data"
         env = patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data)})
         env.start()

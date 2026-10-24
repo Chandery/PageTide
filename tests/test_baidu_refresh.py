@@ -94,7 +94,8 @@ class RefreshCase(unittest.TestCase):
         self.root = Path(tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         patcher = mock.patch.dict(os.environ, {}, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -528,7 +529,8 @@ class ChineseLanguageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "harness").mkdir()
             (Path(tmp) / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-            (Path(tmp) / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+            (Path(tmp) / "app").mkdir(exist_ok=True)
+            (Path(tmp) / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
             app = App(root=tmp, data_dir=str(Path(tmp) / "data"))
             try:
                 row = {"title": "知识图谱构建方法综述", "abstract": "本文综述知识图谱的构建方法。"}

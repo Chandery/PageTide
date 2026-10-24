@@ -25,7 +25,8 @@ REPO = Path(__file__).resolve().parents[1]
 def _budget_root(tmp):
     root = Path(tmp) / "app"
     (root / "harness").mkdir(parents=True)
-    (root / "harness" / "budget.json").write_text((REPO / "harness" / "budget.json").read_text())
+    (root / "app").mkdir(exist_ok=True)
+    (root / "app" / "budget.json").write_text((REPO / "app" / "budget.json").read_text())
     return root
 
 

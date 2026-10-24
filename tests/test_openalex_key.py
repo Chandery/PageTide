@@ -114,6 +114,7 @@ class RequestTests(unittest.TestCase):
                     sources.OpenAlex(tmp, api_key=DUMMY)._fetch("https://api.openalex.org/works?search=other")
             self.assertNotIn(DUMMY, str(caught.exception))
 
+    @unittest.skipUnless((ROOT / "tools" / "data_probe.py").exists(), "tools/ is a local developer folder")
     def test_probe_sends_the_key_only_to_openalex(self):
         import data_probe
         with mock.patch.dict(os.environ, {"OPENALEX_API_KEY": DUMMY}):
@@ -129,7 +130,8 @@ class ServiceAndServerTests(unittest.TestCase):
         self.root = Path(tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         env = mock.patch.dict(os.environ, {}, clear=False)
         env.start()
         os.environ.pop("OPENALEX_API_KEY", None)

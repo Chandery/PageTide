@@ -19,7 +19,7 @@ from pathlib import Path
 
 from . import operation_lock, platform_compat
 
-BUDGET = Path("harness/budget.json")
+BUDGET = Path("app/budget.json")
 # Runtime-state paths are relative to the user data directory (App Support on
 # desktop, .local/app in a checkout), never to the read-only application bundle.
 USAGE = Path("usage.jsonl")
