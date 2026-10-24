@@ -68,5 +68,8 @@
     "Conservative by design: a library where anything was touched is left as it is; the owner may delete it by hand.",
     "Cross-branch: after the cleanup, opening the same real library with an old main / v0.1.0 build creates a UUID default project and seeds it again; do not mix builds on one data directory.",
     "Relies on table names and the old first-start shape (default_project, seed_keys_/last_refresh_ settings, profile version note 'initial'); an unknown state is kept (safe direction)."
+  ],
+  "review_notes": [
+    "Second independent review (after 414b513): mergeable; fixed in the follow-up commit: any second batch (same day included) keeps the project, unexpected stored-data shapes keep everything (recorded, not re-run), an interrupted in_progress run only drops its temporary copy. 39 cleanup tests, full suite OK."
   ]
 }

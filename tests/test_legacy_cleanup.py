@@ -350,8 +350,36 @@ class AnythingTheUserDidKeepsEverything(Base):
         self.store.conn.execute("INSERT INTO batches(run_date,created_at,source,project_id) VALUES ('2026-02-02','2026-02-02','sparse','default_project')")
         self.store.conn.commit()
         out = lc.run(self.store)
-        self.assertEqual(out["result"], "kept: used_over_days")
+        self.assertEqual(out["result"], "kept: used_batches")
         self.assertEqual(count(self.store, "SELECT COUNT(*) FROM papers"), 15)
+
+    def test_a_second_batch_on_the_same_day(self):
+        run_date = self.store.conn.execute("SELECT run_date FROM batches WHERE project_id='default_project'").fetchone()[0]
+        self.store.conn.execute("INSERT INTO batches(run_date,created_at,source,project_id) VALUES (?,?,'sparse','default_project')", (run_date, run_date))
+        self.store.conn.commit()
+        out = lc.run(self.store)
+        self.assertEqual(out["result"], "kept: used_batches")
+        self.assertEqual(count(self.store, "SELECT COUNT(*) FROM projects"), 1)
+
+    def test_stored_data_of_an_unexpected_shape_keeps_everything(self):
+        c = self.store.conn
+        c.execute("CREATE TABLE IF NOT EXISTS org_projects (project TEXT PRIMARY KEY, data TEXT)")
+        c.execute("INSERT OR REPLACE INTO org_projects(project,data) VALUES ('default_project','[]')")
+        c.commit()
+        out = lc.run(self.store)
+        self.assertTrue(out["result"].startswith("kept"), out)
+        self.assertEqual(count(self.store, "SELECT COUNT(*) FROM projects"), 1)
+        self.assertIsNone(lc.run(self.store))   # recorded: not re-checked on every start
+
+    def test_an_interrupted_run_only_drops_its_temporary_copy(self):
+        c = self.store.conn
+        c.execute("INSERT INTO settings(key,value) VALUES (?,?)", (lc.KEY, json.dumps({"done_at": "x", "result": "in_progress"})))
+        c.commit()
+        leftover = self.store.path.with_name(f"{self.store.path.name}{lc.BACKUP_PREFIX}.abc123.tmp")
+        leftover.write_bytes(b"partial")
+        self.assertIsNone(lc.run(self.store))
+        self.assertFalse(leftover.exists())
+        self.assertEqual(count(self.store, "SELECT COUNT(*) FROM projects"), 1)
 
     def test_a_paper_shared_on_from_this_project(self):
         c = self.store.conn

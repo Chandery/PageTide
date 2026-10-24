@@ -88,8 +88,8 @@ def blocker(conn):
     paper_keys = linked_papers(conn)
     if conn.execute("SELECT 1 FROM project_papers WHERE source_project_id=?", (PROJECT,)).fetchone():
         return "shared"   # sharing a paper into another project is something a person does
-    if _count(conn, "SELECT COUNT(DISTINCT run_date) FROM batches WHERE project_id=?", (PROJECT,)) > 1:
-        return "used_over_days"   # the first start makes one batch on one day; more means the app was used
+    if _count(conn, "SELECT COUNT(*) FROM batches WHERE project_id=?", (PROJECT,)) > 1:
+        return "used_batches"   # the first start makes at most one batch; another day or "one more batch" means use
     if conn.execute("SELECT 1 FROM weekly_reports WHERE project_id=? AND ai_analysis IS NOT NULL AND TRIM(ai_analysis)<>''", (PROJECT,)).fetchone():
         return "ai_analysis"
     for key in paper_keys:
@@ -229,6 +229,15 @@ def _delete_everything(conn):
     return deleted
 
 
+def _drop_backup_leftovers(path):
+    """Temporary backup copies (`*.pre-legacy-cleanup.<uuid>.tmp`) left by a run that was killed mid-copy."""
+    for leftover in path.parent.glob(f"{path.name}{BACKUP_PREFIX}.*.tmp"):
+        try:
+            leftover.unlink()
+        except OSError:
+            pass
+
+
 def _verified_backup(store, directory_name):
     """A verified copy of the library under a unique final name, or raises. The copy is written to a unique temporary
     name (an old file is never trusted or overwritten), checked by a separate connection, then renamed."""
@@ -273,9 +282,15 @@ def run(store):
         with store._lock:
             if conn.in_transaction:
                 return None
-            if conn.execute("SELECT 1 FROM settings WHERE key=?", (KEY,)).fetchone():
+            marker = conn.execute("SELECT value FROM settings WHERE key=?", (KEY,)).fetchone()
+            if marker:
+                if '"in_progress"' in (marker[0] or ""):
+                    _drop_backup_leftovers(store.path)   # an interrupted run: keep the data, never retry, only free the disk
                 return None
-            why = blocker(conn)
+            try:
+                why = blocker(conn)
+            except (AttributeError, TypeError, ValueError):
+                why = "unreadable"   # stored data of an unexpected shape: treat it as used and keep everything
             if why is not None:
                 result = "kept" if why == "no_default_project" else "kept: " + why
                 conn.execute("BEGIN IMMEDIATE")

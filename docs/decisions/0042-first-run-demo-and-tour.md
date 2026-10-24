@@ -26,6 +26,7 @@
 - **顺序与备份**：(1) 先单独提交标记 `in_progress`，让备份里也带标记（从备份恢复后不会再清理）；(2) `Store.backup` 写到唯一临时名，用另一个连接做 `PRAGMA quick_check` 并核对 projects/papers 行数和标记，通过后改名为唯一最终名 `<库>.pre-legacy-cleanup-<时间>-<id>.bak`（不信任也不覆盖任何已有文件；失败删残片、不删任何数据、记 `failed: backup…`）；(3) 在一个事务里再判定一遍、删除、把标记改成最终结果；任何异常回滚并记 `failed: …`，不重试。
 - **删除清单**：项目行；它的 `project_papers` 链接、`batches` 和 `exposures`、`profile_snapshots`、`weekly_reports`、`org_*` 里以它命名的行、上述自动设置与 `route_exploration_evidence_<批次>`；只属于它的论文（没被别的项目链接、不在任何论文库、没有反馈/问答/其他曝光/导入引用）连同 `summaries`、`fulltext_languages`、`pdf_verification_*`；别的项目的 `org_projects` 里指向被删论文的 memberships/positions/protected 条目；被别的项目链接的论文保留，只删链接。全局的 `initial` 画像版本只在清理后已没有任何项目、且库里所有版本都是这种自动写入时才删。清理后若没有真实项目，走既有流程：无项目 → 指引 → 创建项目。
 - **恢复**：退出应用，把 `<库>.pre-legacy-cleanup-….bak` 复制回 `paperdighelper.sqlite`（备份带 `in_progress` 标记，恢复后不会再清理；同目录的 `-wal`/`-shm` 文件要一起删掉）。备份不会自动删除。
+- **中断与异常（复审后补充）**：标记停在 `in_progress`（清理途中进程被杀）等于永久不清理，下次启动只删除同名前缀的 `*.pre-legacy-cleanup.<uuid>.tmp` 残片，不重试；判定时遇到形状异常的存储数据按“用过”处理并记 `kept: unreadable`；项目里批次多于 1 个（另一天或同一天“再来一批”）即视为用过（`used_batches`）。备份是整库副本，库大时备份也大，不会自动删除。
 - **跨分支风险**：清理之后若用旧 main / v0.1.0 的构建打开同一个真实库，它会新建 UUID 默认项目并再塞种子论文；新旧构建不要混用同一个数据目录。
 
 ## 没有验证
