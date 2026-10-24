@@ -1,0 +1,466 @@
+[
+ {
+  "id": "1706.03762",
+  "title": "Attention Is All You Need",
+  "date": "2017-06-12",
+  "authors": [
+   "Ashish Vaswani",
+   "Noam Shazeer",
+   "Niki Parmar"
+  ],
+  "abstract": "Sequence models used to be built on recurrent or convolutional networks. This paper proposes the Transformer, an architecture made only of attention layers with no recurrence and no convolution. On machine translation it reaches better quality than earlier systems, trains in a fraction of the time because attention can be computed in parallel, and also transfers to parsing.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Introduces the Transformer, built on attention alone with no recurrence or convolution, which trains faster and translates better.",
+   "zh": "提出只用注意力、不用循环和卷积的 Transformer，训练更快、翻译更好。"
+  }
+ },
+ {
+  "id": "1810.04805",
+  "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+  "date": "2018-10-11",
+  "authors": [
+   "Jacob Devlin",
+   "Ming-Wei Chang",
+   "Kenton Lee"
+  ],
+  "abstract": "BERT pre-trains a deep bidirectional Transformer on unlabeled text by predicting masked words and whether two sentences follow each other. The pre-trained model is then fine-tuned with one small extra layer and improves a wide range of language understanding benchmarks, including question answering and inference.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Pre-trains a bidirectional Transformer by predicting masked words, then fine-tunes it with one extra layer to lift many understanding tasks.",
+   "zh": "用遮盖词预测预训练双向 Transformer，再加一层微调，刷新多项理解任务。"
+  }
+ },
+ {
+  "id": "2001.08361",
+  "title": "Scaling Laws for Neural Language Models",
+  "date": "2020-01-23",
+  "authors": [
+   "Jared Kaplan",
+   "Sam McCandlish",
+   "Tom Henighan"
+  ],
+  "abstract": "The loss of a language model follows smooth power laws in model size, dataset size and training compute, over many orders of magnitude. Other architectural details matter little. The fitted laws suggest how to split a fixed compute budget, and that larger models are more sample efficient.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Language-model loss falls as a smooth power law in model size, data and compute, which guides how to spend a training budget.",
+   "zh": "语言模型的损失随模型、数据、算力呈平滑的幂律下降，可据此分配训练预算。"
+  }
+ },
+ {
+  "id": "2005.14165",
+  "title": "Language Models are Few-Shot Learners",
+  "date": "2020-05-28",
+  "authors": [
+   "Tom B. Brown",
+   "Benjamin Mann",
+   "Nick Ryder"
+  ],
+  "abstract": "Scaling a language model to 175 billion parameters lets it perform many tasks from a few examples given in the prompt, with no gradient update. The paper evaluates this few-shot ability on translation, question answering, arithmetic and more, and also discusses where it fails and the risks of such a model.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Scales a language model to 175B parameters so that a few examples in the prompt are enough for many tasks.",
+   "zh": "把语言模型放大到 1750 亿参数后，只靠提示里的几个例子就能完成很多任务。"
+  }
+ },
+ {
+  "id": "2010.11929",
+  "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale",
+  "date": "2020-10-22",
+  "authors": [
+   "Alexey Dosovitskiy",
+   "Lucas Beyer",
+   "Alexander Kolesnikov"
+  ],
+  "abstract": "A pure Transformer applied to a sequence of image patches can classify images without convolutions. When pre-trained on large datasets and transferred to smaller benchmarks, this Vision Transformer matches or beats strong convolutional networks while needing fewer computing resources to train.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Feeds image patches as words into a plain Transformer; pre-trained on large data it catches up with convolutional networks.",
+   "zh": "把图像切成小块当词输入纯 Transformer，大数据预训练后可以追平卷积网络。"
+  }
+ },
+ {
+  "id": "1906.08237",
+  "title": "XLNet: Generalized Autoregressive Pretraining for Language Understanding",
+  "date": "2019-06-19",
+  "authors": [
+   "Zhilin Yang",
+   "Zihang Dai",
+   "Yiming Yang"
+  ],
+  "abstract": "XLNet is a pretrained language model that learns bidirectional context by pretraining on every permutation of the word order instead of masking tokens. Built on a Transformer with longer memory, it improves language understanding benchmarks over BERT after fine-tuning, including question answering and reading comprehension.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Pretrains on the likelihood over word-order permutations, learning bidirectional context without masking.",
+   "zh": "用所有词序排列的似然来预训练，不遮盖词也能学到双向上下文。"
+  }
+ },
+ {
+  "id": "1909.11942",
+  "title": "ALBERT: A Lite BERT for Self-supervised Learning of Language Representations",
+  "date": "2019-09-26",
+  "authors": [
+   "Zhenzhong Lan",
+   "Mingda Chen",
+   "Sebastian Goodman"
+  ],
+  "abstract": "ALBERT is a lighter pretrained language model: parameter sharing across layers and a factorized embedding shrink BERT, and a sentence-order loss replaces next-sentence prediction. Pretraining the smaller model is faster, and fine-tuning it still improves language understanding benchmarks.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Shares parameters across layers and factorizes embeddings to make BERT smaller and quicker to train.",
+   "zh": "跨层共享参数、拆分词嵌入，让 BERT 更小更快。"
+  }
+ },
+ {
+  "id": "1910.13461",
+  "title": "BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension",
+  "date": "2019-10-29",
+  "authors": [
+   "Mike Lewis",
+   "Yinhan Liu",
+   "Naman Goyal"
+  ],
+  "abstract": "BART is a pretrained sequence-to-sequence language model: pretraining corrupts the text with several noising schemes and learns to reconstruct it. After fine-tuning it matches RoBERTa on language understanding benchmarks and sets new results on summarization and dialogue generation.",
+  "source": "arXiv",
+  "preview": {
+   "en": "An encoder-decoder pretrained by corrupting text and reconstructing it, strong at both generation and understanding.",
+   "zh": "把文本打乱再还原的编码器-解码器预训练，生成和理解两头都强。"
+  }
+ },
+ {
+  "id": "1910.10683",
+  "title": "Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer",
+  "date": "2019-10-23",
+  "authors": [
+   "Colin Raffel",
+   "Noam Shazeer",
+   "Adam Roberts"
+  ],
+  "abstract": "T5 pretrains one text-to-text Transformer language model and compares pretraining objectives, architectures and data on language understanding benchmarks. Scaling the pretraining corpus and the model, then fine-tuning on summarization, question answering and classification, gives strong benchmark results.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Casts every task as text to text and systematically compares pretraining objectives, architectures and scale.",
+   "zh": "把所有任务都变成“文本到文本”，系统比较了预训练目标、结构和规模。"
+  }
+ },
+ {
+  "id": "2003.10555",
+  "title": "ELECTRA: Pre-training Text Encoders as Discriminators Rather Than Generators",
+  "date": "2020-03-23",
+  "authors": [
+   "Kevin Clark",
+   "Minh-Thang Luong",
+   "Quoc V. Le"
+  ],
+  "abstract": "ELECTRA is pretrained as a discriminator: instead of masking tokens it learns to detect which tokens a small generator replaced. Pretraining over every token is more efficient than masked language modeling, and fine- tuning gives better language understanding benchmark results than BERT at the same compute.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Instead of masking, it detects which tokens were replaced, learning more from the same compute.",
+   "zh": "不遮盖词，而是判断每个词是否被替换，同样算力下学得更多。"
+  }
+ },
+ {
+  "id": "1907.11692",
+  "title": "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+  "date": "2019-07-26",
+  "authors": [
+   "Yinhan Liu",
+   "Myle Ott",
+   "Naman Goyal"
+  ],
+  "abstract": "RoBERTa revisits BERT pretraining and finds the language model was undertrained. Pretraining longer with bigger batches on more tokens, with dynamic masking and no next-sentence objective, improves language understanding benchmarks after fine-tuning.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Retrains BERT with better settings and finds it was undertrained; more training beats its successors.",
+   "zh": "重新调参训练 BERT，发现它训练不足，多训几步就超过后继模型。"
+  }
+ },
+ {
+  "id": "2203.15556",
+  "title": "Training Compute-Optimal Large Language Models",
+  "date": "2022-03-29",
+  "authors": [
+   "Jordan Hoffmann",
+   "Sebastian Borgeaud",
+   "Arthur Mensch"
+  ],
+  "abstract": "For a fixed compute budget, a pretrained language model should grow in parameters and in training tokens in equal proportion. Earlier large language models were undertrained; Chinchilla, smaller but pretrained on more tokens, beats them on language understanding benchmarks with the same compute.",
+  "source": "arXiv",
+  "preview": {
+   "en": "For a fixed compute budget, model size and training tokens should grow together; a smaller model on more data wins.",
+   "zh": "固定算力下，模型大小与训练词数应同比例增长；小模型多训数据反而更好。"
+  }
+ },
+ {
+  "id": "2103.14030",
+  "title": "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows",
+  "date": "2021-03-25",
+  "authors": [
+   "Ze Liu",
+   "Yutong Lin",
+   "Yue Cao"
+  ],
+  "abstract": "Swin is a hierarchical vision Transformer: self-attention runs inside shifted windows of image patches and patches merge across stages. Cost grows linearly with image size, and the visual backbone works for image recognition, detection and segmentation.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Does attention inside shifted local windows and merges patches layer by layer, so cost grows linearly with image size.",
+   "zh": "在可移位的局部窗口里做注意力，并逐层合并，成本随图像大小线性增长。"
+  }
+ },
+ {
+  "id": "2012.12877",
+  "title": "Training data-efficient image transformers & distillation through attention",
+  "date": "2020-12-23",
+  "authors": [
+   "Hugo Touvron",
+   "Matthieu Cord",
+   "Matthijs Douze"
+  ],
+  "abstract": "DeiT trains a vision Transformer for image recognition on ImageNet alone, using a stronger training recipe and a distillation token that learns from a convolutional teacher through attention. Image patches are processed by the Transformer without any large external dataset.",
+  "source": "arXiv",
+  "preview": {
+   "en": "A better recipe plus a distillation token lets a Vision Transformer train on ImageNet alone.",
+   "zh": "更好的训练配方加蒸馏标记，让视觉 Transformer 只靠 ImageNet 就能训好。"
+  }
+ },
+ {
+  "id": "2103.00020",
+  "title": "Learning Transferable Visual Models From Natural Language Supervision",
+  "date": "2021-02-26",
+  "authors": [
+   "Alec Radford",
+   "Jong Wook Kim",
+   "Chris Hallacy"
+  ],
+  "abstract": "CLIP pretrains an image encoder and a text encoder to match images with captions on web data. The visual model recognizes images zero-shot from text descriptions of the classes and transfers across image recognition tasks without task-specific training.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Aligns images and text captions in one space so images can be classified with no extra training.",
+   "zh": "让图像和文字描述在同一空间里对齐，不用训练就能给图片分类。"
+  }
+ },
+ {
+  "id": "2111.06377",
+  "title": "Masked Autoencoders Are Scalable Vision Learners",
+  "date": "2021-11-11",
+  "authors": [
+   "Kaiming He",
+   "Xinlei Chen",
+   "Saining Xie"
+  ],
+  "abstract": "A masked autoencoder hides most image patches and reconstructs them. The vision Transformer encoder sees only the visible patches, which makes pretraining fast and lets large visual models learn good representations for image recognition from images alone.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Hides most image patches and reconstructs them, so large Vision Transformers can be pretrained on images alone.",
+   "zh": "遮住大部分图像块再还原，让大型视觉 Transformer 只用图片也能预训练。"
+  }
+ },
+ {
+  "id": "2105.01601",
+  "title": "MLP-Mixer: An all-MLP Architecture for Vision",
+  "date": "2021-05-04",
+  "authors": [
+   "Ilya Tolstikhin",
+   "Neil Houlsby",
+   "Alexander Kolesnikov"
+  ],
+  "abstract": "MLP-Mixer is an image recognition architecture built only from multilayer perceptrons that mix information across image patches and across channels, with no convolution and no attention. At large scale it is competitive with vision Transformers.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Replaces convolution and attention with MLPs that mix information across patches and channels.",
+   "zh": "用多层感知机代替卷积和注意力，在图像块和通道之间混合信息。"
+  }
+ },
+ {
+  "id": "2005.12872",
+  "title": "End-to-End Object Detection with Transformers",
+  "date": "2020-05-26",
+  "authors": [
+   "Nicolas Carion",
+   "Francisco Massa",
+   "Gabriel Synnaeve"
+  ],
+  "abstract": "DETR casts object detection in images as direct set prediction with a Transformer encoder-decoder and removes hand-designed components such as anchors. It matches strong detection baselines and extends to segmentation.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Treats object detection as set prediction and outputs results directly from a Transformer, dropping anchors and similar hand design.",
+   "zh": "把目标检测当成集合预测，用 Transformer 直接输出结果，去掉锚框等手工设计。"
+  }
+ },
+ {
+  "id": "2004.05150",
+  "title": "Longformer: The Long-Document Transformer",
+  "date": "2020-04-10",
+  "authors": [
+   "Iz Beltagy",
+   "Matthew E. Peters",
+   "Arman Cohan"
+  ],
+  "abstract": "Longformer makes attention efficient for long documents: a sliding window plus a few global tokens makes the cost linear in sequence length instead of quadratic. It processes long sequences with less memory and improves long document question answering and summarization.",
+  "source": "arXiv",
+  "preview": {
+   "en": "A sliding window plus a few global tokens makes attention cost linear in document length, handling thousands of tokens.",
+   "zh": "滑动窗口加少量全局词，让注意力成本随文档长度线性增长，能处理几千词。"
+  }
+ },
+ {
+  "id": "2001.04451",
+  "title": "Reformer: The Efficient Transformer",
+  "date": "2020-01-13",
+  "authors": [
+   "Nikita Kitaev",
+   "Lukasz Kaiser",
+   "Anselm Levskaya"
+  ],
+  "abstract": "Reformer makes Transformers efficient on long sequences: locality-sensitive hashing replaces dot-product attention so the cost drops from quadratic to near-linear in sequence length, and reversible layers cut memory. Quality stays close to the standard model.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Uses hashing to find similar keys and reversible layers to save memory, making long-sequence Transformers cheaper.",
+   "zh": "用哈希找相似的键、用可逆层省显存，让长序列 Transformer 更省。"
+  }
+ },
+ {
+  "id": "2006.04768",
+  "title": "Linformer: Self-Attention with Linear Complexity",
+  "date": "2020-06-08",
+  "authors": [
+   "Sinong Wang",
+   "Belinda Z. Li",
+   "Madian Khabsa"
+  ],
+  "abstract": "Linformer shows the attention matrix is low rank and projects keys and values to a shorter length, so self- attention costs linear time and memory in sequence length. Efficient attention on long sequences stays close to standard Transformer quality.",
+  "source": "arXiv",
+  "preview": {
+   "en": "The attention matrix is nearly low rank, so projecting keys and values to a shorter length gives linear cost.",
+   "zh": "注意力矩阵近似低秩，把键和值投影到更短长度，成本线性。"
+  }
+ },
+ {
+  "id": "2009.14794",
+  "title": "Rethinking Attention with Performers",
+  "date": "2020-09-30",
+  "authors": [
+   "Krzysztof Choromanski",
+   "Valerii Likhosherstov",
+   "David Dohan"
+  ],
+  "abstract": "Performers approximate softmax attention with random features, giving efficient attention whose cost and memory are linear in sequence length, with provable estimates and no sparsity or low-rank assumption. They work on long sequences of text, images and proteins.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Approximates softmax attention with random features, with theoretical guarantees and cost linear in length.",
+   "zh": "用随机特征近似 softmax 注意力，有理论保证，成本随长度线性。"
+  }
+ },
+ {
+  "id": "2205.14135",
+  "title": "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness",
+  "date": "2022-05-27",
+  "authors": [
+   "Tri Dao",
+   "Daniel Y. Fu",
+   "Stefano Ermon"
+  ],
+  "abstract": "FlashAttention computes exact attention efficiently by tiling it so that data stays in fast on-chip memory, reducing reads and writes to slow GPU memory. It is faster and uses less memory than standard attention, which makes long sequences practical.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Computes exact attention in tiles to cut reads and writes to slow memory, faster and leaner.",
+   "zh": "分块计算精确注意力，减少对显存的读写，更快也更省。"
+  }
+ },
+ {
+  "id": "2104.09864",
+  "title": "RoFormer: Enhanced Transformer with Rotary Position Embedding",
+  "date": "2021-04-20",
+  "authors": [
+   "Jianlin Su",
+   "Yu Lu",
+   "Shengfeng Pan"
+  ],
+  "abstract": "RoFormer encodes position with rotary embeddings so attention over long sequences depends on relative distance: query and key vectors are rotated, which handles flexible sequence length with efficient memory growth and improves long text classification at unchanged attention cost.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Encodes position by rotating query and key vectors so attention scores depend on relative distance.",
+   "zh": "用旋转向量编码位置，让注意力分数只依赖相对距离，长度更灵活。"
+  }
+ },
+ {
+  "id": "2109.01652",
+  "title": "Finetuned Language Models Are Zero-Shot Learners",
+  "date": "2021-09-03",
+  "authors": [
+   "Jason Wei",
+   "Maarten Bosma",
+   "Vincent Y. Zhao"
+  ],
+  "abstract": "Instruction tuning fine-tunes a language model on many tasks written as natural language instructions, which improves zero-shot performance on unseen tasks. The gain from instructions grows with model size and with the number of instruction tasks.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Fine-tunes a language model on many tasks phrased as instructions so unseen tasks work zero-shot.",
+   "zh": "用大量“指令形式”的任务微调语言模型，没见过的任务也能零样本完成。"
+  }
+ },
+ {
+  "id": "2201.11903",
+  "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+  "date": "2022-01-28",
+  "authors": [
+   "Jason Wei",
+   "Xuezhi Wang",
+   "Dale Schuurmans"
+  ],
+  "abstract": "Chain-of-thought prompting gives a language model instructions in the prompt as a few examples with reasoning steps. The large model then writes its own steps, improving arithmetic and commonsense reasoning with no human feedback or fine-tuning, so the instructions alone steer its behaviour.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Examples with reasoning steps in the prompt make a large model write its own steps and greatly raise reasoning accuracy.",
+   "zh": "提示里给出带推理步骤的例子，大模型就会自己写步骤，推理题准确率大增。"
+  }
+ },
+ {
+  "id": "2203.02155",
+  "title": "Training language models to follow instructions with human feedback",
+  "date": "2022-03-04",
+  "authors": [
+   "Long Ouyang",
+   "Jeff Wu",
+   "Xu Jiang"
+  ],
+  "abstract": "Larger language models do not follow user instructions better by default. Fine-tuning a language model on human demonstrations and then using reinforcement learning from human feedback on preference rankings yields a smaller model that follows instructions and is preferred by people.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Fine-tunes on human demonstrations then runs reinforcement learning on human preference rankings; a smaller model's answers are preferred over a larger one's.",
+   "zh": "先用人工示范微调，再用人类偏好排序做强化学习，小模型的回答比大模型更受欢迎。"
+  }
+ },
+ {
+  "id": "2212.08073",
+  "title": "Constitutional AI: Harmlessness from AI Feedback",
+  "date": "2022-12-15",
+  "authors": [
+   "Yuntao Bai",
+   "Saurav Kadavath",
+   "Sandipan Kundu"
+  ],
+  "abstract": "Constitutional AI aligns a language model for harmlessness with a short written list of principles instead of human labels: the model critiques and revises its answers, then reinforcement learning uses AI feedback from a preference model, with less human feedback.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Uses a short written constitution so the model critiques and revises itself, then trains a preference model from AI comparisons.",
+   "zh": "用一份成文原则让模型自我批评、自我修改，再用 AI 比较训练偏好模型。"
+  }
+ },
+ {
+  "id": "2305.18290",
+  "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+  "date": "2023-05-29",
+  "authors": [
+   "Rafael Rafailov",
+   "Archit Sharma",
+   "Eric Mitchell"
+  ],
+  "abstract": "Direct preference optimization aligns a language model to human preferences without a separate reward model or reinforcement learning: a simple classification loss on preference pairs optimizes the same objective, matching human feedback pipelines with more stable, cheaper training.",
+  "source": "arXiv",
+  "preview": {
+   "en": "Skips the separate reward model and optimizes preference pairs directly with a classification-style loss, more stable and cheaper.",
+   "zh": "不再单独训练奖励模型，直接用分类式损失优化偏好对，更稳、更省。"
+  }
+ }
+]

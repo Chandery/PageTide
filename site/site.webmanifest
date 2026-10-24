@@ -1,0 +1,13 @@
+{
+  "name": "PageTide",
+  "short_name": "PageTide",
+  "description": "An open-source research assistant for discovering and organizing papers.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#f6f1e6",
+  "theme_color": "#086ef5",
+  "icons": [
+    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/icon-256.png", "sizes": "256x256", "type": "image/png"}
+  ]
+}

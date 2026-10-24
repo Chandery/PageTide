@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="350" viewBox="0 0 880 350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif" role="img" aria-label="PageTide by the numbers">
+<text x="2" y="22" font-size="15" font-weight="700" fill="#3fb950">↓ 删繁就简</text>
+<rect x="1.0" y="34" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="1.0" y="34" width="4" height="132" rx="2" fill="#3fb950"/>
+<text x="21.0" y="86" font-size="38" font-weight="800" fill="#3fb950" letter-spacing="-0.5">Zero</text>
+<text x="21.0" y="118" font-size="13.5" fill="#e6edf3">排序与学习画像</text>
+<text x="21.0" y="138" font-size="13.5" fill="#9198a1">所用模型 token</text>
+<rect x="223.5" y="34" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="223.5" y="34" width="4" height="132" rx="2" fill="#3fb950"/>
+<text x="243.5" y="86" font-size="38" font-weight="800" fill="#3fb950" letter-spacing="-0.5">Zero</text>
+<text x="243.5" y="118" font-size="13.5" fill="#e6edf3">账号、服务器</text>
+<text x="243.5" y="138" font-size="13.5" fill="#9198a1">和遥测</text>
+<rect x="446.0" y="34" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="446.0" y="34" width="4" height="132" rx="2" fill="#3fb950"/>
+<text x="466.0" y="86" font-size="38" font-weight="800" fill="#3fb950" letter-spacing="-0.5">Single</text>
+<text x="466.0" y="118" font-size="13.5" fill="#e6edf3">一次 AI 调用</text>
+<text x="466.0" y="138" font-size="13.5" fill="#9198a1">速览五篇推荐</text>
+<rect x="668.5" y="34" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="668.5" y="34" width="4" height="132" rx="2" fill="#3fb950"/>
+<text x="688.5" y="86" font-size="38" font-weight="800" fill="#3fb950" letter-spacing="-0.5">22 MB</text>
+<text x="688.5" y="118" font-size="13.5" fill="#e6edf3">macOS 安装包</text>
+<text x="688.5" y="138" font-size="13.5" fill="#9198a1">（Windows 17 MB）</text>
+<text x="2" y="206" font-size="15" font-weight="700" fill="#4493f8">↑ 海纳百川<tspan font-weight="400" fill="#9198a1">  ·  潮水仍在上涨</tspan></text>
+<rect x="1.0" y="218" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="1.0" y="218" width="4" height="132" rx="2" fill="#4493f8"/>
+<text x="21.0" y="270" font-size="38" font-weight="800" fill="#4493f8" letter-spacing="-0.5">3</text>
+<text x="21.0" y="302" font-size="13.5" fill="#e6edf3">开放论文来源：arXiv、</text>
+<text x="21.0" y="322" font-size="13.5" fill="#9198a1">OpenAlex、百度学术</text>
+<rect x="223.5" y="218" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="223.5" y="218" width="4" height="132" rx="2" fill="#4493f8"/>
+<text x="243.5" y="270" font-size="38" font-weight="800" fill="#4493f8" letter-spacing="-0.5">5</text>
+<text x="243.5" y="302" font-size="13.5" fill="#e6edf3">种导入方式：PDF、文件夹、</text>
+<text x="243.5" y="322" font-size="13.5" fill="#9198a1">BibTeX、RIS、CSL JSON</text>
+<rect x="446.0" y="218" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="446.0" y="218" width="4" height="132" rx="2" fill="#4493f8"/>
+<text x="466.0" y="270" font-size="38" font-weight="800" fill="#4493f8" letter-spacing="-0.5">3</text>
+<text x="466.0" y="302" font-size="13.5" fill="#e6edf3">种新建项目方式：</text>
+<text x="466.0" y="322" font-size="13.5" fill="#9198a1">快速、AI 引导、手动</text>
+<rect x="668.5" y="218" width="210.5" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+<rect x="668.5" y="218" width="4" height="132" rx="2" fill="#4493f8"/>
+<text x="688.5" y="270" font-size="38" font-weight="800" fill="#4493f8" letter-spacing="-0.5">2 × 2</text>
+<text x="688.5" y="302" font-size="13.5" fill="#e6edf3">平台 × 语言：</text>
+<text x="688.5" y="322" font-size="13.5" fill="#9198a1">macOS、Windows · 中、英</text>
+</svg>
