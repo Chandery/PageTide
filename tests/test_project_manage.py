@@ -40,7 +40,8 @@ class Fixture(unittest.TestCase):
         self.root = Path(tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
         self.addCleanup(self.app.store.close)
         self.pid = self.app.create_project("半导体生长", "manual", ["epitaxy", "mbe", "crystal growth"])["project_id"]
@@ -271,7 +272,7 @@ class ProjectPlanTests(Fixture):
         self.assertEqual(self.app.store.get_setting(f"route_plan_project_{self.pid}")["attempts"], 1)
 
     def test_if_the_project_operation_is_not_approved_the_real_gateway_refuses_and_costs_nothing(self):
-        ops = json.loads((ROOT / "harness" / "budget.json").read_text())["operations"]
+        ops = json.loads((ROOT / "app" / "budget.json").read_text())["operations"]
         self.assertIs(ops["learning_path_plan"]["owner_approved"], True)            # raised cap 1200 -> 1400, approved by the owner on 2026-10-06
         self.assertIs(ops["learning_path_plan_project"]["owner_approved"], True)
         self.assertIn("2026-10-06", ops["learning_path_plan_project"]["approval_note"])
@@ -285,7 +286,7 @@ class ProjectPlanTests(Fixture):
         self.assertEqual(out["attempts_left"], App.PROJECT_PLANS_PER_DAY)   # refused before sending: no attempt used
 
     def test_the_project_operation_has_its_own_prompt_file_identical_to_the_session_one(self):
-        ops = json.loads((ROOT / "harness" / "budget.json").read_text())["operations"]
+        ops = json.loads((ROOT / "app" / "budget.json").read_text())["operations"]
         a, b = ops["learning_path_plan"], ops["learning_path_plan_project"]
         self.assertNotEqual(a["prompt"], b["prompt"])
         for key in ("cap", "reference", "input_cap_components", "trigger", "enabled_by_default"):

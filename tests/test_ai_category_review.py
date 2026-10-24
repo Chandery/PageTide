@@ -372,7 +372,7 @@ class ParsingTests(unittest.TestCase):
 class RegistryParityTests(unittest.TestCase):
     def test_registered_prompt_and_gateway_caps_match_contract(self):
         root = Path(__file__).resolve().parents[1]
-        registry = json.loads((root / 'harness/budget.json').read_text(encoding='utf-8'))
+        registry = json.loads((root / 'app/budget.json').read_text(encoding='utf-8'))
         operation = registry['operations'][cr.OPERATION]
         self.assertEqual(operation['cap'], {'input': cr.INPUT_CAP, 'output': cr.OUTPUT_CAP})
         prompt = (root / operation['prompt']).read_text(encoding='utf-8')

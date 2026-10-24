@@ -24,4 +24,4 @@ X依赖与后台默认值需要隔离，lite依赖旧，PaperFlow的语义路线
 
 ## 验证
 
-见 [调研](../RESEARCH.md)、[路线与实验协议](../ROADMAP.md)、`harness/tasks.json`与`harness/evaluations.json`。源码审查不是运行测试，离线check不是推荐质量。本轮没有启动新候选、下载模型或发出付费调用。
+见 调研、路线与实验协议、`harness/tasks.json`与`harness/evaluations.json`。源码审查不是运行测试，离线check不是推荐质量。本轮没有启动新候选、下载模型或发出付费调用。

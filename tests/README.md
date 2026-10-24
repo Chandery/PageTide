@@ -5,8 +5,6 @@
 ```sh
 python3 -m unittest discover -s tests -v
 node --test tests/*.cjs
-python3 scripts/budget.py --check
-python3 scripts/harness.py check
 ```
 
 Python 3.9+ 是基础环境；关系图测试需要项目构建环境中的 NetworkX。Node 测试使用项目支持的 Node LTS，覆盖浏览器状态、请求与回复契约，不等于原生 macOS 窗口验收。完整桌面包还要用 `scripts/build_desktop.py`、`cargo tauri build --bundles app` 构建并验证实际产物。

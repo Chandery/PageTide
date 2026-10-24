@@ -246,7 +246,7 @@ class NewerPreviewTests(RevisionModelTests):
 class RegistryAndPromptTests(unittest.TestCase):
     def test_new_scope_has_direct_owner_approval_stays_default_off_and_prompts_match(self):
         from pathlib import Path
-        root=Path(__file__).resolve().parents[1];cfg=json.loads((root/'harness/budget.json').read_text())
+        root=Path(__file__).resolve().parents[1];cfg=json.loads((root/'app/budget.json').read_text())
         for op,system,cap in [(rr.CREATE_OPERATION,rr.CREATE_SYSTEM,(3200,1800)),(rr.REVISION_OPERATION,rr.REVISION_SYSTEM,(8000,4000))]:
             spec=cfg['operations'][op]
             self.assertTrue(spec['owner_approved']);self.assertIn('授权啊，全都授权',spec['approval_note']);self.assertFalse(spec['enabled_by_default'])
@@ -299,9 +299,10 @@ class ModelHttpTests(creation_tests.Fixture):
             conn=http.client.HTTPConnection('127.0.0.1',port,timeout=5)
             for disabled,code in [(False,'not_approved'),(True,'ai_off')]:
                 self.app.gateway.set_enabled(not disabled)
-                cfg=json.loads((self.root/'harness/budget.json').read_text())
+                cfg=json.loads((self.root/'app/budget.json').read_text())
                 cfg['operations'][rr.CREATE_OPERATION]['owner_approved']=False
-                (self.root/'harness/budget.json').write_text(json.dumps(cfg))
+                (self.root / 'app').mkdir(exist_ok=True)
+                (self.root/'app/budget.json').write_text(json.dumps(cfg))
                 conn.request('POST',f'/api/project-guidance/sessions/{self.session}/route',json.dumps({'brief':BRIEF}),{'Content-Type':'application/json'})
                 response=conn.getresponse();value=json.loads(response.read());self.assertEqual(response.status,200)
                 self.assertEqual(value['reason_code'],code);self.assertEqual(self.app.route_plan_state(self.session)['attempts'],0)

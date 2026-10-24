@@ -20,7 +20,8 @@ class AIConnectionTests(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
         root = Path(tmp.name) / 'root'; (root / 'harness').mkdir(parents=True)
-        (root / 'harness/budget.json').write_bytes((ROOT / 'harness/budget.json').read_bytes())
+        (root / 'app').mkdir(exist_ok=True)
+        (root / 'app/budget.json').write_bytes((ROOT / 'app/budget.json').read_bytes())
         self.app = App(root=root, data_dir=Path(tmp.name) / 'data')
         self.addCleanup(self.app.store.close)
         self.app.gateway.set_enabled(False)

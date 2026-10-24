@@ -576,7 +576,7 @@ class RoundTwo(unittest.TestCase):
 
     def test_the_registered_approval_note_describes_the_current_scope_without_changing_approval(self):
         root = Path(__file__).resolve().parents[1]
-        entry = json.loads((root / 'harness/budget.json').read_text())['operations']['project_guidance']
+        entry = json.loads((root / 'app/budget.json').read_text())['operations']['project_guidance']
         self.assertIs(entry['owner_approved'], True)
         note = entry['approval_note']
         for fact in ('2026-10-01', 'ADR 0037', 'ADR 0038', 'search phrases', 'paper-language'):
@@ -964,7 +964,7 @@ class RoundFour(unittest.TestCase):
 
     def test_the_approval_note_uses_the_possessive(self):
         root = Path(__file__).resolve().parents[1]
-        note = json.loads((root / 'harness/budget.json').read_text())['operations']['project_guidance']['approval_note']
+        note = json.loads((root / 'app/budget.json').read_text())['operations']['project_guidance']['approval_note']
         self.assertIn("owner's attention", note)
         self.assertNotIn('owner attention', note)
 

@@ -21,8 +21,9 @@ class ServerSmokeTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text(
-            (Path(__file__).resolve().parents[1] / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text(
+            (Path(__file__).resolve().parents[1] / "app" / "budget.json").read_text())
         app = server.make_app(str(self.root))   # a fresh app has no project: this suite works inside one of its own
         app.projects.create_project("Smoke project", "manual", [])
         app.store.close()

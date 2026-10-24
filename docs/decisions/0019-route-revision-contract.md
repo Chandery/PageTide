@@ -1,7 +1,7 @@
 # ADR 0019: local complete-Map revision contract
 
 2026-10-07. Status: accepted for the local contract; service integration unfinished.
-Task [ROUTE-V2-07](../../harness/tasks.json), requirement R-ROUTE-V2-07, gate E-ROUTE-V2-07 remains not_run.
+Task ROUTE-V2-07, requirement R-ROUTE-V2-07, gate E-ROUTE-V2-07 remains not_run.
 
 Creation and revision share exactly goal250/known150/include150/exclude150/structure500 characters. Only goal is required; an empty known field says nothing about mastery. Teacher text is data pasted into structure; no generic Markdown parser or tool execution.
 

@@ -107,8 +107,9 @@ class SuggestionProfileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "harness").mkdir()
             (Path(tmp) / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-            (Path(tmp) / "harness" / "budget.json").write_text(
-                (Path(__file__).resolve().parents[1] / "harness" / "budget.json").read_text())
+            (Path(tmp) / "app").mkdir(exist_ok=True)
+            (Path(tmp) / "app" / "budget.json").write_text(
+                (Path(__file__).resolve().parents[1] / "app" / "budget.json").read_text())
             with patch.dict(os.environ, {"PAGETIDE_DATA": tmp}):
                 app = server.make_app(tmp)
             try:

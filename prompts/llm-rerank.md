@@ -4,7 +4,7 @@ operation: llm_rerank
 ---
 # operation: llm_rerank
 
-状态：**提案，且未获 owner 批准**（见 `harness/budget.json` 的 `pending_approval`）。启用前须单独批准新增开销并实现预算网关。
+状态：**提案，且未获 owner 批准**（见 `app/budget.json` 的 `pending_approval`）。启用前须单独批准新增开销并实现预算网关。
 
 ## 目的
 

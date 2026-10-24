@@ -59,7 +59,7 @@
 
 ## 增补（2026-10-23）：百度 AI 搜索限定百度学术站点（`baidu_web`），第二个百度来源
 
-**为什么**：2026-10-23 的真实检查（[证据](../evidence/2026-10-23-baidu-live-checks.txt)）表明，百度学术工具（`GET /v2/tools/baidu_scholar/search`）对 owner 的账号返回“404 page not found”，文档里的路径与一条编造的路径表现相同；同一把千帆密钥调用百度 AI 搜索（`POST https://qianfan.baidubce.com/v2/ai_search/web_search`）返回 HTTP 200，加上 `search_filter.match.site ["xueshu.baidu.com"]` 后返回了近期的中文论文。owner 原话：“先加上百度搜索限定百度学术的通道，试一下这个吧，看看可以不”。
+**为什么**：2026-10-23 的真实检查（证据）表明，百度学术工具（`GET /v2/tools/baidu_scholar/search`）对 owner 的账号返回“404 page not found”，文档里的路径与一条编造的路径表现相同；同一把千帆密钥调用百度 AI 搜索（`POST https://qianfan.baidubce.com/v2/ai_search/web_search`）返回 HTTP 200，加上 `search_filter.match.site ["xueshu.baidu.com"]` 后返回了近期的中文论文。owner 原话：“先加上百度搜索限定百度学术的通道，试一下这个吧，看看可以不”。
 
 **数据外发与批准**：与上面已批准的百度学术完全相同的数据范围，批准沿用 owner 2026-10-23 的原话——“中文关键词发给百度”（含汉字的项目关键词、创建项目的检索式、键入的种子标题，用 owner 自己的千帆密钥）、“每天最多 40 次”、“百度页面算“需要登录”的来源”，范围“一次全接”。没有新增任何外发内容；只是多一个端点。`owner_approved` 仍是 false，不由 agent 自填。**待办（owner）**：百度 AI 搜索免费额度是每月 1500 次，之后按量计费；“限定站点”被文档标为付费功能、目前限时免费——请保持计费关闭，或在千帆控制台确认超额的处理。
 

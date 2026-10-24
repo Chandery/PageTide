@@ -24,4 +24,4 @@
 
 人工核验准确率、推荐收益、真实资料库性能和原生窗口全流程仍需另外验证。阶段 03 至 08 的目标范围、发现配额、生长和结构化修改不由本决策完成。
 
-关联：[方案](../ROUTE_MODE_REWORK.md)、[语言证据](0013-project-paper-language.md)，R-ROUTE-V2-01 / R-ROUTE-V2-02。
+关联：方案、[语言证据](0013-project-paper-language.md)，R-ROUTE-V2-01 / R-ROUTE-V2-02。

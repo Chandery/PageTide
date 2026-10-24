@@ -62,7 +62,7 @@ class GuidanceTruncationTests(unittest.TestCase):
         # plus the model's maximum output that a guidance conversation asks for.
         wire = json.loads(sent.call_args.args[0].data)
         self.assertEqual(wire["max_tokens"], 384000)
-        estimate = json.loads((ROOT / "harness/budget.json").read_text())["operations"]["project_guidance"]["cap"]["input"]
+        estimate = json.loads((ROOT / "app/budget.json").read_text())["operations"]["project_guidance"]["cap"]["input"]
         self.assertEqual(result["usage"]["total_tokens"], max(estimate, input_bound(wire)) + 384000)
 
     def test_parse_length_branch_keeps_specific_reason_instead_of_generic_bad_reply(self):

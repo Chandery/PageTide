@@ -124,7 +124,8 @@ class NoProjectServiceTests(unittest.TestCase):
 
     def test_a_missing_seed_file_means_no_seeds(self):
         (Path(self.tmp.name) / "harness").mkdir()   # the budget, but no seed list, as in the packaged app
-        (Path(self.tmp.name) / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (Path(self.tmp.name) / "app").mkdir(exist_ok=True)
+        (Path(self.tmp.name) / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         bare = App(root=self.tmp.name, data_dir=Path(self.tmp.name) / "bare")
         self.addCleanup(bare.store.close)
         self.assertEqual(bare.seeds(), [])   # the packaged app ships none
@@ -150,7 +151,8 @@ class NoProjectHTTPTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
         (root / "harness").mkdir()
-        (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         env = mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(root / "data")})
         env.start()
         self.addCleanup(env.stop)

@@ -374,7 +374,8 @@ class AppCase(unittest.TestCase):
         root = self.root = Path(tmp.name)
         (root / "harness").mkdir()
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(root), data_dir=str(root / "data"))
         self.addCleanup(self.app.store.close)
         self.app.projects.create_project("Test project", "manual", [])   # a fresh app has no project
@@ -549,7 +550,8 @@ class AttachRouteTests(unittest.TestCase):
         self.root = Path(tmp.name)
         (self.root / "harness").mkdir()
         (self.root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
-        (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (self.root / "app").mkdir(exist_ok=True)
+        (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         httpd = server.build_server(port=0, root=str(self.root))
         self.port = httpd.server_address[1]
         threading.Thread(target=httpd.serve_forever, daemon=True).start()

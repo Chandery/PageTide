@@ -112,7 +112,8 @@ class HttpTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
         (root / "harness").mkdir()
-        (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
+        (root / "app").mkdir(exist_ok=True)
+        (root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.data = root / "data"
         for patcher in (mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data), "PAGETIDE_APP_VERSION": "0.1.0"}),):
             patcher.start()

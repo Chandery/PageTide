@@ -15,7 +15,7 @@ browser favicon fill more of the canvas (small sizes need the room).
 The 1x 16 and 32 px icns slots are ic04/ic05 ("ARGB" + RLE-coded A,R,G,B planes), exactly what Apple's
 iconutil writes, NOT PNG under icp4/icp5: macOS decodes icp4/icp5 PNGs as noise on non-Retina displays.
 
-Usage: python3 docs/design/brand/pagetide/build_icons.py   (needs Pillow)
+Usage: python3 assets/brand/build_icons.py   (needs Pillow)
 """
 import io
 import struct
@@ -28,7 +28,7 @@ except ImportError:
     Image = ImageDraw = None
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[3]
+ROOT = HERE.parents[1]
 TAURI = ROOT / "src-tauri" / "icons"
 STATIC = ROOT / "app" / "static"
 ICON, WORDMARK = HERE / "PageTide-icon.png", HERE / "PageTide-wordmark.png"
