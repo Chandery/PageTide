@@ -23,12 +23,11 @@
   ],
   "id": "2026-10-25-repo-rename",
   "class": "standard",
-  "summary": "GitHub repository renamed to Chandery/PageTide (owner, 2026-10-25): update check points at it, the brand-name test has no exception left, RELEASE note updated, README rewritten for the current desktop app.",
+  "summary": "GitHub repository renamed to Chandery/PageTide (owner, 2026-10-25): update check points at it, the brand-name test has no exception left, RELEASE note updated. README left as is (owner: rewrite it later for the launch).",
   "files": [
     "app/updater.py",
     "tests/test_brand_name.py",
     "docs/RELEASE.md",
-    "README.md",
     "changes/2026-10-25-repo-rename.json"
   ],
   "scope_note": "Old GitHub URLs redirect after a rename; the app now uses the new name directly. The local git remote was set to git@github.com:Chandery/PageTide.git from the owner's terminal (.git/config is not writable from the agent sandbox).",

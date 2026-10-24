@@ -1,70 +1,61 @@
 # PageTide
 
-**本地优先的论文推荐与可解释用户画像。** PageTide 每天从论文来源里挑出值得看的几篇，按你明确的反馈（收藏、不感兴趣、太难）改进下一批推荐，并把画像做成你能检查、修改、撤销的数据。论文库（列表、图谱、分类整理）、阅读器里的划词翻译与追问、AI 速览和周报建立在这之上。
+**论文推荐与可解释用户画像工具。** 目标是推荐值得看的论文，基于明确反馈改进下一批推荐，并把画像做成你可检查、可修改、可撤销的数据；论文库（列表与图谱、分类整理）、笔记与 AI 速览是在此之上的第二层。
 
-数据都存在你的电脑上。没有托管后端、云同步或遥测；只有你配置并启用的 AI 和论文来源会联网。
+2026-09-11：旧 ABCD 路线已退出执行，旧应用、未完成阅读器修复和依赖已删除。本轮完成了**复用调研、阶段计划、行动前 token 预算提案和 harness 说明**；**新实现尚未批准或开始，推荐质量与 AI 成本均未实测**，当前只有规划文档和标准库仓库检查，没有可运行应用。
 
-## 下载
+## 阅读顺序
 
-在 [Releases](https://github.com/Chandery/PageTide/releases) 下载：
+1. [产品目标](docs/PRODUCT.md)：推荐与画像的最短闭环，以及首版与后置范围。
+2. [测试领域与种子](docs/DOMAIN.md)：英文 AI / world models 与 10 篇正例种子（无反例）。
+3. [设计头脑风暴](docs/BRAINSTORM.md)：需求拆解、算法选型、候选路线与形态取舍。
+4. [开源与数据源调研](docs/RESEARCH.md)：ASReview/X/lite/PaperFlow 等实际代码、许可与缺口；论文图谱/聚类见 [KNOWLEDGE-GRAPH](docs/KNOWLEDGE-GRAPH.md)。
+5. [路线与阶段](docs/ROADMAP.md)：S0–S6、实验协议与停止条件；标注/裁判协议见 [EVALUATION](docs/EVALUATION.md)。
+6. [预算](docs/BUDGET.md)与[生成表](docs/BUDGET.generated.md)：核心 0 token；AI 层每日最低约 4,500 token 参考、上限约 10,800（未批准）。
+7. [Harness](docs/HARNESS.md) 与 [当前交接](docs/HANDOFF.md)：如何记录、审查、验证与换 agent。
+8. 任务与验收事实源：`harness/tasks.json`、`harness/requirements.json`、`harness/evaluations.json`。
 
-- macOS（Apple Silicon）：`PageTide-macos-arm64.zip`
-- Windows x64：`PageTide_<版本>_x64-setup.exe`
-
-两个平台都是**未签名**构建。macOS 第一次打开：把应用拖进“应用程序”，右键 → 打开 → 再点“打开”。Windows 的 SmartScreen 提示里选“更多信息 → 仍要运行”。细节见 [RELEASE](docs/RELEASE.md)。
-
-应用会在启动时查一次新版本（可在设置里关闭），有新版时在主页提示，点“更新”即可下载、校验并安装。
-
-## 第一次使用
-
-1. 打开后先选界面语言和外观。
-2. 新手指引会在一个只读的演示项目里走一遍完整流程：项目入口、设置、生成今日推荐与 AI 速览、收藏、划词提问、论文库与导入、图谱、画像、周报。演示离线运行、不花 token，也不写入你的数据。
-3. 指引结束后创建你自己的项目。
-
-需要的配置（都在设置里）：
-
-| 用途 | 需要什么 |
-|---|---|
-| AI 速览、追问、翻译 | DeepSeek API 密钥（设置里有“获取”链接） |
-| arXiv | 不需要密钥 |
-| 期刊与会议论文（OpenAlex） | 密钥可选 |
-| 中文论文（百度搜索） | 千帆密钥 |
-
-不配 AI 密钥也能用：推荐、画像、论文库和图谱都在本地完成，不花 token。
-
-数据位置：macOS `~/Library/Application Support/PageTide`，Windows `%LOCALAPPDATA%\PageTideData`。
-
-## 原则
-
-- 推荐、画像、论文库和数据库的默认路径离线可用、零模型 token；AI 只是经过一个有预算的网关的可选增强。
-- 没选、没空、看不懂都不等于不喜欢；画像只从明确的操作里学习。
-- 论文原文、来源和文件版本都保留；AI 生成的文字不算你写的笔记。
-
-## 开发
-
-需要 Python 3.9+（应用代码只用标准库）和 Node LTS（前端测试）。
+## 运行（第一切片，开发模式）
 
 ```sh
-python3 -m app.server            # 本地网页界面 http://127.0.0.1:8765，数据在 .local/app（可用 PAGETIDE_DATA 改）
+# 1) 初始化：解析 10 篇种子（OpenAlex 公开元数据）
+python3 -m app.cli init
+
+# 2) 抓候选（可用 --no-distractors；OpenAlex 限流时会跳过并报错）
+python3 -m app.cli refresh --pages 1 --per-page 100
+
+# 3) 生成今日 5 篇，可选 AI 速览（--dry-run 不花钱）
+python3 -m app.cli daily --triage --dry-run
+python3 -m app.cli daily --triage          # 真实调用 DeepSeek，走预算网关
+
+# 4) 反馈与画像
+python3 -m app.cli fb 1 useful             # useful / irrelevant / later / busy / confused
+python3 -m app.cli profile --pin "world model,JEPA"
+
+# 5) 网页界面（本地 loopback；Tauri 壳后续包它）
+python3 -m app.server        # http://127.0.0.1:8765
+```
+
+离线/开发时可用已冻结的候选集：`python3 -m app.cli import-candidates .local/experiments/candidates.json`。
+
+**默认零 token**；AI 速览/追问经唯一预算网关（`app/gateway.py`），失败降级为本地卡片。反馈里的“没空/看不懂/以后再看”**不改变兴趣**。
+
+## 暂保留的安全边界
+
+本地保存、低资源、无默认模型权重下载、无托管后端/云同步/遥测；模型和新数据外发先授权；没选/没空/看不懂不等于不喜欢。论文软件连接和预览器都不是核心前提。
+
+## 规划一致性检查
+
+Python 3.9+、标准库，无应用依赖：
+
+```sh
 python3 scripts/budget.py --check
 python3 scripts/harness.py check
-python3 -m unittest discover -s tests
-node --test tests/*.cjs
+python3 -m unittest discover -s tests -v
 ```
 
-桌面构建（macOS，需要 `.local/desktop-build-env` 构建环境与 Rust / tauri-cli）：
+这些检查只证明预算算术、仓库契约和 harness 一致性，**不证明推荐质量、真实GUI、模型计费或性能**。发布检查 `python3 scripts/harness.py check --release` 应保持阻断。
 
-```sh
-.local/desktop-build-env/bin/python scripts/build_desktop.py
-cargo tauri build --bundles app      # 输出 src-tauri/target/release/bundle/macos/PageTide.app
-```
+## 下一步
 
-Windows 安装包由 GitHub Actions 构建，发布流程见 [RELEASE](docs/RELEASE.md)。
-
-## 文档
-
-- [AGENTS](AGENTS.md)：给编码 agent 的入口与边界。
-- [PRODUCT](docs/PRODUCT.md)、[ARCHITECTURE](docs/ARCHITECTURE.md)：产品范围、架构与隐私。
-- [BUDGET](docs/BUDGET.md)：零 token 核心与 AI 层预算。
-- [HARNESS](docs/HARNESS.md)、[HANDOFF](docs/HANDOFF.md)：变更记录、审查与交接。
-- [decisions/](docs/decisions/)：架构决策记录。
+领域/种子/首版范围已确认（英文 AI / world models，10 篇正例；首版含 PDF 下载与 AI 速览+追问；见 [DOMAIN](docs/DOMAIN.md)）。仍需确认 AI 每日/每月 token 与金额上限、数据外发范围、PDF 存放位置。随后在隔离目录跑上游复用（ASReview/X）与数据覆盖探针。
