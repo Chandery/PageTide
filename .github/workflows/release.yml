@@ -74,10 +74,20 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
-      # Chosen over tauri-apps/tauri-action: no third-party action in the build path, and the CLI
-      # version matches the one used locally (2.11.4). Costs several minutes of compile time per run.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      # The official prebuilt CLI from npm (seconds) instead of compiling tauri-cli with cargo install
+      # (several minutes per job). Same version as package-lock.json; installed on its own from the public
+      # registry (the lock file's resolved URLs point at a mirror) and kept out of the repository's node_modules.
       - name: Install tauri-cli
-        run: cargo install tauri-cli --version 2.11.4 --locked
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tauri-cli" --no-save --no-audit --no-fund \
+            --registry=https://registry.npmjs.org @tauri-apps/cli@2.11.4
+          echo "$RUNNER_TEMP/tauri-cli/node_modules/.bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/tauri-cli/node_modules/.bin/tauri" --version
 
       - name: Build the Python backend (PyInstaller)
         run: python scripts/build_desktop.py
@@ -95,7 +105,7 @@ jobs:
         working-directory: src-tauri
         env:
           PAGETIDE_RELEASE: "1"   # a release build: everyday data directory and self-update (src-tauri/src/main.rs)
-        run: cargo tauri build --bundles nsis -- --locked
+        run: tauri build --bundles nsis -- --locked
 
       # LF line endings, ASCII, no BOM: `shasum -a 256 -c` on macOS must accept the file.
       - name: Checksum
@@ -167,8 +177,20 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      # The official prebuilt CLI from npm (seconds) instead of compiling tauri-cli with cargo install
+      # (several minutes per job). Same version as package-lock.json; installed on its own from the public
+      # registry (the lock file's resolved URLs point at a mirror) and kept out of the repository's node_modules.
       - name: Install tauri-cli
-        run: cargo install tauri-cli --version 2.11.4 --locked
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tauri-cli" --no-save --no-audit --no-fund \
+            --registry=https://registry.npmjs.org @tauri-apps/cli@2.11.4
+          echo "$RUNNER_TEMP/tauri-cli/node_modules/.bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/tauri-cli/node_modules/.bin/tauri" --version
 
       # The runner's interpreter, not the local .local/desktop-build-env.
       - name: Build the Python backend (PyInstaller)
@@ -183,7 +205,7 @@ jobs:
         working-directory: src-tauri
         env:
           PAGETIDE_RELEASE: "1"   # a release build: everyday data directory and self-update (src-tauri/src/main.rs)
-        run: cargo tauri build --bundles app -- --locked
+        run: tauri build --bundles app -- --locked
 
       # The shell and the backend must both be this job's architecture, and the bundle version the app version
       # (the in-app updater refuses a bundle whose CFBundleShortVersionString differs from the tag).
