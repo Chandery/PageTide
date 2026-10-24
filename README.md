@@ -23,64 +23,63 @@ English · <a href="README-zh.md">简体中文</a>
 
 [![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
+<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide: papers that fit your research" width="880"></a>
+
 </div>
 
 https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
 <p align="center"><sub>🎵 Music by Pumpupthemind</sub></p>
 
-Twenty thousand new papers come out every day, and only a handful matter to you. PageTide is a desktop app that searches arXiv, OpenAlex and Baidu Scholar for you each morning, picks the papers that fit what you work on, and explains each one in a line. Save the good ones, mark the rest, and your profile gets sharper. Everything stays on your computer.
+**Stop scrolling feeds. Start the day with papers that fit your research.** PageTide searches arXiv, OpenAlex and Baidu Scholar every morning, ranks what it finds against a research profile you can read and edit, and keeps the papers you save in a library of your own. Ranking runs on your computer without AI; AI explains your picks and answers your questions.
+
+## 📊 By the numbers
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-en-dark.svg">
+  <img src="docs/assets/readme/numbers-en-light.svg" alt="PageTide by the numbers: zero tokens to rank, zero accounts, a single AI call for five previews, 22 MB download; 3 sources, 5 import formats, 3 ways to start, 2 platforms by 2 languages" width="880">
+</picture>
 
 ## ✨ Features
 
-### 📬 Wake up to papers worth reading
+**📬 Daily picks, explained.** Each morning a short list of new papers ranked against your profile. Every card has a one-line AI preview: what the paper says and why it matters to you. Save it, or mark it **Not interested** or **Too hard** in one click.
 
-Each morning PageTide searches your sources, ranks the results against your profile and hands you a short list. Every card carries a one-line AI preview: what the paper says and why it matters to you.
+**🧭 A profile you can read and edit.** No black box. See the terms behind every pick, pin keywords, remove tags, undo any feedback. It learns only from what you do on purpose: doing nothing never counts as a dislike, and Too hard is not a dislike either.
 
-- Choose how many picks you get per day (1 to 20)
-- Save, or mark **Not interested** / **Too hard** in one click
-- Search and ranking run on your machine and use no model tokens
+**🕸️ A library that connects itself.** Saved papers become a list and a graph of related work. Open-access PDFs are archived locally. AI can suggest categories, but nothing changes until you confirm, and every change can be undone.
 
-<p align="center"><img src="docs/assets/readme/en-today.png" alt="Today's picks with AI previews" width="100%"></p>
+**✍️ Highlight. Ask. Understand.** Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.
 
----
+**📥 Bring what you have.** Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX or RIS.
 
-### 🧭 A profile you can read, and edit
+**📈 A weekly report** of what you saved, what you skipped and which directions grew, plus an offline demo project with a guided tour, English and Chinese interface, light and dark themes, and in-app updates.
 
-No black box. The profile shows the terms behind your picks and learns only from what you do on purpose.
-
-- Built from saves, Useful marks, seeds and pinned keywords
-- Doing nothing never counts as a dislike, and Too hard is not a dislike either
-- Pin keywords, remove tags, undo any feedback
-- Old marks fade over time, so the profile follows your current work
-
-<p align="center"><img src="docs/assets/readme/en-profile.png" alt="Interest profile page" width="100%"></p>
-
----
-
-### 🕸️ See how your papers connect
-
-Browse your library as a list or as a graph of similar papers and categories, not just a pile of PDFs.
-
-- Open-access papers are downloaded and archived locally
-- AI can suggest categories, but nothing is applied until you tick the changes and confirm
-- Every reorganization can be undone
-
-<p align="center"><img src="docs/assets/readme/en-graph.png" alt="Library graph view" width="100%"></p>
-
----
-
-### ✍️ Highlight. Ask. Understand.
-
-Read the PDF inside PageTide. Select a sentence you do not get, then translate it or ask a follow-up. The answer appears right beside the page.
-
-- Questions such as "What are the core assumptions of this method?"
-- Ask about figures too
-- Translation and questions use your own DeepSeek key
-
-<p align="center"><img src="docs/assets/readme/en-reader-ask.png" alt="Reader with a highlighted sentence and an answer" width="100%"></p>
-
-Also included: an offline demo project, English and Chinese interface, light and dark themes, and an in-app update check.
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/readme/en-today.png" alt="Today's picks with AI previews"></td>
+<td width="50%"><img src="docs/assets/readme/en-reader-ask.png" alt="Highlight a sentence and ask about it"></td>
+</tr>
+<tr>
+<td align="center"><sub>Today's picks, each with an AI preview</sub></td>
+<td align="center"><sub>Highlight a sentence, ask, get an answer beside the page</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/readme/en-profile.png" alt="Interest profile"></td>
+<td width="50%"><img src="docs/assets/readme/en-graph.png" alt="Library graph"></td>
+</tr>
+<tr>
+<td align="center"><sub>A profile you can read: terms, pins and feedback</sub></td>
+<td align="center"><sub>Your library as a graph of related papers</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/readme/en-import.png" alt="Import page"></td>
+<td width="50%"><img src="docs/assets/readme/en-weekly.png" alt="Weekly report"></td>
+</tr>
+<tr>
+<td align="center"><sub>Import PDF folders or a Zotero export</sub></td>
+<td align="center"><sub>A weekly report of what changed</sub></td>
+</tr>
+</table>
 
 ## 🔌 Connect your services
 
@@ -96,59 +95,13 @@ PageTide works out of the box on arXiv. Add your own keys to switch on more sour
 > [!NOTE]
 > You type every key into Settings yourself. Keys are saved in a local file inside PageTide's data folder, never in the settings file, and each key is sent only to the service it belongs to. There is no PageTide server.
 
-<div align="center">
-<img src="docs/assets/readme/en-settings.png" alt="Settings: AI key and data sources, with every key field empty" width="520">
-</div>
-
 ## 🚀 Getting started
 
-### 1. Pick a language and a look
-
-On first launch, choose English or Chinese and light, dark or system. You can change both later in Settings.
-
-<p align="center"><img src="docs/assets/readme/en-welcome.png" alt="Welcome card with language and appearance" width="560"></p>
-
-### 2. Take the guided tour
-
-A short tour walks through a pre-filled demo project. It is offline, uses no key, and you can replay it from Settings.
-
-<p align="center"><img src="docs/assets/readme/en-tour.png" alt="Tour bubble pointing at the demo project" width="720"></p>
-
-### 3. Create your project
-
-Choose **Quick start** (one sentence, one AI call), **AI guided** (chat until the keywords and queries feel right) or **Manual** (type keywords and seed papers yourself, no AI).
-
-<p align="center"><img src="docs/assets/readme/en-create.png" alt="Create a research project: Quick start, AI guided, Manual" width="720"></p>
-
-### 4. Connect your services
-
-Paste your DeepSeek key for AI features, and optionally an OpenAlex or Qianfan key. See [Connect your services](#-connect-your-services).
-
-<p align="center"><img src="docs/assets/readme/en-settings.png" alt="Settings page" width="440"></p>
-
-### 5. Get today's picks and teach it
-
-Press **Pick today's papers**. Save what you like, mark the rest Not interested or Too hard, and watch the profile follow.
-
-<p align="center"><img src="docs/assets/readme/en-today.png" alt="Today's picks" width="720"></p>
-
-### 6. Bring your existing library
-
-Drop in PDF files or a whole folder (subfolders become categories), or a Zotero collection exported as BibTeX or RIS. CSL JSON works too. Import itself uses no AI.
-
-<p align="center"><img src="docs/assets/readme/en-import.png" alt="Import page with Zotero instructions" width="720"></p>
-
-### 7. Read and ask
-
-Open any paper, highlight a sentence, then translate it or ask about it.
-
-<p align="center"><img src="docs/assets/readme/en-reader-ask.png" alt="Reader with a highlighted sentence and an answer" width="720"></p>
-
-### 8. Check the weekly report
-
-Once a week, see what you saved, what you skipped and which directions grew.
-
-<p align="center"><img src="docs/assets/readme/en-weekly.png" alt="Weekly report on demo data" width="720"></p>
+1. **Download** PageTide for macOS or Windows (see [Download](#-download)) and open it.
+2. **Pick a language and a look**, then follow the short tour through the demo project. It is offline and needs no key.
+3. **Create your project**: Quick start (one sentence, one AI call), AI guided (chat until the keywords feel right) or Manual (no AI).
+4. **Add your keys** in Settings if you want AI and more sources (see [Connect your services](#-connect-your-services)).
+5. **Press Pick today's papers.** Save what you like, mark the rest, and watch the profile follow.
 
 ## 🔒 Private by design
 
@@ -162,8 +115,8 @@ Once a week, see what you saved, what you skipped and which directions grew.
 
 | Platform | File |
 | --- | --- |
-| macOS (Apple Silicon) | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) |
-| Windows (x64) | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) |
+| macOS (Apple Silicon) | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 22 MB |
+| Windows (x64) | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
 
 <details>
 <summary>First launch: the app is not signed</summary>

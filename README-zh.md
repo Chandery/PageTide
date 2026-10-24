@@ -23,64 +23,63 @@
 
 [![下载 PageTide](https://img.shields.io/badge/下载-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
+<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide：推荐贴合你研究的论文" width="880"></a>
+
 </div>
 
 https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
 <p align="center"><sub>🎵 配乐：Pumpupthemind</sub></p>
 
-每天有两万篇新论文发表，真正与你有关的寥寥几篇。PageTide 是一个桌面应用：每天早上替你检索 arXiv、OpenAlex 和百度学术，挑出贴合你研究方向的论文，并用一句话讲清每篇说了什么。收藏好的、标记不要的，画像就越来越准。所有数据都留在你自己的电脑上。
+**别再刷论文列表了。每天早上，只看贴合你研究的那几篇。** PageTide 每天早上检索 arXiv、OpenAlex 和百度学术，按一份你能看懂、能修改的研究画像给结果排序，再把你收藏的论文收进属于你自己的论文库。排序在你的电脑上完成，不用 AI；AI 负责讲清每篇推荐、回答你的问题。
+
+## 📊 数字说话
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-zh-dark.svg">
+  <img src="docs/assets/readme/numbers-zh-light.svg" alt="PageTide 数字：排序零 token、零账号、一次 AI 调用速览五篇、22 MB 安装包；3 个数据源、5 种导入方式、3 种建项目方式、2 个平台 × 2 种语言" width="880">
+</picture>
 
 ## ✨ 功能
 
-### 📬 醒来就有值得读的论文
+**📬 每日推荐，附带讲解。** 每天早上按你的画像排好一小份新论文。每张卡片都有一句 AI 速览：这篇讲了什么、和你有什么关系。觉得有用就收藏，不想看就点**不感兴趣**或**太难**，一键完成。
 
-每天早上，PageTide 去你选的数据源检索，按你的画像排序，只留一份短清单。每张卡片附一句 AI 速览：这篇讲了什么，和你有什么关系。
+**🧭 看得懂、改得了的画像。** 不是黑箱。每篇推荐背后的关键词都摆在眼前，你可以钉住关键词、删掉标签、撤销任何一次反馈。它只从你明确的操作里学习：什么都不做不算不喜欢，“太难”也不算不喜欢。
 
-- 每天推荐几篇由你定（1 到 20 篇）
-- 一键收藏，或标记“不感兴趣”“太难”
-- 检索和排序都在你的电脑上完成，不消耗模型 token
+**🕸️ 会自己连起来的论文库。** 收藏的论文自动整理成列表和关联图谱，开放获取的 PDF 会下载到本地归档。AI 可以建议分类，但要你确认才会生效，每次改动都能撤销。
 
-<p align="center"><img src="docs/assets/readme/zh-today.png" alt="今日推荐与 AI 速览" width="100%"></p>
+**✍️ 划一句，问一句，读明白。** 在 PageTide 里直接读 PDF，选中看不懂的句子，翻译或追问，回答就出现在页面旁边。
 
----
+**📥 已有的论文直接带过来。** 导入 PDF 文件或整个文件夹（子文件夹自动变成分类），或从 Zotero 导出的 BibTeX、RIS。
 
-### 🧭 看得懂，也改得了的画像
+**📈 每周周报**，看你收藏了什么、跳过了什么、哪些方向在变强。另外还有离线演示项目和新手指引、中英文界面、亮暗主题和应用内更新。
 
-没有黑箱。画像把推荐背后的词项摊开给你看，并且只从你主动的操作里学习。
-
-- 来源是收藏、“有用”标记、种子论文和钉住的关键词
-- 没有操作不算不喜欢，“太难”也不算不喜欢
-- 可以钉住关键词、删掉标签、撤销任何一次反馈
-- 旧的标记会随时间淡化，画像跟着你当下的研究走
-
-<p align="center"><img src="docs/assets/readme/zh-profile.png" alt="兴趣画像页" width="100%"></p>
-
----
-
-### 🕸️ 看清论文之间的联系
-
-论文库不只是一堆 PDF：用列表浏览，或切到由相似论文和分类连成的关系图。
-
-- 有开放版本的论文会下载并归档到本地
-- AI 可以建议分类，但你勾选并确认之后才会生效
-- 每次整理都可以撤销
-
-<p align="center"><img src="docs/assets/readme/zh-graph.png" alt="论文库关系图" width="100%"></p>
-
----
-
-### ✍️ 划一句，问一句，读明白
-
-在 PageTide 里直接读 PDF。选中没看懂的句子，翻译它，或者追问一句，回答就出现在页面旁边。
-
-- 比如问“这个方法的核心假设是什么？”
-- 图表也能问
-- 翻译和追问使用你自己的 DeepSeek 密钥
-
-<p align="center"><img src="docs/assets/readme/zh-reader-ask.png" alt="阅读器中划词后的回答" width="100%"></p>
-
-还有：离线演示项目、中英文界面、浅色与深色主题、应用内检查更新。
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/readme/zh-today.png" alt="今日推荐与 AI 速览"></td>
+<td width="50%"><img src="docs/assets/readme/zh-reader-ask.png" alt="划词提问"></td>
+</tr>
+<tr>
+<td align="center"><sub>今日推荐，每篇附一句 AI 速览</sub></td>
+<td align="center"><sub>选中一句话提问，回答就在页面旁边</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/readme/zh-profile.png" alt="画像页"></td>
+<td width="50%"><img src="docs/assets/readme/zh-graph.png" alt="论文库图谱"></td>
+</tr>
+<tr>
+<td align="center"><sub>看得懂的画像：关键词、钉词和反馈记录</sub></td>
+<td align="center"><sub>论文库自动连成关联图谱</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/readme/zh-import.png" alt="导入页"></td>
+<td width="50%"><img src="docs/assets/readme/zh-weekly.png" alt="周报"></td>
+</tr>
+<tr>
+<td align="center"><sub>导入 PDF 文件夹或 Zotero 导出</sub></td>
+<td align="center"><sub>每周周报，看画像怎么变</sub></td>
+</tr>
+</table>
 
 ## 🔌 接入服务
 
@@ -96,59 +95,13 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 > [!NOTE]
 > 所有密钥都由你自己在设置里填写。密钥保存在 PageTide 数据文件夹里的本地文件中，不写进设置文件，每个密钥只发给它所属的服务。PageTide 没有自己的服务器。
 
-<div align="center">
-<img src="docs/assets/readme/zh-settings.png" alt="设置页：AI 密钥与数据源，密钥输入框均为空" width="520">
-</div>
-
 ## 🚀 上手指南
 
-### 1. 选语言和外观
-
-第一次打开时选择中文或 English，以及浅色、深色或跟随系统。以后可以在设置里改。
-
-<p align="center"><img src="docs/assets/readme/zh-welcome.png" alt="欢迎卡：选择语言与外观" width="560"></p>
-
-### 2. 跟着指引走一遍
-
-一段简短的指引会带你看一遍预先填好的演示项目。它离线运行、不需要密钥，之后可以在设置里重新查看。
-
-<p align="center"><img src="docs/assets/readme/zh-tour.png" alt="指向演示项目的指引气泡" width="720"></p>
-
-### 3. 新建项目
-
-可选 **快速创建**（一句话、一次 AI 调用）、**AI 引导**（边聊边完善关键词和检索式）或 **手动创建**（自己填关键词和种子论文，不用 AI）。
-
-<p align="center"><img src="docs/assets/readme/zh-create.png" alt="创建研究项目：快速创建、AI 引导、手动创建" width="720"></p>
-
-### 4. 接入服务
-
-填入 DeepSeek 密钥即可使用 AI 功能，也可以再填 OpenAlex 或千帆密钥。见 [接入服务](#-接入服务)。
-
-<p align="center"><img src="docs/assets/readme/zh-settings.png" alt="设置页" width="440"></p>
-
-### 5. 看今日推荐，教它你的口味
-
-点 **生成今日推荐**。喜欢的收藏，不要的标成“不感兴趣”或“太难”，画像随之更新。
-
-<p align="center"><img src="docs/assets/readme/zh-today.png" alt="今日推荐" width="720"></p>
-
-### 6. 导入你已有的论文库
-
-拖入 PDF 文件或整个文件夹（子文件夹会变成分类），或导入从 Zotero 导出的 BibTeX、RIS，也支持 CSL JSON。导入本身不使用 AI。
-
-<p align="center"><img src="docs/assets/readme/zh-import.png" alt="导入页与 Zotero 导出说明" width="720"></p>
-
-### 7. 边读边问
-
-打开任意一篇论文，划选一句话，翻译或追问都行。
-
-<p align="center"><img src="docs/assets/readme/zh-reader-ask.png" alt="阅读器中划词后的回答" width="720"></p>
-
-### 8. 每周看周报
-
-每周一次，看你收藏了什么、跳过了什么、哪些方向在变热。
-
-<p align="center"><img src="docs/assets/readme/zh-weekly.png" alt="周报（演示数据）" width="720"></p>
+1. **下载**适合你系统的 PageTide（见[下载](#-下载)），打开它。
+2. **选界面语言和外观**，跟着新手指引在演示项目里走一遍。全程离线，不需要任何密钥。
+3. **新建项目**：快速创建（一句话，一次 AI 调用）、AI 引导（和 AI 聊到关键词满意为止）或手动创建（不用 AI）。
+4. **在设置里填密钥**，开启 AI 功能和更多数据源（见[接入服务](#-接入服务)）。
+5. **点“生成今日推荐”。** 收藏喜欢的，标记不要的，看着画像一点点变准。
 
 ## 🔒 隐私优先
 
@@ -162,8 +115,8 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
 | 平台 | 文件 |
 | --- | --- |
-| macOS（Apple Silicon） | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) |
-| Windows（x64） | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) |
+| macOS（Apple Silicon） | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 22 MB |
+| Windows（x64） | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
 
 <details>
 <summary>首次打开：应用未签名</summary>
