@@ -1,3 +1,15 @@
+# 当前工作单元：演示项目与新手指引·后端（2026-10-24，onboarding-tour 第二个提交，进行中）
+
+[变更记录](../changes/2026-10-24-onboarding-tour.json)，[检查证据](evidence/2026-10-24-onboarding-tour-checks.txt)。**前端未接线**：没有改任何页面，`tour.js/tour.css`、页面接线、`i18n`、设置页“重新查看”、ADR 与 R-/E-/FEAT- 登记都是后续步骤。
+
+做了什么：演示项目 `pdh-demo` 不在用户库里。带请求头 `X-PDH-Demo: 1`（或 `project_id=pdh-demo`）的请求由 `app/demo.py` 路由到 `<数据目录>/demo-sandbox/<世代>/` 的一次性沙盒库（`app/demo_fixture.py`：5 篇未评价候选 + 24 篇带时间分布的历史记录，4 个类别，钉词历史，预写中英速览），每次开始指引与每次进程启动新建，旧的尽力删除。沙盒里网关只读转发、数据源与 PDF 抓取是离线桩，零 token 零联网；白名单外一律 403 `demo_readonly`；设置、更新、指引状态永远读写真实目录。`/api/onboarding`（GET 状态；POST `start` 重置沙盒、`done` 写 `onboarding.json`）；`/api/projects` 另带 `demo` 描述。`app/app_version.py` 的 `current(root)` 取 `PDH_APP_VERSION`，再取 `src-tauri/tauri.conf.json`，否则 `unknown`（`app/updater.py` 仍用自己的规则，没动）。
+
+**fixture 没有联网核实**：这次的沙箱访问不了 export.arxiv.org。29 篇的 arXiv 编号、标题、日期来自记忆，摘要是自己的改写（`ABSTRACTS_VERIFIED = False`），速览是手写的、不是模型输出。`harness/sources.json` 的 `DEMO-FIXTURE-ARXIV` 7 天后会提示复查；发布前要用一次 `export.arxiv.org/api/query?id_list=…` 核对。
+
+没验证：冻结二进制、Windows、真实桌面应用；没有前端所以没有端到端点击；组织 worker 的全局锁让演示图谱任务与真实整理任务互斥；没有独立审查。
+
+---
+
 # 当前工作单元：去掉默认项目（2026-10-24，onboarding-tour 第一步）
 
 worktree `onboarding-tour`，基线 update-check `b7cb191`，类别 critical。[变更记录](../changes/2026-10-24-no-default-project.json)，[检查证据](evidence/2026-10-24-no-default-project-checks.txt)。后面还有演示项目与新手指引（第二个提交，进行中）。

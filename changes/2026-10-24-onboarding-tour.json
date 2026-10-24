@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-onboarding-tour",
+  "class": "critical",
+  "status_note": "IN PROGRESS: backend only (demo sandbox, onboarding state, routes). The front end (tour.js/tour.css, page wiring, i18n, settings button), the ADR and the R-/E-/FEAT- registrations are later steps.",
+  "summary": "Onboarding tour backend: a read-only-for-the-person's-data demo project (pdh-demo) served from a throw-away offline SQLite sandbox built from a built-in fixture (29 public arXiv Transformer-lineage papers: 5 unrated candidates + 24 earlier records spread over four weeks, with categories, pinned-term history and pre-written zh/en previews); request routing by header X-PDH-Demo or project_id with an allow list and a 403 demo_readonly for everything else; /api/onboarding (state, start, done) with state in onboarding.json; /api/projects carries a demo descriptor; app_version.current(); first-run assertions in the packaged-backend verifier.",
+  "tasks": [
+    "PILOT-01"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-BUDGET",
+    "R-WEEKLY",
+    "R-GRAPH"
+  ],
+  "files": [
+    "app/app_version.py",
+    "app/demo.py",
+    "app/demo_fixture.py",
+    "app/onboarding.py",
+    "app/project.py",
+    "app/server.py",
+    "changes/2026-10-24-onboarding-tour.json",
+    "docs/ARCHITECTURE.md",
+    "docs/HANDOFF.md",
+    "docs/evidence/2026-10-24-onboarding-tour-checks.txt",
+    "harness/sources.json",
+    "scripts/verify_packaged_route.py",
+    "tests/test_demo_sandbox.py",
+    "tests/test_onboarding_state.py"
+  ],
+  "scope_note": "Worktree onboarding-tour, second commit on top of the no-default-project commit. No front-end file is touched, so nothing in the UI uses these routes yet. The demo makes zero model calls and zero network requests: the gateway is read-only, sources and the PDF fetcher are offline stubs, and the tests close sockets to everything but loopback and make Gateway.call raise.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "The demo triage writes pre-written previews (model=demo); no provider is called, no prompt registered, no retry. The sandbox gateway cannot call a model even with DEEPSEEK_API_KEY set.",
+    "before": "no demo",
+    "after": "demo with zero tokens and no network",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "607 pass (no front-end change)"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "0 of 1178 keys missing"
+    },
+    {
+      "command": "python3 scripts/verify_packaged_route.py <wrapper running the source backend>",
+      "exit_code": 0,
+      "scope": "including the new first-run block; NOT run against a frozen binary"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Working agent; not independent",
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not independently reviewed (critical class).",
+    "The arXiv identifiers, titles, dates of the 29 fixture papers were written from memory and the abstracts are the author's paraphrases: export.arxiv.org was unreachable from the sandbox, so nothing was verified online (harness/sources.json DEMO-FIXTURE-ARXIV, recheck in 7 days).",
+    "The organization worker lock is global: a demo graph job and a real organization job exclude each other (the loser gets 'already running').",
+    "A request that sends X-PDH-Demo gets the sandbox for every non-settings route; the page must send the header only while the tour is on screen.",
+    "Windows cannot delete an open sandbox file; the old generation then stays until the next reset (tested by simulating a failed delete, not on Windows).",
+    "Direction names in the sandbox library are written in the language chosen at reset time; switching the interface language mid-tour does not rename them.",
+    "No front end exists yet: sessionStorage survival across pages in WKWebView/WebView2 is still an inference."
+  ]
+}

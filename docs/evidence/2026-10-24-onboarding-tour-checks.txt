@@ -1,0 +1,18 @@
+Onboarding tour, backend part (worktree onboarding-tour, on top of the no-default-project commit). In progress: no front-end file changed.
+
+Added: app/demo.py (routing, allow list, DemoApp over a throw-away sandbox, read-only gateway view, offline source/fetcher stubs, sandbox lifecycle, demo triage), app/demo_fixture.py (data only), app/app_version.py, app/onboarding.py; server routes GET|POST /api/onboarding, GET /api/projects now also returns "demo", per-request demo flag with 403 {"error","reason_code":"demo_readonly"}; ProjectManager.create_project(project_id=, _demo=) accepting only the reserved demo id from the seeder; scripts/verify_packaged_route.py first-run block; harness/sources.json DEMO-FIXTURE-ARXIV; ARCHITECTURE paragraph.
+
+Fixture: 29 papers = 5 unrated candidates (Attention Is All You Need, BERT, Scaling Laws, GPT-3, ViT) + 24 earlier records in four categories (pretrained language models 7, vision Transformers 6, efficient attention and long context 6, alignment and instruction tuning 5): 22 saved (useful), 2 not relevant, 3 "understood", 2 "too hard", pinned-term history of 3 versions, activity spread over 27 days before the sandbox is built (current week and previous week both populated, keyword changes non-empty). Built with the real code (App.record_feedback, Organization actions, pin_terms) and then dated.
+
+Ran on macOS (Python 3.12, local):
+$ python3 scripts/budget.py --check   PASS
+$ python3 scripts/harness.py check   PASS (recheck warning only: DS-TOKENIZER, DS-CACHE, OPENALEX, TAOMU-RELAY)
+$ python3 -m unittest discover -s tests   Ran 2930 tests OK  (19 in tests/test_demo_sandbox.py, 14 in tests/test_onboarding_state.py)
+$ node --test tests/*.cjs   # pass 607  # fail 0
+$ python3 scripts/i18n_extract.py   # 0 of 1178
+$ python3 scripts/verify_packaged_route.py <sh wrapper: python3 -c "from app.desktop import main; main()">   PASS, including the new first-run block (empty directory: no project, onboarding offered, demo daily 5 cards, demo triage, feedback, 20+ library items, offline graph worker job done with edges, refresh 403, real database tables all empty)
+
+Covered by tests (sockets closed except loopback, DEEPSEEK_API_KEY=x, Gateway.call/_call raising): whole flow start -> daily (5) -> triage (5 items, model demo, language of the real settings) -> feedback -> library with only demo papers -> graph job done (>= 20 edges, >= 4 groups) -> insights (>= 10 terms, current and previous week, keyword changes, >= 3 versions) -> weekly report -> undo/unsave; real table counts and settings.json bytes unchanged, real /api/organization has no demo key; 31 blocked requests all 403 demo_readonly; project_id alone routes to the demo; settings-class routes with the header still hit the real directory; descriptor equals the sandbox row; reset swaps generation and removes the old, survives a failed delete, first use per process resets, changed fixture digest rebuilds; readers stay safe during repeated resets; kept-alive connection does not keep the demo flag and a refused body is drained; cross-origin onboarding writes 403; onboarding state four combinations, atomic file, damaged file, settings save without merge keeps it, unknown action 400, start does not mark seen.
+
+NOT verified: any request to export.arxiv.org (denied here, so identifiers/titles/dates are from memory and abstracts are paraphrases, not verbatim); a frozen (PyInstaller) binary; Windows; the front end (none written); the organization worker in a packaged app beyond the source-backend stand-in. Not independently reviewed.
+No model call, no developer-ledger usage.

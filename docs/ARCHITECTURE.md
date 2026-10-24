@@ -75,3 +75,5 @@
 按用户后续“删掉旧PDF开发、重新开始”的要求，旧 `src/`、Electron/React/PDF.js依赖、数据库迁移、tokenizer、应用测试、校准工具和生成器已删除，不再作为底座或冻结代码保留。未触碰真实论文库、应用数据和 `.local/` 私有资料。新架构不继承旧schema；未来若确需导入历史数据，必须另批迁移范围并验证恢复。
 
 预算注册表现为**未批准的 AI 提案**：provider 已登记以便复算每日最低，但 `approved_by_owner=false`、enforcement 与 tokenizer 校准均未实现，核心路径仍为 0 token。旧配置和校准批准不继承；任何真实 AI 调用仍须先验证网关、离线计数与用户授权。重规划时建立的文档/任务快照只用于解释决策，不是可执行实现。
+
+演示项目与新手指引（2026-10-24，后端部分；前端后续接线）：新安装没有项目。演示项目 `pdh-demo` 不在用户的数据库里：请求头 `X-PDH-Demo: 1`（或 `project_id=pdh-demo`）的请求由 `app/demo.py` 路由到 `<数据目录>/demo-sandbox/<世代>/` 下的一次性 SQLite 沙盒，内容由 `app/demo_fixture.py`（29 篇公开 arXiv 论文的元数据、摘要改写、预写中英速览）经真实代码播种；每次开始指引和每次进程启动都新建，旧的尽力删除。沙盒里网关只转发只读状态（任何模型调用、密钥改动都抛错）、数据源与 PDF 抓取是离线桩，零 token、零联网；白名单之外的动作一律 403 `reason_code: demo_readonly`；设置、更新、指引状态等路由永远读写真实目录。指引状态在 `<数据目录>/onboarding.json`（`seen_version`、`completed_at`），不放 `settings.json`（设置页整份覆盖保存）。

@@ -4,6 +4,7 @@ Each project has independent profile, recommendations, and paper library.
 """
 import json
 import uuid
+from .demo_fixture import PROJECT_ID as DEMO_PROJECT_ID
 from .paper_language import policy_from_row, validate_policy, validate_value
 
 
@@ -17,7 +18,7 @@ class ProjectManager:
         self.store = store
 
     def create_project(self, name, creation_mode="manual", keywords=None,
-                      guidance_transcript=None, learning_path=None, language_policy=None):
+                      guidance_transcript=None, learning_path=None, language_policy=None, project_id=None, _demo=False):
         """Create a new research project.
 
         Args:
@@ -26,6 +27,7 @@ class ProjectManager:
             keywords: List of initial keywords (optional)
             guidance_transcript: AI conversation history for ai_guided mode
             learning_path: Recommended learning path for ai_guided mode
+            project_id: only the demo sandbox seeder (_demo=True) may choose an id, and only the reserved demo id
 
         Returns:
             project_id: UUID string
@@ -35,7 +37,10 @@ class ProjectManager:
         name = str(name or "").strip()
         if not name or len(name) > 120:
             raise ValueError("项目名称不能为空且不能超过 120 个字符")
-        project_id = str(uuid.uuid4())
+        if project_id is None:
+            project_id = str(uuid.uuid4())
+        elif not (_demo and project_id == DEMO_PROJECT_ID):
+            raise ValueError("项目编号只能由系统生成")
         language_policy = validate_value(language_policy)
 
         fields = ['id', 'name', 'creation_mode', 'creation_timestamp', 'keywords',

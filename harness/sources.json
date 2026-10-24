@@ -528,6 +528,14 @@
       "recheck_after_days": 30,
       "claim": "Wanfang Data open platform (万方文献检索, ai.wfdata.com): a keyed literature search API, POST https://api.wfdata.com/openwanfang/getQuery with header X-App-Key. It was CONSIDERED AND NOT ADOPTED because the owner found it paid with only a 10-day trial (owner, 2026-10-23: '这玩意好像要购买，申请试用只有十天。还看看确认是的话，不能长期使用的话，那就用百度搜索百度学术吧'); no public price list was found by a web search on 2026-10-23. No Wanfang adapter, key field or setting exists in the app.",
       "verification": "Live probe 2026-10-23 by the coordinator with the owner's trial key (6+4 requests; no response body is committed, no key anywhere): HTTP 200 in about 1.5 s; plain http (the documented base) answered '400 Bad Request', https works; the response has documents[] (resourceType, uid, fields, Periodical with 82 fields such as Id, Title[zh,en], Creator[], Abstract[], Keywords[], PeriodicalTitle[], DOI (often empty), PublishDate 'YYYY-MM-DD 00:00:00', PublishYear, MetadataOnlineDate, IsOA, ThirdPartyUrl[], Language 'chi', HasFulltext), numFound (a string), msg, format 'PROTO', nextCursorMark, highlightResults; returned_fields appeared to be ignored (the full record came back); sort {sorts:[{by:'PublishDate',order:'DESC'}]} worked; query aliases 标题: and 年份:[2025 TO *] worked; the word 知识图谱 matched 40866 records; a malformed key gave HTTP 401 {code:'APPKEY_INVALID_FORMAT', message, detail, trace_id, app_key, guide} where app_key ECHOES the submitted key, so a client must never log or show an error body. Still UNVERIFIED: the price, any quota, the terms on caching or displaying abstracts, and what happens after the trial."
+    },
+    {
+      "id": "DEMO-FIXTURE-ARXIV",
+      "url": "https://info.arxiv.org/help/api/index.html",
+      "verified_on": "2026-10-24",
+      "recheck_after_days": 7,
+      "claim": "The onboarding demo project (app/demo_fixture.py) uses 29 public arXiv papers (Transformer lineage): identifier, title and first-version date, plus a short paraphrase of each abstract. arXiv metadata is CC0; the PDFs are not bundled or fetched by the demo.",
+      "verification": "NOT VERIFIED ONLINE. The agent that wrote the fixture could not reach export.arxiv.org (sandbox network policy denied the host). Identifiers, titles and dates were written from memory; every abstract is the author's own paraphrase, never claimed verbatim (ABSTRACTS_VERIFIED = False in the fixture). The one-line zh/en previews are hand-written for the demo, not model output. Before release: fetch https://export.arxiv.org/api/query?id_list=<ids> (one request, sequential, within arXiv's 3-second rule), compare identifiers/titles/dates, and either replace the paraphrases with verbatim abstracts or keep them labelled as paraphrases."
     }
   ]
 }
