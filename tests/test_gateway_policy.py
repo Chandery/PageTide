@@ -28,7 +28,7 @@ class GatewayPolicyTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name)
-        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-saved-key', 'PDH_DEV': '0'})
+        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-saved-key', 'PAGETIDE_DEV': '0'})
         env.start(); self.addCleanup(env.stop)
         self.gateway = Gateway(root=ROOT, data_dir=self.data, dev=False)
 

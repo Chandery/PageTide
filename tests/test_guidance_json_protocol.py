@@ -135,7 +135,7 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
 
     def test_app_to_gateway_real_request_passes_protocol_once_without_local_fallback(self):
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ,
-                {'DEEPSEEK_API_KEY': 'synthetic-guidance-key', 'PDH_DEV': '0'}):
+                {'DEEPSEEK_API_KEY': 'synthetic-guidance-key', 'PAGETIDE_DEV': '0'}):
             app = App(root=ROOT, data_dir=Path(directory))
             self.addCleanup(app.store.close)
             for english in (False, True):
@@ -163,7 +163,7 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
 
     def test_legacy_app_request_is_rejected_once_and_explicit_retry_uses_the_fixed_instruction(self):
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ,
-                {'DEEPSEEK_API_KEY': 'synthetic-guidance-key', 'PDH_DEV': '0'}):
+                {'DEEPSEEK_API_KEY': 'synthetic-guidance-key', 'PAGETIDE_DEV': '0'}):
             app = App(root=ROOT, data_dir=Path(directory))
             self.addCleanup(app.store.close)
             session = app.create_guidance_session('Synthetic project', '我想研究世界模型')
@@ -186,7 +186,7 @@ class GuidanceJSONProtocolTests(unittest.TestCase):
 
     def test_long_app_goal_and_answer_keep_originals_and_are_sent_whole_without_excerpt_notice(self):
         with tempfile.TemporaryDirectory() as directory, mock.patch.dict(os.environ,
-                {'DEEPSEEK_API_KEY': 'synthetic-guidance-key', 'PDH_DEV': '0'}):
+                {'DEEPSEEK_API_KEY': 'synthetic-guidance-key', 'PAGETIDE_DEV': '0'}):
             app = App(root=ROOT, data_dir=Path(directory))
             self.addCleanup(app.store.close)
             (app.data / 'settings.json').write_text(json.dumps({'language': 'en-US'}))

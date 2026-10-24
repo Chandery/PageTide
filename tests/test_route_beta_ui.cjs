@@ -1,15 +1,15 @@
 'use strict';
 // Learning-map mode (beta) is a Settings switch, off by default. These tests run the real page code with the flag
-// the server injects (window.PDH_ROUTE_BETA) and check that the learning-map parts disappear or stay.
+// the server injects (window.PAGETIDE_ROUTE_BETA) and check that the learning-map parts disappear or stay.
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'../app/static',name),'utf8');
 
 function loadContext(flag){
-  const sandbox={window:flag===undefined?{}:{PDH_ROUTE_BETA:flag}};
+  const sandbox={window:flag===undefined?{}:{PAGETIDE_ROUTE_BETA:flag}};
   sandbox.module={exports:{}};
   vm.createContext(sandbox);
   vm.runInContext(read('paper-context.js'),sandbox);
-  return sandbox.window.PDHPaperContext||sandbox.module.exports;
+  return sandbox.window.PTPaperContext||sandbox.module.exports;
 }
 const context={project_id:'p',categories:[{name:'Cat'}],units:[{id:'a',name:'Unit A'}],map_available:true,route_enabled:true,
   saved_in_project:true,recommendation:{kind:'route',name:'Unit A'}};
@@ -32,7 +32,7 @@ function settingsPage(stored){
   const nodes=new Map(),calls=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',checked:false,textContent:'',disabled:false,dataset:{},setAttribute(){}});return nodes.get(id);};
   const context={document:{querySelector:node,documentElement:{dataset:{}}},localStorage:{getItem(){return null;},setItem(){},removeItem(){}},matchMedia(){return {matches:false};},
-    window:{location:{},PDHTheme:{apply(){}},PDHSaveFile:async()=>({})},alert(){},confirm(){return true;},
+    window:{location:{},PTTheme:{apply(){}},PTSaveFile:async()=>({})},alert(){},confirm(){return true;},
     fetch:async(url,init)=>{calls.push({url,init});
       if(url==='/api/user_settings'&&!init)return {ok:true,json:async()=>({settings:stored})};
       return {ok:true,json:async()=>({status:'saved'})};}};
@@ -70,7 +70,7 @@ test('with the beta off a new project is created without a map and leaving the p
   const start=source.indexOf('const map = {'),literal=source.slice(start,source.indexOf('};',start)+2);
   const quit=source.slice(source.indexOf('quitState:'),source.indexOf('\n',source.indexOf('quitState:')));
   for(const [flag,discarded] of [[false,true],[true,false],[undefined,false]]){
-    const context=vm.createContext({window:flag===undefined?{}:{PDH_ROUTE_BETA:flag}});
+    const context=vm.createContext({window:flag===undefined?{}:{PAGETIDE_ROUTE_BETA:flag}});
     vm.runInContext(literal+';globalThis.map=map;',context);
     assert.equal(context.map.discarded,discarded,`flag ${flag}`);
     // the page-leave check must not treat the automatic "no map" as an unsaved edit
@@ -80,10 +80,10 @@ test('with the beta off a new project is created without a map and leaving the p
   }
 });
 test('the library graph and the learning-map page honour the switch',()=>{
-  assert.match(read('organization.js'),/const routeAvailable = \(\) => window\.PDH_ROUTE_BETA !== false && /);
-  assert.match(read('route-page.js'),/if \(window\.PDH_ROUTE_BETA === false\) \{[\s\S]*?return;\s*\}/);
+  assert.match(read('organization.js'),/const routeAvailable = \(\) => window\.PAGETIDE_ROUTE_BETA !== false && /);
+  assert.match(read('route-page.js'),/if \(window\.PAGETIDE_ROUTE_BETA === false\) \{[\s\S]*?return;\s*\}/);
 });
 test('the home page replaces the learning-map panel with the hotspot-mode line when the beta is off',()=>{
   const source=read('index.html');
-  assert.match(source,/if \(window\.PDH_ROUTE_BETA === false\) \{[\s\S]*?热点模式[\s\S]*?return;/);
+  assert.match(source,/if \(window\.PAGETIDE_ROUTE_BETA === false\) \{[\s\S]*?热点模式[\s\S]*?return;/);
 });

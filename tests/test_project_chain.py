@@ -26,7 +26,7 @@ class GuidedCreationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PDH_DEV": "0"})
+        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PAGETIDE_DEV": "0"})
         env.start()
         self.addCleanup(env.stop)
         # project_guidance is owner-approved, so the gateway would really send: the transport is
@@ -298,7 +298,7 @@ class URLProjectPrecedenceTests(unittest.TestCase):
         end = source.index("await loadProjects();", start)
         snippet = source[start:end]
         script = (
-            "const DEMO_ID='pdh-demo';const results=[];for (const [search, stored] of [['?project_id=url', 'stored'], ['', 'stored'], ['', null]]) {"
+            "const DEMO_ID='pt-demo';const results=[];for (const [search, stored] of [['?project_id=url', 'stored'], ['', 'stored'], ['', null]]) {"
             "const window={location:{search}};const localStorage={getItem:()=>stored};const state={currentProject:'default'};"
             + snippet + "results.push(state.currentProject);}console.log(JSON.stringify(results));")
         try:

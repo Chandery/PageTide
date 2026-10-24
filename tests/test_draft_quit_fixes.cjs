@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 function setup(fail=false) {
   const events = [];
-  const window={addEventListener(){},PDH:{toast:(...args)=>events.push(['toast',...args]),api:async(path,body)=>{
+  const window={addEventListener(){},PT:{toast:(...args)=>events.push(['toast',...args]),api:async(path,body)=>{
     events.push(['write',body]); if(fail) throw new Error('disk failure'); return {draft:{version:1}};
   }},__TAURI_INTERNALS__:{invoke:async cmd=>events.push(['quit',cmd])}};
   const context=vm.createContext({module:{exports:{}},window,document:{querySelectorAll:()=>[]},localStorage:{getItem(){return null;},setItem(){}},crypto:{randomUUID:()=> 'client'},setTimeout,clearTimeout,URL});
@@ -19,7 +19,7 @@ function setup(fail=false) {
 }
 test('immediate quit durably writes the latest draft before ending the backend',async()=>{
   const {window,events}=setup();
-  await window.PDHPrepareQuit();
+  await window.PTPrepareQuit();
   assert.equal(events[0][0],'write');
   assert.equal(events[0][1].text,'Latest edit before 250ms');
   assert.equal(events[0][1].action,'draft-save');
@@ -27,7 +27,7 @@ test('immediate quit durably writes the latest draft before ending the backend',
 });
 test('failed durable write keeps application open and reports the failure',async()=>{
   const {window,events}=setup(true);
-  await window.PDHPrepareQuit();
+  await window.PTPrepareQuit();
   assert.equal(events.some(event=>event[0]==='quit'),false);
   assert.ok(events.some(event=>event[0]==='toast' && event[1].includes('草稿未保存')));
 });

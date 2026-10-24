@@ -15,7 +15,7 @@ function page(routes, labels) {
     return {ok: value?.status ? value.status < 400 : true, json: async () => value?.body ?? value};
   };
   if (labels) Object.defineProperty(nodes.updateLabel, 'textContent', {get() { return this._t || ''; }, set(v) { this._t = v; labels.push(v); }});
-  const mounted = context.window.PDHUpdate.mount({document: context.document, fetch: fetchFn, wait: async () => {}, quit: async () => { quits.push(1); }});
+  const mounted = context.window.PTUpdate.mount({document: context.document, fetch: fetchFn, wait: async () => {}, quit: async () => { quits.push(1); }});
   return {nodes, calls, quits, mounted};
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));

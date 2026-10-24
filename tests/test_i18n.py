@@ -131,15 +131,15 @@ class EnglishSuggestionTests(unittest.TestCase):
 
 class LanguageDataDirTests(unittest.TestCase):
     def test_settings_and_the_app_read_one_directory(self):
-        # Review finding: with no PAPERDIGHELPER_DATA, the language route read <cwd>/.local/app
+        # Review finding: with no PAGETIDE_DATA, the language route read <cwd>/.local/app
         # while App(root) read <root>/.local/app, so the UI and the prompts could disagree.
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("PAPERDIGHELPER_DATA", None)
+            os.environ.pop("PAGETIDE_DATA", None)
             (Path(tmp) / "harness").mkdir()
             (Path(tmp) / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
             self.assertEqual(Path(server.data_dir(tmp)), App(root=tmp).data)
-            os.environ["PAPERDIGHELPER_DATA"] = str(Path(tmp) / "elsewhere")
-            self.assertEqual(Path(server.data_dir(tmp)), App(root=tmp, data_dir=os.environ["PAPERDIGHELPER_DATA"]).data)
+            os.environ["PAGETIDE_DATA"] = str(Path(tmp) / "elsewhere")
+            self.assertEqual(Path(server.data_dir(tmp)), App(root=tmp, data_dir=os.environ["PAGETIDE_DATA"]).data)
 
 
 class UserTextMarkupTests(unittest.TestCase):
@@ -154,7 +154,7 @@ class UserTextMarkupTests(unittest.TestCase):
                        "注意：</span><span data-no-i18n>${esc(s.caution)}</span>",
                        '<button class="paper-title" data-no-i18n>',
                        "<h2 data-no-i18n>${esc(d.title)}</h2>", "<div data-no-i18n>${md(d.abstract)}</div>",
-                       "quoted.dataset.noI18n = ''", "PDHi18n.exact(q)"]:
+                       "quoted.dataset.noI18n = ''", "PTi18n.exact(q)"]:
             self.assertIn(marked, html)
         script = (ROOT / "app" / "static" / "i18n.js").read_text(encoding="utf-8")
         for container in [".org-markdown", ".org-detail-title", ".org-abstract p", "pre"]:
@@ -177,9 +177,9 @@ class LanguagePackTests(unittest.TestCase):
 
     def test_script_carries_messages_only_in_english(self):
         chinese = server.i18n_script("zh-CN").decode()
-        self.assertEqual(chinese, 'window.PDH_I18N={"lang": "zh-CN", "messages": {}};\n')
+        self.assertEqual(chinese, 'window.PAGETIDE_I18N={"lang": "zh-CN", "messages": {}};\n')
         english = server.i18n_script("en-US").decode()
-        payload = json.loads(english[len("window.PDH_I18N="):-2].replace("<\\/", "</"))
+        payload = json.loads(english[len("window.PAGETIDE_I18N="):-2].replace("<\\/", "</"))
         self.assertEqual(payload["lang"], "en-US")
         self.assertEqual(payload["messages"]["论文库"], "Library")
         self.assertNotIn("</", english)   # a pack value can never close the page's script element
@@ -201,7 +201,7 @@ class LanguageRouteTests(unittest.TestCase):
         (root / "harness" / "seeds.json").write_text(json.dumps({"seeds": []}))
         (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.data = root / "data"
-        env = patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(self.data)})
+        env = patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data)})
         env.start()
         self.addCleanup(env.stop)
         self.httpd = server.build_server(port=0, root=str(root))

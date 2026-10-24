@@ -276,7 +276,7 @@ def annotate_batch(papers, profile_terms, seed_titles, base, key, model):
         f"{base}/v1/chat/completions", data=body,
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
                  "Accept": "application/json",
-                 "User-Agent": "PaperDigHelper-eval/0.1 (local research)"})
+                 "User-Agent": "PageTide-eval/0.1 (local research)"})
     last_error = None
     for attempt in range(4):
         try:

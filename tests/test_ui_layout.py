@@ -135,8 +135,8 @@ class LayoutTests(unittest.TestCase):
         self.assertIn("api('/api/settings')", self.html)
         self.assertIn("api('/api/settings', { api_key: value })", self.html)
         self.assertIn('type="password"', self.html)
-        self.assertNotIn("localStorage.setItem('pdh-api-key", self.html)
-        self.assertNotIn("localStorage.getItem('pdh-api-key", self.html)
+        self.assertNotIn("localStorage.setItem('pt-api-key", self.html)
+        self.assertNotIn("localStorage.getItem('pt-api-key", self.html)
 
     def test_zoom_commit_keeps_visible_pdf_tree(self):
         self.assertIn("Never rebuild the visible PDF tree at gesture end.", self.html)

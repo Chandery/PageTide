@@ -26,7 +26,7 @@ class Base(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name)
-        self.store = Store(self.data / "paperdighelper.sqlite")
+        self.store = Store(self.data / "pagetide.sqlite")
         self.store.init()
         self.project = ProjectManager(self.store).create_project("导入测试")
         self.client = FakeClient()
@@ -358,7 +358,7 @@ class StopsGracefullyTests(Base):
     def test_only_one_resolver_runs_at_a_time(self):
         self.batch()
         self.add({"titles": ["A title that is long enough"]})
-        other = LibraryImport(self.data, Store(self.data / "paperdighelper.sqlite"), self.client)
+        other = LibraryImport(self.data, Store(self.data / "pagetide.sqlite"), self.client)
         gate, release = threading.Event(), threading.Event()
         original = self.client.title_lookup
 
@@ -397,7 +397,7 @@ class StopsGracefullyTests(Base):
         self.assertTrue(gate.wait(5))
         try:
             with self.assertRaises(ValueError):
-                LibraryImport(self.data, Store(self.data / "paperdighelper.sqlite"), self.client).resolve(other_id)
+                LibraryImport(self.data, Store(self.data / "pagetide.sqlite"), self.client).resolve(other_id)
             self.assertEqual(self.imp.batch(other_id)["status"], "paused")
             self.assertEqual(self.imp.batch(other_id)["pause_reason"], "busy")
             self.assertEqual(self.imp.batch(mine)["status"], "resolving")   # the running batch is not touched
@@ -422,7 +422,7 @@ class StopsGracefullyTests(Base):
         self.assertTrue(gate.wait(5))
         try:
             with self.assertRaises(ValueError):
-                LibraryImport(self.data, Store(self.data / "paperdighelper.sqlite"), self.client).resolve(self.batch_id)
+                LibraryImport(self.data, Store(self.data / "pagetide.sqlite"), self.client).resolve(self.batch_id)
             self.assertEqual(self.imp.batch(self.batch_id)["status"], "resolving")
         finally:
             release.set()
@@ -442,7 +442,7 @@ class StopsGracefullyTests(Base):
         thread = threading.Thread(target=lambda: self.imp.resolve(self.batch_id))
         thread.start()
         self.assertTrue(gate.wait(5))
-        LibraryImport(self.data, Store(self.data / "paperdighelper.sqlite"), self.client).discard(self.batch_id)
+        LibraryImport(self.data, Store(self.data / "pagetide.sqlite"), self.client).discard(self.batch_id)
         release.set()
         thread.join(5)
         self.assertEqual(self.imp.batch(self.batch_id)["status"], "discarded")
@@ -489,7 +489,7 @@ class SettleTests(Base):
     def test_it_will_not_run_while_another_resolver_holds_openalex(self):
         self.paused_batch()
         gate, release = threading.Event(), threading.Event()
-        other = LibraryImport(self.data, Store(self.data / "paperdighelper.sqlite"), self.client)
+        other = LibraryImport(self.data, Store(self.data / "pagetide.sqlite"), self.client)
         with other._single_flight():
             with self.assertRaises(ValueError):
                 self.imp.settle_rest(self.batch_id)

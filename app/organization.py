@@ -371,7 +371,7 @@ class Organization:
                 or (data["suggestions"].get("structure") is not None
                     and data["suggestions"]["structure"] != structure_hash(data["directions"], data["memberships"])))
         if archived:
-            result.update({"format": "paperdig-organization-v1", "project": self.project,
+            result.update({"format": "pagetide-organization-v1", "project": self.project,
                            "organization": data})
         return result
 

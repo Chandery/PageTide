@@ -5,13 +5,13 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHWeekly = api;
+  else root.PTWeekly = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   'use strict';
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const n = (value) => Number(value) || 0;
   // "已读懂" moves the learning map on; with the map switched off in Settings it is not shown here either.
-  const mapOn = () => typeof window === 'undefined' || window.PDH_ROUTE_BETA !== false;
+  const mapOn = () => typeof window === 'undefined' || window.PAGETIDE_ROUTE_BETA !== false;
   const shown = (list) => mapOn() ? list : list.filter((k) => k !== 'understood');
   const KINDS = ['saved', 'positive', 'understood', 'negative', 'too_hard'];
   const LABEL = { saved: '收藏', positive: '有用', understood: '已读懂', negative: '不相关', too_hard: '太难' };

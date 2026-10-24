@@ -1,46 +1,46 @@
-.pdh-organization { --org-bg:var(--surface-1); --org-subtle:var(--surface-2); --org-ink:var(--text); --org-muted:var(--muted); --org-border:var(--line); --org-accent:var(--accent); --org-accent-ink:var(--accent-ink); --org-red:var(--bad); --org-active:var(--surface-2); color:var(--org-ink); background:var(--org-bg); font-size:13px; line-height:1.5; letter-spacing:0; width:100%; min-width:0; padding:0 20px 20px; }
-.pdh-organization *, .pdh-organization *::before, .pdh-organization *::after { box-sizing:border-box; letter-spacing:0; }
-.pdh-organization [hidden] { display:none !important; }
-.pdh-organization button { font:inherit; background:var(--org-bg); color:var(--org-ink); border:1px solid var(--org-border); border-radius:5px; box-shadow:none; padding:6px 9px; min-height:32px; cursor:pointer; transform:none; white-space:normal; overflow-wrap:anywhere; }
-.pdh-organization button:hover { background:var(--org-subtle); border-color:var(--org-accent); transform:none; box-shadow:none; }
-.pdh-organization button:disabled { opacity:.45; cursor:default; }
-.pdh-organization button:focus-visible, .pdh-organization input:focus-visible, .pdh-organization select:focus-visible, .pdh-organization textarea:focus-visible, .pdh-organization summary:focus-visible { outline:2px solid var(--org-accent); outline-offset:2px; }
-.pdh-organization input:not([type=checkbox]):not([type=color]), .pdh-organization select, .pdh-organization textarea { font:inherit; border:1px solid var(--org-border); border-radius:5px; background:var(--org-bg); color:var(--org-ink); padding:7px 9px; min-width:0; max-width:100%; box-shadow:none; }
-.pdh-organization input[type=checkbox] { appearance:auto; width:16px; height:16px; flex:none; accent-color:var(--org-accent); margin:0; }
-.pdh-organization input[type=color] { width:36px; height:32px; padding:2px; background:transparent; border:1px solid var(--org-border); border-radius:4px; flex:none; }
-.pdh-organization h2, .pdh-organization h3, .pdh-organization p { margin:0; }
-.pdh-organization h2 { font-size:19px; font-weight:600; white-space:nowrap; font-family:var(--display); }
-.pdh-organization h3 { font-size:14px; font-weight:650; }
+.pt-organization { --org-bg:var(--surface-1); --org-subtle:var(--surface-2); --org-ink:var(--text); --org-muted:var(--muted); --org-border:var(--line); --org-accent:var(--accent); --org-accent-ink:var(--accent-ink); --org-red:var(--bad); --org-active:var(--surface-2); color:var(--org-ink); background:var(--org-bg); font-size:13px; line-height:1.5; letter-spacing:0; width:100%; min-width:0; padding:0 20px 20px; }
+.pt-organization *, .pt-organization *::before, .pt-organization *::after { box-sizing:border-box; letter-spacing:0; }
+.pt-organization [hidden] { display:none !important; }
+.pt-organization button { font:inherit; background:var(--org-bg); color:var(--org-ink); border:1px solid var(--org-border); border-radius:5px; box-shadow:none; padding:6px 9px; min-height:32px; cursor:pointer; transform:none; white-space:normal; overflow-wrap:anywhere; }
+.pt-organization button:hover { background:var(--org-subtle); border-color:var(--org-accent); transform:none; box-shadow:none; }
+.pt-organization button:disabled { opacity:.45; cursor:default; }
+.pt-organization button:focus-visible, .pt-organization input:focus-visible, .pt-organization select:focus-visible, .pt-organization textarea:focus-visible, .pt-organization summary:focus-visible { outline:2px solid var(--org-accent); outline-offset:2px; }
+.pt-organization input:not([type=checkbox]):not([type=color]), .pt-organization select, .pt-organization textarea { font:inherit; border:1px solid var(--org-border); border-radius:5px; background:var(--org-bg); color:var(--org-ink); padding:7px 9px; min-width:0; max-width:100%; box-shadow:none; }
+.pt-organization input[type=checkbox] { appearance:auto; width:16px; height:16px; flex:none; accent-color:var(--org-accent); margin:0; }
+.pt-organization input[type=color] { width:36px; height:32px; padding:2px; background:transparent; border:1px solid var(--org-border); border-radius:4px; flex:none; }
+.pt-organization h2, .pt-organization h3, .pt-organization p { margin:0; }
+.pt-organization h2 { font-size:19px; font-weight:600; white-space:nowrap; font-family:var(--display); }
+.pt-organization h3 { font-size:14px; font-weight:650; }
 .org-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 0; border-bottom:1px solid var(--org-border); }
 .org-tabs, .org-tools { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
 .org-tabs { border:1px solid var(--org-border); border-radius:6px; padding:2px; }
 .org-tabs button { border:0; }
-.pdh-organization .org-tabs .is-active, .pdh-organization .org-primary { background:var(--org-accent); color:var(--org-accent-ink); }
+.pt-organization .org-tabs .is-active, .pt-organization .org-primary { background:var(--org-accent); color:var(--org-accent-ink); }
 .org-search { flex:1 1 180px; width:180px; }
 .org-tools button { display:inline-flex; align-items:center; justify-content:center; gap:5px; }
 .org-tools img { width:15px; height:15px; }
 .org-undo-slot { display:contents; }
 .org-tools .org-undo { font-size:12.5px; }
-.pdh-organization .org-icon { display:block; width:16px; height:16px; margin:auto; pointer-events:none; }
-.pdh-organization [data-action=collapse][aria-expanded=false] .org-icon { transform:rotate(-90deg); }
-html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-tools img { filter:invert(1); }
+.pt-organization .org-icon { display:block; width:16px; height:16px; margin:auto; pointer-events:none; }
+.pt-organization [data-action=collapse][aria-expanded=false] .org-icon { transform:rotate(-90deg); }
+html[data-mode="dark"] .pt-organization .org-icon, html[data-mode="dark"] .org-tools img { filter:invert(1); }
 .org-statusbar { padding:7px 0; min-height:34px; color:var(--org-muted); overflow-wrap:anywhere; }
-.pdh-organization .org-error, .pdh-organization .org-danger, .org-dialog-error { color:var(--org-red); }
+.pt-organization .org-error, .pt-organization .org-danger, .org-dialog-error { color:var(--org-red); }
 .org-workspace { display:grid; grid-template-columns:var(--org-side) minmax(260px,1fr) 320px; border-top:1px solid var(--org-border); border-bottom:1px solid var(--org-border); min-height:320px; height:calc(100dvh - 260px); max-height:1100px; }
 .org-sidebar, .org-detail, .org-main { min-width:0; min-height:0; }
 .org-sidebar { border-right:1px solid var(--org-border); padding:12px 10px 12px 0; overflow:auto; }
 .org-section-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
 .org-section-head button { min-width:30px; }
-.pdh-organization .org-filter { display:flex; justify-content:space-between; width:100%; border:0; margin-bottom:4px; text-align:left; }
-.pdh-organization .is-active { background:var(--org-active); }
+.pt-organization .org-filter { display:flex; justify-content:space-between; width:100%; border:0; margin-bottom:4px; text-align:left; }
+.pt-organization .is-active { background:var(--org-active); }
 .org-direction { padding:6px 0; border-bottom:1px solid var(--org-border); }
-.pdh-organization .org-direction-name { display:flex; align-items:center; gap:7px; width:100%; text-align:left; background:transparent; border:0; }
+.pt-organization .org-direction-name { display:flex; align-items:center; gap:7px; width:100%; text-align:left; background:transparent; border:0; }
 .org-direction-name span { flex:1; min-width:0; overflow-wrap:anywhere; }
 .org-direction-name small { color:var(--org-muted); }
 .org-direction i, .org-membership-row i { width:8px; height:8px; border-radius:50%; flex:none; display:inline-block; }
 .org-direction-tools { display:flex; gap:3px; justify-content:flex-end; }
-.pdh-organization .org-direction-tools button { border:0; background:transparent; width:30px; padding:3px; }
-.pdh-organization .org-main { display:flex; flex-direction:column; width:auto; max-width:none; margin:0; padding:0; }
+.pt-organization .org-direction-tools button { border:0; background:transparent; width:30px; padding:3px; }
+.pt-organization .org-main { display:flex; flex-direction:column; width:auto; max-width:none; margin:0; padding:0; }
 .org-bulk { min-height:49px; display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding:8px 12px; border-bottom:1px solid var(--org-border); color:var(--org-muted); }
 .org-bulk label { display:flex; align-items:center; gap:7px; }
 .org-bulk select[data-sort] { margin-left:auto; width:auto; min-height:30px; padding:3px 26px 3px 10px; font-size:12.5px; color:var(--org-muted); background-color:transparent; border-color:transparent; cursor:pointer; }
@@ -61,7 +61,7 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .org-abstract { margin:16px 0; border-top:1px solid var(--org-border); border-bottom:1px solid var(--org-border); padding:10px 0; }
 .org-abstract summary { cursor:pointer; }
 .org-abstract p { margin-top:10px; white-space:pre-wrap; overflow-wrap:anywhere; }
-.pdh-organization textarea { display:block; width:100%; min-height:260px; resize:vertical; line-height:1.65; }
+.pt-organization textarea { display:block; width:100%; min-height:260px; resize:vertical; line-height:1.65; }
 .org-note-status { margin:8px 0; color:var(--org-muted); font-size:12px; overflow-wrap:anywhere; }
 .org-markdown { overflow-wrap:anywhere; line-height:1.75; min-height:60px; }
 .org-markdown p, .org-markdown h4, .org-markdown ul { margin:8px 0; }
@@ -96,22 +96,22 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 @media (max-width:560px) { .org-toolbar h2 { width:100%; } .org-search { order:3; flex-basis:100%; width:100%; } .org-toolbar > .org-tools { margin-left:auto; } .org-tools button { padding:5px 7px; } .org-workspace { display:flex; flex-direction:column; } .org-sidebar { border-right:0; border-bottom:1px solid var(--org-border); max-height:220px; padding:10px 0; } .org-directions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 8px; } .org-main { min-height:480px; max-height:70dvh; } .org-detail { padding:14px 8px; } .org-bulk { gap:6px; padding:8px; } .org-paper { padding:12px 8px; } }
 
 /* Compact folder directory; commands live in each row's more menu. */
-.pdh-organization .org-directions { display:block; margin-top:10px; }
+.pt-organization .org-directions { display:block; margin-top:10px; }
 .org-directory-title { padding:2px 6px 6px; margin-bottom:5px; }
 .org-directory-title h3 { font-size:12px; color:var(--org-muted); font-weight:600; }
 .org-directory-title button { border:0; background:transparent; }
-.pdh-organization .org-filter { display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:6px; }
+.pt-organization .org-filter { display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:6px; }
 .org-filter > span { flex:1; text-align:left; }
 .org-filter small, .org-directory-name small { font-size:11px; color:var(--org-muted); font-variant-numeric:tabular-nums; }
 .org-directory-row { display:flex; position:relative; align-items:center; min-height:34px; border-radius:5px; margin:1px 0; }
 .org-directory-row:has(.org-category-menu[open]) { z-index:10; }
 .org-directory-row:hover { background:var(--org-subtle); }
-.pdh-organization .org-directory-row.is-active { background:var(--org-active); }
-.pdh-organization .org-directory-row > button[data-action=collapse] { flex:none; width:20px; min-height:28px; border:0; padding:2px; background:transparent; }
-.pdh-organization .org-directory-row > button[data-action=collapse] .org-icon { width:13px; height:13px; }
+.pt-organization .org-directory-row.is-active { background:var(--org-active); }
+.pt-organization .org-directory-row > button[data-action=collapse] { flex:none; width:20px; min-height:28px; border:0; padding:2px; background:transparent; }
+.pt-organization .org-directory-row > button[data-action=collapse] .org-icon { width:13px; height:13px; }
 .org-tree-spacer { flex:none; width:20px; }
 .org-tree-indent { align-self:stretch; flex:none; background:repeating-linear-gradient(to right,transparent 0,transparent 9px,var(--org-border) 9px,var(--org-border) 10px,transparent 10px,transparent 16px); opacity:.55; }
-.pdh-organization .org-directory-name { display:flex; align-items:center; gap:7px; flex:1; min-width:0; min-height:32px; padding:4px 2px; border:0; background:transparent; text-align:left; }
+.pt-organization .org-directory-name { display:flex; align-items:center; gap:7px; flex:1; min-width:0; min-height:32px; padding:4px 2px; border:0; background:transparent; text-align:left; }
 .org-directory-name > span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .org-folder-icon { width:16px; height:16px; flex:none; opacity:.8; }
 .org-category-menu { flex:none; width:25px; }
@@ -120,7 +120,7 @@ html[data-mode="dark"] .pdh-organization .org-icon, html[data-mode="dark"] .org-
 .org-category-menu > summary:hover { background:var(--org-border); }
 .org-category-actions { position:absolute; z-index:20; top:100%; right:0; width:190px; max-width:calc(100vw - 40px); padding:5px; border:1px solid var(--org-border); border-radius:7px; background:var(--org-bg); box-shadow:var(--sh-2); }
 .org-category-menu-title { font-size:11px; color:var(--org-muted); padding:5px 7px; border-bottom:1px solid var(--org-border); overflow-wrap:anywhere; margin-bottom:4px; }
-.pdh-organization .org-category-actions button { display:block; width:100%; text-align:left; border:0; padding:6px 8px; }
+.pt-organization .org-category-actions button { display:block; width:100%; text-align:left; border:0; padding:6px 8px; }
 .org-directory-empty { padding:20px 8px; color:var(--org-muted); line-height:1.8; }
 .org-breadcrumb { font-size:12px; font-weight:500; color:var(--org-ink); width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .org-paper-actions { display:flex; align-items:center; gap:4px; flex-wrap:nowrap; flex:none; }
@@ -136,7 +136,7 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-graph-hint { position:absolute; bottom:12px; right:12px; max-width:calc(100% - 24px); padding:6px 10px; border:1px solid var(--org-border); border-radius:6px; background:var(--org-bg); color:var(--org-muted); font-size:12px; pointer-events:none; }
 .org-graph-legend { bottom:54px; max-height:38%; overflow:hidden; }
 .org-graph-legend-item { font-size:12px; }
-.pdh-organization .org-directory-name, .pdh-organization .org-filter { font-size:14px; min-height:38px; }
+.pt-organization .org-directory-name, .pt-organization .org-filter { font-size:14px; min-height:38px; }
 .org-workspace { height:calc(100dvh - 220px); }
 @media (max-width:900px) { .org-workspace { height:auto; } }
 
@@ -180,11 +180,11 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-detail .org-detail-meta span + span::before { content:'·'; position:absolute; left:-8px; color:var(--org-border); }
 .org-detail .org-detail-categories { margin-top:16px; padding:12px 14px; border:1px solid var(--org-border); border-radius:10px; background:var(--org-subtle); }
 .org-detail .org-detail-categories-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; color:var(--org-muted); font-size:12.5px; font-weight:600; }
-.pdh-organization .org-detail .org-link-button { min-height:0; padding:2px 4px; border:0; background:transparent; color:var(--org-ink); font-size:12.5px; font-weight:500; text-decoration:underline; text-decoration-color:var(--org-border); text-underline-offset:3px; }
-.pdh-organization .org-detail .org-link-button:hover { background:transparent; text-decoration-color:var(--org-ink); }
+.pt-organization .org-detail .org-link-button { min-height:0; padding:2px 4px; border:0; background:transparent; color:var(--org-ink); font-size:12.5px; font-weight:500; text-decoration:underline; text-decoration-color:var(--org-border); text-underline-offset:3px; }
+.pt-organization .org-detail .org-link-button:hover { background:transparent; text-decoration-color:var(--org-ink); }
 .org-detail .org-detail-badges { display:flex; flex-wrap:wrap; gap:6px; }
-.pdh-organization .org-detail .org-detail-badge { display:inline-flex; align-items:center; gap:7px; min-height:30px; padding:4px 11px 4px 9px; border:1px solid var(--org-border); border-radius:999px; background:var(--org-bg); color:var(--org-ink); font-size:13px; font-weight:550; line-height:1.3; text-align:left; }
-.pdh-organization .org-detail .org-detail-badge.is-empty { color:var(--org-muted); font-weight:500; border-style:dashed; }
+.pt-organization .org-detail .org-detail-badge { display:inline-flex; align-items:center; gap:7px; min-height:30px; padding:4px 11px 4px 9px; border:1px solid var(--org-border); border-radius:999px; background:var(--org-bg); color:var(--org-ink); font-size:13px; font-weight:550; line-height:1.3; text-align:left; }
+.pt-organization .org-detail .org-detail-badge.is-empty { color:var(--org-muted); font-weight:500; border-style:dashed; }
 .org-detail .org-detail-badge i { width:10px; height:10px; border-radius:50%; flex:none; display:inline-block; }
 .org-category-dot { width:8px; height:8px; border-radius:50%; flex:none; display:inline-block; margin-left:-2px; }
 .org-detail .org-reading-tools { gap:8px; margin:18px 0 22px; padding-bottom:20px; border-bottom:1px solid var(--org-border); }
@@ -222,9 +222,9 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 .org-projects-panel { display:grid; gap:4px; margin:0 0 16px; padding:8px; border:1px solid var(--org-border); border-radius:12px; background:var(--surface-2); }
 .org-projects-panel .org-section-head { margin:2px 4px 6px; }
 .org-projects-panel h3 { font-size:12px; font-weight:600; color:var(--org-muted); letter-spacing:.04em; }
-.pdh-organization .org-ptab { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:8px 10px; border:1px solid transparent; border-radius:9px; background:transparent; color:var(--text); font-size:13px; line-height:1.3; }
-.pdh-organization .org-ptab:hover { background:var(--surface-3); transform:none; border-color:transparent; }
-.pdh-organization .org-ptab.is-active { background:var(--accent); color:var(--accent-ink); font-weight:600; }
+.pt-organization .org-ptab { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:8px 10px; border:1px solid transparent; border-radius:9px; background:transparent; color:var(--text); font-size:13px; line-height:1.3; }
+.pt-organization .org-ptab:hover { background:var(--surface-3); transform:none; border-color:transparent; }
+.pt-organization .org-ptab.is-active { background:var(--accent); color:var(--accent-ink); font-weight:600; }
 .org-ptab-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .org-ptab small { font-size:11.5px; opacity:.75; font-variant-numeric:tabular-nums; }
 .org-ptab-now { width:6px; height:6px; border-radius:50%; background:var(--mark); flex:none; }
@@ -233,9 +233,9 @@ html[data-mode="dark"] .org-folder-icon { filter:invert(1); }
 /* One directory width in every state. It used to be written per state (library 200px, graph 300px, detail open 300px,
    and narrower per breakpoint), so opening or closing a paper, switching tabs or switching project made the project
    tabs panel jump between widths. Only the window size may change it. */
-.pdh-organization { --org-side:280px; }
-@media (max-width:1150px) { .pdh-organization { --org-side:240px; } }
-@media (max-width:900px) { .pdh-organization { --org-side:155px; } }
+.pt-organization { --org-side:280px; }
+@media (max-width:1150px) { .pt-organization { --org-side:240px; } }
+@media (max-width:900px) { .pt-organization { --org-side:155px; } }
 
 /* suggestion review: a possible match is marked, the unplaced list and the dismiss tick are quiet */
 .org-maybe { font-style:normal; font-size:11px; padding:0 7px; border-radius:999px; border:1px dashed var(--org-border); color:var(--org-muted); white-space:nowrap; }
@@ -279,21 +279,21 @@ html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:
 /* The two switches on the graph (which view; which papers) are one pill each: the page-wide button style
    (border, fill, 5px corners, 32px height) must not show through inside the pill, or the outline looks too big
    for what it holds. Same look as .seg elsewhere, in this page's colours. */
-.pdh-organization .seg { display:inline-flex; gap:2px; padding:3px; border:1px solid var(--org-border); border-radius:999px; background:var(--org-bg); }
-.pdh-organization .seg button { border:0; border-radius:999px; background:transparent; min-height:0; padding:5px 14px; font-size:12px; line-height:1.3; color:var(--org-muted); white-space:nowrap; }
-.pdh-organization .seg button:hover:not(:disabled):not([aria-checked="true"]) { background:var(--org-subtle); color:var(--org-ink); }
-.pdh-organization .seg button[aria-checked="true"] { background:var(--org-accent); color:var(--org-accent-ink); font-weight:600; }
-.pdh-organization .seg button:disabled { opacity:.45; }
+.pt-organization .seg { display:inline-flex; gap:2px; padding:3px; border:1px solid var(--org-border); border-radius:999px; background:var(--org-bg); }
+.pt-organization .seg button { border:0; border-radius:999px; background:transparent; min-height:0; padding:5px 14px; font-size:12px; line-height:1.3; color:var(--org-muted); white-space:nowrap; }
+.pt-organization .seg button:hover:not(:disabled):not([aria-checked="true"]) { background:var(--org-subtle); color:var(--org-ink); }
+.pt-organization .seg button[aria-checked="true"] { background:var(--org-accent); color:var(--org-accent-ink); font-weight:600; }
+.pt-organization .seg button:disabled { opacity:.45; }
 .org-graph-wrap.has-view .org-focus { top:50px; }
 
 /* Library as three panes: categories | papers | the selected paper (Zotero's layout). The right pane opens when a paper
    is selected and closes with ×, exactly as in the graph; while closed the list takes the whole width. On a narrow
    window it stacks below. All colours are theme variables, so light and dark follow the page. */
-.pdh-organization .org-paper { display:flex; align-items:center; gap:9px; position:relative; padding:7px 12px; cursor:default; outline-offset:-2px; }
-.pdh-organization .org-paper > input { margin:0 !important; }
-.pdh-organization .org-paper:hover { background:var(--org-subtle); }
-.pdh-organization .org-paper.is-active { background:var(--org-active); box-shadow:inset 2px 0 var(--mark); }
-.pdh-organization .org-paper:focus-visible { outline:2px solid var(--org-accent); }
+.pt-organization .org-paper { display:flex; align-items:center; gap:9px; position:relative; padding:7px 12px; cursor:default; outline-offset:-2px; }
+.pt-organization .org-paper > input { margin:0 !important; }
+.pt-organization .org-paper:hover { background:var(--org-subtle); }
+.pt-organization .org-paper.is-active { background:var(--org-active); box-shadow:inset 2px 0 var(--mark); }
+.pt-organization .org-paper:focus-visible { outline:2px solid var(--org-accent); }
 .org-paper-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; line-height:1.5; }
 .org-year { flex:none; min-width:2.6em; text-align:right; color:var(--org-muted); font-size:12px; font-variant-numeric:tabular-nums; }
 .org-note-mark { flex:none; color:var(--org-muted); font-size:13px; line-height:1; }
@@ -307,34 +307,34 @@ html[data-mode="dark"] .org-detail .org-reading-tools button .org-icon { filter:
 .org-pdf.is-direct { color:var(--org-muted); }
 .org-pdf.is-page { color:color-mix(in srgb, var(--org-muted) 45%, transparent); }
 /* Row commands appear over the year on hover, on the chosen row and inside the focused one; the rest of the time the row is quiet. */
-.pdh-organization .org-paper-actions { display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); padding-left:8px; background:var(--org-subtle); }
-.pdh-organization .org-paper.is-active .org-paper-actions { background:var(--org-active); }
-.pdh-organization .org-paper:hover .org-paper-actions, .pdh-organization .org-paper:focus-within:not(:focus) .org-paper-actions { display:flex; }   /* the selected paper's actions live in the pane; the row keeps its title readable */
+.pt-organization .org-paper-actions { display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%); padding-left:8px; background:var(--org-subtle); }
+.pt-organization .org-paper.is-active .org-paper-actions { background:var(--org-active); }
+.pt-organization .org-paper:hover .org-paper-actions, .pt-organization .org-paper:focus-within:not(:focus) .org-paper-actions { display:flex; }   /* the selected paper's actions live in the pane; the row keeps its title readable */
 /* The pane: whitespace first. */
-.pdh-organization .org-detail.has-paper { padding:16px 22px 28px; }
-.pdh-organization .org-detail.has-paper > .org-section-head.org-pane-head:first-child { position:static; margin:0 0 4px; padding:0; border:0; background:none; backdrop-filter:none; justify-content:flex-end; }
-.pdh-organization .org-detail.has-paper > .org-section-head.org-pane-head:first-child button { border:0; background:transparent; color:var(--org-muted); }
-.pdh-organization .org-detail .org-detail-title { font-size:18px !important; line-height:1.4 !important; margin:0 0 6px !important; }
-.pdh-organization .org-detail .org-detail-categories { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:10px 0 18px; padding:0; border:0; border-radius:0; background:none; }
-.pdh-organization .org-detail .org-detail-categories-head { display:contents; }
-.pdh-organization .org-detail .org-detail-categories-head > span { display:none; }
-.pdh-organization .org-detail .org-detail-categories-head > .org-link-button { order:2; color:var(--org-muted); }
-.pdh-organization .org-detail .org-detail-badge { min-height:24px; padding:1px 9px 1px 8px; font-size:12px; font-weight:500; }
-.pdh-organization .org-detail .org-notes { margin:0 0 18px; }
-.pdh-organization .org-detail .org-notes .org-section-head { margin-bottom:8px; }
-.pdh-organization .org-detail .org-notes .org-section-head h3 { color:var(--org-muted); font-size:12.5px; font-weight:600; }
-.pdh-organization .org-detail .org-note-view { min-height:0; padding:10px 12px; border-radius:8px; background:var(--org-subtle); font-size:13.5px; line-height:1.7; }
-.pdh-organization .org-detail .org-note-view > :first-child { margin-top:0; }
-.pdh-organization .org-detail .org-note-view > :last-child { margin-bottom:0; }
-.pdh-organization .org-detail .org-note-empty { display:block; width:100%; min-height:0; padding:10px 12px; border:1px dashed var(--org-border); border-radius:8px; background:transparent; color:var(--org-muted); text-align:left; }
-.pdh-organization .org-detail .org-abstract { margin:0 0 16px; padding:0 0 12px; border-bottom:1px solid var(--org-border); }
-.pdh-organization .org-detail .org-abstract summary { font-size:12.5px; font-weight:600; color:var(--org-muted); }
-.pdh-organization .org-detail .org-reading-tools { margin:0 0 18px; padding:0; border:0; }
-.pdh-organization .org-detail .org-detail-projects { margin:6px 0 0; }
-.pdh-organization .org-detail .org-detail-projects > span { display:none; }
+.pt-organization .org-detail.has-paper { padding:16px 22px 28px; }
+.pt-organization .org-detail.has-paper > .org-section-head.org-pane-head:first-child { position:static; margin:0 0 4px; padding:0; border:0; background:none; backdrop-filter:none; justify-content:flex-end; }
+.pt-organization .org-detail.has-paper > .org-section-head.org-pane-head:first-child button { border:0; background:transparent; color:var(--org-muted); }
+.pt-organization .org-detail .org-detail-title { font-size:18px !important; line-height:1.4 !important; margin:0 0 6px !important; }
+.pt-organization .org-detail .org-detail-categories { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:10px 0 18px; padding:0; border:0; border-radius:0; background:none; }
+.pt-organization .org-detail .org-detail-categories-head { display:contents; }
+.pt-organization .org-detail .org-detail-categories-head > span { display:none; }
+.pt-organization .org-detail .org-detail-categories-head > .org-link-button { order:2; color:var(--org-muted); }
+.pt-organization .org-detail .org-detail-badge { min-height:24px; padding:1px 9px 1px 8px; font-size:12px; font-weight:500; }
+.pt-organization .org-detail .org-notes { margin:0 0 18px; }
+.pt-organization .org-detail .org-notes .org-section-head { margin-bottom:8px; }
+.pt-organization .org-detail .org-notes .org-section-head h3 { color:var(--org-muted); font-size:12.5px; font-weight:600; }
+.pt-organization .org-detail .org-note-view { min-height:0; padding:10px 12px; border-radius:8px; background:var(--org-subtle); font-size:13.5px; line-height:1.7; }
+.pt-organization .org-detail .org-note-view > :first-child { margin-top:0; }
+.pt-organization .org-detail .org-note-view > :last-child { margin-bottom:0; }
+.pt-organization .org-detail .org-note-empty { display:block; width:100%; min-height:0; padding:10px 12px; border:1px dashed var(--org-border); border-radius:8px; background:transparent; color:var(--org-muted); text-align:left; }
+.pt-organization .org-detail .org-abstract { margin:0 0 16px; padding:0 0 12px; border-bottom:1px solid var(--org-border); }
+.pt-organization .org-detail .org-abstract summary { font-size:12.5px; font-weight:600; color:var(--org-muted); }
+.pt-organization .org-detail .org-reading-tools { margin:0 0 18px; padding:0; border:0; }
+.pt-organization .org-detail .org-detail-projects { margin:6px 0 0; }
+.pt-organization .org-detail .org-detail-projects > span { display:none; }
 @media (max-width:900px) {
-  .pdh-organization .org-workspace:has(.org-list:not([hidden])), .pdh-organization .org-workspace:has(.org-detail.has-paper) { grid-template-columns:var(--org-side) minmax(0,1fr); }
-  .pdh-organization .org-detail:not(.has-paper) { display:none; }
-  .pdh-organization .org-paper-title { white-space:normal; }
+  .pt-organization .org-workspace:has(.org-list:not([hidden])), .pt-organization .org-workspace:has(.org-detail.has-paper) { grid-template-columns:var(--org-side) minmax(0,1fr); }
+  .pt-organization .org-detail:not(.has-paper) { display:none; }
+  .pt-organization .org-paper-title { white-space:normal; }
 }
 .org-demo-note { margin-top:8px; font-size:12px; color:var(--muted); }

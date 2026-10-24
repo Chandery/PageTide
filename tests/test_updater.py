@@ -16,14 +16,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from app import server, updater
 
-BASE = "https://github.com/Chandery/PaperDigHelper/releases/download/v0.2.0/"
-WIN = "PaperDigHelper_0.2.0_x64-setup.exe"
-MAC = "PaperDigHelper-macos-arm64.zip"
+BASE = f"https://github.com/{updater.REPO}/releases/download/v0.2.0/"
+WIN = "PageTide_0.2.0_x64-setup.exe"
+MAC = "PageTide-macos-arm64.zip"
 
 
 def release(tag="v0.2.0", names=(WIN, WIN + ".sha256", MAC, MAC + ".sha256"), **extra):
     value = {"tag_name": tag, "draft": False, "prerelease": False, "body": "Fixes\n\nand more",
-             "html_url": "https://github.com/Chandery/PaperDigHelper/releases/tag/" + tag,
+             "html_url": f"https://github.com/{updater.REPO}/releases/tag/" + tag,
              "assets": [{"name": n, "size": 10, "browser_download_url": f"{BASE[:-7]}{tag}/{n}"} for n in names]}
     value.update(extra)
     return value
@@ -73,7 +73,7 @@ class VersionTests(unittest.TestCase):
         self.assertIsNone(updater.pick_assets([{"name": WIN}], "windows", "0.2.0"))   # no checksum, no update
         self.assertIsNone(updater.pick_assets([{"name": "evil/../" + WIN}], "windows", "0.2.0"))
         # the installer's version must be the tag's: a leftover 0.9.9 installer in a v0.2.0 release is not offered
-        old = [{"name": n} for n in ("PaperDigHelper_0.9.9_x64-setup.exe", "PaperDigHelper_0.9.9_x64-setup.exe.sha256")]
+        old = [{"name": n} for n in ("PageTide_0.9.9_x64-setup.exe", "PageTide_0.9.9_x64-setup.exe.sha256")]
         self.assertIsNone(updater.pick_assets(old, "windows", "0.2.0"))
         self.assertEqual(updater.platform_key("win32"), "windows")
         self.assertEqual(updater.platform_key("darwin", "arm64"), "macos")
@@ -105,7 +105,7 @@ class CheckTests(unittest.TestCase):
         self.assertEqual((result["status"], result["available"], result["latest"], result["asset"]), ("ok", True, "0.2.0", MAC))
         self.assertEqual(result["current"], "0.1.0")
         self.assertIn("Fixes", result["notes"])
-        self.assertTrue(result["html_url"].startswith("https://github.com/Chandery/PaperDigHelper/"))
+        self.assertTrue(result["html_url"].startswith(f"https://github.com/{updater.REPO}/"))
         self.assertEqual(self.make(FakeTransport(release()), platform="win32").check()["asset"], WIN)
 
     def test_same_older_missing_asset_and_unusable_releases_are_not_offered(self):
@@ -198,14 +198,14 @@ class CheckTests(unittest.TestCase):
         checker.check(force=True)   # asking explicitly brings the strip back
         self.assertFalse(checker.check()["dismissed"])
         checker.dismiss("0.2.0")
-        newer = self.make(FakeTransport(release("v0.3.0", names=("PaperDigHelper_0.3.0_x64-setup.exe", "PaperDigHelper_0.3.0_x64-setup.exe.sha256", MAC, MAC + ".sha256"))))
+        newer = self.make(FakeTransport(release("v0.3.0", names=("PageTide_0.3.0_x64-setup.exe", "PageTide_0.3.0_x64-setup.exe.sha256", MAC, MAC + ".sha256"))))
         newer.check(force=True)
         self.assertFalse(newer.check()["dismissed"])
         with self.assertRaises(updater.UpdateError):
             checker.dismiss("../x")
 
     def test_default_transport_user_agent_has_only_app_name_and_version(self):
-        self.assertEqual(updater.Transport("0.1.0").user_agent, "PaperDigHelper/0.1.0")
+        self.assertEqual(updater.Transport("0.1.0").user_agent, "PageTide/0.1.0")
 
 
 class DownloadTests(unittest.TestCase):
@@ -321,7 +321,7 @@ class MacosReplaceScriptTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.script = self.root / "apply.sh"
         self.script.write_text(updater.MACOS_SCRIPT, encoding="ascii")
-        self.old, self.new = self.root / "apps" / "PaperDigHelper.app", self.root / "new" / "PaperDigHelper.app"
+        self.old, self.new = self.root / "apps" / "PageTide.app", self.root / "new" / "PageTide.app"
         for app, text in ((self.old, "old"), (self.new, "new")):
             (app / "Contents").mkdir(parents=True)
             (app / "Contents" / "version").write_text(text)
@@ -340,7 +340,7 @@ class MacosReplaceScriptTests(unittest.TestCase):
         self.run_script(done.pid)
         self.assertEqual((self.old / "Contents" / "version").read_text(), "new")
         self.assertEqual(self.opened.read_text().strip(), str(self.old))
-        self.assertEqual([p.name for p in self.old.parent.iterdir()], ["PaperDigHelper.app"])   # no backup or stage left
+        self.assertEqual([p.name for p in self.old.parent.iterdir()], ["PageTide.app"])   # no backup or stage left
         self.assertEqual(self.result.read_text().strip(), "ok")
 
     def test_missing_new_app_leaves_the_old_one_untouched_and_still_reopens_it(self):
@@ -348,7 +348,7 @@ class MacosReplaceScriptTests(unittest.TestCase):
         done.wait()
         self.run_script(done.pid, new=self.root / "missing.app")
         self.assertEqual((self.old / "Contents" / "version").read_text(), "old")
-        self.assertEqual([p.name for p in self.old.parent.iterdir()], ["PaperDigHelper.app"])
+        self.assertEqual([p.name for p in self.old.parent.iterdir()], ["PageTide.app"])
         self.assertEqual(self.opened.read_text().strip(), str(self.old))
         self.assertEqual(self.result.read_text().strip(), "failed")
 
@@ -364,20 +364,20 @@ class MacosReplaceScriptTests(unittest.TestCase):
     def test_failed_swap_rolls_back_to_the_old_app_and_reports_failure(self):
         done = subprocess.Popen(["/usr/bin/true"])
         done.wait()
-        self.run_script(done.pid, env=self.fake_mv([".PaperDigHelper-update-new."]))   # mv STAGE -> OLD fails
+        self.run_script(done.pid, env=self.fake_mv([".PageTide-update-new."]))   # mv STAGE -> OLD fails
         self.assertEqual((self.old / "Contents" / "version").read_text(), "old")
-        self.assertEqual([p.name for p in self.old.parent.iterdir()], ["PaperDigHelper.app"])
+        self.assertEqual([p.name for p in self.old.parent.iterdir()], ["PageTide.app"])
         self.assertEqual(self.result.read_text().strip(), "failed")
         self.assertEqual(self.opened.read_text().strip(), str(self.old))
 
     def test_failed_rollback_is_reported_with_the_backup_path(self):
         done = subprocess.Popen(["/usr/bin/true"])
         done.wait()
-        self.run_script(done.pid, env=self.fake_mv([".PaperDigHelper-update-new.", ".PaperDigHelper-update-old."]))
+        self.run_script(done.pid, env=self.fake_mv([".PageTide-update-new.", ".PageTide-update-old."]))
         report = self.result.read_text().strip()
         self.assertTrue(report.startswith("rollback-failed "), report)
         backup = Path(report.split(" ", 1)[1])
-        self.assertTrue(backup.name.startswith(".PaperDigHelper-update-old."))
+        self.assertTrue(backup.name.startswith(".PageTide-update-old."))
         self.assertEqual((backup / "Contents" / "version").read_text(), "old")   # the old app is kept, not deleted
 
     def test_waits_for_the_running_app_before_touching_anything(self):
@@ -392,7 +392,7 @@ class MacosReplaceScriptTests(unittest.TestCase):
         self.assertEqual((self.old / "Contents" / "version").read_text(), "new")
 
 
-def make_app(path, version, name="PaperDigHelper.app"):
+def make_app(path, version, name="PageTide.app"):
     app = Path(path) / name
     (app / "Contents" / "MacOS").mkdir(parents=True)
     (app / "Contents" / "MacOS" / "bin").write_text("x")
@@ -419,7 +419,7 @@ class ResultAndCleanupTests(unittest.TestCase):
         self.assertIsNone(self.checker.take_result())
 
     def test_failed_rollback_shows_the_backup_and_only_a_backup(self):
-        backup = self.data / "apps" / ".PaperDigHelper-update-old.123"
+        backup = self.data / "apps" / ".PageTide-update-old.123"
         backup.mkdir(parents=True)
         (self.data / "updates" / "result").write_text(f"rollback-failed {backup}\n")
         self.assertEqual(self.checker.take_result(), "rollback_failed")
@@ -436,7 +436,7 @@ class ResultAndCleanupTests(unittest.TestCase):
 
     def test_result_is_part_of_the_check_response_over_the_server(self):
         (self.data / "updates" / "result").write_text("failed\n")
-        with patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(self.data), "PDH_APP_VERSION": "0.1.0"}), \
+        with patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data), "PAGETIDE_APP_VERSION": "0.1.0"}), \
                 patch.object(server.updater, "Transport", lambda version: FakeTransport(release())):
             httpd = server.build_server(port=0, root=str(ROOT))
             threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -476,7 +476,7 @@ class MacosApplyTests(unittest.TestCase):
         shutil_rmtree(source)
         make_app(source, version)
         archive = self.root / "payload.zip"
-        subprocess.run(["/usr/bin/ditto", "-c", "-k", "--keepParent", str(source / "PaperDigHelper.app"), str(archive)], check=True)
+        subprocess.run(["/usr/bin/ditto", "-c", "-k", "--keepParent", str(source / "PageTide.app"), str(archive)], check=True)
         return archive.read_bytes()
 
     def checker(self, version, executable, opened=None):
@@ -487,7 +487,7 @@ class MacosApplyTests(unittest.TestCase):
 
     def test_current_app_bundle_is_the_enclosing_app(self):
         installed = make_app(self.root / "Applications", "0.1.0")
-        binary = installed / "Contents" / "Resources" / "backend" / "paperdighelper-server"
+        binary = installed / "Contents" / "Resources" / "backend" / "pagetide-server"
         binary.parent.mkdir(parents=True)
         binary.write_text("x")
         self.assertEqual(updater.Updater(self.root, "0.1.0", executable=str(binary)).current_app_bundle(), installed.resolve())
@@ -552,7 +552,7 @@ class FakeResponse:
 class NetworkGuardTests(unittest.TestCase):
     def test_redirects_leaving_github_are_refused(self):
         handler = updater._GithubRedirects()
-        request = urllib.request.Request("https://github.com/Chandery/PaperDigHelper/releases/download/v1.0.0/a")
+        request = urllib.request.Request(f"https://github.com/{updater.REPO}/releases/download/v1.0.0/a")
         for target in ("https://evil.example/a", "http://github.com/a", "https://github.com.evil.example/a", "https://notgithub.com/a",
                        "file:///etc/passwd"):
             with self.assertRaises(urllib.error.URLError, msg=target):
@@ -611,7 +611,7 @@ class HttpRouteTests(unittest.TestCase):
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.addCleanup(self.httpd.server_close)
         self.addCleanup(self.httpd.shutdown)
-        patcher = patch.dict(os.environ, {"PAPERDIGHELPER_DATA": self.tmp.name, "PDH_APP_VERSION": "0.1.0"})
+        patcher = patch.dict(os.environ, {"PAGETIDE_DATA": self.tmp.name, "PAGETIDE_APP_VERSION": "0.1.0"})
         patcher.start()
         self.addCleanup(patcher.stop)
         factory = patch.object(server.updater, "Transport", lambda version: self.transport)
@@ -637,7 +637,7 @@ class HttpRouteTests(unittest.TestCase):
 
     def test_dev_build_over_http_is_disabled_without_a_request(self):
         with patch.dict(os.environ):
-            os.environ.pop("PDH_APP_VERSION")
+            os.environ.pop("PAGETIDE_APP_VERSION")
             data = self.call("/api/update?force=1")[1]
         self.assertEqual(data["reason_code"], "dev_build")
         self.assertEqual(self.transport.requests, [])

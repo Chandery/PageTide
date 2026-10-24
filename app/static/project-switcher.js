@@ -4,7 +4,7 @@
    The four-finger swipe and Ctrl+Up belong to macOS, so it opens with Option+Up,
    a click on the project name, or a trackpad pinch (spread to enter the highlighted project). */
 (function () {
-  const MRU_KEY = 'pdh-project-mru';
+  const MRU_KEY = 'pt-project-mru';
   const MRU_LIMIT = 20;
   const SNAPSHOT_LIMIT = 8;
   const PINCH_STEP = 40;      // accumulated pinch distance that counts as a gesture
@@ -189,7 +189,7 @@
       page.style.height = `${view.h}px`;
       const chips = (p.keywords || []).slice(0, 6).map(k => `<span>${esc(k)}</span>`).join('');
       page.innerHTML = `
-        <div class="mc-ph-top"><img src="/brand-mark.svg" alt=""><b>Paper<em>Dig</em>Helper</b><span class="mc-ph-pill">${esc(p.name)}</span></div>
+        <div class="mc-ph-top"><img class="mc-ph-wordmark" src="/wordmark.png" alt="PageTide"><span class="mc-ph-pill">${esc(p.name)}</span></div>
         <div class="mc-ph-body">
           <h1>${esc(p.name)}</h1>
           <div class="mc-ph-chips">${chips}</div>

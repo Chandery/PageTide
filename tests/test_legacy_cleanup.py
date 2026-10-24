@@ -44,13 +44,13 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.store = Store(Path(self.tmp.name) / "paperdighelper.sqlite")
+        self.store = Store(Path(self.tmp.name) / "pagetide.sqlite")
         self.store.init()
         self.addCleanup(self.store.close)
         self.dir = Path(self.tmp.name)
 
     def backups(self):
-        return sorted(self.dir.glob("paperdighelper.sqlite" + lc.BACKUP_PREFIX + "-*.bak"))
+        return sorted(self.dir.glob("pagetide.sqlite" + lc.BACKUP_PREFIX + "-*.bak"))
 
     def leftovers(self):
         return sorted(self.dir.glob("*.tmp"))
@@ -170,9 +170,9 @@ class CleansTheUntouchedDefaultProject(Base):
 class BackupSafety(Base):
     def test_an_old_backup_file_is_never_trusted_or_overwritten(self):
         seed_old_first_start(self.store)
-        stale = self.dir / ("paperdighelper.sqlite" + lc.BACKUP_PREFIX + "-20200101T000000Z-deadbeef.bak")
+        stale = self.dir / ("pagetide.sqlite" + lc.BACKUP_PREFIX + "-20200101T000000Z-deadbeef.bak")
         stale.write_bytes(b"not a database")
-        legacy_name = self.dir / "paperdighelper.sqlite.pre-legacy-cleanup.bak"
+        legacy_name = self.dir / "pagetide.sqlite.pre-legacy-cleanup.bak"
         legacy_name.write_bytes(b"also junk")
         out = lc.run(self.store)
         self.assertIn("cleaned", out["result"])
@@ -428,8 +428,8 @@ class StartupHook(Base):
         seed_old_first_start(self.store)
         self.store.close()
         root = self._root()
-        db_path = Path(self.tmp.name) / "paperdighelper.sqlite"
-        with mock.patch.dict(os.environ, {"PAPERDIGHELPER_DATA": self.tmp.name}):
+        db_path = Path(self.tmp.name) / "pagetide.sqlite"
+        with mock.patch.dict(os.environ, {"PAGETIDE_DATA": self.tmp.name}):
             before = db_path.read_bytes()
             server.build_server(port=0, root=str(root)).server_close()
             self.assertEqual(db_path.read_bytes(), before)   # build_server did not open or touch the database
@@ -447,7 +447,7 @@ class StartupHook(Base):
     def test_only_the_desktop_start_up_and_an_explicit_source_run_call_it(self):
         root = Path(__file__).resolve().parents[1] / "app"
         desktop, srv = (root / "desktop.py").read_text(encoding="utf-8"), (root / "server.py").read_text(encoding="utf-8")
-        gate = desktop.index('os.environ.get("PDH_APP_VERSION") or os.environ.get("PDH_LEGACY_CLEANUP") == "1"')
+        gate = desktop.index('os.environ.get("PAGETIDE_APP_VERSION") or os.environ.get("PAGETIDE_LEGACY_CLEANUP") == "1"')
         self.assertLess(desktop.index("platform_compat.lock_exclusive"), gate)           # after the instance lock
         self.assertLess(gate, desktop.index("httpd = build_server("))                  # before any request is served
         self.assertIn("clean_legacy_default_project(resources)", desktop)
@@ -455,7 +455,7 @@ class StartupHook(Base):
         self.assertNotIn("clean_legacy", build)
         self.assertNotIn("make_app", build)
         serve = srv[srv.index("def serve("):srv.index('if __name__ == "__main__":')]
-        self.assertIn('os.environ.get("PDH_LEGACY_CLEANUP") == "1"', serve)
+        self.assertIn('os.environ.get("PAGETIDE_LEGACY_CLEANUP") == "1"', serve)
 
 
 if __name__ == "__main__":

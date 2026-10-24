@@ -15,6 +15,7 @@ data/
 *.db
 *.db-*
 *.pdf
+!app/static/demo/reading-material.pdf
 *.log
 src-tauri/target/
 src-tauri/resources/

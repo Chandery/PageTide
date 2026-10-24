@@ -363,7 +363,7 @@ class SeedAdoptionTests(Case):
 class RouteTests(Case):
     def serve(self):
         from app import server
-        patcher = mock.patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(self.root / "data")})      # the server reads this app's data
+        patcher = mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(self.root / "data")})      # the server reads this app's data
         patcher.start()
         self.addCleanup(patcher.stop)
         httpd = server.build_server(port=0, root=str(self.root))
@@ -409,6 +409,19 @@ class RouteTests(Case):
         self.net.baidu_error = urllib.error.HTTPError("https://qianfan.baidubce.com/x", 401, "no", {}, None)
         body = self.post(port, "/api/seeds/search", {"query": "知识图谱构建方法"})
         self.assertEqual(body["baidu"], {"kind": "auth_required"})
+
+# The Baidu Scholar interface is not offered any more (app.user_settings.BAIDU_SCHOLAR_OFFERED); these tests exercise the
+# adapter itself, so the offer is switched on for this module only.
+_OFFER_SCHOLAR = __import__("unittest.mock", fromlist=["patch"]).patch.object(
+    __import__("app.user_settings", fromlist=["x"]), "BAIDU_SCHOLAR_OFFERED", True)
+
+
+def setUpModule():
+    _OFFER_SCHOLAR.start()
+
+
+def tearDownModule():
+    _OFFER_SCHOLAR.stop()
 
 
 if __name__ == "__main__":

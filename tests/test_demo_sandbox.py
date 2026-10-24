@@ -37,7 +37,7 @@ class DemoCase(unittest.TestCase):
         (self.root / "harness").mkdir()
         (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.data = self.root / "data"
-        for patcher in (mock.patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(self.data), "DEEPSEEK_API_KEY": "x"}),
+        for patcher in (mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data), "DEEPSEEK_API_KEY": "x"}),
                         mock.patch.object(socket.socket, "connect", _loopback_only),
                         mock.patch.object(Gateway, "call", side_effect=AssertionError("the demo must not call a model")),
                         mock.patch.object(Gateway, "_call", side_effect=AssertionError("the demo must not call a model"))):
@@ -79,7 +79,7 @@ class DemoCase(unittest.TestCase):
                 conn.close()
 
     def real_counts(self):
-        db = sqlite3.connect(str(self.data / "paperdighelper.sqlite"))
+        db = sqlite3.connect(str(self.data / "pagetide.sqlite"))
         try:
             return {t: db.execute("SELECT COUNT(*) FROM %s" % t).fetchone()[0] for t in REAL_TABLES
                     if db.execute("SELECT 1 FROM sqlite_master WHERE name=?", (t,)).fetchone()}
@@ -201,7 +201,7 @@ class DemoFlowTests(DemoCase):
         status, projects = self.call("GET", "/api/projects", header=False)
         self.assertEqual(projects["demo"]["name"], "Demo project")
         generation = demo.current_generation(str(self.data))[0]
-        dump = "\n".join(sqlite3.connect(str(demo.sandbox_root(self.data) / generation / "paperdighelper.sqlite")).iterdump())
+        dump = "\n".join(sqlite3.connect(str(demo.sandbox_root(self.data) / generation / "pagetide.sqlite")).iterdump())
         name = fixture.DIRECTIONS[0]["name"]
         self.assertIn(name["en"], dump)
         self.assertNotIn(name["zh"], dump)
@@ -335,10 +335,10 @@ class DemoBlockedTests(DemoCase):
         self.start()
         before = self.real_counts()
         key = fixture.key_of(fixture.candidates()[0])
+        batch = "0" * 32
         blocked = [
-            ("POST", "/api/refresh", {}), ("POST", "/api/pdf/prepare", {"key": key}), ("POST", "/api/pdf", {"key": key}),
-            ("POST", "/api/qa", {"key": key, "question": "q"}), ("POST", "/api/qa/session", {"key": key}),
-            ("POST", "/api/translate", {"text": "x"}), ("POST", "/api/pin", {"terms": "x"}),
+            ("POST", "/api/refresh", {}), ("POST", "/api/pdf", {"key": key}),
+            ("POST", "/api/pin", {"terms": "x"}),
             ("POST", "/api/profile/freeze", {"frozen": True}), ("POST", "/api/profile/restore", {}),
             ("POST", "/api/projects", {"name": "x"}), ("POST", "/api/projects/" + demo.PROJECT_ID, {"action": "rename", "name": "x"}),
             ("DELETE", "/api/projects/" + demo.PROJECT_ID, None), ("DELETE", "/api/project-papers", {"project_id": demo.PROJECT_ID, "paper_key": key}),
@@ -349,10 +349,11 @@ class DemoBlockedTests(DemoCase):
             ("POST", "/api/organization", {"op": "review-categories"}), ("POST", "/api/organization", {"op": "suggest"}),
             ("POST", "/api/organization", {"op": "direction-save", "name": "x", "color": "#112233"}),
             ("POST", "/api/organization", {"op": "membership", "keys": [key], "add": []}),
-            ("POST", "/api/import/batches", {"project_id": demo.PROJECT_ID, "source": "files"}),
+            # an import runs on the bundled sample only: no PDF upload, no seeds, no other batch action
+            ("POST", "/api/import/batches/%s/pdf" % batch, None), ("POST", "/api/import/batches/%s/seeds" % batch, {"action": "add", "keys": []}),
+            ("POST", "/api/import/batches/%s/unknown" % batch, {}),
             ("POST", "/api/seeds/pdf", None), ("POST", "/api/seeds/resolve", {"input": "x"}), ("POST", "/api/seeds/search", {"query": "x"}),
-            ("POST", "/api/project-guidance/sessions", {"name": "x", "goal": "y"}), ("POST", "/api/fulltext", {"key": key, "pages": []}),
-            ("GET", "/api/pdf/view?key=" + key, None), ("GET", "/api/figure-page?key=" + key, None),
+            ("POST", "/api/project-guidance/sessions", {"name": "x", "goal": "y"}),
         ]
         for method, path, body in blocked:
             status, payload = self.call(method, path, body)

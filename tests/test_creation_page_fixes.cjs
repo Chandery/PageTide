@@ -4,7 +4,7 @@
 // draft can retry, and with the beta learning map off nothing on the page names the map. Production source is
 // executed in a vm with the DOM, network and model replaced; no real model or library is touched.
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
-const SOURCE = process.env.PDH_CREATION_JS || path.join(__dirname, '../app/static/project-creation.js');
+const SOURCE = process.env.PAGETIDE_CREATION_JS || path.join(__dirname, '../app/static/project-creation.js');
 const source = () => fs.readFileSync(SOURCE, 'utf8');
 function slice(from, to) {
   const s = source(), start = s.indexOf(from);
@@ -104,7 +104,7 @@ test('quick creation sends the language choice with its one AI call', async () =
 test('quick creation shows the session draft in the review before its first AI call, so that call sends no stale empty lists', async () => {
   const order = [], nodes = new Map(), at = id => { if (!nodes.has(id)) nodes.set(id, {...node(), value: 'x'}); return nodes.get(id); };
   const context = vm.createContext({
-    $: at, validateCreationStart: () => true, window: {PDHDialogs: {notice() {}}}, session: null, finalize() {},
+    $: at, validateCreationStart: () => true, window: {PTDialogs: {notice() {}}}, session: null, finalize() {},
     makeReview: () => ({root: node(), setDraft: () => order.push('setDraft'), search: async () => order.push('search')}),
     quickAct: {start() {}, stop() {}}, stopQuick() {},
     createSession: async () => { order.push('createSession'); context.session = {draft: {}}; },
@@ -200,7 +200,7 @@ test('with the beta learning map off, nothing the creation page shows names the 
 
 test('with the beta map off the review starts without a map, create needs none, and the draft is not marked changed', async () => {
   const s = source();
-  assert.match(s, /discarded: window\.PDH_ROUTE_BETA === false/);
+  assert.match(s, /discarded: window\.PAGETIDE_ROUTE_BETA === false/);
   const start = s.indexOf("part('create').onclick = async () => {"), end = s.indexOf('\n  refresh();\n  return', start);
   assert.ok(start >= 0 && end > start);
   const slots = new Map(), part = name => { if (!slots.has(name)) slots.set(name, {querySelectorAll: () => [], checked: false}); return slots.get(name); };

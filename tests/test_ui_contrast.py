@@ -3,7 +3,7 @@
 The owner reported "dark text on dark buttons". The cause was that --accent-ink
 was never defined, so the primary button inherited its text colour, plus several
 token pairs sitting below WCAG AA. This test parses the real token definitions out
-of app/static/theme.css, resolves the light and dark PaperDig palettes (the
+of app/static/theme.css, resolves the light and dark PageTide palettes (the
 per-user accent picker was retired on 2026-09-30), and fails if any text pair
 drops below 4.5:1.
 """

@@ -16,7 +16,7 @@ from pathlib import Path
 
 API = "https://api.openalex.org/works"
 ARXIV_SOURCE_ID = "S4306400194"  # OpenAlex source: arXiv (Cornell University)
-UA = "PaperDigHelper/0.1 (local research; read-only metadata)"
+UA = "PageTide/0.1 (local research; read-only metadata)"
 MAILTO = "owner@example.invalid"  # OpenAlex ignores mailto since 2026-02 (API keys replaced the polite pool); kept so cached URLs stay valid
 GAP_SECONDS = 2.0
 KEYED_GAP_SECONDS = 0.3  # with an API key the allowance is 10x and the limit is 100 requests/second

@@ -504,7 +504,7 @@ class HttpTests(Fixture):
 
     def test_plan_and_create_over_http_with_a_dry_run_that_sends_nothing(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, session = self.post(port, "/api/project-guidance/sessions", {"name": "晶体", "goal": "半导体晶体生长"})
             self.assertIn(status, (200, 201))
             sid = session["session"]["id"] if "session" in session else session["id"]
@@ -518,7 +518,7 @@ class HttpTests(Fixture):
     def test_a_bad_boundary_is_a_400_on_both_plan_routes_and_costs_nothing(self):
         port = self.serve()
         pid = self.app.create_project("Embodied", "manual", ["embodied"])["project_id"]
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, body = self.post(port, f"/api/project-guidance/sessions/{self.session}/route", {"boundary": {"background": "wizard"}})
             self.assertEqual(status, 400)
             self.assertIn("background", body["error"])
@@ -530,7 +530,7 @@ class HttpTests(Fixture):
     def test_a_bad_map_is_a_400_and_creates_nothing(self):
         port = self.serve()
         before = len(self.app.projects.list_projects())
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, body = self.post(port, "/api/projects", {"name": "X", "creation_mode": "manual", "keywords": ["a"], "route": {"graph": {"concepts": [], "prereqs": []}}})
         self.assertEqual(status, 400)
         self.assertEqual(len(self.app.projects.list_projects()), before)
@@ -539,7 +539,7 @@ class HttpTests(Fixture):
         port = self.serve()
         graph = pg.normalize(GOOD)[0]
         # only the OpenAlex client is faked; the test's own HTTP client to the local server stays real
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}), \
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}), \
                 mock.patch("app.sources.OpenAlex._fetch", return_value={"results": []}):
             status, body = self.post(port, "/api/route", {"action": "ground", "graph": graph})
         self.assertEqual(status, 200)

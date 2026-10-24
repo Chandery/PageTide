@@ -190,7 +190,7 @@ class ProjectLanguageTests(unittest.TestCase):
             store.close()
 
     def test_legacy_nonnull_discipline_supports_pending_creation_and_default_rebuild(self):
-        path = Path(self.tmp.name) / 'nonnull' / 'paperdighelper.sqlite'
+        path = Path(self.tmp.name) / 'nonnull' / 'pagetide.sqlite'
         with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
             old = Store(path); old.init()
             old.conn.execute("ALTER TABLE projects ADD COLUMN discipline TEXT NOT NULL DEFAULT 'cs_ai'")

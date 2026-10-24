@@ -1,7 +1,7 @@
 (function(root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHReaderIdentity = api;
+  else root.PTReaderIdentity = api;
 })(typeof window !== 'undefined' ? window : this, function() {
   function matches(a, b) {
     return !!a && !!b && a.key === b.key && a.project_id === b.project_id && a.pdf_sha256 === b.pdf_sha256;

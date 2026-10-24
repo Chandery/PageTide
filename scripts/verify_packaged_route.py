@@ -57,7 +57,7 @@ def report_backend(process, errors, data, lines=200):
 
 
 def launch(executable, data, home, check):
-    env = dict(os.environ, PAPERDIGHELPER_DATA=str(data), PAPERDIGHELPER_KEY_FILE=str(home/'missing-key.env'), DEEPSEEK_API_KEY='', PDH_DEV='0',
+    env = dict(os.environ, PAGETIDE_DATA=str(data), PAGETIDE_KEY_FILE=str(home/'missing-key.env'), DEEPSEEK_API_KEY='', PAGETIDE_DEV='0',
                http_proxy='http://127.0.0.1:9', https_proxy='http://127.0.0.1:9',
                HTTP_PROXY='http://127.0.0.1:9', HTTPS_PROXY='http://127.0.0.1:9',
                NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
@@ -71,7 +71,7 @@ def launch(executable, data, home, check):
             line = read_line(process.stdout, 30)
             if line is None:
                 raise AssertionError('Backend did not announce readiness')
-            if not line.startswith('PDH_READY '):
+            if not line.startswith('PAGETIDE_READY '):
                 errors.seek(0)
                 raise AssertionError('Backend startup failed: '+errors.read()[-1000:])
             url = line.strip().split(' ',1)[1]; base=url.split('/_desktop/',1)[0]
@@ -94,7 +94,7 @@ def launch(executable, data, home, check):
                 report_backend(process, errors, data)
                 raise
             process.stdin.close(); assert process.wait(timeout=15)==0
-            errors.seek(0); assert 'PDH_BOOTSTRAP_FAILED' not in errors.read()
+            errors.seek(0); assert 'PAGETIDE_BOOTSTRAP_FAILED' not in errors.read()
         finally:
             if process.poll() is None: process.kill(); process.wait(timeout=5)
             process.stdout.close()
@@ -106,7 +106,7 @@ def main():
     # Windows cannot delete a directory holding an open file: tolerate a failed cleanup there only (after a gc),
     # so a real failure above is reported instead of being buried under WinError 32.
     options={'ignore_cleanup_errors':True} if sys.platform=='win32' else {}
-    with tempfile.TemporaryDirectory(prefix='pdh-packaged-route-',**options) as tmp:
+    with tempfile.TemporaryDirectory(prefix='pt-packaged-route-',**options) as tmp:
         root=Path(tmp); data=root/'data'; home=root/'home';home.mkdir();data.mkdir()
         marker=home/'default-library-marker'; marker.write_bytes(b'untouched default library')
         (data/'AI_DISABLED').touch()
@@ -410,12 +410,12 @@ def main():
             assert route_pid in org['route_projects'] and batch_pid in org['route_projects']
         launch(executable,data,home,restart)
         assert marker.read_bytes()==b'untouched default library'
-        assert not (home/'Library/Application Support/PaperDigHelper').exists()
+        assert not (home/'Library/Application Support/PageTide').exists()
         # Default state: with no settings.json the learning map is switched off and the page says so.
         off=root/'data-beta-off'; off.mkdir(); (off/'AI_DISABLED').touch()
         def beta_off(call):
-            assert 'window.PDH_ROUTE_BETA=false' in call('/',raw=True)
-            assert 'window.PDH_ROUTE_BETA=true' not in call('/',raw=True)
+            assert 'window.PAGETIDE_ROUTE_BETA=false' in call('/',raw=True)
+            assert 'window.PAGETIDE_ROUTE_BETA=true' not in call('/',raw=True)
         launch(executable,off,home,beta_off)
         # First run: an empty data directory has no project, no paper and no seeds; the tour is offered and its demo
         # project lives only in a throw-away sandbox (recommendations, previews, rating and the offline graph worker work
@@ -423,17 +423,17 @@ def main():
         fresh=root/'data-first-run'; fresh.mkdir(); (fresh/'AI_DISABLED').touch()
         def first_run(call):
             listing=call('/api/projects')
-            assert listing['projects']==[] and listing['demo']['id']=='pdh-demo', listing
+            assert listing['projects']==[] and listing['demo']['id']=='pt-demo', listing
             offer=call('/api/onboarding')
             assert offer['show'] is True and offer['reason']=='no_project' and offer['project_count']==0, offer
             assert call('/api/home')['no_project'] is True
             assert call('/api/onboarding',{'action':'start'})['ok'] is True
-            demo={'X-PDH-Demo':'1'}
-            daily=call('/api/daily',{'project_id':'pdh-demo'},headers=demo)
+            demo={'X-PT-Demo':'1'}
+            daily=call('/api/daily',{'project_id':'pt-demo'},headers=demo)
             assert len(daily['cards'])==5, daily
-            triage=call('/api/triage',{'project_id':'pdh-demo'},headers=demo)
+            triage=call('/api/triage',{'project_id':'pt-demo'},headers=demo)
             assert triage['mode']=='demo' and len(triage['items'])==5, triage
-            fed=call('/api/feedback',{'key':daily['cards'][0]['key'],'action':'useful','project_id':'pdh-demo'},headers=demo)
+            fed=call('/api/feedback',{'key':daily['cards'][0]['key'],'action':'useful','project_id':'pt-demo'},headers=demo)
             assert fed['saved'] is True
             assert len(call('/api/organization',headers=demo)['items'])>=20
             started=call('/api/organization',{'op':'graph'},headers=demo)['job']
@@ -449,7 +449,7 @@ def main():
             else:
                 raise AssertionError('The demo was allowed to refresh')
             assert call('/api/projects')['projects']==[]
-            db=sqlite3.connect('file:'+str(fresh/'paperdighelper.sqlite')+'?mode=ro',uri=True)
+            db=sqlite3.connect('file:'+str(fresh/'pagetide.sqlite')+'?mode=ro',uri=True)
             try:
                 counts={t:db.execute('SELECT COUNT(*) FROM '+t).fetchone()[0] for t in
                         ('projects','papers','feedback','summaries','batches','library','project_library','profile_versions')}

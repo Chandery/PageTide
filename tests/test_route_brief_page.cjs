@@ -14,7 +14,7 @@ function page(responder) {
   const calls=[],messages=[];
   const context=vm.createContext({Brief,R:{nodeStatus(){return {};}},state:{route:{graph,revision:3},draft:graph,dirty:false,briefReady:true,briefDirty:false,preview:null,loadSequence:0},growth:{},part,$:(selector,holder)=>holder.querySelector(selector),
     api:async body=>{calls.push(body);return responder(body);},notice:message=>messages.push(message),render(){},loadGrowth:async()=>{},guarded:async action=>action(),
-    window:{PDHGraph:{mount(){return {destroy(){}};}}},JSON});
+    window:{PTGraph:{mount(){return {destroy(){}};}}},JSON});
   vm.runInContext(handlers+loader,context);
   return {context,calls,messages,part,read:()=>Brief.read(part('briefFields'))};
 }

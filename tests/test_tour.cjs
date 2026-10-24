@@ -20,17 +20,55 @@ test('shouldOffer: no project, new version, seen version, already offered this s
   assert.equal(T.shouldOffer(null, null), false);
 });
 
-test('five phases in order: start (welcome), project, settings, recommend, library and profile', () => {
+test('six phases in order: start (welcome), project, settings, recommend, reading, library and profile', () => {
   const tour = T.STEPS.filter(s => !s.standalone);
   const phases = [];
   for (const s of tour) if (phases[phases.length - 1] !== s.phase) phases.push(s.phase);
-  assert.deepEqual(phases, ['开始', '项目', '设置', '推荐', '论文库与画像']);
+  assert.deepEqual(phases, ['开始', '项目', '设置', '推荐', '阅读', '论文库与画像']);
   const ids = tour.map(s => s.id);
-  assert.deepEqual(ids, ['w0', 'p1', 'p2', 's1', 's2', 's3', 's4', 'r1', 'r2', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7']);
-  // library and profile part covers list, graph, profile and the weekly report
+  assert.deepEqual(ids, ['w0', 'p1', 'p2', 's1', 's2', 's3', 's4', 'r1', 'r2', 'f1', 'k1', 'k2', 'k3', 'k4', 'k5',
+    'f2', 'f3', 'i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'f4', 'f5', 'f6', 'f7']);
+  // library and profile part covers list, import, graph, profile and the weekly report
   const last = tour.filter(s => s.phase === '论文库与画像').map(s => s.target + ' ' + s.page).join('|');
   assert.match(last, /org-list/); assert.match(last, /graph/); assert.match(last, /data-view="profile"/); assert.match(last, /weekly/);
+  assert.match(last, /data-action="import"/); assert.match(last, /demoSampleBtn/);
   assert.equal(new Set(ids).size, ids.length);
+});
+
+test('the reading steps ask about a selection: open the demo paper, select, ask, send, read, go back', () => {
+  const by = id => T.STEPS.find(s => s.id === id);
+  assert.equal(T.READING_KEY, 'https://doi.org/10.48550/arxiv.1706.03762');
+  assert.ok(by('k1').target.includes(T.READING_KEY)); assert.equal(by('k1').advance, 'click');
+  // the selection itself is the work of the person: the step is done by pressing 追问 in the selection bar, not by any click in the pages
+  assert.equal(by('k2').target, '#readerPages'); assert.equal(by('k2').clickOn, '#selbar [data-sel="ask"]');
+  assert.match(by('k2').text, /高亮/); assert.match(by('k2').text, /追问/);
+  assert.equal(by('k3').target, '#petPanel .pcompose'); assert.equal(by('k3').clickOn, '#petSend'); assert.equal(by('k3').advance, 'click');
+  assert.equal(by('k4').advance, 'next'); assert.match(by('k4').text, /预先写好/);
+  assert.equal(by('k5').target, '#readerBack');
+  for (const id of ['k1', 'k2', 'k3', 'k4', 'k5']) assert.equal(by(id).page, 'index');
+  assert.equal(T.next(null, 'f1'), 'k1'); assert.equal(T.next(null, 'k5'), 'f2');
+});
+
+test('the import steps: the library button, then the import page (sample, start, commit, back), then the list on the main page', () => {
+  const by = id => T.STEPS.find(s => s.id === id);
+  assert.deepEqual(['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].map(id => by(id).page), ['index', 'import', 'import', 'import', 'import', 'index']);
+  assert.equal(by('i1').target, '#organizationRoot [data-action="import"]');
+  assert.deepEqual(['i2', 'i3', 'i4', 'i5'].map(id => by(id).target), ['#demoSampleBtn', '#start', '#commit', '#toLibrary']);
+  assert.equal(by('i4').ready, '#commit:not([disabled])');
+  assert.equal(T.PAGE_URL.import, '/import.html?project_id=pt-demo');
+  assert.equal(T.next(null, 'f3'), 'i1'); assert.equal(T.next(null, 'i6'), 'f4');
+  // a step on another page is stored when its predecessor is pressed, so a reload on the import page resumes there
+  const m = memory(); T.setStorage(m);
+  T.begin({ step: 'i2', version: 'v' });
+  assert.equal(T.current().step, 'i2'); assert.equal(T.strandedStep(T.current(), 'index').resume, T.PAGE_URL.import);
+  T.setStorage(null);
+});
+
+test('the Baidu step names the Baidu search, not Baidu Scholar', () => {
+  const s4 = T.STEPS.find(s => s.id === 's4');
+  assert.equal(s4.text, '中文论文可用百度搜索，需要千帆密钥。'); assert.equal(s4.target, '#baiduScholarKey');
+  assert.doesNotMatch(s4.text, /百度学术/);
+  assert.match(T.STEPS.find(s => s.id === 's2').text, /获取/);
 });
 
 test('next follows the sequence, skip jumps past settings, the last step finishes', () => {
@@ -46,14 +84,15 @@ test('next follows the sequence, skip jumps past settings, the last step finishe
   assert.equal(T.next(null, 'nope'), 'finish');
   let id = 'w0', n = 0;
   while (id !== 'finish' && n++ < 50) id = T.next(null, id);
-  assert.equal(id, 'finish'); assert.equal(n, 16);
+  assert.equal(id, 'finish'); assert.equal(n, 27);
 });
 
 test('stepsFor groups steps by page', () => {
   assert.deepEqual(T.stepsFor('settings').map(s => s.id), ['s2', 's3', 's4']);
   assert.deepEqual(T.stepsFor('weekly').map(s => s.id), ['f7']);
   assert.deepEqual(T.stepsFor('creation').map(s => s.id), ['c1']);
-  assert.equal(T.stepsFor('index').length, 12);
+  assert.deepEqual(T.stepsFor('import').map(s => s.id), ['i2', 'i3', 'i4', 'i5']);
+  assert.equal(T.stepsFor('index').length, 19);
   assert.equal(T.stepsFor('index')[0].id, 'w0');
   assert.deepEqual(T.stepsFor('nowhere'), []);
 });
@@ -120,10 +159,13 @@ test('real selectors: the ones this tour depends on exist in the pages', () => {
   const index = read('index.html'), settings = read('settings.html'), creation = read('project_creation.html'),
     weekly = read('weekly_report.html'), org = read('organization.js'), profile = read('profile-ui.js');
   for (const id of ['projectBtn', 'projectEdit', 'settingsBtn', 'btnDaily', 'cards', 'organizationRoot', 'view-profile']) assert.match(index, new RegExp('id="' + id + '"'));
-  assert.match(index, /data-view="library"/); assert.match(index, /data-view="profile"/); assert.match(index, /data-fb="\$\{saved/);
+  assert.match(index, /data-view="library"/); assert.match(index, /id="readerPages"/); assert.match(index, /id="petSend"/); assert.match(index, /id="readerBack"/);
+  assert.match(index, /data-sel="ask"/); assert.match(index, /data-read="\$\{esc\(c\.key\)\}"/); assert.match(index, /data-view="profile"/); assert.match(index, /data-fb="\$\{saved/);
   for (const id of ['apiKey', 'openalexKey', 'baiduScholarKey']) assert.match(settings, new RegExp('id="' + id + '"'));
   assert.match(settings, /class="[^"]*\bsection\b/); assert.match(settings, /class="[^"]*\bsource-row\b/);
   assert.match(creation, /class="modes"/); assert.match(weekly, /id="weeklyContent"/);
+  const imp = read('import.html'); for (const id of ['demoSampleBtn', 'start', 'commit', 'toLibrary']) assert.match(imp, new RegExp('id="' + id + '"'));
+  assert.match(imp, /PTTour\.boot\('import'/); assert.match(org, /data-action="import"/);
   assert.match(org, /class="org-tabs"/); assert.match(org, /data-action="graph"/); assert.match(org, /class="org-list"/);
   assert.match(profile, /class="pd-link" href="\/weekly_report\.html/);
 });
@@ -204,6 +246,6 @@ test('dismiss clears the stored creation hint only when asked for that step', ()
 test('the creation page decides about the c1 hint after it knows the projects', () => {
   const fs = require('node:fs'), path = require('node:path');
   const c = fs.readFileSync(path.join(__dirname, '..', 'app', 'static', 'project_creation.html'), 'utf8');
-  assert.match(c, /length\)\{PDHTour\.dismiss\('c1'\);return;\}/);
-  assert.ok(c.indexOf("PDHTour.dismiss('c1')") < c.indexOf("PDHTour.boot('creation'"));
+  assert.match(c, /length\)\{PTTour\.dismiss\('c1'\);return;\}/);
+  assert.ok(c.indexOf("PTTour.dismiss('c1')") < c.indexOf("PTTour.boot('creation'"));
 });

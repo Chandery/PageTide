@@ -227,13 +227,13 @@ class RouteAndPageTests(Fixture):
         self.set_frequency("manual")
         port = self.serve()
         # the server builds its own App on the same data directory
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, body = self.post(port, {"project_id": self.pid})
         self.assertEqual((status, body["due"]), (200, False))
 
     def test_route_starts_a_job_when_due(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}), \
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}), \
                 mock.patch.object(maintenance, "run", return_value={"refreshed": True, "batch": True}):
             status, body = self.post(port, {"project_id": self.pid})
         self.assertEqual((status, body["due"]), (200, True))

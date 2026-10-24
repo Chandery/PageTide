@@ -1,6 +1,6 @@
 (function(root) {
   'use strict';
-  root.PDHSaveFile = async function(filename, content) {
+  root.PTSaveFile = async function(filename, content) {
     const invoke = root.__TAURI_INTERNALS__?.invoke;
     if (invoke) {
       const receipt = JSON.parse(await invoke('save_export', {filename, content}));

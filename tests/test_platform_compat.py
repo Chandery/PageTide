@@ -183,7 +183,7 @@ class DesktopLogTests(unittest.TestCase):
             data.mkdir()
             with (data / ".desktop.lock").open("a", encoding="utf-8") as held:
                 pc.lock_exclusive(held, blocking=False)
-                env = dict(os.environ, PAPERDIGHELPER_DATA=str(data), PDH_LOG_STDERR="1")
+                env = dict(os.environ, PAGETIDE_DATA=str(data), PAGETIDE_LOG_STDERR="1")
                 done = subprocess.run([sys.executable, "-c", "from app.desktop import main; main()"], cwd=root, env=env,
                                       stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                       text=True, encoding="utf-8", errors="replace", timeout=60)
@@ -250,9 +250,9 @@ class BuildPythonTests(unittest.TestCase):
 
     def test_env_var_wins_and_macos_without_the_venv_fails_instead_of_falling_back(self):
         build = self.load()
-        with mock.patch.dict(os.environ, {"PDH_BUILD_PYTHON": "/x/python"}):
+        with mock.patch.dict(os.environ, {"PAGETIDE_BUILD_PYTHON": "/x/python"}):
             self.assertEqual(build.build_python(), "/x/python")
-        env = {k: v for k, v in os.environ.items() if k != "PDH_BUILD_PYTHON"}
+        env = {k: v for k, v in os.environ.items() if k != "PAGETIDE_BUILD_PYTHON"}
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, env, clear=True):
             build.ROOT = Path(tmp)
             with mock.patch.object(build.sys, "platform", "darwin"):
@@ -305,18 +305,18 @@ class AppCloseTests(unittest.TestCase):
 
 class DataDirTests(unittest.TestCase):
     def test_macos_unchanged(self):
-        self.assertEqual(pc.default_data_dir({}, "darwin", "/Users/u"), Path("/Users/u/Library/Application Support/PaperDigHelper"))
+        self.assertEqual(pc.default_data_dir({}, "darwin", "/Users/u"), Path("/Users/u/Library/Application Support/PageTide"))
 
     def test_windows_uses_local_appdata_and_never_the_installer_directory(self):
         self.assertEqual(pc.default_data_dir({"LOCALAPPDATA": "C:/Users/u/AppData/Local", "APPDATA": "C:/Users/u/AppData/Roaming"},
-                                             "win32", "C:/Users/u"), Path("C:/Users/u/AppData/Local/PaperDigHelperData"))
-        self.assertEqual(pc.default_data_dir({}, "win32", "C:/Users/u"), Path("C:/Users/u/AppData/Local/PaperDigHelperData"))
-        # NSIS currentUser installs into %LOCALAPPDATA%\PaperDigHelper; the library must be a different folder.
-        self.assertNotEqual(pc.default_data_dir({"LOCALAPPDATA": "C:/L"}, "win32", "C:/u").name, "PaperDigHelper")
+                                             "win32", "C:/Users/u"), Path("C:/Users/u/AppData/Local/PageTideData"))
+        self.assertEqual(pc.default_data_dir({}, "win32", "C:/Users/u"), Path("C:/Users/u/AppData/Local/PageTideData"))
+        # NSIS currentUser installs into %LOCALAPPDATA%\PageTide; the library must be a different folder.
+        self.assertNotEqual(pc.default_data_dir({"LOCALAPPDATA": "C:/L"}, "win32", "C:/u").name, "PageTide")
 
     def test_other_posix_uses_xdg(self):
-        self.assertEqual(pc.default_data_dir({"XDG_DATA_HOME": "/x"}, "linux", "/h"), Path("/x/PaperDigHelper"))
-        self.assertEqual(pc.default_data_dir({}, "linux", "/h"), Path("/h/.local/share/PaperDigHelper"))
+        self.assertEqual(pc.default_data_dir({"XDG_DATA_HOME": "/x"}, "linux", "/h"), Path("/x/PageTide"))
+        self.assertEqual(pc.default_data_dir({}, "linux", "/h"), Path("/h/.local/share/PageTide"))
 
     def test_fork_hook_is_optional(self):
         with mock.patch.object(pc.os, "register_at_fork", create=True) as hook:

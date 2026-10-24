@@ -41,7 +41,7 @@ class GatewayKeyTests(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         os.environ.pop("DEEPSEEK_API_KEY", None)
-        os.environ.pop("PAPERDIGHELPER_KEY_FILE", None)
+        os.environ.pop("PAGETIDE_KEY_FILE", None)
 
     def test_key_is_loaded_from_the_data_directory(self):
         gateway = Gateway(root=self.root, data_dir=self.data)
@@ -128,7 +128,7 @@ class SettingsHTTPTests(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         os.environ.pop("DEEPSEEK_API_KEY", None)
-        os.environ.pop("PAPERDIGHELPER_KEY_FILE", None)
+        os.environ.pop("PAGETIDE_KEY_FILE", None)
 
     def _request(self, method, path, body=None, origin=None):
         headers = {"Content-Type": "application/json"}

@@ -63,7 +63,7 @@ class ServerSmokeTests(unittest.TestCase):
     def test_index_and_state_are_served(self):
         status, body = self._get("/")
         self.assertEqual(status, 200)
-        self.assertIn(b"PaperDigHelper", body)
+        self.assertIn(b"PageTide", body)
         status, body = self._get("/api/state")
         self.assertEqual(status, 200)
         payload = json.loads(body)

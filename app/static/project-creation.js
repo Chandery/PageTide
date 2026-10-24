@@ -7,10 +7,10 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-const PDF = window.PDHCreationPdf;
+const PDF = window.PTCreationPdf;
 const AI_WAIT = 90;           // the gateway gives up after this many seconds
 const MAX_PATH = 8;
-const SESSION_KEY = 'pdh-guidance-session';
+const SESSION_KEY = 'pt-guidance-session';
 const policyEditor = PaperPolicy.mount($('#creationPaperPolicy'));
 
 let creationPending = 0, creationLeaving = false;
@@ -33,7 +33,7 @@ const post = (path, body) => api(path, {method: 'POST', body: JSON.stringify(bod
 
 // A stage is a real learning unit, but stage order alone is not proof of a prerequisite.
 function updateStageGraph(graph, item, id, keywords) {
-  const R = window.PDHRoute;
+  const R = window.PTRoute;
   const title = String(item.title || '').trim();
   if (!title) throw new Error('请填写阶段标题');
   const termList = /^[\x20-\x7e]+$/.test(title) ? [title.slice(0, 60)] : (keywords || []).slice(0, 2);
@@ -97,7 +97,7 @@ function validateCreationStart(nameField, goalField) {
 }
 
 function readCreationBrief(holder) {
-  const Brief = window.PDHBrief;
+  const Brief = window.PTBrief;
   try { return Brief.read(holder); }
   catch (error) {
     const failed = Brief.FIELDS.find(([key, , cap]) => {
@@ -263,9 +263,9 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   }
 
   /* ---- learning map: AI proposes concepts and their order, the page lets you edit, check and confirm */
-  const R = window.PDHRoute, Brief = window.PDHBrief;
+  const R = window.PTRoute, Brief = window.PTBrief;
   const map = {graph: null, mastered: [], regenerated: 0, checking: false, selected: null, editing: null, view: null, briefDirty: false, generating: false, cachedPlan: false,
-    discarded: window.PDH_ROUTE_BETA === false,   // learning-map mode is a beta setting: with it off the project is created without a map
+    discarded: window.PAGETIDE_ROUTE_BETA === false,   // learning-map mode is a beta setting: with it off the project is created without a map
     userEdited: false};
   const mapAct = makeActivity(part('mapActivity'));
   Brief.mount(part('mapBrief'));
@@ -297,7 +297,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     part('mapShape').textContent = R.shapeText(shape);
     part('mapShape').classList.toggle('single', shape.chain);
     if (map.selected && !g.concepts.some((c) => c.id === map.selected)) map.selected = map.editing = null;
-    map.view = window.PDHGraph.mount(part('map'), g, {
+    map.view = window.PTGraph.mount(part('map'), g, {
       selected: map.selected,
       view: keep,
       maxHeight: '60vh',
@@ -367,7 +367,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     if (map.generating || map.checking || busy) return;
     try {
       if (map.graph.concepts.length >= 12) throw new Error('创建学习图最多12个概念');
-      const baseName = window.PDHi18n?.t('新概念') || '新概念';
+      const baseName = window.PTi18n?.t('新概念') || '新概念';
       let name = baseName, n = 1;
       while (map.graph.concepts.some((c) => c.name === name)) name = `${baseName} ${++n}`;
       changedMap(); map.graph = R.addConcept(map.graph, {name, terms: [], hint: 2}, []);
@@ -377,7 +377,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   };
   part('mapStart').onclick = () => {
     if (map.generating || map.checking || busy) return;
-    changedMap(); map.graph = {concepts: [{id: 'c1', name: (window.PDHi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active'}], prereqs: [], targets: ['c1']};
+    changedMap(); map.graph = {concepts: [{id: 'c1', name: (window.PTi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active'}], prereqs: [], targets: ['c1']};
     part('path').innerHTML = ''; part('addPath').disabled = false;
     map.mastered = []; map.selected = 'c1'; map.editing = null; renderMap();
   };
@@ -414,7 +414,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     if (mapConfirming || map.generating || busy) return;
     const sentSession = sessionId(); mapConfirming = true; part('mapRegen').disabled = true;
     try {
-      if (await window.PDHDialogs.confirm('重新生成会覆盖你的修改，并调用 1 次 AI。继续？', {valid:()=>sessionId()===sentSession && !map.generating})) await generateMap(true);
+      if (await window.PTDialogs.confirm('重新生成会覆盖你的修改，并调用 1 次 AI。继续？', {valid:()=>sessionId()===sentSession && !map.generating})) await generateMap(true);
     } finally { mapConfirming = false; part('mapRegen').disabled = map.generating; }
   };
 
@@ -608,7 +608,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   };
   refresh();
   return {setDraft, draft, search, refresh, root: view,
-    quitState:()=>({busy:searching || busy || map.checking || map.generating || mapConfirming, dirty:!!map.graph || map.briefDirty || !!map.editing || (map.discarded && window.PDH_ROUTE_BETA !== false) || !!selected.size}),
+    quitState:()=>({busy:searching || busy || map.checking || map.generating || mapConfirming, dirty:!!map.graph || map.briefDirty || !!map.editing || (map.discarded && window.PAGETIDE_ROUTE_BETA !== false) || !!selected.size}),
     setBusy(value) { busy = value; refresh(); }};
 }
 
@@ -644,7 +644,7 @@ $$('.mode-card').forEach((card) => {
     const originalSession = session?.id, originalMode = mode;
     try {
       if (session) {
-        if (!await window.PDHDialogs.confirm('切换创建方式会放弃当前草稿，继续吗？', {valid:()=>session?.id===originalSession && mode===originalMode})) return;
+        if (!await window.PTDialogs.confirm('切换创建方式会放弃当前草稿，继续吗？', {valid:()=>session?.id===originalSession && mode===originalMode})) return;
         await discardSession();
         if(session || mode!==originalMode)return;
       }
@@ -750,7 +750,7 @@ $('#quickGo').onclick = async () => {
   try {
     await createSession(name, goal, 'quick');
   } catch (error) {
-    quickAct.stop(); stopQuick(); window.PDHDialogs.notice(error.message,{kind:'error'}); return;
+    quickAct.stop(); stopQuick(); window.PTDialogs.notice(error.message,{kind:'error'}); return;
   }
   review.setDraft(session.draft);   // the review shows what the session holds before the call, so the call sends no stale lists
   if (await quickTurn()) await review.search();
@@ -863,7 +863,7 @@ $('#guidedGo').onclick = async () => {
   $('#guidedGo').disabled = true;
   try {
     await createSession(name, goal, 'ai_guided');
-  } catch (error) { window.PDHDialogs.notice(error.message,{kind:'error'}); $('#guidedGo').disabled = false; return; }
+  } catch (error) { window.PTDialogs.notice(error.message,{kind:'error'}); $('#guidedGo').disabled = false; return; }
   openGuidedWorkspace();
   review.setDraft(session.draft);
   renderChat(null);
@@ -908,11 +908,11 @@ function seedRow(item) {
     sub = `<span data-no-i18n>${esc(meta(item.paper))}</span>${item.pdfId ? ` <span data-no-i18n>${esc(item.filename || '')}</span>` : ''}`;
   } else if (item.status === 'failed') {
     state = '<span class="bad">!</span>'; title = label;
-    sub = `<span class="bad" data-no-i18n>${esc(window.PDHi18n?.system(item.error) || item.error)}</span>`;
+    sub = `<span class="bad" data-no-i18n>${esc(window.PTi18n?.system(item.error) || item.error)}</span>`;
     help = `<div class="help"><div class="row"><input data-help-input placeholder="标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">重试</button></div></div>`;
   } else if (item.status === 'help') {
     state = '<span class="warn">?</span>'; title = label;
-    sub = `${item.error ? `<span class="bad" data-no-i18n>${esc(window.PDHi18n?.system(item.error) || item.error)}</span> ` : ''}<span>请选一篇，或改标题 / DOI</span>`;
+    sub = `${item.error ? `<span class="bad" data-no-i18n>${esc(window.PTi18n?.system(item.error) || item.error)}</span> ` : ''}<span>请选一篇，或改标题 / DOI</span>`;
     help = `<div class="help">${(item.hits || []).map((p, i) => `<button type="button" class="pick" data-do="pick" data-index="${i}"><span data-no-i18n>${esc(p.title)}</span><small data-no-i18n>${esc(meta(p))}</small></button>`).join('')}
       <div class="row"><input data-help-input placeholder="标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">再查一次</button></div></div>`;
   } else {
@@ -1024,7 +1024,7 @@ $('#seedSearchClose').onclick = () => { searchToken += 1; searchAct.stop(); $('#
 
 /* ---- dropped PDFs */
 // Reading a PDF's first pages for an identifier or title is shared with library import (pdf-hints.js).
-const {extractHints, withTimeout} = window.PDHPdfHints;
+const {extractHints, withTimeout} = window.PTPdfHints;
 
 async function uploadPdf(file) {
   creationPending++;
@@ -1184,11 +1184,11 @@ const creationInitialInputs = creationInputSignature();
 function creationExitState() {
   const currentReview=review?.quitState?.() || {};
   return {
-    busy:creationPending>0 || guidedBusy || modeConfirming || !!currentReview.busy || seeds.some(seed=>seed.status==='working') || !!window.PDHDialogs?.active(),
+    busy:creationPending>0 || guidedBusy || modeConfirming || !!currentReview.busy || seeds.some(seed=>seed.status==='working') || !!window.PTDialogs?.active(),
     dirty:creationInputSignature()!==creationInitialInputs || !!session || !!currentReview.dirty || !!seeds.length || !!seedKeywords.get().length,
   };
 }
-window.PDHCreationQuit.mount({
+window.PTCreationQuit.mount({
   busy:()=>creationExitState().busy,
   dirty:()=>creationExitState().dirty,
   leaving:()=>creationLeaving,

@@ -1,10 +1,10 @@
 (() => {
   'use strict';
   const S = { snapshot: { directions: [], items: [], positions: {} }, mode: 'library', filter: '*', query: '', selected: new Set(), key: null, collapsed: new Set(), drafts: new Map(), positions: {}, pending: 0, queue: Promise.resolve(), cy: null, root: null, error: '', graphRadialPending: false, scope: 'all', focus: 'all', graphView: 'papers', routeFocus: null, rcy: null, routeDetail: null, routeToken: 0, showOther: false, transient: new Set(), noteEditing: null };
-  const inDemoPage = () => typeof document !== 'undefined' && !!document.documentElement?.classList?.contains?.('pdh-demo');
+  const inDemoPage = () => typeof document !== 'undefined' && !!document.documentElement?.classList?.contains?.('pt-demo');
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // Translate only program frames; named values are user text and remain verbatim.
-  const systemLabel = (text, values) => window.PDHi18n?.t(text, values) ?? (values ? text.replace(/\{(\w+)\}/g, (all, key) => key in values ? values[key] : all) : text);
+  const systemLabel = (text, values) => window.PTi18n?.t(text, values) ?? (values ? text.replace(/\{(\w+)\}/g, (all, key) => key in values ? values[key] : all) : text);
   S.reviewToken = 0; S.epoch = 0; S.refreshToken = 0; S.relationsToken = 0; S.contextToken = 0; S.navigationToken = 0; S.contexts = new Map();
   const DEFAULT_COLOR = '#64748b';
   const color = value => /^#[0-9a-f]{6}$/i.test(value || '') ? value : DEFAULT_COLOR;
@@ -59,18 +59,18 @@
   /* ---- view scope. The category tree and the notes stay one shared set; the scope only chooses which papers are shown.
      S.scope is a project id (that project's saved papers) or 'all'. The project tabs at the top of the directory pick it.
      A paper saved by no project (only the legacy global list) shows under 'all' only. */
-  const currentProject = () => window.PDH?.state?.currentProject || null;
+  const currentProject = () => window.PT?.state?.currentProject || null;
   const projectName = (id, snapshot = S.snapshot) => (snapshot.projects || []).find(x => x.id === id)?.name || id;
   const owners = p => p.projects || [];
   async function openLibraryReader(p) {
-    const project = window.PDHReaderIdentity?.readingProject(owners(p), S.scope, currentProject())
+    const project = window.PTReaderIdentity?.readingProject(owners(p), S.scope, currentProject())
       ?? (S.scope !== 'all' && owners(p).includes(S.scope) ? S.scope : owners(p).includes(currentProject()) ? currentProject() : owners(p).length === 1 ? owners(p)[0] : null);
-    if (project) return window.PDH.openReader(p.key, p.title, project);
-    if (!owners(p).length) return window.PDH.openReader(p.key, p.title, null);
+    if (project) return window.PT.openReader(p.key, p.title, project);
+    if (!owners(p).length) return window.PT.openReader(p.key, p.title, null);
     dialog('选择阅读会话的项目', `<label>项目<select name="reading-project">${owners(p).map(id => `<option value="${h(id)}">${h(projectName(id))}</option>`).join('')}</select></label>`, '开始阅读', async el => {
       const selected = el.querySelector('[name=reading-project]').value;
       if (!owners(p).includes(selected)) throw new Error('论文不属于当前项目');
-      await window.PDH.openReader(p.key, p.title, selected);
+      await window.PT.openReader(p.key, p.title, selected);
     });
   }
   function scopeItems(snapshot = S.snapshot, scope = S.scope) {
@@ -153,7 +153,7 @@
   const visible = () => { const ids = categoryIds(S.filter); return scoped().filter(p => matches(p) && (S.filter === '*' || (S.filter === '' ? !memberships(p).length : memberships(p).some(id => ids.has(id))))); };
   // The list's order (owner 2026-10-23): by the date saved, the publication date or the title; remembered on this computer.
   const SORTS = [['saved-desc', '最近收藏'], ['saved-asc', '最早收藏'], ['published-desc', '最新发表'], ['published-asc', '最早发表'], ['title', '标题']];
-  const SORT_KEY = 'pdh.library.sort';
+  const SORT_KEY = 'pt.library.sort';
   function storedSort() { try { return localStorage.getItem(SORT_KEY); } catch (_) { return null; } }
   const sortMode = () => SORTS.some(([v]) => v === S.sort) ? S.sort : (S.sort = SORTS.some(([v]) => v === storedSort()) ? storedSort() : 'saved-desc');
   function ordered(list) {
@@ -176,7 +176,7 @@
     try { localStorage.setItem(SORT_KEY, mode); } catch (_) { /* the order still applies for this session */ }
     renderList();
   }
-  function report(error) { S.error = error.message || String(error); status(); window.PDH.toast(S.error, 'error'); }
+  function report(error) { S.error = error.message || String(error); status(); window.PT.toast(S.error, 'error'); }
   function status() {
     const node = $('[data-status]');
     if (node) { node.classList.toggle('org-error', !!S.error); node.textContent = S.error || (S.pending ? '正在保存…' : S.notice || ''); }
@@ -209,7 +209,7 @@
     S.notice = ''; S.pending++; status();
     const task = S.queue.then(async () => {
       const draftAction = body.action === 'draft-save' || body.action === 'draft-clear';
-      const data = await window.PDH.api('/api/organization', { ...body, ...(draftAction ? { version: body.version ?? S.drafts.get(body.key).serverVersion ?? 0 } : {}), ...(body.action === 'note' ? {} : { revision }) });
+      const data = await window.PT.api('/api/organization', { ...body, ...(draftAction ? { version: body.version ?? S.drafts.get(body.key).serverVersion ?? 0 } : {}), ...(body.action === 'note' ? {} : { revision }) });
       if (draftAction) { S.drafts.get(body.key).serverVersion = data.draft.version; cacheDraft(body.key, S.drafts.get(body.key)); }
       else if (current()) accept(data);
       if (current()) S.error = '';
@@ -222,7 +222,7 @@
   function draftFor(p) {
     if (!S.drafts.has(p.key)) {
       let saved;
-      try { saved = JSON.parse(localStorage.getItem(`pdh.organization.note:${p.key}`)); } catch (_) { /* In-memory drafts remain available when storage is disabled. */ }
+      try { saved = JSON.parse(localStorage.getItem(`pt.organization.note:${p.key}`)); } catch (_) { /* In-memory drafts remain available when storage is disabled. */ }
       const variants = (S.snapshot.drafts || []).filter(d => d.key === p.key).map(d => ({ text: d.text, version: p.note_version, client: d.client, serverVersion: d.version, dirty: true, recovered: true }));
       const local = saved && typeof saved.text === 'string' && saved.dirty;
       if (!local && variants.length) saved = variants[0];
@@ -237,7 +237,7 @@
     return draft;
   }
   function cacheDraft(key, draft) {
-    try { localStorage.setItem(`pdh.organization.note:${key}`, JSON.stringify({ text: draft.text, version: draft.version, dirty: draft.dirty, recovered: !!draft.recovered, client: draft.client, serverVersion: draft.serverVersion, variants: draft.variants || [] })); }
+    try { localStorage.setItem(`pt.organization.note:${key}`, JSON.stringify({ text: draft.text, version: draft.version, dirty: draft.dirty, recovered: !!draft.recovered, client: draft.client, serverVersion: draft.serverVersion, variants: draft.variants || [] })); }
     catch (_) { S.error = '草稿无法存到本地'; status(); }
   }
   function storeDraft(key, draft) {
@@ -328,7 +328,7 @@
   }
   function renderShell() {
     S.cy?.destroy(); S.cy = null;
-    S.root.classList.add('pdh-organization');
+    S.root.classList.add('pt-organization');
     S.root.innerHTML = `<header class="org-toolbar"><h2>论文库</h2><div class="org-tabs" role="tablist" aria-label="视图"><button role="tab" data-action="library">列表</button><button role="tab" data-action="graph">图谱</button></div><input class="org-search" type="search" placeholder="搜索论文或笔记" aria-label="搜索论文或笔记" value="${h(S.query)}"><div class="org-tools"><span class="org-undo-slot" data-undo-slot></span><button data-action="suggest" title="调用 AI，只发送标题、摘要片段和类别名"><img src="/icons/sparkles.svg" alt="">整理分类</button><button data-action="import"><img src="/icons/folder-open.svg" alt="">导入论文</button>${button('export', '导出', '&#8681;')}</div></header><div class="org-statusbar"><span data-status role="status" aria-live="polite"></span></div><div class="org-workspace"><aside class="org-sidebar" aria-label="类别目录"></aside><main class="org-main"><div class="org-bulk"></div><div class="org-list" role="listbox" aria-label="论文列表"></div><div class="org-graph-wrap" hidden><div class="seg org-view" role="radiogroup" aria-label="图谱视图" data-view-seg hidden></div><div class="seg org-focus" role="radiogroup" aria-label="图谱范围" data-focus-seg></div><div class="org-graph-tools">${button('rearrange', '重新排列', '&#8862;')}${button('fit', '查看全图', '&#9974;')}${button('zoom-in', '放大', '+')}${button('zoom-out', '缩小', '&#8722;')}</div><div class="org-graph" aria-label="论文关系图谱"></div><details class="org-route-unmatched" data-route-unmatched hidden></details><div class="org-graph-hint"></div><div class="org-graph-legend" aria-label="类别图例" hidden></div></div></main><aside class="org-detail" aria-label="论文详情"></aside></div><div class="org-dialog-host"></div>`;
     S.root.onclick = onRootClick;
     S.root.ondblclick = event => { onListDblClick(event).catch(report); };
@@ -417,7 +417,7 @@
     return owners(p).includes(want) ? want : (S.scope === 'all' || !S.scope ? owners(p)[0] || null : null);
   };
   function understoodButton(p) {
-    if (window.PDH_ROUTE_BETA === false) return '';   // it moves the learning map on; with the map switched off it is not offered
+    if (window.PAGETIDE_ROUTE_BETA === false) return '';   // it moves the learning map on; with the map switched off it is not offered
     const project = understoodProject(p);
     if (!project) return `<button type="button" disabled title="先收藏到项目">已读懂</button>`;
     const on = (p.understood_in || []).includes(project);
@@ -425,12 +425,12 @@
   }
   function summaryFor(key) {
     if (summaryCache.has(key)) return summaryCache.get(key);
-    const known = window.PDH?.state?.summaries?.[key];
+    const known = window.PT?.state?.summaries?.[key];
     if (known) { summaryCache.set(key, known); return known; }
     summaryCache.set(key, undefined);   // asked for: one request per paper
-    if (typeof window.PDH?.api === 'function') {
+    if (typeof window.PT?.api === 'function') {
       const epoch = S.epoch;
-      window.PDH.api('/api/detail', { key, project_id: currentProject() }).then(d => {
+      window.PT.api('/api/detail', { key, project_id: currentProject() }).then(d => {
         summaryCache.set(key, d && d.summary || null);
         if (S.epoch === epoch && S.key === key && d && d.summary) renderDetail();
       }).catch(() => summaryCache.set(key, null));
@@ -445,10 +445,10 @@
     const epoch = S.epoch, token = S.contextToken;
     if (!summaryCache.has(key)) summaryCache.set(key, undefined);
     S.contexts.set(cacheKey, '<p class="hint">读取中…</p>');
-    window.PDH.api('/api/detail', {key, project_id: project}).then(d => {
+    window.PT.api('/api/detail', {key, project_id: project}).then(d => {
       if (epoch !== S.epoch || token !== S.contextToken) return;
       summaryCache.set(key, d.summary || null);
-      S.contexts.set(cacheKey, window.PDHPaperContext.html(d.context, key, false));
+      S.contexts.set(cacheKey, window.PTPaperContext.html(d.context, key, false));
       if (S.key === key && (S.scope === 'all' ? currentProject() : S.scope) === project) renderDetail();
     }).catch(() => {
       if (epoch !== S.epoch || token !== S.contextToken) return;
@@ -462,12 +462,12 @@
      part of the note. Nothing selected: the pane is empty. */
   function noteHTML(p, draft, editing) {
     if (editing) return `<section class="org-notes"><div class="org-section-head"><h3>笔记</h3><div class="org-tools"><button data-action="note-edit" aria-pressed="true">编辑</button><button data-action="note-preview" aria-pressed="false">预览</button>${button('history', '笔记历史', '&#9719;')}${button('note-save', '保存笔记', '&#10003;')}<button type="button" data-action="note-done">完成</button></div></div><textarea data-note-editor aria-label="Markdown 笔记" placeholder="写下笔记…">${h(draft.text)}</textarea><div class="org-markdown" data-note-preview hidden></div><div data-note-status role="status" class="org-note-status"></div></section>`;
-    return `<section class="org-notes"><div class="org-section-head"><h3>笔记</h3>${draft.text ? '<button type="button" class="org-link-button" data-action="note-open" aria-label="编辑笔记">编辑</button>' : ''}</div>${draft.text ? `<div class="org-markdown org-note-view">${window.PDH.md(draft.text)}</div>` : '<button type="button" class="org-note-empty" data-action="note-open">写下笔记…</button>'}</section>`;
+    return `<section class="org-notes"><div class="org-section-head"><h3>笔记</h3>${draft.text ? '<button type="button" class="org-link-button" data-action="note-open" aria-label="编辑笔记">编辑</button>' : ''}</div>${draft.text ? `<div class="org-markdown org-note-view">${window.PT.md(draft.text)}</div>` : '<button type="button" class="org-note-empty" data-action="note-open">写下笔记…</button>'}</section>`;
   }
   function detailHTML(p, { ai = '', context = '' } = {}) {
     const draft = draftFor(p), editing = S.noteEditing === p.key || draft.dirty || draft.recovered || draft.saving;
     const meta = [String(p.published || '').slice(0, 4), p.source].filter(Boolean);
-    const canRead = typeof window.PDH.openReader === 'function', noSource = p.pdf === 'none', url = paperURL(p);
+    const canRead = typeof window.PT.openReader === 'function', noSource = p.pdf === 'none', url = paperURL(p);
     const readTitle = !canRead ? '阅读器尚未加载，请刷新' : noSource ? '无 PDF 来源' : '阅读 PDF';
     return `<div class="org-section-head org-pane-head">${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title">${h(p.title)}</h2><div class="org-detail-meta">${meta.map(v => `<span>${h(v)}</span>`).join('')}</div>${detailCategoriesHTML(p)}${noteHTML(p, draft, editing)}<details class="org-abstract"><summary>摘要</summary>${p.abstract ? `<p data-no-i18n>${h(p.abstract)}</p>` : '<div>暂无摘要</div>'}${inDemoPage() && p.arxiv_id ? `<div class="org-demo-note">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${encodeURIComponent(String(p.arxiv_id))}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</details><div class="org-reading-tools"><button type="button" data-action="read" data-key="${h(p.key)}" ${canRead && !noSource ? '' : 'disabled'} title="${h(readTitle)}"><img class="org-icon" src="/icons/org/book-open.svg" width="16" height="16" alt="">阅读 PDF</button>${url ? `<a href="${h(url)}" target="_blank" rel="noopener noreferrer">打开论文</a>` : ''}</div>${ai}${context}<section class="org-detail-projects" aria-label="所属项目"><span>所属项目</span><div class="org-projects">${projectTags(p)}</div></section>`;
   }
@@ -633,7 +633,7 @@
     ];
   }
   // index.html announces light/dark switches; restyle a live graph instead of rebuilding it.
-  window.addEventListener('pdh-mode', () => {
+  window.addEventListener('pt-mode', () => {
     if (S.cy) S.cy.style(graphStyle(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? '0ms' : '180ms'));
   });
   function renderGraphLegend() {
@@ -655,11 +655,11 @@
     S.relationsLoading = true;
     const epoch = S.epoch, token = ++S.relationsToken;
     try {
-      let { job } = await window.PDH.api('/api/organization', { action: 'graph' });
+      let { job } = await window.PT.api('/api/organization', { action: 'graph' });
       while (job.state === 'running') {
         await new Promise(resolve => setTimeout(resolve, 500));
         if (epoch !== S.epoch || token !== S.relationsToken) return;
-        job = await window.PDH.api(`/api/jobs/${encodeURIComponent(job.id)}`);
+        job = await window.PT.api(`/api/jobs/${encodeURIComponent(job.id)}`);
       }
       if (epoch !== S.epoch || token !== S.relationsToken) return;
       if (job.state !== 'done') throw new Error(job.error || '相似关系计算失败');
@@ -689,7 +689,7 @@
     return key && present.has(paperNodeId(key)) ? paperNodeId(key) : nodes[0]?.data.id;
   }
   /* The second graph view exists only for a project tab whose project has a learning map. */
-  const routeAvailable = () => window.PDH_ROUTE_BETA !== false && S.scope !== 'all' && (S.snapshot.route_projects || []).includes(S.scope);
+  const routeAvailable = () => window.PAGETIDE_ROUTE_BETA !== false && S.scope !== 'all' && (S.snapshot.route_projects || []).includes(S.scope);
   function renderViewSeg() {
     const box = $('[data-view-seg]'), wrap = $('.org-graph-wrap'); if (!box || !wrap) return;
     const on = routeAvailable();
@@ -760,7 +760,7 @@
       const radial = radialPositions(S.cy.nodes().toArray(), originId);
       S.cy.nodes().forEach(n => { if (radial[n.id()]) n.position(radial[n.id()]); });
     }
-    S.motion = window.PDHGraphMotion?.create(S.cy, {reduced:()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches});
+    S.motion = window.PTGraphMotion?.create(S.cy, {reduced:()=>window.matchMedia?.('(prefers-reduced-motion: reduce)').matches});
     if (originId) S.cy.getElementById(originId).addClass('org-origin');
     if (forceRadial) S.graphRadialPending = false;
     S.viewTarget = null;
@@ -820,7 +820,7 @@
       const initial = {};
       S.cy.nodes().forEach(n => { initial[n.id()] = graphPosition(n); });
       savePositions(initial);
-      if (forceRadial) localStorage.setItem('pdh-graph-layout-v3', '1');
+      if (forceRadial) localStorage.setItem('pt-graph-layout-v3', '1');
     }
     highlightGraph();
     renderGraphLegend();
@@ -902,7 +902,7 @@
       && !S.routeDetail.data.pending_total && !S.routeDetail.data.progress_verification_deferred ? S.routeDetail.data : null;
     try {
       if (!detail) {
-        detail = await window.PDH.api('/api/organization', { action: 'route-detail', project_id: scope, ...(focusKey ? {focus_key: focusKey} : {}) });
+        detail = await window.PT.api('/api/organization', { action: 'route-detail', project_id: scope, ...(focusKey ? {focus_key: focusKey} : {}) });
         if (token !== S.routeToken || S.graphView !== 'route' || S.scope !== scope || S.mode !== 'graph') return;   // the person moved on while it was loading
         S.routeDetail = { scope, focusKey, data: detail };
       }
@@ -913,10 +913,10 @@
     if (!detail.available) { container.innerHTML = '<p class="org-empty">还没有学习图</p>'; return; }
     renderUnmatched(detail);
     if (!S.relations) loadRelations();   // similarity lines join in when the offline job is done
-    const built = window.PDHRouteDetail.layout(detail, S.relations);
+    const built = window.PTRouteDetail.layout(detail, S.relations);
     if (!built.nodes.length) { container.innerHTML = '<p class="org-empty">学习图还是空的</p>'; return; }
     container.innerHTML = '';
-    container.setAttribute('aria-label', `学习图和论文，${window.PDHRouteDetail.summary(built.counts)}`);
+    container.setAttribute('aria-label', `学习图和论文，${window.PTRouteDetail.summary(built.counts)}`);
     const elements = [
       ...built.nodes.map(n => ({ data: { id: n.id, kind: n.kind, label: n.label, status: n.status, side: n.side, key: n.key, name: n.name, type: n.type, why: n.why }, position: { x: n.x, y: n.y } })),
       ...built.edges.map(e => ({ data: { id: e.id, source: e.source, target: e.target, kind: e.kind, rank: e.rank, proposed: e.proposed, weight: e.weight, tip: e.title } }))];
@@ -1125,15 +1125,15 @@
     });
   }
   async function history() {
-    const key = S.key, result = await window.PDH.api('/api/organization', { action: 'history', key });
+    const key = S.key, result = await window.PT.api('/api/organization', { action: 'history', key });
     const rows = result.history || [];
-    const d = dialog('笔记历史', rows.map((r, i) => `<section class="org-history-entry"><div class="org-section-head"><span>版本 ${h(r.version ?? r.note_version)} · ${h(r.created_at || r.created || '')}</span><button type="button" data-history-restore="${i}">恢复到草稿</button></div><div class="org-markdown">${window.PDH.md(r.text ?? r.note ?? '')}</div></section>`).join('') || '<p>暂无历史版本</p>', null);
+    const d = dialog('笔记历史', rows.map((r, i) => `<section class="org-history-entry"><div class="org-section-head"><span>版本 ${h(r.version ?? r.note_version)} · ${h(r.created_at || r.created || '')}</span><button type="button" data-history-restore="${i}">恢复到草稿</button></div><div class="org-markdown">${window.PT.md(r.text ?? r.note ?? '')}</div></section>`).join('') || '<p>暂无历史版本</p>', null);
     d.querySelectorAll('[data-history-restore]').forEach(b => b.onclick = async () => {
       if(b.disabled || !item(key))return;
       const draft = draftFor(item(key)), originalText = draft.text;
       b.disabled=true;
       try {
-        if (draft.dirty && !await window.PDHDialogs.confirm('替换当前未保存的草稿？', {valid:()=>S.key===key && d.open && draft.text===originalText})) return;
+        if (draft.dirty && !await window.PTDialogs.confirm('替换当前未保存的草稿？', {valid:()=>S.key===key && d.open && draft.text===originalText})) return;
         if(S.key!==key || !d.open || draft.text!==originalText)return;
         draft.text = rows[Number(b.dataset.historyRestore)].text ?? rows[Number(b.dataset.historyRestore)].note ?? '';
         draft.version = item(key).note_version; draft.dirty = true; draft.error = ''; storeDraft(key, draft); d.close(); renderDetail();
@@ -1247,7 +1247,7 @@
     const epoch = S.epoch, scope = S.scope, project = currentProject(), token = ++S.reviewToken;
     const current = () => token === S.reviewToken && epoch === S.epoch && scope === S.scope && project === currentProject();
     let jobId = null, completed = false;
-    const cancel = () => { if (jobId && !completed) window.PDH.api('/api/organization', {action:'cancel-category-review',job_id:jobId}).catch(() => {}); };
+    const cancel = () => { if (jobId && !completed) window.PT.api('/api/organization', {action:'cancel-category-review',job_id:jobId}).catch(() => {}); };
     S.cancelReview?.(); S.cancelReview = cancel;
     const d = dialog('整理分类', `<p role="status">${mode === 'local' ? '正在检查…' : '正在用 AI 整理…'}</p>`, null);
     d.addEventListener('close', cancel);
@@ -1261,8 +1261,8 @@
     try {
       await S.queue;
       if (!current() || !d.isConnected) return;
-      const asked = S.scope !== 'all' ? S.scope : window.PDH.state?.currentProject;   // the project tab's papers and profile; on the all tab, every paper with the current project's profile
-      let result = await window.PDH.api('/api/organization', { action: mode === 'local' ? 'suggest' : 'review-categories', revision: S.snapshot.revision, ...(asked ? { project_id: asked } : {}), ...(S.scope === 'all' ? { scope: 'all' } : {}) });
+      const asked = S.scope !== 'all' ? S.scope : window.PT.state?.currentProject;   // the project tab's papers and profile; on the all tab, every paper with the current project's profile
+      let result = await window.PT.api('/api/organization', { action: mode === 'local' ? 'suggest' : 'review-categories', revision: S.snapshot.revision, ...(asked ? { project_id: asked } : {}), ...(S.scope === 'all' ? { scope: 'all' } : {}) });
       if (result.job) {
         let job = result.job;
         jobId = job.id;
@@ -1270,7 +1270,7 @@
           if (!current() || !d.isConnected) { cancel(); return; }
           if (job.state === 'failed') throw new Error(job.error || '整理分类生成失败');
           await new Promise(resolve => setTimeout(resolve, 1200));
-          job = await window.PDH.api(`/api/jobs/${encodeURIComponent(job.id)}`);
+          job = await window.PT.api(`/api/jobs/${encodeURIComponent(job.id)}`);
         }
         completed = true;
         result = job.result;
@@ -1307,7 +1307,7 @@
             n('renamed_categories') || n('merged_categories') || n('deleted_categories') ? `改名 ${n('renamed_categories')}、合并 ${n('merged_categories')}、删除 ${n('deleted_categories')} 个标签` : '',
             `共改动 ${n('changed_papers')} 篇论文的类别`,
             (a.also_applied || []).length ? `另带上了 ${a.also_applied.length} 项` : ''].filter(Boolean).join(' · ');   // items applied without a tick are never silent
-          status(); window.PDH.toast(S.notice, 'ok', 6000); return;
+          status(); window.PT.toast(S.notice, 'ok', 6000); return;
         }
         const suggestions = [...el.querySelectorAll('[data-suggestion]')].filter(f => f.querySelector('[data-enabled]').checked).map(f => ({ id: proposals[Number(f.dataset.suggestion)].id, name: f.querySelector('[data-name]').value.trim(), color: f.querySelector('[data-color]')?.value || DEFAULT_COLOR, keys: [...f.querySelectorAll('[data-member]:checked')].map(c => c.dataset.member) }));
         if (suggestions.some(s => !s.name || !s.keys.length)) throw new Error('每个所选类别都需要名称和至少一篇论文');
@@ -1322,7 +1322,7 @@
         // Sentences joined by " · ": the interface language layer translates each one whole.
         const parts = [applied.added_memberships ? `为 ${applied.changed_papers} 篇论文新增了 ${applied.added_memberships} 条类别归属` : '', applied.created_categories ? `新建了 ${applied.created_categories} 个类别` : '', applied.merged_categories ? `合并了 ${applied.merged_categories} 个重复类别` : '', applied.moved_papers ? `调整了 ${applied.moved_papers} 篇论文的类别` : ''].filter(Boolean);
         S.notice = parts.length ? parts.join(' · ') : '没有改动任何类别';
-        status(); window.PDH.toast(S.notice, 'ok', 6000);
+        status(); window.PT.toast(S.notice, 'ok', 6000);
       });
       if (preview.ai_plan && !nothing) {
         reviewed.classList.add('org-review-dialog');
@@ -1336,27 +1336,27 @@
     } catch (error) { if (!current()) return; if (d.isConnected) d.close(); failureDialog({error:`建议生成失败：${error.message}`}); }
   }
   async function exportData() {
-    const result = await window.PDH.api('/api/organization', { action: 'export' });
+    const result = await window.PT.api('/api/organization', { action: 'export' });
     const data = result.export || result;
     if (data == null) throw new Error('导出数据缺失');
     dialog('导出论文库', '<label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
       const format = el.querySelector('select').value;
       const payload = format === 'json' ? JSON.stringify(data, null, 2) : (data.markdown || markdownExport(data));
-      const receipt = await window.PDHSaveFile(`paperdighelper-organization-${new Date().toISOString().slice(0, 10)}.${format}`, payload);
-      if (receipt.status === 'saved') window.PDH.toast(`导出已保存：${receipt.path}`, 'ok', 8000);
-      else window.PDH.toast('已取消导出', 'warn');
+      const receipt = await window.PTSaveFile(`pagetide-organization-${new Date().toISOString().slice(0, 10)}.${format}`, payload);
+      if (receipt.status === 'saved') window.PT.toast(`导出已保存：${receipt.path}`, 'ok', 8000);
+      else window.PT.toast('已取消导出', 'warn');
     });
   }
   function markdownExport(data) {
     const snap = data.snapshot || data;
     if (!Array.isArray(snap.items)) throw new Error('导出数据缺少论文列表');
-    return '# PaperDigHelper\n\n' + snap.items.map(p => `## ${String(p.title || p.key).replace(/\n/g, ' ')}\n\n${p.published || ''}\n\n${(snap.directions || []).filter(d => memberships(p).includes(String(d.id))).map(d => categoryPath(d.id, snap)).join(', ')}\n\n${p.abstract || ''}\n\n### Note\n\n${p.note || ''}\n`).join('\n');
+    return '# PageTide\n\n' + snap.items.map(p => `## ${String(p.title || p.key).replace(/\n/g, ' ')}\n\n${p.published || ''}\n\n${(snap.directions || []).filter(d => memberships(p).includes(String(d.id))).map(d => categoryPath(d.id, snap)).join(', ')}\n\n${p.abstract || ''}\n\n### Note\n\n${p.note || ''}\n`).join('\n');
   }
   async function refresh() {
     const epoch = S.epoch, token = ++S.refreshToken;
     await S.positionQueue; await S.queue;
     if (epoch !== S.epoch || token !== S.refreshToken) return false;
-    const data = await window.PDH.api('/api/organization');
+    const data = await window.PT.api('/api/organization');
     if (epoch !== S.epoch || token !== S.refreshToken) return false;
     accept(data); S.loading = false; S.error = ''; S.positions = {}; S.cy?.destroy(); S.cy = null;
     if (S.mode === 'graph' && !scoped().some(p => p.key === S.key)) S.key = scoped()[0]?.key || null;
@@ -1477,12 +1477,12 @@
         const key = b.dataset.key, project = b.dataset.project, p = item(key);
         const on = (p?.understood_in || []).includes(project);   // pressed again: take the mark back
         try {
-          const r = await window.PDH.api('/api/feedback', on ? { key, action: 'understood', project_id: project, retract: true }
+          const r = await window.PT.api('/api/feedback', on ? { key, action: 'understood', project_id: project, retract: true }
                                                              : { key, action: 'understood', project_id: project });
           const marked = !on || !!r?.reconfirmed;   // after a learning-map revision one press confirms the mark anew
           if (p) p.understood_in = marked ? [...new Set([...(p.understood_in || []), project])] : (p.understood_in || []).filter(id => id !== project);
-          window.PDH.toast(marked ? '已记录' : '已取消已读懂', 'ok');
-        } catch (e) { window.PDH.toast(e.message, 'err'); }
+          window.PT.toast(marked ? '已记录' : '已取消已读懂', 'ok');
+        } catch (e) { window.PT.toast(e.message, 'err'); }
         renderList(); break;
       }
       case 'note-save': await saveNote(S.key); break;
@@ -1506,14 +1506,14 @@
         const key = S.key, draft = S.drafts.get(key);
         await refresh();
         const comparedVersion = item(key).note_version;
-        dialog('比较笔记版本', `<h3>最新保存版本</h3><div class="org-markdown">${window.PDH.md(item(key).note || '')}</div><h3>你的草稿</h3><div class="org-markdown">${window.PDH.md(draft.text)}</div>`, '用草稿保存', async () => {
+        dialog('比较笔记版本', `<h3>最新保存版本</h3><div class="org-markdown">${window.PT.md(item(key).note || '')}</div><h3>你的草稿</h3><div class="org-markdown">${window.PT.md(draft.text)}</div>`, '用草稿保存', async () => {
           confirmDraftVersion(key, comparedVersion); storeDraft(key, draft); await saveNote(key);
           if (draft.error) throw new Error(draft.error);
         }); break;
       }
       case 'note-edit': case 'note-preview': {
         const preview = action === 'note-preview'; $('[data-note-editor]').hidden = preview; $('[data-note-preview]').hidden = !preview;
-        $('[data-note-preview]').innerHTML = window.PDH.md(draftFor(item(S.key)).text);
+        $('[data-note-preview]').innerHTML = window.PT.md(draftFor(item(S.key)).text);
         $('[data-action=note-edit]').setAttribute('aria-pressed', String(!preview)); $('[data-action=note-preview]').setAttribute('aria-pressed', String(preview)); break;
       }
       case 'history': await history(); break;
@@ -1549,9 +1549,9 @@
     }
     await S.queue;
   }
-  window.PDHFlushDrafts = flushDrafts;
+  window.PTFlushDrafts = flushDrafts;
   let quitting = false;
-  window.PDHPrepareQuit = async () => {
+  window.PTPrepareQuit = async () => {
     if (quitting) return;
     quitting = true;
     const editors = typeof document !== 'undefined' ? [...document.querySelectorAll('[data-note-editor]')] : [];
@@ -1561,7 +1561,7 @@
       await window.__TAURI_INTERNALS__.invoke('complete_quit');
     } catch (error) {
       quitting = false; editors.forEach((el, i) => { el.disabled = disabled[i]; });
-      window.PDH.toast(`草稿未保存：${error.message}`, 'error', 10000);
+      window.PT.toast(`草稿未保存：${error.message}`, 'error', 10000);
     }
   };
   // Switching project: forget what was shown for the previous one (selection, focus, similarity relations) and reload.
@@ -1581,7 +1581,7 @@
     if (S.key) renderDetail();
     return S.mode === 'graph' && S.graphView === 'route' ? renderRouteGraph() : Promise.resolve();
   }
-  window.PDHOrganization = { invalidateLearning, cancelNavigation() { S.navigationToken++; S.routeToken++; }, reset() {
+  window.PTOrganization = { invalidateLearning, cancelNavigation() { S.navigationToken++; S.routeToken++; }, reset() {
     reset();
     return S.root && !S.root.classList.contains('hidden') ? this.open(S.mode) : Promise.resolve();
   }, async navigate(target) {
@@ -1593,7 +1593,7 @@
     if (!S.root) throw new Error('Missing #organizationRoot');
     if (!S.scopeSet) { S.scope = currentProject() || 'all'; S.scopeSet = true; }   // the tab starts on the current project and then stays where the person put it
     S.loading = true; S.mode = mode === 'graph' ? 'graph' : (S.modeKept || 'library');   // the top bar has one entry; the page remembers whether the person was on the list or the graph
-    if (S.mode === 'graph' && !localStorage.getItem('pdh-graph-layout-v3')) S.graphRadialPending = true;
+    if (S.mode === 'graph' && !localStorage.getItem('pt-graph-layout-v3')) S.graphRadialPending = true;
     S.root.hidden = false; renderShell();
     const epoch = S.epoch;
     try { return await refresh(); } catch (error) { if (epoch === S.epoch) report(error); return false; }

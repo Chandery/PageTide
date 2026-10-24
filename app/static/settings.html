@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <title>设置 - PaperDigHelper</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <title>设置 - PageTide</title>
   <script src="/theme.js"></script>
   <script src="/save-file.js"></script>
   <link rel="stylesheet" href="/theme.css">
@@ -51,6 +51,10 @@
       font-weight: 400; cursor: pointer; user-select: none;
     }
     .field small { display: block; margin-top: calc(5px * var(--s)); font-size: calc(12px * var(--s)); color: var(--muted); }
+    .field .key-meta { display: flex; align-items: center; gap: calc(10px * var(--s)); margin-top: calc(5px * var(--s)); }
+    .field .key-meta small { margin-top: 0; }
+    .field .key-meta a { font-size: calc(12px * var(--s)); color: var(--muted); }
+    .field .key-meta a:hover { color: var(--text); }
     .readonly-note { font-size: calc(13px * var(--s)); color: var(--text, inherit); padding: calc(8px * var(--s)) calc(10px * var(--s)); border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 8px; }
     /* — inputs — */
     .field input[type="text"],
@@ -165,9 +169,12 @@
       <div class="field">
         <label for="apiKey">API 密钥</label>
         <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" aria-describedby="apiKeyStatus aiTestStatus">
-        <small id="apiKeyStatus"></small>
+        <div class="key-meta">
+          <small id="apiKeyStatus"></small>
+          <a id="apiKeyLink" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">获取</a>
+        </div>
         <button type="button" id="testAiBtn" title="调用 1 次 AI，只发送固定测试消息">测试 AI</button>
-        <div id="aiTestStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
+        <div id="aiTestStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
       <div class="field">
         <label class="inline">
@@ -207,7 +214,7 @@
       </div>
       <div class="field">
         <button type="button" id="checkUpdateBtn" class="ghost">检查更新</button>
-        <span id="updateStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
+        <span id="updateStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
       </div>
     </div>
 
@@ -236,32 +243,23 @@
         </label>
         <div class="source-key">
           <input type="password" id="openalexKey" placeholder="密钥（可选）" aria-label="期刊与会议论文密钥" autocomplete="off">
-          <span id="openalexKeyStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
+          <span id="openalexKeyStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
           <button type="button" id="testOpenalexBtn" class="ghost">测试</button>
           <button type="button" id="clearOpenalexKeyBtn" class="ghost" hidden>清除</button>
           <a id="openalexKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
         </div>
       </div>
       <div class="field source-row">
-        <div class="source-name">百度学术</div>
+        <label class="inline">
+          <input type="checkbox" id="sourceBaiduWeb">
+          百度搜索
+        </label>
         <div class="source-key">
-          <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度学术密钥" autocomplete="off">
-          <span id="baiduScholarKeyStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
+          <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度搜索密钥" autocomplete="off">
+          <span id="baiduScholarKeyStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
           <button type="button" id="testBaiduScholarBtn" class="ghost">测试</button>
           <button type="button" id="clearBaiduScholarKeyBtn" class="ghost" hidden>清除</button>
           <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
-        </div>
-        <div class="source-option">
-          <label class="inline">
-            <input type="checkbox" id="sourceBaiduScholar">
-            百度学术接口
-          </label>
-        </div>
-        <div class="source-option">
-          <label class="inline">
-            <input type="checkbox" id="sourceBaiduWeb">
-            百度搜索
-          </label>
         </div>
       </div>
       <div class="field">
@@ -290,14 +288,14 @@
       </div>
       <div class="field">
         <button id="exportBtn" class="ghost" style="padding-left:0">导出数据</button>
-        <div id="exportStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
+        <div id="exportStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
       <div class="field">
         <button id="clearCacheBtn" class="danger">清除已下载的论文信息</button>
       </div>
     </div>
 
-    <div id="settingsStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
+    <div id="settingsStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="actions">
       <button id="cancelBtn" class="ghost">取消</button>
       <button id="saveBtn" class="primary">保存设置</button>
@@ -307,9 +305,9 @@
   <script>
     const $ = sel => document.querySelector(sel);
 
-    // Same storage key as the main page ('pdh-mode'); no stored value means follow the system.
+    // Same storage key as the main page ('pt-mode'); no stored value means follow the system.
     const systemDark = () => matchMedia('(prefers-color-scheme:dark)').matches;
-    const storedMode = localStorage.getItem('pdh-mode');
+    const storedMode = localStorage.getItem('pt-mode');
     document.documentElement.dataset.mode = storedMode || (systemDark() ? 'dark' : 'light');
 
     let settings = {};
@@ -321,9 +319,8 @@
     // never text from the server, so a provider message or a key cannot reach the page.
     const SOURCE_ROWS = {
       openalex: {key:'#openalexKey', status:'#openalexKeyStatus', test:'#testOpenalexBtn', clear:'#clearOpenalexKeyBtn', link:'#openalexKeyLink'},
-      // The key line of the Baidu block holds the one Qianfan key of both Baidu sources. Its status word and its 测试 button are about
-      // the Baidu search (source baidu_web): that is the source that answers for a valid key; the Baidu Scholar tool does not for every
-      // account. The two switches under it are only checkboxes.
+      // The key line of the Baidu row holds the Qianfan key. Its status word and its 测试 button are about the Baidu search (source
+      // baidu_web). The Baidu Scholar interface is not offered any more (no switch; the server ignores an old stored value).
       baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink', source:'baidu_web'},
     };
     const sourceOf = (id) => SOURCE_ROWS[id].source || id;       // the source whose state a row shows and whose test its button runs
@@ -385,7 +382,7 @@
       const button = $(row.test), target = $(row.status), field = $(row.key);
       const key = field.value.trim(), epoch = ++state.epoch;
       const current = () => epoch === state.epoch && field.value.trim() === key;
-      const show = (word, kind) => window.PDHDialogs.notice(safeSourceText(word, key, field.value.trim()), {target, kind});
+      const show = (word, kind) => window.PTDialogs.notice(safeSourceText(word, key, field.value.trim()), {target, kind});
       button.disabled = true;
       state.shownBusy = true;
       show('测试中…');
@@ -410,7 +407,7 @@
     function invalidateAiTest(message) {
       aiTestEpoch++;
       if (message && (aiTestBusy || $('#aiTestStatus').textContent)) {
-        window.PDHDialogs.notice(message, {target:$('#aiTestStatus')});
+        window.PTDialogs.notice(message, {target:$('#aiTestStatus')});
       }
     }
 
@@ -430,7 +427,7 @@
       button.disabled = true;
       const current = () => epoch === aiTestEpoch && $('#apiKey').value.trim() === key;
       const waiting = () => {
-        if (current()) window.PDHDialogs.notice('正在测试 AI…', {target});
+        if (current()) window.PTDialogs.notice('正在测试 AI…', {target});
       };
       waiting();
       const timer = setInterval(waiting, 1000);
@@ -441,13 +438,13 @@
         clearInterval(timer);
         if (!current()) return;
         if (!res.ok || data.ok !== true) {
-          window.PDHDialogs.notice(`AI 测试失败：${safeAiTestText(data.reason || data.error, key)}`, {target,kind:'error'});
+          window.PTDialogs.notice(`AI 测试失败：${safeAiTestText(data.reason || data.error, key)}`, {target,kind:'error'});
         } else {
           const counts = data.usage || {};
           const total = Number.isInteger(counts.total_tokens) ? counts.total_tokens
             : Number.isInteger(counts.prompt_tokens) && Number.isInteger(counts.completion_tokens) ? counts.prompt_tokens + counts.completion_tokens : null;
           // one short cost word: an unknown amount is never shown as a number
-          window.PDHDialogs.notice(`AI 测试成功 · ${data.usage_reserved || data.usage_unknown || total == null ? '用量未确认' : `本次 ${total} token`}`, {target,kind:'success'});
+          window.PTDialogs.notice(`AI 测试成功 · ${data.usage_reserved || data.usage_unknown || total == null ? '用量未确认' : `本次 ${total} token`}`, {target,kind:'success'});
         }
         // Refresh accounting alone: a connection test must not overwrite unsaved settings.
         try {
@@ -455,7 +452,7 @@
           if (usageRes.ok) renderUsage(await usageRes.json());
         } catch { /* The connection result remains valid if the usage display cannot refresh. */ }
       } catch (error) {
-        if (current()) window.PDHDialogs.notice(`AI 测试失败：${safeAiTestText(error.message, key)}`, {target,kind:'error'});
+        if (current()) window.PTDialogs.notice(`AI 测试失败：${safeAiTestText(error.message, key)}`, {target,kind:'error'});
       } finally {
         clearInterval(timer);
         aiTestBusy = false;
@@ -474,7 +471,7 @@
 
       $('#language').value       = settings.language       || 'zh-CN';
       $('#theme').value          = settings.theme || 'auto';
-      window.PDHTheme.apply($('#theme').value);
+      window.PTTheme.apply($('#theme').value);
       $('#apiProvider').value    = settings.apiProvider    || 'deepseek';
       $('#apiKey').value         = '';
       $('#openalexKey').value    = '';
@@ -486,7 +483,6 @@
       $('#autoCheckUpdates').checked = settings.autoCheckUpdates !== false;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
-      $('#sourceBaiduScholar').checked = settings.sourceBaiduScholar === true;      // off until the user switches it on
       $('#sourceBaiduWeb').checked = settings.sourceBaiduWeb === true;
       baiduConfirmed = settings.baiduScholarConfirmed === true;
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
@@ -558,7 +554,6 @@
         autoCheckUpdates: $('#autoCheckUpdates').checked,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
-        sourceBaiduScholar: $('#sourceBaiduScholar').checked && baiduConfirmed,
         sourceBaiduWeb: $('#sourceBaiduWeb').checked && baiduConfirmed,
         baiduScholarConfirmed: baiduConfirmed,
         updateFrequency: $('#updateFrequency').value,
@@ -578,13 +573,13 @@
           body: JSON.stringify({settings: newSettings})
         });
         if (!saved.ok) throw new Error((await saved.json()).error || '保存失败');
-        if (newSettings.theme === 'auto') localStorage.removeItem('pdh-mode');
-        else localStorage.setItem('pdh-mode', newSettings.theme);
+        if (newSettings.theme === 'auto') localStorage.removeItem('pt-mode');
+        else localStorage.setItem('pt-mode', newSettings.theme);
         window.location.href = '/';
       } catch (e) {
         btn.disabled = false;
         btn.textContent = '保存设置';
-        window.PDHDialogs.notice(e && e.message && e.message !== '保存失败' ? e.message : '保存失败', {target:$('#settingsStatus'),kind:'error'});
+        window.PTDialogs.notice(e && e.message && e.message !== '保存失败' ? e.message : '保存失败', {target:$('#settingsStatus'),kind:'error'});
       }
     }
 
@@ -603,25 +598,16 @@
         if (button.disabled) return;
         button.disabled = true;
         try { await postGateway({clear_source_key: id}); $(row.key).value = ''; }
-        catch (e) { window.PDHDialogs.notice(e.message || '清除失败', {target:$('#settingsStatus'),kind:'error'}); }
+        catch (e) { window.PTDialogs.notice(e.message || '清除失败', {target:$('#settingsStatus'),kind:'error'}); }
         finally { button.disabled = false; }
       };
     }
 
     // Chinese keywords go to Baidu with the user's own key: one question, the first time the switch is turned on.
-    $('#sourceBaiduScholar').onchange = async () => {
-      const box = $('#sourceBaiduScholar');
-      if (!box.checked || baiduConfirmed) return;
-      if (await window.PDHDialogs.confirm('开启后，含中文的关键词会发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
-      else box.checked = false;
-    };
-
-    // The same question for Baidu AI Search on xueshu.baidu.com: the same keywords go to Baidu with the same key, so one answer
-    // (baiduConfirmed) serves both Baidu rows.
     $('#sourceBaiduWeb').onchange = async () => {
       const box = $('#sourceBaiduWeb');
       if (!box.checked || baiduConfirmed) return;
-      if (await window.PDHDialogs.confirm('开启后，含中文的关键词会通过百度搜索发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
+      if (await window.PTDialogs.confirm('开启后，含中文的关键词会通过百度搜索发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
       else box.checked = false;
     };
 
@@ -634,16 +620,16 @@
       const button=$('#exportBtn'), target=$('#exportStatus');
       if(button.disabled)return;
       button.disabled=true;
-      window.PDHDialogs.notice('导出中…',{target});
+      window.PTDialogs.notice('导出中…',{target});
       try {
         const res=await fetch('/api/export');const data=await res.json();
         if(!res.ok)throw new Error(data.error||'导出失败');
-        const filename=`paperdighelper-export-${new Date().toISOString().slice(0,10)}.json`;
-        const result=await window.PDHSaveFile(filename,JSON.stringify(data,null,2));
-        if(result?.status==='cancelled')window.PDHDialogs.notice('已取消',{target});
-        else if(result?.status==='saved')window.PDHDialogs.notice(`导出已保存：${result.path||filename}`,{target,kind:'success'});
+        const filename=`pagetide-export-${new Date().toISOString().slice(0,10)}.json`;
+        const result=await window.PTSaveFile(filename,JSON.stringify(data,null,2));
+        if(result?.status==='cancelled')window.PTDialogs.notice('已取消',{target});
+        else if(result?.status==='saved')window.PTDialogs.notice(`导出已保存：${result.path||filename}`,{target,kind:'success'});
         else throw new Error('未收到有效的保存回执');
-      } catch(e) {window.PDHDialogs.notice(`导出失败：${e.message}`,{target,kind:'error'});}
+      } catch(e) {window.PTDialogs.notice(`导出失败：${e.message}`,{target,kind:'error'});}
       finally {button.disabled=false;}
     };
 
@@ -652,12 +638,12 @@
       if(button.disabled)return;
       button.disabled=true;
       try {
-        if(!await window.PDHDialogs.confirm('清除已下载的论文信息？归档的 PDF 和笔记会保留。'))return;
+        if(!await window.PTDialogs.confirm('清除已下载的论文信息？归档的 PDF 和笔记会保留。'))return;
         const res=await fetch('/api/cache',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_method:'DELETE'})});
         const data=await res.json();if(!res.ok)throw new Error(data.error||'清理失败');
         const names={'source-response-cache':'已下载的论文信息','pdf-archives':'归档 PDF','fulltext':'全文','notes':'笔记','projects':'项目'};
-        window.PDHDialogs.notice(`已清除：${(data.removed||[]).map(x=>window.PDHi18n?.t(names[x]||x)||names[x]||x).join('、')||'无'}`,{target,kind:'success'});
-      } catch(e) {window.PDHDialogs.notice(`清理失败：${e.message}`,{target,kind:'error'});}
+        window.PTDialogs.notice(`已清除：${(data.removed||[]).map(x=>window.PTi18n?.t(names[x]||x)||names[x]||x).join('、')||'无'}`,{target,kind:'success'});
+      } catch(e) {window.PTDialogs.notice(`清理失败：${e.message}`,{target,kind:'error'});}
       finally {button.disabled=false;}
     };
 
@@ -668,12 +654,12 @@
       button.disabled=true;
       try {
         const res=await fetch('/api/update?force=1'); const data=await res.json();
-        if(data.reason_code==='dev_build')window.PDHDialogs.notice('开发版不检查更新',{target,kind:'info'});
-        else if(data.reason_code==='no_asset')window.PDHDialogs.notice('新版本暂无适用于本机的安装包',{target,kind:'info'});
-        else if(data.status!=='ok')window.PDHDialogs.notice('暂时无法检查更新',{target,kind:'error'});
-        else if(data.available)window.PDHDialogs.notice(`有新版本 v${data.latest}，回到主页即可更新`,{target,kind:'success'});
-        else window.PDHDialogs.notice('已是最新版本',{target,kind:'success'});
-      } catch(e) {window.PDHDialogs.notice('暂时无法检查更新',{target,kind:'error'});}
+        if(data.reason_code==='dev_build')window.PTDialogs.notice('开发版不检查更新',{target,kind:'info'});
+        else if(data.reason_code==='no_asset')window.PTDialogs.notice('新版本暂无适用于本机的安装包',{target,kind:'info'});
+        else if(data.status!=='ok')window.PTDialogs.notice('暂时无法检查更新',{target,kind:'error'});
+        else if(data.available)window.PTDialogs.notice(`有新版本 v${data.latest}，回到主页即可更新`,{target,kind:'success'});
+        else window.PTDialogs.notice('已是最新版本',{target,kind:'success'});
+      } catch(e) {window.PTDialogs.notice('暂时无法检查更新',{target,kind:'error'});}
       finally {button.disabled=false;}
     };
 
@@ -684,15 +670,15 @@
       button.disabled=true;
       try {
         const list=await (await fetch('/api/projects')).json();
-        const ids=(list.projects||[]).map(p=>p.id), saved=localStorage.getItem('pdh-current-project');
+        const ids=(list.projects||[]).map(p=>p.id), saved=localStorage.getItem('pt-current-project');
         const returnProject=ids.includes(saved)?saved:(ids[0]||null);
         const res=await fetch('/api/onboarding'); const data=await res.json().catch(()=>({}));
         if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
         // The welcome card (language, appearance) comes first; the demo sandbox is built when it is confirmed.
-        window.PDHTour.begin({step:'w0',version:data.version,returnProject});
+        window.PTTour.begin({step:'w0',version:data.version,returnProject});
         window.location.href='/';
       } catch(e) {
-        window.PDHDialogs.notice(`打不开新手指引：${e.message}`,{target:$('#settingsStatus'),kind:'error'});
+        window.PTDialogs.notice(`打不开新手指引：${e.message}`,{target:$('#settingsStatus'),kind:'error'});
         button.disabled=false;
       }
     };
@@ -701,6 +687,6 @@
   </script>
   <link rel="stylesheet" href="/tour.css">
   <script src="/tour.js"></script>
-  <script>window.PDHTour.boot('settings', {});</script>
+  <script>window.PTTour.boot('settings', {});</script>
 </body>
 </html>

@@ -48,8 +48,8 @@ function browser(lang) {
   const all=node=>[node,...(node.childNodes||[]).flatMap(all)];
   const root=new Element('main'),html=new Element('html');html.append(root);
   const document={documentElement:html,createElement:tag=>new Element(tag),addEventListener(){},createTreeWalker(node,_show,filter){const out=[];const visit=element=>{for(const child of element.childNodes||[]){const result=filter.acceptNode(child);if(result!==2){out.push(child);visit(child);}}};visit(node);let index=0;return {nextNode:()=>out[index++]||null};}};
-  const context=vm.createContext({document,NodeFilter:{SHOW_ELEMENT:1,SHOW_TEXT:4,FILTER_ACCEPT:1,FILTER_REJECT:2},MutationObserver:class{constructor(callback){observer=callback;}observe(){}},PDH_I18N:{lang,messages},URLSearchParams});context.window=context;
-  const language=next=>{observer=undefined;context.PDH_I18N={lang:next,messages};vm.runInContext(read('i18n.js'),context);};language(lang);
+  const context=vm.createContext({document,NodeFilter:{SHOW_ELEMENT:1,SHOW_TEXT:4,FILTER_ACCEPT:1,FILTER_REJECT:2},MutationObserver:class{constructor(callback){observer=callback;}observe(){}},PAGETIDE_I18N:{lang,messages},URLSearchParams});context.window=context;
+  const language=next=>{observer=undefined;context.PAGETIDE_I18N={lang:next,messages};vm.runInContext(read('i18n.js'),context);};language(lang);
   vm.runInContext(read('profile-ui.js'),context);
   const flush=()=>observer?.([{type:'childList',addedNodes:[root]}]);
   const text=()=>all(root).filter(node=>node.nodeType===3).map(node=>node.nodeValue).join('');
@@ -58,12 +58,12 @@ function browser(lang) {
 }
 const entry={key:'paper',title:'收藏',kind:'positive',action:'useful',published:'2026',time:'2026-10-08',sources:['seed','useful_feedback'],reason:'有用',feedback_id:1};
 const fixture=()=>({coverage:{start:'2026-09-01',end:'2026-10-08',last_activity:null},signals:{saved:2,positive:1,negative:1,too_hard:1},timeline:{weeks:[{start:'2026-10-01',end:'2026-10-08',saved:2,positive:1,negative:1,too_hard:1,exposed:2,activity:7}]},keyword_distribution:[{term:'有用',documents:2,sources:['seed','useful_feedback']}],keyword_evidence:{papers:2},inventory_distribution:[{term:'种子'}],inventory_evidence:{papers:1},weekly_change:{week_start:'2026-10-01',week_end:'2026-10-08',stats:{saved:2,positive:1},previous_stats:{saved:1},has_activity:true,comparable:true,keyword_changes:{rising:[{term:'收藏',delta:1}],falling:[]}},recent_feedback:[entry],versions:[{id:1,created_at:'2026-10-01',data:{pinned_terms:['有用']}}]});
-function profile(b){const page=b.context.PDHProfile.create(b.root,{api:async()=>({items:[entry],total:1}),refresh(){},projectName:()=> '有用',openPaper(){},notify(){}});page.render(fixture(),{project_id:'p',pinned_terms:['收藏'],frozen:false},'有用');return page;}
+function profile(b){const page=b.context.PTProfile.create(b.root,{api:async()=>({items:[entry],total:1}),refresh(){},projectName:()=> '有用',openPaper(){},notify(){}});page.render(fixture(),{project_id:'p',pinned_terms:['收藏'],frozen:false},'有用');return page;}
 
 test('actual recommendation cards preserve original titles and show no source-report language lines in either interface',()=>{
   for(const lang of ['zh-CN','en-US']){
     const b=browser(lang),src=read('index.html');vm.runInContext(read('paper-policy.js'),b.context);
-    Object.assign(b.context,{window:{PDHMarks:require('../app/static/feedback-marks.js')},esc:b.context.PDHProfile.esc,state:{triaging:false,triagingKeys:new Set(),currentProject:'p'},pdfBadge:()=>'',routeBadge:()=>'',explorationEvidence:()=>'',aiSlot:()=>'<b>AI 速览</b><span data-no-i18n>AI 中文解释</span>'});
+    Object.assign(b.context,{window:{PTMarks:require('../app/static/feedback-marks.js')},esc:b.context.PTProfile.esc,state:{triaging:false,triagingKeys:new Set(),currentProject:'p'},pdfBadge:()=>'',routeBadge:()=>'',explorationEvidence:()=>'',aiSlot:()=>'<b>AI 速览</b><span data-no-i18n>AI 中文解释</span>'});
     vm.runInContext(src.slice(src.indexOf('function cardHTML('),src.indexOf('function renderCards(')),b.context);
     b.root.innerHTML=b.context.cardHTML({key:'paper',title:'中文原始题名',language:{metadata_language:'en',metadata_source:'OpenAlex',fulltext_status:'unverified',title_metadata_conflict:true},why:''},0);b.flush();
     assert.equal(b.root.querySelector('.paper-title').textContent,'中文原始题名');assert.match(b.text(),/AI 中文解释/);assert.doesNotMatch(b.text(),/OpenAlex|来源报告语言|全文语言未核验|题名文字与英文来源报告不一致|Source-reported language|Full-text language|title.*source.*report/i);
@@ -115,11 +115,11 @@ test('actual project facts translate fixed creation modes and the empty keyword 
 test('actual route detail translates system prerequisite tooltips without changing concept names',()=>{
   const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);
   const graph={concepts:[{id:'a',name:'收藏',terms:['种子']},{id:'b',name:'有用',terms:[]}],targets:['b'],prereqs:[{from:'a',to:'b',support:0.6}]};
-  b.root.innerHTML=b.context.PDHRoute.detailHTML(graph,graph.concepts[1],{});b.flush();
+  b.root.innerHTML=b.context.PTRoute.detailHTML(graph,graph.concepts[1],{});b.flush();
   const chip=b.root.querySelector('.need');assert.equal(chip.textContent,'收藏');assert.doesNotMatch(chip.getAttribute('title'),/[㐀-鿿]/);assert.match(chip.getAttribute('title'),/supports/);
 });
 test('actual import row errors translate defaults and saved identity warnings while preserving filenames and paper titles',()=>{
-  const b=browser('en-US'),src=read('import.js');b.context.esc=b.context.PDHProfile.esc;
+  const b=browser('en-US'),src=read('import.js');b.context.esc=b.context.PTProfile.esc;
   vm.runInContext(src.slice(src.indexOf('const systemError ='),src.indexOf('\nfunction fail('))+'\n'+src.slice(src.indexOf('function paperLine('),src.indexOf("$('#tabs').addEventListener")),b.context);
   for(const item of [{id:1,state:'failed',relative_path:'收藏.pdf'},{id:2,state:'unmatched',relative_path:'有用.pdf',error:'标识对应的库内题名与 PDF 首页不一致，请核对后选择',paper:{title:'收藏'}}]){
     b.root.innerHTML=b.context.renderRow(item);b.flush();const errors=b.root.querySelectorAll('.err').map(node=>node.textContent).join('');
@@ -129,13 +129,13 @@ test('actual import row errors translate defaults and saved identity warnings wh
   assert.equal(b.root.querySelector('img'),null);assert.match(b.root.querySelector('.err').textContent,/Entry <img src=x onerror=1> has no title/);
 });
 test('actual intro-input excerpts translate their labels and stay exact; a partial-input receipt is not drawn',()=>{
-  const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.esc=b.context.PDHProfile.esc;
-  b.root.innerHTML=b.context.PDHRoute.introInputHTML({scope_notice:'部分匹配论文因本次预算未发送；简介只依据下列节选起草。',context_excerpt:{concept:'收藏',terms:['有用'],goal:'种子',papers:[{title:'太难',abstract:'不相关'}]}});b.flush();
+  const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.esc=b.context.PTProfile.esc;
+  b.root.innerHTML=b.context.PTRoute.introInputHTML({scope_notice:'部分匹配论文因本次预算未发送；简介只依据下列节选起草。',context_excerpt:{concept:'收藏',terms:['有用'],goal:'种子',papers:[{title:'太难',abstract:'不相关'}]}});b.flush();
   assert.equal(b.root.querySelector('.map-note'),null);assert.doesNotMatch(b.text(),/部分匹配论文因本次预算未发送|Some matched papers/);
   assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());assert.match(b.text(),/收藏/);assert.match(b.text(),/不相关/);
 });
 test('actual learning-map undo describes the fixed system event in the current language',()=>{
-  const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.R=b.context.PDHRoute;b.context.esc=b.context.PDHProfile.esc;
+  const b=browser('en-US');vm.runInContext(read('route-editor.js'),b.context);b.context.R=b.context.PTRoute;b.context.esc=b.context.PTProfile.esc;
   b.context.growth={result:{candidates:[],pending:[]},undo:{id:1,label:'保存学习路径',revision:2},judging:false};b.context.state={route:{revision:2},dirty:false};b.context.part=()=>b.root;
   const src=read('route-page.js');vm.runInContext(src.slice(src.indexOf('function renderGrowth()'),src.indexOf('async function loadGrowth()')),b.context);
   b.context.renderGrowth();b.flush();assert.doesNotMatch(b.systems(),/[㐀-鿿]/,b.systems());assert.match(b.text(),/Save learning path/);assert.match(b.text(),/Undo/);
@@ -145,7 +145,7 @@ function organization(b){
   b.context.module={exports:{}};b.context.addEventListener=()=>{};
   const storage=new Map();b.context.localStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)};
   b.context.crypto={randomUUID:()=> 'local-test-client'};b.context.setTimeout=setTimeout;b.context.clearTimeout=clearTimeout;b.context.URL=URL;
-  b.context.PDH={state:{currentProject:'p'},api:async()=>{throw Error('Unexpected request');}};
+  b.context.PT={state:{currentProject:'p'},api:async()=>{throw Error('Unexpected request');}};
   vm.runInContext(read('organization.js'),b.context);return b.context.module.exports;
 }
 test('actual library project tags and paper selectors retain user names in text and accessible labels',()=>{
@@ -165,16 +165,16 @@ test('actual library undo handles fixed event labels in both languages',()=>{
 });
 test('typed parser-system formatter translates error frames while preserving raw record identifiers and snippets',()=>{
   const b=browser('en-US');
-  assert.equal(b.context.PDHi18n.system('条目 收藏 没有标题'),'Entry 收藏 has no title');
-  assert.equal(b.context.PDHi18n.system('条目 有用：字段没有结束'),'Entry 有用: A field is not closed');
-  assert.equal(b.context.PDHi18n.system('有一个条目没有结束：收藏 <title>'),'An entry is not closed: 收藏 <title>');
-  assert.equal(b.context.PDHi18n.system('第 2 项没有读取：没有标题'),'Item 2 was not read: No title');
-  for(const error of ['第 2 条记录没有标题','第 3 条记录缺少 ER 结束标记，已跳过','条目超过上限 20，多出的没有读取'])assert.doesNotMatch(b.context.PDHi18n.system(error),/[㐀-鿿]/);
-  assert.equal(b.context.PDHi18n.system('Unknown diagnostic 收藏'),'Unknown diagnostic 收藏');
-  b.language('zh-CN');assert.equal(b.context.PDHi18n.system('条目 收藏 没有标题'),'条目 收藏 没有标题');
+  assert.equal(b.context.PTi18n.system('条目 收藏 没有标题'),'Entry 收藏 has no title');
+  assert.equal(b.context.PTi18n.system('条目 有用：字段没有结束'),'Entry 有用: A field is not closed');
+  assert.equal(b.context.PTi18n.system('有一个条目没有结束：收藏 <title>'),'An entry is not closed: 收藏 <title>');
+  assert.equal(b.context.PTi18n.system('第 2 项没有读取：没有标题'),'Item 2 was not read: No title');
+  for(const error of ['第 2 条记录没有标题','第 3 条记录缺少 ER 结束标记，已跳过','条目超过上限 20，多出的没有读取'])assert.doesNotMatch(b.context.PTi18n.system(error),/[㐀-鿿]/);
+  assert.equal(b.context.PTi18n.system('Unknown diagnostic 收藏'),'Unknown diagnostic 收藏');
+  b.language('zh-CN');assert.equal(b.context.PTi18n.system('条目 收藏 没有标题'),'条目 收藏 没有标题');
 });
 test('actual sidecar upload and creation failure row use typed system errors and preserve filenames',async()=>{
-  const b=browser('en-US'),src=read('import.js');b.context.esc=b.context.PDHProfile.esc;b.context.$=selector=>b.root.querySelector(selector);
+  const b=browser('en-US'),src=read('import.js');b.context.esc=b.context.PTProfile.esc;b.context.$=selector=>b.root.querySelector(selector);
   b.root.innerHTML='<div id="sidecarNote"></div><ul id="seedList"></ul>';
   b.context.S={batch:{id:'sidecar-test'},stage:'upload'};
   b.context.api=async()=>({entries:2,with_files:1,errors:['第 2 条记录没有标题','条目 收藏 没有标题']});b.context.batchUrl=()=>'/local-test';
@@ -198,7 +198,7 @@ test('actual library category names stay original in directory, breadcrumb and d
 });
 
 test('actual persisted import rejection reports a file that failed to save, without claiming no transmission',()=>{
-  const b=browser('en-US'),src=read('import.js');b.context.esc=b.context.PDHProfile.esc;b.context.$=selector=>b.root.querySelector(selector);
+  const b=browser('en-US'),src=read('import.js');b.context.esc=b.context.PTProfile.esc;b.context.$=selector=>b.root.querySelector(selector);
   b.root.innerHTML='<section id="failedBox"><p id="failedText"></p><ul id="failedList"></ul><button id="addMore"></button></section>';
   b.context.S={uploadFailed:[],batch:{id:'b',upload_failures:[{path:'收藏.pdf',message:'这不是 PDF 文件'}],counts:{failed:0}}};
   vm.runInContext(src.slice(src.indexOf('const systemError ='),src.indexOf('\nfunction fail('))+'\n'+src.slice(src.indexOf('function renderFailedUploads()'),src.indexOf('function renderCategories(')),b.context);

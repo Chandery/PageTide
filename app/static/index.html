@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<title>PaperDigHelper</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<title>PageTide</title>
 <link rel="stylesheet" href="/theme.css">
 <style>
   * { box-sizing:border-box; }
@@ -87,9 +87,8 @@
   /* placeholder page for projects not opened in this session */
   .mc-ph-top { display:flex; align-items:center; gap:14px; padding:14px max(24px,calc((100% - 1200px)/2));
                border-bottom:1px solid var(--line); background:var(--surface-1); }
-  .mc-ph-top img { width:30px; height:30px; }
-  .mc-ph-top b { font:600 20px/1 var(--display); }
-  .mc-ph-top b em { color:var(--accent-text); }
+  .mc-ph-top img { height:24px; width:auto; }
+  html[data-mode="dark"] .mc-ph-top img { content:url(/wordmark-dark.png); }
   .mc-ph-pill { padding:8px 16px; border-radius:999px; font-size:14px; box-shadow:var(--sh-out-sm); }
   /* Centred by its side padding only: a max-width on top of that padding left the content 0 px wide on wide windows. */
   .mc-ph-body { margin:0; padding:40px max(28px,calc((100% - 1200px)/2)); }
@@ -402,10 +401,9 @@
     background:color-mix(in srgb, var(--base) 84%, transparent);
     backdrop-filter:blur(22px) saturate(160%); }
   .brand { font-size:calc(15.5px * var(--s)); letter-spacing:0; gap:calc(10px * var(--s)); white-space:nowrap; }
-  .wordmark { font-family:var(--display); font-size:calc(19px * var(--s)); font-weight:800; }
-  .wordmark em { color:var(--mark); font-style:normal; }
+  .wordmark { height:calc(24px * var(--s)); width:auto; display:block; }
+  html[data-mode="dark"] .wordmark { content:url(/wordmark-dark.png); }
   h1, .card h3, .detail-panel h2, .page h2, #preview h4 { font-family:var(--display); font-weight:750; }
-  .brand-mark { width:30px; height:30px; display:block; flex:none; }
   .dot { width:10px; height:10px; box-shadow:0 0 0 4px var(--accent-soft); }
   .tabs { background:transparent; border:0; padding:0; box-shadow:none; gap:calc(2px * var(--s)); }
   .tab { position:relative; padding:calc(8px * var(--s)) calc(16px * var(--s)); border-radius:999px; font-size:calc(13.5px * var(--s)); color:var(--muted); font-weight:600; }
@@ -586,7 +584,7 @@
     .tab { padding:calc(7px * var(--s)) calc(10px * var(--s)); font-size:calc(12px * var(--s)); }
     .tab .icon { display:none; }
     .brand { font-size:calc(14px * var(--s)); gap:calc(8px * var(--s)); }
-    .brand-mark { width:28px; height:28px; }
+    .wordmark { height:calc(22px * var(--s)); }
     main { padding:calc(20px * var(--s)) calc(16px * var(--s)) calc(70px * var(--s)); }
     .hero { padding:calc(20px * var(--s)) 0; }
     .hero h1 { font-size:calc(24px * var(--s)); }
@@ -609,12 +607,17 @@
   /* — large screens: the steps (--s, --wrap) are defined in theme.css; the dense library page keeps --s:1 — */
   #organizationRoot { --s:1; }
   /* The demo project is read-only for the person's data: whatever would fetch, call a model, read a PDF or edit is simply not shown. */
-  html.pdh-demo #btnRefresh, html.pdh-demo #refreshRecord, html.pdh-demo #pet, html.pdh-demo #petPanel,
-  html.pdh-demo .ai-action, html.pdh-demo .read-action, html.pdh-demo #dRead, html.pdh-demo .detail-projects,
-  html.pdh-demo #organizationRoot [data-action="suggest"], html.pdh-demo #organizationRoot [data-action="import"],
-  html.pdh-demo #organizationRoot [data-action="export"], html.pdh-demo #organizationRoot .org-notes,
-  html.pdh-demo #organizationRoot [data-action="read"], html.pdh-demo #organizationRoot .org-note-mark,
-  html.pdh-demo #organizationRoot [data-action="membership"], html.pdh-demo #organizationRoot [data-action="paper-membership"] { display:none !important; }
+  html.pt-demo #btnRefresh, html.pt-demo #refreshRecord,
+  html.pt-demo .ai-action, html.pt-demo .detail-projects,
+  html.pt-demo #organizationRoot [data-action="suggest"],
+  html.pt-demo #organizationRoot [data-action="export"], html.pt-demo #organizationRoot .org-notes,
+  html.pt-demo #organizationRoot .org-note-mark, html.pt-demo #organizationRoot [data-action="read"],
+  html.pt-demo #organizationRoot [data-action="membership"], html.pt-demo #organizationRoot [data-action="paper-membership"] { display:none !important; }
+  /* Reading is on for the one paper that carries the demo reading material (a local PDF in the sandbox); the assistant needs no
+     page-image or longer-context switches because nothing is sent. */
+  html.pt-demo .read-action:not([data-read="https://doi.org/10.48550/arxiv.1706.03762"]),
+  html.pt-demo #dRead:not([data-key="https://doi.org/10.48550/arxiv.1706.03762"]),
+  html.pt-demo #pet, html.pt-demo #petImg, html.pt-demo #petPanel .switch, html.pt-demo #petLog .msg.sys .fol { display:none !important; }   /* the general starter questions would all get the one general reply */
   .ai-demo-tag { color:var(--muted, inherit); }
   @media (min-width:1700px) { .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } }
@@ -626,7 +629,7 @@
 <script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
 <header class="top">
-  <div class="brand"><img class="brand-mark" src="/brand-mark.svg" alt="" aria-hidden="true"><span class="wordmark">Paper<em>Dig</em>Helper</span></div>
+  <div class="brand"><img class="wordmark" src="/wordmark.png" alt="PageTide"></div>
   <button class="project-btn" id="projectBtn" title="项目总览" aria-haspopup="dialog">
     <i class="icon folder" aria-hidden="true"></i>
     <span id="currentProjectName">加载中...</span>
@@ -744,16 +747,16 @@
 const $ = (s) => document.querySelector(s);
 const state = { triagingKeys:new Set(), aiFailures:{}, view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
                 currentProject:null, projects:[], realProjects:[], demo:null, maintained:new Set() };
-const DEMO_ID = 'pdh-demo';
+const DEMO_ID = 'pt-demo';
 const inDemo = () => state.currentProject === DEMO_ID;   // the demo project exists only during the guided tour; its id is never stored
 
 // ------------------------------------------------------------ appearance
-function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m);
-  window.dispatchEvent(new CustomEvent('pdh-mode', { detail:m })); }
-setMode(localStorage.getItem('pdh-mode') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-localStorage.removeItem('pdh-accent');   // accent picker retired with the PaperDig palette
+function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pt-mode', m);
+  window.dispatchEvent(new CustomEvent('pt-mode', { detail:m })); }
+setMode(localStorage.getItem('pt-mode') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+localStorage.removeItem('pt-accent');   // accent picker retired with the PageTide palette
 $('#modeBtn').onclick = async () => {
-  try { await window.PDHTheme.set(document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'); }
+  try { await window.PTTheme.set(document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'); }
   catch (e) { toast(e.message, 'err'); }
 };
 
@@ -772,7 +775,7 @@ function toast(msg, kind='ok', ms=3600) {
   setTimeout(() => { el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),250); }, ms);
 }
 // While the guided tour shows the demo project every request asks for it with this header (settings, update and tour state ignore it).
-function demoHeaders() { return inDemo() ? { 'X-PDH-Demo': '1' } : {}; }
+function demoHeaders() { return inDemo() ? { 'X-PT-Demo': '1' } : {}; }
 async function api(path, body) {
   const res = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json', ...demoHeaders()},body:JSON.stringify(body)} : {headers:demoHeaders()});
   const data = await res.json().catch(() => ({}));
@@ -837,7 +840,7 @@ function renderRoute(route) {
   const panel = $('#routePanel');
   if (!panel) return;
   $('#btnDaily').textContent = dailyButtonText();
-  if (window.PDH_ROUTE_BETA === false) {
+  if (window.PAGETIDE_ROUTE_BETA === false) {
     // Learning-map mode is a beta setting, off by default: hotspot mode needs no panel at all.
     panel.hidden = true;
     panel.innerHTML = '';
@@ -927,7 +930,7 @@ async function doJudge(key) {
   try {
     const out = await api('/api/route', { action: 'direction-judge', project_id: projectId });
     if (state.currentProject !== projectId) return;
-    const progress = PDHRoute.judgeProgress(out);
+    const progress = PTRoute.judgeProgress(out);
     if (progress) {
       toast(progress.message, progress.warning ? 'warn' : 'ok');
       if (progress.complete) prompts.forEach(clearPrompt);
@@ -943,7 +946,7 @@ function workTypeLabel(value) {
   return ({review:'综述', 'conference-paper':'会议论文', article:'期刊文章', preprint:'预印本'})[value] || value || '';
 }
 function cardHTML(c, i) {
-  const v = window.PDHMarks.view(c), saved = v.saved;
+  const v = window.PTMarks.view(c), saved = v.saved;
   const exploring = c.route && /^explore/.test(c.route.kind || '');
   return `
   <article class="card${exploring ? ' is-explore' : ''}${v.irrelevant ? ' is-passed' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
@@ -961,7 +964,7 @@ function cardHTML(c, i) {
       <span class="actions-fb">
         <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}" aria-pressed="${saved}">
           <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
-        ${window.PDHMarks.buttonsHTML(c, esc)}
+        ${window.PTMarks.buttonsHTML(c, esc)}
       </span>
       <span class="actions-end">
         <button class="tiny ai-action" data-ai="${esc(c.key)}" ${state.triaging || state.triagingKeys.has(c.key) ? 'disabled' : ''} title="${c.summary ? '让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）' : '让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）'}"><i class="icon sparkles" aria-hidden="true"></i>${c.summary ? '重新速览' : 'AI 速览'}</button>
@@ -982,7 +985,7 @@ function renderCards() {
 }
 let profileUI;
 function renderProfile() {
-  if (!profileUI) profileUI = PDHProfile.create($('#view-profile'), {
+  if (!profileUI) profileUI = PTProfile.create($('#view-profile'), {
     api, refresh:load, openPaper:openDetail, notify:toast,
     projectName:()=>state.projects.find(p=>p.id===state.currentProject)?.name || '当前项目'
   });
@@ -998,16 +1001,16 @@ function renderProfile() {
 // ------------------------------------------------------------------ projects
 // The switcher lists the person's projects, plus the demo while the tour is on. The demo is never stored as the current project.
 function syncProjects() {
-  state.projects = [...state.realProjects, ...(window.PDHTour.current() && state.demo ? [state.demo] : [])];
+  state.projects = [...state.realProjects, ...(window.PTTour.current() && state.demo ? [state.demo] : [])];
 }
 function applyDemoMode() {
   const on = inDemo();
-  document.documentElement.classList.toggle('pdh-demo', on);
+  document.documentElement.classList.toggle('pt-demo', on);
   const auto = $('#autoAi');
   if (auto && on) { auto.checked = true; const label = auto.closest('label'); if (label) label.hidden = true; }
   else if (auto) { const label = auto.closest('label'); if (label) label.hidden = false; }
 }
-function rememberProject(id) { if (id && id !== DEMO_ID) localStorage.setItem('pdh-current-project', id); }
+function rememberProject(id) { if (id && id !== DEMO_ID) localStorage.setItem('pt-current-project', id); }
 async function loadProjects() {
   const data = await api('/api/projects');
   state.realProjects = (data.projects || []).filter(p => p.id !== DEMO_ID);
@@ -1038,13 +1041,13 @@ $('#projectEdit').addEventListener('click', (e) => {
 });
 let tourLeaveTo = null;   // where to go once the tour has been ended by leaving the demo (a real project, the creation page)
 async function leaveDemo(url) {
-  if (!window.PDHTour.current()) { window.location.href = url; return; }
+  if (!window.PTTour.current()) { window.location.href = url; return; }
   tourLeaveTo = url;
-  await window.PDHTour.skip();
+  await window.PTTour.skip();
 }
 
 async function switchProject(projectId) {
-  if (projectId !== DEMO_ID && window.PDHTour.current()) { rememberProject(projectId); await leaveDemo('/'); return; }   // leaving the demo for a real project ends the tour
+  if (projectId !== DEMO_ID && window.PTTour.current()) { rememberProject(projectId); await leaveDemo('/'); return; }   // leaving the demo for a real project ends the tour
   closeDetail();
   if (profileUI) profileUI.invalidate();
   state.currentProject = projectId;
@@ -1052,7 +1055,7 @@ async function switchProject(projectId) {
   showTriageFailure(null, null, projectId);
   rememberProject(projectId);
   renderProjectSelector();
-  window.PDHOrganization?.reset?.().catch?.(() => {});   // the library page follows the project
+  window.PTOrganization?.reset?.().catch?.(() => {});   // the library page follows the project
   await load();
   if (state.view === 'library') await refreshStats();
   autoMaintain();
@@ -1272,7 +1275,7 @@ $('#btnRefresh').onclick = async () => {
   finally { b.disabled = false; b.textContent = '抓取新论文'; }
 };
 function selectView(view, openOrganization = true) {
-  closeDetail(); window.PDHOrganization?.cancelNavigation();
+  closeDetail(); window.PTOrganization?.cancelNavigation();
   const t = [...document.querySelectorAll('.tab')].find(t => t.dataset.view === view);
   if (!t) return;
   document.querySelectorAll('.tab').forEach(x => {
@@ -1290,7 +1293,7 @@ function selectView(view, openOrganization = true) {
   $('#view-profile').classList.toggle('hidden', state.view !== 'profile');
   window.scrollTo(0,0);
   if (state.view === 'profile') load().catch(e=>toast(e.message,'err'));
-  if (organized && openOrganization) window.PDHOrganization.open(state.view).catch(e => toast(e.message, 'err'));
+  if (organized && openOrganization) window.PTOrganization.open(state.view).catch(e => toast(e.message, 'err'));
 }
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => selectView(t.dataset.view));
 
@@ -1348,7 +1351,7 @@ function feedbackClick(button) {
 }
 $('#cards').addEventListener('click', (e) => {
   const rd = e.target.closest('button[data-read]');
-  if (rd) { e.stopPropagation(); window.PDH.openReader(rd.dataset.read, rd.dataset.title); return; }
+  if (rd) { e.stopPropagation(); window.PT.openReader(rd.dataset.read, rd.dataset.title); return; }
   const ai = e.target.closest('button[data-ai]');
   if (ai) { e.stopPropagation(); triageOne(ai.dataset.ai); return; }
   const judge = e.target.closest('button[data-judge]');
@@ -1415,7 +1418,7 @@ async function openDetail(key) {
     if (!current()) return;
     const s = d.summary;
     const joinedProjectIds = new Set((d.projects || []).map(p => p.project_id));
-    const marks = window.PDHMarks.detailMarks(d), shown = window.PDHMarks.view(marks);
+    const marks = window.PTMarks.detailMarks(d), shown = window.PTMarks.view(marks);
     $('#detail').innerHTML = `
       <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
       <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
@@ -1427,13 +1430,13 @@ async function openDetail(key) {
         </div>
         <div class="detail-actions">
           <div class="actions-main">
-            <button class="primary" id="dRead">阅读 PDF</button>
+            <button class="primary" id="dRead" data-key="${esc(d.key)}">阅读 PDF</button>
             <button id="dToggle" class="${shown.saved ? 'saved' : 'outline'}" data-key="${esc(d.key)}" data-saved="${shown.saved}">
               ${shown.saved ? '✓ 已收藏' : '☆ 收藏到论文库'}</button>
           </div>
           <div class="actions-more">
             ${d.url ? `<a class="btn tiny" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
-            ${window.PDHMarks.buttonsHTML(marks, esc)}
+            ${window.PTMarks.buttonsHTML(marks, esc)}
           </div>
         </div>
         ${(state.projects || []).filter(p => p.id !== state.currentProject).length ? `<section class="detail-section detail-projects"><h3>加入其他项目</h3>
@@ -1444,7 +1447,7 @@ async function openDetail(key) {
             <button class="tiny" id="dAddProject" ${state.projects.filter(p => p.id !== state.currentProject && !joinedProjectIds.has(p.id)).length ? '' : 'disabled'}>加入项目</button>
           </div>
         </section>` : ''}
-        ${window.PDHPaperContext.html(d.context, d.key)}
+        ${window.PTPaperContext.html(d.context, d.key)}
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>${s.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
         ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div>${inDemo() && d.arxiv_id ? `<div class="sub">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${esc(d.arxiv_id)}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</section>` : ''}
@@ -1453,7 +1456,7 @@ async function openDetail(key) {
     const close = closeDetail;
     $('#backBtn').onclick = close;
     $('.detail-scrim').onclick = close;
-    $('#dRead').onclick = () => { closeDetail(); window.PDH.openReader(d.key, d.title); };
+    $('#dRead').onclick = () => { closeDetail(); window.PT.openReader(d.key, d.title); };
     $('#dAddProject')?.addEventListener('click', async () => {
       const target = $('#dProjectTarget')?.value;
       if (!target || !current()) return;
@@ -1465,7 +1468,7 @@ async function openDetail(key) {
         toast('论文已加入项目', 'ok');
       } catch (e) { toast(`加入失败：${e.message}`, 'err'); }
     });
-    window.PDH.setPetContext(d.key, d.title);
+    window.PT.setPetContext(d.key, d.title);
     $('#dToggle').onclick = async (ev) => {
       if (!current()) return;
       const btn = ev.currentTarget, wasSaved = btn.dataset.saved === 'true';
@@ -1479,11 +1482,11 @@ async function openDetail(key) {
 }
 $('#detail').addEventListener('click', (e) => {
   const retry = e.target.closest('button[data-action="learning-match-retry"]');
-  if (retry) { if (retry.dataset.project === state.currentProject) { window.PDHOrganization?.invalidateLearning?.(retry.dataset.key)?.catch?.(e => toast(e.message, 'warn')); openDetail(retry.dataset.key); } return; }
+  if (retry) { if (retry.dataset.project === state.currentProject) { window.PTOrganization?.invalidateLearning?.(retry.dataset.key)?.catch?.(e => toast(e.message, 'warn')); openDetail(retry.dataset.key); } return; }
   const graph = e.target.closest('button[data-action="graph-navigate"]');
   if (graph) {
     const target = {...graph.dataset}; closeDetail(); selectView('library', false);
-    window.PDHOrganization.navigate(target).catch(x => toast(x.message, 'err')); return;
+    window.PTOrganization.navigate(target).catch(x => toast(x.message, 'err')); return;
   }
   const judge = e.target.closest('button[data-judge]');
   if (judge) {
@@ -1556,28 +1559,28 @@ document.addEventListener('scroll', hidePreview, { passive: true });
   try {
     const requested = new URLSearchParams(window.location.search).get('project_id');
     if (requested && requested !== DEMO_ID) state.currentProject = requested;
-    const saved = localStorage.getItem('pdh-current-project');
+    const saved = localStorage.getItem('pt-current-project');
     if (!requested && saved && saved !== DEMO_ID) state.currentProject = saved;
     await loadProjects();
-    if (!window.PDHTour.current()) {
+    if (!window.PTTour.current()) {
       let onboarding = null;
       try { onboarding = await api('/api/onboarding'); } catch (e) { /* no tour this time */ }
-      if (onboarding && window.PDHTour.shouldOffer(onboarding, sessionStorage.getItem(window.PDHTour.OFFERED_KEY))) {
+      if (onboarding && window.PTTour.shouldOffer(onboarding, sessionStorage.getItem(window.PTTour.OFFERED_KEY))) {
         // The welcome card comes first (language, appearance); the demo sandbox is built when it is confirmed.
-        window.PDHTour.begin({ step: 'w0', version: onboarding.version, returnProject: state.realProjects.length ? state.currentProject : null });
+        window.PTTour.begin({ step: 'w0', version: onboarding.version, returnProject: state.realProjects.length ? state.currentProject : null });
         syncProjects();
       } else if (!state.realProjects.length) { window.location.replace('/project_creation.html'); return; }
     }
-    if (window.PDHTour.current() && state.demo) { state.currentProject = DEMO_ID; renderProjectSelector(); }
+    if (window.PTTour.current() && state.demo) { state.currentProject = DEMO_ID; renderProjectSelector(); }
     applyDemoMode();
-    const note = sessionStorage.getItem('pdh-notice');
-    if (note) { sessionStorage.removeItem('pdh-notice'); toast(note, 'ok', 8000); }
+    const note = sessionStorage.getItem('pt-notice');
+    if (note) { sessionStorage.removeItem('pt-notice'); toast(note, 'ok', 8000); }
     await load();
     // ?view=profile / ?view=library opens that tab (the weekly report's "返回画像" link uses it)
     const wanted = new URLSearchParams(window.location.search).get('view');
     if (wanted === 'profile' || wanted === 'library') document.querySelector(`.tab[data-view="${wanted}"]`)?.click();
     autoMaintain();
-    window.PDHTour.boot('index', {
+    window.PTTour.boot('index', {
       selectView: (view) => selectView(view),
       hasRealProject: () => state.realProjects.length > 0,
       api: (path, body) => api(path, body),
@@ -1590,10 +1593,10 @@ document.addEventListener('scroll', hidePreview, { passive: true });
 })();
 
 // Cross-script bridge for the ES-module reader/assistant below.
-window.PDH = { api, toast, esc, md, state, openDetail, workTypeLabel, setPetContext: (k, t, project) => window.PDHSetContext?.(k, t, project) };
+window.PT = { api, toast, esc, md, state, openDetail, workTypeLabel, setPetContext: (k, t, project) => window.PTSetContext?.(k, t, project) };
 </script>
 <script type="module">
-const { api, toast } = window.PDH;
+const { api, toast } = window.PT;
 const $ = (s) => document.querySelector(s);
 const pet = { key: null, title: null, project:null, selection: null, selPage: null, busy: false, attachPage: false, epoch:0, session:'legacy', sessionToken:0 };
 // Unsent questions belong to a paper in a project. Keep them only in this
@@ -1620,7 +1623,7 @@ async function loadReadingSession() {
     for (const row of result.history) addMsg(row.role === 'assistant' ? 'ai' : 'user', row.content);
   }
 }
-window.PDHSetContext = (key, title, project = state.currentProject) => {
+window.PTSetContext = (key, title, project = state.currentProject) => {
   const changed = pet.key !== key || pet.project !== project;
   if (changed) {
     switchQuestionDraft(key, project);
@@ -1703,14 +1706,14 @@ function closeReader() {
   for (const [node, wasInert] of readerBackground) node.inert = wasInert;
   readerBackground.clear(); setReference(null); setAttachPage(false); hideSel();
   if (readerFocus?.isConnected && !readerFocus.inert) readerFocus.focus();
-  window.PDHOrganization?.invalidateLearning?.(R.key, true)?.catch?.(e => toast(e.message, 'warn'));
+  window.PTOrganization?.invalidateLearning?.(R.key, true)?.catch?.(e => toast(e.message, 'warn'));
 }
 function readerControls() {
   return [...$('#reader').querySelectorAll('button, a[href], input, textarea, select, iframe, [tabindex]')]
     .filter(el => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length && !el.closest('[inert]'));
 }
 document.addEventListener('keydown', event => {
-  if (event.defaultPrevented || event.isComposing || event.keyCode===229 || window.PDHDialogs?.active() || document.querySelector('dialog[open]')) return;
+  if (event.defaultPrevented || event.isComposing || event.keyCode===229 || window.PTDialogs?.active() || document.querySelector('dialog[open]')) return;
   if (event.key === 'Escape') {
     if ($('#transPop').classList.contains('show')) { $('#transPop').classList.remove('show'); (readerControls()[0] || $('#reader')).focus(); }
     else if ($('#selbar').classList.contains('show')) { hideSel(); window.getSelection()?.removeAllRanges(); (readerControls()[0] || $('#reader')).focus(); }
@@ -1730,7 +1733,7 @@ document.addEventListener('keydown', event => {
   }
 }, true);
 document.addEventListener('focusin', event => {
-  if (!window.PDHDialogs?.active() && !document.querySelector('dialog[open]') && !$('#reader').classList.contains('hidden') && !$('#reader').contains(event.target) && !event.target.closest('#transPop,#selbar'))
+  if (!window.PTDialogs?.active() && !document.querySelector('dialog[open]') && !$('#reader').classList.contains('hidden') && !$('#reader').contains(event.target) && !event.target.closest('#transPop,#selbar'))
     (readerControls()[0] || $('#reader')).focus();
 }, true);
 
@@ -1757,9 +1760,9 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
   const links = offered.filter(p => p && typeof p.url === 'string' && p.url.startsWith('https://')).slice(0, 3)
     .map((p, i) => `<a class="btn tiny${i ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${labels[p.kind] || '原文页面'}</a>`).join('');
   box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
-    <div class="pdf-fail-actions">${links}<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label></div>
+    <div class="pdf-fail-actions">${links}${project === 'pt-demo' ? '' : '<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label>'}</div>
     <div class="pdf-fail-note"></div></div>`;
-  const input = box.querySelector('input[type=file]'), note = box.querySelector('.pdf-fail-note');
+  const input = box.querySelector('input[type=file]') || document.createElement('input'), note = box.querySelector('.pdf-fail-note');
   const attach = async (file) => {
     if (!file || !current()) return;
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''))) { note.textContent = '请选择 PDF 文件'; return; }
@@ -1781,7 +1784,7 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
 }
 
 async function openReader(key, title, project = state.currentProject) {
-  window.PDHSetContext(key, title, project);
+  window.PTSetContext(key, title, project);
   const epoch = ++R.epoch, current = () => epoch === R.epoch && R.key === key;
   if ($('#reader').classList.contains('hidden')) readerFocus = document.activeElement;
   setReference(null);
@@ -1801,7 +1804,7 @@ async function openReader(key, title, project = state.currentProject) {
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
   R.pendingZoom = null; R.renderedScale = null; R.zoomBase = null;
-  let url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
+  let url = `/api/pdf/view?key=${encodeURIComponent(key)}` + (project === 'pt-demo' ? '&project_id=pt-demo' : '');   // the PDF is fetched by pdf.js, which sends no demo header
   R.url = url; R.key = key; R.project = project; R.sha256 = null;
   R.loading = true; $('#petSend').disabled = true;
   let prepared = null;
@@ -1820,7 +1823,7 @@ async function openReader(key, title, project = state.currentProject) {
     const L = await lib();
     const doc = await L.getDocument({ url, standardFontDataUrl: '/vendor/pdfjs/standard_fonts/' }).promise;
     if (!current()) { doc.destroy(); return; }
-    const actualHash = await PDHReaderSource.hash(doc);
+    const actualHash = await PTReaderSource.hash(doc);
     if (!current()) { doc.destroy(); return; }
     if (R.sha256 && actualHash !== R.sha256) throw new Error('PDF 版本已变化');
     R.sha256 = actualHash;
@@ -2038,8 +2041,8 @@ function renderPage(n, root = document, jobs = R.jobs) {
     const textContent = await page.getTextContent();
     const textLayer = new L.TextLayer({ textContentSource: textContent, container: textDiv, viewport: vp });
     await textLayer.render();
-    window.PDHReaderTextFit?.apply(textLayer.textDivs, textContent.items, textContent.styles);   // text over the printed letters
-    window.PDHReaderSelection?.current?.repaint();   // a page rebuilt at a new zoom keeps the selection drawn where the text now is
+    window.PTReaderTextFit?.apply(textLayer.textDivs, textContent.items, textContent.styles);   // text over the printed letters
+    window.PTReaderSelection?.current?.repaint();   // a page rebuilt at a new zoom keeps the selection drawn where the text now is
     return true;
   })().catch((e) => { toast(`第 ${n} 页渲染失败：${e.message}`, 'err'); return false; });
   jobs.set(n, job);
@@ -2056,7 +2059,7 @@ function pageInView() {   // the page the reader is showing right now
     const box = wrap.getBoundingClientRect();
     return { n: Number(wrap.dataset.n), top: box.top, bottom: box.bottom };
   });
-  return PDHReaderPage.inView({ top: view.top, bottom: view.bottom }, pages);
+  return PTReaderPage.inView({ top: view.top, bottom: view.bottom }, pages);
 }
 let pageFrame = 0;
 $('#readerPages').addEventListener('scroll', () => {
@@ -2068,7 +2071,7 @@ $('#readerPages').addEventListener('scroll', () => {
 async function extractFulltext(key, doc, sourcePages) {
   const current=()=>R.key===key && R.doc===doc;
   let sourceHash;
-  try {sourceHash=await PDHReaderSource.hash(doc);} catch(error) {if(current()) toast(error.message,'warn'); return;}
+  try {sourceHash=await PTReaderSource.hash(doc);} catch(error) {if(current()) toast(error.message,'warn'); return;}
   if (!current()) return;
   try {
     const status = await api('/api/fulltext?key=' + encodeURIComponent(key) + '&text=1&source_pdf_sha256='+sourceHash);
@@ -2092,7 +2095,7 @@ async function extractFulltext(key, doc, sourcePages) {
       }
       if (!current()) return;
       const saved = await api('/api/fulltext', { key, pages, source_pdf_sha256:sourceHash });
-      window.PDHOrganization?.invalidateLearning?.(key)?.catch?.(e => toast(e.message, 'warn'));
+      window.PTOrganization?.invalidateLearning?.(key)?.catch?.(e => toast(e.message, 'warn'));
       if (!current()) return;
       R.pageTexts = pages.map((p) => p.text);
       setFulltextBadge(saved.pages, saved.chars);
@@ -2176,12 +2179,12 @@ window.addEventListener('resize', () => {
     if (!$('#reader').classList.contains('hidden') && R.doc && R.fit) layoutPages();
   }, 180);
 });
-window.PDH.openReader = openReader;
+window.PT.openReader = openReader;
 
 /* --------------------------------------------------------- selection bar */
 let selText = '', selRect = null, selPage = null;
 function hideSel() { $('#selbar').classList.remove('show'); }
-window.PDHReaderSelection?.install($('#reader'));   // draw the PDF selection one box per line
+window.PTReaderSelection?.install($('#reader'));   // draw the PDF selection one box per line
 function showSel(rect, text) {
   selText = text;
   selRect = rect;
@@ -2252,7 +2255,7 @@ function followupRow(list) {
     const b = document.createElement('button');
     b.className = 'tiny';
     // Ask what the button shows; a model's own follow-up is only swapped for a whole pack entry.
-  const label = window.PDHi18n ? PDHi18n.exact(q) : q;
+  const label = window.PTi18n ? PTi18n.exact(q) : q;
     b.textContent = label;
     b.title = label;
     b.onclick = () => ask(label);
@@ -2287,7 +2290,7 @@ function addMsg(kind, text, followups, meta) {
     }
     const body = document.createElement('div');
     body.dataset.noI18n = '';
-    body.innerHTML = window.PDH.md(text);
+    body.innerHTML = window.PT.md(text);
     el.appendChild(body);
   } else el.textContent = text;
   $('#petLog').appendChild(el);
@@ -2309,7 +2312,7 @@ async function ask(question) {
   }
   const readerIdentity = R.doc && !$('#reader').classList.contains('hidden') ? {key:R.key, project_id:R.project, pdf_sha256:R.sha256, kind:'pdf'} : null;
   if (pet.referenceIdentity && (pet.referenceIdentity.key !== key || pet.referenceIdentity.project_id !== project ||
-      (pet.referenceIdentity.kind === 'pdf' && !PDHReaderIdentity.matches(pet.referenceIdentity, readerIdentity)))) {
+      (pet.referenceIdentity.kind === 'pdf' && !PTReaderIdentity.matches(pet.referenceIdentity, readerIdentity)))) {
     toast('引用与当前论文不一致，请重新打开', 'err'); return;
   }
   const evidence = pet.referenceIdentity || readerIdentity;
@@ -2321,12 +2324,12 @@ async function ask(question) {
   $('#petSend').disabled = true;
   const thinking = addMsg('sys', '思考中…');
   let image = null, pageHint = null, located = false, imageNote = '';
-  const figure = PDHFigure.figureRequest(question);
+  const figure = PTFigure.figureRequest(question);
   const forced = pet.attachPage;
   setAttachPage(false);   // the switch covers one question; a page image costs extra tokens
   const keepSwitch = () => {
     if (forced && current() && readerIdentity && !$('#reader').classList.contains('hidden') &&
-        PDHReaderIdentity.matches(readerIdentity, {key:R.key,project_id:R.project,pdf_sha256:R.sha256})) setAttachPage(true);
+        PTReaderIdentity.matches(readerIdentity, {key:R.key,project_id:R.project,pdf_sha256:R.sha256})) setAttachPage(true);
   };   // restore only for the same visible PDF version
   if (readerIdentity && R.doc && (figure || forced)) {
     // The page the question is about: a quote's page, else the page in view.
@@ -2338,7 +2341,7 @@ async function ask(question) {
         const res = await api('/api/figure-page?key=' + encodeURIComponent(R.key) + '&q=' + encodeURIComponent(question));
         found = res.page || null;
       } catch (e) { found = null; }
-      if (!found) found = PDHFigure.findFigurePage(R.pageTexts || [], figure.kind, figure.number);   // local fallback when the server has no text
+      if (!found) found = PTFigure.findFigurePage(R.pageTexts || [], figure.kind, figure.number);   // local fallback when the server has no text
       located = Boolean(found);
       pageHint = found || here;   // still unknown -> send the page the user is looking at
       imageNote = '';
@@ -2352,7 +2355,7 @@ async function ask(question) {
       thinking.textContent = `正在渲染第 ${pageHint} 页…`;
     }
     try {
-      if (current() && PDHReaderIdentity.matches(readerIdentity, {key:R.key,project_id:R.project,pdf_sha256:R.sha256}))
+      if (current() && PTReaderIdentity.matches(readerIdentity, {key:R.key,project_id:R.project,pdf_sha256:R.sha256}))
         image = await pageImage(pageHint);
     } catch (e) { pageHint = null; image = null; imageNote = ''; }
     if (!image) { thinking.textContent = '页面渲染失败，改用文本…'; keepSwitch(); }
@@ -2369,7 +2372,7 @@ async function ask(question) {
       r.mode === 'vision' ? `视觉 · 第 ${r.page_hint || pageHint || '?'} 页` : '',
       r.pages && r.pages.length ? `命中第 ${r.pages.join(',')} 页` : '',
     ].filter(Boolean) : [];
-    const meta = metaParts.length ? metaParts : null;
+    const meta = r.demo ? ['演示 · 预先写好的回答'] : metaParts.length ? metaParts : null;
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
     if (!r.ok) keepSwitch();
   } catch (e) { thinking.remove(); if (current()) { addMsg('sys', `失败：${e.message}`); keepSwitch(); } }
@@ -2385,9 +2388,9 @@ async function translate(text, rect) {
   try {
     const r = await api('/api/translate', { text });
     if (epoch !== pet.epoch || !pop.classList.contains('show')) return;
-    pop.innerHTML = `<div class="tlabel">划词翻译</div>
+    pop.innerHTML = `<div class="tlabel">${r.demo ? '划词翻译 · 演示' : '划词翻译'}</div>
       <div class="tbody"${r.ok ? ' data-no-i18n' : ''}>${
-      r.ok ? window.PDH.md(r.translation) : esc(aiFailure(r.reason))}</div>
+      r.ok ? window.PT.md(r.translation) : esc(aiFailure(r.reason))}</div>
       <div class="row" style="margin-top:10px">
         <button class="tiny" id="transCopy">复制</button>
         <button class="tiny ghost" id="transClose">关闭</button></div>`;
@@ -2403,7 +2406,7 @@ function placeTransPop(rect) {
   const pop = $('#transPop');
   pop.style.left = '0px'; pop.style.top = '0px';
   const w = pop.offsetWidth, h = pop.offsetHeight;
-  const position = PDHReaderIdentity.popupPosition(rect, {width:w,height:h}, {width:innerWidth,height:innerHeight});
+  const position = PTReaderIdentity.popupPosition(rect, {width:w,height:h}, {width:innerWidth,height:innerHeight});
   pop.style.left = `${position.left}px`; pop.style.top = `${position.top}px`;
 }
 let transAnchor = null;
@@ -2585,7 +2588,12 @@ $('#selbar').addEventListener('click', (e) => {
   hideSel();
   if (btn.dataset.sel === 'clear') { window.getSelection()?.removeAllRanges(); return; }
   if (btn.dataset.sel === 'translate') translate(text, rect);
-  else { setReference(text, page); openPet(); $('#petInput').focus(); }
+  else {
+    setReference(text, page); openPet();
+    // The demo's answers are pre-written: the question is filled in so that sending it is the next (and only) step.
+    if (window.PT.state.currentProject === 'pt-demo' && !$('#petInput').value.trim()) { $('#petInput').value = window.PTi18n?.exact?.('这句话是什么意思？') || '这句话是什么意思？'; growInput(); }
+    $('#petInput').focus();
+  }
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode!==229 && !document.querySelector('dialog[open]')) { hideSel(); $('#transPop').classList.remove('show'); window.getSelection()?.removeAllRanges(); }
@@ -2597,7 +2605,7 @@ document.addEventListener('keydown', (e) => {
 <script src="/paper-context.js"></script>
 <script src="/organization.js"></script>
 <script src="/update-banner.js"></script>
-<script>window.PDHUpdate.mount();</script>
+<script>window.PTUpdate.mount();</script>
 
 </body>
 </html>

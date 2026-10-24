@@ -2,11 +2,11 @@
    map itself. Reads and writes /api/route only. The one model-backed action is the explicit "draft with AI" click
    with separate creation and revision contracts; an existing map changes only after preview confirmation. */
 'use strict';
-const R = window.PDHRoute, Brief = window.PDHBrief;
+const R = window.PTRoute, Brief = window.PTBrief;
 const $ = (s, r = document) => r.querySelector(s);
 const part = (role) => $(`[data-role="${role}"]`);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-const projectId = new URLSearchParams(location.search).get('project_id') || localStorage.getItem('pdh-current-project') || '';
+const projectId = new URLSearchParams(location.search).get('project_id') || localStorage.getItem('pt-current-project') || '';
 const state = {pendingIntro: null, route: null, draft: null, dirty: false, checking: false, busy: false, annotated: false, selected: null, editing: null, graph: null, project: null, preview: null, previewGraph: null, briefReady: false, briefDirty: false, creationBrief: null, loadSequence: 0};
 
 async function api(body) {
@@ -98,7 +98,7 @@ function render() {
   const keep = state.graph ? state.graph.view() : undefined;
   const focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.rg-node') : null;
   if (state.graph) state.graph.destroy();
-  state.graph = window.PDHGraph.mount(part('graph'), shown, {
+  state.graph = window.PTGraph.mount(part('graph'), shown, {
     selected: state.selected,
     view: keep,
     maxHeight: '68vh',
@@ -262,7 +262,7 @@ function editConcept(holder, graph, concept) {
 
 part('add').onclick = () => {
   try {
-    const baseName = window.PDHi18n?.t('新概念') || '新概念';
+    const baseName = window.PTi18n?.t('新概念') || '新概念';
     let name = baseName, n = 1;
     while (state.draft.concepts.some((c) => c.name === name)) name = `${baseName} ${++n}`;
     const next = R.addConcept(state.draft, {name, terms: [], hint: 2}, []);
@@ -273,7 +273,7 @@ part('add').onclick = () => {
 part('startEmpty').onclick = () => {
   if (state.busy || state.checking) return;
   openAi(); state.creationBrief = true;
-  state.draft = {concepts: [{id: 'c1', name: (window.PDHi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active', side: false}], prereqs: [], targets: ['c1']};
+  state.draft = {concepts: [{id: 'c1', name: (window.PTi18n?.t('第一个概念') || '第一个概念'), terms: [], hint: 1, origin: 'user', state: 'active', side: false}], prereqs: [], targets: ['c1']};
   state.route = {...(state.route || {}), progress: {}, total: 1, done: 0, exploration_share: 0.2, enabled: true};
   state.dirty = true; state.selected = 'c1'; state.editing = null; render();
 };
@@ -345,7 +345,7 @@ function renderRevision() {
     + (!matching && !preview.confirmed ? '<p class="map-note">需求已改，请重新生成</p>' : '');
   part('revisionConfirm').disabled = preview.stale || preview.confirmed || !matching || state.dirty || state.busy;
   if (state.previewGraph) state.previewGraph.destroy();
-  state.previewGraph = window.PDHGraph.mount(part('revisionGraph'), preview.after.graph, {
+  state.previewGraph = window.PTGraph.mount(part('revisionGraph'), preview.after.graph, {
     maxHeight: '50vh', statusOf: concept => R.nodeStatus(concept, preview.after.progress, true),
   });
 }
@@ -404,7 +404,7 @@ function renderGrowth() {
     + (result.candidates || []).map((c) => R.candidateRowHTML(c, growth.selected)).join('')
     + (R.growthNote(result) ? `<p class="hint">${esc(R.growthNote(result))}</p>` : '')
     + (growth.undo && growth.undo.revision === state.route.revision   // any other save or mark moves the revision on: then it is no longer the step to take back
-      ? `<p class="hint"><span>${esc(window.PDHi18n?.t(growth.undo.label) || growth.undo.label)}</span> <button type="button" class="ghost small" data-growth="undo" data-event="${esc(growth.undo.id)}"${locked ? ' disabled title="先保存或放弃修改"' : ''}>撤销</button></p>` : '');
+      ? `<p class="hint"><span>${esc(window.PTi18n?.t(growth.undo.label) || growth.undo.label)}</span> <button type="button" class="ghost small" data-growth="undo" data-event="${esc(growth.undo.id)}"${locked ? ' disabled title="先保存或放弃修改"' : ''}>撤销</button></p>` : '');
 }
 async function loadGrowth() {
   try {
@@ -472,7 +472,7 @@ async function completeRouteQuit() {
   try { await window.__TAURI_INTERNALS__.invoke('complete_quit'); }
   catch (error) { quitting = false; notice(`无法退出：${error.message}`); }
 }
-window.PDHPrepareQuit = async () => {
+window.PTPrepareQuit = async () => {
   if (quitting) return;
   if (quitOperationPending()) { notice('正在处理，稍后再退出'); return; }
   if (quitNeedsReview()) {
@@ -497,7 +497,7 @@ window.addEventListener('beforeunload', (event) => {
 
 (async () => {
   if (!projectId) { notice('没有指定项目'); return; }
-  if (window.PDH_ROUTE_BETA === false) {   // beta setting off: nothing is read or changed, the stored map stays as it is
+  if (window.PAGETIDE_ROUTE_BETA === false) {   // beta setting off: nothing is read or changed, the stored map stays as it is
     ['aiBox', 'empty', 'main'].forEach((role) => { part(role).hidden = true; });
     notice('学习图还没有打开', false);
     part('notice').append(' ', Object.assign(document.createElement('a'), {href: '/settings.html', textContent: '去设置'}));

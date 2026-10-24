@@ -27,7 +27,7 @@ def provider_payload(*, usage=True):
 class GuidanceTruncationTests(unittest.TestCase):
     def run_actual_gateway(self, *, usage):
         with tempfile.TemporaryDirectory() as folder, mock.patch.dict(os.environ, {
-                "DEEPSEEK_API_KEY": "synthetic-guidance-truncation", "PDH_DEV": "0"}), \
+                "DEEPSEEK_API_KEY": "synthetic-guidance-truncation", "PAGETIDE_DEV": "0"}), \
                 mock.patch("app.gateway.urllib.request.urlopen",
                            return_value=provider_payload(usage=usage)) as sent:
             app = App(root=ROOT, data_dir=Path(folder))

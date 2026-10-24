@@ -5,7 +5,7 @@ const handler=source.slice(source.indexOf("document.addEventListener('keydown', 
 function runtime(){
  const nodes=new Map(),listeners=[];let closed=0,hiddenSelection=0,modal=false;
  const node=q=>{if(!nodes.has(q)){const names=new Set();nodes.set(q,{value:q==='#petInput'?'中文问题\n第二行':'',classList:{contains:n=>names.has(n),add:n=>names.add(n),remove:n=>names.delete(n),toggle:(n,v)=>v?names.add(n):names.delete(n)},focus(){context.document.activeElement=this;}});}return nodes.get(q);};
- const context={$:node,document:{activeElement:null,addEventListener:(event,fn)=>listeners.push(fn),querySelector:()=>modal?{}:null},window:{PDHDialogs:{active:()=>modal},getSelection:()=>({removeAllRanges(){}})},setPetOpen:open=>node('#petPanel').classList.toggle('open',open),hideSel:()=>{node('#selbar').classList.remove('show');hiddenSelection++;},closeReader:()=>closed++,readerControls:()=>[node('#readerAsk')]};
+ const context={$:node,document:{activeElement:null,addEventListener:(event,fn)=>listeners.push(fn),querySelector:()=>modal?{}:null},window:{PTDialogs:{active:()=>modal},getSelection:()=>({removeAllRanges(){}})},setPetOpen:open=>node('#petPanel').classList.toggle('open',open),hideSel:()=>{node('#selbar').classList.remove('show');hiddenSelection++;},closeReader:()=>closed++,readerControls:()=>[node('#readerAsk')]};
  vm.createContext(context);vm.runInContext(handler,context);
  const escape=(isComposing=false)=>{let prevented=false;listeners[0]({key:'Escape',isComposing,preventDefault(){prevented=true;},stopPropagation(){},stopImmediatePropagation(){}});return prevented;};
  return {node,escape,closed:()=>closed,hidden:()=>hiddenSelection,setModal:v=>modal=v};

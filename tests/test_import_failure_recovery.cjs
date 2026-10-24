@@ -49,12 +49,12 @@ function page({lang = 'zh-CN', batch = null, failPdf = true, holdHints = null, h
   let confirm = async (_message, options) => { dialogs.push(options); return false; };
   const context = vm.createContext({document, URLSearchParams, Map, Set, Promise, console,
     location: {search: '?project_id=p', pathname: '/import.html', reload: () => calls.push({path: 'reload'})},
-    PDH_I18N: {lang, messages: pack}, NodeFilter: {}, MutationObserver: class {observe() {}},
+    PAGETIDE_I18N: {lang, messages: pack}, NodeFilter: {}, MutationObserver: class {observe() {}},
     setInterval(fn) {intervals.add(fn); return fn;}, clearInterval(fn) {intervals.delete(fn);},
     addEventListener() {},
-    PDHImportFiles: {CONCURRENCY: 1, MAX_FILES: 2000, rootOf: () => '', encodeHints: () => '', looksLikeZoteroStorage: () => false},
-    PDHPdfHints: {withTimeout: value => value, extractHints: async () => { if (holdHints) await holdHints.promise; return null; }},
-    PDHDialogs: {confirm: (...args) => confirm(...args)},
+    PTImportFiles: {CONCURRENCY: 1, MAX_FILES: 2000, rootOf: () => '', encodeHints: () => '', looksLikeZoteroStorage: () => false},
+    PTPdfHints: {withTimeout: value => value, extractHints: async () => { if (holdHints) await holdHints.promise; return null; }},
+    PTDialogs: {confirm: (...args) => confirm(...args)},
     fetch: async (url, options = {}) => {
       calls.push({path: url, method: options.method || 'GET', body: options.body});
       if (url === '/api/projects') return response({projects: [{id: 'p', name: '收藏'}]});

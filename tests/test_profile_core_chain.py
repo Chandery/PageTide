@@ -35,7 +35,7 @@ class CoreChainTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "", "PDH_DEV": "0"})
+        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "", "PAGETIDE_DEV": "0"})
         env.start()
         self.addCleanup(env.stop)
         self.app = App(root=ROOT, data_dir=Path(self.tmp.name) / "app")
@@ -400,7 +400,7 @@ class SeedResolutionTests(unittest.TestCase):
 class MigrationBackupTests(unittest.TestCase):
     def test_pending_migration_backs_up_and_backup_restores(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "paperdighelper.sqlite"
+            path = Path(tmp) / "pagetide.sqlite"
             with mock.patch('app.migrations.MIGRATIONS', MIGRATIONS[:-1]):
                 app = App(root=ROOT, data_dir=Path(tmp))
                 pid = 'legacy-kept'

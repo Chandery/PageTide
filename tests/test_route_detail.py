@@ -252,7 +252,7 @@ class HttpTests(Fixture):
         self.save("ep", "Epitaxial layers", "epitaxy")
         port = self.serve()
         from unittest import mock
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, body = self.post(port, {"action": "route-detail", "project_id": self.pid})
             self.assertEqual(status, 200)
             self.assertTrue(body["available"])

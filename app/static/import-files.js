@@ -6,7 +6,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else root.PDHImportFiles = api;
+  else root.PTImportFiles = api;
 })(this, function () {
   'use strict';
 

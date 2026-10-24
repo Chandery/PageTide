@@ -35,7 +35,7 @@
 
 使用 `codex/route-discovery-rework`，从 `850f9fc` 开始。先确认工作树干净；保留 main 作为回退点。不推送、不合并。每个工作单元完成失败回归、实现、检查、独立审查与桌面构建后本地提交。
 
-桌面后端必须尊重 `PAPERDIGHELPER_DATA`，测试使用临时库、假 HOME 和禁用 AI 的夹具。验证启动、认证、读取隔离论文、父进程退出后的清理，以及默认目录兼容。真实资料库不作为测试夹具。
+桌面后端必须尊重 `PAGETIDE_DATA`，测试使用临时库、假 HOME 和禁用 AI 的夹具。验证启动、认证、读取隔离论文、父进程退出后的清理，以及默认目录兼容。真实资料库不作为测试夹具。
 
 登记后续阶段的需求和评估。基线 Python 和前端测试、构建结果与命令输出分别保存；已有未通过的发布评估保持原状。
 
@@ -133,7 +133,7 @@ AI 扩展阶段更新预算 JSON、提示词登记和生成文档；新范围保
 
 ## 测试和完成标准
 
-每阶段先添加会失败的行为回归，再实现，按影响范围运行测试。全量 Python 测试和前端测试通过后运行桌面构建。构建命令为 `.local/desktop-build-env/bin/python scripts/build_desktop.py`，随后 `cargo tauri build --bundles app`。产物为 `src-tauri/target/release/bundle/macos/PaperDigHelper.app`。
+每阶段先添加会失败的行为回归，再实现，按影响范围运行测试。全量 Python 测试和前端测试通过后运行桌面构建。构建命令为 `.local/desktop-build-env/bin/python scripts/build_desktop.py`，随后 `cargo tauri build --bundles app`。产物为 `src-tauri/target/release/bundle/macos/PageTide.app`。
 
 同时运行 `python3 scripts/budget.py --check`、`python3 scripts/harness.py check` 和当前变更记录的 review。保存实际退出码、未运行事项、独立评审发现及修复复查。每工作单元更新 HANDOFF 并本地提交；不能用已有旧产物冒充本次构建。
 

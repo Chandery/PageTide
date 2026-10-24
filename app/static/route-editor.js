@@ -3,7 +3,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHRoute = api;
+  else root.PTRoute = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const MAX_NODES = 40;
   const INTRO_LIMIT = 140;   // the same bound as pathgraph.INTRO_LIMIT
@@ -307,7 +307,7 @@
     const c = ctx || {}, p = c.progress ? c.progress[concept.id] : null;
     const needs = needsOf(g, concept.id), waiting = new Set(waitingOn(g, c.progress, concept.id).map(n => n.id));
     const unlocks = dependents(g, concept.id);
-    const chip = (n) => `<span class="need ${n.label}${c.progress ? (waiting.has(n.id) ? ' wait' : ' done') : ''}" title="${esc((typeof window!=='undefined' && window.PDHi18n?.t(LABELS[n.label])) || LABELS[n.label])}" data-no-i18n>${esc(n.name)}</span>`;
+    const chip = (n) => `<span class="need ${n.label}${c.progress ? (waiting.has(n.id) ? ' wait' : ' done') : ''}" title="${esc((typeof window!=='undefined' && window.PTi18n?.t(LABELS[n.label])) || LABELS[n.label])}" data-no-i18n>${esc(n.name)}</span>`;
     const lines = [];
     lines.push(`<h3 data-no-i18n>${esc(concept.name)}</h3>`);
     lines.push((concept.terms || []).length ? `<div class="terms" data-no-i18n>${esc(concept.terms.join(' · '))}</div>` : '');

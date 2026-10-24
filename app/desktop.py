@@ -79,7 +79,7 @@ class SizeCappedLog:
 
 def redirect_stderr_to_log(root, limit=LOG_LIMIT_BYTES):
     """Send stderr to <data>/logs/backend.log (size-capped: one rotated copy). The Windows shell has no console
-    to inherit, so it sets PDH_LOG_STDERR=1. Only what the backend itself prints reaches stderr: the HTTP
+    to inherit, so it sets PAGETIDE_LOG_STDERR=1. Only what the backend itself prints reaches stderr: the HTTP
     server's per-request log is silenced, so request paths (and the desktop token in them) are not logged."""
     logs = Path(root) / "logs"
     logs.mkdir(parents=True, exist_ok=True)
@@ -102,26 +102,26 @@ def main():
         from .organization_worker import main as run_worker
         return run_worker(sys.argv[2:])
     resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
-    configured_data = os.environ.get("PAPERDIGHELPER_DATA")
+    configured_data = os.environ.get("PAGETIDE_DATA")
     root = (Path(configured_data).expanduser().resolve() if configured_data else
             platform_compat.default_data_dir())
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     harness = root / "harness"
     harness.mkdir(exist_ok=True)
     shutil.copyfile(resources / "harness" / "budget.json", harness / "budget.json")
-    os.environ["PAPERDIGHELPER_DATA"] = str(root)
+    os.environ["PAGETIDE_DATA"] = str(root)
     os.chdir(root)
     with (root / ".desktop.lock").open("a", encoding="utf-8") as lock:
         try:
             platform_compat.lock_exclusive(lock, blocking=False)
         except BlockingIOError:
-            raise SystemExit("PaperDigHelper is already running.")
+            raise SystemExit("PageTide is already running.")
         # After the lock: a second instance must say "already running", not fail on a log another backend holds.
-        if os.environ.get("PDH_LOG_STDERR") == "1":
+        if os.environ.get("PAGETIDE_LOG_STDERR") == "1":
             redirect_stderr_to_log(root)
-        if os.environ.get("PDH_APP_VERSION"):
-            updater.Updater(root, os.environ["PDH_APP_VERSION"]).startup_cleanup()
-        if os.environ.get("PDH_APP_VERSION") or os.environ.get("PDH_LEGACY_CLEANUP") == "1":
+        if os.environ.get("PAGETIDE_APP_VERSION"):
+            updater.Updater(root, os.environ["PAGETIDE_APP_VERSION"]).startup_cleanup()
+        if os.environ.get("PAGETIDE_APP_VERSION") or os.environ.get("PAGETIDE_LEGACY_CLEANUP") == "1":
             clean_legacy_default_project(resources)   # once per library; holds the instance lock, no request is served yet
         httpd = build_server(port=0, root=resources, desktop_token=secrets.token_hex(32))
 
@@ -130,7 +130,7 @@ def main():
             on_parent_gone(httpd)
 
         threading.Thread(target=watch_parent, daemon=True).start()
-        print(f"PDH_READY http://127.0.0.1:{httpd.server_port}/_desktop/{httpd.desktop_token}", flush=True)
+        print(f"PAGETIDE_READY http://127.0.0.1:{httpd.server_port}/_desktop/{httpd.desktop_token}", flush=True)
         try:
             httpd.serve_forever(poll_interval=0.1)
         finally:

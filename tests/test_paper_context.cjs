@@ -27,7 +27,7 @@ function drawerFixture(){
   const section=source.slice(source.indexOf('let detailToken = 0;'),source.indexOf("$('#detail').addEventListener('click'"));
   const nodes=new Map(), replies=[], notices=[];
   const node=selector=>{if(!nodes.has(selector)){const classes=new Set();nodes.set(selector,{innerHTML:'',classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c)},addEventListener(){}});}return nodes.get(selector);};
-  const ctx=vm.createContext({state:{currentProject:'p1',projects:[]},window:{PDHPaperContext:Context,PDHMarks:require('../app/static/feedback-marks.js'),PDH:{setPetContext(){}}},PaperPolicy:Policy,$:node,hidePreview(){},esc:v=>v,md:v=>v,toast:(...v)=>notices.push(v),api:(url,body)=>new Promise(resolve=>replies.push({body,resolve}))});
+  const ctx=vm.createContext({state:{currentProject:'p1',projects:[]},window:{PTPaperContext:Context,PTMarks:require('../app/static/feedback-marks.js'),PT:{setPetContext(){}}},PaperPolicy:Policy,$:node,hidePreview(){},esc:v=>v,md:v=>v,toast:(...v)=>notices.push(v),api:(url,body)=>new Promise(resolve=>replies.push({body,resolve}))});
   vm.runInContext(section+'\nthis.open=openDetail;this.close=closeDetail;',ctx);
   return {ctx,replies,node,notices};
 }
@@ -45,7 +45,7 @@ test('actual Today detail drops late paper/project replies and closing cancels p
 
 test('reading from Today closes its stale detail and reopening rereads current learning evidence',async()=>{
   const {ctx,replies,node}=drawerFixture(), reads=[];
-  ctx.window.PDH.openReader=(...args)=>{assert.equal(node('#detail').classList.contains('hidden'),true);reads.push(args);};
+  ctx.window.PT.openReader=(...args)=>{assert.equal(node('#detail').classList.contains('hidden'),true);reads.push(args);};
   const first=ctx.open('body');replies[0].resolve({key:'body',title:'Body paper',projects:[],context:{project_id:'p1',categories:[],units:[],map_available:true,route_enabled:true,saved_in_project:true}});await first;
   assert.doesNotMatch(node('#detail').innerHTML,/New body match/);
   node('#dRead').onclick();assert.equal(node('#detail').classList.contains('hidden'),true);

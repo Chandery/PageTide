@@ -151,7 +151,7 @@ class NoProjectHTTPTests(unittest.TestCase):
         root = Path(self.tmp.name)
         (root / "harness").mkdir()
         (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
-        env = mock.patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(root / "data")})
+        env = mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(root / "data")})
         env.start()
         self.addCleanup(env.stop)
         server.make_app(str(root)).store.close()
@@ -225,7 +225,7 @@ class EmptyDirectoryStartTests(unittest.TestCase):
     def test_a_backend_started_on_an_empty_directory_stays_empty_and_offline(self):
         with tempfile.TemporaryDirectory() as tmp:
             data = Path(tmp) / "fresh"
-            env = dict(os.environ, HOME=tmp, DEEPSEEK_API_KEY="", PDH_DEV="0", PAPERDIGHELPER_DATA=str(data))
+            env = dict(os.environ, HOME=tmp, DEEPSEEK_API_KEY="", PAGETIDE_DEV="0", PAGETIDE_DATA=str(data))
             code = ("import socket; "
                     "socket.socket.connect = lambda *a, **k: (_ for _ in ()).throw(RuntimeError('Test prohibits outbound network')); "
                     "from app.desktop import main; main()")
@@ -249,13 +249,13 @@ class EmptyDirectoryStartTests(unittest.TestCase):
                     errors.seek(0)
                     stderr = errors.read()
                     self.assertNotIn("Test prohibits outbound network", stderr)
-                    self.assertNotIn("PDH_BOOTSTRAP_FAILED", stderr)
+                    self.assertNotIn("PAGETIDE_BOOTSTRAP_FAILED", stderr)
                 finally:
                     if process.poll() is None:
                         process.kill()
                         process.wait(timeout=5)
                     process.stdout.close()
-            db = sqlite3.connect(str(data / "paperdighelper.sqlite"))
+            db = sqlite3.connect(str(data / "pagetide.sqlite"))
             try:
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM projects").fetchone()[0], 0)
                 self.assertEqual(db.execute("SELECT COUNT(*) FROM papers").fetchone()[0], 0)

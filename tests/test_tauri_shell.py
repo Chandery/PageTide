@@ -15,7 +15,7 @@ class TauriShellTests(unittest.TestCase):
 
     def test_rust_shell_owns_only_spawned_python_process(self):
         source = (ROOT / "src-tauri/src/main.rs").read_text()
-        self.assertIn("paperdighelper-server", source)
+        self.assertIn("pagetide-server", source)
         self.assertIn("struct PythonProcess", source)
         self.assertIn("child.kill()", source)
         self.assertIn("recv_timeout", source)

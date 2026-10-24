@@ -33,14 +33,14 @@ test('goal status and following labels translate complete rendered sentences', (
 function load(lang, messages) {
   const shown = [];
   const context = vm.createContext({
-    PDH_I18N: { lang, messages },
+    PAGETIDE_I18N: { lang, messages },
     document: { documentElement: {}, addEventListener() {} },
     MutationObserver: class { observe() {} },
     alert: (message) => shown.push(message),
   });
   context.window = context;
   vm.runInContext(SOURCE, context);
-  return { i18n: context.PDHi18n, context, shown };
+  return { i18n: context.PTi18n, context, shown };
 }
 
 const messages = {
@@ -289,5 +289,5 @@ test('actual manual map default localizes only newly created system name',()=>{
  vm.runInContext(src.slice(src.indexOf('  const changedMap = '),src.indexOf('  const mapNotice = '))+
    src.slice(src.indexOf("  part('mapStart').onclick = "),src.indexOf("  part('mapDrop').onclick = ")),context);
  context.part('mapStart').onclick();assert.equal(context.map.graph.concepts[0].name,'First concept');
- const userName='我的原名';assert.equal(context.PDHi18n.exact(userName),userName);
+ const userName='我的原名';assert.equal(context.PTi18n.exact(userName),userName);
 });

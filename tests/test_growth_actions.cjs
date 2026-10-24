@@ -31,7 +31,7 @@ test('an unpaid approval refusal retains its reason and refreshed attempts',asyn
 test('Today says invalid judgment and actual attempts without hiding the retry button',async()=>{
  const notices=[];const card={key:'x',judgeAsk:true};
  const c=vm.createContext({state:{currentProject:'p',cards:[card]},api:async()=>({ok:false,reason:'未保存',judges_left:9}),
-  renderCards:()=>{},toast:(...args)=>notices.push(args),PDHRoute:R});vm.runInContext(today,c);
+  renderCards:()=>{},toast:(...args)=>notices.push(args),PTRoute:R});vm.runInContext(today,c);
  await c.doJudge('x');assert.equal(card.judgeBusy,false);assert.equal(card.judgeAsk,true);
  assert.equal(notices.at(-1)[0],'未得到判断：未保存');assert.doesNotMatch(notices.at(-1)[0],/没有使用 AI|9 次/);
 });
@@ -69,7 +69,7 @@ test('a stopped job can be continued with counts from the next snapshot',async()
 function todayContext(cards,result){
  const notices=[],calls=[],renders=[];
  const state={currentProject:'p',cards};
- const c=vm.createContext({state,PDHRoute:R,judgeSummary:()=> 'proposal',
+ const c=vm.createContext({state,PTRoute:R,judgeSummary:()=> 'proposal',
   api:async(path,body)=>{calls.push(body);return typeof result==='function'?result(body):result;},
   toast:(...args)=>notices.push(args),renderCards:()=>renders.push(cards.map(card=>Boolean(card.judgeBusy)))});
  vm.runInContext(today,c);return {c,state,notices,calls,renders};

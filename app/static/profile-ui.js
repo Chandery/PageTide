@@ -4,7 +4,7 @@
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels = {positive:'有用',negative:'不相关',too_hard:'太难',understood:'已读懂',saved:'收藏',exposed:'推荐过',seed:'种子',other:'历史状态'};
 const sources = {seed:'种子',useful_feedback:'有用反馈',saved:'收藏'};
-const sourceText = key => sources[key] ? (global.PDHi18n?.t(sources[key]) || sources[key]) : key;
+const sourceText = key => sources[key] ? (global.PTi18n?.t(sources[key]) || sources[key]) : key;
 const colors = {understood:'var(--p-understood)',positive:'var(--p-positive)',negative:'var(--p-negative)',too_hard:'var(--p-hard)',saved:'var(--p-saved)',exposed:'var(--p-exposed)'};
 const date = t => t ? String(t).slice(0,10) : '暂无记录';
 const empty = text => `<div class="profile-empty">${esc(text)}</div>`;
@@ -67,7 +67,7 @@ function create(root, options) {
   let data, profile, project, pins=[], allTerms=false, history=false, generation=0, request=0, evidenceQuery=null, items=[], dialog=null;
   const api = options.api;
   function row(e, undo=false) {
-    if (window.PDH_ROUTE_BETA === false && (e.kind === 'understood' || e.action === 'understood')) return '';   // belongs to the learning map
+    if (window.PAGETIDE_ROUTE_BETA === false && (e.kind === 'understood' || e.action === 'understood')) return '';   // belongs to the learning map
     const tag = labels[e.kind] || labels[{useful:'positive',irrelevant:'negative'}[e.action]] || '论文证据';
     return `<div class="profile-feedback-row"><div>${button(`<span data-no-i18n>${esc(e.title)}</span>`,`class="paper-link" data-paper="${esc(e.key)}"`)}<div class="profile-note"><span>${esc(tag)}</span> · <span>${date(e.time)}</span></div>${e.reason ? `<div class="profile-note" data-no-i18n>${esc(e.reason)}</div>`:''}</div>${undo && e.feedback_id ? button('撤销',`data-undo="${e.feedback_id}"`):''}</div>`;
   }
@@ -132,7 +132,7 @@ function create(root, options) {
         if(b.disabled)return;
         const originalProject=project, gen=generation; b.disabled=true;
         try {
-          if(!await window.PDHDialogs.confirm('恢复为创建项目时的关键词并恢复自动学习？反馈记录不会删除，旧关键词可在版本中重新载入。',{valid:()=>project===originalProject && generation===gen}))return;
+          if(!await window.PTDialogs.confirm('恢复为创建项目时的关键词并恢复自动学习？反馈记录不会删除，旧关键词可在版本中重新载入。',{valid:()=>project===originalProject && generation===gen}))return;
           const r=await api('/api/profile/restore',{project_id:originalProject});
           if(project!==originalProject || generation!==gen)return;
           await options.refresh();options.notify(`已恢复默认。原固定词：${(r.previous_pinned_terms||[]).join('、')||'无'}`);
@@ -148,6 +148,6 @@ function create(root, options) {
   });
   return {render, invalidate(){generation++;request++;if(dialog){dialog.close();dialog.remove();dialog=null;}root.innerHTML=empty('正在读取当前项目画像…');}};
 }
-global.PDHProfile={create,esc,dashboard,kpiHTML,feedbackHTML,activityHTML,trendHTML};
-if (typeof module !== 'undefined') module.exports=global.PDHProfile;
+global.PTProfile={create,esc,dashboard,kpiHTML,feedbackHTML,activityHTML,trendHTML};
+if (typeof module !== 'undefined') module.exports=global.PTProfile;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -116,7 +116,7 @@ function extractor(api){
   const source=fs.readFileSync('app/static/index.html','utf8');
   const body=source.slice(source.indexOf('async function extractFulltext('),source.indexOf('\nfunction setFulltextBadge('));
   const doc={}, R={key:'p',doc,fulltext:false}, timers=[], badges=[], invalidations=[];
-  const context={R,api,window:{PDHOrganization:{invalidateLearning:key=>invalidations.push(key)}},PDHReaderSource:{hash:async()=> 'a'.repeat(64)},setTimeout:fn=>timers.push(fn),toast(){},setFulltextBadge:(...args)=>badges.push(args)};
+  const context={R,api,window:{PTOrganization:{invalidateLearning:key=>invalidations.push(key)}},PTReaderSource:{hash:async()=> 'a'.repeat(64)},setTimeout:fn=>timers.push(fn),toast(){},setFulltextBadge:(...args)=>badges.push(args)};
   vm.runInNewContext(body,context);return {context,R,doc,timers,badges,invalidations};
 }
 test('late cached text is ignored after switching to another paper',async()=>{
@@ -148,7 +148,7 @@ test('closing the actual reader refreshes learning views after a version or text
   const body={classList:classes(),appendChild(element){element.parentElement=this;}},state={key:'p',epoch:0,doc:{}};
   node('#petPanel').classList.add('open');node('#petPanel').classList.add('docked');node('#transPop').classList.add('show');
   node('#petInput').value='中文问题\n第二行';body.classList.add('reader-open');
-  vm.runInNewContext(line,{$:node,R:state,pet:{busy:false},readerBackground:new Map(),readerFocus:null,setReference(){},setAttachPage(){},hideSel(){},document:{body},requestAnimationFrame:fn=>frames.push(fn),layoutPages:()=>calls.push(['layout']),toast(){},window:{PDHOrganization:{invalidateLearning:(...args)=>{calls.push(args);return Promise.resolve();}}}});
+  vm.runInNewContext(line,{$:node,R:state,pet:{busy:false},readerBackground:new Map(),readerFocus:null,setReference(){},setAttachPage(){},hideSel(){},document:{body},requestAnimationFrame:fn=>frames.push(fn),layoutPages:()=>calls.push(['layout']),toast(){},window:{PTOrganization:{invalidateLearning:(...args)=>{calls.push(args);return Promise.resolve();}}}});
   node('#readerBack').onclick();assert.deepEqual(calls,[['p',true]]);
   assert.equal(node('#petPanel').classList.contains('open'),false);
   assert.equal(node('#petPanel').classList.contains('docked'),false);assert.equal(node('#petPanel').parentElement,body);

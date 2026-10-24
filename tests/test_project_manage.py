@@ -347,7 +347,7 @@ class HttpTests(Fixture):
 
     def test_rename_and_delete_over_http(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, body = self.call(port, f"/api/projects/{self.pid}", {"action": "rename", "name": "新名字"})
             self.assertEqual((status, body["project"]["name"]), (200, "新名字"))
             self.assertEqual(self.call(port, f"/api/projects/{self.pid}", {"action": "rename", "name": ""})[0], 400)
@@ -366,14 +366,14 @@ class HttpTests(Fixture):
 
     def test_the_plan_action_rejects_an_empty_goal_and_an_unknown_project_with_400(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             self.assertEqual(self.call(port, "/api/route", {"action": "plan", "project_id": self.pid, "goal": ""})[0], 400)
             self.assertEqual(self.call(port, "/api/route", {"action": "plan", "project_id": "nope", "goal": "x"})[0], 400)
             self.assertEqual(self.call(port, "/api/route", {"action": "plan", "goal": "x"})[0], 400)   # no id: never the default project
 
     def test_the_plan_action_returns_a_proposal_over_http_and_saves_nothing(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}), \
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}), \
                 mock.patch("app.gateway.Gateway.call", return_value=reply(BRANCHED)) as call:
             status, body = self.call(port, "/api/route", {"action": "plan", "project_id": self.pid, "goal": "我想学半导体生长"})
             self.assertEqual((status, body["ok"], len(body["graph"]["concepts"]), body["attempts_left"]), (200, True, 5, 2))
@@ -382,7 +382,7 @@ class HttpTests(Fixture):
 
     def test_deleting_or_renaming_with_an_empty_id_is_refused_over_http(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             self.assertEqual(self.call(port, "/api/projects/", method="DELETE")[0], 404)
             self.assertEqual(self.call(port, "/api/projects/", {"action": "rename", "name": "x"})[0], 404)
             self.assertIsNotNone(self.app.projects.get_project(self.pid))

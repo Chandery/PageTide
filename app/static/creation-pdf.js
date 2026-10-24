@@ -5,7 +5,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else root.PDHCreationPdf = api;
+  else root.PTCreationPdf = api;
 })(this, function () {
   'use strict';
 

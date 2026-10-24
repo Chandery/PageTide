@@ -9,7 +9,7 @@ function page(){
   const context={document:{querySelector:node,documentElement:{dataset:{}}},Date:Clock,
     localStorage:{getItem(){return null;},setItem(){},removeItem(){}},matchMedia:()=>({matches:false}),
     setInterval:fn=>{const id=++nextTimer;timers.set(id,fn);return id;},clearInterval:id=>timers.delete(id),
-    window:{location:{},PDHTheme:{apply(){}},PDHDialogs:{notice(message,{target,kind}={}){target.textContent=message;target.dataset.kind=kind;}}},
+    window:{location:{},PTTheme:{apply(){}},PTDialogs:{notice(message,{target,kind}={}){target.textContent=message;target.dataset.kind=kind;}}},
     fetch:async(url,init)=>{calls.push({url,init});const data=url==='/api/user_settings'?{settings:{}}:url==='/api/data-location'?{data_dir:'/test'}:{ai_enabled:false,usage:{tokens:23,month_tokens:45,usd:'0.003',month_usd:'0.006'}};return {ok:true,json:async()=>data};}};
   vm.createContext(context);vm.runInContext(source,context);
   return {context,node,calls,timers,tick(ms){now+=ms;for(const fn of timers.values())fn();}};

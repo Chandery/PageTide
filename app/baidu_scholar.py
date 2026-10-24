@@ -39,7 +39,7 @@ from .sources import SOURCE_PAGE_DOMAINS, SourceError, page_url, source_pages
 LABEL = "Baidu Scholar"
 API_HOST = "qianfan.baidubce.com"
 API = f"https://{API_HOST}/v2/tools/baidu_scholar/search"
-UA = "PaperDigHelper/0.1 (local research; read-only metadata)"
+UA = "PageTide/0.1 (local research; read-only metadata)"
 DAILY_CAP = 40                  # free plan: about 50 calls a day, more needs a support ticket
 CACHE_TTL_SECONDS = 24 * 3600
 GAP_SECONDS = 1.0               # a polite pause between live requests (the provider's rate limit is unknown)

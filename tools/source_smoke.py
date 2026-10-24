@@ -41,7 +41,7 @@ ENV = baidu_scholar.BAIDU_SCHOLAR_INFO.key_env
 
 
 def default_data_dir():
-    return Path(os.environ.get("PAPERDIGHELPER_DATA") or Path.home() / "Library" / "Application Support" / "PaperDigHelper")
+    return Path(os.environ.get("PAGETIDE_DATA") or Path.home() / "Library" / "Application Support" / "PageTide")
 
 
 def find_key(data_dir):
@@ -136,7 +136,7 @@ def main(argv=None):
     parser.add_argument("source", choices=["baidu_scholar", "baidu_web"])
     parser.add_argument("--query", default=baidu_scholar.VERIFY_WORD, help="public search word (default %(default)s)")
     parser.add_argument("--wrong-key", action="store_true", help="send a fixed dummy key to see how a refused key answers")
-    parser.add_argument("--data-dir", help="where baidu_scholar.key lives (default: PAPERDIGHELPER_DATA or the macOS app folder)")
+    parser.add_argument("--data-dir", help="where baidu_scholar.key lives (default: PAGETIDE_DATA or the macOS app folder)")
     parser.add_argument("--raw-dir", help="where the raw answer is saved (default: .local/source-smoke)")
     args = parser.parse_args(argv)
     data_dir = Path(args.data_dir) if args.data_dir else default_data_dir()

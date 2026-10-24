@@ -1,0 +1,22 @@
+{
+  "composition" : {
+    "exportScale" : 3,
+    "gap" : 44,
+    "iconHeight" : 176,
+    "padding" : 24,
+    "wordmarkHeightIncludingDescender" : 90
+  },
+  "iconContentBoundsBottomOrigin" : [
+    182,
+    139,
+    903,
+    974
+  ],
+  "note" : "Alpha bounds are used only for composition. Individual approved icon and wordmark source PNGs are copied unchanged.",
+  "wordmarkContentBoundsBottomOrigin" : [
+    144,
+    114,
+    1887,
+    448
+  ]
+}

@@ -33,5 +33,5 @@ test('the reader hides the native per-span highlight and loads the painter', () 
   const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), 'utf8');
   assert.match(html, /\.reader \.textLayer ::selection \{ background:transparent; \}/);
   assert.match(html, /<script src="\/reader-selection\.js"><\/script>/);
-  assert.match(html, /PDHReaderSelection\?\.install\(/);
+  assert.match(html, /PTReaderSelection\?\.install\(/);
 });

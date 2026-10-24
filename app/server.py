@@ -141,7 +141,7 @@ I18N_SCRIPTS = b'<script src="/i18n/current.js"></script><script src="/i18n.js">
 
 
 def i18n_script(lang):
-    """window.PDH_I18N for the chosen language; the English pack is keyed by Chinese source text."""
+    """window.PAGETIDE_I18N for the chosen language; the English pack is keyed by Chinese source text."""
     messages = {}
     if lang == "en-US":
         try:
@@ -149,28 +149,28 @@ def i18n_script(lang):
         except (OSError, ValueError, KeyError, TypeError):
             lang, messages = "zh-CN", {}   # a broken pack shows the Chinese source, never a blank page
     payload = json.dumps({"lang": lang, "messages": messages}, ensure_ascii=False)
-    return ("window.PDH_I18N=" + payload.replace("</", "<\\/") + ";\n").encode()
+    return ("window.PAGETIDE_I18N=" + payload.replace("</", "<\\/") + ";\n").encode()
 
 
 def make_updater(root="."):
-    """The update checker for this process. PDH_APP_VERSION is set only by the desktop shell: a source run has none,
+    """The update checker for this process. PAGETIDE_APP_VERSION is set only by the desktop shell: a source run has none,
     is a development build and never checks. Tests replace this to inject a fake transport."""
-    return updater.Updater(data_dir(root), os.environ.get("PDH_APP_VERSION"))
+    return updater.Updater(data_dir(root), os.environ.get("PAGETIDE_APP_VERSION"))
 
 
 def make_app(root="."):
     import os
-    return App(root=root, data_dir=os.environ.get("PAPERDIGHELPER_DATA"))
+    return App(root=root, data_dir=os.environ.get("PAGETIDE_DATA"))
 
 
 def data_dir(root="."):
     """Resolved data directory, the same one App(root) uses, without opening the store.
 
-    The desktop shell points PAPERDIGHELPER_DATA at Application Support; the CLI
+    The desktop shell points PAGETIDE_DATA at Application Support; the CLI
     falls back to <root>/.local/app. Never hardcode a path here -- guessing
     ~/Documents wrote settings to a directory the app never reads.
     """
-    return os.environ.get("PAPERDIGHELPER_DATA") or str(Path(root) / ".local" / "app")
+    return os.environ.get("PAGETIDE_DATA") or str(Path(root) / ".local" / "app")
 
 
 def _job_start(name, fn):
@@ -256,7 +256,7 @@ class _CountedStream:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "PaperDigHelper/0.6"
+    server_version = "PageTide/0.6"
     protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt, *args):
@@ -342,10 +342,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _route_beta_head(self):
         """Tell every page, before it renders, whether the beta learning-map mode is switched on in Settings.
-        Elements marked data-route-beta are hidden while it is off; scripts read window.PDH_ROUTE_BETA."""
+        Elements marked data-route-beta are hidden while it is off; scripts read window.PAGETIDE_ROUTE_BETA."""
         from .user_settings import route_beta
         on = route_beta(self._data())
-        return (b"<script>window.PDH_ROUTE_BETA=" + (b"true" if on else b"false") + b";"
+        return (b"<script>window.PAGETIDE_ROUTE_BETA=" + (b"true" if on else b"false") + b";"
                 + (b"document.documentElement.classList.add('route-beta');" if on else b"") + b"</script>"
                 b"<style>html:not(.route-beta) [data-route-beta],html.route-beta [data-route-beta-off]{display:none !important}</style>")
 
@@ -396,14 +396,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == "GET" and hmac.compare_digest(self.path, f"/_desktop/{token}"):
             self.send_response(303)
             self.send_header("Location", "/")
-            self.send_header("Set-Cookie", f"pdh_session={token}; HttpOnly; SameSite=Strict; Path=/")
+            self.send_header("Set-Cookie", f"pt_session={token}; HttpOnly; SameSite=Strict; Path=/")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return False
         cookie = SimpleCookie()
         cookie.load(self.headers.get("Cookie", ""))
-        supplied = cookie["pdh_session"].value if "pdh_session" in cookie else ""
+        supplied = cookie["pt_session"].value if "pt_session" in cookie else ""
         if not hmac.compare_digest(supplied, token):
             self._json({"error": "desktop session required"}, 403)
             return False
@@ -528,12 +528,16 @@ class Handler(BaseHTTPRequestHandler):
                 project_id, source = body.get("project_id"), body.get("source")
                 if not isinstance(project_id, str) or not isinstance(source, str):
                     raise ValueError("缺少项目或导入来源")
-                return self._json(imp.create_batch(project_id, source, body.get("root_name"), body.get("options")))
+                options = demo.import_options(body.get("options")) if self._demo else body.get("options")
+                return self._json(imp.create_batch(project_id, source, body.get("root_name"), options))
             if len(parts) < 6 or parts[3] != "batches":
                 return self._json({"error": "unknown route"}, 404)
             batch_id, action = parts[4], parts[5]
             if action == "resolve":
                 imp.ensure_open(batch_id)
+                if self._demo:   # offline and tiny: matched here, in the sandbox app (the worker thread would open the real library)
+                    imp.resolve(batch_id)
+                    return self._json({"started": True, "worker_alive": False})
                 _import_start(getattr(self.server, "root", "."), batch_id)
                 return self._json({"started": True, "worker_alive": _import_worker_alive(batch_id)})
             if action == "cancel":
@@ -1261,7 +1265,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._json({"error": "unknown route"}, 404)
 
     def _update_post(self, route, body):
-        """Download / apply / dismiss an update. Quitting afterwards is the page's job (PDHPrepareQuit keeps drafts safe)."""
+        """Download / apply / dismiss an update. Quitting afterwards is the page's job (PTPrepareQuit keeps drafts safe)."""
         current = make_updater(getattr(self.server, "root", "."))
         try:
             if route == "/api/update/download":
@@ -1388,7 +1392,7 @@ class Handler(BaseHTTPRequestHandler):
 def clean_legacy_default_project(root="."):
     """Once per library: remove the untouched default project and seed papers that older desktop builds made on first
     launch (app/legacy_cleanup.py). Called by app/desktop.py after it holds the instance lock, and by serve() only with
-    PDH_LEGACY_CLEANUP=1; build_server itself never opens the database. Never blocks start-up."""
+    PAGETIDE_LEGACY_CLEANUP=1; build_server itself never opens the database. Never blocks start-up."""
     try:
         from . import legacy_cleanup
         app = make_app(root)
@@ -1410,10 +1414,10 @@ def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
 
 
 def serve(host="127.0.0.1", port=8765, root="."):
-    if os.environ.get("PDH_LEGACY_CLEANUP") == "1":   # a source run cleans only when asked to; the desktop app does it in app/desktop.py
+    if os.environ.get("PAGETIDE_LEGACY_CLEANUP") == "1":   # a source run cleans only when asked to; the desktop app does it in app/desktop.py
         clean_legacy_default_project(root)
     httpd = build_server(host, port, root)
-    print(f"PaperDigHelper UI: http://{host}:{httpd.server_address[1]}  (Ctrl-C to stop)")
+    print(f"PageTide UI: http://{host}:{httpd.server_address[1]}  (Ctrl-C to stop)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -1426,6 +1430,6 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     import os
     serve(
-        port=int(args[0]) if args else int(os.environ.get("PAPERDIGHELPER_PORT", "8765")),
-        root=os.environ.get("PAPERDIGHELPER_ROOT", "."),
+        port=int(args[0]) if args else int(os.environ.get("PAGETIDE_PORT", "8765")),
+        root=os.environ.get("PAGETIDE_ROOT", "."),
     )

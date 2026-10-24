@@ -11,7 +11,7 @@ function setup() {
   };
   const graph={concepts:[{id:'c1',name:'Crystal basics',terms:['crystal growth'],hint:1,state:'active'}],prereqs:[],targets:['c1']};
   const route={graph,revision:1,progress:{c1:{status:'readable'}},enabled:true,goal_status:'learning',total:1,done:0};
-  const window={PDHRoute:R,PDHBrief:{...Brief},PDHGraph:{mount:()=>({destroy(){},view(){return {};}})},addEventListener:(type,fn)=>listeners.set(type,fn),
+  const window={PTRoute:R,PTBrief:{...Brief},PTGraph:{mount:()=>({destroy(){},view(){return {};}})},addEventListener:(type,fn)=>listeners.set(type,fn),
     __TAURI_INTERNALS__:{invoke:async cmd=>events.push(['quit',cmd])}};
   const context=vm.createContext({window,document:{querySelector:s=>node(s.match(/data-role="([^"]+)"/)?.[1]||s),body:{classList:{add(){},remove(){}}}},
     location:{search:''},localStorage:{getItem:()=>''},URLSearchParams,fetch:async(url,options)=>{
@@ -22,7 +22,7 @@ function setup() {
   vm.runInContext(`state.route=${JSON.stringify(route)};state.draft=${JSON.stringify(graph)};`,context);
   events.length=0;
   const set=code=>vm.runInContext(code,context);
-  const quit=()=>vm.runInContext("window.PDHPrepareQuit ? window.PDHPrepareQuit() : window.__TAURI_INTERNALS__.invoke('complete_quit')",context);
+  const quit=()=>vm.runInContext("window.PTPrepareQuit ? window.PTPrepareQuit() : window.__TAURI_INTERNALS__.invoke('complete_quit')",context);
   return {window,events,node,set,quit,listeners};
 }
 test('native quit with dirty graph stays open and never saves or confirms AI',async()=>{
@@ -63,7 +63,7 @@ test('Save cannot throw away a still-open concept edit or silently apply an AI i
 });
 test('explicit creation Save resolves only its submitted brief, preserving edits typed during the request',async()=>{
   for(const late of [false,true]){
-    const h=setup();let brief={goal:'Fixed learning goal'};h.window.PDHBrief.read=()=>({...brief});
+    const h=setup();let brief={goal:'Fixed learning goal'};h.window.PTBrief.read=()=>({...brief});
     h.set('state.dirty=true;state.briefDirty=true;state.creationBrief=true');
     h.window.onRequest=body=>{if(body?.action==='save'&&late) brief={goal:'A later edit'};};
     await h.node('save').onclick();assert.equal(h.set('state.creationBrief'),null);

@@ -22,7 +22,7 @@ class DesktopIsolationTests(unittest.TestCase):
     def _seed(self, directory, key):
         directory.mkdir(parents=True, exist_ok=True)
         (directory / "AI_DISABLED").touch()
-        store = Store(directory / "paperdighelper.sqlite")
+        store = Store(directory / "pagetide.sqlite")
         store.init()
         store.conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES ('p','P','manual','2026-01-01','[]')")
         store.conn.commit()
@@ -32,10 +32,10 @@ class DesktopIsolationTests(unittest.TestCase):
         store.conn.close()
 
     def _run_backend(self, home, directory=None, expected_key="isolated-library"):
-        env = dict(os.environ, HOME=str(home), DEEPSEEK_API_KEY="", PDH_DEV="0")
-        env.pop("PAPERDIGHELPER_DATA", None)
+        env = dict(os.environ, HOME=str(home), DEEPSEEK_API_KEY="", PAGETIDE_DEV="0")
+        env.pop("PAGETIDE_DATA", None)
         if directory is not None:
-            env["PAPERDIGHELPER_DATA"] = str(directory)
+            env["PAGETIDE_DATA"] = str(directory)
         with tempfile.TemporaryFile(mode="w+") as errors:
             code = ("import socket; "
                     "socket.socket.connect = lambda *args, **kwargs: "
@@ -50,7 +50,7 @@ class DesktopIsolationTests(unittest.TestCase):
                     errors.seek(0)
                     self.fail("Desktop backend did not announce readiness: " + errors.read()[-2000:])
                 line = process.stdout.readline()
-                if not line.startswith("PDH_READY "):
+                if not line.startswith("PAGETIDE_READY "):
                     errors.seek(0)
                     self.fail("Desktop startup failed, exit=" + str(process.poll()) + ": " + errors.read()[-2000:])
                 url = line.strip().split(" ", 1)[1]
@@ -69,7 +69,7 @@ class DesktopIsolationTests(unittest.TestCase):
                 self.assertEqual(process.wait(timeout=15), 0)
                 errors.seek(0)
                 stderr = errors.read()
-                self.assertNotIn("PDH_BOOTSTRAP_FAILED", stderr)
+                self.assertNotIn("PAGETIDE_BOOTSTRAP_FAILED", stderr)
                 self.assertNotIn("Test prohibits outbound network", stderr)
             finally:
                 if process.poll() is None:
@@ -82,7 +82,7 @@ class DesktopIsolationTests(unittest.TestCase):
     def test_explicit_library_is_used_by_bootstrap_and_requests(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "fake-home"
-            default = home / "Library" / "Application Support" / "PaperDigHelper"
+            default = home / "Library" / "Application Support" / "PageTide"
             directory = Path(tmp) / "isolated-library"
             # Also seed the fallback: the regression never contacts discovery services.
             self._seed(default, "fallback-library")
@@ -98,7 +98,7 @@ class DesktopIsolationTests(unittest.TestCase):
     def test_default_library_remains_supported(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
-            directory = home / "Library" / "Application Support" / "PaperDigHelper"
+            directory = home / "Library" / "Application Support" / "PageTide"
             self._seed(directory, "isolated-library")
             self._run_backend(home)
             self.assertTrue((directory / ".desktop.lock").is_file())

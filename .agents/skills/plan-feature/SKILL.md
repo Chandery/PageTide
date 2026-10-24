@@ -1,6 +1,6 @@
 ---
 name: plan-feature
-description: Plan a new PaperDigHelper feature or scope change before coding; trace requirements, low-compute constraints, token impact and staged approval.
+description: Plan a new PageTide feature or scope change before coding; trace requirements, low-compute constraints, token impact and staged approval.
 ---
 # Plan a feature
 

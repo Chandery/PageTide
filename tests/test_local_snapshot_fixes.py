@@ -10,7 +10,7 @@ class LocalSnapshotFixTests(unittest.TestCase):
         from app.local_snapshot import create_snapshot, restore_database
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            store = Store(root / 'paperdighelper.sqlite'); store.init()
+            store = Store(root / 'pagetide.sqlite'); store.init()
             try:
                 store.upsert_papers([{'key': 'a', 'title': 'Paper'}])
                 store.add_qa('a', 'user', 'A stored question')
@@ -21,7 +21,7 @@ class LocalSnapshotFixTests(unittest.TestCase):
                 (root / 'deepseek.key').write_text('SECRET')
                 before = [tuple(row) for row in store.conn.execute('SELECT * FROM future_state')]
                 snap = create_snapshot(store, root)
-                self.assertEqual(snap['format'], 'paperdighelper.local-snapshot')
+                self.assertEqual(snap['format'], 'pagetide.local-snapshot')
                 self.assertEqual(snap['version'], 1)
                 self.assertIn('future_state', snap['database']['tables'])
                 self.assertEqual(snap['database']['tables']['qa_history'], 1)

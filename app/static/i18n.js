@@ -1,17 +1,17 @@
 /* Interface language. Chinese is the source language: the pages write Chinese inline, and the
-   server injects window.PDH_I18N = {lang, messages} (route /i18n/current.js) from the language
+   server injects window.PAGETIDE_I18N = {lang, messages} (route /i18n/current.js) from the language
    chosen on the settings page. In English this layer replaces every rendered Chinese text node
    and title / placeholder / aria-label / alt by its pack entry: the exact text first, then a
    pattern key whose "{0}" parts are filled from the text. A part next to a counter (篇, 页…) or
    after 第/共 takes only a number; a Chinese part is translated only when it is a whole pack
    entry, and is otherwise kept verbatim (a name, a note, AI text), never half-translated. It also
    wraps alert / confirm / prompt. Text without a pack entry stays Chinese and is listed in
-   PDHi18n.misses() so a preview audit can find it. Zero tokens; nothing leaves the page.
+   PTi18n.misses() so a preview audit can find it. Zero tokens; nothing leaves the page.
    Never translated: the PDF text layer, form fields being edited, [data-no-i18n] and the
    containers of titles, abstracts, notes and quotes listed in SKIP. */
 (function (global) {
 'use strict';
-const config = global.PDH_I18N || {};
+const config = global.PAGETIDE_I18N || {};
 const lang = config.lang === 'en-US' ? 'en-US' : 'zh-CN';
 const HAN = /[㐀-鿿]/;
 const PLACEHOLDER = /\{(\d+)\}/g;
@@ -155,7 +155,7 @@ function systemText(text) {
   return t(value);
 }
 
-global.PDHi18n = {lang, t, translate, exact: exactly, system: systemText, misses: () => [...missed]};
+global.PTi18n = {lang, t, translate, exact: exactly, system: systemText, misses: () => [...missed]};
 if (lang !== 'en-US') return;
 
 document.documentElement.lang = 'en';

@@ -2,7 +2,7 @@
 'use strict';
 const $ = (s) => document.querySelector(s);
 const part = (role) => $(`[data-role="${role}"]`);
-const projectId = new URLSearchParams(location.search).get('project_id') || localStorage.getItem('pdh-current-project') || '';
+const projectId = new URLSearchParams(location.search).get('project_id') || localStorage.getItem('pt-current-project') || '';
 const state = {project: null, busy: false};
 const policyEditor = PaperPolicy.mount(part('paperPolicy'));
 
@@ -72,8 +72,8 @@ part('delete').onclick = async () => {
   state.busy = true; part('delete').disabled = true;
   try {
     const out = await call(`/api/projects/${encodeURIComponent(projectId)}`, {method: 'DELETE'});
-    if (localStorage.getItem('pdh-current-project') === projectId) localStorage.removeItem('pdh-current-project');
-    sessionStorage.setItem('pdh-notice', `已删除项目“${out.name}”`);
+    if (localStorage.getItem('pt-current-project') === projectId) localStorage.removeItem('pt-current-project');
+    sessionStorage.setItem('pt-notice', `已删除项目“${out.name}”`);
     location.href = '/';
   } catch (error) { notice(error.message); state.busy = false; render(); }
 };
