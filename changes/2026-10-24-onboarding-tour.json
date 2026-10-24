@@ -2,34 +2,46 @@
   "schema_version": 1,
   "id": "2026-10-24-onboarding-tour",
   "class": "critical",
-  "status_note": "IN PROGRESS: backend only (demo sandbox, onboarding state, routes). The front end (tour.js/tour.css, page wiring, i18n, settings button), the ADR and the R-/E-/FEAT- registrations are later steps.",
-  "summary": "Onboarding tour backend: a read-only-for-the-person's-data demo project (pdh-demo) served from a throw-away offline SQLite sandbox built from a built-in fixture (29 public arXiv Transformer-lineage papers: 5 unrated candidates + 24 earlier records spread over four weeks, with categories, pinned-term history and pre-written zh/en previews); request routing by header X-PDH-Demo or project_id with an allow list and a 403 demo_readonly for everything else; /api/onboarding (state, start, done) with state in onboarding.json; /api/projects carries a demo descriptor; app_version.current(); first-run assertions in the packaged-backend verifier.",
+  "status_note": "Backend and front-end wired (pages, i18n, settings replay, creation-page demo entry, ADR 0042, R-/E-/FEAT- registration). NOT browser-verified: the preview tool could not see the worktree launch.json and headless Chrome is blocked by the sandbox; the 16-step walk, skip/reload/English/dark checks and the real-database-stays-empty check after a browser run are still open. Not independently reviewed.",
+  "summary": "Onboarding tour (backend and front-end wiring): a read-only-for-the-person's-data demo project (pdh-demo) served from a throw-away offline SQLite sandbox built from a built-in fixture (29 public arXiv Transformer-lineage papers: 5 unrated candidates + 24 earlier records spread over four weeks, with categories, pinned-term history and pre-written zh/en previews); request routing by header X-PDH-Demo or project_id with an allow list and a 403 demo_readonly for everything else; /api/onboarding (state, start, done) with state in onboarding.json; /api/projects carries a demo descriptor; app_version.current(); first-run assertions in the packaged-backend verifier. Front end: tour.js/tour.css wired into the main, settings, weekly and creation pages; api() sends the demo header only while the demo is current; the demo id is never stored; demo mode hides every entry that would fetch, call a model, read a PDF or edit; settings 'replay tour'; creation page offers 'see the demo' when there is no project.",
   "tasks": [
-    "PILOT-01"
+    "PILOT-01",
+    "FEAT-ONBOARDING"
   ],
   "requirements": [
     "R-LOCAL",
     "R-BUDGET",
     "R-WEEKLY",
-    "R-GRAPH"
+    "R-GRAPH",
+    "R-ONBOARDING"
   ],
   "files": [
-    "app/app_version.py",
-    "app/demo.py",
     "app/demo_fixture.py",
-    "app/onboarding.py",
-    "app/project.py",
-    "app/server.py",
+    "app/static/i18n/en-US.json",
+    "app/static/index.html",
+    "app/static/project-switcher.js",
+    "app/static/project_creation.html",
+    "app/static/route-brief.js",
+    "app/static/settings.html",
+    "app/static/weekly_report.html",
     "changes/2026-10-24-onboarding-tour.json",
     "docs/ARCHITECTURE.md",
     "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/decisions/0042-first-run-demo-and-tour.md",
     "docs/evidence/2026-10-24-onboarding-tour-checks.txt",
+    "harness/evaluations.json",
+    "harness/requirements.json",
     "harness/sources.json",
-    "scripts/verify_packaged_route.py",
+    "harness/tasks.json",
+    "scripts/i18n_extract.py",
+    "tests/test_ai_connection_settings.cjs",
     "tests/test_demo_sandbox.py",
-    "tests/test_onboarding_state.py"
+    "tests/test_project_chain.py",
+    "tests/test_project_switcher.cjs",
+    "tests/test_tour_wiring.cjs"
   ],
-  "scope_note": "Worktree onboarding-tour, second commit on top of the no-default-project commit. No front-end file is touched, so nothing in the UI uses these routes yet. The demo makes zero model calls and zero network requests: the gateway is read-only, sources and the PDF fetcher are offline stubs, and the tests close sockets to everything but loopback and make Gateway.call raise.",
+  "scope_note": "Worktree onboarding-tour, second commit(s) on top of the no-default-project commit; The backend (aecdac5) and tour.js/tour.css (38e8b1e) are already committed; 'files' lists only what this commit changes. Includes the coordinator's verbatim-abstract fixture (app/demo_fixture.py, harness/sources.json). The demo makes zero model calls and zero network requests.",
   "budget_impact": {
     "runtime": "zero",
     "rationale": "The demo triage writes pre-written previews (model=demo); no provider is called, no prompt registered, no retry. The sandbox gateway cannot call a model even with DEEPSEEK_API_KEY set.",
@@ -59,19 +71,19 @@
   ],
   "additional_checks": [
     {
+      "command": "python3 scripts/verify_packaged_route.py <wrapper running the source backend>",
+      "exit_code": 0,
+      "scope": "including the new first-run block; NOT run against a frozen binary"
+    },
+    {
       "command": "node --test tests/*.cjs",
       "exit_code": 0,
-      "scope": "607 pass (no front-end change)"
+      "scope": "630 pass, 0 fail (includes tests/test_tour_wiring.cjs: source slices for the demo header, demo id never stored, demo AI label, no-project redirect, settings replay, creation-page demo entry)"
     },
     {
       "command": "python3 scripts/i18n_extract.py",
       "exit_code": 0,
-      "scope": "0 of 1178 keys missing"
-    },
-    {
-      "command": "python3 scripts/verify_packaged_route.py <wrapper running the source backend>",
-      "exit_code": 0,
-      "scope": "including the new first-run block; NOT run against a frozen binary"
+      "scope": "0 of 1212 keys missing (tour.js added to the extractor)"
     }
   ],
   "reviews": [
@@ -85,11 +97,13 @@
   "owner_approved": false,
   "open_risks": [
     "Not independently reviewed (critical class).",
-    "The arXiv identifiers, titles, dates of the 29 fixture papers were written from memory and the abstracts are the author's paraphrases: export.arxiv.org was unreachable from the sandbox, so nothing was verified online (harness/sources.json DEMO-FIXTURE-ARXIV, recheck in 7 days).",
     "The organization worker lock is global: a demo graph job and a real organization job exclude each other (the loser gets 'already running').",
     "A request that sends X-PDH-Demo gets the sandbox for every non-settings route; the page must send the header only while the tour is on screen.",
     "Windows cannot delete an open sandbox file; the old generation then stays until the next reset (tested by simulating a failed delete, not on Windows).",
     "Direction names in the sandbox library are written in the language chosen at reset time; switching the interface language mid-tour does not rename them.",
-    "No front end exists yet: sessionStorage survival across pages in WKWebView/WebView2 is still an inference."
+    "NOT verified in a browser: tour.js's DOM layer (spotlight, bubble, waiting for targets, cross-page resume) has never run in any browser; the 16-step walk, skip, reload, English, dark theme and the real-database-empty check after a browser run are open (preview tool reads the main checkout's launch.json; headless Chrome blocked by the sandbox). E-ONBOARDING needs native macOS and Windows packaged runs anyway.",
+    "sessionStorage survival across page loads in WKWebView / WebView2 is an inference.",
+    "Selector dependence: tour steps target ids/classes in index.html, settings.html, organization.js and profile-ui.js; a renamed element degrades to a centred bubble after 15 s rather than blocking.",
+    "With the verbatim arXiv abstracts the offline demo graph has 10 edges (was 20+); tests/test_demo_sandbox.py threshold lowered to 8."
   ]
 }

@@ -534,8 +534,8 @@
       "url": "https://info.arxiv.org/help/api/index.html",
       "verified_on": "2026-10-24",
       "recheck_after_days": 7,
-      "claim": "The onboarding demo project (app/demo_fixture.py) uses 29 public arXiv papers (Transformer lineage): identifier, title and first-version date, plus a short paraphrase of each abstract. arXiv metadata is CC0; the PDFs are not bundled or fetched by the demo.",
-      "verification": "NOT VERIFIED ONLINE. The agent that wrote the fixture could not reach export.arxiv.org (sandbox network policy denied the host). Identifiers, titles and dates were written from memory; every abstract is the author's own paraphrase, never claimed verbatim (ABSTRACTS_VERIFIED = False in the fixture). The one-line zh/en previews are hand-written for the demo, not model output. Before release: fetch https://export.arxiv.org/api/query?id_list=<ids> (one request, sequential, within arXiv's 3-second rule), compare identifiers/titles/dates, and either replace the paraphrases with verbatim abstracts or keep them labelled as paraphrases."
+      "claim": "The onboarding demo project (app/demo_fixture.py) uses 29 public arXiv papers (Transformer lineage): identifier, title, first-version date and verbatim abstract. arXiv metadata is CC0; the PDFs are not bundled or fetched by the demo.",
+      "verification": "Checked 2026-10-24 with one request to https://export.arxiv.org/api/query?id_list=<29 ids> run from the owner's Terminal panel (the agent sandbox cannot reach arXiv): all 29 identifiers resolve, titles match (case/punctuation-insensitive) and first-version dates match; the abstracts were replaced with the returned text, whitespace collapsed. The one-line zh/en previews are hand-written for the demo, not model output."
     }
   ]
 }

@@ -5,7 +5,7 @@
   else root.PDHBrief = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const FIELDS = [
-    ['goal', '学习目标', 250, '例如：能读懂并复现基础世界模型论文'],
+    ['goal', '学习目标', 250, '例如：能读懂并复现基础的图神经网络论文'],
     ['known', '已知基础', 150, '例如：会概率论，没学过强化学习'],
     ['include', '希望包含', 150, '例如：潜变量、评估方法'],
     ['exclude', '希望排除', 150, '例如：本轮不学机器人硬件'],

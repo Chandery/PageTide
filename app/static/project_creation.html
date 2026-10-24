@@ -6,6 +6,7 @@
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/project-creation.css">
+<link rel="stylesheet" href="/tour.css">
 <title>创建项目 · PaperDigHelper</title>
 <script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
@@ -37,7 +38,7 @@
 <section id="quickForm" class="panel" aria-label="快速创建">
   <div id="quickStart">
     <div class="grid">
-      <div class="field"><label for="quickName">项目名称</label><input id="quickName" maxlength="120" placeholder="例如：具身世界模型"></div>
+      <div class="field"><label for="quickName">项目名称</label><input id="quickName" maxlength="120" placeholder="例如：图神经网络"></div>
       <div class="field"><label for="quickGoal">研究目标</label><textarea id="quickGoal" rows="3" placeholder="你想理解或解决什么问题？"></textarea></div>
     </div>
     <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="quickGo" title="调用 1 次 AI">整理方向并查找论文</button></div>
@@ -53,7 +54,7 @@
 <section id="guidedForm" class="panel" aria-label="AI 引导">
   <div id="guidedStart">
     <div class="grid">
-      <div class="field"><label for="guidedName">项目名称</label><input id="guidedName" maxlength="120" placeholder="例如：世界模型入门"></div>
+      <div class="field"><label for="guidedName">项目名称</label><input id="guidedName" maxlength="120" placeholder="例如：图神经网络入门"></div>
       <div class="field"><label for="guidedGoal">研究目标</label><textarea id="guidedGoal" rows="3" placeholder="你想理解的主题"></textarea></div>
     </div>
     <div class="actions"><button type="button" class="ghost" data-act="cancel">取消</button><button type="button" class="primary" id="guidedGo">开始引导</button></div>
@@ -120,7 +121,7 @@
   </section>
   <section class="rv-block">
     <header><h3>检索式</h3></header>
-    <textarea data-role="queries" rows="3" placeholder="例如：world model embodied planning"></textarea>
+    <textarea data-role="queries" rows="3" placeholder="例如：graph neural network node classification"></textarea>
   </section>
   <section class="rv-block" data-role="mapBlock" data-route-beta>
     <header><h3>学习图</h3>
@@ -182,5 +183,28 @@
 </dialog>
 <script src="/creation-quit.js"></script>
 <script src="/project-creation.js"></script>
+<script src="/tour.js"></script>
+<script>
+// No project yet: "back" would only bounce here again, so offer the demo instead.
+(async()=>{
+  try {
+    const list=await (await fetch('/api/projects')).json();
+    if((list.projects||[]).length)return;
+    const link=document.querySelector('a.back');
+    link.textContent='看看演示';
+    link.addEventListener('click',async e=>{
+      e.preventDefault();
+      try {
+        const res=await fetch('/api/onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start'})});
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
+        PDHTour.begin({version:(data.state||{}).version,returnProject:null});
+        window.location.href='/';
+      } catch(err) { window.PDHDialogs.notice(`打不开演示：${err.message}`,{target:document.getElementById('creationQuitStatus'),kind:'error'}); }
+    });
+  } catch(e) { /* keep the plain back link */ }
+})();
+PDHTour.boot('creation',{});
+</script>
 </body>
 </html>

@@ -82,6 +82,7 @@
   .mc-card:hover .mc-edit, .mc-card[aria-selected="true"] .mc-edit, .mc-edit:focus-visible { opacity:1; }
   .mc-edit:hover { background:rgba(255,255,255,.2); transform:none; }
   .mc-card[aria-selected="true"] .mc-label { color:#fff; font-weight:600; }
+  .mc-demo { flex:0 0 auto; font-size:11px; padding:1px 7px; border-radius:999px; color:rgba(243,238,230,.8); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); }
   .mc-dot { flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--mark); }
   /* placeholder page for projects not opened in this session */
   .mc-ph-top { display:flex; align-items:center; gap:14px; padding:14px max(24px,calc((100% - 1200px)/2));
@@ -604,12 +605,20 @@
 
   /* — large screens: the steps (--s, --wrap) are defined in theme.css; the dense library page keeps --s:1 — */
   #organizationRoot { --s:1; }
+  /* The demo project is read-only for the person's data: whatever would fetch, call a model, read a PDF or edit is simply not shown. */
+  html.pdh-demo #btnRefresh, html.pdh-demo #refreshRecord, html.pdh-demo #pet, html.pdh-demo #petPanel,
+  html.pdh-demo .ai-action, html.pdh-demo .read-action, html.pdh-demo #dRead, html.pdh-demo .detail-projects,
+  html.pdh-demo #organizationRoot [data-action="suggest"], html.pdh-demo #organizationRoot [data-action="import"],
+  html.pdh-demo #organizationRoot [data-action="export"], html.pdh-demo #organizationRoot .org-notes,
+  html.pdh-demo #organizationRoot [data-action="read"], html.pdh-demo #organizationRoot .org-note-mark { display:none !important; }
+  .ai-demo-tag { color:var(--muted, inherit); }
   @media (min-width:1700px) { .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
 </style>
 <link rel="stylesheet" href="/organization.css">
 <link rel="stylesheet" href="/profile.css">
+<link rel="stylesheet" href="/tour.css">
 <script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
 <header class="top">
@@ -713,6 +722,7 @@
 <div id="settingsPage" class="page hidden" role="dialog" aria-modal="true" aria-label="设置"></div>
 <div id="toasts"></div>
 
+<script src="/tour.js"></script>
 <script src="/profile-ui.js"></script>
 <script src="/project-switcher.js"></script>
 <script src="/figure-intent.js"></script>
@@ -728,7 +738,9 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { triagingKeys:new Set(), aiFailures:{}, view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
-                currentProject:null, projects:[], maintained:new Set() };
+                currentProject:null, projects:[], realProjects:[], demo:null, maintained:new Set() };
+const DEMO_ID = 'pdh-demo';
+const inDemo = () => state.currentProject === DEMO_ID;   // the demo project exists only during the guided tour; its id is never stored
 
 // ------------------------------------------------------------ appearance
 function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m);
@@ -741,15 +753,22 @@ $('#modeBtn').onclick = async () => {
 };
 
 // ------------------------------------------------------------------ utils
+let demoBlockedAt = 0;
 function toast(msg, kind='ok', ms=3600) {
+  if (kind !== 'ok' && kind !== 'ai' && Date.now() - demoBlockedAt < 2500) return;   // the demo's own "not here" message already says it
   const el = document.createElement('div'); el.className = `toast ${kind}`; el.textContent = msg;
   $('#toasts').appendChild(el);
   setTimeout(() => { el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),250); }, ms);
 }
+// While the guided tour shows the demo project every request asks for it with this header (settings, update and tour state ignore it).
+function demoHeaders() { return inDemo() ? { 'X-PDH-Demo': '1' } : {}; }
 async function api(path, body) {
-  const res = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
+  const res = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json', ...demoHeaders()},body:JSON.stringify(body)} : {headers:demoHeaders()});
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 403 && data.reason_code === 'demo_readonly') { toast(data.error, 'warn'); demoBlockedAt = Date.now(); }
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
   return data;
 }
 function mdInline(t) {
@@ -792,7 +811,7 @@ function renderStats() {
 function aiSlot(c) {
   const text = state.aiFailures?.[`${state.currentProject || 'default'}:${c.key}`];
   const failure = text ? `<div class="sub err" role="alert">${esc(text)} <a href="/settings.html">打开设置</a></div>` : '';
-  if (c.summary) return `<div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
+  if (c.summary) return `<div class="ai-line"><b>${c.summary.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
     ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>${failure}`;
   if (state.triaging || state.triagingKeys.has(c.key)) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return failure;
@@ -967,17 +986,31 @@ function renderProfile() {
 }
 
 // ------------------------------------------------------------------ projects
+// The switcher lists the person's projects, plus the demo while the tour is on. The demo is never stored as the current project.
+function syncProjects() {
+  state.projects = [...state.realProjects, ...(window.PDHTour.current() && state.demo ? [state.demo] : [])];
+}
+function applyDemoMode() {
+  const on = inDemo();
+  document.documentElement.classList.toggle('pdh-demo', on);
+  const auto = $('#autoAi');
+  if (auto && on) { auto.checked = true; const label = auto.closest('label'); if (label) label.hidden = true; }
+  else if (auto) { const label = auto.closest('label'); if (label) label.hidden = false; }
+}
+function rememberProject(id) { if (id && id !== DEMO_ID) localStorage.setItem('pdh-current-project', id); }
 async function loadProjects() {
   const data = await api('/api/projects');
-  state.projects = data.projects || [];
+  state.realProjects = (data.projects || []).filter(p => p.id !== DEMO_ID);
+  state.demo = data.demo || null;
+  syncProjects();
 
   // If no current project set, use first one
   if (state.currentProject && !state.projects.some(p => p.id === state.currentProject)) {
     state.currentProject = null;
   }
-  if (!state.currentProject && state.projects.length > 0) {
-    state.currentProject = state.projects[0].id;
-    localStorage.setItem('pdh-current-project', state.currentProject);
+  if (!state.currentProject && state.realProjects.length > 0) {
+    state.currentProject = state.realProjects[0].id;
+    rememberProject(state.currentProject);
   }
 
   renderProjectSelector();
@@ -986,15 +1019,28 @@ async function loadProjects() {
 function renderProjectSelector() {
   const current = state.projects.find(p => p.id === state.currentProject);
   $('#currentProjectName').textContent = current?.name || '选择项目';
-  $('#projectEdit').href = current ? `/project.html?project_id=${encodeURIComponent(current.id)}` : '/project.html';
+  $('#projectEdit').href = current && !current.demo ? `/project.html?project_id=${encodeURIComponent(current.id)}` : '/project.html';
+}
+$('#projectEdit').addEventListener('click', (e) => {
+  if (!inDemo()) return;
+  e.preventDefault();
+  toast('演示项目不能修改，创建自己的项目后在这里自定义', 'warn');
+});
+let tourLeaveTo = null;   // where to go once the tour has been ended by leaving the demo (a real project, the creation page)
+async function leaveDemo(url) {
+  if (!window.PDHTour.current()) { window.location.href = url; return; }
+  tourLeaveTo = url;
+  await window.PDHTour.skip();
 }
 
 async function switchProject(projectId) {
+  if (projectId !== DEMO_ID && window.PDHTour.current()) { rememberProject(projectId); await leaveDemo('/'); return; }   // leaving the demo for a real project ends the tour
   closeDetail();
   if (profileUI) profileUI.invalidate();
   state.currentProject = projectId;
+  applyDemoMode();
   showTriageFailure(null, null, projectId);
-  localStorage.setItem('pdh-current-project', projectId);
+  rememberProject(projectId);
   renderProjectSelector();
   window.PDHOrganization?.reset?.().catch?.(() => {});   // the library page follows the project
   await load();
@@ -1008,7 +1054,7 @@ const projectSwitcher = window.ProjectSwitcher.mount({
   getProjects: () => state.projects,
   getCurrent: () => state.currentProject,
   onSelect: id => switchProject(id),
-  onCreate: () => { window.location.href = '/project_creation.html'; },
+  onCreate: () => { leaveDemo('/project_creation.html'); },
   onEdit: p => { window.location.href = `/project.html?project_id=${encodeURIComponent(p.id)}`; },
   // The PDF reader zooms with the same pinch, so it never opens the overview.
   pinchIgnore: '.org-graph, #reader, .pdfbox',
@@ -1036,6 +1082,7 @@ async function load() {
   state.provider = data.provider || null;
   const aiReady = Boolean(state.provider && state.provider.configured);
   const autoAi = $('#autoAi');
+  if (autoAi && inDemo()) autoAi.checked = true;
   if (autoAi) {
     autoAi.title = aiReady ? '' : '尚未配置 API';
   }
@@ -1091,6 +1138,7 @@ function renderEligibility(snapshot) {
   }
 }
 async function autoMaintain() {
+  if (inDemo()) return;   // nothing is fetched in the demo
   const key = state.currentProject || 'default';
   if (state.maintained.has(key)) return;   // once per project per page session; the server enforces the interval
   state.maintained.add(key);
@@ -1369,7 +1417,7 @@ async function openDetail(key) {
           </div>
         </section>` : ''}
         ${window.PDHPaperContext.html(d.context, d.key)}
-        ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
+        ${s ? `<section class="detail-ai"><div class="ai-line"><b>${s.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
         ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div></section>` : ''}
       </aside>`;
@@ -1478,14 +1526,25 @@ $('#settingsBtn').onclick = () => { window.location.href = '/settings.html'; };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode!==229 && !document.querySelector('dialog[open]')) { closeDetail(); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
 document.addEventListener('scroll', hidePreview, { passive: true });
 
-// Load projects first, then load home
+// Load projects first, then decide on the tour, then load home
 (async () => {
   try {
     const requested = new URLSearchParams(window.location.search).get('project_id');
-    if (requested) state.currentProject = requested;
+    if (requested && requested !== DEMO_ID) state.currentProject = requested;
     const saved = localStorage.getItem('pdh-current-project');
-    if (!requested && saved) state.currentProject = saved;
+    if (!requested && saved && saved !== DEMO_ID) state.currentProject = saved;
     await loadProjects();
+    if (!window.PDHTour.current()) {
+      let onboarding = null;
+      try { onboarding = await api('/api/onboarding'); } catch (e) { /* no tour this time */ }
+      if (onboarding && window.PDHTour.shouldOffer(onboarding, sessionStorage.getItem(window.PDHTour.OFFERED_KEY))) {
+        await api('/api/onboarding', { action: 'start' });
+        window.PDHTour.begin({ version: onboarding.version, returnProject: state.realProjects.length ? state.currentProject : null });
+        syncProjects();
+      } else if (!state.realProjects.length) { window.location.replace('/project_creation.html'); return; }
+    }
+    if (window.PDHTour.current() && state.demo) { state.currentProject = DEMO_ID; renderProjectSelector(); }
+    applyDemoMode();
     const note = sessionStorage.getItem('pdh-notice');
     if (note) { sessionStorage.removeItem('pdh-notice'); toast(note, 'ok', 8000); }
     await load();
@@ -1493,6 +1552,13 @@ document.addEventListener('scroll', hidePreview, { passive: true });
     const wanted = new URLSearchParams(window.location.search).get('view');
     if (wanted === 'profile' || wanted === 'library') document.querySelector(`.tab[data-view="${wanted}"]`)?.click();
     autoMaintain();
+    window.PDHTour.boot('index', {
+      selectView: (view) => selectView(view),
+      hasRealProject: () => state.realProjects.length > 0,
+      api: (path, body) => api(path, body),
+      onFinish: () => { if (tourLeaveTo) { window.location.href = tourLeaveTo; return false; } },
+      onError: (e) => toast(e.message, 'warn'),
+    });
   } catch (e) {
     toast(`加载失败：${e.message}`, 'err');
   }

@@ -1269,6 +1269,32 @@
         "docs/evidence/2026-10-22-route-beta-self-review.md"
       ],
       "authorization_note": "2026-10-22 human owner asked to move the whole learning-map framework behind a Settings switch “打开学习图模式（beta）”, default off, with hotspot mode (newest papers by profile) as the default recommendation; confirmed the hidden entry points and the 30-day / 0.5 defaults. No new model call, provider, cap or outbound field."
+    },
+    {
+      "id": "FEAT-ONBOARDING",
+      "stage": "delivery",
+      "title": "没有默认项目、只读演示项目与新手指引",
+      "status": "review",
+      "depends_on": [],
+      "requirements": [
+        "R-ONBOARDING",
+        "R-LOCAL",
+        "R-BUDGET",
+        "R-HARNESS"
+      ],
+      "acceptance": [
+        "全新数据目录没有项目、论文和自动联网；页面无真实项目且不在指引中时进入创建页",
+        "演示项目走一次性离线沙盒（header 或 project_id 路由，白名单之外 403 demo_readonly），真实库表计数与 settings.json 字节在演示前后不变，零模型调用、零联网",
+        "首次打开与每次更新后弹一次分步指引（项目、设置、推荐、论文库与画像共 16 步），可跳过，设置页可重新查看，无项目时结束于创建页并提示；演示 id 不写 localStorage",
+        "UI 不暴露计数、原因码或机制说明；英文界面与深色主题可用",
+        "源码后端上的真实浏览器合成数据走查、全量检查通过；打包产物的原生验收（E-ONBOARDING）、冻结二进制、Windows 不冒充通过"
+      ],
+      "evidence": [
+        "docs/decisions/0042-first-run-demo-and-tour.md",
+        "docs/evidence/2026-10-24-onboarding-tour-checks.txt",
+        "docs/evidence/2026-10-24-no-default-project-checks.txt"
+      ],
+      "authorization_note": "2026-10-24 human owner asked for no default project on a fresh install, a demo project and a step-by-step first-run tour (also after each update). No provider, cap, outbound request or model call is added."
     }
   ]
 }

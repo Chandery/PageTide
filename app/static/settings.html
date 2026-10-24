@@ -148,6 +148,10 @@
           <option value="auto">跟随系统</option>
         </select>
       </div>
+      <div class="field">
+        <label for="replayTourBtn">新手指引</label>
+        <button type="button" id="replayTourBtn" class="ghost">重新查看</button>
+      </div>
     </div>
 
     <div class="section">
@@ -673,7 +677,30 @@
       finally {button.disabled=false;}
     };
 
+    // Replay the first-run tour: a fresh demo sandbox, then the main page shows it. The project to come back to is the current real one.
+    $('#replayTourBtn').onclick = async () => {
+      const button=$('#replayTourBtn');
+      if(button.disabled)return;
+      button.disabled=true;
+      try {
+        const post=(body)=>fetch('/api/onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        const list=await (await fetch('/api/projects')).json();
+        const ids=(list.projects||[]).map(p=>p.id), saved=localStorage.getItem('pdh-current-project');
+        const returnProject=ids.includes(saved)?saved:(ids[0]||null);
+        const res=await post({action:'start'}); const data=await res.json().catch(()=>({}));
+        if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
+        window.PDHTour.begin({version:(data.state||{}).version,returnProject});
+        window.location.href='/';
+      } catch(e) {
+        window.PDHDialogs.notice(`打不开新手指引：${e.message}`,{target:$('#settingsStatus'),kind:'error'});
+        button.disabled=false;
+      }
+    };
+
     loadSettings();
   </script>
+  <link rel="stylesheet" href="/tour.css">
+  <script src="/tour.js"></script>
+  <script>window.PDHTour.boot('settings', {});</script>
 </body>
 </html>

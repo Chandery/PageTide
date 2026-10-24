@@ -1,12 +1,19 @@
-# 当前工作单元：演示项目与新手指引·后端（2026-10-24，onboarding-tour 第二个提交，进行中）
+# 当前工作单元：演示项目与新手指引（2026-10-24，onboarding-tour 第二个提交：后端 + 前端接线）
 
-[变更记录](../changes/2026-10-24-onboarding-tour.json)，[检查证据](evidence/2026-10-24-onboarding-tour-checks.txt)。**前端未接线**：没有改任何页面，`tour.js/tour.css`、页面接线、`i18n`、设置页“重新查看”、ADR 与 R-/E-/FEAT- 登记都是后续步骤。
+[变更记录](../changes/2026-10-24-onboarding-tour.json)，[检查证据](evidence/2026-10-24-onboarding-tour-checks.txt)，[ADR 0042](decisions/0042-first-run-demo-and-tour.md)，需求 `R-ONBOARDING`、发布门 `E-ONBOARDING`（not_run）、任务 `FEAT-ONBOARDING`（review）。
 
-做了什么：演示项目 `pdh-demo` 不在用户库里。带请求头 `X-PDH-Demo: 1`（或 `project_id=pdh-demo`）的请求由 `app/demo.py` 路由到 `<数据目录>/demo-sandbox/<世代>/` 的一次性沙盒库（`app/demo_fixture.py`：5 篇未评价候选 + 24 篇带时间分布的历史记录，4 个类别，钉词历史，预写中英速览），每次开始指引与每次进程启动新建，旧的尽力删除。沙盒里网关只读转发、数据源与 PDF 抓取是离线桩，零 token 零联网；白名单外一律 403 `demo_readonly`；设置、更新、指引状态永远读写真实目录。`/api/onboarding`（GET 状态；POST `start` 重置沙盒、`done` 写 `onboarding.json`）；`/api/projects` 另带 `demo` 描述。`app/app_version.py` 的 `current(root)` 取 `PDH_APP_VERSION`，再取 `src-tauri/tauri.conf.json`，否则 `unknown`（`app/updater.py` 仍用自己的规则，没动）。
+做了什么：演示项目 `pdh-demo` 不在用户库里。带请求头 `X-PDH-Demo: 1`（或 `project_id=pdh-demo`）的请求由 `app/demo.py` 路由到 `<数据目录>/demo-sandbox/<世代>/` 的一次性沙盒库（`app/demo_fixture.py`：29 篇公开 arXiv 论文，已在 2026-10-24 联网核对并换成逐字摘要；5 篇未评价候选 + 24 篇带时间分布的历史记录，预写中英速览），每次开始指引与每次进程启动重置。前端：`tour.js`/`tour.css` 接进主页、设置、周报、创建页；主页 `api()` 只在当前项目为演示时加头，演示 id 不写 `localStorage`；`html.pdh-demo` 隐藏抓取、单篇速览、读 PDF、助手、论文库的 AI 分类/导入/导出/笔记；演示中切到真实项目或点“＋”等于跳过；设置页“新手指引 · 重新查看”；没有真实项目时创建页的“返回主页”换成“看看演示”；创建页的世界模型示例占位符换成中性示例。
 
-**fixture 没有联网核实**：这次的沙箱访问不了 export.arxiv.org。29 篇的 arXiv 编号、标题、日期来自记忆，摘要是自己的改写（`ABSTRACTS_VERIFIED = False`），速览是手写的、不是模型输出。`harness/sources.json` 的 `DEMO-FIXTURE-ARXIV` 7 天后会提示复查；发布前要用一次 `export.arxiv.org/api/query?id_list=…` 核对。
+**没验证（最重要）**：**浏览器里一步没走过**。预览工具读的是主检出的 `.claude/launch.json`（找不到工作树里加的 `onboarding-preview`），无头 Chrome 被沙箱拦。16 步、去设置页再回来、跳过、刷新、英文、深色、截图、走完后真实库仍为空，都还没做；`tour.js` 的 DOM 层从未在浏览器里跑过。下一位：在主检出的 launch.json 临时加
 
-没验证：冻结二进制、Windows、真实桌面应用；没有前端所以没有端到端点击；组织 worker 的全局锁让演示图谱任务与真实整理任务互斥；没有独立审查。
+```json
+{"name":"onboarding-preview","runtimeExecutable":"sh","runtimeArgs":["-c","cd <worktree> && PAPERDIGHELPER_DATA=/tmp/claude-501/pdh-onboarding-preview PDH_APP_VERSION=0.1.0 exec python3 -m app.server 8790"],"port":8790}
+```
+
+数据目录用全新空目录，从空目录开始自动进指引逐步走完，最后用 sqlite3 确认 projects/papers/feedback/summaries 为 0。另有：冻结二进制、Windows、WKWebView/WebView2 的 `sessionStorage` 跨页保持（推断）、独立审查。选择器依赖 `index.html`/`organization.js`/`profile-ui.js` 的 id 与类，改名会让该步 15 秒后降级为居中气泡。
+
+对测试的改动：离线图谱任务在逐字摘要下只有 10 条边（原来 20+），`tests/test_demo_sandbox.py` 的下限改成 8；两个按源码切片的旧测试补了 `inDemo` / `DEMO_ID`。
+
 
 ---
 

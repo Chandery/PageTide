@@ -107,6 +107,10 @@
   }
 
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  /* The caption under a project card. The demo project (p.demo) carries a small "演示" tag and cannot be edited. */
+  function labelHTML(p, current, canEdit) {
+    return `${p.id === current ? '<span class="mc-dot" title="当前项目"></span>' : ''}<span class="mc-name">${esc(p.name)}</span>${p.demo ? '<span class="mc-demo">演示</span>' : ''}${canEdit && !p.demo ? `<button type="button" class="mc-edit" aria-label="管理项目：${esc(p.name)}">管理</button>` : ''}`;
+  }
   const editable = el => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -232,7 +236,7 @@
         win.appendChild(scaler);
         const label = document.createElement('div');
         label.className = 'mc-label';
-        label.innerHTML = `${p.id === current ? '<span class="mc-dot" title="当前项目"></span>' : ''}<span class="mc-name">${esc(p.name)}</span>${opts.onEdit ? `<button type="button" class="mc-edit" aria-label="管理项目：${esc(p.name)}">管理</button>` : ''}`;
+        label.innerHTML = labelHTML(p, current, !!opts.onEdit);
         card.append(win, label);
         stage.appendChild(card);
         return card;
@@ -399,7 +403,7 @@
     };
   }
 
-  const api = { order, touch, recordSwitch, grid, initial, openState, reduce, pinchIgnored, mount };
+  const api = { order, labelHTML, touch, recordSwitch, grid, initial, openState, reduce, pinchIgnored, mount };
   window.ProjectSwitcher = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
