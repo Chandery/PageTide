@@ -27,6 +27,10 @@ English · <a href="README-zh.md">简体中文</a>
 
 </div>
 
+https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2
+
+<p align="center"><sub>🎵 Music by Pumpupthemind</sub></p>
+
 Twenty thousand new papers come out every day, and only a handful matter to you. PageTide is a desktop app that searches arXiv, OpenAlex and Baidu Scholar for you each morning, picks the papers that fit what you work on, and explains each one in a line. Save the good ones, mark the rest, and your profile gets sharper. Everything stays on your computer.
 
 ## ✨ Features
@@ -147,14 +151,6 @@ Open any paper, highlight a sentence, then translate it or ask about it.
 Once a week, see what you saved, what you skipped and which directions grew.
 
 <p align="center"><img src="docs/assets/readme/en-weekly.png" alt="Weekly report on demo data" width="720"></p>
-
-## 🎬 See it in action
-
-A 30-second tour: from a flood of new papers to the few that fit your research.
-
-https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2
-
-<sub>🎵 Music by Pumpupthemind</sub>
 
 ## 🔒 Private by design
 

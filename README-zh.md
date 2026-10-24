@@ -27,6 +27,10 @@
 
 </div>
 
+https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2
+
+<p align="center"><sub>🎵 配乐：Pumpupthemind</sub></p>
+
 每天有两万篇新论文发表，真正与你有关的寥寥几篇。PageTide 是一个桌面应用：每天早上替你检索 arXiv、OpenAlex 和百度学术，挑出贴合你研究方向的论文，并用一句话讲清每篇说了什么。收藏好的、标记不要的，画像就越来越准。所有数据都留在你自己的电脑上。
 
 ## ✨ 功能
@@ -147,14 +151,6 @@
 每周一次，看你收藏了什么、跳过了什么、哪些方向在变热。
 
 <p align="center"><img src="docs/assets/readme/zh-weekly.png" alt="周报（演示数据）" width="720"></p>
-
-## 🎬 实际演示
-
-30 秒看懂 PageTide：从每天涌来的新论文里，挑出贴合你研究的那几篇。
-
-https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2
-
-<sub>🎵 配乐：Pumpupthemind</sub>
 
 ## 🔒 隐私优先
 
