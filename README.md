@@ -23,8 +23,6 @@ English · <a href="README-zh.md">简体中文</a>
 
 [![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
-<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide: papers that fit your research" width="880"></a>
-
 </div>
 
 https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2

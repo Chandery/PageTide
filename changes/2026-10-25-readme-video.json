@@ -23,11 +23,12 @@
   ],
   "id": "2026-10-25-readme-video",
   "class": "standard",
-  "summary": "README: the 30 s promo video sits right under the cover (owner: more people will watch it there), with the music credit 'Music by Pumpupthemind', also in the acknowledgments; English and Chinese.",
+  "summary": "README: the 30 s promo video sits in the hero in place of the cover image (its first 0.5 s is the cover, so the idle player shows the cover), with the music credit 'Music by Pumpupthemind' under it and in the acknowledgments; English and Chinese.",
   "files": [
     "README.md",
     "README-zh.md",
-    "changes/2026-10-25-readme-video.json"
+    "changes/2026-10-25-readme-video.json",
+    "docs/assets/readme/cover.jpg"
   ],
   "scope_note": "Owner supplied the user-attachments URL of the 9.7 MB README copy of the promo (2026-10-25); the composer asked for credit.",
   "checks": [
