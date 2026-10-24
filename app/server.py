@@ -18,6 +18,7 @@ import traceback
 import subprocess
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import socketserver
 from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -1406,8 +1407,18 @@ def clean_legacy_default_project(root="."):
         print("legacy default project cleanup skipped:", exc, file=sys.stderr, flush=True)
 
 
+class LocalHTTPServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer without the reverse DNS lookup in HTTPServer.server_bind: socket.getfqdn("127.0.0.1")
+    took 35 s on GitHub's macOS runners (2026-10-25), and a slow resolver would delay every launch the same way.
+    server_name is never used here (no CGI), so it is simply the bound address."""
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
 def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
-    httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd = LocalHTTPServer((host, port), Handler)
     httpd.root = root
     httpd.desktop_token = desktop_token
     return httpd
