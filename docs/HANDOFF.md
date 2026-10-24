@@ -1,3 +1,11 @@
+# 当前工作单元：发布 v0.1.1（2026-10-25）
+
+[变更记录](../changes/2026-10-25-release-v0.1.1.json)。版本号改为 0.1.1，本机检查全过（预算、harness、3025 个单元测试、650 个 Node 测试）；macOS 本机构建打包，Windows 由标签触发的 release 工作流构建，release 先建为草稿，两个平台资产齐了再发布。
+
+没验证：Windows 真机；应用内更新链路没在真实 GitHub 上跑过——v0.1.0 没有更新检查，第一次真实测试要等 v0.1.1 之后的下一个版本。
+
+---
+
 # 当前工作单元：集成 settings-demo-extras 到 PageTide，pdh 缩写前缀全部改名（2026-10-24，分支 pagetide-brand，critical）
 
 [变更记录](../changes/2026-10-24-pagetide-integration.json)，[检查证据](evidence/2026-10-24-pagetide-integration-checks.txt)，[ADR 0044](decisions/0044-pagetide-brand.md)。

@@ -2366,7 +2366,7 @@ dependencies = [
 
 [[package]]
 name = "pagetide"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "objc2",
  "objc2-app-kit",

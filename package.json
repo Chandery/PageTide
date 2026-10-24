@@ -1,6 +1,6 @@
 {
   "name": "pagetide-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "desktop:prepare": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
