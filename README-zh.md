@@ -23,7 +23,7 @@
 
 [![下载 PageTide](https://img.shields.io/badge/下载-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
-<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/pagetide-loop.gif" alt="PageTide 演示" width="880"></a>
+<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide：推荐贴合你研究的论文" width="880"></a>
 
 </div>
 

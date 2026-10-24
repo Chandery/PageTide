@@ -23,7 +23,7 @@
   ],
   "id": "2026-10-25-readme-v2",
   "class": "standard",
-  "summary": "README v2 (English and Chinese): hero icon and emoji, outcome-led features, 'Connect your services', illustrated getting-started guide, FAQ, warm Contributing; CONTRIBUTING welcome; new screenshots. Features and Getting started are vertical stacks (heading, text, bullets, full-width image), not tables; layout checked with the GitHub markdown API preview at 1012px content width.",
+  "summary": "README v2 (English and Chinese): hero icon and emoji, outcome-led features, 'Connect your services', illustrated getting-started guide, FAQ, warm Contributing; CONTRIBUTING welcome; new screenshots. Features and Getting started are vertical stacks (heading, text, bullets, full-width image), not tables; layout checked with the GitHub markdown API preview at 1012px content width. The hero image is now the promo video cover (owner, 2026-10-25), replacing the loop GIF.",
   "files": [
     "README.md",
     "README-zh.md",
@@ -42,7 +42,9 @@
     "docs/assets/readme/zh-import.png",
     "docs/assets/readme/zh-weekly.png",
     "changes/2026-10-25-readme-v2.json",
-    "docs/evidence/2026-10-25-readme-v2-checks.txt"
+    "docs/evidence/2026-10-25-readme-v2-checks.txt",
+    "docs/assets/readme/cover.jpg",
+    "docs/assets/readme/pagetide-loop.gif"
   ],
   "scope_note": "New screenshots come from a fresh empty data directory on the built-in demo project (settings page has empty key fields; the import page uses a real empty manual project; no AI call was made). Image links and README facts checked against code (see evidence).",
   "checks": [
