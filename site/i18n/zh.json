@@ -1,0 +1,269 @@
+{
+  "lang": "zh",
+  "html_lang": "zh-Hans",
+  "path": "/zh/",
+  "other_path": "/",
+  "meta": {
+    "title": "PageTide：开源的论文发现与管理助手",
+    "description": "PageTide 学习你的研究画像，每天推荐新论文，并收进属于你自己的论文库。开源，无需账号，无遥测。支持 macOS 与 Windows。",
+    "og_title": "PageTide：开源的论文发现与管理助手",
+    "og_description": "学习你的研究画像，每天推荐新论文，收进属于你自己的论文库。开源、无需账号、无遥测。",
+    "og_alt": "PageTide：开源的论文发现与管理助手",
+    "locale": "zh_CN",
+    "locale_alt": "en_US",
+    "date_fmt": "%Y年%-m月%-d日"
+  },
+  "skip": "跳到正文",
+  "nav": {
+    "label": "主导航",
+    "features": "功能",
+    "download": "下载",
+    "github": "GitHub",
+    "switch_text": "EN",
+    "switch_label": "View in English"
+  },
+  "masthead": {
+    "home": "PageTide 首页"
+  },
+  "hero": {
+    "title": "开源的论文发现<wbr>与管理助手。",
+    "sub": "学习你的研究画像，每天推荐新论文，<wbr>收进属于你自己的论文库。",
+    "dl_mac": "下载 macOS 版",
+    "dl_win": "下载 Windows 版",
+    "star": "★ 在 GitHub 上点星",
+    "fine": "MIT 协议 · 无需账号 · 无遥测",
+    "note_default": "macOS 需要 Apple Silicon（M1 及以后），Windows 需要 x64。",
+    "shot_alt": "“今日”页面：按画像排序的新论文列表，每篇有一句 AI 速览，以及 保存、不感兴趣、太难 三个按钮。"
+  },
+  "demo": {
+    "title": "试试画像",
+    "lede": "改一个关键词，今日五篇推荐就会重新排序。点关键词可在 强、弱、关 之间切换，也可以加上你自己的词。",
+    "profile_title": "你的画像",
+    "profile_hint": "演示按这些关键词排序",
+    "add_label": "添加关键词",
+    "add_placeholder": "例如 机器人 或 robot",
+    "add_button": "添加",
+    "reset": "重置",
+    "stories_label": "今日五篇论文",
+    "badge": "在你的浏览器里排序 · 0 token",
+    "disclaimer": "简化演示：应用里会结合你的完整画像与反馈排序。",
+    "library_note": "从 {n} 篇示例论文中排序，覆盖机器学习、机器人、生物、化学、气候、物理、经济等方向。",
+    "noscript": "这个演示需要 JavaScript。下面是未排序的默认五篇。",
+    "ui": {
+      "strong": "强",
+      "weak": "弱",
+      "off": "关",
+      "tag_aria": "{tag}：{weight}。按下可切换权重。",
+      "remove": "删除 {tag}",
+      "matched": "命中",
+      "nothing": "没有论文命中画像，所以按论文库原顺序显示。",
+      "unmatched": "演示库里没有论文提到“{tags}”。实际应用会去 arXiv、OpenAlex 和百度学术里真正搜索。",
+      "announce": "排序已更新。{list}",
+      "reset_done": "画像已重置。{list}",
+      "added": "已添加 {tag}。",
+      "removed": "已删除 {tag}。",
+      "max": "演示最多放 12 个关键词。",
+      "dupe": "{tag} 已经在画像里了。",
+      "load_failed": "演示没能加载论文数据。",
+      "et_al": "等",
+      "colon": "：",
+      "weight_word": "权重",
+      "examples": [
+        "机器人",
+        "蛋白质",
+        "气候",
+        "强化学习",
+        "图神经网络",
+        "扩散模型",
+        "量子计算",
+        "因果推断"
+      ],
+      "nomatch_label": "无命中",
+      "example_aria": "把 {tag} 加入画像"
+    },
+    "examples_label": "换个方向试试"
+  },
+  "editorial": {
+    "title": "论文不缺，难的是找到你的那几篇。",
+    "body": [
+      "现在每天有两万篇左右的新论文问世<sup><a href=\"#fn-papers\" id=\"fnref-papers\">1</a></sup>，和你的工作真正相关的往往只有寥寥几篇，没有人读得完这么长的信息流。多数工具的办法是给你更大的信息流，PageTide 的办法是给你更小的。",
+      "它根据你标记的“有用”和“不相关”学习研究画像，然后在你自己的电脑上给每天的新论文排序。画像就是一串看得懂的词，可以随时查看、修改、删除。AI 是可选的，它的任务是替你讲解论文，而不是替你挑论文。",
+      "你的论文库、PDF、笔记和画像都留在你的电脑上。没有账号，没有服务器，也没有遥测。"
+    ],
+    "footnote": "<a href=\"#fnref-papers\" aria-label=\"回到正文\">1</a> OpenAlex 收录 2026 年 9 月发表的期刊论文 626,339 篇，约合每天 20,900 篇；查询日期 2026-10-25。来源：<a href=\"https://openalex.org\" rel=\"noopener\">OpenAlex</a>。"
+  },
+  "numbers": {
+    "title": "删繁就简，海纳百川。",
+    "less_title": "↓ 删繁就简",
+    "more_title": "↑ 海纳百川",
+    "more_note": "潮水仍在上涨",
+    "less": [
+      {
+        "v": "Zero",
+        "t": "排序与学习画像所用模型 token"
+      },
+      {
+        "v": "Zero",
+        "t": "账号、服务器和遥测"
+      },
+      {
+        "v": "Single",
+        "t": "一次 AI 调用速览五篇推荐"
+      },
+      {
+        "v": "22 MB",
+        "t": "macOS 安装包（Windows 17 MB）"
+      }
+    ],
+    "more": [
+      {
+        "v": "3",
+        "t": "开放论文来源：arXiv、OpenAlex、百度学术"
+      },
+      {
+        "v": "5",
+        "t": "种导入方式：PDF、文件夹、BibTeX、RIS、CSL JSON"
+      },
+      {
+        "v": "3",
+        "t": "种新建项目方式：快速、AI 引导、手动"
+      },
+      {
+        "v": "2 × 2",
+        "t": "平台 × 语言：macOS、Windows · 中、英"
+      }
+    ]
+  },
+  "watch": {
+    "title": "30 秒看懂 PageTide",
+    "label": "PageTide 宣传片，30 秒",
+    "fallback": "你的浏览器无法播放这个视频，可以<a href=\"/assets/pagetide-promo.mp4\">下载观看</a>。",
+    "credit": "Music by Pumpupthemind"
+  },
+  "get": {
+    "title": "下载 PageTide",
+    "lede": "当前版本 {version}。免费，MIT 协议开源。",
+    "table_caption": "下载",
+    "col_platform": "平台",
+    "col_file": "文件",
+    "col_size": "大小",
+    "mac_name": "macOS（Apple Silicon）",
+    "win_name": "Windows（x64）",
+    "download": "下载",
+    "all_releases": "GitHub 上的全部版本",
+    "first_title": "首次打开：应用没有签名",
+    "first_lead": "PageTide 是独立的开源项目，没有购买付费的代码签名证书，所以系统第一次会弹出警告。这是正常的。",
+    "first_mac_title": "macOS",
+    "first_mac": "解压后把 PageTide 拖进“应用程序”，再右键点它选择<strong>打开</strong>；或者到 系统设置 → 隐私与安全性，点<strong>仍要打开</strong>。",
+    "first_mac_damaged": "如果 macOS 提示应用“已损坏”，在“终端”里运行：",
+    "first_win_title": "Windows",
+    "first_win": "SmartScreen 提示“Windows 已保护你的电脑”时，点<strong>更多信息</strong>，再点<strong>仍要运行</strong>。安装程序按用户安装，不需要管理员权限。",
+    "req_title": "系统要求",
+    "req_mac": "macOS，需要 Apple Silicon（M1 及以后）。暂不支持 Intel Mac。",
+    "req_win": "Windows，x64。",
+    "keys_title": "外部服务的密钥",
+    "keys_lead": "核心功能（推荐、画像、论文库）离线可用，不需要任何密钥。可选服务使用你自己的密钥，只保存在你的电脑上。",
+    "keys": [
+      {
+        "name": "DeepSeek",
+        "note": "用于 AI 功能（速览、提问、建议），可选。"
+      },
+      {
+        "name": "OpenAlex",
+        "note": "用于更广的论文来源，可选。"
+      },
+      {
+        "name": "百度学术",
+        "note": "需要千帆密钥。"
+      },
+      {
+        "name": "arXiv",
+        "note": "无需密钥。"
+      }
+    ]
+  },
+  "contribute": {
+    "title": "欢迎一起来做",
+    "body": "PageTide 是公开开发的。报告 bug、提想法、改文档和翻译、提交 PR 都欢迎，小修小补和新功能一样重要。如果是较大的改动，请先开一个 issue，我们先对齐方向。",
+    "issues": "提一个 issue",
+    "pulls": "Pull requests",
+    "guide": "贡献指南",
+    "repo": "GitHub 仓库",
+    "releases": "版本发布"
+  },
+  "footer": {
+    "license": "MIT © Chandery",
+    "privacy": "本站不使用任何统计脚本，也不使用 cookie。应用本身同样零遥测。",
+    "music": "Music by Pumpupthemind",
+    "arxiv": "Thank you to arXiv for use of its open access interoperability.",
+    "icons": "图标：Lucide（ISC 协议）"
+  },
+  "banner": {
+    "text": "",
+    "link": "",
+    "close": ""
+  },
+  "js": {
+    "dl_mac": "下载 macOS 版（Apple Silicon）",
+    "dl_win": "下载 Windows 版（x64）",
+    "copy": "在电脑上打开",
+    "copied": "链接已复制，请在你的 Mac 或 PC 上打开。",
+    "copy_failed": "请复制这个地址：",
+    "note_mac_unknown": "需要 Apple Silicon（M1 及以后）。暂不支持 Intel Mac。",
+    "note_mac_arm": "检测到 Apple Silicon · 22 MB",
+    "note_mac_intel": "看起来是 Intel Mac，PageTide 暂不支持 Intel Mac。",
+    "note_win": "Windows x64 · 17 MB · 首次打开需 更多信息 → 仍要运行",
+    "note_mobile": "PageTide 是 macOS 和 Windows 上的桌面应用。",
+    "other_os": "也有 {other} 版。",
+    "mac": "macOS",
+    "win": "Windows",
+    "share_title": "PageTide"
+  },
+  "features": {
+    "title": "读论文要用的，都在一个应用里",
+    "items": [
+      {
+        "img": "today",
+        "alt": "“今日”页面：按画像排序的新论文列表，每篇有一句 AI 速览，以及 保存、不感兴趣、太难 三个按钮。",
+        "title": "每日推荐，附上理由",
+        "body": "每天早上给你一份按画像排序的新论文短名单，每篇都有一句推荐理由。可选的一次 AI 调用就能速览全部五篇。",
+        "icon": "sparkles"
+      },
+      {
+        "img": "profile",
+        "alt": "画像页面：每条推荐背后的关键词、权重、置顶与撤销列表。",
+        "title": "看得懂、改得动的画像",
+        "body": "没有黑箱。每条推荐背后的词都看得见，可以置顶、删除，任何反馈都能撤销。什么都不做，绝不会被当作不喜欢。",
+        "icon": "sliders-horizontal"
+      },
+      {
+        "img": "graph",
+        "alt": "论文库图谱：收藏的论文按方向分组，并与相关工作连在一起。",
+        "title": "会自己连起来的论文库",
+        "body": "收藏的论文变成列表，也变成一张相关工作的图。开放获取的 PDF 会存档在你的电脑上，整理建议要你确认才会生效。",
+        "icon": "library"
+      },
+      {
+        "img": "reader-ask",
+        "alt": "PDF 阅读器：高亮一句话，页面旁边给出对追问的回答。",
+        "title": "划句子，问问题，读明白",
+        "body": "在 PageTide 里直接读 PDF，选中一句话，就能翻译或追问，回答出现在页面旁边。",
+        "icon": "book-open"
+      },
+      {
+        "img": "import",
+        "alt": "导入页面：PDF 文件、文件夹、BibTeX、RIS 和 CSL JSON。",
+        "title": "你已有的，直接带进来",
+        "body": "导入 PDF 文件或文件夹（子文件夹会变成分类），也可以导入从 Zotero 导出的 BibTeX、RIS 或 CSL JSON。",
+        "icon": "folder-open"
+      },
+      {
+        "img": "weekly",
+        "alt": "每周报告：这一周收藏了什么、跳过了什么、哪些方向在增长。",
+        "title": "每周报告",
+        "body": "这一周收藏了什么、跳过了什么、哪些方向在增长，让你的阅读轨迹一目了然。",
+        "icon": "chart-column"
+      }
+    ]
+  }
+}

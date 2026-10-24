@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="{{html_lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{meta.title}}</title>
+<meta name="description" content="{{meta.description}}">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f1e6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1526" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="{{canonical}}">
+<link rel="alternate" hreflang="en" href="{{url_en}}">
+<link rel="alternate" hreflang="zh-Hans" href="{{url_zh}}">
+<link rel="alternate" hreflang="x-default" href="{{url_en}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PageTide">
+<meta property="og:title" content="{{meta.og_title}}">
+<meta property="og:description" content="{{meta.og_description}}">
+<meta property="og:image" content="{{site}}/assets/og.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="{{meta.og_alt}}">
+<meta property="og:url" content="{{canonical}}">
+<meta property="og:locale" content="{{meta.locale}}">
+<meta property="og:locale:alternate" content="{{meta.locale_alt}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{meta.og_title}}">
+<meta name="twitter:description" content="{{meta.og_description}}">
+<meta name="twitter:image" content="{{site}}/assets/og.png">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="stylesheet" href="/assets/site.css?v={{asset_v}}">
+<script>(function(d){if(!matchMedia("(prefers-reduced-motion: reduce)").matches){d.classList.add("fx");setTimeout(function(){if(!d.dataset.fxReady)d.classList.remove("fx")},3000)}})(document.documentElement)</script>
+<script type="application/ld+json">{{jsonld}}</script>
+</head>
+<body>
+<a class="skip" href="#main">{{skip}}</a>
+
+<header class="topbar" id="top">
+  <div class="topbar-in">
+    <a class="brand" href="{{path}}" aria-label="{{masthead.home}}">
+      <img class="brand-icon" src="/assets/icon.png" width="32" height="32" alt="">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="/assets/wordmark-dark.png">
+        <img class="brand-word" src="/assets/wordmark.png" width="403" height="96" alt="PageTide">
+      </picture>
+    </a>
+    <nav class="nav" aria-label="{{nav.label}}">
+      <a href="#features">{{nav.features}}</a>
+      <a href="#download">{{nav.download}}</a>
+      <a href="https://github.com/Chandery/PageTide" rel="noopener">{{nav.github}}</a>
+      <a class="lang-switch" href="{{other_path}}" hreflang="{{other_hreflang}}" lang="{{other_hreflang}}" aria-label="{{nav.switch_label}}" data-lang-switch>{{nav.switch_text}}</a>
+    </nav>
+  </div>
+</header>
+
+{{banner}}
+
+<main id="main">
+<section class="hero" aria-labelledby="hero-title">
+  <h1 id="hero-title">{{hero.title}}</h1>
+  <p class="sub">{{hero.sub}}</p>
+  <div class="cta" id="cta" data-os="other">
+    <div class="cta-buttons">
+      <a class="btn btn-primary btn-mac" id="dl-mac" href="{{mac_url}}" data-label="{{js.dl_mac}}">{{hero.dl_mac}}</a>
+      <a class="btn btn-primary btn-win" id="dl-win" href="{{win_url}}" data-label="{{js.dl_win}}">{{hero.dl_win}}</a>
+      <button class="btn btn-primary btn-copy" id="dl-copy" type="button" hidden>{{js.copy}}</button>
+      <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide" rel="noopener">{{hero.star}}</a>
+    </div>
+    <p class="cta-note" id="cta-note" role="status">{{hero.note_default}}</p>
+    <p class="cta-alt" id="cta-alt" hidden></p>
+  </div>
+  <p class="fine">{{hero.fine}}</p>
+  <div class="hero-stage"><figure class="hero-shot" id="hero-shot">
+    <picture>
+      <source type="image/webp" srcset="/assets/{{lang}}-today-hero.webp">
+      <img src="/assets/{{lang}}-today.png" width="1600" height="1000" fetchpriority="high" decoding="async" alt="{{hero.shot_alt}}">
+    </picture>
+  </figure></div>
+</section>
+
+<section class="section demo" id="today" aria-labelledby="demo-title">
+  <header class="section-head">
+    <h2 id="demo-title">{{demo.title}}</h2>
+    <p class="lede">{{demo.lede}}</p>
+  </header>
+  <div class="demo-grid">
+    <aside class="profile card" aria-labelledby="profile-title">
+      <h3 id="profile-title">{{demo.profile_title}}</h3>
+      <p class="hint">{{demo.profile_hint}}</p>
+      <ul class="tags" id="tags">{{tags_html}}</ul>
+      <form class="add" id="add-form" autocomplete="off">
+        <label for="add-input">{{demo.add_label}}</label>
+        <div class="add-row">
+          <input id="add-input" type="text" maxlength="40" placeholder="{{demo.add_placeholder}}" enterkeyhint="done">
+          <button class="btn btn-small btn-primary" type="submit">{{demo.add_button}}</button>
+        </div>
+      </form>
+      <p class="ex-label" id="ex-label">{{demo.examples_label}}</p>
+      <ul class="examples" aria-labelledby="ex-label">{{examples_html}}</ul>
+      <button class="btn btn-small" id="reset" type="button">{{demo.reset}}</button>
+    </aside>
+    <div class="stories-wrap">
+      <ol class="stories" id="stories" aria-label="{{demo.stories_label}}">{{stories_html}}</ol>
+      <noscript><p class="noscript">{{demo.noscript}}</p></noscript>
+      <p class="demo-status" id="demo-status" role="status" aria-live="polite"></p>
+      <p class="demo-meta"><span class="st st-zero">{{demo.badge}}</span></p>
+      <p class="demo-meta">{{demo.library_note}} {{demo.disclaimer}}</p>
+    </div>
+  </div>
+</section>
+
+<section class="section features" id="features" aria-labelledby="col-title">
+  <header class="section-head">
+    <h2 id="col-title">{{features.title}}</h2>
+  </header>
+  <div class="showcase" id="showcase">{{features_html}}</div>
+</section>
+
+<section class="section why" id="why" aria-labelledby="ed-title">
+  <div class="why-card card">
+    <h2 id="ed-title">{{editorial.title}}</h2>
+    <div class="why-body">{{editorial_html}}</div>
+    <p class="footnote" id="fn-papers">{{editorial.footnote}}</p>
+  </div>
+</section>
+
+<section class="section numbers" id="numbers" aria-labelledby="num-title">
+  <header class="section-head">
+    <h2 id="num-title">{{numbers.title}}</h2>
+  </header>
+  <h3 class="num-group less">{{numbers.less_title}}</h3>
+  <ul class="num-grid less">{{numbers_less_html}}</ul>
+  <h3 class="num-group more">{{numbers.more_title}} <span class="num-note">· {{numbers.more_note}}</span></h3>
+  <ul class="num-grid more">{{numbers_more_html}}</ul>
+</section>
+
+<section class="section watch" id="watch" aria-labelledby="watch-title">
+  <header class="section-head">
+    <h2 id="watch-title">{{watch.title}}</h2>
+  </header>
+  <figure class="video">
+    <video controls preload="none" playsinline poster="/assets/cover.jpg" width="1920" height="1080" aria-label="{{watch.label}}">
+      <source src="/assets/pagetide-promo.mp4" type="video/mp4">
+      <p>{{watch.fallback}}</p>
+    </video>
+    <figcaption>{{watch.credit}}</figcaption>
+  </figure>
+</section>
+
+<section class="section get" id="download" aria-labelledby="get-title">
+  <header class="section-head">
+    <h2 id="get-title">{{get.title}}</h2>
+    <p class="lede">{{get.lede}}</p>
+  </header>
+  <div class="dl-card card">
+  <table class="dl-table">
+    <caption class="sr-only">{{get.table_caption}}</caption>
+    <thead><tr><th scope="col">{{get.col_platform}}</th><th scope="col">{{get.col_file}}</th><th scope="col">{{get.col_size}}</th><th scope="col"><span class="sr-only">{{get.download}}</span></th></tr></thead>
+    <tbody>
+      <tr data-os-row="mac"><th scope="row">{{get.mac_name}}</th><td><code>{{mac_file}}</code></td><td>22 MB</td><td><a class="btn btn-small btn-primary" href="{{mac_url}}">{{get.download}}</a></td></tr>
+      <tr data-os-row="win"><th scope="row">{{get.win_name}}</th><td><code>{{win_file}}</code></td><td>17 MB</td><td><a class="btn btn-small btn-primary" href="{{win_url}}">{{get.download}}</a></td></tr>
+    </tbody>
+  </table>
+  <p class="all-releases"><a href="https://github.com/Chandery/PageTide/releases" rel="noopener">{{get.all_releases}} →</a></p>
+  </div>
+
+  <div class="first-launch card" role="note">
+    <h3>{{get.first_title}}</h3>
+    <p>{{get.first_lead}}</p>
+    <div class="fl-cols">
+      <div>
+        <h4>{{get.first_mac_title}}</h4>
+        <p>{{get.first_mac}}</p>
+        <p>{{get.first_mac_damaged}}</p>
+        <pre><code>xattr -dr com.apple.quarantine /Applications/PageTide.app</code></pre>
+      </div>
+      <div>
+        <h4>{{get.first_win_title}}</h4>
+        <p>{{get.first_win}}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="req-cols">
+    <div class="card">
+      <h3>{{get.req_title}}</h3>
+      <ul><li>{{get.req_mac}}</li><li>{{get.req_win}}</li></ul>
+    </div>
+    <div class="card">
+      <h3>{{get.keys_title}}</h3>
+      <p>{{get.keys_lead}}</p>
+      <ul>{{keys_html}}</ul>
+    </div>
+  </div>
+</section>
+
+<section class="section contribute" id="contribute" aria-labelledby="contrib-title">
+  <div class="contrib-card card">
+    <h2 id="contrib-title">{{contribute.title}}</h2>
+    <p class="contrib-body">{{contribute.body}}</p>
+    <p class="contrib-links">
+      <a class="btn btn-primary" href="https://github.com/Chandery/PageTide/issues" rel="noopener">{{contribute.issues}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/pulls" rel="noopener">{{contribute.pulls}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/blob/main/CONTRIBUTING.md" rel="noopener">{{contribute.guide}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide" rel="noopener">{{contribute.repo}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/releases" rel="noopener">{{contribute.releases}}</a>
+    </p>
+  </div>
+</section>
+</main>
+
+<footer class="colophon">
+  <p><strong>{{footer.license}}</strong> · <a href="https://github.com/Chandery/PageTide" rel="noopener">GitHub</a> · v{{version}}</p>
+  <p>{{footer.privacy}}</p>
+  <p>{{footer.music}} · {{footer.icons}}</p>
+  <p>{{footer.arxiv}}</p>
+</footer>
+
+<script type="application/json" id="demo-i18n">{{demo_json}}</script>
+<script type="application/json" id="site-i18n">{{site_json}}</script>
+<script src="/assets/platform.js?v={{asset_v}}" defer></script>
+<script src="/assets/site.js?v={{asset_v}}" defer></script>
+<script src="/assets/rank.js?v={{asset_v}}" defer></script>
+<script src="/assets/demo.js?v={{asset_v}}" defer></script>
+<script src="/assets/fx.js?v={{asset_v}}" defer></script>
+</body>
+</html>

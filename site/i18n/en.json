@@ -1,0 +1,269 @@
+{
+  "lang": "en",
+  "html_lang": "en",
+  "path": "/",
+  "other_path": "/zh/",
+  "meta": {
+    "title": "PageTide: an open-source research assistant for discovering and organizing papers",
+    "description": "PageTide learns your research profile, recommends new papers every day, and keeps them in a library you own. Open source, no account, no telemetry. For macOS and Windows.",
+    "og_title": "PageTide: discover and organize papers",
+    "og_description": "An open-source research assistant. It learns your research profile, recommends new papers every day, and keeps them in a library you own.",
+    "og_alt": "PageTide: an open-source research assistant for discovering and organizing papers",
+    "locale": "en_US",
+    "locale_alt": "zh_CN",
+    "date_fmt": "%B %-d, %Y"
+  },
+  "skip": "Skip to content",
+  "nav": {
+    "label": "Main navigation",
+    "features": "Features",
+    "download": "Download",
+    "github": "GitHub",
+    "switch_text": "中文",
+    "switch_label": "查看中文版"
+  },
+  "masthead": {
+    "home": "PageTide home"
+  },
+  "hero": {
+    "title": "An open-source research assistant for discovering and organizing papers.",
+    "sub": "PageTide learns your research profile, recommends new papers every day, and keeps them in a library you own.",
+    "dl_mac": "Download for macOS",
+    "dl_win": "Download for Windows",
+    "star": "★ Star on GitHub",
+    "fine": "MIT · No account · No telemetry",
+    "note_default": "macOS needs Apple Silicon (M1 or later). Windows needs x64.",
+    "shot_alt": "The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons."
+  },
+  "demo": {
+    "title": "Try the profile",
+    "lede": "Change a keyword and today’s five picks re-rank. Click a keyword to cycle strong, weak and off, or add your own.",
+    "profile_title": "Your profile",
+    "profile_hint": "Keywords the demo ranks by",
+    "add_label": "Add a keyword",
+    "add_placeholder": "e.g. diffusion",
+    "add_button": "Add",
+    "reset": "Reset",
+    "stories_label": "Today’s five papers",
+    "badge": "Ranked in your browser · 0 tokens",
+    "disclaimer": "Simplified demo — the app ranks with your full profile and feedback.",
+    "library_note": "Ranked from {n} sample papers across machine learning, robotics, biology, chemistry, climate, physics, economics and more.",
+    "noscript": "The demo needs JavaScript. The five papers below are the unranked default.",
+    "ui": {
+      "strong": "strong",
+      "weak": "weak",
+      "off": "off",
+      "tag_aria": "{tag}: {weight}. Press to change the weight.",
+      "remove": "Remove {tag}",
+      "matched": "Matched",
+      "nothing": "Nothing matches the profile, so the papers are in library order.",
+      "unmatched": "No paper in this demo library mentions “{tags}”. The app searches arXiv, OpenAlex and Baidu Scholar for real.",
+      "announce": "Ranking updated. {list}",
+      "reset_done": "Profile reset. {list}",
+      "added": "Added {tag}.",
+      "removed": "Removed {tag}.",
+      "max": "The demo holds up to 12 keywords.",
+      "dupe": "{tag} is already in the profile.",
+      "load_failed": "The demo could not load its papers.",
+      "et_al": "et al.",
+      "colon": ": ",
+      "weight_word": "weight",
+      "examples": [
+        "robot",
+        "protein",
+        "climate",
+        "reinforcement learning",
+        "graph neural network",
+        "diffusion",
+        "quantum",
+        "causal inference"
+      ],
+      "nomatch_label": "no match",
+      "example_aria": "Add {tag} to the profile"
+    },
+    "examples_label": "Try another field"
+  },
+  "editorial": {
+    "title": "More papers is not the problem. Finding yours is.",
+    "body": [
+      "About 20,000 new papers appear every day<sup><a href=\"#fn-papers\" id=\"fnref-papers\">1</a></sup>. A handful of them matter to your work, and no one can read a feed that long. Most tools answer with a bigger feed. PageTide answers with a smaller one.",
+      "It learns a research profile from what you mark useful or not relevant, then ranks each day’s new papers on your own computer. The profile is a list of plain words you can read, correct and delete. AI is optional, and its job is to explain a paper to you, not to choose it for you.",
+      "Your library, your PDFs, your notes and your profile stay on your computer. There is no account, no server and no telemetry."
+    ],
+    "footnote": "<a href=\"#fnref-papers\" aria-label=\"Back to the text\">1</a> OpenAlex lists 626,339 journal articles published in September 2026, about 20,900 a day; queried 2026-10-25. Source: <a href=\"https://openalex.org\" rel=\"noopener\">OpenAlex</a>."
+  },
+  "numbers": {
+    "title": "Less is more. More for you.",
+    "less_title": "↓ Less is more",
+    "more_title": "↑ More for you",
+    "more_note": "and growing with every release",
+    "less": [
+      {
+        "v": "Zero",
+        "t": "model tokens to rank papers and learn your profile"
+      },
+      {
+        "v": "Zero",
+        "t": "accounts, servers or telemetry"
+      },
+      {
+        "v": "Single",
+        "t": "AI call previews five picks at once"
+      },
+      {
+        "v": "22 MB",
+        "t": "download on macOS (17 MB on Windows)"
+      }
+    ],
+    "more": [
+      {
+        "v": "3",
+        "t": "open sources: arXiv, OpenAlex, Baidu Scholar"
+      },
+      {
+        "v": "5",
+        "t": "ways to import: PDFs, folders, BibTeX, RIS, CSL"
+      },
+      {
+        "v": "3",
+        "t": "ways to start a project: quick, AI-guided, manual"
+      },
+      {
+        "v": "2 × 2",
+        "t": "platforms × languages: macOS, Windows · EN, 中文"
+      }
+    ]
+  },
+  "watch": {
+    "title": "Watch PageTide in 30 seconds",
+    "label": "PageTide promo video, 30 seconds",
+    "fallback": "Your browser cannot play this video. You can <a href=\"/assets/pagetide-promo.mp4\">download it</a>.",
+    "credit": "Music by Pumpupthemind"
+  },
+  "get": {
+    "title": "Download PageTide",
+    "lede": "Version {version}. Free and open source under the MIT license.",
+    "table_caption": "Downloads",
+    "col_platform": "Platform",
+    "col_file": "File",
+    "col_size": "Size",
+    "mac_name": "macOS (Apple Silicon)",
+    "win_name": "Windows (x64)",
+    "download": "Download",
+    "all_releases": "All releases on GitHub",
+    "first_title": "First launch: the app is not signed",
+    "first_lead": "PageTide is an independent open-source project with no paid code-signing certificate, so your system will warn you the first time. This is expected.",
+    "first_mac_title": "macOS",
+    "first_mac": "Unzip, drag PageTide to Applications, then right-click it and choose <strong>Open</strong>. Or go to System Settings → Privacy &amp; Security and click <strong>Open Anyway</strong>.",
+    "first_mac_damaged": "If macOS says the app is damaged, run this in Terminal:",
+    "first_win_title": "Windows",
+    "first_win": "When SmartScreen says “Windows protected your PC”, click <strong>More info</strong>, then <strong>Run anyway</strong>. The installer is per-user and needs no administrator rights.",
+    "req_title": "Requirements",
+    "req_mac": "macOS on Apple Silicon (M1 or later). Intel Macs are not supported yet.",
+    "req_win": "Windows on x64.",
+    "keys_title": "Keys for outside services",
+    "keys_lead": "The core (picking, the profile, the library) works offline with no key. Optional services use your own key, stored on your computer.",
+    "keys": [
+      {
+        "name": "DeepSeek",
+        "note": "for the AI features (previews, questions, suggestions). Optional."
+      },
+      {
+        "name": "OpenAlex",
+        "note": "for a wider paper source. Optional."
+      },
+      {
+        "name": "Baidu Scholar",
+        "note": "needs a Qianfan key."
+      },
+      {
+        "name": "arXiv",
+        "note": "needs no key."
+      }
+    ]
+  },
+  "contribute": {
+    "title": "Contributions welcome",
+    "body": "PageTide is built in the open. Bug reports, feature ideas, documentation and translation fixes, and pull requests are all welcome, and small fixes count as much as new features. For a bigger change, please open an issue first so we can agree on the direction.",
+    "issues": "Open an issue",
+    "pulls": "Pull requests",
+    "guide": "Contributing guide",
+    "repo": "GitHub repository",
+    "releases": "Releases"
+  },
+  "footer": {
+    "license": "MIT © Chandery",
+    "privacy": "This site uses no analytics or cookies. The app has zero telemetry too.",
+    "music": "Music by Pumpupthemind",
+    "arxiv": "Thank you to arXiv for use of its open access interoperability.",
+    "icons": "Icons: Lucide (ISC license)"
+  },
+  "banner": {
+    "text": "这个页面也有中文版。",
+    "link": "查看中文版",
+    "close": "关闭提示"
+  },
+  "js": {
+    "dl_mac": "Download for macOS (Apple Silicon)",
+    "dl_win": "Download for Windows (x64)",
+    "copy": "Open on a computer",
+    "copied": "Link copied. Open it on your Mac or PC.",
+    "copy_failed": "Copy this address: ",
+    "note_mac_unknown": "Requires Apple Silicon (M1 or later). Intel Macs are not supported yet.",
+    "note_mac_arm": "Apple Silicon detected · 22 MB",
+    "note_mac_intel": "This looks like an Intel Mac. PageTide does not support Intel Macs yet.",
+    "note_win": "Windows x64 · 17 MB · first launch needs “More info → Run anyway”",
+    "note_mobile": "PageTide is a desktop app for macOS and Windows.",
+    "other_os": "Also available for {other}.",
+    "mac": "macOS",
+    "win": "Windows",
+    "share_title": "PageTide"
+  },
+  "features": {
+    "title": "Everything for your reading, in one app",
+    "items": [
+      {
+        "img": "today",
+        "alt": "The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons.",
+        "title": "Daily picks, explained",
+        "body": "Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews all five picks at once.",
+        "icon": "sparkles"
+      },
+      {
+        "img": "profile",
+        "alt": "The profile screen: the keywords behind every pick, with weights, pins and an undo list.",
+        "title": "A profile you can read and edit",
+        "body": "No black box. See the terms behind every pick, pin or remove keywords, and undo any feedback. Doing nothing never counts as a dislike.",
+        "icon": "sliders-horizontal"
+      },
+      {
+        "img": "graph",
+        "alt": "The library graph: saved papers grouped into directions and linked to related work.",
+        "title": "A library that connects itself",
+        "body": "Saved papers become a list and a graph of related work. Open-access PDFs are archived on your computer, and nothing is reorganized until you confirm.",
+        "icon": "library"
+      },
+      {
+        "img": "reader-ask",
+        "alt": "The PDF reader with a highlighted sentence and an answer to a follow-up question beside the page.",
+        "title": "Highlight, ask, understand",
+        "body": "Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.",
+        "icon": "book-open"
+      },
+      {
+        "img": "import",
+        "alt": "The import screen with PDF files, folders, BibTeX, RIS and CSL JSON.",
+        "title": "Bring what you have",
+        "body": "Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX, RIS or CSL JSON.",
+        "icon": "folder-open"
+      },
+      {
+        "img": "weekly",
+        "alt": "The weekly report: what you saved, what you skipped and which directions grew.",
+        "title": "A weekly report",
+        "body": "What you saved, what you skipped and which directions grew this week, so the shape of your reading is visible.",
+        "icon": "chart-column"
+      }
+    ]
+  }
+}
