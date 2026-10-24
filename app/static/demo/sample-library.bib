@@ -1,0 +1,33 @@
+% PaperDigHelper demo: a small sample export, as a reference manager would write it.
+% Identifiers, titles, first authors (the LoRA entry lists only its first three of eight) and first-version dates are public arXiv metadata (checked 2026-10-24).
+% The abstracts are short demo paraphrases written for this file, not the papers' own abstracts.
+
+@article{shaw2018relative,
+  title = {Self-Attention with Relative Position Representations},
+  author = {Shaw, Peter and Uszkoreit, Jakob and Vaswani, Ashish},
+  year = {2018},
+  eprint = {1803.02155},
+  archivePrefix = {arXiv},
+  doi = {10.48550/arXiv.1803.02155},
+  abstract = {Instead of giving each word an absolute position, this paper lets the self-attention layers learn how far apart two words are. Adding these relative distances improves machine translation over the fixed sine-wave positions.}
+}
+
+@article{shazeer2019fast,
+  title = {Fast Transformer Decoding: One Write-Head is All You Need},
+  author = {Shazeer, Noam},
+  year = {2019},
+  eprint = {1911.02150},
+  archivePrefix = {arXiv},
+  doi = {10.48550/arXiv.1911.02150},
+  abstract = {Generating text one word at a time with a Transformer is slow because every step re-reads large stored tensors. Multi-query attention shares one set of keys and values across all heads, which cuts that memory traffic and speeds up decoding with only a small loss in quality.}
+}
+
+@article{hu2021lora,
+  title = {LoRA: Low-Rank Adaptation of Large Language Models},
+  author = {Hu, Edward J. and Shen, Yelong and Wallis, Phillip},
+  year = {2021},
+  eprint = {2106.09685},
+  archivePrefix = {arXiv},
+  doi = {10.48550/arXiv.2106.09685},
+  abstract = {Fine-tuning a very large language model normally updates every weight. LoRA freezes the pretrained weights and trains small low-rank matrices added to each layer, which cuts the number of trainable parameters by orders of magnitude while matching full fine-tuning on the tasks tested.}
+}

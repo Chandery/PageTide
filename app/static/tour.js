@@ -12,15 +12,19 @@
   const VERSION = 1;
   const WAIT_MS = 15000;
   const DEMO_ID = 'pdh-demo';
+  const READING_KEY = 'https://doi.org/10.48550/arxiv.1706.03762';   // the demo paper that has reading material (app/demo_fixture.py)
   const PAGE_URL = {
     index: '/',
     settings: '/settings.html',
     weekly: '/weekly_report.html?project_id=' + DEMO_ID,
     creation: '/project_creation.html',
+    import: '/import.html?project_id=' + DEMO_ID,
   };
 
-  /* Four phases, in this order. A step: id, page, phase, text, advance ('next' | 'click'),
-     target (CSS selector, null = centred bubble), closest (optional ancestor to highlight),
+  /* Phases (start, project, settings, recommendations, reading, library and profile), in this order. A step: id, page, phase, text,
+     advance ('next' | 'click'), target (CSS selector, null = centred bubble), closest (optional ancestor to highlight),
+     clickOn (optional: a click step is done by a click on this selector instead of on the target, for a target that is only
+     the area where the person works, such as the reader's pages),
      ready (optional selector to wait for before showing; defaults to target), view (index tab to
      show first), primary / secondary ({label, choice}), skipTo (step for choice 'skip'), end. */
   const STEPS = [
@@ -40,13 +44,13 @@
       primary: { label: '去设置', choice: 'primary' },
       secondary: { label: '跳过这段', choice: 'skip' }, skipTo: 'r1' },
     { id: 's2', page: 'settings', phase: '设置', target: '#apiKey', closest: '.section', advance: 'next',
-      text: '填 DeepSeek 密钥后可用 AI 速览和提问。',
+      text: '填 DeepSeek 密钥后可用 AI 速览和提问，点“获取”去申请。',
       primary: { label: '下一步', choice: 'primary' } },
     { id: 's3', page: 'settings', phase: '设置', target: '#openalexKey', closest: '.source-row', advance: 'next',
       text: '期刊与会议论文来自 OpenAlex，密钥可选。',
       primary: { label: '下一步', choice: 'primary' } },
     { id: 's4', page: 'settings', phase: '设置', target: '#baiduScholarKey', closest: '.source-row', advance: 'next',
-      text: '中文论文可打开百度学术，需要千帆密钥。',
+      text: '中文论文可用百度搜索，需要千帆密钥。',
       primary: { label: '回到演示', choice: 'primary' } },
     { id: 'r1', page: 'index', phase: '推荐', target: '#btnDaily', advance: 'click', view: 'today',
       text: '点这里生成今天的推荐。' },
@@ -55,11 +59,40 @@
       primary: { label: '下一步', choice: 'primary' } },
     { id: 'f1', page: 'index', phase: '推荐', target: '#cards .card:first-child [data-fb="useful"]', advance: 'click', view: 'today',
       text: '觉得有用就收藏。画像只从你明确的操作里学习。' },
+    // Reading and asking about a selection. The card of this paper is on today's page; its PDF is a demo text written for this
+    // purpose, with one highlighted sentence. The answers are pre-written (zero tokens) and say so.
+    { id: 'k1', page: 'index', phase: '阅读', target: '[data-read="' + READING_KEY + '"]', advance: 'click', view: 'today',
+      text: '这篇带一份演示阅读材料，点“阅读 PDF”打开。' },
+    { id: 'k2', page: 'index', phase: '阅读', target: '#readerPages', ready: '#readerPages .textLayer span', advance: 'click',
+      clickOn: '#selbar [data-sel="ask"]',
+      text: '选中高亮的这句话，然后点“追问”。' },
+    { id: 'k3', page: 'index', phase: '阅读', target: '#petPanel .pcompose', advance: 'click', clickOn: '#petSend',
+      text: '问题已经填好，点“发送”。' },
+    { id: 'k4', page: 'index', phase: '阅读', target: '#petLog .msg.ai', ready: '#petLog .msg.ai', advance: 'next',
+      text: '这是预先写好的回答。真实使用时，AI 会针对你选中的内容回答。',
+      primary: { label: '下一步', choice: 'primary' } },
+    { id: 'k5', page: 'index', phase: '阅读', target: '#readerBack', advance: 'click',
+      text: '读完点“返回”。' },
     { id: 'f2', page: 'index', phase: '论文库与画像', target: '.tab[data-view="library"]', advance: 'click',
       text: '收藏的论文在论文库里。' },
     { id: 'f3', page: 'index', phase: '论文库与画像', target: '#organizationRoot .org-list', advance: 'next', view: 'library',
       ready: '#organizationRoot .org-list .org-paper',
       text: '列表里是收藏的论文。',
+      primary: { label: '下一步', choice: 'primary' } },
+    // Importing: the real import page and code, run offline in the sandbox on a bundled three-record sample export.
+    { id: 'i1', page: 'index', phase: '论文库与画像', target: '#organizationRoot [data-action="import"]', advance: 'click', view: 'library',
+      text: '已有的 PDF 或 Zotero 导出，可以从这里导入。' },
+    { id: 'i2', page: 'import', phase: '论文库与画像', target: '#demoSampleBtn', advance: 'click',
+      text: '演示里用一份示例文件，点这里。' },
+    { id: 'i3', page: 'import', phase: '论文库与画像', target: '#start', advance: 'click',
+      text: '点“开始导入”。' },
+    { id: 'i4', page: 'import', phase: '论文库与画像', target: '#commit', ready: '#commit:not([disabled])', advance: 'click',
+      text: '核对后点“导入到论文库”。' },
+    { id: 'i5', page: 'import', phase: '论文库与画像', target: '#toLibrary', advance: 'click',
+      text: '导入完成，回论文库看看。' },
+    { id: 'i6', page: 'index', phase: '论文库与画像', target: '#organizationRoot .org-list', advance: 'next', view: 'library',
+      ready: '#organizationRoot .org-list .org-paper',
+      text: '刚导入的几篇在列表里。',
       primary: { label: '下一步', choice: 'primary' } },
     { id: 'f4', page: 'index', phase: '论文库与画像', target: '#organizationRoot .org-tabs [data-action="graph"]', advance: 'click', view: 'library',
       text: '切到图谱，看论文之间的关系。' },
@@ -562,7 +595,8 @@
     if (!ctx || !ctx.active || !ctx.anchored || ctx.step.advance !== 'click') return;
     const st = ctx.step, t = e.target;
     if (!(t && t.nodeType === 1)) return;
-    if (!((ctx.el && ctx.el.contains(t)) || t.closest(st.target))) return;
+    const hit = st.clickOn ? t.closest(st.clickOn) : ((ctx.el && ctx.el.contains(t)) || t.closest(st.target));
+    if (!hit) return;
     if (ctx.ui && ctx.ui.root.contains(t)) return;
     const nxt = next(pending(), st.id, 'primary');
     if (nxt === 'finish') { setTimeout(finish, 0); return; }
@@ -645,5 +679,5 @@
     shouldOffer: shouldOffer, next: next, stepsFor: stepsFor, finishTarget: finishTarget,
     serialize: serialize, parse: parse, WELCOME: WELCOME, THEME_MODES: THEME_MODES,
     welcomeLang: welcomeLang, saveChoice: saveChoice, current: current, pending: pending, setStorage: setStorage,
-    waitFor: waitFor, strandedStep: strandedStep, dismiss: dismiss, begin: begin, boot: boot, finish: finish, skip: skipTour, stop: stop };
+    READING_KEY: READING_KEY, waitFor: waitFor, strandedStep: strandedStep, dismiss: dismiss, begin: begin, boot: boot, finish: finish, skip: skipTour, stop: stop };
 });

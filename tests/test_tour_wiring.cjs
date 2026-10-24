@@ -81,8 +81,36 @@ test('start-up: no real project and no tour sends the person to the creation pag
 test('demo mode skips automatic upkeep and forces the AI preview on', () => {
   assert.match(slice('async function autoMaintain()', "const key = state.currentProject || 'default'"), /if \(inDemo\(\)\) return;/);
   assert.match(slice('async function load()', 'const banner'), /if \(autoAi && inDemo\(\)\) autoAi\.checked = true;/);
-  assert.match(index, /html\.pdh-demo #btnRefresh[^{]*#refreshRecord[^{]*#pet/);
-  assert.match(index, /html\.pdh-demo[^{]*\.ai-action[^{]*\.read-action/);
+  assert.match(index, /html\.pdh-demo #btnRefresh[^{]*#refreshRecord/);
+  assert.match(index, /html\.pdh-demo[^{]*\.ai-action/);
+});
+
+test('in the demo reading is on for the one paper with reading material, and nothing else about it shows', () => {
+  const rule = index.slice(index.indexOf('Reading is on for the one paper'));
+  assert.match(rule, /html\.pdh-demo \.read-action:not\(\[data-read="https:\/\/doi\.org\/10\.48550\/arxiv\.1706\.03762"\]\)/);
+  assert.match(rule, /html\.pdh-demo #dRead:not\(\[data-key="https:\/\/doi\.org\/10\.48550\/arxiv\.1706\.03762"\]\)/);
+  assert.match(rule, /html\.pdh-demo #pet,[^{]*#petImg[^{]*#petPanel \.switch[^{]*#petLog \.msg\.sys \.fol[^{]*\{ display:none/);
+  assert.match(index, /id="dRead" data-key="\$\{esc\(d\.key\)\}"/);
+  // pdf.js fetches the PDF without the demo header: the address names the demo project instead
+  assert.match(index, /\/api\/pdf\/view\?key=\$\{encodeURIComponent\(key\)\}` \+ \(project === 'pdh-demo' \? '&project_id=pdh-demo' : ''\)/);
+  // the attach-a-PDF control of the failure panel would write to the real library: not drawn for the demo
+  assert.match(index, /\$\{project === 'pdh-demo' \? '' : '<label class="btn tiny">选择或拖入 PDF/);
+  // the demo question is filled in when 追问 is pressed, answers and translations are marked
+  assert.match(index, /currentProject === 'pdh-demo' && !\$\('#petInput'\)\.value\.trim\(\)\) \{ \$\('#petInput'\)\.value = window\.PDHi18n\?\.exact\?\.\('这句话是什么意思？'\)/);
+  assert.match(index, /const meta = r\.demo \? \['演示 · 预先写好的回答'\]/);
+  assert.match(index, /r\.demo \? '划词翻译 · 演示' : '划词翻译'/);
+});
+
+test('the import page: the demo header on every request, the sample file, no pickers, and the tour boots there', () => {
+  const imp = read('import.js'), html = read('import.html'), css = read('import.css');
+  assert.match(imp, /const inDemo = projectId === DEMO_ID;/);
+  assert.match(imp, /if \(inDemo\) options = \{\.\.\.options, headers: \{\.\.\.\(options\.headers \|\| \{\}\), 'X-PDH-Demo': '1'\}\};/);
+  assert.match(imp, /\(inDemo && demo && demo\.id === DEMO_ID \? demo : null\)/);
+  assert.match(imp, /fetch\('\/demo\/sample-library\.bib'\)/);
+  assert.match(imp, /\$\('#optOnline'\)\.checked = false;/);
+  assert.match(html, /id="demoSample" hidden/); assert.match(html, /<link rel="stylesheet" href="\/tour\.css">/);
+  assert.match(html, /<script src="\/tour\.js"><\/script>\s*<script>PDHTour\.boot\('import',\{\}\);<\/script>/);
+  assert.match(css, /html\.pdh-demo \.picker,html\.pdh-demo #drop,html\.pdh-demo \.zotero,html\.pdh-demo #options,html\.pdh-demo #seedsCard,html\.pdh-demo #aiCard,html\.pdh-demo #catsDone,html\.pdh-demo \.row-actions input,html\.pdh-demo \.row-actions \[data-act="lookup"\]\{display:none/);
 });
 
 test('the edit link only explains itself in the demo', () => {

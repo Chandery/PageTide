@@ -1,3 +1,15 @@
+# 当前工作单元：设置页收尾，演示里加入“论文库导入”和“划词提问”（2026-10-24，分支 settings-demo-extras，critical：IPC 与打包内容）
+
+[变更记录](../changes/2026-10-24-settings-demo-extras.json)，[检查证据](evidence/2026-10-24-settings-demo-extras-checks.txt)，[ADR 0042 补充](decisions/0042-first-run-demo-and-tour.md)，基线 main `b400029`。
+
+owner 要求三件事。(1) 删掉设置页“百度学术接口”复选框：百度只剩“百度搜索”一行（开关加密钥行，id 不变，指引 s4 仍指向它，文案改说百度搜索）；`user_settings.baidu_scholar()` 由 `BAIDU_SCHOLAR_OFFERED = False` 关死，旧设置里残留的 `sourceBaiduScholar: true` 不再启用来源，数据不删。Baidu 相关旧测试按模块把常量打开。(2) DeepSeek 密钥旁加“获取”（`#apiKeyLink`，固定指向 `https://platform.deepseek.com/api_keys`，登记为 `harness/sources.json` 的 `DS-KEY-PAGE`：官方文档页链到它，页面本身要登录、登录后的内容没核对）。(3) 演示新增两段：**导入**——真实导入页和真实导入代码在沙盒里离线跑通随包的 3 条题录 `app/static/demo/sample-library.bib`（`online=false`、含无 PDF 题录，服务端强制，`resolve` 在请求里同步跑），3 篇进入演示论文库，真实库不动；**划词提问**——我们自己写的英文演示阅读材料 `app/static/demo/reading-material.pdf`（`scripts/make_demo_reading_pdf.py` 纯标准库确定性生成，测试逐字节比对；一页，首行声明“非论文原文”，含一块淡黄色高亮句），登记为沙盒里 Attention 这篇的本地 PDF，真实阅读器打开；选中高亮句 → 点“追问”（自动填好问题）→ 发送 → 阅读助手出现预写回答（标“演示 · 预先写好的回答”），翻译同理；`DemoApp.qa/translate` 不碰网关。匹配规则是选区与预写句子的最长公共连续词片段（≥4 词且占选区 ≥60% 或占句子 ≥80%；翻译要求≥90%），问题优先，其余给一条通用回答。指引新增 k1–k5（阅读）和 i1–i6（导入），共 27 步；`tour.js` 新增 `clickOn`（这一步靠 `#selbar` 的追问按钮完成）。
+
+**与 owner 建议的不同**：阅读放在“收藏”之后、论文库之前（不是图谱之后），因为 Attention 是今日推荐卡片而不是已收藏论文，这样不用来回切标签。PDF 只做英文（中文文本层需要内嵌 CJK 字体，纯标准库做不到），回答、翻译、问题按界面语言。
+
+浏览器已走完整遍指引：中文（浅色）完整、英文（深色）完整，含划词→追问→回答、翻译、导入 3 篇、新论文出现在库里、图谱、画像、周报；真实库 projects/papers/feedback/summaries/batches/qa_history/pdfs 全为 0；控制台与服务端日志无错误。**没验证**：真实 WKWebView 里的鼠标拖选（用 `preview_eval` 在文本层建 Selection 并派发 `mouseup` 代替）；冻结二进制、Windows；独立审查；阅读步骤中途刷新页面时目标会消失，15 秒后降级为居中气泡。
+
+---
+
 # 当前工作单元：旧默认项目清理 · 独立审查后的修正（2026-10-24，第六个提交）
 
 原则：只要用过就一点不动，有疑问保留。修了：标记先以 `in_progress` 单独提交，备份里就带标记（从备份恢复后不再清理）；备份写唯一临时文件，独立连接 `quick_check` 并核对 projects/papers 行数和标记，通过才改名为唯一最终名，旧的 `.bak` 既不信任也不覆盖，失败删残片且不删数据；`profile_versions` 里本项目（或无项目）的非 `initial` 版本都保留整个库；语言策略版本 > 0 或有 `allowed_languages` 保留；链接论文有非 demo 速览或周报有 AI 分析保留（测试夹具不再造速览）；批次不止一个日期保留；有 `source_project_id='default_project'` 的分享保留；只在桌面启动（`desktop.py` 拿到锁之后、`build_server` 之前，需 `PDH_APP_VERSION`）或源码显式 `PDH_LEGACY_CLEANUP=1` 时执行，`build_server` 回到不打开库（所以不需要给 test_maintenance 等三处补 env patch）；`except Exception`；一并删 `route_exploration_evidence_<批次>`，并清别的项目 `org_projects` 里指向被删论文的条目。判定、清单、恢复步骤在 ADR 0042 补充里。

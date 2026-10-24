@@ -25,7 +25,7 @@ BUILT_BY_SCRIPT = {"matchMore", "settleMore", "undoCats", "retryCats"}
 class PageStructureTests(unittest.TestCase):
     def test_scripts_load_in_dependency_order_and_all_are_local(self):
         order = re.findall(r'<script src="(/[^"]+)"', HTML)
-        self.assertEqual([s for s in order if s != "/i18n/current.js"], ["/theme.js", "/dialogs.js", "/creation-pdf.js", "/pdf-hints.js", "/import-files.js", "/import.js"])
+        self.assertEqual([s for s in order if s != "/i18n/current.js"], ["/theme.js", "/dialogs.js", "/creation-pdf.js", "/pdf-hints.js", "/import-files.js", "/import.js", "/tour.js"])
         self.assertNotRegex(HTML, r'(?:src|href)="https?://')
         self.assertNotRegex(HTML, r'\son(?:click|change|load)=')
 

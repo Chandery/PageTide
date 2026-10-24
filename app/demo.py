@@ -10,12 +10,15 @@ each time the process starts, and the old one is deleted when it can be (Windows
 Zero tokens and no network: the DemoApp's gateway forwards only read-only status to the real one (no key is ever used for
 a call), and its sources and PDF fetcher are stubs that raise an offline error.
 """
+import hashlib
 import json
 import os
+import re
 import shutil
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from . import demo_fixture as fixture
@@ -23,7 +26,9 @@ from .gateway import Gateway
 from .language import language
 from .service import App
 from .sources import SourceError
+from .db import now
 
+ASSETS = Path(__file__).resolve().parent / "static" / "demo"   # the demo reading material and the sample library file
 PROJECT_ID = fixture.PROJECT_ID
 HEADER = "X-PDH-Demo"
 SANDBOX_DIR = "demo-sandbox"
@@ -37,10 +42,15 @@ REAL_ONLY_PREFIXES = ("/api/update",)
 # What the demo may do. Everything else under the demo is blocked.
 ALLOWED_GET = frozenset({"/api/home", "/api/state", "/api/profile", "/api/profile/insights", "/api/profile/evidence",
                          "/api/library", "/api/organization", "/api/paper", "/api/qa", "/api/qa/session", "/api/fulltext",
-                         "/api/route", "/api/weekly_report"})
-ALLOWED_GET_PREFIXES = ("/api/paper/", "/api/jobs/")
+                         "/api/route", "/api/weekly_report", "/api/pdf/view", "/api/figure-page", "/api/import/batches"})
+ALLOWED_GET_PREFIXES = ("/api/paper/", "/api/jobs/", "/api/import/batches/")
+# /api/qa and /api/translate are answered by DemoApp with pre-written text (zero tokens); /api/pdf/prepare only finds the one
+# demo reading material that is already in the sandbox.
 ALLOWED_POST = frozenset({"/api/daily", "/api/triage", "/api/feedback", "/api/unsave", "/api/undo", "/api/detail",
-                          "/api/maintain", "/api/library"})
+                          "/api/maintain", "/api/library", "/api/pdf/prepare", "/api/fulltext", "/api/qa", "/api/qa/session",
+                          "/api/translate", "/api/import/batches"})
+# The import of a library file runs for real inside the sandbox (offline). Uploading PDFs and setting seeds stay blocked.
+IMPORT_POST = re.compile(r"^/api/import/batches/[0-9a-f]{32}/(?:sidecar|resolve|cancel|commit|discard|settle|categories|items/\d+)$")
 # POST /api/organization: only the read-only or layout operations.
 ALLOWED_ORGANIZATION_OPS = frozenset({"graph", "positions", "collapse", "history", "drafts", "route-detail"})
 
@@ -72,7 +82,7 @@ def allowed(method, route, body=None):
     if method == "POST":
         if route == "/api/organization":
             return isinstance(body, dict) and body.get("op", body.get("action")) in ALLOWED_ORGANIZATION_OPS
-        return route in ALLOWED_POST
+        return route in ALLOWED_POST or bool(IMPORT_POST.match(route))
     return False
 
 
@@ -139,6 +149,47 @@ class DemoApp(App):
     def language(self):
         return language(self.real_data)   # the person's interface language, not the sandbox's settings
 
+    # ---- reading: the pre-written answers (the gateway stays shut: DemoGateway.call raises) ----
+    def qa(self, paper_key, question, selection=None, image=None, page_hint=None, context="normal",
+           dry_run=False, project_id=None, session_id=None, reader_context=None):
+        """The real route's checks, then a pre-written answer (see reading_reply). Nothing is sent anywhere."""
+        if project_id and not self.store.conn.execute(
+                "SELECT 1 FROM project_papers WHERE project_id=? AND paper_key=?", (project_id, paper_key)).fetchone():
+            raise ValueError("论文不属于当前项目")
+        from . import reader_context as reading
+        session = reading.session(self.store, paper_key, project_id)
+        if session_id is not None and session_id != session["id"]:
+            raise ValueError("阅读会话已变化，请在新会话中重新提问")
+        if reader_context is not None:
+            if not isinstance(reader_context, dict):
+                raise ValueError("阅读证据格式无效")
+            reading.validate_evidence(self.store, paper_key, project_id, reader_context)
+        answer, followups = reading_reply(selection, question, self.english())
+        if paper_key:
+            with self.store._lock, self.store.conn:
+                self.store.conn.execute("BEGIN IMMEDIATE")
+                reading.assert_session(self.store, paper_key, project_id, session)
+                for role, text in (("user", question), ("assistant", answer)):
+                    self.store.conn.execute("INSERT INTO qa_history(paper_key,role,content,created_at,project_id) VALUES (?,?,?,?,?)",
+                                            (paper_key, role, text, now(), project_id))
+        return {"ok": True, "answer": answer, "followups": followups, "mode": "text", "pages": [], "context_chars": 0,
+                "demo": True, "model": DEMO_MODEL, "usage": None, "usd": 0, "usage_unknown": False,
+                "usage_reserved": False, "reservation": None}
+
+    def translate(self, text, dry_run=False):
+        text = (text or "").strip()
+        if not text:
+            return {"ok": False, "degraded": True, "reason": "empty selection"}
+        return {"ok": True, "translation": reading_translation(text, self.english()), "demo": True, "model": DEMO_MODEL,
+                "usage": None, "usd": 0, "usage_unknown": False, "usage_reserved": False, "reservation": None}
+
+    def download_pdf(self, paper_key, refresh=False):
+        """Only the one demo reading material can be opened; everything else would need the network."""
+        if self.conn_pdf(paper_key):
+            return super().download_pdf(paper_key)
+        return {"ok": False, "reason": "demo_offline", "attempts": [],
+                "detail": "The demo has reading material for one paper only" if self.english() else "演示里只有一篇论文带阅读材料"}
+
 
 # --------------------------------------------------------------------------------------------------- the sandbox
 def sandbox_root(real_data):
@@ -179,6 +230,16 @@ def _seed(app, base):
     for item in fixture.PAPERS:
         preview = fixture.PREVIEWS[item["arxiv_id"]][lang]
         app.store.save_summary(fixture.key_of(item), preview["one_liner"], preview["why_relevant"], preview["caution"], DEMO_MODEL)
+
+    # The reading material of the demo (our own text, not the paper's PDF), registered as that paper's local PDF.
+    source = ASSETS / fixture.READING_FILE
+    data = source.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    folder = Path(app.data) / "pdfs"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / (digest + ".pdf")
+    target.write_bytes(data)
+    app.store.record_pdf(fixture.READING_KEY, target, "demo:reading-material", sha256=digest, size=len(data), source_kind="user_import")
 
     # The person's earlier activity, oldest first (a familiarity mark needs the paper to be saved already).
     events = []
@@ -283,6 +344,68 @@ def open_app(root, real_data):
         else:
             generation = live[0]
         return DemoApp(root, sandbox_root(real_data) / generation, real_data)
+
+
+# --------------------------------------------------------------------------------------------------------- reading
+_WORDS = re.compile(r"[a-z0-9]+")
+
+
+def _tokens(text):
+    return _WORDS.findall(str(text or "").lower())
+
+
+def match_selection(selection, strict=False):
+    """The pre-written entry whose sentence the selected text is (a part of), or None. Words are compared, not layout, so a
+    selection that crosses PDF lines still matches. A selection of fewer than four words never does. `strict` (translation)
+    wants almost the whole sentence."""
+    chosen = _tokens(selection)
+    if len(chosen) < (4 if not strict else 6):
+        return None
+    best, best_size = None, 0
+    for entry in fixture.READING_QA:
+        words = _tokens(entry["sentence"])
+        found = SequenceMatcher(None, chosen, words, autojunk=False).find_longest_match(0, len(chosen), 0, len(words))
+        if strict:
+            ok = found.size >= 0.9 * len(words) and found.size >= 0.9 * len(chosen)
+        else:
+            ok = found.size >= 4 and (found.size >= 0.6 * len(chosen) or found.size >= 0.8 * len(words))
+        if ok and found.size > best_size:
+            best, best_size = entry, found.size
+    return best
+
+
+def _by_question(question):
+    wanted = " ".join(str(question or "").split())
+    for entry in fixture.READING_QA:
+        if wanted in (entry["question"]["zh"], entry["question"]["en"]):
+            return entry
+    return None
+
+
+def _followups(ids, lang):
+    by_id = {entry["id"]: entry for entry in fixture.READING_QA}
+    return [by_id[i]["question"][lang] for i in ids if i in by_id]
+
+
+def reading_reply(selection, question, english):
+    """(answer, follow-up questions) for a question about the demo reading material. The question decides when it is one of
+    the pre-written follow-ups; otherwise the selected text does; anything else gets the one general demo reply."""
+    lang = "en" if english else "zh"
+    entry = _by_question(question) or (match_selection(selection) if selection else None)
+    if entry:
+        return entry["answer"][lang], _followups(entry["followups"], lang)
+    return fixture.READING_GENERIC["answer"][lang], _followups(fixture.READING_GENERIC["followups"], lang)
+
+
+def reading_translation(text, english):
+    entry = match_selection(text, strict=True)
+    return entry["translation"] if entry else fixture.READING_GENERIC["translation"]["en" if english else "zh"]
+
+
+# --------------------------------------------------------------------------------------------------------- import
+def import_options(options):
+    """The demo imports offline and takes records that have no PDF: the sample is an export file without files."""
+    return {**(options if isinstance(options, dict) else {}), "online": False, "include_fileless": True}
 
 
 # --------------------------------------------------------------------------------------------------------- triage

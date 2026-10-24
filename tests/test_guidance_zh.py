@@ -283,6 +283,19 @@ class FeedKeywordTests(Case):
         self.assertEqual(self.feed(['古汉语', '音韵学'], ['zh', 'en']), ['古汉语', '音韵学'])   # nothing English to prefer
         self.assertEqual(self.feed(['a one', 'b two', 'c three', 'd four'], ['en']), ['a one', 'b two', 'c three'])
 
+# The Baidu Scholar interface is not offered any more (app.user_settings.BAIDU_SCHOLAR_OFFERED); these tests exercise the
+# adapter itself, so the offer is switched on for this module only.
+_OFFER_SCHOLAR = __import__("unittest.mock", fromlist=["patch"]).patch.object(
+    __import__("app.user_settings", fromlist=["x"]), "BAIDU_SCHOLAR_OFFERED", True)
+
+
+def setUpModule():
+    _OFFER_SCHOLAR.start()
+
+
+def tearDownModule():
+    _OFFER_SCHOLAR.stop()
+
 
 if __name__ == '__main__':
     unittest.main()

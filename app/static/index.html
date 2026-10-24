@@ -609,12 +609,17 @@
   /* — large screens: the steps (--s, --wrap) are defined in theme.css; the dense library page keeps --s:1 — */
   #organizationRoot { --s:1; }
   /* The demo project is read-only for the person's data: whatever would fetch, call a model, read a PDF or edit is simply not shown. */
-  html.pdh-demo #btnRefresh, html.pdh-demo #refreshRecord, html.pdh-demo #pet, html.pdh-demo #petPanel,
-  html.pdh-demo .ai-action, html.pdh-demo .read-action, html.pdh-demo #dRead, html.pdh-demo .detail-projects,
-  html.pdh-demo #organizationRoot [data-action="suggest"], html.pdh-demo #organizationRoot [data-action="import"],
+  html.pdh-demo #btnRefresh, html.pdh-demo #refreshRecord,
+  html.pdh-demo .ai-action, html.pdh-demo .detail-projects,
+  html.pdh-demo #organizationRoot [data-action="suggest"],
   html.pdh-demo #organizationRoot [data-action="export"], html.pdh-demo #organizationRoot .org-notes,
-  html.pdh-demo #organizationRoot [data-action="read"], html.pdh-demo #organizationRoot .org-note-mark,
+  html.pdh-demo #organizationRoot .org-note-mark, html.pdh-demo #organizationRoot [data-action="read"],
   html.pdh-demo #organizationRoot [data-action="membership"], html.pdh-demo #organizationRoot [data-action="paper-membership"] { display:none !important; }
+  /* Reading is on for the one paper that carries the demo reading material (a local PDF in the sandbox); the assistant needs no
+     page-image or longer-context switches because nothing is sent. */
+  html.pdh-demo .read-action:not([data-read="https://doi.org/10.48550/arxiv.1706.03762"]),
+  html.pdh-demo #dRead:not([data-key="https://doi.org/10.48550/arxiv.1706.03762"]),
+  html.pdh-demo #pet, html.pdh-demo #petImg, html.pdh-demo #petPanel .switch, html.pdh-demo #petLog .msg.sys .fol { display:none !important; }   /* the general starter questions would all get the one general reply */
   .ai-demo-tag { color:var(--muted, inherit); }
   @media (min-width:1700px) { .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } }
@@ -1427,7 +1432,7 @@ async function openDetail(key) {
         </div>
         <div class="detail-actions">
           <div class="actions-main">
-            <button class="primary" id="dRead">阅读 PDF</button>
+            <button class="primary" id="dRead" data-key="${esc(d.key)}">阅读 PDF</button>
             <button id="dToggle" class="${shown.saved ? 'saved' : 'outline'}" data-key="${esc(d.key)}" data-saved="${shown.saved}">
               ${shown.saved ? '✓ 已收藏' : '☆ 收藏到论文库'}</button>
           </div>
@@ -1757,9 +1762,9 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
   const links = offered.filter(p => p && typeof p.url === 'string' && p.url.startsWith('https://')).slice(0, 3)
     .map((p, i) => `<a class="btn tiny${i ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${labels[p.kind] || '原文页面'}</a>`).join('');
   box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
-    <div class="pdf-fail-actions">${links}<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label></div>
+    <div class="pdf-fail-actions">${links}${project === 'pdh-demo' ? '' : '<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label>'}</div>
     <div class="pdf-fail-note"></div></div>`;
-  const input = box.querySelector('input[type=file]'), note = box.querySelector('.pdf-fail-note');
+  const input = box.querySelector('input[type=file]') || document.createElement('input'), note = box.querySelector('.pdf-fail-note');
   const attach = async (file) => {
     if (!file || !current()) return;
     if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''))) { note.textContent = '请选择 PDF 文件'; return; }
@@ -1801,7 +1806,7 @@ async function openReader(key, title, project = state.currentProject) {
   if (R.observer) { R.observer.disconnect(); R.observer = null; }
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
   R.pendingZoom = null; R.renderedScale = null; R.zoomBase = null;
-  let url = `/api/pdf/view?key=${encodeURIComponent(key)}`;
+  let url = `/api/pdf/view?key=${encodeURIComponent(key)}` + (project === 'pdh-demo' ? '&project_id=pdh-demo' : '');   // the PDF is fetched by pdf.js, which sends no demo header
   R.url = url; R.key = key; R.project = project; R.sha256 = null;
   R.loading = true; $('#petSend').disabled = true;
   let prepared = null;
@@ -2369,7 +2374,7 @@ async function ask(question) {
       r.mode === 'vision' ? `视觉 · 第 ${r.page_hint || pageHint || '?'} 页` : '',
       r.pages && r.pages.length ? `命中第 ${r.pages.join(',')} 页` : '',
     ].filter(Boolean) : [];
-    const meta = metaParts.length ? metaParts : null;
+    const meta = r.demo ? ['演示 · 预先写好的回答'] : metaParts.length ? metaParts : null;
     addMsg(r.ok ? 'ai' : 'sys', r.ok ? r.answer : aiFailure(r.reason), r.followups, meta);
     if (!r.ok) keepSwitch();
   } catch (e) { thinking.remove(); if (current()) { addMsg('sys', `失败：${e.message}`); keepSwitch(); } }
@@ -2385,7 +2390,7 @@ async function translate(text, rect) {
   try {
     const r = await api('/api/translate', { text });
     if (epoch !== pet.epoch || !pop.classList.contains('show')) return;
-    pop.innerHTML = `<div class="tlabel">划词翻译</div>
+    pop.innerHTML = `<div class="tlabel">${r.demo ? '划词翻译 · 演示' : '划词翻译'}</div>
       <div class="tbody"${r.ok ? ' data-no-i18n' : ''}>${
       r.ok ? window.PDH.md(r.translation) : esc(aiFailure(r.reason))}</div>
       <div class="row" style="margin-top:10px">
@@ -2585,7 +2590,12 @@ $('#selbar').addEventListener('click', (e) => {
   hideSel();
   if (btn.dataset.sel === 'clear') { window.getSelection()?.removeAllRanges(); return; }
   if (btn.dataset.sel === 'translate') translate(text, rect);
-  else { setReference(text, page); openPet(); $('#petInput').focus(); }
+  else {
+    setReference(text, page); openPet();
+    // The demo's answers are pre-written: the question is filled in so that sending it is the next (and only) step.
+    if (window.PDH.state.currentProject === 'pdh-demo' && !$('#petInput').value.trim()) { $('#petInput').value = window.PDHi18n?.exact?.('这句话是什么意思？') || '这句话是什么意思？'; growInput(); }
+    $('#petInput').focus();
+  }
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode!==229 && !document.querySelector('dialog[open]')) { hideSel(); $('#transPop').classList.remove('show'); window.getSelection()?.removeAllRanges(); }

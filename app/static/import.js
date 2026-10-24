@@ -11,6 +11,11 @@ const H = window.PDHPdfHints;
 const params = new URLSearchParams(location.search);
 const projectId = params.get('project_id') || '';
 const fromCreation = params.get('from') === 'creation';
+// The guided tour's demo project: every request carries the demo header (the server then uses the throw-away sandbox), the
+// import runs offline on a bundled sample export, and nothing here touches the person's library.
+const DEMO_ID = 'pdh-demo';
+const inDemo = projectId === DEMO_ID;
+if (inDemo) document.documentElement.classList.add('pdh-demo');
 const PAGE = 50;
 const POLL_MS = 1000;
 const HINT_TIMEOUT_MS = 25000;
@@ -21,6 +26,7 @@ const S = {batch: null, picked: null, queue: [], stop: false, stage: '', tab: nu
   sidecarError: null, open: [], pendingActions: 0};
 
 async function api(path, options = {}) {
+  if (inDemo) options = {...options, headers: {...(options.headers || {}), 'X-PDH-Demo': '1'}};
   let response;
   try { response = await fetch(path, options); }
   catch (error) { throw new Error('无法连接本地服务'); }
@@ -76,8 +82,8 @@ async function loadProject() {
   const back = $('#back');
   back.href = `/?project_id=${encodeURIComponent(projectId)}`;
   $('#toLibrary').href = `/?project_id=${encodeURIComponent(projectId)}&view=library`;
-  const {projects} = await api('/api/projects');
-  const project = projects.find((p) => p.id === projectId);
+  const {projects, demo} = await api('/api/projects');
+  const project = projects.find((p) => p.id === projectId) || (inDemo && demo && demo.id === DEMO_ID ? demo : null);
   if (!project) { fail(new Error('项目不存在')); return false; }
   $('#target').innerHTML = `<span>导入到：</span><strong data-no-i18n>${esc(project.name)}</strong>`;
   return true;
@@ -158,7 +164,7 @@ function setPicked(result) {
   const box = $('#picked');
   box.hidden = false;
   const pdfs = result.pdfs.length;
-  $('#pickedSummary').innerHTML = `<div>找到 ${pdfs} 个 PDF</div>`
+  $('#pickedSummary').innerHTML = (inDemo && !pdfs ? '' : `<div>找到 ${pdfs} 个 PDF</div>`)
     + (result.sidecars.length ? `<div><span>导出文件：</span><span data-no-i18n>${esc(result.sidecars.map((s) => s.file.name).join('、'))}</span></div>` : '');
   const skipped = $('#pickedSkipped');
   skipped.hidden = !result.skipped.length;
@@ -702,6 +708,18 @@ async function renderSeeds() {
 // The AI card only explained a feature that lives in the library; it stays hidden.
 function renderAi() {
   $('#aiCard').hidden = true;
+}
+
+/* ------------------------------------------------------------------ demo sample */
+if (inDemo) {
+  $('#demoSample').hidden = false;
+  $('#optOnline').checked = false;      // the demo never goes online (the server forces it as well)
+  $('#optFileless').checked = true;     // the sample is an export file: records without PDFs
+  $('#demoSampleBtn').onclick = () => guarded(async () => {
+    const response = await fetch('/demo/sample-library.bib');
+    if (!response.ok) throw new Error('请求失败');
+    pick([new File([await response.text()], 'sample-library.bib', {type: 'text/plain'})]);
+  });
 }
 
 /* ------------------------------------------------------------------ start */

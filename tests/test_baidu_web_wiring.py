@@ -762,6 +762,19 @@ class KeyFileTests(WiringCase):
         self.assertIsNot(self.app.adapters["baidu_web"], self.app.adapters["baidu_scholar"])
         self.assertNotEqual(self.app.adapters["baidu_web"].cache, self.app.adapters["baidu_scholar"].cache)
 
+# The Baidu Scholar interface is not offered any more (app.user_settings.BAIDU_SCHOLAR_OFFERED); these tests exercise the
+# adapter itself, so the offer is switched on for this module only.
+_OFFER_SCHOLAR = __import__("unittest.mock", fromlist=["patch"]).patch.object(
+    __import__("app.user_settings", fromlist=["x"]), "BAIDU_SCHOLAR_OFFERED", True)
+
+
+def setUpModule():
+    _OFFER_SCHOLAR.start()
+
+
+def tearDownModule():
+    _OFFER_SCHOLAR.stop()
+
 
 if __name__ == "__main__":
     unittest.main()

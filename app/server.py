@@ -528,12 +528,16 @@ class Handler(BaseHTTPRequestHandler):
                 project_id, source = body.get("project_id"), body.get("source")
                 if not isinstance(project_id, str) or not isinstance(source, str):
                     raise ValueError("缺少项目或导入来源")
-                return self._json(imp.create_batch(project_id, source, body.get("root_name"), body.get("options")))
+                options = demo.import_options(body.get("options")) if self._demo else body.get("options")
+                return self._json(imp.create_batch(project_id, source, body.get("root_name"), options))
             if len(parts) < 6 or parts[3] != "batches":
                 return self._json({"error": "unknown route"}, 404)
             batch_id, action = parts[4], parts[5]
             if action == "resolve":
                 imp.ensure_open(batch_id)
+                if self._demo:   # offline and tiny: matched here, in the sandbox app (the worker thread would open the real library)
+                    imp.resolve(batch_id)
+                    return self._json({"started": True, "worker_alive": False})
                 _import_start(getattr(self.server, "root", "."), batch_id)
                 return self._json({"started": True, "worker_alive": _import_worker_alive(batch_id)})
             if action == "cancel":

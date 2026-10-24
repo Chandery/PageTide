@@ -51,6 +51,10 @@
       font-weight: 400; cursor: pointer; user-select: none;
     }
     .field small { display: block; margin-top: calc(5px * var(--s)); font-size: calc(12px * var(--s)); color: var(--muted); }
+    .field .key-meta { display: flex; align-items: center; gap: calc(10px * var(--s)); margin-top: calc(5px * var(--s)); }
+    .field .key-meta small { margin-top: 0; }
+    .field .key-meta a { font-size: calc(12px * var(--s)); color: var(--muted); }
+    .field .key-meta a:hover { color: var(--text); }
     .readonly-note { font-size: calc(13px * var(--s)); color: var(--text, inherit); padding: calc(8px * var(--s)) calc(10px * var(--s)); border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 8px; }
     /* — inputs — */
     .field input[type="text"],
@@ -165,7 +169,10 @@
       <div class="field">
         <label for="apiKey">API 密钥</label>
         <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" aria-describedby="apiKeyStatus aiTestStatus">
-        <small id="apiKeyStatus"></small>
+        <div class="key-meta">
+          <small id="apiKeyStatus"></small>
+          <a id="apiKeyLink" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">获取</a>
+        </div>
         <button type="button" id="testAiBtn" title="调用 1 次 AI，只发送固定测试消息">测试 AI</button>
         <div id="aiTestStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
       </div>
@@ -243,25 +250,16 @@
         </div>
       </div>
       <div class="field source-row">
-        <div class="source-name">百度学术</div>
+        <label class="inline">
+          <input type="checkbox" id="sourceBaiduWeb">
+          百度搜索
+        </label>
         <div class="source-key">
-          <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度学术密钥" autocomplete="off">
+          <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度搜索密钥" autocomplete="off">
           <span id="baiduScholarKeyStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
           <button type="button" id="testBaiduScholarBtn" class="ghost">测试</button>
           <button type="button" id="clearBaiduScholarKeyBtn" class="ghost" hidden>清除</button>
           <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
-        </div>
-        <div class="source-option">
-          <label class="inline">
-            <input type="checkbox" id="sourceBaiduScholar">
-            百度学术接口
-          </label>
-        </div>
-        <div class="source-option">
-          <label class="inline">
-            <input type="checkbox" id="sourceBaiduWeb">
-            百度搜索
-          </label>
         </div>
       </div>
       <div class="field">
@@ -321,9 +319,8 @@
     // never text from the server, so a provider message or a key cannot reach the page.
     const SOURCE_ROWS = {
       openalex: {key:'#openalexKey', status:'#openalexKeyStatus', test:'#testOpenalexBtn', clear:'#clearOpenalexKeyBtn', link:'#openalexKeyLink'},
-      // The key line of the Baidu block holds the one Qianfan key of both Baidu sources. Its status word and its 测试 button are about
-      // the Baidu search (source baidu_web): that is the source that answers for a valid key; the Baidu Scholar tool does not for every
-      // account. The two switches under it are only checkboxes.
+      // The key line of the Baidu row holds the Qianfan key. Its status word and its 测试 button are about the Baidu search (source
+      // baidu_web). The Baidu Scholar interface is not offered any more (no switch; the server ignores an old stored value).
       baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink', source:'baidu_web'},
     };
     const sourceOf = (id) => SOURCE_ROWS[id].source || id;       // the source whose state a row shows and whose test its button runs
@@ -486,7 +483,6 @@
       $('#autoCheckUpdates').checked = settings.autoCheckUpdates !== false;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
-      $('#sourceBaiduScholar').checked = settings.sourceBaiduScholar === true;      // off until the user switches it on
       $('#sourceBaiduWeb').checked = settings.sourceBaiduWeb === true;
       baiduConfirmed = settings.baiduScholarConfirmed === true;
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
@@ -558,7 +554,6 @@
         autoCheckUpdates: $('#autoCheckUpdates').checked,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
-        sourceBaiduScholar: $('#sourceBaiduScholar').checked && baiduConfirmed,
         sourceBaiduWeb: $('#sourceBaiduWeb').checked && baiduConfirmed,
         baiduScholarConfirmed: baiduConfirmed,
         updateFrequency: $('#updateFrequency').value,
@@ -609,15 +604,6 @@
     }
 
     // Chinese keywords go to Baidu with the user's own key: one question, the first time the switch is turned on.
-    $('#sourceBaiduScholar').onchange = async () => {
-      const box = $('#sourceBaiduScholar');
-      if (!box.checked || baiduConfirmed) return;
-      if (await window.PDHDialogs.confirm('开启后，含中文的关键词会发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
-      else box.checked = false;
-    };
-
-    // The same question for Baidu AI Search on xueshu.baidu.com: the same keywords go to Baidu with the same key, so one answer
-    // (baiduConfirmed) serves both Baidu rows.
     $('#sourceBaiduWeb').onchange = async () => {
       const box = $('#sourceBaiduWeb');
       if (!box.checked || baiduConfirmed) return;

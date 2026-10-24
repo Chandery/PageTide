@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/project-creation.css">
 <link rel="stylesheet" href="/import.css">
+<link rel="stylesheet" href="/tour.css">
 <title>导入论文 · PaperDigHelper</title>
 <script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
@@ -24,6 +25,10 @@
 <section class="panel active" id="stepSource" aria-label="选择要导入的论文">
   <div id="resumeBox" class="resume" hidden></div>
   <div class="resume" id="continueBox" hidden><span id="continueText"></span> <button type="button" class="small" id="continueSkip">直接匹配已有的文件</button> <button type="button" class="small ghost" id="continueBack" hidden>查看失败记录</button></div>
+  <div class="demo-sample" id="demoSample" hidden>
+    <p class="hint">演示里不读取你的文件，用一份示例的参考文献导出试一次。</p>
+    <button type="button" class="primary" id="demoSampleBtn">使用示例文件</button>
+  </div>
   <div class="picker">
     <button type="button" class="primary" id="pickFiles">选择 PDF 文件…</button>
     <button type="button" id="pickFolder">选择文件夹…</button>
@@ -129,5 +134,7 @@
 <script src="/pdf-hints.js"></script>
 <script src="/import-files.js"></script>
 <script src="/import.js"></script>
+<script src="/tour.js"></script>
+<script>PDHTour.boot('import',{});</script>
 </body>
 </html>
