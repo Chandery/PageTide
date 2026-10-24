@@ -105,6 +105,9 @@ jobs:
         working-directory: src-tauri
         env:
           PAGETIDE_RELEASE: "1"   # a release build: everyday data directory and self-update (src-tauri/src/main.rs)
+        # bash, not the default pwsh: PowerShell drops the `--` when it calls npm's tauri.ps1 shim, so
+        # `--locked` reached tauri instead of cargo ("unexpected argument '--locked'").
+        shell: bash
         run: tauri build --bundles nsis -- --locked
 
       # LF line endings, ASCII, no BOM: `shasum -a 256 -c` on macOS must accept the file.
