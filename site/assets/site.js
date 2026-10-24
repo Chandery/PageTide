@@ -36,12 +36,18 @@
   } else if (os === "mac") {
     mac.textContent = tx.dl_mac; show(win, false);
     setNote(tx.note_mac_unknown); altLink("win");
+    /* Only Chromium reports the architecture; Safari and Firefox keep the Apple Silicon build and the note that
+       points Intel Macs to the table (a Mac's user agent says "Intel" even on Apple Silicon). */
     if (uad && uad.getHighEntropyValues) {
       uad.getHighEntropyValues(["architecture"]).then(function (v) {
         var k = P.archKind(v.architecture);
         if (k === "arm") setNote(tx.note_mac_arm);
-        else if (k === "x86") setNote(tx.note_mac_intel, true);
-      }, function () { /* keep the generic Apple Silicon note */ });
+        else if (k === "x86") {
+          mac.href = mac.getAttribute("data-intel-href");
+          mac.textContent = tx.dl_mac_intel;
+          setNote(tx.note_mac_intel);
+        }
+      }, function () { /* keep the generic note */ });
     }
   } else if (os === "mobile") {
     show(mac, false); show(win, false); show(copy, true);

@@ -158,6 +158,9 @@ class SiteTests(unittest.TestCase):
         for lang, path in PAGES.items():
             text = path.read_text(encoding="utf-8")
             self.assertIn(base + "PageTide-macos-arm64.zip", text)
+            self.assertIn(base + "PageTide-macos-x64.zip", text)          # Intel Macs (CI-built since 0.1.1)
+            self.assertNotIn("not supported yet", text)
+            self.assertNotIn("暂不支持 Intel", text)
             self.assertIn(base + "PageTide_%s_x64-setup.exe" % ver, text)
             self.assertEqual(set(re.findall(r"PageTide_([\d.]+)_x64-setup\.exe", text)), {ver})
             self.assertIn("v" + ver, text)

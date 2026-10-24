@@ -32,7 +32,7 @@
     "dl_win": "Download for Windows",
     "star": "★ Star on GitHub",
     "fine": "MIT · No account · No telemetry",
-    "note_default": "macOS needs Apple Silicon (M1 or later). Windows needs x64.",
+    "note_default": "macOS: Apple Silicon or Intel. Windows: x64.",
     "shot_alt": "PageTide: papers that fit your research. Today's picks with AI previews, the profile keywords behind them and the open sources PageTide searches."
   },
   "demo": {
@@ -108,10 +108,10 @@
       },
       {
         "v": "Single",
-        "t": "AI call previews five picks at once"
+        "t": "AI call previews up to 20 picks at once"
       },
       {
-        "v": "22 MB",
+        "v": "24 MB",
         "t": "download on macOS (17 MB on Windows)"
       }
     ],
@@ -148,6 +148,7 @@
     "col_file": "File",
     "col_size": "Size",
     "mac_name": "macOS (Apple Silicon)",
+    "mac_x64_name": "macOS (Intel)",
     "win_name": "Windows (x64)",
     "download": "Download",
     "all_releases": "All releases on GitHub",
@@ -159,7 +160,7 @@
     "first_win_title": "Windows",
     "first_win": "When SmartScreen says “Windows protected your PC”, click <strong>More info</strong>, then <strong>Run anyway</strong>. The installer is per-user and needs no administrator rights.",
     "req_title": "Requirements",
-    "req_mac": "macOS on Apple Silicon (M1 or later). Intel Macs are not supported yet.",
+    "req_mac": "macOS on Apple Silicon (M1 or later) or Intel.",
     "req_win": "Windows on x64.",
     "keys_title": "Keys for outside services",
     "keys_lead": "The core (picking, the profile, the library) works offline with no key. Optional services use your own key, stored on your computer.",
@@ -205,13 +206,14 @@
   },
   "js": {
     "dl_mac": "Download for macOS (Apple Silicon)",
+    "dl_mac_intel": "Download for macOS (Intel)",
     "dl_win": "Download for Windows (x64)",
     "copy": "Open on a computer",
     "copied": "Link copied. Open it on your Mac or PC.",
     "copy_failed": "Copy this address: ",
-    "note_mac_unknown": "Requires Apple Silicon (M1 or later). Intel Macs are not supported yet.",
-    "note_mac_arm": "Apple Silicon detected · 22 MB",
-    "note_mac_intel": "This looks like an Intel Mac. PageTide does not support Intel Macs yet.",
+    "note_mac_unknown": "Apple Silicon (M1 or later). On an Intel Mac, get the Intel build below.",
+    "note_mac_arm": "Apple Silicon detected · 24 MB",
+    "note_mac_intel": "Intel Mac detected · 26 MB",
     "note_win": "Windows x64 · 17 MB · first launch needs “More info → Run anyway”",
     "note_mobile": "PageTide is a desktop app for macOS and Windows.",
     "other_os": "Also available for {other}.",
@@ -226,7 +228,7 @@
         "img": "today",
         "alt": "The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons.",
         "title": "Daily picks, explained",
-        "body": "Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews all five picks at once.",
+        "body": "Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews up to 20 picks at once.",
         "icon": "sparkles"
       },
       {

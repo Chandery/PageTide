@@ -157,8 +157,10 @@ def build(date):
     asset_v = hashlib.sha1(b"".join((HERE / "assets" / f).read_bytes()
                                     for f in ("site.css", "site.js", "platform.js", "rank.js", "demo.js", "fx.js"))).hexdigest()[:8]
     mac_file = "PageTide-macos-arm64.zip"
+    mac_x64_file = "PageTide-macos-x64.zip"
     win_file = "PageTide_%s_x64-setup.exe" % ver
     mac_url = GITHUB + "/releases/latest/download/" + mac_file
+    mac_x64_url = GITHUB + "/releases/latest/download/" + mac_x64_file
     win_url = GITHUB + "/releases/latest/download/" + win_file
     tpl = (HERE / "template.html").read_text(encoding="utf-8")
     pages = {"en": SITE + "/", "zh": SITE + "/zh/"}
@@ -174,6 +176,7 @@ def build(date):
             "canonical": pages[lang], "url_en": pages["en"], "url_zh": pages["zh"], "site": SITE,
             "version": ver, "asset_v": asset_v,
             "mac_file": mac_file, "win_file": win_file, "mac_url": mac_url, "win_url": win_url,
+            "mac_x64_file": mac_x64_file, "mac_x64_url": mac_x64_url,
         })
         ctx["tags_html"] = "".join(tag_html(tx, w, ui) for tx, w in DEFAULT_TAGS)
         ctx["stories_html"] = "".join(story_html(by_id[i], n + 1, lang, ui) for n, i in enumerate(INITIAL_IDS))

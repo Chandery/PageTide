@@ -32,7 +32,7 @@
     "dl_win": "下载 Windows 版",
     "star": "★ 去 GitHub 点个 Star",
     "fine": "MIT 开源 · 不用注册 · 不收集数据",
-    "note_default": "macOS 版需要 M 系列芯片（M1 及更新），Windows 版需要 64 位系统。",
+    "note_default": "macOS 版支持 M 系列芯片和 Intel 芯片，Windows 版需要 64 位系统。",
     "shot_alt": "PageTide 封面：推荐贴合你研究的论文。今日推荐与 AI 速览、背后的画像关键词，以及 PageTide 检索的开放来源。"
   },
   "demo": {
@@ -108,10 +108,10 @@
       },
       {
         "v": "一次",
-        "t": "AI 调用，就能速览五篇推荐"
+        "t": "AI 调用，最多速览 20 篇推荐"
       },
       {
-        "v": "22 MB",
+        "v": "24 MB",
         "t": "macOS 安装包（Windows 版 17 MB）"
       }
     ],
@@ -148,6 +148,7 @@
     "col_file": "文件",
     "col_size": "大小",
     "mac_name": "macOS（M 系列芯片）",
+    "mac_x64_name": "macOS（Intel 芯片）",
     "win_name": "Windows（64 位）",
     "download": "下载",
     "all_releases": "在 GitHub 查看所有版本",
@@ -159,7 +160,7 @@
     "first_win_title": "Windows",
     "first_win": "弹出“Windows 已保护你的电脑”时，点<strong>更多信息</strong>，再点<strong>仍要运行</strong>。安装只对当前用户生效，不需要管理员权限。",
     "req_title": "系统要求",
-    "req_mac": "macOS：需要 M 系列芯片（M1 及更新）的 Mac，暂不支持 Intel 芯片的 Mac。",
+    "req_mac": "macOS：M 系列芯片（M1 及更新）或 Intel 芯片的 Mac 都可以。",
     "req_win": "Windows：64 位系统。",
     "keys_title": "需要准备哪些密钥",
     "keys_lead": "推荐、画像、论文库这些核心功能离线就能用，不需要任何密钥。下面这些服务是可选的，用的是你自己申请的密钥，只保存在你的电脑上。",
@@ -205,13 +206,14 @@
   },
   "js": {
     "dl_mac": "下载 macOS 版（M 系列芯片）",
+    "dl_mac_intel": "下载 macOS 版（Intel 芯片）",
     "dl_win": "下载 Windows 版（64 位）",
     "copy": "去电脑上打开",
     "copied": "链接已复制，到你的 Mac 或 Windows 电脑上打开就行。",
     "copy_failed": "复制这个网址：",
-    "note_mac_unknown": "需要 M 系列芯片（M1 及更新）的 Mac，暂不支持 Intel 芯片。",
-    "note_mac_arm": "已识别为 M 系列芯片的 Mac · 22 MB",
-    "note_mac_intel": "你的 Mac 看起来是 Intel 芯片，PageTide 暂时还不支持。",
+    "note_mac_unknown": "适用于 M 系列芯片（M1 及更新）。Intel 芯片的 Mac 请在下方下载 Intel 版。",
+    "note_mac_arm": "已识别为 M 系列芯片的 Mac · 24 MB",
+    "note_mac_intel": "已识别为 Intel 芯片的 Mac · 26 MB",
     "note_win": "Windows 64 位 · 17 MB · 第一次打开时点“更多信息 → 仍要运行”",
     "note_mobile": "PageTide 是电脑上用的桌面应用，支持 macOS 和 Windows。",
     "other_os": "也有 {other} 版本。",
@@ -226,7 +228,7 @@
         "img": "today",
         "alt": "“今日推荐”界面：按画像排好序的新论文，每篇附一句 AI 速览，以及“收藏”“不感兴趣”“太难”三个按钮。",
         "title": "每日推荐，篇篇有理由",
-        "body": "每天早上，按你的画像排好一份新论文短名单，每篇都告诉你为什么推荐。开启 AI 后，一次调用就能把五篇都速览一遍。",
+        "body": "每天早上，按你的画像排好一份新论文短名单，每篇都告诉你为什么推荐。开启 AI 后，一次调用最多能速览 20 篇。",
         "icon": "sparkles"
       },
       {
