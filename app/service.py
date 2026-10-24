@@ -3749,6 +3749,8 @@ class App:
                                                      (paper_key, action, reason, now(), project_id))
                     result = {'feedback_id': cursor.lastrowid, 'action': action, 'interest_changed': action in INTEREST_ACTIONS,
                               'saved': action in POSITIVE_ACTIONS}
+                    if action in NEGATIVE_ACTIONS:
+                        result['unsaved'] = self._unsave_for_negative(project_id, paper_key, cursor.lastrowid)
                 self.store.conn.commit()
             except BaseException:
                 self.store.conn.rollback()
@@ -3759,6 +3761,23 @@ class App:
                 self.store.save_to_library(paper_key, note=reason, project_id=project_id)
             result["state"] = self.feedback_state(paper_key, project_id)
             return result
+
+    _UNSAVED_BY = "feedback_unsaved:"   # settings key per feedback id: what a "not interested" removed from the library
+
+    def _unsave_for_negative(self, project_id, paper_key, feedback_id):
+        """Inside the feedback transaction: "not interested" and "saved" cannot both stand, so a saved paper leaves the
+        project's library in the same commit as the label, and what was removed is kept under the label's id so undoing
+        the label can put it back exactly. Returns whether a paper was taken out."""
+        conn = self.store.conn
+        row = conn.execute('SELECT saved_at, note FROM project_library WHERE project_id=? AND paper_key=?', (project_id, paper_key)).fetchone()
+        if not row:
+            return False
+        conn.execute('DELETE FROM project_library WHERE project_id=? AND paper_key=?', (project_id, paper_key))
+        if not conn.execute('SELECT 1 FROM project_library WHERE paper_key=? LIMIT 1', (paper_key,)).fetchone():
+            conn.execute('DELETE FROM library WHERE paper_key=?', (paper_key,))
+        conn.execute('INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)',
+                     (self._UNSAVED_BY + str(feedback_id), json.dumps({'saved_at': row['saved_at'], 'note': row['note']})))
+        return True
 
     def unsave(self, paper_key, project_id=None):
         self.store.remove_from_library(paper_key, project_id=project_id)
@@ -3807,8 +3826,22 @@ class App:
             if not row or (project_id and row["project_id"] != project_id):
                 raise ValueError("反馈不属于当前项目")
             # Undo restores the profile signals; a library save is a separate user fact and stays.
-            self.store.undo_feedback(feedback_id)
-            return {"undone": feedback_id, "state": self.feedback_state(row["paper_key"], row["project_id"])}
+            # One commit: the label goes, and a paper that label took out of the library comes back as it was.
+            self.store.conn.execute("UPDATE feedback SET undone=1, undone_at=? WHERE id=?", (now(), feedback_id))
+            restored = False
+            marker = self.store.conn.execute("SELECT value FROM settings WHERE key=?", (self._UNSAVED_BY + str(feedback_id),)).fetchone()
+            if marker:
+                kept = json.loads(marker["value"])
+                project, paper = row["project_id"], row["paper_key"]
+                if not self.store.in_library(paper, project):
+                    self.store.save_to_library(paper, note=kept.get("note"), project_id=project, commit=False)
+                    self.store.conn.execute("UPDATE project_library SET saved_at=? WHERE project_id=? AND paper_key=?",
+                                            (kept.get("saved_at"), project, paper))
+                    restored = True
+                self.store.conn.execute("DELETE FROM settings WHERE key=?", (self._UNSAVED_BY + str(feedback_id),))
+            self.store.conn.commit()
+            return {"undone": feedback_id, "restored_saved": restored,
+                    "state": self.feedback_state(row["paper_key"], row["project_id"])}
 
 
     # ------------------------------------------------------------- full text

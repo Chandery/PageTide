@@ -16,7 +16,8 @@ function page(currentProject, respond) {
     Date,
   });
   vm.runInContext("const DEMO_ID = 'pdh-demo'; const inDemo = () => state.currentProject === DEMO_ID;", context);
-  vm.runInContext("let demoBlockedAt = 0; function toast(m, kind) { if (kind !== 'ok' && kind !== 'ai' && Date.now() - demoBlockedAt < 2500) return; TOASTS.push([m, kind]); }", Object.assign(context, { TOASTS: toasts }));
+  vm.runInContext(slice('let demoBlocked = null;', 'function toast('), context);
+  vm.runInContext("function toast(m, kind) { if (suppressDemoDuplicate(m, kind)) return; TOASTS.push([m, kind]); }", Object.assign(context, { TOASTS: toasts }));
   vm.runInContext(slice('// While the guided tour shows the demo project', 'function mdInline'), context);
   vm.runInContext(slice('function rememberProject', 'async function loadProjects'), context);
   return { context, store, fetches, toasts };
@@ -40,8 +41,11 @@ test('a demo_readonly 403 shows the server message once and still rejects', asyn
   const message = '演示项目里不能这样做。创建自己的项目后可用。';
   const p = page('pdh-demo', () => ({ ok: false, status: 403, json: async () => ({ error: message, reason_code: 'demo_readonly' }) }));
   await assert.rejects(vm.runInContext("api('/api/refresh', {})", p.context), { message });
-  vm.runInContext("toast('抓取失败：x', 'err')", p.context);   // the caller's own error toast is suppressed
+  vm.runInContext("toast('抓取失败：' + " + JSON.stringify(message) + ", 'err')", p.context);   // the caller's own copy of that error is dropped
   assert.equal(JSON.stringify(p.toasts), JSON.stringify([[message, 'warn']]));
+  // ...but only that one: a later unrelated error, or a second copy, is shown
+  vm.runInContext("toast('别的错误', 'err'); toast('抓取失败：' + " + JSON.stringify(message) + ", 'err')", p.context);
+  assert.equal(p.toasts.length, 3);
 });
 
 test('the demo id is never written to localStorage', () => {
@@ -107,4 +111,13 @@ test('settings replays the tour from the welcome card (the sandbox is built ther
 
 test('the weekly link of the profile carries the project id, so the demo report is routed by id', () => {
   assert.match(read('profile-ui.js'), /weekly_report\.html\?project_id=\$\{encodeURIComponent\(project\)\}/);
+});
+
+test('the demo hides category editing, labels paraphrased abstracts in the library detail, and promises nothing it blocks', () => {
+  const fs2 = require('node:fs'), path2 = require('node:path');
+  const org = fs2.readFileSync(path2.join(__dirname, '..', 'app', 'static', 'organization.js'), 'utf8');
+  const tour = fs2.readFileSync(path2.join(__dirname, '..', 'app', 'static', 'tour.js'), 'utf8');
+  assert.match(index, /html\.pdh-demo #organizationRoot \[data-action="membership"\], html\.pdh-demo #organizationRoot \[data-action="paper-membership"\] \{ display:none/);
+  assert.match(org, /inDemoPage\(\) && p\.arxiv_id[\s\S]{0,40}演示用的改写摘要，原文见 <a href="https:\/\/arxiv\.org\/abs\//);
+  assert.doesNotMatch(tour, /钉住|撤销/);   // pinning is blocked in the demo, so the tour does not offer it
 });

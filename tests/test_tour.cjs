@@ -177,3 +177,33 @@ test('the welcome card is wired: both buttons save before they continue, Start p
   assert.match(index, /begin\(\{ step: 'w0'/); assert.doesNotMatch(index, /action: 'start'/);
   assert.match(settings, /begin\(\{step:'w0'/); assert.match(creation, /begin\(\{step:'w0'/);
 });
+
+test('a page opened while the stored step belongs elsewhere gets a resume prompt, never a stored step', () => {
+  const at = id => ({ v: 1, step: id, version: '0.1.0', returnProject: null });
+  for (const id of ['s2', 's3', 's4', 'f7']) {
+    const r = T.strandedStep(at(id), 'index');
+    assert.ok(r, id); assert.equal(r.id, '__resume'); assert.equal(r.target, null);
+    assert.equal(r.resume, T.PAGE_URL[T.STEPS.find(x => x.id === id).page]);
+    assert.equal(r.primary.label, '继续'); assert.ok(r.text);
+  }
+  assert.equal(T.strandedStep(at('r2'), 'index'), null);          // its own page
+  assert.equal(T.strandedStep(at('c1'), 'index'), null);          // the creation hint is not demo mode
+  assert.equal(T.strandedStep(at('s2'), 'settings'), null);       // only the main page prompts
+  assert.equal(T.strandedStep(null, 'index'), null);
+  assert.equal(T.STEPS.some(s => s.id === '__resume'), false);
+});
+
+test('dismiss clears the stored creation hint only when asked for that step', () => {
+  const m = memory(); T.setStorage(m);
+  m.setItem(T.KEY, T.serialize({ step: 'c1', version: '0.1.0', returnProject: null }));
+  T.dismiss('f7'); assert.equal(T.pending().step, 'c1');
+  T.dismiss('c1'); assert.equal(T.pending(), null);
+  T.setStorage(null);
+});
+
+test('the creation page decides about the c1 hint after it knows the projects', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const c = fs.readFileSync(path.join(__dirname, '..', 'app', 'static', 'project_creation.html'), 'utf8');
+  assert.match(c, /length\)\{PDHTour\.dismiss\('c1'\);return;\}/);
+  assert.ok(c.indexOf("PDHTour.dismiss('c1')") < c.indexOf("PDHTour.boot('creation'"));
+});

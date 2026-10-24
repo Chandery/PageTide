@@ -189,7 +189,7 @@
 (async()=>{
   try {
     const list=await (await fetch('/api/projects')).json();
-    if((list.projects||[]).length)return;
+    if((list.projects||[]).length){PDHTour.dismiss('c1');return;}   // a project exists now: the "create your first project" hint is moot
     const link=document.querySelector('a.back');
     link.textContent='看看演示';
     link.addEventListener('click',async e=>{
@@ -202,9 +202,9 @@
         window.location.href='/';
       } catch(err) { window.PDHDialogs.notice(`打不开演示：${err.message}`,{target:document.getElementById('creationQuitStatus'),kind:'error'}); }
     });
-  } catch(e) { /* keep the plain back link */ }
+    PDHTour.boot('creation',{});
+  } catch(e) { PDHTour.boot('creation',{}); /* keep the plain back link */ }
 })();
-PDHTour.boot('creation',{});
 </script>
 </body>
 </html>

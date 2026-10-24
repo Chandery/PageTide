@@ -259,6 +259,40 @@ class DemoFlowTests(DemoCase):
         status, bad = self.call("POST", "/api/undo", {"feedback_id": 10**9, "project_id": pid})
         self.assertEqual(status, 400)
 
+    def _saved_keys(self, pid, header):
+        return {i["key"] for i in self.call("GET", "/api/library?project_id=" + pid, header=header)[1]["items"]}
+
+    def _round_trip(self, pid, key, header):
+        """Saved, then not interested (leaves the library in the same call), then undone (back as saved, same time and note)."""
+        self.assertIn(key, self._saved_keys(pid, header))
+        saved_at = [i for i in self.call("GET", "/api/library?project_id=" + pid, header=header)[1]["items"] if i["key"] == key][0].get("saved_at")
+        status, no = self.call("POST", "/api/feedback", {"key": key, "action": "irrelevant", "project_id": pid}, header=header)
+        self.assertEqual(status, 200, no)
+        self.assertTrue(no["unsaved"])
+        self.assertEqual((no["state"]["feedback"], no["state"]["saved"]), ("irrelevant", False))
+        self.assertNotIn(key, self._saved_keys(pid, header))
+        status, back = self.call("POST", "/api/undo", {"feedback_id": no["feedback_id"], "project_id": pid}, header=header)
+        self.assertEqual(status, 200, back)
+        self.assertTrue(back["restored_saved"])
+        self.assertEqual(back["state"]["saved"], True)
+        self.assertIn(key, self._saved_keys(pid, header))
+        items = self.call("GET", "/api/library?project_id=" + pid, header=header)[1]["items"]
+        self.assertEqual([i for i in items if i["key"] == key][0].get("saved_at"), saved_at)
+        # undoing twice or a label that took nothing out changes nothing
+        status, again = self.call("POST", "/api/undo", {"feedback_id": no["feedback_id"], "project_id": pid}, header=header)
+        self.assertFalse(again["restored_saved"])
+        _, plain = self.call("POST", "/api/feedback", {"key": key, "action": "too_hard", "project_id": pid}, header=header)
+        self.assertNotIn("unsaved", plain)
+
+    def test_undoing_not_interested_puts_a_saved_paper_back_in_the_real_library(self):
+        self._round_trip(self.real_pid, "real-paper", header=False)
+
+    def test_undoing_not_interested_puts_a_saved_paper_back_in_the_demo_library(self):
+        self.start()
+        pid = demo.PROJECT_ID
+        key = sorted(self._saved_keys(pid, True))[0]
+        self._round_trip(pid, key, header=True)
+
     def test_triage_of_selected_keys_rejects_others(self):
         self.start()
         self.call("POST", "/api/daily", {"project_id": demo.PROJECT_ID})

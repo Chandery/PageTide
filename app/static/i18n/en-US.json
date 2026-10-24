@@ -2573,7 +2573,6 @@
     "收藏的论文在论文库里。": "Saved papers live in the library.",
     "列表里是收藏的论文。": "The list shows your saved papers.",
     "切到图谱，看论文之间的关系。": "Switch to the graph to see how papers relate.",
-    "画像里是从收藏和反馈学到的兴趣词，可以钉住或撤销。": "The profile shows interest terms learned from your saves and feedback. You can pin or undo them.",
     "周报在这里，按周看画像的变化。": "The weekly report is here, showing how your profile changes week by week.",
     "这周的收藏和反馈都汇总在这里。": "This week's saves and feedback are summarized here.",
     "从这里创建你的第一个项目。": "Create your first project here.",
@@ -2594,6 +2593,8 @@
     "开始": "Start",
     "欢迎使用 PaperDigHelper": "Welcome to PaperDigHelper",
     "外观 / Appearance": "Appearance",
-    "已记录：不感兴趣，已取消收藏": "Recorded: not interested, and removed from saved"
+    "已记录：不感兴趣，已取消收藏": "Recorded: not interested, and removed from saved",
+    "指引还没有走完。": "The tour isn't finished.",
+    "画像里是从收藏和反馈学到的兴趣词。": "The profile shows interest terms learned from your saves and feedback."
   }
 }

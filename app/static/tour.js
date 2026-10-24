@@ -64,7 +64,7 @@
     { id: 'f4', page: 'index', phase: '论文库与画像', target: '#organizationRoot .org-tabs [data-action="graph"]', advance: 'click', view: 'library',
       text: '切到图谱，看论文之间的关系。' },
     { id: 'f5', page: 'index', phase: '论文库与画像', target: '.tab[data-view="profile"]', advance: 'click',
-      text: '画像里是从收藏和反馈学到的兴趣词，可以钉住或撤销。' },
+      text: '画像里是从收藏和反馈学到的兴趣词。' },
     { id: 'f6', page: 'index', phase: '论文库与画像', target: '#view-profile a.pd-link[href*="weekly_report"]', advance: 'click', view: 'profile',
       text: '周报在这里，按周看画像的变化。' },
     { id: 'f7', page: 'weekly', phase: '论文库与画像', target: '#weeklyContent', advance: 'next',
@@ -135,6 +135,16 @@
     try { await io.saveLanguage(choice.lang); } catch (e) { failure = e; }
     try { await io.saveTheme(choice.mode); } catch (e) { failure = failure || e; }
     return failure;
+  }
+
+  /* The page was opened while the stored step belongs to another page (a reload on the main page during the settings
+     steps, a closed weekly report): the demo is still on, so say so and offer to go on. Returns a step-like object
+     (never stored) or null. The creation hint is not demo mode and is left alone. */
+  function strandedStep(state, page) {
+    const st = state && BY_ID[state.step];
+    if (!st || st.page === page || st.id === 'c1' || page !== 'index') return null;
+    return { id: '__resume', resume: PAGE_URL[st.page] || '/', page: page, phase: st.phase, target: null, advance: 'next',
+      text: '指引还没有走完。', primary: { label: '继续', choice: 'resume' } };
   }
 
   function serialize(state) {
@@ -483,15 +493,15 @@
     ctx.ui = null; ctx.el = null;
   }
 
-  async function show(stepId) {
-    const st = BY_ID[stepId];
+  async function show(stepId, override) {
+    const st = override || BY_ID[stepId];
     if (!ctx || !st) return;
     const token = ++ctx.token;
     ctx.step = st; ctx.el = null; ctx.key = ''; ctx.anchored = false; ctx.active = false;
     if (ctx.raf) window.cancelAnimationFrame(ctx.raf);
     if (ctx.ui) { ctx.ui.root.remove(); ctx.ui = null; }
     const cur = pending() || { version: null, returnProject: null };
-    writeState({ step: st.id, version: cur.version, returnProject: cur.returnProject });
+    if (!override) writeState({ step: st.id, version: cur.version, returnProject: cur.returnProject });   // a resume prompt keeps the stored step
     if (st.view && ctx.hooks.selectView) { try { ctx.hooks.selectView(st.view); } catch (e) { /* the page decides */ } }
     if (st.hook === 'openSwitcher' && ctx.hooks.openSwitcher) { try { ctx.hooks.openSwitcher(); } catch (e) { /* ignore */ } }
     if (st.welcome) {
@@ -540,6 +550,7 @@
 
   function advance(choice) {
     if (!ctx || !ctx.step) return;
+    if (ctx.step.resume) { teardownUI(); navigate(ctx.step.resume); return; }   // go on where the tour was left
     const nxt = next(pending(), ctx.step.id, choice);
     if (nxt === 'finish' && ctx.step.standalone) { clearState(); teardownUI(); return; }   // the creation-page hint only dismisses
     if (nxt === 'finish') finish(); else goTo(nxt);
@@ -611,14 +622,22 @@
     if (typeof document === 'undefined') return false;
     const state = pending();
     if (!state) return false;
-    const st = BY_ID[state.step];
-    if (!st || st.page !== page) return false;
+    const lost = strandedStep(state, page);
+    const st = lost || BY_ID[state.step];
+    if (!st || (!lost && st.page !== page)) return false;
     if (st.id === 'c1' && !document.querySelector(st.target)) return false;
     if (ctx) teardownUI();
     ctx = { page: page, hooks: hooks || {}, token: 0, step: st, ui: null, el: null, active: false, anchored: false, raf: 0, key: '' };
     if (!boot.bound) { document.addEventListener('click', onDocClick, true); boot.bound = true; }
-    show(st.id);
+    show(st.id, lost || undefined);
     return true;
+  }
+  /* Drop the stored state (and any bubble); with `onlyStep` only when that step is the stored one. */
+  function dismiss(onlyStep) {
+    const state = pending();
+    if (onlyStep && (!state || state.step !== onlyStep)) return;
+    clearState();
+    if (ctx) teardownUI();
   }
   function stop() { if (ctx) teardownUI(); }
 
@@ -626,5 +645,5 @@
     shouldOffer: shouldOffer, next: next, stepsFor: stepsFor, finishTarget: finishTarget,
     serialize: serialize, parse: parse, WELCOME: WELCOME, THEME_MODES: THEME_MODES,
     welcomeLang: welcomeLang, saveChoice: saveChoice, current: current, pending: pending, setStorage: setStorage,
-    waitFor: waitFor, begin: begin, boot: boot, finish: finish, skip: skipTour, stop: stop };
+    waitFor: waitFor, strandedStep: strandedStep, dismiss: dismiss, begin: begin, boot: boot, finish: finish, skip: skipTour, stop: stop };
 });

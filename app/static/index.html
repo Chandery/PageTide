@@ -613,7 +613,8 @@
   html.pdh-demo .ai-action, html.pdh-demo .read-action, html.pdh-demo #dRead, html.pdh-demo .detail-projects,
   html.pdh-demo #organizationRoot [data-action="suggest"], html.pdh-demo #organizationRoot [data-action="import"],
   html.pdh-demo #organizationRoot [data-action="export"], html.pdh-demo #organizationRoot .org-notes,
-  html.pdh-demo #organizationRoot [data-action="read"], html.pdh-demo #organizationRoot .org-note-mark { display:none !important; }
+  html.pdh-demo #organizationRoot [data-action="read"], html.pdh-demo #organizationRoot .org-note-mark,
+  html.pdh-demo #organizationRoot [data-action="membership"], html.pdh-demo #organizationRoot [data-action="paper-membership"] { display:none !important; }
   .ai-demo-tag { color:var(--muted, inherit); }
   @media (min-width:1700px) { .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } }
@@ -757,9 +758,15 @@ $('#modeBtn').onclick = async () => {
 };
 
 // ------------------------------------------------------------------ utils
-let demoBlockedAt = 0;
+let demoBlocked = null;   // {message, at}: the demo's own "not here" notice for the request that just failed
+// The caller of that request then toasts its own error carrying the same text: drop that one (once, within a moment), nothing else.
+function suppressDemoDuplicate(msg, kind) {
+  if (kind === 'ok' || kind === 'ai' || !demoBlocked) return false;
+  const mine = demoBlocked; demoBlocked = null;
+  return Date.now() - mine.at < 2500 && String(msg).includes(mine.message);
+}
 function toast(msg, kind='ok', ms=3600) {
-  if (kind !== 'ok' && kind !== 'ai' && Date.now() - demoBlockedAt < 2500) return;   // the demo's own "not here" message already says it
+  if (suppressDemoDuplicate(msg, kind)) return;
   const el = document.createElement('div'); el.className = `toast ${kind}`; el.textContent = msg;
   $('#toasts').appendChild(el);
   setTimeout(() => { el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),250); }, ms);
@@ -770,7 +777,7 @@ async function api(path, body) {
   const res = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json', ...demoHeaders()},body:JSON.stringify(body)} : {headers:demoHeaders()});
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 403 && data.reason_code === 'demo_readonly') { toast(data.error, 'warn'); demoBlockedAt = Date.now(); }
+    if (res.status === 403 && data.reason_code === 'demo_readonly') { toast(data.error, 'warn'); demoBlocked = { message: data.error, at: Date.now() }; }
     throw new Error(data.error || `HTTP ${res.status}`);
   }
   return data;
@@ -1302,17 +1309,12 @@ async function doFeedback(key, action, opts = {}) {
       ? await api('/api/undo', { feedback_id: Number(opts.feedbackId), ...project })
       : await api('/api/feedback', { key, action, retract: true, ...project });
     stored = r.state || null;
-    toast(`已撤销：${said}`, 'ok');
+    // A learning-map revision can turn the press into a fresh confirmation instead of a take-back: say what happened.
+    toast(r.reconfirmed ? `已记录：${said}` : `已撤销：${said}`, 'ok');
   } else {
     const r = await api('/api/feedback', { key, action, ...project });
     stored = r.state || null;
-    let alsoUnsaved = false;
-    const wasSaved = stored ? stored.saved : !!(state.cards.find(c => c.key === key) || {}).saved;
-    if (action === 'irrelevant' && wasSaved) {   // not interested and saved cannot both stand: the latest label wins
-      await api('/api/unsave', { key, ...project });
-      alsoUnsaved = true;
-      if (stored) stored = { ...stored, saved: false };
-    }
+    const alsoUnsaved = !!r.unsaved;   // the server took a saved paper out of the library in the same commit as the label
     toast(r.saved ? '已收藏'
           : action === 'understood' ? '已记录：已读懂'
           : alsoUnsaved ? '已记录：不感兴趣，已取消收藏'

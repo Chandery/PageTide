@@ -66,18 +66,25 @@ test('not interested: set, shown, then pressed again it is undone by record id a
   assert.equal(toasts.at(-1)[0], '已撤销：不感兴趣');
 });
 
-test('not interested on a saved paper also takes it out of the saved list; undo brings back what the server says', async () => {
+test('not interested on a saved paper: the server does the unsave in one commit; undo gives back what it reports', async () => {
   const card = { key: 'x', saved: true, feedback: 'useful', feedback_id: 3 };
   const { ctx, calls, toasts } = feedbackContext({
-    '/api/feedback': { feedback_id: 9, interest_changed: true, state: { feedback: 'irrelevant', feedback_id: 9, familiarity: null, saved: true } },
-    '/api/unsave': { saved: false },
-    '/api/undo': { undone: 9, state: { feedback: 'useful', feedback_id: 3, familiarity: null, saved: false } } }, card);
+    '/api/feedback': { feedback_id: 9, interest_changed: true, unsaved: true, state: { feedback: 'irrelevant', feedback_id: 9, familiarity: null, saved: false } },
+    '/api/undo': { undone: 9, restored_saved: true, state: { feedback: 'useful', feedback_id: 3, familiarity: null, saved: true } } }, card);
   await ctx.doFeedback('x', 'irrelevant');
-  assert.deepEqual(calls.map(c => c[0]), ['/api/feedback', '/api/unsave']);
+  assert.deepEqual(calls.map(c => c[0]), ['/api/feedback']);   // no separate /api/unsave any more
   assert.equal(card.saved, false); assert.equal(card.feedback, 'irrelevant');
   assert.equal(toasts.at(-1)[0], '已记录：不感兴趣，已取消收藏');
   await ctx.doFeedback('x', 'irrelevant', { undo: true, feedbackId: '9' });
-  assert.equal(card.feedback, 'useful'); assert.equal(card.saved, false);   // the older label is back, the paper stays out of the list
+  assert.equal(card.feedback, 'useful'); assert.equal(card.saved, true);   // back to what it was before the press
+});
+
+test('a take-back that the server turned into a fresh confirmation is not reported as undone', async () => {
+  const card = { key: 'x', saved: true, feedback: 'useful', familiarity: 'too_hard' };
+  const { ctx, toasts } = feedbackContext({ '/api/feedback': { reconfirmed: true, retracted: [], feedback_id: 8,
+    state: { feedback: 'useful', feedback_id: 3, familiarity: 'too_hard', saved: true } } }, card);
+  await ctx.doFeedback('x', 'too_hard', { undo: true });
+  assert.equal(toasts.at(-1)[0], '已记录：太难'); assert.equal(card.familiarity, 'too_hard');
 });
 
 test('too hard: its own mark, retracted by the feedback route, and it never touches the interest label', async () => {
