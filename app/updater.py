@@ -6,11 +6,14 @@ name and version, no credentials). A source run without PDH_APP_VERSION is a dev
 
 Applying an update never happens while the app is still running: `arm_pending` only records what to do, and the
 desktop backend calls `run_pending` after its HTTP server has stopped (the shell closes its stdin on quit). That
-starts a detached helper that waits for the shell process to end, then replaces the .app (macOS) or starts the
-installer (Windows). Only a file that was downloaded into <data>/updates/ and passed its SHA-256 check is used."""
+starts the installer (Windows) or a detached script that waits for the shell process to end and then replaces the
+.app (macOS). Only a file that was downloaded into <data>/updates/ and passed its SHA-256 check is used. The SHA-256
+file proves the download is complete and is the one the release published; it does not prove who published it
+(the builds are unsigned, an accepted risk, ADR 0041)."""
 import hashlib
 import json
 import os
+import plistlib
 import re
 import shutil
 import subprocess
@@ -33,8 +36,9 @@ MAX_ASSET_BYTES = 600 * 1024 * 1024
 PENDING_SECONDS = 10 * 60             # an armed update that was not followed by a quit within this time is dropped
 
 TAG = re.compile(r"^v(\d{1,4})\.(\d{1,4})\.(\d{1,4})$")
-WINDOWS_ASSET = re.compile(r"^PaperDigHelper_\d{1,4}\.\d{1,4}\.\d{1,4}_x64-setup\.exe$")
 MACOS_ASSET = "PaperDigHelper-macos-arm64.zip"
+SAFE_ASSET = re.compile(r"^PaperDigHelper[A-Za-z0-9._-]{0,80}$")
+KEEP_IN_UPDATES = ("apply-update.log", "result")
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
@@ -56,17 +60,18 @@ def platform_key(platform=None, machine=None):
     return None
 
 
-def pick_assets(assets, key):
-    """(installer name, its .sha256 name) among a release's asset names, or None when either is missing."""
-    names = {asset.get("name") for asset in assets if isinstance(asset, dict)}
+def installer_name(key, version):
+    """The one installer file name a release of `version` must have for this system."""
     if key == "windows":
-        found = sorted(name for name in names if isinstance(name, str) and WINDOWS_ASSET.match(name))
-        installer = found[-1] if found else None
-    elif key == "macos":
-        installer = MACOS_ASSET if MACOS_ASSET in names else None
-    else:
-        installer = None
-    if installer and installer + ".sha256" in names:
+        return f"PaperDigHelper_{version}_x64-setup.exe"
+    return MACOS_ASSET if key == "macos" else None
+
+
+def pick_assets(assets, key, version):
+    """(installer name, its .sha256 name) when the release has exactly the expected installer and checksum, else None."""
+    names = {asset.get("name") for asset in assets if isinstance(asset, dict)}
+    installer = installer_name(key, version)
+    if installer and installer in names and installer + ".sha256" in names:
         return installer, installer + ".sha256"
     return None
 
@@ -193,7 +198,7 @@ class Updater:
             if not isinstance(asset, dict) or not isinstance(asset.get("name"), str):
                 continue
             url = asset.get("browser_download_url")
-            if isinstance(url, str) and url.startswith(DOWNLOAD_PREFIX):
+            if isinstance(url, str) and SAFE_ASSET.match(asset["name"]) and url == f"{DOWNLOAD_PREFIX}{raw['tag_name']}/{asset['name']}":
                 assets[asset["name"]] = {"url": url, "size": asset.get("size") if isinstance(asset.get("size"), int) else 0}
         notes = re.sub(r"\s+", " ", str(raw.get("body") or "")).strip()
         html_url = raw.get("html_url")
@@ -234,6 +239,10 @@ class Updater:
             return {**result, "reason_code": "invalid_version"}
         network = force or auto_check_enabled(self.data_dir)
         release = self._latest(force, network)
+        if force and release:
+            cache = self._read_cache()
+            if cache.pop("dismissed", None) is not None:   # asking explicitly brings the strip back
+                self._write_cache(cache)
         if not release:
             if not network:
                 return {**result, "reason_code": "auto_check_off"}
@@ -242,7 +251,7 @@ class Updater:
         result.update(status="ok", latest=release["version"], notes=release.get("notes", ""), html_url=release.get("html_url", ""))
         if latest <= self.current:
             return {**result, "reason_code": "up_to_date"}
-        picked = pick_assets([{"name": name} for name in release["assets"]], self.key)
+        picked = pick_assets([{"name": name} for name in release["assets"]], self.key, release["version"])
         if not picked:
             return {**result, "reason_code": "no_asset"}   # newer, but no installer for this system (yet)
         result.update(available=True, asset=picked[0], dismissed=self._read_cache().get("dismissed") == release["version"])
@@ -293,7 +302,8 @@ class Updater:
                 return self._fail("没有可下载的新版本")
             assets = self._read_cache()["release"]["assets"]
             name = info["asset"]
-            path = self._download_verified(name, assets[name], assets[name + ".sha256"])
+            path = self._download_verified(name, assets[name], assets[name + ".sha256"], info["latest"])
+            (self.updates_dir / "version").write_text(info["latest"], encoding="ascii")
             with _state_lock:
                 _download.clear()
                 _download.update(state="ready", version=info["latest"], path=str(path), sha256=self._sha256(path), name=name)
@@ -308,8 +318,8 @@ class Updater:
                 digest.update(chunk)
         return digest.hexdigest()
 
-    def _download_verified(self, name, asset, checksum_asset):
-        if name != os.path.basename(name) or not (WINDOWS_ASSET.match(name) or name == MACOS_ASSET):
+    def _download_verified(self, name, asset, checksum_asset, version):
+        if name != os.path.basename(name) or name != installer_name(self.key, version):
             raise UpdateError("安装包名称不符合预期")
         if asset.get("size", 0) > MAX_ASSET_BYTES:
             raise UpdateError("安装包过大")
@@ -362,31 +372,77 @@ class Updater:
         script_dir = self.updates_dir
         parent_pid = os.getppid()
         if self.key == "windows":
-            script = script_dir / "apply-update.ps1"
-            script.write_text(WINDOWS_SCRIPT, encoding="ascii")
-            root = os.environ.get("SystemRoot") or "C:\\Windows"
-            powershell = Path(root) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-            command = [str(powershell), "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
-                       "-File", str(script), "-ProcessId", str(parent_pid), "-Installer", str(path)]
-            self._arm(command)
+            # Started by run_pending once the backend stops; the NSIS installer itself checks for the running app.
+            self._arm([str(path)])
             return {"mode": "installer", "version": state.get("version")}
         if self.key == "macos":
-            staged = self._stage_macos(path)
+            staged = self._stage_macos(path, state.get("version"))
             bundle = self.current_app_bundle()
             if staged and bundle and os.access(bundle.parent, os.W_OK) and os.access(bundle, os.W_OK):
                 script = script_dir / "apply-update.sh"
                 script.write_text(MACOS_SCRIPT, encoding="ascii")
-                self._arm(["/bin/sh", str(script), str(parent_pid), str(bundle), str(staged), str(script_dir / "apply-update.log"), "/usr/bin/open"])
+                self._arm(["/bin/sh", str(script), str(parent_pid), str(bundle), str(staged), str(script_dir / "apply-update.log"),
+                           "/usr/bin/open", str(script_dir / "result")])
                 return {"mode": "restart", "version": state.get("version")}
-            try:
-                self.popen(["/usr/bin/open", "-R", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except OSError:
-                pass
+            self.reveal(path)
             return {"mode": "manual", "path": str(path), "version": state.get("version")}
         raise UpdateError("当前系统暂不支持自动更新")
 
-    def _stage_macos(self, archive):
-        """Unpack the verified zip next to it; the new .app, or None when ditto fails or the archive is not one app."""
+    def reveal(self, path):
+        try:
+            self.popen(["/usr/bin/open", "-R", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
+
+    def cancel(self):
+        """The quit was cancelled (unsaved drafts): forget the armed update so a later ordinary quit does not run it."""
+        with _state_lock:
+            _pending.clear()
+
+    def take_result(self):
+        """What the macOS script reported last time, once: None, "failed" or "rollback_failed". A failure shows the
+        downloaded zip (or the backup of the old app when the rollback failed) in Finder for a manual replacement."""
+        path = self.updates_dir / "result"
+        try:
+            text = path.read_text(encoding="utf-8").strip()
+            path.unlink()
+        except OSError:
+            return None
+        if text.startswith("rollback-failed"):
+            backup = Path(text[len("rollback-failed"):].strip())
+            if backup.name.startswith(".PaperDigHelper-update-old.") and backup.exists():
+                self.reveal(backup)
+            return "rollback_failed"
+        if text == "failed":
+            zips = sorted(self.updates_dir.glob("*.zip"))
+            if zips:
+                self.reveal(zips[0])
+            return "failed"
+        return None
+
+    def startup_cleanup(self):
+        """Once the running version is at least the downloaded one the installer is no longer needed: empty updates/
+        except the script log and result."""
+        try:
+            downloaded = parse_version((self.updates_dir / "version").read_text(encoding="ascii"))
+        except OSError:
+            downloaded = None
+        if not self.updates_dir.is_dir() or (downloaded and self.current and downloaded > self.current):
+            return
+        for item in self.updates_dir.iterdir():
+            if item.name in KEEP_IN_UPDATES:
+                continue
+            if item.is_dir() and not item.is_symlink():
+                shutil.rmtree(item, ignore_errors=True)
+            else:
+                try:
+                    item.unlink()
+                except OSError:
+                    pass
+
+    def _stage_macos(self, archive, version):
+        """Unpack the verified zip next to it; the new .app, or None when ditto fails or the archive is not one app.
+        An app whose CFBundleShortVersionString is not the release version is refused."""
         target = self.updates_dir / "extracted"
         shutil.rmtree(target, ignore_errors=True)
         target.mkdir(parents=True)
@@ -398,6 +454,13 @@ class Updater:
         apps = [item for item in target.iterdir() if item.suffix == ".app"]
         if done.returncode != 0 or len(apps) != 1 or not (apps[0] / "Contents" / "MacOS").is_dir():
             return None
+        try:
+            with open(apps[0] / "Contents" / "Info.plist", "rb") as handle:
+                found = plistlib.load(handle).get("CFBundleShortVersionString")
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            found = None
+        if found != version:
+            raise UpdateError("安装包里的版本与发布版本不一致，已拒绝")
         return apps[0]
 
     def _arm(self, command):
@@ -415,7 +478,7 @@ def run_pending(popen=subprocess.Popen, clock=time.time, platform=None):
         return False
     options = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "close_fds": True}
     if (sys.platform if platform is None else platform) == "win32":
-        options["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000   # DETACHED_PROCESS | NEW_PROCESS_GROUP | NO_WINDOW
+        options["creationflags"] = 0x00000008 | 0x00000200   # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
     else:
         options["start_new_session"] = True
     try:
@@ -425,10 +488,11 @@ def run_pending(popen=subprocess.Popen, clock=time.time, platform=None):
     return True
 
 
-# Arguments: <pid of the app shell> <current .app> <new .app> <log file> <open command>.
+# Arguments: <pid of the app shell> <current .app> <new .app> <log file> <open command> <result file>.
+# The result file says "ok", "failed" or "rollback-failed <backup>"; the next start reads it (take_result).
 # The old app is moved aside, never deleted before the new one is in place; any failure puts it back.
 MACOS_SCRIPT = r'''#!/bin/sh
-PID="$1"; OLD="$2"; NEW="$3"; LOG="$4"; OPEN="$5"
+PID="$1"; OLD="$2"; NEW="$3"; LOG="$4"; OPEN="$5"; RESULT="$6"
 exec >>"$LOG" 2>&1
 echo "update started $(date)"
 n=0
@@ -446,23 +510,26 @@ if /usr/bin/ditto "$NEW" "$STAGE"; then
       /usr/bin/xattr -dr com.apple.quarantine "$OLD"
       rm -rf "$BACKUP"
       echo "replaced"
+      echo ok > "$RESULT"
     else
       echo "replace failed, restoring the old app"
-      mv "$BACKUP" "$OLD"
       rm -rf "$STAGE"
+      if mv "$BACKUP" "$OLD"; then
+        echo failed > "$RESULT"
+      else
+        echo "rollback failed, the old app is at $BACKUP"
+        echo "rollback-failed $BACKUP" > "$RESULT"
+      fi
     fi
   else
     echo "could not move the old app aside, nothing changed"
     rm -rf "$STAGE"
+    echo failed > "$RESULT"
   fi
 else
   echo "copy failed, nothing changed"
   rm -rf "$STAGE"
+  echo failed > "$RESULT"
 fi
 "$OPEN" "$OLD"
-'''
-
-WINDOWS_SCRIPT = r'''param([int]$ProcessId, [string]$Installer)
-try { Wait-Process -Id $ProcessId -Timeout 60 -ErrorAction SilentlyContinue } catch { }
-if (Test-Path -LiteralPath $Installer) { Start-Process -FilePath $Installer }
 '''

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "2026-10-24-update-check",
   "class": "critical",
-  "summary": "Update check: the packaged app asks GitHub for the latest release (cached 6 h, switch in Settings), shows a quiet strip on the main page, downloads the platform installer into <data>/updates/ with SHA-256 verification, and after the app quit starts the Windows installer or replaces the macOS .app (with rollback; manual Finder fallback).",
+  "summary": "(Includes the follow-up commit after the independent review: cancel, result file, force-check clears dismissal, direct Windows installer start, hand-off before shutdown, startup cleanup, strict asset/version checks.) Update check: the packaged app asks GitHub for the latest release (cached 6 h, switch in Settings), shows a quiet strip on the main page, downloads the platform installer into <data>/updates/ with SHA-256 verification, and after the app quit starts the Windows installer or replaces the macOS .app (with rollback; manual Finder fallback).",
   "tasks": [
     "PILOT-01"
   ],
@@ -13,23 +13,18 @@
     "app/desktop.py",
     "app/server.py",
     "app/static/i18n/en-US.json",
-    "app/static/index.html",
     "app/static/settings.html",
     "app/static/update-banner.js",
     "app/updater.py",
-    "app/user_settings.py",
     "changes/2026-10-24-update-check.json",
-    "docs/ARCHITECTURE.md",
     "docs/HANDOFF.md",
     "docs/RELEASE.md",
     "docs/decisions/0041-update-check.md",
     "docs/evidence/2026-10-24-update-check-checks.txt",
-    "scripts/i18n_extract.py",
-    "src-tauri/src/main.rs",
     "tests/test_update_banner.cjs",
     "tests/test_updater.py"
   ],
-  "scope_note": "Worktree update-check, base main 36d2070. New outbound network access (GitHub only) registered in ARCHITECTURE and ADR 0041; launching a downloaded file is the critical path. Release workflow already produces the asset names the check needs (verified by reading, no change).",
+  "scope_note": "Follow-up commit on worktree update-check after the independent review of b7cb191; files lists this commit's paths (b7cb191 is the first commit of the same change record).",
   "budget_impact": {
     "runtime": "zero",
     "rationale": "No model call, prompt, retry or token. One public GET to api.github.com at most every 6 hours (switchable) and a user-initiated asset download; no user data in any request.",
@@ -86,7 +81,7 @@
   "open_risks": [
     "Not independently reviewed (critical class).",
     "No request was ever made to the real GitHub API or CDN (sandbox denies it); response shapes follow the documented API and are tested with a fake transport.",
-    "The Windows PowerShell helper and the installer takeover, and the macOS replacement script on a real signed-less .app (Gatekeeper, translocation), have not run on real hardware.",
+    "The Windows installer start at backend EOF (NSIS running-app check) and the macOS replacement script on a real signed-less .app (Gatekeeper, translocation), have not run on real hardware.",
     "release.yml and RELEASE.md asset names were checked by reading only."
   ]
 }

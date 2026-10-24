@@ -15,3 +15,14 @@ Covered by tests: version comparison and rejects; asset choice per platform and 
 
 NOT verified: any real request to api.github.com / github.com (denied here); real release JSON/redirect behaviour; the PowerShell helper and NSIS installer takeover on Windows; the macOS script against a real installed .app (Gatekeeper, App Translocation, /Applications permissions, first launch of an unsigned replaced app); end-to-end click in the running desktop app (no build was made, by instruction); release.yml asset names confirmed by reading only. Not independently reviewed.
 No model call, no developer-ledger usage.
+
+== Follow-up after the independent review of b7cb191 (same worktree, new commit) ==
+Fixes: (1) page cancels the armed update (POST /api/update/cancel) when still alive 1.5 s after asking to quit, buttons restored; (2) macOS script writes updates/result (ok / failed / rollback-failed <backup>), read once at the next start, failure shows the zip or the backup in Finder; (3) explicit check clears the dismissed record; (4) Windows: run_pending starts the verified setup.exe directly (DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP, close_fds), PowerShell removed; (5) desktop.on_parent_gone runs run_pending first, then stops workers and shuts down; (6) startup cleanup of updates/ when the running version >= downloaded; (7) no_asset has its own message; (8) exact asset URL, installer version == tag, Info.plist CFBundleShortVersionString == release version, ADR states sha256 proves integrity not authenticity; (9) tests for redirect allowlist and size caps.
+Ran on macOS:
+$ python3 scripts/budget.py --check   PASS
+$ python3 scripts/harness.py check   PASS (recheck warning only)
+$ python3 -m unittest discover -s tests   Ran 2893 tests OK   (tests/test_updater.py now 43 tests, incl. fake-mv rollback and rollback-failed script branches, real ditto zip -> apply -> armed script -> replaced fake app, call order of on_parent_gone)
+$ node --test tests/*.cjs   # pass 609  # fail 0
+$ python3 scripts/i18n_extract.py   # 0 of 1181
+$ cargo check --offline (placeholder resources dir, CARGO_TARGET_DIR in TMPDIR)   Finished dev profile
+NOT verified: real GitHub; Windows (installer start at EOF, NSIS running-app check); real installed .app (Gatekeeper, TCC/App Management refusal is only simulated by a failing mv); the 1.5 s cancel heuristic in the running app. Still not independently reviewed after this commit.

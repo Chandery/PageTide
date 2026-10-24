@@ -1,10 +1,18 @@
+# 当前工作单元：检查更新 · 独立审查后的修正（2026-10-24）
+
+在 `b7cb191` 之上的新提交（未改写它）。变更记录、证据、ADR 0041 已同步。独立审查要求的 9 项：(1) 退出被取消：页面请求退出 1.5 秒后若仍在，就 `POST /api/update/cancel` 清掉待执行并恢复按钮；(2) macOS 脚本把结果写 `updates/result`，下次启动读一次，失败则提示并在访达显示 zip/备份；(3) 设置页显式检查清掉“已关闭”记录；(4) Windows 去掉 PowerShell，后端直接启动 setup.exe；(5) 后端读到 stdin EOF 后先启动待执行项再停服务；(6) 启动时当前版本不低于已下载版本就清空 `updates/`（留 log/result）；(7) `no_asset` 单独文案；(8) 资产 URL 严格等于 `…/download/<tag>/<名>`、Windows 文件名版本必须等于 tag、macOS `.app` 的 `CFBundleShortVersionString` 必须等于 tag 版本、ADR 写明 sha256 不保证真实性；(9) 补重定向白名单与大小上限测试。
+
+仍没验证：真实 GitHub、Windows 真机（setup.exe 在后端读到 EOF 时直接启动、NSIS 运行中检查）、真实 `.app` 上的替换。1.5 秒的取消判断是推断（`PDHPrepareQuit` 无返回值）：用户在退出确认框里想得更久再确认时，应用照常退出但不更新。
+
+---
+
 # 当前工作单元：检查更新（2026-10-24）
 
 worktree `update-check`，基线 main `36d2070`，类别 critical。[变更记录](../changes/2026-10-24-update-check.json)，[检查证据](evidence/2026-10-24-update-check-checks.txt)，[ADR 0041](decisions/0041-update-check.md)。
 
 起因：owner 要求“检测更新功能，要在 app 里提醒用户可以更新了，在 app 里可以点击更新键”，选定“查 GitHub 最新 Release + 下载对应平台安装包并打开”（不用 tauri-plugin-updater）。
 
-做了什么：Rust 外壳把版本以 `PDH_APP_VERSION` 传给后端（源码运行没有，视为开发版不检查）；`app/updater.py` 请求 `releases/latest`（6 小时缓存，失败静默，设置“自动检查更新”默认开，关了就不请求）；主页顶部一条细条“有新版本 vX.Y.Z · 更新 ×”（关闭按版本记在后端）；点“更新”由后端下载到 `<数据目录>/updates/` 并校验 `.sha256`，页面再走现有的 `PDHPrepareQuit` 退出；**后端在 HTTP 服务停止之后**才启动脱离的辅助脚本（Windows PowerShell 启动安装程序；macOS 等外壳进程退出后用新 `.app` 替换旧的，任何失败回滚，再 `open`），所以退出被取消时什么都不会发生。macOS 的 `.app` 不可写或解压失败时只在访达里显示 zip 提示手动替换。新的对外网络请求已登记在 ARCHITECTURE 与 ADR 0041；RELEASE.md 写明依赖的资产名、仓库公开、草稿要发布。`release.yml` 产出的资产名已核对，无需改。
+做了什么：Rust 外壳把版本以 `PDH_APP_VERSION` 传给后端（源码运行没有，视为开发版不检查）；`app/updater.py` 请求 `releases/latest`（6 小时缓存，失败静默，设置“自动检查更新”默认开，关了就不请求）；主页顶部一条细条“有新版本 vX.Y.Z · 更新 ×”（关闭按版本记在后端）；点“更新”由后端下载到 `<数据目录>/updates/` 并校验 `.sha256`，页面再走现有的 `PDHPrepareQuit` 退出；后端在读到外壳关闭 stdin 之后才启动安装程序（Windows 直接启动 setup.exe）或脱离的替换脚本（macOS 等外壳进程退出后用新 `.app` 替换旧的，任何失败回滚，再 `open`）。macOS 的 `.app` 不可写或解压失败时只在访达里显示 zip 提示手动替换。新的对外网络请求已登记在 ARCHITECTURE 与 ADR 0041；RELEASE.md 写明依赖的资产名、仓库公开、草稿要发布。`release.yml` 产出的资产名已核对，无需改。
 
 没验证：**从未向真实 GitHub 发过请求**（沙箱禁止）；Windows 辅助脚本与安装程序接管、macOS 脚本在真实 `.app` 上（Gatekeeper、目录权限）、桌面应用里的端到端点击（按要求没有构建）。没有独立审查。首次发布后请用旧版本实测一次。
 

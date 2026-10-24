@@ -88,6 +88,15 @@ def redirect_stderr_to_log(root, limit=LOG_LIMIT_BYTES):
     return logs / "backend.log"
 
 
+def on_parent_gone(httpd):
+    """The shell closed our stdin (it is quitting). An update the user asked for starts first: the shell kills this
+    backend two seconds after closing stdin, and the helper does not depend on us (macOS: it waits for the shell's
+    pid; Windows: the installer checks for the running app itself)."""
+    updater.run_pending()
+    stop_organization_workers()
+    httpd.shutdown()
+
+
 def main():
     platform_compat.force_utf8_std_streams()
     if sys.argv[1:2] == ["--organization-worker"]:
@@ -115,6 +124,8 @@ def main():
         # After the lock: a second instance must say "already running", not fail on a log another backend holds.
         if os.environ.get("PDH_LOG_STDERR") == "1":
             redirect_stderr_to_log(root)
+        if os.environ.get("PDH_APP_VERSION"):
+            updater.Updater(root, os.environ["PDH_APP_VERSION"]).startup_cleanup()
         httpd = build_server(port=0, root=resources, desktop_token=secrets.token_hex(32))
 
         def bootstrap():
@@ -131,8 +142,7 @@ def main():
 
         def watch_parent():
             sys.stdin.buffer.read()
-            stop_organization_workers()
-            httpd.shutdown()
+            on_parent_gone(httpd)
 
         threading.Thread(target=watch_parent, daemon=True).start()
         print(f"PDH_READY http://127.0.0.1:{httpd.server_port}/_desktop/{httpd.desktop_token}", flush=True)
@@ -141,5 +151,3 @@ def main():
         finally:
             stop_organization_workers()
             httpd.server_close()
-            # An update the user asked for starts only now, with the server stopped and the shell about to exit.
-            updater.run_pending()

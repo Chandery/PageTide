@@ -2554,6 +2554,10 @@
     "校验失败，已删除下载的文件": "Checksum mismatch; the downloaded file was deleted",
     "没有已下载并校验通过的更新": "There is no downloaded, verified update",
     "文件校验失败，请重新下载": "File verification failed; download again",
-    "当前系统暂不支持自动更新": "This system does not support automatic updates"
+    "当前系统暂不支持自动更新": "This system does not support automatic updates",
+    "新版本暂无适用于本机的安装包": "A newer version exists, but there is no installer for this computer yet",
+    "更新未完成，旧版本的备份已在访达中显示": "The update did not finish; the backup of the old version is shown in Finder",
+    "更新未完成，已在访达中显示下载的文件，请手动替换": "The update did not finish; the downloaded file is shown in Finder, please replace the app manually",
+    "安装包里的版本与发布版本不一致，已拒绝": "The version inside the package does not match the release; refused"
   }
 }
