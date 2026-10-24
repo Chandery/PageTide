@@ -16,7 +16,7 @@ OUT = HERE / "assets"
 README = REPO / "docs" / "assets" / "readme"
 
 
-def webp(src, dst, width, quality=80):
+def webp(src, dst, width, quality=92):
     im = Image.open(src).convert("RGB")
     if im.width > width:
         im = im.resize((width, round(im.height * width / im.width)), Image.LANCZOS)
@@ -29,11 +29,10 @@ def main():
         for name in ("today", "reader-ask", "profile", "graph", "import", "weekly"):
             f = f"{lang}-{name}.png"
             shutil.copy2(README / f, OUT / f)
-            webp(README / f, OUT / f.replace(".png", ".webp"), 1000)
-    for lang in ("en", "zh"):
-        webp(README / f"{lang}-today.png", OUT / f"{lang}-today-hero.webp", 1600, 84)
-    webp(README / "cover.jpg", OUT / "cover.webp", 1280)
-    shutil.copy2(README / "cover.jpg", OUT / "cover.jpg")
+            webp(README / f, OUT / f.replace(".png", ".webp"), 1600)   # full source width: sharp on 2x screens
+    cover = MAIN / ".local/readme-video/pagetide-x30-cover.png"          # the promo cover, 1920x1080, the hero image
+    webp(cover, OUT / "cover.webp", 1920, 90)
+    Image.open(cover).convert("RGB").save(OUT / "cover.jpg", "JPEG", quality=90, optimize=True, progressive=True)
     shutil.copy2(MAIN / ".local/readme-video/pagetide-readme-cover-first.mp4", OUT / "pagetide-promo.mp4")
     shutil.copy2(MAIN / ".local/social/pagetide-social-preview.png", OUT / "og.png")
     shutil.copy2(REPO / "app/static/wordmark.png", OUT / "wordmark.png")

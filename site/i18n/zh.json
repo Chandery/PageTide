@@ -33,7 +33,7 @@
     "star": "★ 去 GitHub 点个 Star",
     "fine": "MIT 开源 · 不用注册 · 不收集数据",
     "note_default": "macOS 版需要 M 系列芯片（M1 及更新），Windows 版需要 64 位系统。",
-    "shot_alt": "“今日推荐”界面：按画像排好序的新论文，每篇附一句 AI 速览，以及“收藏”“不感兴趣”“太难”三个按钮。"
+    "shot_alt": "PageTide 封面：推荐贴合你研究的论文。今日推荐与 AI 速览、背后的画像关键词，以及 PageTide 检索的开放来源。"
   },
   "demo": {
     "title": "动手试试画像",
