@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PageTide：开源的论文发现与管理助手</title>
-<meta name="description" content="PageTide 学习你的研究画像，每天推荐新论文，并收进属于你自己的论文库。开源，无需账号，无遥测。支持 macOS 与 Windows。">
+<meta name="description" content="PageTide 会记住你的研究方向，每天从新论文里挑出和你相关的几篇，再帮你把读过的收进自己的论文库。开源免费，不用注册，不收集任何数据，支持 macOS 和 Windows。">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f6f1e6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d1526" media="(prefers-color-scheme: dark)">
@@ -14,8 +14,8 @@
 <link rel="alternate" hreflang="x-default" href="https://pagetide.chandery.org/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="PageTide">
-<meta property="og:title" content="PageTide：开源的论文发现与管理助手">
-<meta property="og:description" content="学习你的研究画像，每天推荐新论文，收进属于你自己的论文库。开源、无需账号、无遥测。">
+<meta property="og:title" content="PageTide：每天只读和你相关的论文">
+<meta property="og:description" content="开源的论文发现与管理助手：记住你的研究方向，每天推荐新论文，收进你自己的论文库。不用注册，数据只在你的电脑上。">
 <meta property="og:image" content="https://pagetide.chandery.org/assets/og.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
@@ -24,8 +24,8 @@
 <meta property="og:locale" content="zh_CN">
 <meta property="og:locale:alternate" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="PageTide：开源的论文发现与管理助手">
-<meta name="twitter:description" content="学习你的研究画像，每天推荐新论文，收进属于你自己的论文库。开源、无需账号、无遥测。">
+<meta name="twitter:title" content="PageTide：每天只读和你相关的论文">
+<meta name="twitter:description" content="开源的论文发现与管理助手：记住你的研究方向，每天推荐新论文，收进你自己的论文库。不用注册，数据只在你的电脑上。">
 <meta name="twitter:image" content="https://pagetide.chandery.org/assets/og.png">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
@@ -33,7 +33,7 @@
 <link rel="manifest" href="/site.webmanifest">
 <link rel="stylesheet" href="/assets/site.css?v=93901178">
 <script>(function(d){if(!matchMedia("(prefers-reduced-motion: reduce)").matches){d.classList.add("fx");setTimeout(function(){if(!d.dataset.fxReady)d.classList.remove("fx")},3000)}})(document.documentElement)</script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "PageTide", "description": "PageTide 学习你的研究画像，每天推荐新论文，并收进属于你自己的论文库。开源，无需账号，无遥测。支持 macOS 与 Windows。", "url": "https://pagetide.chandery.org/zh/", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Windows", "softwareVersion": "0.1.1", "inLanguage": ["en", "zh-Hans"], "license": "https://opensource.org/licenses/MIT", "downloadUrl": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "image": "https://pagetide.chandery.org/assets/og.png", "author": {"@type": "Person", "name": "Chandery"}, "sameAs": ["https://github.com/Chandery/PageTide"], "codeRepository": "https://github.com/Chandery/PageTide"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "PageTide", "description": "PageTide 会记住你的研究方向，每天从新论文里挑出和你相关的几篇，再帮你把读过的收进自己的论文库。开源免费，不用注册，不收集任何数据，支持 macOS 和 Windows。", "url": "https://pagetide.chandery.org/zh/", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Windows", "softwareVersion": "0.1.1", "inLanguage": ["en", "zh-Hans"], "license": "https://opensource.org/licenses/MIT", "downloadUrl": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "image": "https://pagetide.chandery.org/assets/og.png", "author": {"@type": "Person", "name": "Chandery"}, "sameAs": ["https://github.com/Chandery/PageTide"], "codeRepository": "https://github.com/Chandery/PageTide"}</script>
 </head>
 <body>
 <a class="skip" href="#main">跳到正文</a>
@@ -61,69 +61,69 @@
 <main id="main">
 <section class="hero" aria-labelledby="hero-title">
   <h1 id="hero-title">开源的论文发现<wbr>与管理助手。</h1>
-  <p class="sub">学习你的研究画像，每天推荐新论文，<wbr>收进属于你自己的论文库。</p>
+  <p class="sub">它会记住你的研究方向，每天替你挑出值得读的新论文，<wbr>再把它们收进属于你自己的论文库。</p>
   <div class="cta" id="cta" data-os="other">
     <div class="cta-buttons">
-      <a class="btn btn-primary btn-mac" id="dl-mac" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip" data-label="下载 macOS 版（Apple Silicon）">下载 macOS 版</a>
-      <a class="btn btn-primary btn-win" id="dl-win" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide_0.1.1_x64-setup.exe" data-label="下载 Windows 版（x64）">下载 Windows 版</a>
-      <button class="btn btn-primary btn-copy" id="dl-copy" type="button" hidden>在电脑上打开</button>
-      <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide" rel="noopener">★ 在 GitHub 上点星</a>
+      <a class="btn btn-primary btn-mac" id="dl-mac" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip" data-label="下载 macOS 版（M 系列芯片）">下载 macOS 版</a>
+      <a class="btn btn-primary btn-win" id="dl-win" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide_0.1.1_x64-setup.exe" data-label="下载 Windows 版（64 位）">下载 Windows 版</a>
+      <button class="btn btn-primary btn-copy" id="dl-copy" type="button" hidden>去电脑上打开</button>
+      <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide" rel="noopener">★ 去 GitHub 点个 Star</a>
     </div>
-    <p class="cta-note" id="cta-note" role="status">macOS 需要 Apple Silicon（M1 及以后），Windows 需要 x64。</p>
+    <p class="cta-note" id="cta-note" role="status">macOS 版需要 M 系列芯片（M1 及更新），Windows 版需要 64 位系统。</p>
     <p class="cta-alt" id="cta-alt" hidden></p>
   </div>
-  <p class="fine">MIT 协议 · 无需账号 · 无遥测</p>
+  <p class="fine">MIT 开源 · 不用注册 · 不收集数据</p>
   <div class="hero-stage"><figure class="hero-shot" id="hero-shot">
     <picture>
       <source type="image/webp" srcset="/assets/zh-today-hero.webp">
-      <img src="/assets/zh-today.png" width="1600" height="1000" fetchpriority="high" decoding="async" alt="“今日”页面：按画像排序的新论文列表，每篇有一句 AI 速览，以及 保存、不感兴趣、太难 三个按钮。">
+      <img src="/assets/zh-today.png" width="1600" height="1000" fetchpriority="high" decoding="async" alt="“今日推荐”界面：按画像排好序的新论文，每篇附一句 AI 速览，以及“收藏”“不感兴趣”“太难”三个按钮。">
     </picture>
   </figure></div>
 </section>
 
 <section class="section demo" id="today" aria-labelledby="demo-title">
   <header class="section-head">
-    <h2 id="demo-title">试试画像</h2>
-    <p class="lede">改一个关键词，今日五篇推荐就会重新排序。点关键词可在 强、弱、关 之间切换，也可以加上你自己的词。</p>
+    <h2 id="demo-title">动手试试画像</h2>
+    <p class="lede">改一个关键词，今天的五篇推荐马上重新排。点关键词可以在“强 / 弱 / 关”之间切换，也可以加上你自己的研究方向。</p>
   </header>
   <div class="demo-grid">
     <aside class="profile card" aria-labelledby="profile-title">
       <h3 id="profile-title">你的画像</h3>
-      <p class="hint">演示按这些关键词排序</p>
-      <ul class="tags" id="tags"><li class="tag-item" data-w="strong"><button type="button" class="tag" data-tag="transformer" aria-label="transformer：强。按下可切换权重。"><span class="tag-text">transformer</span><span class="tag-w">强</span></button><button type="button" class="tag-x" data-remove="transformer" aria-label="删除 transformer"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="strong"><button type="button" class="tag" data-tag="language model" aria-label="language model：强。按下可切换权重。"><span class="tag-text">language model</span><span class="tag-w">强</span></button><button type="button" class="tag-x" data-remove="language model" aria-label="删除 language model"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="vision" aria-label="vision：弱。按下可切换权重。"><span class="tag-text">vision</span><span class="tag-w">弱</span></button><button type="button" class="tag-x" data-remove="vision" aria-label="删除 vision"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="efficient attention" aria-label="efficient attention：弱。按下可切换权重。"><span class="tag-text">efficient attention</span><span class="tag-w">弱</span></button><button type="button" class="tag-x" data-remove="efficient attention" aria-label="删除 efficient attention"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="alignment" aria-label="alignment：弱。按下可切换权重。"><span class="tag-text">alignment</span><span class="tag-w">弱</span></button><button type="button" class="tag-x" data-remove="alignment" aria-label="删除 alignment"><span aria-hidden="true">×</span></button></li></ul>
+      <p class="hint">推荐按这些关键词来排</p>
+      <ul class="tags" id="tags"><li class="tag-item" data-w="strong"><button type="button" class="tag" data-tag="transformer" aria-label="transformer：强。点一下可以切换权重。"><span class="tag-text">transformer</span><span class="tag-w">强</span></button><button type="button" class="tag-x" data-remove="transformer" aria-label="移除 transformer"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="strong"><button type="button" class="tag" data-tag="language model" aria-label="language model：强。点一下可以切换权重。"><span class="tag-text">language model</span><span class="tag-w">强</span></button><button type="button" class="tag-x" data-remove="language model" aria-label="移除 language model"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="vision" aria-label="vision：弱。点一下可以切换权重。"><span class="tag-text">vision</span><span class="tag-w">弱</span></button><button type="button" class="tag-x" data-remove="vision" aria-label="移除 vision"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="efficient attention" aria-label="efficient attention：弱。点一下可以切换权重。"><span class="tag-text">efficient attention</span><span class="tag-w">弱</span></button><button type="button" class="tag-x" data-remove="efficient attention" aria-label="移除 efficient attention"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="alignment" aria-label="alignment：弱。点一下可以切换权重。"><span class="tag-text">alignment</span><span class="tag-w">弱</span></button><button type="button" class="tag-x" data-remove="alignment" aria-label="移除 alignment"><span aria-hidden="true">×</span></button></li></ul>
       <form class="add" id="add-form" autocomplete="off">
-        <label for="add-input">添加关键词</label>
+        <label for="add-input">加一个关键词</label>
         <div class="add-row">
-          <input id="add-input" type="text" maxlength="40" placeholder="例如 机器人 或 robot" enterkeyhint="done">
-          <button class="btn btn-small btn-primary" type="submit">添加</button>
+          <input id="add-input" type="text" maxlength="40" placeholder="比如：机器人、robot" enterkeyhint="done">
+          <button class="btn btn-small btn-primary" type="submit">加入</button>
         </div>
       </form>
-      <p class="ex-label" id="ex-label">换个方向试试</p>
-      <ul class="examples" aria-labelledby="ex-label"><li><button type="button" class="ex" data-add="机器人" aria-label="把 机器人 加入画像">机器人</button></li><li><button type="button" class="ex" data-add="蛋白质" aria-label="把 蛋白质 加入画像">蛋白质</button></li><li><button type="button" class="ex" data-add="气候" aria-label="把 气候 加入画像">气候</button></li><li><button type="button" class="ex" data-add="强化学习" aria-label="把 强化学习 加入画像">强化学习</button></li><li><button type="button" class="ex" data-add="图神经网络" aria-label="把 图神经网络 加入画像">图神经网络</button></li><li><button type="button" class="ex" data-add="扩散模型" aria-label="把 扩散模型 加入画像">扩散模型</button></li><li><button type="button" class="ex" data-add="量子计算" aria-label="把 量子计算 加入画像">量子计算</button></li><li><button type="button" class="ex" data-add="因果推断" aria-label="把 因果推断 加入画像">因果推断</button></li></ul>
-      <button class="btn btn-small" id="reset" type="button">重置</button>
+      <p class="ex-label" id="ex-label">换个研究方向试试</p>
+      <ul class="examples" aria-labelledby="ex-label"><li><button type="button" class="ex" data-add="机器人" aria-label="把“机器人”加进画像">机器人</button></li><li><button type="button" class="ex" data-add="蛋白质" aria-label="把“蛋白质”加进画像">蛋白质</button></li><li><button type="button" class="ex" data-add="气候" aria-label="把“气候”加进画像">气候</button></li><li><button type="button" class="ex" data-add="强化学习" aria-label="把“强化学习”加进画像">强化学习</button></li><li><button type="button" class="ex" data-add="图神经网络" aria-label="把“图神经网络”加进画像">图神经网络</button></li><li><button type="button" class="ex" data-add="扩散模型" aria-label="把“扩散模型”加进画像">扩散模型</button></li><li><button type="button" class="ex" data-add="量子计算" aria-label="把“量子计算”加进画像">量子计算</button></li><li><button type="button" class="ex" data-add="因果推断" aria-label="把“因果推断”加进画像">因果推断</button></li></ul>
+      <button class="btn btn-small" id="reset" type="button">恢复默认</button>
     </aside>
     <div class="stories-wrap">
-      <ol class="stories" id="stories" aria-label="今日五篇论文"><li class="story lead" data-id="2307.08621"><p class="story-meta"><span class="rank" aria-hidden="true">1</span><span class="st">arXiv</span> <time datetime="2023-07-17">2023-07-17</time></p><h3><a href="https://arxiv.org/abs/2307.08621" rel="noopener">Retentive Network: A Successor to Transformer for Large Language Models</a></h3><p class="by">Yutao Sun 等</p><p class="blurb">用保留机制兼顾并行训练、低成本推理和良好扩展，作为 Transformer 的继任者。</p><p class="why" hidden></p></li><li class="story" data-id="2205.01068"><p class="story-meta"><span class="rank" aria-hidden="true">2</span><span class="st">arXiv</span> <time datetime="2022-05-02">2022-05-02</time></p><h3><a href="https://arxiv.org/abs/2205.01068" rel="noopener">OPT: Open Pre-trained Transformer Language Models</a></h3><p class="by">Susan Zhang 等</p><p class="blurb">开放的预训练纯解码器语言模型系列，参数从 1.25 亿到 1750 亿。</p><p class="why" hidden></p></li><li class="story" data-id="2212.10560"><p class="story-meta"><span class="rank" aria-hidden="true">3</span><span class="st">arXiv</span> <time datetime="2022-12-20">2022-12-20</time></p><h3><a href="https://arxiv.org/abs/2212.10560" rel="noopener">Self-Instruct: Aligning Language Models with Self-Generated Instructions</a></h3><p class="by">Yizhong Wang 等</p><p class="blurb">用模型自己生成的指令数据来对齐，只需很少的人工标注。</p><p class="why" hidden></p></li><li class="story" data-id="2104.14294"><p class="story-meta"><span class="rank" aria-hidden="true">4</span><span class="st">arXiv</span> <time datetime="2021-04-29">2021-04-29</time></p><h3><a href="https://arxiv.org/abs/2104.14294" rel="noopener">Emerging Properties in Self-Supervised Vision Transformers</a></h3><p class="by">Mathilde Caron 等</p><p class="blurb">自监督的视觉 Transformer 学到的特征能显出物体边界，近邻分类效果好。</p><p class="why" hidden></p></li><li class="story" data-id="2009.14794"><p class="story-meta"><span class="rank" aria-hidden="true">5</span><span class="st">arXiv</span> <time datetime="2020-09-30">2020-09-30</time></p><h3><a href="https://arxiv.org/abs/2009.14794" rel="noopener">Rethinking Attention with Performers</a></h3><p class="by">Krzysztof Choromanski 等</p><p class="blurb">用随机特征近似 softmax 注意力，有理论保证，成本随长度线性。</p><p class="why" hidden></p></li></ol>
-      <noscript><p class="noscript">这个演示需要 JavaScript。下面是未排序的默认五篇。</p></noscript>
+      <ol class="stories" id="stories" aria-label="今天的五篇"><li class="story lead" data-id="2307.08621"><p class="story-meta"><span class="rank" aria-hidden="true">1</span><span class="st">arXiv</span> <time datetime="2023-07-17">2023-07-17</time></p><h3><a href="https://arxiv.org/abs/2307.08621" rel="noopener">Retentive Network: A Successor to Transformer for Large Language Models</a></h3><p class="by">Yutao Sun 等</p><p class="blurb">用保留机制兼顾并行训练、低成本推理和良好扩展，作为 Transformer 的继任者。</p><p class="why" hidden></p></li><li class="story" data-id="2205.01068"><p class="story-meta"><span class="rank" aria-hidden="true">2</span><span class="st">arXiv</span> <time datetime="2022-05-02">2022-05-02</time></p><h3><a href="https://arxiv.org/abs/2205.01068" rel="noopener">OPT: Open Pre-trained Transformer Language Models</a></h3><p class="by">Susan Zhang 等</p><p class="blurb">开放的预训练纯解码器语言模型系列，参数从 1.25 亿到 1750 亿。</p><p class="why" hidden></p></li><li class="story" data-id="2212.10560"><p class="story-meta"><span class="rank" aria-hidden="true">3</span><span class="st">arXiv</span> <time datetime="2022-12-20">2022-12-20</time></p><h3><a href="https://arxiv.org/abs/2212.10560" rel="noopener">Self-Instruct: Aligning Language Models with Self-Generated Instructions</a></h3><p class="by">Yizhong Wang 等</p><p class="blurb">用模型自己生成的指令数据来对齐，只需很少的人工标注。</p><p class="why" hidden></p></li><li class="story" data-id="2104.14294"><p class="story-meta"><span class="rank" aria-hidden="true">4</span><span class="st">arXiv</span> <time datetime="2021-04-29">2021-04-29</time></p><h3><a href="https://arxiv.org/abs/2104.14294" rel="noopener">Emerging Properties in Self-Supervised Vision Transformers</a></h3><p class="by">Mathilde Caron 等</p><p class="blurb">自监督的视觉 Transformer 学到的特征能显出物体边界，近邻分类效果好。</p><p class="why" hidden></p></li><li class="story" data-id="2009.14794"><p class="story-meta"><span class="rank" aria-hidden="true">5</span><span class="st">arXiv</span> <time datetime="2020-09-30">2020-09-30</time></p><h3><a href="https://arxiv.org/abs/2009.14794" rel="noopener">Rethinking Attention with Performers</a></h3><p class="by">Krzysztof Choromanski 等</p><p class="blurb">用随机特征近似 softmax 注意力，有理论保证，成本随长度线性。</p><p class="why" hidden></p></li></ol>
+      <noscript><p class="noscript">这个演示需要开启 JavaScript。下面是默认的五篇，还没有按画像排序。</p></noscript>
       <p class="demo-status" id="demo-status" role="status" aria-live="polite"></p>
-      <p class="demo-meta"><span class="st st-zero">在你的浏览器里排序 · 0 token</span></p>
-      <p class="demo-meta">从 247 篇示例论文中排序，覆盖机器学习、机器人、生物、化学、气候、物理、经济等方向。 简化演示：应用里会结合你的完整画像与反馈排序。</p>
+      <p class="demo-meta"><span class="st st-zero">在你的浏览器里排序 · 不花一个 token</span></p>
+      <p class="demo-meta">演示库里有 247 篇示例论文，涵盖机器学习、机器人、生物、化学、气候、物理、经济等领域。 这是简化演示。真正的应用会结合你完整的画像和每一次反馈来排序。</p>
     </div>
   </div>
 </section>
 
 <section class="section features" id="features" aria-labelledby="col-title">
   <header class="section-head">
-    <h2 id="col-title">读论文要用的，都在一个应用里</h2>
+    <h2 id="col-title">读论文这件事，一个应用全包了</h2>
   </header>
-  <div class="showcase" id="showcase"><div class="feat-list"><button type="button" class="feat card active" data-i="0" aria-pressed="true"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></svg></span><span class="feat-body"><strong>每日推荐，附上理由</strong><span>每天早上给你一份按画像排序的新论文短名单，每篇都有一句推荐理由。可选的一次 AI 调用就能速览全部五篇。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-today.webp"><img src="/assets/zh-today.png" width="1600" height="1000" loading="lazy" decoding="async" alt="“今日”页面：按画像排序的新论文列表，每篇有一句 AI 速览，以及 保存、不感兴趣、太难 三个按钮。"></picture></span></button><button type="button" class="feat card" data-i="1" aria-pressed="false"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <line x1="21" x2="14" y1="4" y2="4" /> <line x1="10" x2="3" y1="4" y2="4" /> <line x1="21" x2="12" y1="12" y2="12" /> <line x1="8" x2="3" y1="12" y2="12" /> <line x1="21" x2="16" y1="20" y2="20" /> <line x1="12" x2="3" y1="20" y2="20" /> <line x1="14" x2="14" y1="2" y2="6" /> <line x1="8" x2="8" y1="10" y2="14" /> <line x1="16" x2="16" y1="18" y2="22" /></svg></span><span class="feat-body"><strong>看得懂、改得动的画像</strong><span>没有黑箱。每条推荐背后的词都看得见，可以置顶、删除，任何反馈都能撤销。什么都不做，绝不会被当作不喜欢。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-profile.webp"><img src="/assets/zh-profile.png" width="1600" height="1000" loading="lazy" decoding="async" alt="画像页面：每条推荐背后的关键词、权重、置顶与撤销列表。"></picture></span></button><button type="button" class="feat card" data-i="2" aria-pressed="false"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m16 6 4 14" /> <path d="M12 6v14" /> <path d="M8 8v12" /> <path d="M4 4v16" /></svg></span><span class="feat-body"><strong>会自己连起来的论文库</strong><span>收藏的论文变成列表，也变成一张相关工作的图。开放获取的 PDF 会存档在你的电脑上，整理建议要你确认才会生效。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-graph.webp"><img src="/assets/zh-graph.png" width="1600" height="1000" loading="lazy" decoding="async" alt="论文库图谱：收藏的论文按方向分组，并与相关工作连在一起。"></picture></span></button><button type="button" class="feat card" data-i="3" aria-pressed="false"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 7v14" /> <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg></span><span class="feat-body"><strong>划句子，问问题，读明白</strong><span>在 PageTide 里直接读 PDF，选中一句话，就能翻译或追问，回答出现在页面旁边。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-reader-ask.webp"><img src="/assets/zh-reader-ask.png" width="1600" height="1000" loading="lazy" decoding="async" alt="PDF 阅读器：高亮一句话，页面旁边给出对追问的回答。"></picture></span></button><button type="button" class="feat card" data-i="4" aria-pressed="false"><span class="feat-icon"><!-- @license lucide-static v1.46.0 - ISC --><svg class="icon" aria-hidden="true" focusable="false" class="lucide lucide-folder-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg></span><span class="feat-body"><strong>你已有的，直接带进来</strong><span>导入 PDF 文件或文件夹（子文件夹会变成分类），也可以导入从 Zotero 导出的 BibTeX、RIS 或 CSL JSON。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-import.webp"><img src="/assets/zh-import.png" width="1200" height="778" loading="lazy" decoding="async" alt="导入页面：PDF 文件、文件夹、BibTeX、RIS 和 CSL JSON。"></picture></span></button><button type="button" class="feat card" data-i="5" aria-pressed="false"><span class="feat-icon"><!-- @license lucide-static v1.46.0 - ISC --><svg class="icon" aria-hidden="true" focusable="false" class="lucide lucide-chart-column" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg></span><span class="feat-body"><strong>每周报告</strong><span>这一周收藏了什么、跳过了什么、哪些方向在增长，让你的阅读轨迹一目了然。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-weekly.webp"><img src="/assets/zh-weekly.png" width="1200" height="776" loading="lazy" decoding="async" alt="每周报告：这一周收藏了什么、跳过了什么、哪些方向在增长。"></picture></span></button></div><div class="window"><div class="shot active" data-i="0"><picture><source type="image/webp" srcset="/assets/zh-today.webp"><img src="/assets/zh-today.png" width="1600" height="1000" loading="lazy" decoding="async" alt="“今日”页面：按画像排序的新论文列表，每篇有一句 AI 速览，以及 保存、不感兴趣、太难 三个按钮。"></picture></div><div class="shot" data-i="1" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-profile.webp"><img src="/assets/zh-profile.png" width="1600" height="1000" loading="lazy" decoding="async" alt="画像页面：每条推荐背后的关键词、权重、置顶与撤销列表。"></picture></div><div class="shot" data-i="2" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-graph.webp"><img src="/assets/zh-graph.png" width="1600" height="1000" loading="lazy" decoding="async" alt="论文库图谱：收藏的论文按方向分组，并与相关工作连在一起。"></picture></div><div class="shot" data-i="3" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-reader-ask.webp"><img src="/assets/zh-reader-ask.png" width="1600" height="1000" loading="lazy" decoding="async" alt="PDF 阅读器：高亮一句话，页面旁边给出对追问的回答。"></picture></div><div class="shot" data-i="4" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-import.webp"><img src="/assets/zh-import.png" width="1200" height="778" loading="lazy" decoding="async" alt="导入页面：PDF 文件、文件夹、BibTeX、RIS 和 CSL JSON。"></picture></div><div class="shot" data-i="5" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-weekly.webp"><img src="/assets/zh-weekly.png" width="1200" height="776" loading="lazy" decoding="async" alt="每周报告：这一周收藏了什么、跳过了什么、哪些方向在增长。"></picture></div></div></div>
+  <div class="showcase" id="showcase"><div class="feat-list"><button type="button" class="feat card active" data-i="0" aria-pressed="true"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></svg></span><span class="feat-body"><strong>每日推荐，篇篇有理由</strong><span>每天早上，按你的画像排好一份新论文短名单，每篇都告诉你为什么推荐。开启 AI 后，一次调用就能把五篇都速览一遍。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-today.webp"><img src="/assets/zh-today.png" width="1600" height="1000" loading="lazy" decoding="async" alt="“今日推荐”界面：按画像排好序的新论文，每篇附一句 AI 速览，以及“收藏”“不感兴趣”“太难”三个按钮。"></picture></span></button><button type="button" class="feat card" data-i="1" aria-pressed="false"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <line x1="21" x2="14" y1="4" y2="4" /> <line x1="10" x2="3" y1="4" y2="4" /> <line x1="21" x2="12" y1="12" y2="12" /> <line x1="8" x2="3" y1="12" y2="12" /> <line x1="21" x2="16" y1="20" y2="20" /> <line x1="12" x2="3" y1="20" y2="20" /> <line x1="14" x2="14" y1="2" y2="6" /> <line x1="8" x2="8" y1="10" y2="14" /> <line x1="16" x2="16" y1="18" y2="22" /></svg></span><span class="feat-body"><strong>看得懂、改得了的画像</strong><span>不是黑箱。每篇推荐背后是哪些词，一目了然；关键词可以固定、可以删掉，每次反馈都能撤销。你没点过的论文，不会被当成“不喜欢”。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-profile.webp"><img src="/assets/zh-profile.png" width="1600" height="1000" loading="lazy" decoding="async" alt="画像界面：每条推荐背后的关键词、权重、固定关键词和可撤销的反馈记录。"></picture></span></button><button type="button" class="feat card" data-i="2" aria-pressed="false"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m16 6 4 14" /> <path d="M12 6v14" /> <path d="M8 8v12" /> <path d="M4 4v16" /></svg></span><span class="feat-body"><strong>会自己织成网的论文库</strong><span>收藏的论文既是一份清单，也是一张关联图谱。能开放获取的 PDF 会自动存到你的电脑上；AI 给出的整理建议，你点了确认才会生效。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-graph.webp"><img src="/assets/zh-graph.png" width="1600" height="1000" loading="lazy" decoding="async" alt="论文库图谱：收藏的论文按研究方向聚成几组，并与相关论文连在一起。"></picture></span></button><button type="button" class="feat card" data-i="3" aria-pressed="false"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 7v14" /> <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg></span><span class="feat-body"><strong>划一句，问一句，读明白</strong><span>在 PageTide 里直接读 PDF，遇到看不懂的句子，选中就能翻译或追问，答案就在页面旁边。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-reader-ask.webp"><img src="/assets/zh-reader-ask.png" width="1600" height="1000" loading="lazy" decoding="async" alt="PDF 阅读器：选中一句话，页面旁边给出对追问的回答。"></picture></span></button><button type="button" class="feat card" data-i="4" aria-pressed="false"><span class="feat-icon"><!-- @license lucide-static v1.46.0 - ISC --><svg class="icon" aria-hidden="true" focusable="false" class="lucide lucide-folder-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg></span><span class="feat-body"><strong>旧文献，一键搬进来</strong><span>拖进 PDF 文件或整个文件夹（子文件夹会自动变成分类），也能导入从 Zotero 导出的 BibTeX、RIS 或 CSL JSON。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-import.webp"><img src="/assets/zh-import.png" width="1200" height="778" loading="lazy" decoding="async" alt="导入界面：支持 PDF 文件、文件夹、BibTeX、RIS 和 CSL JSON。"></picture></span></button><button type="button" class="feat card" data-i="5" aria-pressed="false"><span class="feat-icon"><!-- @license lucide-static v1.46.0 - ISC --><svg class="icon" aria-hidden="true" focusable="false" class="lucide lucide-chart-column" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg></span><span class="feat-body"><strong>每周一份周报</strong><span>这一周收藏了哪些、跳过了哪些、哪些方向在升温，你的阅读轨迹一眼就能看清。</span></span><span class="feat-shot"><picture><source type="image/webp" srcset="/assets/zh-weekly.webp"><img src="/assets/zh-weekly.png" width="1200" height="776" loading="lazy" decoding="async" alt="周报界面：这一周收藏了什么、跳过了什么、哪些方向在升温。"></picture></span></button></div><div class="window"><div class="shot active" data-i="0"><picture><source type="image/webp" srcset="/assets/zh-today.webp"><img src="/assets/zh-today.png" width="1600" height="1000" loading="lazy" decoding="async" alt="“今日推荐”界面：按画像排好序的新论文，每篇附一句 AI 速览，以及“收藏”“不感兴趣”“太难”三个按钮。"></picture></div><div class="shot" data-i="1" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-profile.webp"><img src="/assets/zh-profile.png" width="1600" height="1000" loading="lazy" decoding="async" alt="画像界面：每条推荐背后的关键词、权重、固定关键词和可撤销的反馈记录。"></picture></div><div class="shot" data-i="2" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-graph.webp"><img src="/assets/zh-graph.png" width="1600" height="1000" loading="lazy" decoding="async" alt="论文库图谱：收藏的论文按研究方向聚成几组，并与相关论文连在一起。"></picture></div><div class="shot" data-i="3" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-reader-ask.webp"><img src="/assets/zh-reader-ask.png" width="1600" height="1000" loading="lazy" decoding="async" alt="PDF 阅读器：选中一句话，页面旁边给出对追问的回答。"></picture></div><div class="shot" data-i="4" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-import.webp"><img src="/assets/zh-import.png" width="1200" height="778" loading="lazy" decoding="async" alt="导入界面：支持 PDF 文件、文件夹、BibTeX、RIS 和 CSL JSON。"></picture></div><div class="shot" data-i="5" aria-hidden="true"><picture><source type="image/webp" srcset="/assets/zh-weekly.webp"><img src="/assets/zh-weekly.png" width="1200" height="776" loading="lazy" decoding="async" alt="周报界面：这一周收藏了什么、跳过了什么、哪些方向在升温。"></picture></div></div></div>
 </section>
 
 <section class="section why" id="why" aria-labelledby="ed-title">
   <div class="why-card card">
-    <h2 id="ed-title">论文不缺，难的是找到你的那几篇。</h2>
-    <div class="why-body"><p>现在每天有两万篇左右的新论文问世<sup><a href="#fn-papers" id="fnref-papers">1</a></sup>，和你的工作真正相关的往往只有寥寥几篇，没有人读得完这么长的信息流。多数工具的办法是给你更大的信息流，PageTide 的办法是给你更小的。</p><p>它根据你标记的“有用”和“不相关”学习研究画像，然后在你自己的电脑上给每天的新论文排序。画像就是一串看得懂的词，可以随时查看、修改、删除。AI 是可选的，它的任务是替你讲解论文，而不是替你挑论文。</p><p>你的论文库、PDF、笔记和画像都留在你的电脑上。没有账号，没有服务器，也没有遥测。</p></div>
-    <p class="footnote" id="fn-papers"><a href="#fnref-papers" aria-label="回到正文">1</a> OpenAlex 收录 2026 年 9 月发表的期刊论文 626,339 篇，约合每天 20,900 篇；查询日期 2026-10-25。来源：<a href="https://openalex.org" rel="noopener">OpenAlex</a>。</p>
+    <h2 id="ed-title">论文从来不缺，缺的是找到你要的那几篇。</h2>
+    <div class="why-body"><p>如今每天都有约两万篇新论文发表<sup><a href="#fn-papers" id="fnref-papers">1</a></sup>，和你的研究真正相关的，往往只有寥寥几篇，谁也读不完。大多数工具的做法是推给你更多，PageTide 反其道而行：只给你更少、更准的。</p><p>你标过“有用”或“不相关”的论文，它都记在心里，慢慢形成你的研究画像，然后每天在你自己的电脑上给新论文排序。画像就是一组看得懂的关键词，你随时可以查看、修改、删掉。AI 只是可选项，它负责把论文讲给你听，挑哪篇读，始终由你决定。</p><p>你的论文库、PDF、笔记和画像都只存在你的电脑上。不用注册账号，没有服务器，也不收集任何使用数据。</p></div>
+    <p class="footnote" id="fn-papers"><a href="#fnref-papers" aria-label="回到正文">1</a> 据 OpenAlex 统计，2026 年 9 月发表的期刊论文共 626,339 篇，平均每天约 20,900 篇（2026-10-25 查询）。数据来源：<a href="https://openalex.org" rel="noopener">OpenAlex</a>。</p>
   </div>
 </section>
 
@@ -132,9 +132,9 @@
     <h2 id="num-title">删繁就简，海纳百川。</h2>
   </header>
   <h3 class="num-group less">↓ 删繁就简</h3>
-  <ul class="num-grid less"><li class="num card"><span class="num-v">Zero</span><span class="num-t">排序与学习画像所用模型 token</span></li><li class="num card"><span class="num-v">Zero</span><span class="num-t">账号、服务器和遥测</span></li><li class="num card"><span class="num-v">Single</span><span class="num-t">一次 AI 调用速览五篇推荐</span></li><li class="num card"><span class="num-v">22 MB</span><span class="num-t">macOS 安装包（Windows 17 MB）</span></li></ul>
+  <ul class="num-grid less"><li class="num card"><span class="num-v">零</span><span class="num-t">排序和学习画像，不消耗一个模型 token</span></li><li class="num card"><span class="num-v">零</span><span class="num-t">不用注册账号，没有服务器，不收集数据</span></li><li class="num card"><span class="num-v">一次</span><span class="num-t">AI 调用，就能速览五篇推荐</span></li><li class="num card"><span class="num-v">22 MB</span><span class="num-t">macOS 安装包（Windows 版 17 MB）</span></li></ul>
   <h3 class="num-group more">↑ 海纳百川 <span class="num-note">· 潮水仍在上涨</span></h3>
-  <ul class="num-grid more"><li class="num card"><span class="num-v">3</span><span class="num-t">开放论文来源：arXiv、OpenAlex、百度学术</span></li><li class="num card"><span class="num-v">5</span><span class="num-t">种导入方式：PDF、文件夹、BibTeX、RIS、CSL JSON</span></li><li class="num card"><span class="num-v">3</span><span class="num-t">种新建项目方式：快速、AI 引导、手动</span></li><li class="num card"><span class="num-v">2 × 2</span><span class="num-t">平台 × 语言：macOS、Windows · 中、英</span></li></ul>
+  <ul class="num-grid more"><li class="num card"><span class="num-v">3</span><span class="num-t">个开放论文来源：arXiv、OpenAlex、百度学术</span></li><li class="num card"><span class="num-v">5</span><span class="num-t">种导入方式：PDF、文件夹、BibTeX、RIS、CSL JSON</span></li><li class="num card"><span class="num-v">3</span><span class="num-t">种建项目的方式：快速创建、AI 引导、手动创建</span></li><li class="num card"><span class="num-v">2 × 2</span><span class="num-t">两个平台、两种语言：macOS 与 Windows，中文与英文</span></li></ul>
 </section>
 
 <section class="section watch" id="watch" aria-labelledby="watch-title">
@@ -142,44 +142,44 @@
     <h2 id="watch-title">30 秒看懂 PageTide</h2>
   </header>
   <figure class="video">
-    <video controls preload="none" playsinline poster="/assets/cover.jpg" width="1920" height="1080" aria-label="PageTide 宣传片，30 秒">
+    <video controls preload="none" playsinline poster="/assets/cover.jpg" width="1920" height="1080" aria-label="PageTide 宣传片（30 秒）">
       <source src="/assets/pagetide-promo.mp4" type="video/mp4">
-      <p>你的浏览器无法播放这个视频，可以<a href="/assets/pagetide-promo.mp4">下载观看</a>。</p>
+      <p>你的浏览器播放不了这个视频，可以<a href="/assets/pagetide-promo.mp4">下载下来看</a>。</p>
     </video>
-    <figcaption>Music by Pumpupthemind</figcaption>
+    <figcaption>配乐：Pumpupthemind</figcaption>
   </figure>
 </section>
 
 <section class="section get" id="download" aria-labelledby="get-title">
   <header class="section-head">
     <h2 id="get-title">下载 PageTide</h2>
-    <p class="lede">当前版本 0.1.1。免费，MIT 协议开源。</p>
+    <p class="lede">当前版本 0.1.1，免费下载，MIT 协议开源。</p>
   </header>
   <div class="dl-card card">
   <table class="dl-table">
-    <caption class="sr-only">下载</caption>
+    <caption class="sr-only">下载列表</caption>
     <thead><tr><th scope="col">平台</th><th scope="col">文件</th><th scope="col">大小</th><th scope="col"><span class="sr-only">下载</span></th></tr></thead>
     <tbody>
-      <tr data-os-row="mac"><th scope="row">macOS（Apple Silicon）</th><td><code>PageTide-macos-arm64.zip</code></td><td>22 MB</td><td><a class="btn btn-small btn-primary" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip">下载</a></td></tr>
-      <tr data-os-row="win"><th scope="row">Windows（x64）</th><td><code>PageTide_0.1.1_x64-setup.exe</code></td><td>17 MB</td><td><a class="btn btn-small btn-primary" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide_0.1.1_x64-setup.exe">下载</a></td></tr>
+      <tr data-os-row="mac"><th scope="row">macOS（M 系列芯片）</th><td><code>PageTide-macos-arm64.zip</code></td><td>22 MB</td><td><a class="btn btn-small btn-primary" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip">下载</a></td></tr>
+      <tr data-os-row="win"><th scope="row">Windows（64 位）</th><td><code>PageTide_0.1.1_x64-setup.exe</code></td><td>17 MB</td><td><a class="btn btn-small btn-primary" href="https://github.com/Chandery/PageTide/releases/latest/download/PageTide_0.1.1_x64-setup.exe">下载</a></td></tr>
     </tbody>
   </table>
-  <p class="all-releases"><a href="https://github.com/Chandery/PageTide/releases" rel="noopener">GitHub 上的全部版本 →</a></p>
+  <p class="all-releases"><a href="https://github.com/Chandery/PageTide/releases" rel="noopener">在 GitHub 查看所有版本 →</a></p>
   </div>
 
   <div class="first-launch card" role="note">
-    <h3>首次打开：应用没有签名</h3>
-    <p>PageTide 是独立的开源项目，没有购买付费的代码签名证书，所以系统第一次会弹出警告。这是正常的。</p>
+    <h3>第一次打开前，先看这里</h3>
+    <p>PageTide 是个人开发的开源项目，没有购买付费的代码签名证书，所以第一次打开时系统会弹出安全提示。这是正常现象，按下面的方法放行就好。</p>
     <div class="fl-cols">
       <div>
         <h4>macOS</h4>
-        <p>解压后把 PageTide 拖进“应用程序”，再右键点它选择<strong>打开</strong>；或者到 系统设置 → 隐私与安全性，点<strong>仍要打开</strong>。</p>
-        <p>如果 macOS 提示应用“已损坏”，在“终端”里运行：</p>
+        <p>解压后把 PageTide 拖进“应用程序”文件夹，然后右键点它，选<strong>打开</strong>。也可以打开“系统设置 → 隐私与安全性”，点<strong>仍要打开</strong>。</p>
+        <p>如果提示“应用已损坏，无法打开”，在“终端”里运行下面这行：</p>
         <pre><code>xattr -dr com.apple.quarantine /Applications/PageTide.app</code></pre>
       </div>
       <div>
         <h4>Windows</h4>
-        <p>SmartScreen 提示“Windows 已保护你的电脑”时，点<strong>更多信息</strong>，再点<strong>仍要运行</strong>。安装程序按用户安装，不需要管理员权限。</p>
+        <p>弹出“Windows 已保护你的电脑”时，点<strong>更多信息</strong>，再点<strong>仍要运行</strong>。安装只对当前用户生效，不需要管理员权限。</p>
       </div>
     </div>
   </div>
@@ -187,23 +187,23 @@
   <div class="req-cols">
     <div class="card">
       <h3>系统要求</h3>
-      <ul><li>macOS，需要 Apple Silicon（M1 及以后）。暂不支持 Intel Mac。</li><li>Windows，x64。</li></ul>
+      <ul><li>macOS：需要 M 系列芯片（M1 及更新）的 Mac，暂不支持 Intel 芯片的 Mac。</li><li>Windows：64 位系统。</li></ul>
     </div>
     <div class="card">
-      <h3>外部服务的密钥</h3>
-      <p>核心功能（推荐、画像、论文库）离线可用，不需要任何密钥。可选服务使用你自己的密钥，只保存在你的电脑上。</p>
-      <ul><li><strong>DeepSeek</strong> 用于 AI 功能（速览、提问、建议），可选。</li><li><strong>OpenAlex</strong> 用于更广的论文来源，可选。</li><li><strong>百度学术</strong> 需要千帆密钥。</li><li><strong>arXiv</strong> 无需密钥。</li></ul>
+      <h3>需要准备哪些密钥</h3>
+      <p>推荐、画像、论文库这些核心功能离线就能用，不需要任何密钥。下面这些服务是可选的，用的是你自己申请的密钥，只保存在你的电脑上。</p>
+      <ul><li><strong>DeepSeek</strong> 开启 AI 功能（速览、追问、分类建议）时需要，可选。</li><li><strong>OpenAlex</strong> 扩充期刊与会议论文来源，可选。</li><li><strong>百度学术</strong> 检索中文论文，需要百度千帆的密钥。</li><li><strong>arXiv</strong> 直接可用，不需要密钥。</li></ul>
     </div>
   </div>
 </section>
 
 <section class="section contribute" id="contribute" aria-labelledby="contrib-title">
   <div class="contrib-card card">
-    <h2 id="contrib-title">欢迎一起来做</h2>
-    <p class="contrib-body">PageTide 是公开开发的。报告 bug、提想法、改文档和翻译、提交 PR 都欢迎，小修小补和新功能一样重要。如果是较大的改动，请先开一个 issue，我们先对齐方向。</p>
+    <h2 id="contrib-title">欢迎一起参与</h2>
+    <p class="contrib-body">PageTide 完全公开开发。发现 bug、有新想法、想改文档或翻译，或者直接提交代码，我们都非常欢迎，哪怕只是改一个错别字也很有帮助。如果打算做比较大的改动，建议先开一个 issue 聊聊方向。</p>
     <p class="contrib-links">
-      <a class="btn btn-primary" href="https://github.com/Chandery/PageTide/issues" rel="noopener">提一个 issue</a>
-      <a class="btn" href="https://github.com/Chandery/PageTide/pulls" rel="noopener">Pull requests</a>
+      <a class="btn btn-primary" href="https://github.com/Chandery/PageTide/issues" rel="noopener">提交 issue</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/pulls" rel="noopener">Pull Request</a>
       <a class="btn" href="https://github.com/Chandery/PageTide/blob/main/CONTRIBUTING.md" rel="noopener">贡献指南</a>
       <a class="btn" href="https://github.com/Chandery/PageTide" rel="noopener">GitHub 仓库</a>
       <a class="btn" href="https://github.com/Chandery/PageTide/releases" rel="noopener">版本发布</a>
@@ -213,14 +213,14 @@
 </main>
 
 <footer class="colophon">
-  <p><strong>MIT © Chandery</strong> · <a href="https://github.com/Chandery/PageTide" rel="noopener">GitHub</a> · v0.1.1</p>
-  <p>本站不使用任何统计脚本，也不使用 cookie。应用本身同样零遥测。</p>
-  <p>Music by Pumpupthemind · 图标：Lucide（ISC 协议）</p>
-  <p>Thank you to arXiv for use of its open access interoperability.</p>
+  <p><strong>MIT 协议 © Chandery</strong> · <a href="https://github.com/Chandery/PageTide" rel="noopener">GitHub</a> · v0.1.1</p>
+  <p>本站不使用任何统计脚本，也不写入 cookie；PageTide 应用本身同样不收集任何数据。</p>
+  <p>宣传片配乐：Pumpupthemind · 图标来自 Lucide（ISC 协议）</p>
+  <p>感谢 arXiv 开放的论文接口（Thank you to arXiv for use of its open access interoperability.）</p>
 </footer>
 
-<script type="application/json" id="demo-i18n">{"lang": "zh", "ui": {"strong": "强", "weak": "弱", "off": "关", "tag_aria": "{tag}：{weight}。按下可切换权重。", "remove": "删除 {tag}", "matched": "命中", "nothing": "没有论文命中画像，所以按论文库原顺序显示。", "unmatched": "演示库里没有论文提到“{tags}”。实际应用会去 arXiv、OpenAlex 和百度学术里真正搜索。", "announce": "排序已更新。{list}", "reset_done": "画像已重置。{list}", "added": "已添加 {tag}。", "removed": "已删除 {tag}。", "max": "演示最多放 12 个关键词。", "dupe": "{tag} 已经在画像里了。", "load_failed": "演示没能加载论文数据。", "et_al": "等", "colon": "：", "weight_word": "权重", "examples": ["机器人", "蛋白质", "气候", "强化学习", "图神经网络", "扩散模型", "量子计算", "因果推断"], "nomatch_label": "无命中", "example_aria": "把 {tag} 加入画像"}, "initial_ids": ["2307.08621", "2205.01068", "2212.10560", "2104.14294", "2009.14794"], "default_tags": [{"text": "transformer", "w": "strong"}, {"text": "language model", "w": "strong"}, {"text": "vision", "w": "weak"}, {"text": "efficient attention", "w": "weak"}, {"text": "alignment", "w": "weak"}], "papers_url": "/assets/papers.json?v=93901178"}</script>
-<script type="application/json" id="site-i18n">{"dl_mac": "下载 macOS 版（Apple Silicon）", "dl_win": "下载 Windows 版（x64）", "copy": "在电脑上打开", "copied": "链接已复制，请在你的 Mac 或 PC 上打开。", "copy_failed": "请复制这个地址：", "note_mac_unknown": "需要 Apple Silicon（M1 及以后）。暂不支持 Intel Mac。", "note_mac_arm": "检测到 Apple Silicon · 22 MB", "note_mac_intel": "看起来是 Intel Mac，PageTide 暂不支持 Intel Mac。", "note_win": "Windows x64 · 17 MB · 首次打开需 更多信息 → 仍要运行", "note_mobile": "PageTide 是 macOS 和 Windows 上的桌面应用。", "other_os": "也有 {other} 版。", "mac": "macOS", "win": "Windows", "share_title": "PageTide", "lang": "zh", "mac_url": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip", "win_url": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide_0.1.1_x64-setup.exe"}</script>
+<script type="application/json" id="demo-i18n">{"lang": "zh", "ui": {"strong": "强", "weak": "弱", "off": "关", "tag_aria": "{tag}：{weight}。点一下可以切换权重。", "remove": "移除 {tag}", "matched": "命中", "nothing": "画像里的词一个都没命中，先按论文库原来的顺序显示。", "unmatched": "演示库里没有论文提到“{tags}”。真正的应用会去 arXiv、OpenAlex 和百度学术里实时检索。", "announce": "排序已更新：{list}", "reset_done": "画像已恢复默认：{list}", "added": "已加入“{tag}”。", "removed": "已移除“{tag}”。", "max": "演示里最多放 12 个关键词。", "dupe": "“{tag}”已经在画像里了。", "load_failed": "演示的论文数据没能加载出来，刷新一下试试。", "et_al": "等", "colon": "：", "weight_word": "权重", "examples": ["机器人", "蛋白质", "气候", "强化学习", "图神经网络", "扩散模型", "量子计算", "因果推断"], "nomatch_label": "没找到", "example_aria": "把“{tag}”加进画像"}, "initial_ids": ["2307.08621", "2205.01068", "2212.10560", "2104.14294", "2009.14794"], "default_tags": [{"text": "transformer", "w": "strong"}, {"text": "language model", "w": "strong"}, {"text": "vision", "w": "weak"}, {"text": "efficient attention", "w": "weak"}, {"text": "alignment", "w": "weak"}], "papers_url": "/assets/papers.json?v=93901178"}</script>
+<script type="application/json" id="site-i18n">{"dl_mac": "下载 macOS 版（M 系列芯片）", "dl_win": "下载 Windows 版（64 位）", "copy": "去电脑上打开", "copied": "链接已复制，到你的 Mac 或 Windows 电脑上打开就行。", "copy_failed": "复制这个网址：", "note_mac_unknown": "需要 M 系列芯片（M1 及更新）的 Mac，暂不支持 Intel 芯片。", "note_mac_arm": "已识别为 M 系列芯片的 Mac · 22 MB", "note_mac_intel": "你的 Mac 看起来是 Intel 芯片，PageTide 暂时还不支持。", "note_win": "Windows 64 位 · 17 MB · 第一次打开时点“更多信息 → 仍要运行”", "note_mobile": "PageTide 是电脑上用的桌面应用，支持 macOS 和 Windows。", "other_os": "也有 {other} 版本。", "mac": "macOS", "win": "Windows", "share_title": "PageTide", "lang": "zh", "mac_url": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip", "win_url": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide_0.1.1_x64-setup.exe"}</script>
 <script src="/assets/platform.js?v=93901178" defer></script>
 <script src="/assets/site.js?v=93901178" defer></script>
 <script src="/assets/rank.js?v=93901178" defer></script>
