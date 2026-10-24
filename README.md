@@ -19,7 +19,7 @@ English · <a href="README-zh.md">简体中文</a>
 
 [![Release](https://img.shields.io/github/v/release/Chandery/PageTide?style=flat-square&color=086EF5)](https://github.com/Chandery/PageTide/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-086EF5?style=flat-square)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon%20%7C%20Windows%20x64-555?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon%20%7C%20macOS%20Intel%20%7C%20Windows%20x64-555?style=flat-square)
 
 [![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest) [![Website](https://img.shields.io/badge/Website-pagetide.chandery.org-12315c?style=for-the-badge)](https://pagetide.chandery.org/)
 
@@ -118,6 +118,7 @@ PageTide works out of the box on arXiv. Add your own keys to switch on more sour
 | Platform | File |
 | --- | --- |
 | macOS (Apple Silicon) | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 22 MB |
+| macOS (Intel) | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) |
 | Windows (x64) | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
 
 <details>

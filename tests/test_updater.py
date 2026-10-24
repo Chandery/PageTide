@@ -19,6 +19,7 @@ from app import server, updater
 BASE = f"https://github.com/{updater.REPO}/releases/download/v0.2.0/"
 WIN = "PageTide_0.2.0_x64-setup.exe"
 MAC = "PageTide-macos-arm64.zip"
+MAC_X64 = "PageTide-macos-x64.zip"
 
 
 def release(tag="v0.2.0", names=(WIN, WIN + ".sha256", MAC, MAC + ".sha256"), **extra):
@@ -77,8 +78,13 @@ class VersionTests(unittest.TestCase):
         self.assertIsNone(updater.pick_assets(old, "windows", "0.2.0"))
         self.assertEqual(updater.platform_key("win32"), "windows")
         self.assertEqual(updater.platform_key("darwin", "arm64"), "macos")
-        self.assertIsNone(updater.platform_key("darwin", "x86_64"))
+        self.assertEqual(updater.platform_key("darwin", "x86_64"), "macos-x64")   # Intel Macs (CI-built since 2026-10-25)
+        self.assertIsNone(updater.platform_key("darwin", "ppc"))
         self.assertIsNone(updater.platform_key("linux"))
+        intel = [{"name": n} for n in (MAC, MAC + ".sha256", MAC_X64, MAC_X64 + ".sha256")]
+        self.assertEqual(updater.pick_assets(intel, "macos-x64", "0.2.0"), (MAC_X64, MAC_X64 + ".sha256"))
+        self.assertEqual(updater.pick_assets(intel, "macos", "0.2.0"), (MAC, MAC + ".sha256"))
+        self.assertIsNone(updater.pick_assets([{"name": MAC}, {"name": MAC + ".sha256"}], "macos-x64", "0.2.0"))
 
 
 class CheckTests(unittest.TestCase):
@@ -461,6 +467,10 @@ class ResultAndCleanupTests(unittest.TestCase):
         intel = updater.Updater(self.data, "0.1.0", FakeTransport(release()), platform="darwin", machine="x86_64")
         result = intel.check()
         self.assertEqual((result["status"], result["available"], result["reason_code"]), ("ok", False, "no_asset"))
+        both = release(names=(WIN, WIN + ".sha256", MAC, MAC + ".sha256", MAC_X64, MAC_X64 + ".sha256"))
+        (self.data / updater.CACHE_NAME).unlink(missing_ok=True)
+        offered = updater.Updater(self.data, "0.1.0", FakeTransport(both), platform="darwin", machine="x86_64").check(force=True)
+        self.assertEqual((offered["available"], offered["asset"]), (True, MAC_X64))
 
 
 @unittest.skipUnless(sys.platform == "darwin", "macOS bundle handling")
