@@ -45,6 +45,7 @@ class EnglishServiceTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(root=str(ROOT), data_dir=Path(self.tmp.name) / "app")
+        self.app.projects.create_project("Test project", "manual", [])   # a fresh app has no project
         from recommendation_fixtures import legacy_recommendation_settings
         legacy_recommendation_settings(self.app, route_beta=False)
 
@@ -225,8 +226,7 @@ class LanguageRouteTests(unittest.TestCase):
         self.assertIn('"lang": "en-US"', self.request("/i18n/current.js"))
 
     def test_weekly_analysis_is_written_in_the_interface_language(self):
-        project = json.loads(self.request("/api/projects"))
-        project_id = (project.get("projects") or project)[0]["id"]
+        project_id = json.loads(self.request("/api/projects", {"name": "Test project"}))["project_id"]   # a fresh app has no project
         chinese = json.loads(self.request("/api/weekly_report/analysis", {"project_id": project_id}))
         self.assertTrue(HAN.search(chinese["analysis"]))
         set_language(self.data, "en-US")
@@ -235,8 +235,7 @@ class LanguageRouteTests(unittest.TestCase):
         self.assertFalse(HAN.search(english["analysis"]), english["analysis"])
 
     def test_english_weekly_analysis_uses_the_singular_for_one(self):
-        project = json.loads(self.request("/api/projects"))
-        project_id = (project.get("projects") or project)[0]["id"]
+        project_id = json.loads(self.request("/api/projects", {"name": "Test project"}))["project_id"]   # a fresh app has no project
         set_language(self.data, "en-US")
         report = {"has_activity": True, "stats": {"activity": 1, "saved": 0, "negative": 0, "too_hard": 0}}
         with patch("app.weekly_report.generate_weekly_report", return_value=report):

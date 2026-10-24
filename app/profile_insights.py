@@ -13,7 +13,7 @@ STOP = {'further', 'framework', 'model', 'models', 'using', 'propose', 'proposed
 
 
 def context(app, project_id):
-    project_id = project_id or app.get_default_project_id()
+    project_id = project_id or app.require_default_project_id()
     project = app.projects.get_project(project_id)
     if not project:
         raise ValueError('项目不存在')

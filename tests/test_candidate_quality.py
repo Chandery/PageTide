@@ -146,10 +146,12 @@ class ServiceWindowTests(unittest.TestCase):
         with mock.patch.object(self.app.source, "discover_topic", return_value=[]) as topic:
             self.app.refresh_candidates(project_id=project)
         self.assertEqual(topic.call_args.kwargs["from_date"], sources.window_start(5))
+        # The project an upgraded database was migrated into (id "default_project", no keywords) keeps the world-model
+        # recipe; a fresh install has none, so the test makes one that looks like it and names it explicitly.
+        legacy_id = self.app.projects.create_project("legacy", "manual", [])
+        self.app.store.conn.execute("UPDATE projects SET id='default_project' WHERE id=?", (legacy_id,))
+        self.app.store.conn.commit()
         with mock.patch.object(self.app.source, "discover", return_value=[]) as legacy:
-            # The migration's default project (no keywords) is named explicitly: with no project_id the "default"
-            # is the newest project by a one-second timestamp, so "p" (created in the same second on a fast
-            # machine, a later one on a slow runner) would sometimes win and take the topic path instead.
             self.app.refresh_candidates(project_id="default_project")
         self.assertEqual(legacy.call_args.kwargs["from_date"], sources.window_start(5))
 

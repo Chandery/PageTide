@@ -22,10 +22,10 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import creation, maintenance
+from . import creation, demo, maintenance, onboarding, updater
 from .organization import Conflict as OrganizationConflict
 from .language import language
-from .service import App
+from .service import App, NoProject
 
 STATIC = Path(__file__).resolve().parent / "static"
 VERSION = "0.12"
@@ -110,7 +110,7 @@ def suggestion_profile(app, project_id=None):
     from .service import PROFILE_STOPWORDS
     if project_id is not None and (not isinstance(project_id, str) or not app.projects.get_project(project_id)):
         raise ValueError("未知项目")
-    project_id = project_id or app.get_default_project_id()
+    project_id = project_id or app.require_default_project_id()
     project = app.projects.get_project(project_id) or {}
     return {"project": project.get("name") or project_id,
             "pinned": [term for term in app.profile(project_id)["pinned_terms"]
@@ -126,7 +126,7 @@ def category_review_job(root, project_id, all_papers=False, cancelled=None):
     app = make_app(root)
     try:
         profile = suggestion_profile(app, project_id)
-        scope = None if all_papers else (project_id or app.get_default_project_id())
+        scope = None if all_papers else (project_id or app.require_default_project_id())
         return run_review(app, scope, profile, cancelled=cancelled)
     finally:
         app.store.close()
@@ -150,6 +150,12 @@ def i18n_script(lang):
             lang, messages = "zh-CN", {}   # a broken pack shows the Chinese source, never a blank page
     payload = json.dumps({"lang": lang, "messages": messages}, ensure_ascii=False)
     return ("window.PDH_I18N=" + payload.replace("</", "<\\/") + ";\n").encode()
+
+
+def make_updater(root="."):
+    """The update checker for this process. PDH_APP_VERSION is set only by the desktop shell: a source run has none,
+    is a development build and never checks. Tests replace this to inject a fake transport."""
+    return updater.Updater(data_dir(root), os.environ.get("PDH_APP_VERSION"))
 
 
 def make_app(root="."):
@@ -265,6 +271,7 @@ class Handler(BaseHTTPRequestHandler):
         test would only see "closed without response"). Log the traceback to stderr and answer 500 when no
         response has started. Request paths are not logged: they can carry the desktop token."""
         self._response_started = False
+        self._demo = False
         try:
             super().handle_one_request()
         except Exception as exc:
@@ -272,6 +279,13 @@ class Handler(BaseHTTPRequestHandler):
             # A client that went away while we were writing a response is routine. The same error types raised
             # before any response started come from handler code (e.g. an upstream timeout): log those.
             if self._response_started and isinstance(exc, (ConnectionError, TimeoutError)):
+                return
+            if isinstance(exc, NoProject) and not self._response_started:
+                # A route that needs a project was called before the person made one: a plain 400, not a crash.
+                try:
+                    self._json({"error": str(exc), "reason_code": "no_project"}, 400)
+                except Exception:
+                    pass
                 return
             import traceback
             traceback.print_exc()
@@ -281,8 +295,38 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
+    _demo = False   # set per request by _demo_check: HTTP/1.1 reuses this object, so it is reset at the top of every do_*
+
     def _app(self):
-        return make_app(getattr(self.server, "root", "."))
+        root = getattr(self.server, "root", ".")
+        if self._demo:
+            return demo.open_app(root, self._data())
+        return make_app(root)
+
+    def _demo_check(self, method, route, project_id=None, body=None):
+        """Decide whether this request is the demo project's and whether the demo may do it. True: carry on (self._demo
+        says which database). False: a 403 was sent. REAL_ONLY routes (settings, update, onboarding...) never become demo."""
+        self._demo = False
+        if demo.real_only(method, route) or not demo.requested(self.headers, project_id):
+            return True
+        if not demo.allowed(method, route, body):
+            if body is None and method != "GET":
+                self._drain_body()
+            self._json(demo.blocked_payload(language(self._data()) == "en-US"), 403)
+            return False
+        self._demo = True
+        return True
+
+    def _drain_body(self):
+        """A refused request's body must not be read as the next request on a kept-alive connection."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if 0 < length <= 2_000_000:
+            self.rfile.read(length)
+        elif length:
+            self.close_connection = True
 
     def _data(self):
         # Settings, the language pack and App(root) must all read one directory.
@@ -547,6 +591,8 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         route, query = parsed.path, parse_qs(parsed.query)
         requested_project = query.get("project_id", [None])[0]
+        if not self._demo_check("GET", route, requested_project):
+            return
         if requested_project and route.startswith("/api/"):
             checker = self._app()
             if not checker.projects.get_project(requested_project):
@@ -562,19 +608,23 @@ class Handler(BaseHTTPRequestHandler):
             return
         if route == "/api/projects":
             return self._list_projects()
+        if route == "/api/onboarding":
+            return self._json(self._onboarding_state())
         if route == "/api/organization":
             return self._organization()
         if route == "/api/home":
             app = self._app()
             # Extract project_id from query if provided
             project_id = query.get("project_id", [None])[0]
+            if not project_id and app.get_default_project_id() is None:
+                return self._json(self._no_project_payload(app))
             self._json({**app.home_maintenance(project_id), "route": app.home_route(project_id),
                         "server_version": VERSION, "stats": app.stats(project_id),
                         "profile": app.profile(project_id),
                         "cards": app.cards(project_id=project_id), "summaries": app.store.summaries(),
                         "usage": app.usage(), "dev_mode": app.gateway.dev,
                         "provider": app.provider_status(),
-                        "latest_jobs": list(JOBS.values())[-3:]})
+                        "latest_jobs": [] if self._demo else list(JOBS.values())[-3:]})
         elif route == "/api/route":
             try:
                 self._json(self._app().route_page(query.get("project_id", [None])[0]))
@@ -586,6 +636,8 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/state":  # kept for compatibility
             app = self._app()
             project_id = query.get("project_id", [None])[0]
+            if not project_id and app.get_default_project_id() is None:
+                return self._json(self._no_project_payload(app))
             self._json({"profile": app.profile(project_id), "cards": app.cards(project_id=project_id)})
         elif route.startswith("/api/project-guidance/sessions/"):
             session_id = route.split("/")[-1]
@@ -687,6 +739,14 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app(); key = (query.get('key') or [''])[0]
             current = session(app.store, key, requested_project)
             self._json({'session': current, 'history': history(app.store, key, requested_project, current)})   # the same turns the model receives
+        elif route == "/api/update":
+            force = query.get("force", [""])[0] == "1"
+            current = make_updater(getattr(self.server, "root", "."))
+            result = current.check(force=force)
+            result["apply_result"] = current.take_result()   # a macOS replacement that failed last time, reported once
+            self._json(result)
+        elif route == "/api/update/download":
+            self._json(updater.download_state())
         elif route == "/api/user_settings":
             # GET settings from file
             settings_file = Path(self._data()) / "settings.json"
@@ -702,11 +762,16 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------------- POST
     def do_POST(self):
+        self._demo = False
         if not self._desktop_access():
             return
         if not self._same_origin():
             return self._json({"error": "cross-origin request denied"}, 403)
         route = urlparse(self.path).path
+        # Uploads are streamed straight to disk: the header alone decides, before any body is read. A page body that names
+        # the demo project is checked once it is parsed (below).
+        if (route == "/api/seeds/pdf" or route.startswith("/api/import/")) and not self._demo_check("POST", route):
+            return
         if route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test", "/api/source-test"):
             # These routes mutate the local library, the learning map or store a credential: also cap the body.
             limit = {"/api/organization": 2_000_000, "/api/route": 1_000_000}.get(route, 8_000)
@@ -729,6 +794,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"error": "invalid JSON"}, 400)
         if not isinstance(body, dict):
             return self._json({"error": "request must be an object"}, 400)
+        if not self._demo_check("POST", route, body.get("project_id") if isinstance(body.get("project_id"), str) else None, body):
+            return
+        if route == "/api/onboarding":
+            return self._onboarding_post(body)
+        if route.startswith("/api/update/"):
+            return self._update_post(route, body)
         if route == "/api/import/batches" or route.startswith("/api/import/batches/"):
             return self._import_post(route, body)
         if route == "/api/organization":
@@ -949,7 +1020,11 @@ class Handler(BaseHTTPRequestHandler):
             except sqlite3.Error:
                 self._json({'error': '本地保存失败；原修改未保存，请保留草稿后重试'}, 500)
         elif route == "/api/maintain":
+            if self._demo:   # nothing is fetched in the demo: no refresh is ever due
+                return self._json({"due": False, "status": maintenance.status(app, demo.PROJECT_ID)})
             project_id = body.get("project_id") or app.get_default_project_id()
+            if project_id is None:
+                return self._json({"due": False, "status": None, "reason_code": "no_project"})
             wanted = maintenance.plan(app, project_id)
             if not (wanted["refresh"] or wanted["batch"]):
                 self._json({"due": False, "status": maintenance.status(app, project_id)})
@@ -966,6 +1041,8 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/triage":
             project_id = body.get("project_id")
             try:
+                if self._demo:   # pre-written previews: no model, no token
+                    return self._json(demo.triage(app, body.get("keys")))
                 self._json(app.triage(app.cards(project_id=project_id), dry_run=bool(body.get("dry_run")), project_id=project_id,
                                       keys=body.get("keys")))
             except ValueError as exc:
@@ -1142,12 +1219,15 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "unknown route"}, 404)
 
     def do_DELETE(self):
+        self._demo = False
         if not self._desktop_access():
             return
         if not self._same_origin():
             return self._json({"error": "cross-origin request denied"}, 403)
         parsed = urlparse(self.path)
         route, query = parsed.path, parse_qs(parsed.query)
+        if not self._demo_check("DELETE", route, query.get("project_id", [None])[0]):
+            return
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(length) or b"{}") if length else {}
@@ -1180,6 +1260,27 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": str(exc)}, 409)
         return self._json({"error": "unknown route"}, 404)
 
+    def _update_post(self, route, body):
+        """Download / apply / dismiss an update. Quitting afterwards is the page's job (PDHPrepareQuit keeps drafts safe)."""
+        current = make_updater(getattr(self.server, "root", "."))
+        try:
+            if route == "/api/update/download":
+                if not current.check()["available"]:
+                    return self._json({"error": "没有可下载的新版本"}, 409)
+                current.start_download()
+                return self._json(updater.download_state())
+            if route == "/api/update/apply":
+                return self._json(current.apply())
+            if route == "/api/update/cancel":
+                current.cancel()
+                return self._json({"ok": True})
+            if route == "/api/update/dismiss":
+                current.dismiss(body.get("version"))
+                return self._json({"ok": True})
+        except updater.UpdateError as exc:
+            return self._json({"error": str(exc)}, 409)
+        return self._json({"error": "unknown route"}, 404)
+
     @staticmethod
     def _settings_payload(app):
         """Provider, switch and accounting policy; never a saved or transient key."""
@@ -1190,11 +1291,45 @@ class Handler(BaseHTTPRequestHandler):
                 "limits": {k: limits[k] for k in ("daily_total_tokens", "monthly_total_tokens",
                                                    "daily_usd", "monthly_usd")}}
 
+    @staticmethod
+    def _no_project_payload(app):
+        """/api/home and /api/state before the first project exists: 200 with nothing in it, so the page can send the
+        person to project creation instead of showing an error."""
+        return {"no_project": True, "maintenance": None, "recommendation_eligibility": None, "route": None,
+                "server_version": VERSION, "stats": None, "profile": None, "cards": [], "summaries": {},
+                "usage": app.usage(), "dev_mode": app.gateway.dev, "provider": app.provider_status(),
+                "latest_jobs": []}
+
     def _list_projects(self):
-        """GET /api/projects - list all projects"""
+        """GET /api/projects: the person's projects (the demo is never among them) plus a description of the demo, which the
+        page adds to its project switcher only while the tour runs."""
         app = self._app()
-        projects = app.projects.list_projects()
-        self._json({"projects": projects})
+        try:
+            projects = app.projects.list_projects()
+            english = app.english()
+        finally:
+            app.store.close()
+        self._json({"projects": projects, "demo": demo.descriptor(english)})
+
+    def _onboarding_state(self):
+        app = make_app(getattr(self.server, "root", "."))
+        try:
+            count = len(app.projects.list_projects())
+        finally:
+            app.store.close()
+        return onboarding.state(self._data(), getattr(self.server, "root", "."), count)
+
+    def _onboarding_post(self, body):
+        """{"action": "start"}: build a fresh demo sandbox. {"action": "done"}: this version's tour was seen (skip == finish)."""
+        root = getattr(self.server, "root", ".")
+        action = body.get("action")
+        if action == "start":
+            demo.reset(root, self._data())
+            return self._json({"ok": True, "state": self._onboarding_state()})
+        if action == "done":
+            onboarding.mark_done(self._data(), root)
+            return self._json({"ok": True, "state": self._onboarding_state()})
+        self._json({"error": "unknown onboarding action"}, 400)
 
     def _organization(self, body=None):
         from .organization import Organization
@@ -1239,7 +1374,7 @@ class Handler(BaseHTTPRequestHandler):
             if operation in {"suggest", "graph"}:
                 path = app.store.path.resolve()
                 request = ({"profile": suggestion_profile(app, body.get("project_id")),
-                            "scope_project": None if body.get("scope") == "all" else (body.get("project_id") or app.get_default_project_id())}
+                            "scope_project": None if body.get("scope") == "all" else (body.get("project_id") or app.require_default_project_id())}
                            if operation == "suggest" else None)
                 job = _job_start("organization", lambda: organization_job(path, "default", operation, request))
                 return self._json({"job": job})
@@ -1250,6 +1385,23 @@ class Handler(BaseHTTPRequestHandler):
             app.store.close()
 
 
+def clean_legacy_default_project(root="."):
+    """Once per library: remove the untouched default project and seed papers that older desktop builds made on first
+    launch (app/legacy_cleanup.py). Called by app/desktop.py after it holds the instance lock, and by serve() only with
+    PDH_LEGACY_CLEANUP=1; build_server itself never opens the database. Never blocks start-up."""
+    try:
+        from . import legacy_cleanup
+        app = make_app(root)
+        try:
+            outcome = legacy_cleanup.run(app.store)
+        finally:
+            app.close()
+        if outcome:
+            print("legacy default project cleanup:", json.dumps(outcome, ensure_ascii=False), file=sys.stderr, flush=True)
+    except Exception as exc:   # a library that cannot be opened is reported by the first request anyway
+        print("legacy default project cleanup skipped:", exc, file=sys.stderr, flush=True)
+
+
 def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.root = root
@@ -1258,6 +1410,8 @@ def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
 
 
 def serve(host="127.0.0.1", port=8765, root="."):
+    if os.environ.get("PDH_LEGACY_CLEANUP") == "1":   # a source run cleans only when asked to; the desktop app does it in app/desktop.py
+        clean_legacy_default_project(root)
     httpd = build_server(host, port, root)
     print(f"PaperDigHelper UI: http://{host}:{httpd.server_address[1]}  (Ctrl-C to stop)")
     try:

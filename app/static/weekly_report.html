@@ -21,4 +21,4 @@ async function api(url){const r=await fetch(url);const j=await r.json();if(!r.ok
   }catch(e){$('#weeklyContent').innerHTML='<div class="profile-empty profile-error">'+esc(e.message)+'</div>';}
 })();
 $('#evidence').addEventListener('click',e=>{if(e.target.hasAttribute('data-close'))$('#evidence').close();});
-</script></body></html>
+</script><link rel="stylesheet" href="/tour.css"><script src="/tour.js"></script><script>PDHTour.boot('weekly',{});</script></body></html>

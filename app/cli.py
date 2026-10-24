@@ -28,6 +28,11 @@ def _print_cards(cards, triage=None):
             print(f"    AI: {summary.get('one_liner')} | 相关: {summary.get('why_relevant')} | 注意: {summary.get('caution')}")
 
 
+def _dev_project(app):
+    """The dev CLI seeds into an explicit project: the first one, or a "Seeds (dev)" project made on the spot."""
+    return app.get_default_project_id() or app.projects.create_project("Seeds (dev)", "manual", [])
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", default=None)
@@ -78,10 +83,10 @@ def main(argv=None):
     app = App(data_dir=args.data_dir)
 
     if args.command == "init":
-        keys = app.ensure_seed_papers()
+        keys = app.ensure_seed_papers(_dev_project(app))
         print(f"initialised; profile at {app.data}; seeds resolved: {len(keys)}")
     elif args.command == "seeds":
-        print(json.dumps(app.ensure_seed_papers(), ensure_ascii=False, indent=2))
+        print(json.dumps(app.ensure_seed_papers(_dev_project(app)), ensure_ascii=False, indent=2))
     elif args.command == "refresh":
         print(json.dumps(app.refresh_candidates(pages=args.pages, per_page=args.per_page,
                                                  from_date=args.from_date,
@@ -109,7 +114,7 @@ def main(argv=None):
         print(json.dumps(app.undo_feedback(args.feedback_id), ensure_ascii=False))
     elif args.command == "profile":
         if args.pin is not None:
-            data = app.store.current_profile() or {"project": "world-models", "weights": {"pos": 1.0, "neg": 0.5}}
+            data = app.store.current_profile() or {"project": "default", "weights": {"pos": 1.0, "neg": 0.5}}
             data["pinned_terms"] = [t.strip() for t in args.pin.split(",") if t.strip()]
             app.save_profile(data, note="pin")
         print(json.dumps(app.profile(), ensure_ascii=False, indent=2))

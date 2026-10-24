@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -82,9 +83,9 @@ def launch(executable, data, home, check):
                 raise AssertionError('Unauthenticated API was accessible')
             opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
             with opener.open(url,timeout=10) as response: assert response.status==200
-            def call(path, payload=None, raw=False):
+            def call(path, payload=None, raw=False, headers=None):
                 request=urllib.request.Request(base+path, data=json.dumps(payload).encode() if payload is not None else None,
-                    headers={'Content-Type':'application/json'})
+                    headers={'Content-Type':'application/json', **(headers or {})})
                 with opener.open(request,timeout=15) as response: body=response.read()
                 return body.decode() if raw else json.loads(body)
             try:
@@ -416,6 +417,46 @@ def main():
             assert 'window.PDH_ROUTE_BETA=false' in call('/',raw=True)
             assert 'window.PDH_ROUTE_BETA=true' not in call('/',raw=True)
         launch(executable,off,home,beta_off)
+        # First run: an empty data directory has no project, no paper and no seeds; the tour is offered and its demo
+        # project lives only in a throw-away sandbox (recommendations, previews, rating and the offline graph worker work
+        # there with the network blocked), while the real database stays empty.
+        fresh=root/'data-first-run'; fresh.mkdir(); (fresh/'AI_DISABLED').touch()
+        def first_run(call):
+            listing=call('/api/projects')
+            assert listing['projects']==[] and listing['demo']['id']=='pdh-demo', listing
+            offer=call('/api/onboarding')
+            assert offer['show'] is True and offer['reason']=='no_project' and offer['project_count']==0, offer
+            assert call('/api/home')['no_project'] is True
+            assert call('/api/onboarding',{'action':'start'})['ok'] is True
+            demo={'X-PDH-Demo':'1'}
+            daily=call('/api/daily',{'project_id':'pdh-demo'},headers=demo)
+            assert len(daily['cards'])==5, daily
+            triage=call('/api/triage',{'project_id':'pdh-demo'},headers=demo)
+            assert triage['mode']=='demo' and len(triage['items'])==5, triage
+            fed=call('/api/feedback',{'key':daily['cards'][0]['key'],'action':'useful','project_id':'pdh-demo'},headers=demo)
+            assert fed['saved'] is True
+            assert len(call('/api/organization',headers=demo)['items'])>=20
+            started=call('/api/organization',{'op':'graph'},headers=demo)['job']
+            for _ in range(150):
+                job=call('/api/jobs/'+started['id'],headers=demo)
+                if job['state']!='running': break
+                time.sleep(0.2)
+            assert job['state']=='done' and job['result']['relations']['edges'], job
+            try:
+                call('/api/refresh',{},headers=demo)
+            except urllib.error.HTTPError as exc:
+                assert exc.code==403 and json.loads(exc.read())['reason_code']=='demo_readonly'; exc.close()
+            else:
+                raise AssertionError('The demo was allowed to refresh')
+            assert call('/api/projects')['projects']==[]
+            db=sqlite3.connect('file:'+str(fresh/'paperdighelper.sqlite')+'?mode=ro',uri=True)
+            try:
+                counts={t:db.execute('SELECT COUNT(*) FROM '+t).fetchone()[0] for t in
+                        ('projects','papers','feedback','summaries','batches','library','project_library','profile_versions')}
+            finally:
+                db.close()
+            assert not any(counts.values()), counts
+        launch(executable,fresh,home,first_run)
         inspected=App(data_dir=data)
         try:
             provenance=inspected.route_recall_sources(recall_pid)
@@ -424,7 +465,7 @@ def main():
             assert any(e['page']==2 for entries in provenance.values() for e in entries)
         finally:
             inspected.store.close()
-    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/owner-approved new-operation AI-off and no-key no-call, whole-queue20 AI-off pending/refund/current assets, isolated DATA and absent key, HOME preserved, outbound network blocked')
+    print('PASS fresh packaged backend: authentication, pending/history, STEM/humanities, shared quality, body bounds, versioned text, goal scope, watch/mastery, undo/mode/restart, batch 3+1+1, completed daily discovery/reuse/restart, cached three-purpose refresh, rotation/paging/provenance after restart, typed growth preview/confirm/goal-reopen/undo/stale/restart/AI-off fallback, revision preview/stable new IDs/cutoff/atomic confirm/idempotence/undo/pending restart/409 draft retention, shared brief assets/manual creation/known-not-mastery/owner-approved new-operation AI-off and no-key no-call, whole-queue20 AI-off pending/refund/current assets, first-run empty directory with isolated offline demo sandbox, isolated DATA and absent key, HOME preserved, outbound network blocked')
 
 
 if __name__=='__main__': main()

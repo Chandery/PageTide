@@ -102,6 +102,9 @@ def manual_refresh(app, project_id=None, now=None, **options):
     automatic one (a manual fetch counts as the day's fetch); a failed one leaves the last success untouched; an
     include_distractors run is an experiment and is not recorded."""
     project_id = project_id or app.get_default_project_id()
+    if project_id is None:   # nothing to fetch for: a fresh install has no project
+        return {"fetched": 0, "added": 0, "new_to_project": 0, "new_recommendable": 0, "field": 0,
+                "errors": [], "reason_code": "no_project"}
     if not _claim(project_id):
         return {"fetched": 0, "added": 0, "new_to_project": 0, "new_recommendable": 0, "field": 0,
                 "errors": [{"kind": "busy", "error": "Refresh is already running"}], "reason_code": "refresh_running"}

@@ -27,7 +27,7 @@ function drawerFixture(){
   const section=source.slice(source.indexOf('let detailToken = 0;'),source.indexOf("$('#detail').addEventListener('click'"));
   const nodes=new Map(), replies=[], notices=[];
   const node=selector=>{if(!nodes.has(selector)){const classes=new Set();nodes.set(selector,{innerHTML:'',classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c)},addEventListener(){}});}return nodes.get(selector);};
-  const ctx=vm.createContext({state:{currentProject:'p1',projects:[]},window:{PDHPaperContext:Context,PDH:{setPetContext(){}}},PaperPolicy:Policy,$:node,hidePreview(){},esc:v=>v,md:v=>v,toast:(...v)=>notices.push(v),api:(url,body)=>new Promise(resolve=>replies.push({body,resolve}))});
+  const ctx=vm.createContext({state:{currentProject:'p1',projects:[]},window:{PDHPaperContext:Context,PDHMarks:require('../app/static/feedback-marks.js'),PDH:{setPetContext(){}}},PaperPolicy:Policy,$:node,hidePreview(){},esc:v=>v,md:v=>v,toast:(...v)=>notices.push(v),api:(url,body)=>new Promise(resolve=>replies.push({body,resolve}))});
   vm.runInContext(section+'\nthis.open=openDetail;this.close=closeDetail;',ctx);
   return {ctx,replies,node,notices};
 }

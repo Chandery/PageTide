@@ -7,7 +7,7 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), 'utf8');
 const handler = html.slice(html.indexOf("$('#btnRefresh').onclick ="), html.indexOf("function selectView("));
 const record = html.slice(html.indexOf('function fetchedText'), html.indexOf('function renderEligibility'));
-async function click(job, {batchToday, label = '生成今日 5 篇'} = {}) {
+async function click(job, {batchToday, label = '生成今日推荐'} = {}) {
   const button = {}, daily = {textContent: label}, notices = [], calls = [];
   const context = vm.createContext({$: (s) => s === '#btnDaily' ? daily : button, state: {currentProject: 'p', maintenance: {batch_today: !!batchToday}},
     api: async (url, body) => {calls.push([url, body]); return url === '/api/refresh' ? {id: 'job-1'} : job;},
@@ -65,14 +65,14 @@ test('a failure note and the success record are independent', () => {
 
 test('after a manual fetch with new papers and a batch already made today, the toast points at the button by its current label', async () => {
   const done = {state:'done',result:{fetched:33,new_to_project:10,new_recommendable:4,errors:[]}};
-  assert.deepEqual(await click(done, {batchToday: true}), ['抓到 33 篇，新 10 篇，点「生成今日 5 篇」查看','ok']);
+  assert.deepEqual(await click(done, {batchToday: true}), ['抓到 33 篇，新 10 篇，点「生成今日推荐」查看','ok']);
   assert.deepEqual(await click(done, {batchToday: true, label: '生成今日发现'}), ['抓到 33 篇，新 10 篇，点「生成今日发现」查看','ok']);
   assert.deepEqual(await click(done, {batchToday: false}), ['抓到 33 篇，新 10 篇','ok']);
   assert.deepEqual(await click({state:'done',result:{fetched:33,new_to_project:0,errors:[]}}, {batchToday: true}), ['抓到 33 篇，没有新论文','ok']);
   // new links that the next batch could not show (no PDF, other language, outside the time window) promise nothing
   assert.deepEqual(await click({state:'done',result:{fetched:33,new_to_project:10,new_recommendable:0,errors:[]}}, {batchToday: true}), ['抓到 33 篇，新 10 篇','ok']);
   const [message, kind] = await click({state:'done',result:{fetched:3,new_to_project:1,new_recommendable:1,errors:[{kind:'network_error'}]}}, {batchToday: true});
-  assert.equal(message, '抓到 3 篇，新 1 篇，点「生成今日 5 篇」查看，部分查询未完成'); assert.equal(kind, 'warn');
+  assert.equal(message, '抓到 3 篇，新 1 篇，点「生成今日推荐」查看，部分查询未完成'); assert.equal(kind, 'warn');
 });
 test('a manual fetch with every source switched off says so instead of reporting 0 papers', async () => {
   const [message, kind] = await click({state:'done',result:{fetched:0,added:0,new_to_project:0,errors:[],reason_code:'sources_disabled'}});

@@ -330,6 +330,13 @@
       "blocks_release": true,
       "method": "Source/unit/HTTP/browser checks exist as development evidence only (docs/evidence/2026-10-07-library-import-checks.txt); they are not this gate. To pass: (1) native folder pick and folder drop in the fresh packaged .app on macOS (WKWebView); (2) a real run on a sanitized sample of the owner's own library with a real network, reporting the actual identifier/title match rate, OpenAlex credits spent and pauses, never an estimate; (3) a sanitized real export from the owner's installed Zotero version (BibTeX, RIS, CSL-JSON; attachment layout) kept as a fixture; (4) restart/crash recovery of a half-committed batch on a copy of a real database; (5) independent review of the table creation, the recommendation-pool change and the seed exclusions; (6) the owner decides whether import-origin seeds also stay out of learning-map progress (implemented) and whether this gate blocks release. Keep failures; do not claim a hit rate from synthetic fixtures.",
       "evidence": []
+    },
+    {
+      "id": "E-ONBOARDING",
+      "status": "not_run",
+      "blocks_release": true,
+      "method": "Development evidence exists (docs/evidence/2026-10-24-onboarding-tour-checks.txt: Python/HTTP/Node checks and a browser walk on a source backend with synthetic data); it is not this gate. To pass, on the fresh packaged artifacts natively: macOS arm64 .app (WKWebView) and Windows x64 installer build (WebView2): (1) first launch with an empty data directory shows the tour, the demo and no developer data, and a real data directory with a project is unchanged afterwards (table counts, settings.json bytes); (2) all 16 steps are completed by hand, including the trip to Settings and back and the weekly report, confirming sessionStorage survives page changes in each WebView; (3) skip at several steps, quit and relaunch (no repeat in the same version after done), replay from Settings, English interface, dark theme, and the creation page hint when there is no real project; (4) the demo makes no network request and no model call (proxy or firewall log) even with a key configured; (5) after an update to a newer version the tour is offered once; (6) independent review of the routing allow list and the sandbox lifecycle. Keep failures; a source-backend browser run is not a packaged-app pass.",
+      "evidence": []
     }
   ]
 }

@@ -45,6 +45,14 @@ CREATION_WINDOW_YEARS = 10  # candidates while choosing seeds (a proposal; the p
 FEED_WINDOW_YEARS = 5       # the refreshed feed (a proposal)
 
 
+# The id the first migration gave the project that held pre-multi-project data. Fresh installs have no such project.
+LEGACY_DEFAULT_PROJECT_ID = "default_project"
+
+
+class NoProject(ValueError):
+    """There is no project yet; the person has to create one (a ValueError, so the server answers 400)."""
+
+
 class RecommendationChanged(Exception):
     pass
 
@@ -1641,6 +1649,8 @@ class App:
     def home_maintenance(self, project_id=None):
         """Refresh times for the page (no counts of anything unread or pending)."""
         project_id = project_id or self.get_default_project_id()
+        if project_id is None:
+            return {"maintenance": None, "recommendation_eligibility": None}
         return {"maintenance": maintenance.status(self, project_id),
                 'recommendation_eligibility': self.store.get_setting('recommendation_eligibility_' + project_id)}
 
@@ -1749,12 +1759,15 @@ class App:
 
     # ---------------------------------------------------------------- profile
     def get_default_project_id(self):
-        """Get the default project ID, creating it if necessary."""
+        """The first project's id, or None when there is none. It never creates one: a fresh install has no project."""
         projects = self.projects.list_projects()
-        if projects:
-            return projects[0]["id"]
-        # Create default project
-        return self.projects.create_project("默认项目", "manual", [])
+        return projects[0]["id"] if projects else None
+
+    def require_default_project_id(self):
+        project_id = self.get_default_project_id()
+        if project_id is None:
+            raise NoProject("Create a project first" if self.english() else "请先创建项目")
+        return project_id
 
     # Filler words of an English request ("I want to understand how ...") are not search terms.
     _GUIDANCE_FILLER = frozenset("""want wants wanted understand understanding know like likes would could should need needs
@@ -2427,7 +2440,10 @@ class App:
 
     def seeds(self, project_id=None):
         """Get seeds from harness/seeds.json. Global for now, will be project-scoped later."""
-        return json.loads((self.root / "harness" / "seeds.json").read_text(encoding="utf-8"))["seeds"]
+        path = self.root / "harness" / "seeds.json"
+        if not path.exists():   # the shipped app carries no seed list
+            return []
+        return json.loads(path.read_text(encoding="utf-8"))["seeds"]
 
     IMPORT_SEEDS_PER_CALL = 20
     MAX_SEEDS = 40   # per project, the same ceiling as project creation
@@ -2498,7 +2514,7 @@ class App:
     def ensure_seed_papers(self, project_id=None):
         """Ensure seed papers are in the database for a project."""
         if not project_id:
-            project_id = self.get_default_project_id()
+            raise ValueError("ensure_seed_papers needs an explicit project_id")
 
         keys = []
         for seed in self.seeds(project_id):
@@ -2515,7 +2531,7 @@ class App:
 
         # Initialize profile if needed
         if self.store.current_profile() is None:
-            self.save_profile({"project": "world-models", "pinned_terms": [],
+            self.save_profile({"project": "default", "pinned_terms": [],
                                "weights": {"pos": 1.0, "neg": 0.5}}, note="initial")
         return keys
 
@@ -2546,16 +2562,16 @@ class App:
         if project["keywords"]:
             return project["keywords"]
         # Legacy global preferences belong only to the migrated default project.
-        if project_id == self.get_default_project_id() and not base.get("project_id"):
+        if project_id == LEGACY_DEFAULT_PROJECT_ID and not base.get("project_id"):
             return base.get("pinned_terms", [])
         return []
 
     def profile(self, project_id=None):
         """Get profile for a project. Legacy support: if no project_id, use default."""
         if not project_id:
-            project_id = self.get_default_project_id()
+            project_id = self.require_default_project_id()
 
-        base = self.store.current_profile() or {"project": "world-models", "pinned_terms": [],
+        base = self.store.current_profile() or {"project": "default", "pinned_terms": [],
                                                 "weights": dict(DEFAULT_WEIGHTS)}
         feedback = self.latest_feedback(project_id)
         positives = [k for k, v in feedback.items() if v["action"] in POSITIVE_ACTIONS]
@@ -2594,12 +2610,11 @@ class App:
         return evidence(self, project_id, kind, term, start, end, offset)
 
     def profile_versions(self, project_id):
-        default = self.get_default_project_id()
         return [v for v in self.store.profile_versions()
-                if v["data"].get("project_id", default) == project_id and v["note"] in ("pin", "restore")]
+                if v["data"].get("project_id", LEGACY_DEFAULT_PROJECT_ID) == project_id and v["note"] in ("pin", "restore")]
 
     def pin_terms(self, terms, project_id=None):
-        project_id = project_id or self.get_default_project_id()
+        project_id = project_id or self.require_default_project_id()
         if not self.projects.get_project(project_id):
             raise ValueError("项目不存在")
         terms = list(dict.fromkeys(t.strip() for t in terms if t.strip()))
@@ -2668,7 +2683,7 @@ class App:
     def _require_project(self, project_id):
         if project_id is not None and not isinstance(project_id, str):
             raise ValueError("项目不存在")
-        project_id = project_id or self.get_default_project_id()
+        project_id = project_id or self.require_default_project_id()
         if not self.projects.get_project(project_id):
             raise ValueError("项目不存在")
         return project_id
@@ -2727,7 +2742,7 @@ class App:
         seeds = [papers_by_key[k] for k in profile["positive_seeds"] if k in papers_by_key]
         # seed papers may not be in the candidate pool; fall back to the stored seed set
         seed_texts = [eligibility.retrieval_text(p) for p in seeds]
-        if not seed_texts and project_id == self.get_default_project_id():
+        if not seed_texts and project_id == LEGACY_DEFAULT_PROJECT_ID:
             seed_texts = [s["title"] for s in self.seeds(project_id)]
         seed_vectors = [ranking.l2_normalize(ranking.vectorize(ranking.tokenize(t), idf)) for t in seed_texts]
         term_text = " ".join(profile["pinned_terms"])
@@ -3107,7 +3122,7 @@ class App:
         the default project, or an explicit `search`, keeps the DATA-01 arXiv "world model" recipe.
         Distractors are opt-in (five more calls)."""
         if not project_id:
-            project_id = self.get_default_project_id()
+            project_id = self.require_default_project_id()
         errors = []
         source_policy = user_settings.source_policy(self.data)
         arxiv, general = source_policy.arxiv, source_policy.general
@@ -3124,6 +3139,9 @@ class App:
             return self._refresh_route_candidates(project_id, route, from_date, per_page)
         from_date = from_date or user_settings.since(self.data,default=window_start(FEED_WINDOW_YEARS))
         keywords = [] if search else self._feed_keywords(project_id)
+        if not keywords and not search and project_id != LEGACY_DEFAULT_PROJECT_ID:
+            # A project without keywords has nothing to ask a source for; only the migrated legacy project keeps "world model".
+            return {"fetched":0,"added":0,"new_to_project":0,"new_recommendable":0,"field":0,"errors":[],"reason_code":"no_keywords"}
         field = []
         if keywords and openalex_on:
             seen = set()
@@ -3138,7 +3156,7 @@ class App:
         elif not keywords and openalex_on:
             search = search or "world model"
             try:
-                if not general or (arxiv and (search or project_id==self.get_default_project_id())):
+                if not general or (arxiv and (search or project_id==LEGACY_DEFAULT_PROJECT_ID)):
                     field = self.source.discover(search=search, from_date=from_date, pages=pages, per_page=per_page)
                 else:
                     field = self.source.discover_topic(search, from_date=from_date, order="recent", per_page=min(int(per_page),50), **source_options)
@@ -3177,7 +3195,7 @@ class App:
     def import_candidates(self, path, project_id=None):
         """Load a frozen candidate JSON (e.g. from the DATA-01 experiments) for offline/dev use."""
         if not project_id:
-            project_id = self.get_default_project_id()
+            project_id = self.require_default_project_id()
 
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
         papers = payload if isinstance(payload, list) else payload.get("all", [])
@@ -3371,7 +3389,7 @@ class App:
         try:
             return self._build_batch(limit, run_date, exclude_seen, project_id,verification_budget)
         except CompletedDiscoveryLimit as exc:
-            return self._completed_result(exc.batch_id,project_id or self.get_default_project_id(),verification_budget)
+            return self._completed_result(exc.batch_id,project_id or self.require_default_project_id(),verification_budget)
         except RecommendationChanged:
             reason = ('Papers, learning map, feedback or language settings changed; generate again' if self.english()
                       else '论文、学习图、反馈或语言设置已变化，请重新生成')
@@ -3425,7 +3443,7 @@ class App:
     def _build_batch(self, limit=5, run_date=None, exclude_seen=True, project_id=None,verification_budget=None):
         """Build a recommendation batch for a specific project."""
         if not project_id:
-            project_id = self.get_default_project_id()
+            project_id = self.require_default_project_id()
 
         eligibility_day = self.batch_day()
         run_date = run_date or eligibility_day
@@ -3550,7 +3568,7 @@ class App:
     def _reference_docs(self, project_id=None):
         """Seeds and saved papers, used to explain *which* direction a card resembles."""
         if not project_id:
-            project_id = self.get_default_project_id()
+            project_id = self.require_default_project_id()
 
         references, en = [], self.english()
         for key in self.seed_keys(project_id):
@@ -3576,7 +3594,7 @@ class App:
     def explain(self, paper, project_id=None):
         """Human-readable reason: pinned terms hit, nearest reference, shared topics."""
         if not project_id:
-            project_id = self.get_default_project_id()
+            project_id = self.require_default_project_id()
 
         text = f"{paper.get('title') or ''} {paper.get('abstract') or ''}"
         tokens = set(ranking.tokenize(text))
@@ -3627,7 +3645,7 @@ class App:
 
     def cards(self, batch_id=None, project_id=None, verification_budget=None):
         if not project_id:
-            project_id = self.get_default_project_id()
+            project_id = self.require_default_project_id()
 
         rows = self.store.batch(batch_id) if batch_id is not None else self.store.latest_batch(project_id)
         summaries = self.store.summaries()
@@ -3662,14 +3680,28 @@ class App:
                 "task_scope": learning_scope.check(matching_scope, row),
                 "pdf_status": pdf_availability(row["arxiv_id"], row["oa_json"]),
                 "saved": self.store.in_library(row["key"], project_id),
-                "feedback": (feedback.get(row["key"]) or {}).get("action"),
-                "familiarity": ((feedback.get(row["key"]) or {}).get("familiar") or {}).get("action"),
+                **self._feedback_marks(feedback.get(row["key"])),
                 "summary": summaries.get(row["key"]),
                 'language': self._paper_language(self._recommendation_rows(paper_key=row['key'])[0],verification_budget=verification_budget),
             })
         return cards
 
     # --------------------------------------------------------------- feedback
+    @staticmethod
+    def _feedback_marks(entry):
+        """What a card shows of the reader's own marks, each dimension on its own: the interest label (useful /
+        irrelevant) with its record id, and the familiarity label. Nothing here is inferred from silence."""
+        entry = entry or {}
+        interest = entry if entry.get("action") in INTEREST_ACTIONS else {}
+        return {"feedback": interest.get("action"), "feedback_id": interest.get("id"),
+                "familiarity": (entry.get("familiar") or {}).get("action")}
+
+    def feedback_state(self, paper_key, project_id):
+        """The paper's marks and library state right now, returned by every feedback write so a page can redraw its
+        buttons from the stored truth instead of guessing (an undo may bring an older label back)."""
+        return {**self._feedback_marks(self.latest_feedback(project_id).get(paper_key)),
+                "saved": self.store.in_library(paper_key, project_id)}
+
     def _route_reconfirmation_needed(self, project_id, paper_key, feedback_id):
         _, route = read_route(self.store.conn, project_id)
         graph = (route or {}).get('graph') or {}
@@ -3693,6 +3725,8 @@ class App:
         if not project_id:
             paper = self.store.paper(paper_key)
             project_id = (paper or {}).get('project_id') or self.get_default_project_id()
+        if not isinstance(project_id, str):
+            raise ValueError('论文不属于当前项目')
         with self.store._lock:
             if self.store.conn.in_transaction:
                 raise RuntimeError('Feedback requires an idle connection')
@@ -3715,6 +3749,8 @@ class App:
                                                      (paper_key, action, reason, now(), project_id))
                     result = {'feedback_id': cursor.lastrowid, 'action': action, 'interest_changed': action in INTEREST_ACTIONS,
                               'saved': action in POSITIVE_ACTIONS}
+                    if action in NEGATIVE_ACTIONS:
+                        result['unsaved'] = self._unsave_for_negative(project_id, paper_key, cursor.lastrowid)
                 self.store.conn.commit()
             except BaseException:
                 self.store.conn.rollback()
@@ -3723,7 +3759,25 @@ class App:
             # transaction. No helper may commit the duplicate check early.
             if action in POSITIVE_ACTIONS:
                 self.store.save_to_library(paper_key, note=reason, project_id=project_id)
+            result["state"] = self.feedback_state(paper_key, project_id)
             return result
+
+    _UNSAVED_BY = "feedback_unsaved:"   # settings key per feedback id: what a "not interested" removed from the library
+
+    def _unsave_for_negative(self, project_id, paper_key, feedback_id):
+        """Inside the feedback transaction: "not interested" and "saved" cannot both stand, so a saved paper leaves the
+        project's library in the same commit as the label, and what was removed is kept under the label's id so undoing
+        the label can put it back exactly. Returns whether a paper was taken out."""
+        conn = self.store.conn
+        row = conn.execute('SELECT saved_at, note FROM project_library WHERE project_id=? AND paper_key=?', (project_id, paper_key)).fetchone()
+        if not row:
+            return False
+        conn.execute('DELETE FROM project_library WHERE project_id=? AND paper_key=?', (project_id, paper_key))
+        if not conn.execute('SELECT 1 FROM project_library WHERE paper_key=? LIMIT 1', (paper_key,)).fetchone():
+            conn.execute('DELETE FROM library WHERE paper_key=?', (paper_key,))
+        conn.execute('INSERT OR REPLACE INTO settings(key,value) VALUES (?,?)',
+                     (self._UNSAVED_BY + str(feedback_id), json.dumps({'saved_at': row['saved_at'], 'note': row['note']})))
+        return True
 
     def unsave(self, paper_key, project_id=None):
         self.store.remove_from_library(paper_key, project_id=project_id)
@@ -3762,18 +3816,32 @@ class App:
             except BaseException:
                 self.store.conn.rollback()
                 raise
-        return {"retracted": retracted}
+        return {"retracted": retracted, "state": self.feedback_state(paper_key, project_id)}
 
     def undo_feedback(self, feedback_id, project_id=None):
         with self.store._lock:
             if self.store.conn.in_transaction:
                 raise RuntimeError("Feedback undo requires an idle connection")
-            row = self.store.conn.execute("SELECT project_id FROM feedback WHERE id=?", (feedback_id,)).fetchone()
+            row = self.store.conn.execute("SELECT project_id, paper_key FROM feedback WHERE id=?", (feedback_id,)).fetchone()
             if not row or (project_id and row["project_id"] != project_id):
                 raise ValueError("反馈不属于当前项目")
             # Undo restores the profile signals; a library save is a separate user fact and stays.
-            self.store.undo_feedback(feedback_id)
-            return {"undone": feedback_id}
+            # One commit: the label goes, and a paper that label took out of the library comes back as it was.
+            self.store.conn.execute("UPDATE feedback SET undone=1, undone_at=? WHERE id=?", (now(), feedback_id))
+            restored = False
+            marker = self.store.conn.execute("SELECT value FROM settings WHERE key=?", (self._UNSAVED_BY + str(feedback_id),)).fetchone()
+            if marker:
+                kept = json.loads(marker["value"])
+                project, paper = row["project_id"], row["paper_key"]
+                if not self.store.in_library(paper, project):
+                    self.store.save_to_library(paper, note=kept.get("note"), project_id=project, commit=False)
+                    self.store.conn.execute("UPDATE project_library SET saved_at=? WHERE project_id=? AND paper_key=?",
+                                            (kept.get("saved_at"), project, paper))
+                    restored = True
+                self.store.conn.execute("DELETE FROM settings WHERE key=?", (self._UNSAVED_BY + str(feedback_id),))
+            self.store.conn.commit()
+            return {"undone": feedback_id, "restored_saved": restored,
+                    "state": self.feedback_state(row["paper_key"], row["project_id"])}
 
 
     # ------------------------------------------------------------- full text

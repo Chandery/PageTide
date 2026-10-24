@@ -1,3 +1,90 @@
+# 当前工作单元：旧默认项目清理 · 独立审查后的修正（2026-10-24，第六个提交）
+
+原则：只要用过就一点不动，有疑问保留。修了：标记先以 `in_progress` 单独提交，备份里就带标记（从备份恢复后不再清理）；备份写唯一临时文件，独立连接 `quick_check` 并核对 projects/papers 行数和标记，通过才改名为唯一最终名，旧的 `.bak` 既不信任也不覆盖，失败删残片且不删数据；`profile_versions` 里本项目（或无项目）的非 `initial` 版本都保留整个库；语言策略版本 > 0 或有 `allowed_languages` 保留；链接论文有非 demo 速览或周报有 AI 分析保留（测试夹具不再造速览）；批次不止一个日期保留；有 `source_project_id='default_project'` 的分享保留；只在桌面启动（`desktop.py` 拿到锁之后、`build_server` 之前，需 `PDH_APP_VERSION`）或源码显式 `PDH_LEGACY_CLEANUP=1` 时执行，`build_server` 回到不打开库（所以不需要给 test_maintenance 等三处补 env patch）；`except Exception`；一并删 `route_exploration_evidence_<批次>`，并清别的项目 `org_projects` 里指向被删论文的条目。判定、清单、恢复步骤在 ADR 0042 补充里。
+
+跨分支风险：清理之后若用旧 main / v0.1.0 的构建打开同一个真实库，它会新建 UUID 默认项目并再塞种子论文；新旧构建不要混用同一个数据目录。没验证：没在真实旧库上跑；没有再做独立审查；备份文件不会自动删除。
+
+---
+
+# 当前工作单元：旧默认项目的一次性自动清理（2026-10-24，onboarding-tour 第五个提交，critical：会删库里的数据）
+
+[变更记录](../changes/2026-10-24-legacy-default-cleanup.json)，[检查证据](evidence/2026-10-24-legacy-default-cleanup-checks.txt)，[ADR 0042 补充](decisions/0042-first-run-demo-and-tour.md)。
+
+`app/legacy_cleanup.py`，由 `build_server` 在打开库后调用（源码运行和桌面都走，只一次，结果在 `settings.legacy_default_cleanup`，不用迁移编号）。只在“旧版首次启动自动建的 `default_project` 完全没被用过”时清理：id 字面为 `default_project`、名仍是“默认项目”、无关键词/引导/学科，没有反馈（含已撤销）、收藏、问答、笔记、分类、导入、钉词历史、已存 PDF/全文、用户动作类设置、未知设置。满足才在一个事务里删项目、它的链接/批次/曝光/快照/周报/`org_*`/自动设置，以及只属于它的论文和速览；被别的项目链接的论文只删链接；全局的 `initial` 画像版本只在清理后已没有任何项目且库里只有这种版本时才删。删之前写 `<库>.pre-legacy-cleanup.bak`；失败回滚并记原因。判定与清单的最终版本在 ADR 0042 补充里。
+
+没验证：没在 owner 的真实旧库上跑，测试里的“旧首次启动状态”是按迁移和 `ensure_seed_papers` 重建的；备份文件不会自动删除；没有独立审查。条件偏保守，用过一点的旧库会原样保留。
+
+---
+
+# 当前工作单元：onboarding-tour 独立审查后的修正（2026-10-24，第四个提交）
+
+M1 “不感兴趣”与“收藏”原子互斥：后端 `record_feedback(irrelevant)` 在同一事务里把已收藏论文移出论文库，并把移出的内容记在设置表 `feedback_unsaved:<反馈 id>`；`undo_feedback` 在同一次提交里撤销标签并按原保存时间和笔记放回（返回 `restored_saved`）；前端不再单独调 `/api/unsave`，按返回的 `state` 重画。M2 变更记录 `files` 改成整条分支（`7fe946d` 之后、不含 update-check 提交）的并集，过时风险与证据里“逐字摘要/阈值 8”的说法已更正（现为改写摘要，图谱 ≥ 20 条边）。`harness.py review` 只比较“未提交改动”，所以用基线做法：在 `7fe946d` 的临时 detached worktree 里只拷入记录列出的文件后运行（主 worktree 提交后工作区是干净的，直接运行会因为没有改动而不适用）。L1 创建页等知道项目列表后再决定是否显示 c1，已有项目则丢弃该提示。L2 “太难”撤回被后端改成重新确认时提示“已记录”。L3 主页打开时存储步骤属于别的页面（s2–s4、f7）显示居中“继续 / 跳过指引”。L4 演示 403 只吞同一次请求调用方的重复提示。L5 f5 文案不再承诺钉住/撤销，演示里隐藏“编辑类别”，论文库详情加“演示用的改写摘要”标注。
+
+浏览器已实测 M1（收藏 → 不感兴趣 → 再点：回到已收藏且 `/api/library` 里在）与 L3（停在 s2 时直接打开 `/`，出现继续气泡，继续回到设置页 s2）。没验证：改动之后后半段步骤整套第二遍、冻结二进制、Windows、WKWebView；这些修正没有再做独立审查。
+
+---
+
+# 当前工作单元：欢迎卡、按钮去数字、不感兴趣/太难可见可撤销（2026-10-24，onboarding-tour 同一变更记录）
+
+owner 要求：不能默认用户是中文用户，首步先选界面语言和明暗；每日推荐数可调，按钮不能写 5；点不感兴趣后卡片没有痕迹。
+
+做了什么：(1) 指引第一步 `w0`（`tour.js`）：居中双语卡片，语言（中文/English）与外观（浅色/深色/跟随系统）两个 radiogroup，选语言即时换卡片文案，选外观即时预览；预选已保存设置，否则按 `navigator.language`。“开始”：先 `POST /api/user_settings {merge:true}` 存语言、`PDHTheme.set` 存主题，再 `POST /api/onboarding start`（演示沙盒按刚存的语言重置），写 p1 状态后整页重载；“跳过指引”也保存两项再结束。主页、设置页“重新查看”、创建页“看看演示”都从 w0 开始（它们不再自己 POST start）。(2) 按钮“生成今日推荐”，指引文案与测试同步。(3) `app/static/feedback-marks.js`：卡片与详情页的“不感兴趣”“太难”带 `aria-pressed` 按下态，不感兴趣时卡片淡化；再点一次撤销（不感兴趣走 `/api/undo` 按记录 id，太难走 `/api/feedback retract`）；收藏与不感兴趣互斥（标不感兴趣时若已收藏会同时取消收藏）；卡片带 `feedback_id`，所有反馈写接口返回 `state`（存储的真实标记与收藏状态），刷新后保持。
+
+浏览器验证：已在预览窗格逐项做过，见 [证据](evidence/2026-10-24-onboarding-tour-checks.txt)（英文深色全程、中文浅色到 r2、跳过也保存、标记按下/刷新/撤销/详情页；真实库计数仍为 0）。没验证：冻结二进制、Windows、真实 WKWebView 的 sessionStorage、独立审查；feedback 改动后没有再整套重走一遍后半段步骤。注意：不感兴趣会取消收藏（无确认框），撤销不会自动恢复收藏。
+
+---
+
+# 当前工作单元：演示项目与新手指引（2026-10-24，onboarding-tour 第二个提交：后端 + 前端接线）
+
+[变更记录](../changes/2026-10-24-onboarding-tour.json)，[检查证据](evidence/2026-10-24-onboarding-tour-checks.txt)，[ADR 0042](decisions/0042-first-run-demo-and-tour.md)，需求 `R-ONBOARDING`、发布门 `E-ONBOARDING`（not_run）、任务 `FEAT-ONBOARDING`（review）。
+
+做了什么：演示项目 `pdh-demo` 不在用户库里。带请求头 `X-PDH-Demo: 1`（或 `project_id=pdh-demo`）的请求由 `app/demo.py` 路由到 `<数据目录>/demo-sandbox/<世代>/` 的一次性沙盒库（`app/demo_fixture.py`：29 篇公开 arXiv 论文，已在 2026-10-24 联网核对并换成逐字摘要；5 篇未评价候选 + 24 篇带时间分布的历史记录，预写中英速览），每次开始指引与每次进程启动重置。前端：`tour.js`/`tour.css` 接进主页、设置、周报、创建页；主页 `api()` 只在当前项目为演示时加头，演示 id 不写 `localStorage`；`html.pdh-demo` 隐藏抓取、单篇速览、读 PDF、助手、论文库的 AI 分类/导入/导出/笔记；演示中切到真实项目或点“＋”等于跳过；设置页“新手指引 · 重新查看”；没有真实项目时创建页的“返回主页”换成“看看演示”；创建页的世界模型示例占位符换成中性示例。
+
+**没验证（最重要）**：**浏览器里一步没走过**。预览工具读的是主检出的 `.claude/launch.json`（找不到工作树里加的 `onboarding-preview`），无头 Chrome 被沙箱拦。16 步、去设置页再回来、跳过、刷新、英文、深色、截图、走完后真实库仍为空，都还没做；`tour.js` 的 DOM 层从未在浏览器里跑过。下一位：在主检出的 launch.json 临时加
+
+```json
+{"name":"onboarding-preview","runtimeExecutable":"sh","runtimeArgs":["-c","cd <worktree> && PAPERDIGHELPER_DATA=/tmp/claude-501/pdh-onboarding-preview PDH_APP_VERSION=0.1.0 exec python3 -m app.server 8790"],"port":8790}
+```
+
+数据目录用全新空目录，从空目录开始自动进指引逐步走完，最后用 sqlite3 确认 projects/papers/feedback/summaries 为 0。另有：冻结二进制、Windows、WKWebView/WebView2 的 `sessionStorage` 跨页保持（推断）、独立审查。选择器依赖 `index.html`/`organization.js`/`profile-ui.js` 的 id 与类，改名会让该步 15 秒后降级为居中气泡。
+
+对测试的改动：离线图谱任务在逐字摘要下只有 10 条边（原来 20+），`tests/test_demo_sandbox.py` 的下限改成 8；两个按源码切片的旧测试补了 `inDemo` / `DEMO_ID`。
+
+
+---
+
+# 当前工作单元：去掉默认项目（2026-10-24，onboarding-tour 第一步）
+
+worktree `onboarding-tour`，基线 update-check `b7cb191`，类别 critical。[变更记录](../changes/2026-10-24-no-default-project.json)，[检查证据](evidence/2026-10-24-no-default-project-checks.txt)。后面还有演示项目与新手指引（第二个提交，进行中）。
+
+做了什么：新安装没有项目、没有论文、不自动联网。第一个迁移只在旧库已有数据时才建 `default_project`；`get_default_project_id()` 无项目返回 `None`，永不创建；需要项目的调用抛 `NoProject`（HTTP 400，`reason_code: "no_project"`）；`/api/home`、`/api/state` 无项目回 200 `{"no_project": true, "cards": [], "profile": null, ...}`；桌面后端启动不再放 10 篇世界模型种子、不再后台抓取，打包也不再带 `seeds.json`；没有关键词的项目刷新返回 `no_keywords`、不联网，只有字面 id `default_project`（旧库迁移来的）保留 "world model" 配方、种子标题回退和旧全局钉词。
+
+对已有用户的行为变化（写给下一位接手的人）：把项目全删光后不会再冒出一个空的“默认项目”，页面要把人带去创建页；没有关键词的非旧项目不再按 "world model" 抓取；旧的全局钉词不再落到最新项目上（以前 `list_projects()` 按创建时间倒序，“默认项目”其实是最新的那个）。
+
+没验证：前端还没处理 `no_project`（页面重定向在后续步骤接线，在此之前全新安装的界面不可用）；没构建、没在真实 `.app` 上首次启动；没有独立审查。
+
+---
+
+# 当前工作单元：检查更新 · 独立审查后的修正（2026-10-24）
+
+在 `b7cb191` 之上的新提交（未改写它）。变更记录、证据、ADR 0041 已同步。独立审查要求的 9 项：(1) 退出被取消：页面请求退出 1.5 秒后若仍在，就 `POST /api/update/cancel` 清掉待执行并恢复按钮；(2) macOS 脚本把结果写 `updates/result`，下次启动读一次，失败则提示并在访达显示 zip/备份；(3) 设置页显式检查清掉“已关闭”记录；(4) Windows 去掉 PowerShell，后端直接启动 setup.exe；(5) 后端读到 stdin EOF 后先启动待执行项再停服务；(6) 启动时当前版本不低于已下载版本就清空 `updates/`（留 log/result）；(7) `no_asset` 单独文案；(8) 资产 URL 严格等于 `…/download/<tag>/<名>`、Windows 文件名版本必须等于 tag、macOS `.app` 的 `CFBundleShortVersionString` 必须等于 tag 版本、ADR 写明 sha256 不保证真实性；(9) 补重定向白名单与大小上限测试。
+
+仍没验证：真实 GitHub、Windows 真机（setup.exe 在后端读到 EOF 时直接启动、NSIS 运行中检查）、真实 `.app` 上的替换。1.5 秒的取消判断是推断（`PDHPrepareQuit` 无返回值）：用户在退出确认框里想得更久再确认时，应用照常退出但不更新。
+
+---
+
+# 当前工作单元：检查更新（2026-10-24）
+
+worktree `update-check`，基线 main `36d2070`，类别 critical。[变更记录](../changes/2026-10-24-update-check.json)，[检查证据](evidence/2026-10-24-update-check-checks.txt)，[ADR 0041](decisions/0041-update-check.md)。
+
+起因：owner 要求“检测更新功能，要在 app 里提醒用户可以更新了，在 app 里可以点击更新键”，选定“查 GitHub 最新 Release + 下载对应平台安装包并打开”（不用 tauri-plugin-updater）。
+
+做了什么：Rust 外壳把版本以 `PDH_APP_VERSION` 传给后端（源码运行没有，视为开发版不检查）；`app/updater.py` 请求 `releases/latest`（6 小时缓存，失败静默，设置“自动检查更新”默认开，关了就不请求）；主页顶部一条细条“有新版本 vX.Y.Z · 更新 ×”（关闭按版本记在后端）；点“更新”由后端下载到 `<数据目录>/updates/` 并校验 `.sha256`，页面再走现有的 `PDHPrepareQuit` 退出；后端在读到外壳关闭 stdin 之后才启动安装程序（Windows 直接启动 setup.exe）或脱离的替换脚本（macOS 等外壳进程退出后用新 `.app` 替换旧的，任何失败回滚，再 `open`）。macOS 的 `.app` 不可写或解压失败时只在访达里显示 zip 提示手动替换。新的对外网络请求已登记在 ARCHITECTURE 与 ADR 0041；RELEASE.md 写明依赖的资产名、仓库公开、草稿要发布。`release.yml` 产出的资产名已核对，无需改。
+
+没验证：**从未向真实 GitHub 发过请求**（沙箱禁止）；Windows 辅助脚本与安装程序接管、macOS 脚本在真实 `.app` 上（Gatekeeper、目录权限）、桌面应用里的端到端点击（按要求没有构建）。没有独立审查。首次发布后请用旧版本实测一次。
+
+---
+
 # 当前工作单元：Windows 审查修正（2026-10-24，第六个提交）
 
 [变更记录](../changes/2026-10-24-windows-release-review-fixes.json)，[检查证据](evidence/2026-10-24-windows-release-review-fixes-checks.txt)。接在协调者的 `e60bac5`（`.gitattributes` 固定 LF：CI 第 5 轮里 Windows 检出成 CRLF，按源码切片的 5 个 Node 测试失败）之后；CI 第 6 轮已全绿。

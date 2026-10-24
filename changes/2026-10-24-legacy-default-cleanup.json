@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-legacy-default-cleanup",
+  "class": "critical",
+  "summary": "One-time cleanup of the untouched legacy default project (older desktop builds created default_project, ten world-model seed papers and an automatic fetch on first launch). app/legacy_cleanup.py runs once, only from the desktop start-up (app/desktop.py after the instance lock, PDH_APP_VERSION set) or a source run with PDH_LEGACY_CLEANUP=1; build_server does not open the library. Order: commit an in_progress marker, write and verify a uniquely named backup (separate connection, quick_check, row counts, marker present), then in one transaction re-check, delete and set the final marker. Cleans only when nothing was ever done in the project; any doubt keeps everything. Independent-review fixes: marker before backup, verified unique backup, profile-version kinds, language policy, AI previews / weekly AI analysis, multi-day batches, shared papers, desktop-only trigger, exploration evidence and other projects' category entries.",
+  "tasks": [
+    "PILOT-01",
+    "FEAT-ONBOARDING"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-DURABILITY",
+    "R-ONBOARDING"
+  ],
+  "files": [
+    "app/desktop.py",
+    "app/legacy_cleanup.py",
+    "app/server.py",
+    "changes/2026-10-24-legacy-default-cleanup.json",
+    "docs/ARCHITECTURE.md",
+    "docs/HANDOFF.md",
+    "docs/decisions/0042-first-run-demo-and-tour.md",
+    "docs/evidence/2026-10-24-legacy-default-cleanup-checks.txt",
+    "tests/test_legacy_cleanup.py"
+  ],
+  "scope_note": "Worktree onboarding-tour, fifth commit. Deletes user-library data, hence critical; the conditions are deliberately conservative.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Local SQLite work at start-up; no model call, network request or prompt.",
+    "before": "an untouched legacy default project and seed papers stayed in the library",
+    "after": "removed once, with a backup file",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    }
+  ],
+  "additional_checks": [],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Working agent; not independent",
+      "evidence": "docs/evidence/2026-10-24-legacy-default-cleanup-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not independently reviewed after the review fixes (critical class; it deletes data).",
+    "Not run on the owner's real old library; tests use a state reconstructed from the old migration and ensure_seed_papers.",
+    "The verified backup <db>.pre-legacy-cleanup-<time>-<id>.bak is never deleted automatically and holds the old data; restore = copy it over the database (it carries the in_progress marker, so it is not cleaned again).",
+    "Conservative by design: a library where anything was touched is left as it is; the owner may delete it by hand.",
+    "Cross-branch: after the cleanup, opening the same real library with an old main / v0.1.0 build creates a UUID default project and seeds it again; do not mix builds on one data directory.",
+    "Relies on table names and the old first-start shape (default_project, seed_keys_/last_refresh_ settings, profile version note 'initial'); an unknown state is kept (safe direction)."
+  ],
+  "review_notes": [
+    "Second independent review (after 414b513): mergeable; fixed in the follow-up commit: any second batch (same day included) keeps the project, unexpected stored-data shapes keep everything (recorded, not re-run), an interrupted in_progress run only drops its temporary copy. 39 cleanup tests, full suite OK."
+  ]
+}

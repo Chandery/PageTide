@@ -322,6 +322,7 @@ class MigrationNumberingTests(unittest.TestCase):
         # what the real database looked like: the channels branch's migration 005 recorded, mine never run
         conn.execute("CREATE TABLE channel_status (channel TEXT PRIMARY KEY)")
         conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (5, '2026-10-02T00:56:04+00:00')")
+        conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES ('default_project','默认项目','manual','2026-01-01','[]')")   # an older database that already held data had its default project
         conn.execute("INSERT INTO papers (key, title, created_at, project_id) VALUES ('k','T','2026-01-01','default_project')")
         conn.execute("INSERT INTO pdfs VALUES ('k', '/x/a.pdf', 'u', '2026-01-01')")
         conn.commit()
@@ -376,6 +377,7 @@ class AppCase(unittest.TestCase):
         (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.app = App(root=str(root), data_dir=str(root / "data"))
         self.addCleanup(self.app.store.close)
+        self.app.projects.create_project("Test project", "manual", [])   # a fresh app has no project
         mock.patch.object(pdf_fetch.time, "sleep").start()
         self.addCleanup(mock.patch.stopall)
 

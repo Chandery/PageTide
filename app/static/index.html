@@ -82,6 +82,7 @@
   .mc-card:hover .mc-edit, .mc-card[aria-selected="true"] .mc-edit, .mc-edit:focus-visible { opacity:1; }
   .mc-edit:hover { background:rgba(255,255,255,.2); transform:none; }
   .mc-card[aria-selected="true"] .mc-label { color:#fff; font-weight:600; }
+  .mc-demo { flex:0 0 auto; font-size:11px; padding:1px 7px; border-radius:999px; color:rgba(243,238,230,.8); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); }
   .mc-dot { flex:0 0 auto; width:6px; height:6px; border-radius:50%; background:var(--mark); }
   /* placeholder page for projects not opened in this session */
   .mc-ph-top { display:flex; align-items:center; gap:14px; padding:14px max(24px,calc((100% - 1200px)/2));
@@ -369,6 +370,8 @@
                border:1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
                background:color-mix(in srgb, var(--warn) 14%, transparent); }
   .devbanner b { color:var(--warn); }
+  .updatebar { max-width:1080px; margin:10px auto 0; display:flex; align-items:center; justify-content:center; gap:10px; font-size:12.5px; color:var(--muted); }
+  .updatebar[hidden] { display:none; }
 
   #toasts { position:fixed; right:18px; bottom:18px; z-index:95; display:flex; flex-direction:column; gap:10px; }
   .toast { padding:13px 17px; font-size:13px; background:var(--base); box-shadow:var(--sh-out);
@@ -430,6 +433,9 @@
   #readerPages.drop { outline:2px dashed var(--accent); outline-offset:-8px; }
   .saved, .badge.saved { color:var(--mark-text); }
   button.saved { color:var(--accent-text); background:var(--accent-soft); border-color:transparent; }
+  /* A mark the reader has set (not interested, too hard) shows pressed; pressing it again takes it back. */
+  button[data-fb][aria-pressed="true"], .card .actions button[data-fb][aria-pressed="true"] { color:var(--accent-text); background:var(--accent-soft); border-color:transparent; font-weight:600; }
+  .card.is-passed h3, .card.is-passed .meta, .card.is-passed .abs, .card.is-passed .ai-slot { opacity:.5; }
   button.ghost { background:transparent; border-color:transparent; box-shadow:none; }
   button.ghost:hover { background:var(--surface-2); border-color:transparent; }
   button:focus-visible, .btn:focus-visible { outline:2px solid var(--accent-text); outline-offset:3px; }
@@ -602,12 +608,21 @@
 
   /* — large screens: the steps (--s, --wrap) are defined in theme.css; the dense library page keeps --s:1 — */
   #organizationRoot { --s:1; }
+  /* The demo project is read-only for the person's data: whatever would fetch, call a model, read a PDF or edit is simply not shown. */
+  html.pdh-demo #btnRefresh, html.pdh-demo #refreshRecord, html.pdh-demo #pet, html.pdh-demo #petPanel,
+  html.pdh-demo .ai-action, html.pdh-demo .read-action, html.pdh-demo #dRead, html.pdh-demo .detail-projects,
+  html.pdh-demo #organizationRoot [data-action="suggest"], html.pdh-demo #organizationRoot [data-action="import"],
+  html.pdh-demo #organizationRoot [data-action="export"], html.pdh-demo #organizationRoot .org-notes,
+  html.pdh-demo #organizationRoot [data-action="read"], html.pdh-demo #organizationRoot .org-note-mark,
+  html.pdh-demo #organizationRoot [data-action="membership"], html.pdh-demo #organizationRoot [data-action="paper-membership"] { display:none !important; }
+  .ai-demo-tag { color:var(--muted, inherit); }
   @media (min-width:1700px) { .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } }
   @media (prefers-reduced-motion: reduce) { *{animation:none!important;transition:none!important;} }
 </style>
 <link rel="stylesheet" href="/organization.css">
 <link rel="stylesheet" href="/profile.css">
+<link rel="stylesheet" href="/tour.css">
 <script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
 <header class="top">
@@ -630,6 +645,7 @@
 </header>
 
 <div id="devbanner" class="devbanner" style="display:none"></div>
+<div id="updateBar" class="updatebar" hidden><span id="updateLabel"></span><button type="button" class="tiny" id="updateAct"></button><button type="button" class="tiny ghost" id="updateClose" title="关闭提示" aria-label="关闭提示">×</button></div>
 <div class="mc" id="projectSwitcher" role="dialog" aria-modal="true" aria-label="项目总览" hidden>
   <div class="mc-desk"></div>
   <div class="mc-bar">
@@ -645,7 +661,7 @@
       <div class="edition"><span class="live-dot"></span><span id="projectName">研究工作区</span></div>
       <div class="view-heading"><h1>今日推荐</h1></div>
       <div class="row" style="margin-top:16px">
-        <button class="primary" id="btnDaily">生成今日 5 篇</button>
+        <button class="primary" id="btnDaily">生成今日推荐</button>
         <button id="btnRefresh">抓取新论文</button>
         <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label>
       </div>
@@ -710,6 +726,8 @@
 <div id="settingsPage" class="page hidden" role="dialog" aria-modal="true" aria-label="设置"></div>
 <div id="toasts"></div>
 
+<script src="/feedback-marks.js"></script>
+<script src="/tour.js"></script>
 <script src="/profile-ui.js"></script>
 <script src="/project-switcher.js"></script>
 <script src="/figure-intent.js"></script>
@@ -725,7 +743,9 @@
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { triagingKeys:new Set(), aiFailures:{}, view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
-                currentProject:null, projects:[], maintained:new Set() };
+                currentProject:null, projects:[], realProjects:[], demo:null, maintained:new Set() };
+const DEMO_ID = 'pdh-demo';
+const inDemo = () => state.currentProject === DEMO_ID;   // the demo project exists only during the guided tour; its id is never stored
 
 // ------------------------------------------------------------ appearance
 function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m);
@@ -738,15 +758,28 @@ $('#modeBtn').onclick = async () => {
 };
 
 // ------------------------------------------------------------------ utils
+let demoBlocked = null;   // {message, at}: the demo's own "not here" notice for the request that just failed
+// The caller of that request then toasts its own error carrying the same text: drop that one (once, within a moment), nothing else.
+function suppressDemoDuplicate(msg, kind) {
+  if (kind === 'ok' || kind === 'ai' || !demoBlocked) return false;
+  const mine = demoBlocked; demoBlocked = null;
+  return Date.now() - mine.at < 2500 && String(msg).includes(mine.message);
+}
 function toast(msg, kind='ok', ms=3600) {
+  if (suppressDemoDuplicate(msg, kind)) return;
   const el = document.createElement('div'); el.className = `toast ${kind}`; el.textContent = msg;
   $('#toasts').appendChild(el);
   setTimeout(() => { el.style.opacity='0'; el.style.transform='translateY(6px)'; setTimeout(()=>el.remove(),250); }, ms);
 }
+// While the guided tour shows the demo project every request asks for it with this header (settings, update and tour state ignore it).
+function demoHeaders() { return inDemo() ? { 'X-PDH-Demo': '1' } : {}; }
 async function api(path, body) {
-  const res = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
+  const res = await fetch(path, body ? {method:'POST',headers:{'Content-Type':'application/json', ...demoHeaders()},body:JSON.stringify(body)} : {headers:demoHeaders()});
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 403 && data.reason_code === 'demo_readonly') { toast(data.error, 'warn'); demoBlocked = { message: data.error, at: Date.now() }; }
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
   return data;
 }
 function mdInline(t) {
@@ -789,7 +822,7 @@ function renderStats() {
 function aiSlot(c) {
   const text = state.aiFailures?.[`${state.currentProject || 'default'}:${c.key}`];
   const failure = text ? `<div class="sub err" role="alert">${esc(text)} <a href="/settings.html">打开设置</a></div>` : '';
-  if (c.summary) return `<div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
+  if (c.summary) return `<div class="ai-line"><b>${c.summary.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${esc(c.summary.one_liner || '')}</span>
     ${c.summary.why_relevant ? `<div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(c.summary.why_relevant)}</span></div>` : ''}</div>${failure}`;
   if (state.triaging || state.triagingKeys.has(c.key)) return `<div class="ai-loading"><span class="spin"></span>AI 正在速览…</div>`;
   return failure;
@@ -798,7 +831,7 @@ function aiSlot(c) {
 // How many of today's papers are exploration (outside what can be read now), and why there are none when there are none.
 function dailyButtonText() {
   if (state.route?.enabled !== false && state.route?.progress_verification_deferred) return '核验后生成推荐';
-  return state.route?.enabled !== false && state.route?.goal_status === 'completed' ? '生成今日发现' : '生成今日 5 篇';
+  return state.route?.enabled !== false && state.route?.goal_status === 'completed' ? '生成今日发现' : '生成今日推荐';
 }
 function renderRoute(route) {
   const panel = $('#routePanel');
@@ -910,10 +943,10 @@ function workTypeLabel(value) {
   return ({review:'综述', 'conference-paper':'会议论文', article:'期刊文章', preprint:'预印本'})[value] || value || '';
 }
 function cardHTML(c, i) {
-  const saved = c.saved || c.feedback === 'useful';
+  const v = window.PDHMarks.view(c), saved = v.saved;
   const exploring = c.route && /^explore/.test(c.route.kind || '');
   return `
-  <article class="card${exploring ? ' is-explore' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
+  <article class="card${exploring ? ' is-explore' : ''}${v.irrelevant ? ' is-passed' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
@@ -926,10 +959,9 @@ function cardHTML(c, i) {
     ${c.judgeAsk ? judgeAskHTML(c) : ''}
     <div class="actions">
       <span class="actions-fb">
-        <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
+        <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}" aria-pressed="${saved}">
           <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
-        <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
-        <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
+        ${window.PDHMarks.buttonsHTML(c, esc)}
       </span>
       <span class="actions-end">
         <button class="tiny ai-action" data-ai="${esc(c.key)}" ${state.triaging || state.triagingKeys.has(c.key) ? 'disabled' : ''} title="${c.summary ? '让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）' : '让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）'}"><i class="icon sparkles" aria-hidden="true"></i>${c.summary ? '重新速览' : 'AI 速览'}</button>
@@ -964,17 +996,31 @@ function renderProfile() {
 }
 
 // ------------------------------------------------------------------ projects
+// The switcher lists the person's projects, plus the demo while the tour is on. The demo is never stored as the current project.
+function syncProjects() {
+  state.projects = [...state.realProjects, ...(window.PDHTour.current() && state.demo ? [state.demo] : [])];
+}
+function applyDemoMode() {
+  const on = inDemo();
+  document.documentElement.classList.toggle('pdh-demo', on);
+  const auto = $('#autoAi');
+  if (auto && on) { auto.checked = true; const label = auto.closest('label'); if (label) label.hidden = true; }
+  else if (auto) { const label = auto.closest('label'); if (label) label.hidden = false; }
+}
+function rememberProject(id) { if (id && id !== DEMO_ID) localStorage.setItem('pdh-current-project', id); }
 async function loadProjects() {
   const data = await api('/api/projects');
-  state.projects = data.projects || [];
+  state.realProjects = (data.projects || []).filter(p => p.id !== DEMO_ID);
+  state.demo = data.demo || null;
+  syncProjects();
 
   // If no current project set, use first one
   if (state.currentProject && !state.projects.some(p => p.id === state.currentProject)) {
     state.currentProject = null;
   }
-  if (!state.currentProject && state.projects.length > 0) {
-    state.currentProject = state.projects[0].id;
-    localStorage.setItem('pdh-current-project', state.currentProject);
+  if (!state.currentProject && state.realProjects.length > 0) {
+    state.currentProject = state.realProjects[0].id;
+    rememberProject(state.currentProject);
   }
 
   renderProjectSelector();
@@ -983,15 +1029,28 @@ async function loadProjects() {
 function renderProjectSelector() {
   const current = state.projects.find(p => p.id === state.currentProject);
   $('#currentProjectName').textContent = current?.name || '选择项目';
-  $('#projectEdit').href = current ? `/project.html?project_id=${encodeURIComponent(current.id)}` : '/project.html';
+  $('#projectEdit').href = current && !current.demo ? `/project.html?project_id=${encodeURIComponent(current.id)}` : '/project.html';
+}
+$('#projectEdit').addEventListener('click', (e) => {
+  if (!inDemo()) return;
+  e.preventDefault();
+  toast('演示项目不能修改，创建自己的项目后在这里自定义', 'warn');
+});
+let tourLeaveTo = null;   // where to go once the tour has been ended by leaving the demo (a real project, the creation page)
+async function leaveDemo(url) {
+  if (!window.PDHTour.current()) { window.location.href = url; return; }
+  tourLeaveTo = url;
+  await window.PDHTour.skip();
 }
 
 async function switchProject(projectId) {
+  if (projectId !== DEMO_ID && window.PDHTour.current()) { rememberProject(projectId); await leaveDemo('/'); return; }   // leaving the demo for a real project ends the tour
   closeDetail();
   if (profileUI) profileUI.invalidate();
   state.currentProject = projectId;
+  applyDemoMode();
   showTriageFailure(null, null, projectId);
-  localStorage.setItem('pdh-current-project', projectId);
+  rememberProject(projectId);
   renderProjectSelector();
   window.PDHOrganization?.reset?.().catch?.(() => {});   // the library page follows the project
   await load();
@@ -1005,7 +1064,7 @@ const projectSwitcher = window.ProjectSwitcher.mount({
   getProjects: () => state.projects,
   getCurrent: () => state.currentProject,
   onSelect: id => switchProject(id),
-  onCreate: () => { window.location.href = '/project_creation.html'; },
+  onCreate: () => { leaveDemo('/project_creation.html'); },
   onEdit: p => { window.location.href = `/project.html?project_id=${encodeURIComponent(p.id)}`; },
   // The PDF reader zooms with the same pinch, so it never opens the overview.
   pinchIgnore: '.org-graph, #reader, .pdfbox',
@@ -1033,6 +1092,7 @@ async function load() {
   state.provider = data.provider || null;
   const aiReady = Boolean(state.provider && state.provider.configured);
   const autoAi = $('#autoAi');
+  if (autoAi && inDemo()) autoAi.checked = true;
   if (autoAi) {
     autoAi.title = aiReady ? '' : '尚未配置 API';
   }
@@ -1088,6 +1148,7 @@ function renderEligibility(snapshot) {
   }
 }
 async function autoMaintain() {
+  if (inDemo()) return;   // nothing is fetched in the demo
   const key = state.currentProject || 'default';
   if (state.maintained.has(key)) return;   // once per project per page session; the server enforces the interval
   state.maintained.add(key);
@@ -1234,38 +1295,56 @@ function selectView(view, openOrganization = true) {
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => selectView(t.dataset.view));
 
 // --------------------------------------------------------------- feedback
-async function doFeedback(key, action) {
+async function doFeedback(key, action, opts = {}) {
+  const project = state.currentProject ? { project_id: state.currentProject } : {};
+  const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;   // "已读懂" is recorded from the library, on a saved paper
+  const undo = !!opts.undo && (action === 'irrelevant' || action === 'too_hard');
+  let stored = null;   // the stored marks and library state the server answers with; they win over any guess
   if (action === 'unsave') {
-    const body = { key };
-    if (state.currentProject) body.project_id = state.currentProject;
-    await api('/api/unsave', body);
+    await api('/api/unsave', { key, ...project });
     toast('已取消收藏', 'warn');
+  } else if (undo) {
+    // Pressed again: take the mark back. A not-interested label is one record (undo by id); a difficulty mark is retracted.
+    const r = action === 'irrelevant'
+      ? await api('/api/undo', { feedback_id: Number(opts.feedbackId), ...project })
+      : await api('/api/feedback', { key, action, retract: true, ...project });
+    stored = r.state || null;
+    // A learning-map revision can turn the press into a fresh confirmation instead of a take-back: say what happened.
+    toast(r.reconfirmed ? `已记录：${said}` : `已撤销：${said}`, 'ok');
   } else {
-    const body = { key, action };
-    if (state.currentProject) body.project_id = state.currentProject;
-    const r = await api('/api/feedback', body);
-    const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;   // "已读懂" is recorded from the library, on a saved paper
+    const r = await api('/api/feedback', { key, action, ...project });
+    stored = r.state || null;
+    const alsoUnsaved = !!r.unsaved;   // the server took a saved paper out of the library in the same commit as the label
     toast(r.saved ? '已收藏'
           : action === 'understood' ? '已记录：已读懂'
+          : alsoUnsaved ? '已记录：不感兴趣，已取消收藏'
           : `已记录：${said}`,
           r.saved || r.interest_changed || action === 'understood' ? 'ok' : 'warn');
   }
   const card = state.cards.find(c => c.key === key);
   if (card) {
     if (action === 'unsave') { card.saved = false; card.feedback = null; }
-    else if (action === 'useful') card.saved = true;
+    else if (action === 'useful') { card.saved = true; card.feedback = 'useful'; }
     if (action === 'unsave' || action === 'irrelevant') {
       card.judgeAskGeneration = (card.judgeAskGeneration || 0) + 1;
       card.judgeAsk = false;
     }
-    if (action === 'understood' || action === 'too_hard') card.familiarity = action;   // a familiarity label never replaces the interest one
+    if (action === 'irrelevant') { card.feedback = undo ? null : 'irrelevant'; if (!undo) card.saved = false; }
+    if (action === 'understood' || action === 'too_hard') card.familiarity = undo ? null : action;   // a familiarity label never replaces the interest one
     if (action === 'useful' && state.route && state.route.graph && state.currentProject) {
       card.judgeAskGeneration = (card.judgeAskGeneration || 0) + 1;
       card.judgeAsk = true;   // offered, not sent; this interest must survive an older judgment job
     }
+    if (stored) Object.assign(card, { feedback: stored.feedback, feedback_id: stored.feedback_id, familiarity: stored.familiarity, saved: stored.saved });
   }
   renderCards();
   if (state.view === 'library') await refreshStats();
+}
+// A button that shows pressed takes its mark back when pressed again.
+function feedbackClick(button) {
+  const action = button.dataset.fb, pressed = button.getAttribute('aria-pressed') === 'true';
+  const opts = pressed && (action === 'irrelevant' || action === 'too_hard') ? { undo: true, feedbackId: button.dataset.fid } : {};
+  return doFeedback(button.dataset.key, action, opts);
 }
 $('#cards').addEventListener('click', (e) => {
   const rd = e.target.closest('button[data-read]');
@@ -1280,7 +1359,7 @@ $('#cards').addEventListener('click', (e) => {
     return;
   }
   const fb = e.target.closest('button[data-fb]');
-  if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
+  if (fb) { e.stopPropagation(); feedbackClick(fb).catch(x => toast(x.message, 'err')); return; }
   const card = e.target.closest('.card[data-key]');
   if (card) openDetail(card.dataset.key);
 });
@@ -1336,6 +1415,7 @@ async function openDetail(key) {
     if (!current()) return;
     const s = d.summary;
     const joinedProjectIds = new Set((d.projects || []).map(p => p.project_id));
+    const marks = window.PDHMarks.detailMarks(d), shown = window.PDHMarks.view(marks);
     $('#detail').innerHTML = `
       <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
       <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
@@ -1348,13 +1428,12 @@ async function openDetail(key) {
         <div class="detail-actions">
           <div class="actions-main">
             <button class="primary" id="dRead">阅读 PDF</button>
-            <button id="dToggle" class="${d.saved ? 'saved' : 'outline'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
-              ${d.saved ? '✓ 已收藏' : '☆ 收藏到论文库'}</button>
+            <button id="dToggle" class="${shown.saved ? 'saved' : 'outline'}" data-key="${esc(d.key)}" data-saved="${shown.saved}">
+              ${shown.saved ? '✓ 已收藏' : '☆ 收藏到论文库'}</button>
           </div>
           <div class="actions-more">
             ${d.url ? `<a class="btn tiny" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
-            <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
-            <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
+            ${window.PDHMarks.buttonsHTML(marks, esc)}
           </div>
         </div>
         ${(state.projects || []).filter(p => p.id !== state.currentProject).length ? `<section class="detail-section detail-projects"><h3>加入其他项目</h3>
@@ -1366,9 +1445,9 @@ async function openDetail(key) {
           </div>
         </section>` : ''}
         ${window.PDHPaperContext.html(d.context, d.key)}
-        ${s ? `<section class="detail-ai"><div class="ai-line"><b>AI 速览</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
+        ${s ? `<section class="detail-ai"><div class="ai-line"><b>${s.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
-        ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div></section>` : ''}
+        ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div>${inDemo() && d.arxiv_id ? `<div class="sub">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${esc(d.arxiv_id)}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</section>` : ''}
       </aside>`;
     $('#detail').classList.remove('hidden');
     const close = closeDetail;
@@ -1392,10 +1471,7 @@ async function openDetail(key) {
       const btn = ev.currentTarget, wasSaved = btn.dataset.saved === 'true';
       await doFeedback(d.key, wasSaved ? 'unsave' : 'useful');
       if (!current()) return;
-      const now = !wasSaved;
-      btn.dataset.saved = String(now);
-      btn.className = now ? 'saved' : 'outline';
-      btn.textContent = now ? '✓ 已收藏' : '☆ 收藏到论文库';
+      await openDetail(d.key);   // redrawn from the stored state: saving also clears a "not interested" mark
     };
   } catch (e) {
     if (current()) toast(`打不开详情：${e.message}`, 'err', 6000);
@@ -1418,7 +1494,7 @@ $('#detail').addEventListener('click', (e) => {
   }
   const fb = e.target.closest('button[data-fb]');
   // the open pane is drawn again so its buttons show the new state ("✓ 已读懂") instead of the old one
-  if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).then(() => { if ($('#detail .detail-panel')) return openDetail(fb.dataset.key); }).catch(x => toast(x.message, 'err'));
+  if (fb) feedbackClick(fb).then(() => { if ($('#detail .detail-panel')) return openDetail(fb.dataset.key); }).catch(x => toast(x.message, 'err'));
 });
 
 // --------------------------------------------------------------- settings
@@ -1475,14 +1551,25 @@ $('#settingsBtn').onclick = () => { window.location.href = '/settings.html'; };
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode!==229 && !document.querySelector('dialog[open]')) { closeDetail(); $('#settingsPage').classList.add('hidden'); hidePreview(); } });
 document.addEventListener('scroll', hidePreview, { passive: true });
 
-// Load projects first, then load home
+// Load projects first, then decide on the tour, then load home
 (async () => {
   try {
     const requested = new URLSearchParams(window.location.search).get('project_id');
-    if (requested) state.currentProject = requested;
+    if (requested && requested !== DEMO_ID) state.currentProject = requested;
     const saved = localStorage.getItem('pdh-current-project');
-    if (!requested && saved) state.currentProject = saved;
+    if (!requested && saved && saved !== DEMO_ID) state.currentProject = saved;
     await loadProjects();
+    if (!window.PDHTour.current()) {
+      let onboarding = null;
+      try { onboarding = await api('/api/onboarding'); } catch (e) { /* no tour this time */ }
+      if (onboarding && window.PDHTour.shouldOffer(onboarding, sessionStorage.getItem(window.PDHTour.OFFERED_KEY))) {
+        // The welcome card comes first (language, appearance); the demo sandbox is built when it is confirmed.
+        window.PDHTour.begin({ step: 'w0', version: onboarding.version, returnProject: state.realProjects.length ? state.currentProject : null });
+        syncProjects();
+      } else if (!state.realProjects.length) { window.location.replace('/project_creation.html'); return; }
+    }
+    if (window.PDHTour.current() && state.demo) { state.currentProject = DEMO_ID; renderProjectSelector(); }
+    applyDemoMode();
     const note = sessionStorage.getItem('pdh-notice');
     if (note) { sessionStorage.removeItem('pdh-notice'); toast(note, 'ok', 8000); }
     await load();
@@ -1490,6 +1577,13 @@ document.addEventListener('scroll', hidePreview, { passive: true });
     const wanted = new URLSearchParams(window.location.search).get('view');
     if (wanted === 'profile' || wanted === 'library') document.querySelector(`.tab[data-view="${wanted}"]`)?.click();
     autoMaintain();
+    window.PDHTour.boot('index', {
+      selectView: (view) => selectView(view),
+      hasRealProject: () => state.realProjects.length > 0,
+      api: (path, body) => api(path, body),
+      onFinish: () => { if (tourLeaveTo) { window.location.href = tourLeaveTo; return false; } },
+      onError: (e) => toast(e.message, 'warn'),
+    });
   } catch (e) {
     toast(`加载失败：${e.message}`, 'err');
   }
@@ -2502,6 +2596,8 @@ document.addEventListener('keydown', (e) => {
 <script src="/route-detail.js"></script>
 <script src="/paper-context.js"></script>
 <script src="/organization.js"></script>
+<script src="/update-banner.js"></script>
+<script>window.PDHUpdate.mount();</script>
 
 </body>
 </html>

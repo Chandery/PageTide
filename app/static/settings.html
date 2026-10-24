@@ -148,6 +148,10 @@
           <option value="auto">跟随系统</option>
         </select>
       </div>
+      <div class="field">
+        <label for="replayTourBtn">新手指引</label>
+        <button type="button" id="replayTourBtn" class="ghost">重新查看</button>
+      </div>
     </div>
 
     <div class="section">
@@ -190,6 +194,20 @@
       <div class="field">
         <label for="newPaperBoost">偏向新论文</label>
         <input type="number" id="newPaperBoost" value="0.5" min="0" max="1" step="0.1">
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>更新</h2>
+      <div class="field">
+        <label class="inline">
+          <input type="checkbox" id="autoCheckUpdates" checked>
+          自动检查更新
+        </label>
+      </div>
+      <div class="field">
+        <button type="button" id="checkUpdateBtn" class="ghost">检查更新</button>
+        <span id="updateStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
       </div>
     </div>
 
@@ -465,6 +483,7 @@
       $('#decayWindow').value    = settings.decayWindow    ?? 30;
       $('#newPaperBoost').value  = settings.newPaperBoost  ?? 0.5;
       $('#routeBeta').checked    = settings.routeBeta === true;
+      $('#autoCheckUpdates').checked = settings.autoCheckUpdates !== false;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
       $('#sourceBaiduScholar').checked = settings.sourceBaiduScholar === true;      // off until the user switches it on
@@ -536,6 +555,7 @@
         decayWindow:    Number($('#decayWindow').value),
         newPaperBoost:  Number($('#newPaperBoost').value),
         routeBeta:      $('#routeBeta').checked,
+        autoCheckUpdates: $('#autoCheckUpdates').checked,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
         sourceBaiduScholar: $('#sourceBaiduScholar').checked && baiduConfirmed,
@@ -641,7 +661,46 @@
       finally {button.disabled=false;}
     };
 
+    // "Check now" is an explicit request: it ignores the cache and the automatic-check switch.
+    $('#checkUpdateBtn').onclick = async () => {
+      const button=$('#checkUpdateBtn'), target=$('#updateStatus');
+      if(button.disabled)return;
+      button.disabled=true;
+      try {
+        const res=await fetch('/api/update?force=1'); const data=await res.json();
+        if(data.reason_code==='dev_build')window.PDHDialogs.notice('开发版不检查更新',{target,kind:'info'});
+        else if(data.reason_code==='no_asset')window.PDHDialogs.notice('新版本暂无适用于本机的安装包',{target,kind:'info'});
+        else if(data.status!=='ok')window.PDHDialogs.notice('暂时无法检查更新',{target,kind:'error'});
+        else if(data.available)window.PDHDialogs.notice(`有新版本 v${data.latest}，回到主页即可更新`,{target,kind:'success'});
+        else window.PDHDialogs.notice('已是最新版本',{target,kind:'success'});
+      } catch(e) {window.PDHDialogs.notice('暂时无法检查更新',{target,kind:'error'});}
+      finally {button.disabled=false;}
+    };
+
+    // Replay the first-run tour: a fresh demo sandbox, then the main page shows it. The project to come back to is the current real one.
+    $('#replayTourBtn').onclick = async () => {
+      const button=$('#replayTourBtn');
+      if(button.disabled)return;
+      button.disabled=true;
+      try {
+        const list=await (await fetch('/api/projects')).json();
+        const ids=(list.projects||[]).map(p=>p.id), saved=localStorage.getItem('pdh-current-project');
+        const returnProject=ids.includes(saved)?saved:(ids[0]||null);
+        const res=await fetch('/api/onboarding'); const data=await res.json().catch(()=>({}));
+        if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
+        // The welcome card (language, appearance) comes first; the demo sandbox is built when it is confirmed.
+        window.PDHTour.begin({step:'w0',version:data.version,returnProject});
+        window.location.href='/';
+      } catch(e) {
+        window.PDHDialogs.notice(`打不开新手指引：${e.message}`,{target:$('#settingsStatus'),kind:'error'});
+        button.disabled=false;
+      }
+    };
+
     loadSettings();
   </script>
+  <link rel="stylesheet" href="/tour.css">
+  <script src="/tour.js"></script>
+  <script>window.PDHTour.boot('settings', {});</script>
 </body>
 </html>

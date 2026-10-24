@@ -115,8 +115,8 @@ test('the last-fetch line and the fetch toast translate, singular and plural', (
 });
 test('the fetch toast that points at the generate button translates, label included', () => {
   const { i18n } = load('en-US', PACK);
-  assert.equal(i18n.translate('抓到 33 篇，新 10 篇，点「生成今日 5 篇」查看'), 'Fetched 33 papers, 10 new, click “Pick today\'s 5” to see them');
-  assert.equal(i18n.translate('抓到 1 篇，新 1 篇，点「Pick today\'s 5」查看'), 'Fetched 1 paper, 1 new, click “Pick today\'s 5” to see them');
+  assert.equal(i18n.translate('抓到 33 篇，新 10 篇，点「生成今日推荐」查看'), 'Fetched 33 papers, 10 new, click “Pick today\'s papers” to see them');
+  assert.equal(i18n.translate('抓到 1 篇，新 1 篇，点「Pick today\'s papers」查看'), 'Fetched 1 paper, 1 new, click “Pick today\'s papers” to see them');
 });
 test('words, names and AI text are never half-translated', () => {
   const { i18n } = load('en-US', PACK);

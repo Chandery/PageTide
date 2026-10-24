@@ -160,7 +160,8 @@ class ManageTests(Fixture):
         for p in self.app.projects.list_projects():
             self.app.delete_project(p["id"])
         self.assertEqual(self.app.projects.list_projects(), [])
-        self.assertTrue(self.app.get_default_project_id())   # an empty default appears on next use
+        self.assertIsNone(self.app.get_default_project_id())   # nothing invents a project: the person makes the next one
+        self.assertEqual(self.app.projects.list_projects(), [])
 
 
 class ProjectPlanTests(Fixture):

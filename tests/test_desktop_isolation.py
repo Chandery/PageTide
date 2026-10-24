@@ -24,6 +24,8 @@ class DesktopIsolationTests(unittest.TestCase):
         (directory / "AI_DISABLED").touch()
         store = Store(directory / "paperdighelper.sqlite")
         store.init()
+        store.conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES ('p','P','manual','2026-01-01','[]')")
+        store.conn.commit()
         store.upsert_papers([{"key": key, "title": key,
                               "abstract": "Disposable offline test paper.",
                               "published": "2026-01-01", "group_name": "field"}])
