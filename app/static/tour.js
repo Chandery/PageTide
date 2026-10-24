@@ -24,6 +24,11 @@
      ready (optional selector to wait for before showing; defaults to target), view (index tab to
      show first), primary / secondary ({label, choice}), skipTo (step for choice 'skip'), end. */
   const STEPS = [
+    // The welcome card: the person's language is unknown, so it is bilingual and has no spotlight target.
+    // Its look and wording live in renderWelcome(); text/phase here are the Chinese defaults.
+    { id: 'w0', page: 'index', phase: '开始', target: null, advance: 'next', welcome: true,
+      text: '欢迎使用 PaperDigHelper',
+      primary: { label: '开始', choice: 'primary' } },
     { id: 'p1', page: 'index', phase: '项目', target: '#projectBtn', advance: 'next',
       text: '这是项目。点它切换项目，或用 ＋ 新建。现在打开的是演示项目。',
       primary: { label: '下一步', choice: 'primary' } },
@@ -44,7 +49,7 @@
       text: '中文论文可打开百度学术，需要千帆密钥。',
       primary: { label: '回到演示', choice: 'primary' } },
     { id: 'r1', page: 'index', phase: '推荐', target: '#btnDaily', advance: 'click', view: 'today',
-      text: '点这里生成今天的 5 篇推荐。' },
+      text: '点这里生成今天的推荐。' },
     { id: 'r2', page: 'index', phase: '推荐', target: '#cards .card:first-child .ai-line', advance: 'next', view: 'today',
       text: '这是 AI 速览：一句话讲清论文和它与你的关系。演示里的速览是预先写好的。',
       primary: { label: '下一步', choice: 'primary' } },
@@ -108,6 +113,28 @@
   /* Where the tour ends. No real project: the creation page, with the c1 hint there. */
   function finishTarget(hasRealProject) {
     return hasRealProject ? { url: PAGE_URL.index, step: null } : { url: PAGE_URL.creation, step: 'c1' };
+  }
+
+  /* Welcome card wording, one table per interface language. Each card shows only the chosen language; the two
+     group labels are always bilingual so a reader of either language can find them. */
+  const WELCOME_GROUPS = { lang: '语言 / Language', mode: '外观 / Appearance' };
+  const WELCOME = {
+    'zh-CN': { title: '欢迎使用 PaperDigHelper', light: '浅色', dark: '深色', auto: '跟随系统', start: '开始', skip: '跳过指引' },
+    'en-US': { title: 'Welcome to PaperDigHelper', light: 'Light', dark: 'Dark', auto: 'System', start: 'Start', skip: 'Skip tour' },
+  };
+  const THEME_MODES = ['light', 'dark', 'auto'];
+  /* The saved interface language wins; without one the browser language decides (zh* -> Chinese, else English). */
+  function welcomeLang(saved, navigatorLanguage) {
+    if (saved === 'zh-CN' || saved === 'en-US') return saved;
+    return /^zh/i.test(String(navigatorLanguage || '')) ? 'zh-CN' : 'en-US';
+  }
+  /* Save the two choices through io = {saveLanguage(lang), saveTheme(mode)}. Both are always tried; returns the
+     first error or null. Used by Start and by Skip alike: a person who skipped has still chosen. */
+  async function saveChoice(choice, io) {
+    let failure = null;
+    try { await io.saveLanguage(choice.lang); } catch (e) { failure = e; }
+    try { await io.saveTheme(choice.mode); } catch (e) { failure = failure || e; }
+    return failure;
   }
 
   function serialize(state) {
@@ -291,6 +318,130 @@
     return bub;
   }
 
+
+  /* ---------- welcome card ---------- */
+
+  async function welcomeInit() {
+    let saved = null;
+    try {
+      const res = await fetch('/api/user_settings');
+      if (res.ok) saved = ((await res.json()).settings || {}).language;
+    } catch (e) { /* the browser language decides */ }
+    let mode = 'auto';
+    try { if (window.PDHTheme) mode = await window.PDHTheme.ready; } catch (e) { /* keep auto */ }
+    if (THEME_MODES.indexOf(mode) < 0) mode = 'auto';
+    return { lang: welcomeLang(saved, typeof navigator !== 'undefined' ? navigator.language : ''), mode: mode };
+  }
+
+  /* A radiogroup of buttons: arrow keys move and select, only the selected one is a tab stop. */
+  function radioGroup(labelId, values, current, onPick) {
+    const el = mk('div', 'seg pdh-tour-seg');
+    el.setAttribute('role', 'radiogroup'); el.setAttribute('aria-labelledby', labelId);
+    const buttons = values.map(function (v) {
+      const b = mk('button', ''); b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.value = v;
+      b.addEventListener('click', function () { pick(v, false); });
+      el.appendChild(b);
+      return b;
+    });
+    function mark(v) {
+      buttons.forEach(function (b) { const on = b.dataset.value === v; b.setAttribute('aria-checked', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; });
+    }
+    function pick(v, focus) {
+      mark(v);
+      if (focus) buttons.filter(function (b) { return b.dataset.value === v; })[0].focus({ preventScroll: true });
+      onPick(v);
+    }
+    el.addEventListener('keydown', function (e) {
+      const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      const i = buttons.findIndex(function (b) { return b.getAttribute('aria-checked') === 'true'; });
+      pick(buttons[(i + dir + buttons.length) % buttons.length].dataset.value, true);
+    });
+    mark(current);
+    return { el: el, buttons: buttons };
+  }
+
+  function applyMode(mode) {
+    if (window.PDHTheme && window.PDHTheme.apply) window.PDHTheme.apply(mode);
+    else if (typeof document !== 'undefined') document.documentElement.dataset.mode = mode === 'dark' ? 'dark' : 'light';
+  }
+
+  const realIO = {
+    saveLanguage: async function (lang) {
+      const res = await fetch('/api/user_settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { language: lang }, merge: true }) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    },
+    saveTheme: async function (mode) { if (window.PDHTheme) await window.PDHTheme.set(mode); },
+  };
+
+  function renderWelcome(init) {
+    const ui = ctx.ui, hooks = ctx.hooks;
+    if (ui.bubble) ui.bubble.remove();
+    const choice = { lang: init.lang, mode: init.mode };
+    const bub = mk('div', 'pdh-tour-bubble pdh-tour-welcome');
+    bub.setAttribute('data-no-i18n', '');   // this card writes both languages itself
+    bub.setAttribute('role', 'dialog'); bub.setAttribute('aria-labelledby', 'pdh-tour-title');
+    bub.tabIndex = -1;
+    const title = mk('h2', 'pdh-tour-title'); title.id = 'pdh-tour-title';
+    bub.appendChild(title);
+    function group(key, values, current, onPick) {
+      const wrap = mk('div', 'pdh-tour-group');
+      const label = mk('div', 'pdh-tour-grouplabel', WELCOME_GROUPS[key]); label.id = 'pdh-tour-g-' + key;
+      const g = radioGroup(label.id, values, current, onPick);
+      wrap.appendChild(label); wrap.appendChild(g.el);
+      bub.appendChild(wrap);
+      return g;
+    }
+    const langGroup = group('lang', ['zh-CN', 'en-US'], choice.lang, function (v) { choice.lang = v; paint(); });
+    langGroup.buttons[0].textContent = '中文'; langGroup.buttons[0].lang = 'zh';
+    langGroup.buttons[1].textContent = 'English'; langGroup.buttons[1].lang = 'en';
+    const modeGroup = group('mode', THEME_MODES, choice.mode, function (v) { choice.mode = v; applyMode(v); });
+    const row = mk('div', 'pdh-tour-actions');
+    const skip = mk('button', 'pdh-tour-skip', ''); skip.type = 'button';
+    const main = mk('button', 'pdh-tour-btn pdh-tour-main', ''); main.type = 'button';
+    row.appendChild(skip); row.appendChild(mk('span', 'pdh-tour-spacer')); row.appendChild(main);
+    bub.appendChild(row);
+    function paint() {
+      const w = WELCOME[choice.lang];
+      bub.lang = choice.lang === 'zh-CN' ? 'zh' : 'en';
+      title.textContent = w.title;
+      modeGroup.buttons.forEach(function (b) { b.textContent = w[b.dataset.value]; });
+      skip.textContent = w.skip; main.textContent = w.start;
+    }
+    paint();
+    let busy = false;
+    function lock(on) { busy = on; main.disabled = on; skip.disabled = on; }
+    main.addEventListener('click', async function () {
+      if (busy) return;
+      lock(true);
+      const failure = await saveChoice(choice, realIO);
+      if (failure && hooks.onError) hooks.onError(failure);
+      try {
+        // The sandbox is built in the language just saved, then the page reloads so the language pack applies.
+        if (hooks.api) await hooks.api('/api/onboarding', { action: 'start' });
+        else {
+          const res = await fetch('/api/onboarding', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'start' }) });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        }
+      } catch (e) { if (hooks.onError) hooks.onError(e); lock(false); return; }
+      const cur = pending() || { version: null, returnProject: null };
+      writeState({ step: 'p1', version: cur.version, returnProject: cur.returnProject });
+      if (hooks.reload) hooks.reload(); else window.location.reload();
+    });
+    skip.addEventListener('click', async function () {
+      if (busy) return;
+      lock(true);
+      const failure = await saveChoice(choice, realIO);
+      if (failure && hooks.onError) hooks.onError(failure);
+      await skipTour();
+      if (ctx && ctx.ui) lock(false);   // finish() was refused to navigate: the card is still there
+    });
+    ui.root.appendChild(bub);
+    ui.bubble = bub; ui.main = main;
+  }
+
   function focusStep(st, el, anchored) {
     const ui = ctx.ui;
     if (ui.main) { ui.main.focus({ preventScroll: true }); return; }
@@ -343,6 +494,17 @@
     writeState({ step: st.id, version: cur.version, returnProject: cur.returnProject });
     if (st.view && ctx.hooks.selectView) { try { ctx.hooks.selectView(st.view); } catch (e) { /* the page decides */ } }
     if (st.hook === 'openSwitcher' && ctx.hooks.openSwitcher) { try { ctx.hooks.openSwitcher(); } catch (e) { /* ignore */ } }
+    if (st.welcome) {
+      const init = await welcomeInit();
+      if (!ctx || token !== ctx.token) return;
+      ctx.ui = buildUI();
+      ctx.active = true; ctx.anchored = false;
+      renderWelcome(init);
+      layout(null, true); placeBubble(null);
+      ctx.ui.main.focus({ preventScroll: true });
+      ctx.raf = window.requestAnimationFrame(frame);
+      return;
+    }
     const el = st.target ? await waitFor(st.ready || st.target, WAIT_MS, st.ready ? null : st.closest) : null;
     if (!ctx || token !== ctx.token) return;   // superseded while waiting
     const anchor = el ? pick(st.target, st.closest) : null;
@@ -462,6 +624,7 @@
 
   return { STEPS: STEPS, KEY: KEY, OFFERED_KEY: OFFERED_KEY, DEMO_ID: DEMO_ID, PAGE_URL: PAGE_URL,
     shouldOffer: shouldOffer, next: next, stepsFor: stepsFor, finishTarget: finishTarget,
-    serialize: serialize, parse: parse, current: current, pending: pending, setStorage: setStorage,
+    serialize: serialize, parse: parse, WELCOME: WELCOME, THEME_MODES: THEME_MODES,
+    welcomeLang: welcomeLang, saveChoice: saveChoice, current: current, pending: pending, setStorage: setStorage,
     waitFor: waitFor, begin: begin, boot: boot, finish: finish, skip: skipTour, stop: stop };
 });

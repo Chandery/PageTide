@@ -683,13 +683,13 @@
       if(button.disabled)return;
       button.disabled=true;
       try {
-        const post=(body)=>fetch('/api/onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
         const list=await (await fetch('/api/projects')).json();
         const ids=(list.projects||[]).map(p=>p.id), saved=localStorage.getItem('pdh-current-project');
         const returnProject=ids.includes(saved)?saved:(ids[0]||null);
-        const res=await post({action:'start'}); const data=await res.json().catch(()=>({}));
+        const res=await fetch('/api/onboarding'); const data=await res.json().catch(()=>({}));
         if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
-        window.PDHTour.begin({version:(data.state||{}).version,returnProject});
+        // The welcome card (language, appearance) comes first; the demo sandbox is built when it is confirmed.
+        window.PDHTour.begin({step:'w0',version:data.version,returnProject});
         window.location.href='/';
       } catch(e) {
         window.PDHDialogs.notice(`打不开新手指引：${e.message}`,{target:$('#settingsStatus'),kind:'error'});

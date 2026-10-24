@@ -1,3 +1,13 @@
+# 当前工作单元：欢迎卡、按钮去数字、不感兴趣/太难可见可撤销（2026-10-24，onboarding-tour 同一变更记录）
+
+owner 要求：不能默认用户是中文用户，首步先选界面语言和明暗；每日推荐数可调，按钮不能写 5；点不感兴趣后卡片没有痕迹。
+
+做了什么：(1) 指引第一步 `w0`（`tour.js`）：居中双语卡片，语言（中文/English）与外观（浅色/深色/跟随系统）两个 radiogroup，选语言即时换卡片文案，选外观即时预览；预选已保存设置，否则按 `navigator.language`。“开始”：先 `POST /api/user_settings {merge:true}` 存语言、`PDHTheme.set` 存主题，再 `POST /api/onboarding start`（演示沙盒按刚存的语言重置），写 p1 状态后整页重载；“跳过指引”也保存两项再结束。主页、设置页“重新查看”、创建页“看看演示”都从 w0 开始（它们不再自己 POST start）。(2) 按钮“生成今日推荐”，指引文案与测试同步。(3) `app/static/feedback-marks.js`：卡片与详情页的“不感兴趣”“太难”带 `aria-pressed` 按下态，不感兴趣时卡片淡化；再点一次撤销（不感兴趣走 `/api/undo` 按记录 id，太难走 `/api/feedback retract`）；收藏与不感兴趣互斥（标不感兴趣时若已收藏会同时取消收藏）；卡片带 `feedback_id`，所有反馈写接口返回 `state`（存储的真实标记与收藏状态），刷新后保持。
+
+浏览器验证：已在预览窗格逐项做过，见 [证据](evidence/2026-10-24-onboarding-tour-checks.txt)（英文深色全程、中文浅色到 r2、跳过也保存、标记按下/刷新/撤销/详情页；真实库计数仍为 0）。没验证：冻结二进制、Windows、真实 WKWebView 的 sessionStorage、独立审查；feedback 改动后没有再整套重走一遍后半段步骤。注意：不感兴趣会取消收藏（无确认框），撤销不会自动恢复收藏。
+
+---
+
 # 当前工作单元：演示项目与新手指引（2026-10-24，onboarding-tour 第二个提交：后端 + 前端接线）
 
 [变更记录](../changes/2026-10-24-onboarding-tour.json)，[检查证据](evidence/2026-10-24-onboarding-tour-checks.txt)，[ADR 0042](decisions/0042-first-run-demo-and-tour.md)，需求 `R-ONBOARDING`、发布门 `E-ONBOARDING`（not_run）、任务 `FEAT-ONBOARDING`（review）。

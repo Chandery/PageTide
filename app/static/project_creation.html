@@ -195,10 +195,10 @@
     link.addEventListener('click',async e=>{
       e.preventDefault();
       try {
-        const res=await fetch('/api/onboarding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start'})});
+        const res=await fetch('/api/onboarding');
         const data=await res.json();
         if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
-        PDHTour.begin({version:(data.state||{}).version,returnProject:null});
+        PDHTour.begin({step:'w0',version:data.version,returnProject:null});   // the welcome card builds the sandbox
         window.location.href='/';
       } catch(err) { window.PDHDialogs.notice(`打不开演示：${err.message}`,{target:document.getElementById('creationQuitStatus'),kind:'error'}); }
     });

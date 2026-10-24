@@ -63,7 +63,7 @@ function profile(b){const page=b.context.PDHProfile.create(b.root,{api:async()=>
 test('actual recommendation cards preserve original titles and show no source-report language lines in either interface',()=>{
   for(const lang of ['zh-CN','en-US']){
     const b=browser(lang),src=read('index.html');vm.runInContext(read('paper-policy.js'),b.context);
-    Object.assign(b.context,{esc:b.context.PDHProfile.esc,state:{triaging:false,triagingKeys:new Set(),currentProject:'p'},pdfBadge:()=>'',routeBadge:()=>'',explorationEvidence:()=>'',aiSlot:()=>'<b>AI 速览</b><span data-no-i18n>AI 中文解释</span>'});
+    Object.assign(b.context,{window:{PDHMarks:require('../app/static/feedback-marks.js')},esc:b.context.PDHProfile.esc,state:{triaging:false,triagingKeys:new Set(),currentProject:'p'},pdfBadge:()=>'',routeBadge:()=>'',explorationEvidence:()=>'',aiSlot:()=>'<b>AI 速览</b><span data-no-i18n>AI 中文解释</span>'});
     vm.runInContext(src.slice(src.indexOf('function cardHTML('),src.indexOf('function renderCards(')),b.context);
     b.root.innerHTML=b.context.cardHTML({key:'paper',title:'中文原始题名',language:{metadata_language:'en',metadata_source:'OpenAlex',fulltext_status:'unverified',title_metadata_conflict:true},why:''},0);b.flush();
     assert.equal(b.root.querySelector('.paper-title').textContent,'中文原始题名');assert.match(b.text(),/AI 中文解释/);assert.doesNotMatch(b.text(),/OpenAlex|来源报告语言|全文语言未核验|题名文字与英文来源报告不一致|Source-reported language|Full-text language|title.*source.*report/i);

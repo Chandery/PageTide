@@ -433,6 +433,9 @@
   #readerPages.drop { outline:2px dashed var(--accent); outline-offset:-8px; }
   .saved, .badge.saved { color:var(--mark-text); }
   button.saved { color:var(--accent-text); background:var(--accent-soft); border-color:transparent; }
+  /* A mark the reader has set (not interested, too hard) shows pressed; pressing it again takes it back. */
+  button[data-fb][aria-pressed="true"], .card .actions button[data-fb][aria-pressed="true"] { color:var(--accent-text); background:var(--accent-soft); border-color:transparent; font-weight:600; }
+  .card.is-passed h3, .card.is-passed .meta, .card.is-passed .abs, .card.is-passed .ai-slot { opacity:.5; }
   button.ghost { background:transparent; border-color:transparent; box-shadow:none; }
   button.ghost:hover { background:var(--surface-2); border-color:transparent; }
   button:focus-visible, .btn:focus-visible { outline:2px solid var(--accent-text); outline-offset:3px; }
@@ -657,7 +660,7 @@
       <div class="edition"><span class="live-dot"></span><span id="projectName">研究工作区</span></div>
       <div class="view-heading"><h1>今日推荐</h1></div>
       <div class="row" style="margin-top:16px">
-        <button class="primary" id="btnDaily">生成今日 5 篇</button>
+        <button class="primary" id="btnDaily">生成今日推荐</button>
         <button id="btnRefresh">抓取新论文</button>
         <label class="switch"><input type="checkbox" id="autoAi" checked> 自动 AI 速览</label>
       </div>
@@ -722,6 +725,7 @@
 <div id="settingsPage" class="page hidden" role="dialog" aria-modal="true" aria-label="设置"></div>
 <div id="toasts"></div>
 
+<script src="/feedback-marks.js"></script>
 <script src="/tour.js"></script>
 <script src="/profile-ui.js"></script>
 <script src="/project-switcher.js"></script>
@@ -820,7 +824,7 @@ function aiSlot(c) {
 // How many of today's papers are exploration (outside what can be read now), and why there are none when there are none.
 function dailyButtonText() {
   if (state.route?.enabled !== false && state.route?.progress_verification_deferred) return '核验后生成推荐';
-  return state.route?.enabled !== false && state.route?.goal_status === 'completed' ? '生成今日发现' : '生成今日 5 篇';
+  return state.route?.enabled !== false && state.route?.goal_status === 'completed' ? '生成今日发现' : '生成今日推荐';
 }
 function renderRoute(route) {
   const panel = $('#routePanel');
@@ -932,10 +936,10 @@ function workTypeLabel(value) {
   return ({review:'综述', 'conference-paper':'会议论文', article:'期刊文章', preprint:'预印本'})[value] || value || '';
 }
 function cardHTML(c, i) {
-  const saved = c.saved || c.feedback === 'useful';
+  const v = window.PDHMarks.view(c), saved = v.saved;
   const exploring = c.route && /^explore/.test(c.route.kind || '');
   return `
-  <article class="card${exploring ? ' is-explore' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
+  <article class="card${exploring ? ' is-explore' : ''}${v.irrelevant ? ' is-passed' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
     <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
@@ -948,10 +952,9 @@ function cardHTML(c, i) {
     ${c.judgeAsk ? judgeAskHTML(c) : ''}
     <div class="actions">
       <span class="actions-fb">
-        <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}">
+        <button class="tiny ${saved ? 'saved' : ''}" data-fb="${saved ? 'unsave' : 'useful'}" data-key="${esc(c.key)}" aria-pressed="${saved}">
           <i class="icon bookmark" aria-hidden="true"></i>${saved ? '已收藏' : '收藏'}</button>
-        <button class="tiny" data-fb="irrelevant" data-key="${esc(c.key)}">不感兴趣</button>
-        <button class="tiny" data-fb="too_hard" data-key="${esc(c.key)}">太难</button>
+        ${window.PDHMarks.buttonsHTML(c, esc)}
       </span>
       <span class="actions-end">
         <button class="tiny ai-action" data-ai="${esc(c.key)}" ${state.triaging || state.triagingKeys.has(c.key) ? 'disabled' : ''} title="${c.summary ? '让 AI 重新速览这一篇（1 次调用，只发送这一篇的标题和摘要）' : '让 AI 速览这一篇（1 次调用，只发送这一篇的标题和摘要）'}"><i class="icon sparkles" aria-hidden="true"></i>${c.summary ? '重新速览' : 'AI 速览'}</button>
@@ -1285,38 +1288,61 @@ function selectView(view, openOrganization = true) {
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => selectView(t.dataset.view));
 
 // --------------------------------------------------------------- feedback
-async function doFeedback(key, action) {
+async function doFeedback(key, action, opts = {}) {
+  const project = state.currentProject ? { project_id: state.currentProject } : {};
+  const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;   // "已读懂" is recorded from the library, on a saved paper
+  const undo = !!opts.undo && (action === 'irrelevant' || action === 'too_hard');
+  let stored = null;   // the stored marks and library state the server answers with; they win over any guess
   if (action === 'unsave') {
-    const body = { key };
-    if (state.currentProject) body.project_id = state.currentProject;
-    await api('/api/unsave', body);
+    await api('/api/unsave', { key, ...project });
     toast('已取消收藏', 'warn');
+  } else if (undo) {
+    // Pressed again: take the mark back. A not-interested label is one record (undo by id); a difficulty mark is retracted.
+    const r = action === 'irrelevant'
+      ? await api('/api/undo', { feedback_id: Number(opts.feedbackId), ...project })
+      : await api('/api/feedback', { key, action, retract: true, ...project });
+    stored = r.state || null;
+    toast(`已撤销：${said}`, 'ok');
   } else {
-    const body = { key, action };
-    if (state.currentProject) body.project_id = state.currentProject;
-    const r = await api('/api/feedback', body);
-    const said = { irrelevant: '不感兴趣', too_hard: '太难', understood: '已读懂' }[action] || action;   // "已读懂" is recorded from the library, on a saved paper
+    const r = await api('/api/feedback', { key, action, ...project });
+    stored = r.state || null;
+    let alsoUnsaved = false;
+    const wasSaved = stored ? stored.saved : !!(state.cards.find(c => c.key === key) || {}).saved;
+    if (action === 'irrelevant' && wasSaved) {   // not interested and saved cannot both stand: the latest label wins
+      await api('/api/unsave', { key, ...project });
+      alsoUnsaved = true;
+      if (stored) stored = { ...stored, saved: false };
+    }
     toast(r.saved ? '已收藏'
           : action === 'understood' ? '已记录：已读懂'
+          : alsoUnsaved ? '已记录：不感兴趣，已取消收藏'
           : `已记录：${said}`,
           r.saved || r.interest_changed || action === 'understood' ? 'ok' : 'warn');
   }
   const card = state.cards.find(c => c.key === key);
   if (card) {
     if (action === 'unsave') { card.saved = false; card.feedback = null; }
-    else if (action === 'useful') card.saved = true;
+    else if (action === 'useful') { card.saved = true; card.feedback = 'useful'; }
     if (action === 'unsave' || action === 'irrelevant') {
       card.judgeAskGeneration = (card.judgeAskGeneration || 0) + 1;
       card.judgeAsk = false;
     }
-    if (action === 'understood' || action === 'too_hard') card.familiarity = action;   // a familiarity label never replaces the interest one
+    if (action === 'irrelevant') { card.feedback = undo ? null : 'irrelevant'; if (!undo) card.saved = false; }
+    if (action === 'understood' || action === 'too_hard') card.familiarity = undo ? null : action;   // a familiarity label never replaces the interest one
     if (action === 'useful' && state.route && state.route.graph && state.currentProject) {
       card.judgeAskGeneration = (card.judgeAskGeneration || 0) + 1;
       card.judgeAsk = true;   // offered, not sent; this interest must survive an older judgment job
     }
+    if (stored) Object.assign(card, { feedback: stored.feedback, feedback_id: stored.feedback_id, familiarity: stored.familiarity, saved: stored.saved });
   }
   renderCards();
   if (state.view === 'library') await refreshStats();
+}
+// A button that shows pressed takes its mark back when pressed again.
+function feedbackClick(button) {
+  const action = button.dataset.fb, pressed = button.getAttribute('aria-pressed') === 'true';
+  const opts = pressed && (action === 'irrelevant' || action === 'too_hard') ? { undo: true, feedbackId: button.dataset.fid } : {};
+  return doFeedback(button.dataset.key, action, opts);
 }
 $('#cards').addEventListener('click', (e) => {
   const rd = e.target.closest('button[data-read]');
@@ -1331,7 +1357,7 @@ $('#cards').addEventListener('click', (e) => {
     return;
   }
   const fb = e.target.closest('button[data-fb]');
-  if (fb) { e.stopPropagation(); doFeedback(fb.dataset.key, fb.dataset.fb).catch(x => toast(x.message, 'err')); return; }
+  if (fb) { e.stopPropagation(); feedbackClick(fb).catch(x => toast(x.message, 'err')); return; }
   const card = e.target.closest('.card[data-key]');
   if (card) openDetail(card.dataset.key);
 });
@@ -1387,6 +1413,7 @@ async function openDetail(key) {
     if (!current()) return;
     const s = d.summary;
     const joinedProjectIds = new Set((d.projects || []).map(p => p.project_id));
+    const marks = window.PDHMarks.detailMarks(d), shown = window.PDHMarks.view(marks);
     $('#detail').innerHTML = `
       <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
       <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
@@ -1399,13 +1426,12 @@ async function openDetail(key) {
         <div class="detail-actions">
           <div class="actions-main">
             <button class="primary" id="dRead">阅读 PDF</button>
-            <button id="dToggle" class="${d.saved ? 'saved' : 'outline'}" data-key="${esc(d.key)}" data-saved="${d.saved}">
-              ${d.saved ? '✓ 已收藏' : '☆ 收藏到论文库'}</button>
+            <button id="dToggle" class="${shown.saved ? 'saved' : 'outline'}" data-key="${esc(d.key)}" data-saved="${shown.saved}">
+              ${shown.saved ? '✓ 已收藏' : '☆ 收藏到论文库'}</button>
           </div>
           <div class="actions-more">
             ${d.url ? `<a class="btn tiny" href="${esc(d.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
-            <button class="tiny" data-fb="irrelevant" data-key="${esc(d.key)}">不感兴趣</button>
-            <button class="tiny" data-fb="too_hard" data-key="${esc(d.key)}">太难</button>
+            ${window.PDHMarks.buttonsHTML(marks, esc)}
           </div>
         </div>
         ${(state.projects || []).filter(p => p.id !== state.currentProject).length ? `<section class="detail-section detail-projects"><h3>加入其他项目</h3>
@@ -1443,10 +1469,7 @@ async function openDetail(key) {
       const btn = ev.currentTarget, wasSaved = btn.dataset.saved === 'true';
       await doFeedback(d.key, wasSaved ? 'unsave' : 'useful');
       if (!current()) return;
-      const now = !wasSaved;
-      btn.dataset.saved = String(now);
-      btn.className = now ? 'saved' : 'outline';
-      btn.textContent = now ? '✓ 已收藏' : '☆ 收藏到论文库';
+      await openDetail(d.key);   // redrawn from the stored state: saving also clears a "not interested" mark
     };
   } catch (e) {
     if (current()) toast(`打不开详情：${e.message}`, 'err', 6000);
@@ -1469,7 +1492,7 @@ $('#detail').addEventListener('click', (e) => {
   }
   const fb = e.target.closest('button[data-fb]');
   // the open pane is drawn again so its buttons show the new state ("✓ 已读懂") instead of the old one
-  if (fb) doFeedback(fb.dataset.key, fb.dataset.fb).then(() => { if ($('#detail .detail-panel')) return openDetail(fb.dataset.key); }).catch(x => toast(x.message, 'err'));
+  if (fb) feedbackClick(fb).then(() => { if ($('#detail .detail-panel')) return openDetail(fb.dataset.key); }).catch(x => toast(x.message, 'err'));
 });
 
 // --------------------------------------------------------------- settings
@@ -1538,8 +1561,8 @@ document.addEventListener('scroll', hidePreview, { passive: true });
       let onboarding = null;
       try { onboarding = await api('/api/onboarding'); } catch (e) { /* no tour this time */ }
       if (onboarding && window.PDHTour.shouldOffer(onboarding, sessionStorage.getItem(window.PDHTour.OFFERED_KEY))) {
-        await api('/api/onboarding', { action: 'start' });
-        window.PDHTour.begin({ version: onboarding.version, returnProject: state.realProjects.length ? state.currentProject : null });
+        // The welcome card comes first (language, appearance); the demo sandbox is built when it is confirmed.
+        window.PDHTour.begin({ step: 'w0', version: onboarding.version, returnProject: state.realProjects.length ? state.currentProject : null });
         syncProjects();
       } else if (!state.realProjects.length) { window.location.replace('/project_creation.html'); return; }
     }

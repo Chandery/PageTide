@@ -95,13 +95,14 @@ test('every page of the tour loads tour.js and boots its own step', () => {
   for (const f of ['index.html', 'settings.html', 'weekly_report.html', 'project_creation.html']) assert.match(read(f), /<link rel="stylesheet" href="\/tour\.css">/, f);
 });
 
-test('settings replays the tour from a fresh sandbox; the creation page offers the demo when there is no project', () => {
+test('settings replays the tour from the welcome card (the sandbox is built there); the creation page offers the demo when there is no project', () => {
   const settings = read('settings.html');
   assert.match(settings, /id="replayTourBtn"[^>]*>重新查看</);
-  assert.match(settings, /action:'start'[\s\S]*PDHTour\.begin\(\{[\s\S]*?returnProject[\s\S]*window\.location\.href='\/'/);
+  assert.match(settings, /PDHTour\.begin\(\{step:'w0'[\s\S]*?returnProject[\s\S]*window\.location\.href='\/'/);
+  assert.doesNotMatch(settings, /action:'start'/);
   const creation = read('project_creation.html');
   assert.match(creation, /link\.textContent='看看演示'/);
-  assert.match(creation, /action:'start'[\s\S]*PDHTour\.begin\(\{version:[\s\S]*?returnProject:null\}\)/);
+  assert.match(creation, /PDHTour\.begin\(\{step:'w0',version:[\s\S]*?returnProject:null\}\)/);
 });
 
 test('the weekly link of the profile carries the project id, so the demo report is routed by id', () => {

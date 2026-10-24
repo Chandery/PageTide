@@ -14,7 +14,7 @@ test('the generate button names the batch; the home page does not narrate batch 
  const {c}=context();
  assert.equal(c.dailyButtonText(),'生成今日发现');
  c.state.route.progress_verification_deferred=true;assert.equal(c.dailyButtonText(),'核验后生成推荐');
- c.state.route={enabled:false};assert.equal(c.dailyButtonText(),'生成今日 5 篇');
+ c.state.route={enabled:false};assert.equal(c.dailyButtonText(),'生成今日推荐');
  assert.equal(typeof c.exploreLine,'undefined');
  for(const gone of ['每批最多','这次推荐：探索','以你现在能读的概念为主','每天只推一篇']) assert.ok(!html.includes(gone),gone);
 });

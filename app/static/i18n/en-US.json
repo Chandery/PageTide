@@ -96,7 +96,7 @@
     "方向键选择 · 回车或双指张开进入 · Esc 返回": "Arrow keys to choose · Return or spread two fingers to open · Esc to go back",
     "研究工作区": "Research workspace",
     "今日推荐": "Today's picks",
-    "生成今日 5 篇": "Pick today's 5",
+    "生成今日推荐": "Pick today's papers",
     "抓取新论文": "Fetch new papers",
     "自动 AI 速览": "Auto AI triage",
     "已收藏": "Saved",
@@ -2567,7 +2567,7 @@
     "填 DeepSeek 密钥后可用 AI 速览和提问。": "Add a DeepSeek key to use AI previews and questions.",
     "期刊与会议论文来自 OpenAlex，密钥可选。": "Journal and conference papers come from OpenAlex. The key is optional.",
     "中文论文可打开百度学术，需要千帆密钥。": "Chinese papers can use Baidu Scholar, which needs a Qianfan key.",
-    "点这里生成今天的 5 篇推荐。": "Click here to generate today's 5 recommendations.",
+    "点这里生成今天的推荐。": "Click here to generate today's papers.",
     "这是 AI 速览：一句话讲清论文和它与你的关系。演示里的速览是预先写好的。": "This is the AI preview: one sentence on the paper and how it relates to you. Previews in the demo are pre-written.",
     "觉得有用就收藏。画像只从你明确的操作里学习。": "Save it if it looks useful. The profile only learns from actions you take explicitly.",
     "收藏的论文在论文库里。": "Saved papers live in the library.",
@@ -2590,6 +2590,10 @@
     "看看演示": "See the demo",
     "打不开演示：{0}": "Couldn't open the demo: {0}",
     "演示": "Demo",
-    "演示用的改写摘要，原文见": "A paraphrased summary for the demo; the original is on"
+    "演示用的改写摘要，原文见": "A paraphrased summary for the demo; the original is on",
+    "开始": "Start",
+    "欢迎使用 PaperDigHelper": "Welcome to PaperDigHelper",
+    "外观 / Appearance": "Appearance",
+    "已记录：不感兴趣，已取消收藏": "Recorded: not interested, and removed from saved"
   }
 }

@@ -20,13 +20,13 @@ test('shouldOffer: no project, new version, seen version, already offered this s
   assert.equal(T.shouldOffer(null, null), false);
 });
 
-test('four phases in order: project, settings, recommend, library and profile', () => {
+test('five phases in order: start (welcome), project, settings, recommend, library and profile', () => {
   const tour = T.STEPS.filter(s => !s.standalone);
   const phases = [];
   for (const s of tour) if (phases[phases.length - 1] !== s.phase) phases.push(s.phase);
-  assert.deepEqual(phases, ['项目', '设置', '推荐', '论文库与画像']);
+  assert.deepEqual(phases, ['开始', '项目', '设置', '推荐', '论文库与画像']);
   const ids = tour.map(s => s.id);
-  assert.deepEqual(ids, ['p1', 'p2', 's1', 's2', 's3', 's4', 'r1', 'r2', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7']);
+  assert.deepEqual(ids, ['w0', 'p1', 'p2', 's1', 's2', 's3', 's4', 'r1', 'r2', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7']);
   // library and profile part covers list, graph, profile and the weekly report
   const last = tour.filter(s => s.phase === '论文库与画像').map(s => s.target + ' ' + s.page).join('|');
   assert.match(last, /org-list/); assert.match(last, /graph/); assert.match(last, /data-view="profile"/); assert.match(last, /weekly/);
@@ -34,6 +34,7 @@ test('four phases in order: project, settings, recommend, library and profile', 
 });
 
 test('next follows the sequence, skip jumps past settings, the last step finishes', () => {
+  assert.equal(T.next(null, 'w0'), 'p1');
   assert.equal(T.next(null, 'p1'), 'p2');
   assert.equal(T.next(null, 's1', 'primary'), 's2');
   assert.equal(T.next(null, 's1', 'skip'), 'r1');
@@ -43,16 +44,17 @@ test('next follows the sequence, skip jumps past settings, the last step finishe
   assert.equal(T.next(null, 'f7'), 'finish');
   assert.equal(T.next(null, 'c1'), 'finish');
   assert.equal(T.next(null, 'nope'), 'finish');
-  let id = 'p1', n = 0;
+  let id = 'w0', n = 0;
   while (id !== 'finish' && n++ < 50) id = T.next(null, id);
-  assert.equal(id, 'finish'); assert.equal(n, 15);
+  assert.equal(id, 'finish'); assert.equal(n, 16);
 });
 
 test('stepsFor groups steps by page', () => {
   assert.deepEqual(T.stepsFor('settings').map(s => s.id), ['s2', 's3', 's4']);
   assert.deepEqual(T.stepsFor('weekly').map(s => s.id), ['f7']);
   assert.deepEqual(T.stepsFor('creation').map(s => s.id), ['c1']);
-  assert.equal(T.stepsFor('index').length, 11);
+  assert.equal(T.stepsFor('index').length, 12);
+  assert.equal(T.stepsFor('index')[0].id, 'w0');
   assert.deepEqual(T.stepsFor('nowhere'), []);
 });
 
@@ -124,4 +126,54 @@ test('real selectors: the ones this tour depends on exist in the pages', () => {
   assert.match(creation, /class="modes"/); assert.match(weekly, /id="weeklyContent"/);
   assert.match(org, /class="org-tabs"/); assert.match(org, /data-action="graph"/); assert.match(org, /class="org-list"/);
   assert.match(profile, /class="pd-link" href="\/weekly_report\.html/);
+});
+
+test('the welcome step is first, has no spotlight target, and entries start from it', () => {
+  const w = T.STEPS[0];
+  assert.equal(w.id, 'w0'); assert.equal(w.page, 'index'); assert.equal(w.target, null); assert.equal(w.welcome, true);
+  const m = memory(); T.setStorage(m);
+  // shouldOffer -> the page begins at w0 without building the sandbox (start is posted when the card is confirmed)
+  assert.equal(T.shouldOffer({ version: '0.1.0', seen_version: null, project_count: 0 }, null), true);
+  T.begin({ step: 'w0', version: '0.1.0', returnProject: null });
+  assert.equal(T.current().step, 'w0');
+  assert.equal(m.getItem(T.OFFERED_KEY), '0.1.0');
+  assert.equal(T.next(T.current(), 'w0'), 'p1');
+  T.setStorage(null);
+});
+
+test('welcome language: the saved one wins, otherwise the browser language (zh* -> Chinese, else English)', () => {
+  assert.equal(T.welcomeLang('en-US', 'zh-CN'), 'en-US');
+  assert.equal(T.welcomeLang('zh-CN', 'en-US'), 'zh-CN');
+  assert.equal(T.welcomeLang(undefined, 'zh-TW'), 'zh-CN');
+  assert.equal(T.welcomeLang(null, 'zh'), 'zh-CN');
+  assert.equal(T.welcomeLang(null, 'en-GB'), 'en-US');
+  assert.equal(T.welcomeLang('fr', 'fr-FR'), 'en-US');
+  assert.equal(T.welcomeLang(null, undefined), 'en-US');
+  for (const lang of ['zh-CN', 'en-US']) for (const k of ['title', 'light', 'dark', 'auto', 'start', 'skip']) assert.ok(T.WELCOME[lang][k], lang + k);
+  assert.deepEqual(T.THEME_MODES, ['light', 'dark', 'auto']);
+});
+
+test('saveChoice saves language and theme for Start and Skip alike, and tries both even when one fails', async () => {
+  const calls = [];
+  const ok = { saveLanguage: async l => calls.push(['lang', l]), saveTheme: async m => calls.push(['theme', m]) };
+  assert.equal(await T.saveChoice({ lang: 'en-US', mode: 'dark' }, ok), null);
+  assert.deepEqual(calls, [['lang', 'en-US'], ['theme', 'dark']]);
+  const bad = { saveLanguage: async () => { throw new Error('disk'); }, saveTheme: async m => calls.push(['theme', m]) };
+  const err = await T.saveChoice({ lang: 'zh-CN', mode: 'light' }, bad);
+  assert.equal(err.message, 'disk');
+  assert.deepEqual(calls[2], ['theme', 'light']);
+});
+
+test('the welcome card is wired: both buttons save before they continue, Start posts start then reloads, the entries begin at w0', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const read = f => fs.readFileSync(path.join(__dirname, '..', 'app', 'static', f), 'utf8');
+  const tour = read('tour.js'), index = read('index.html'), settings = read('settings.html'), creation = read('project_creation.html');
+  const start = tour.slice(tour.indexOf("main.addEventListener('click', async function"), tour.indexOf("skip.addEventListener('click', async function"));
+  assert.ok(start.indexOf('saveChoice') < start.indexOf("action: 'start'") && start.indexOf("action: 'start'") < start.indexOf("step: 'p1'") && start.indexOf("step: 'p1'") < start.indexOf('window.location.reload'));
+  const skip = tour.slice(tour.indexOf("skip.addEventListener('click', async function"), tour.indexOf('ui.root.appendChild(bub);\n    ui.bubble = bub; ui.main = main;'));
+  assert.ok(skip.indexOf('saveChoice') < skip.indexOf('skipTour'));
+  assert.match(tour, /setAttribute\('role', 'radiogroup'\)/); assert.match(tour, /data-no-i18n/);
+  assert.match(tour, /merge: true/);
+  assert.match(index, /begin\(\{ step: 'w0'/); assert.doesNotMatch(index, /action: 'start'/);
+  assert.match(settings, /begin\(\{step:'w0'/); assert.match(creation, /begin\(\{step:'w0'/);
 });

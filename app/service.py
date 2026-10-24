@@ -3680,14 +3680,28 @@ class App:
                 "task_scope": learning_scope.check(matching_scope, row),
                 "pdf_status": pdf_availability(row["arxiv_id"], row["oa_json"]),
                 "saved": self.store.in_library(row["key"], project_id),
-                "feedback": (feedback.get(row["key"]) or {}).get("action"),
-                "familiarity": ((feedback.get(row["key"]) or {}).get("familiar") or {}).get("action"),
+                **self._feedback_marks(feedback.get(row["key"])),
                 "summary": summaries.get(row["key"]),
                 'language': self._paper_language(self._recommendation_rows(paper_key=row['key'])[0],verification_budget=verification_budget),
             })
         return cards
 
     # --------------------------------------------------------------- feedback
+    @staticmethod
+    def _feedback_marks(entry):
+        """What a card shows of the reader's own marks, each dimension on its own: the interest label (useful /
+        irrelevant) with its record id, and the familiarity label. Nothing here is inferred from silence."""
+        entry = entry or {}
+        interest = entry if entry.get("action") in INTEREST_ACTIONS else {}
+        return {"feedback": interest.get("action"), "feedback_id": interest.get("id"),
+                "familiarity": (entry.get("familiar") or {}).get("action")}
+
+    def feedback_state(self, paper_key, project_id):
+        """The paper's marks and library state right now, returned by every feedback write so a page can redraw its
+        buttons from the stored truth instead of guessing (an undo may bring an older label back)."""
+        return {**self._feedback_marks(self.latest_feedback(project_id).get(paper_key)),
+                "saved": self.store.in_library(paper_key, project_id)}
+
     def _route_reconfirmation_needed(self, project_id, paper_key, feedback_id):
         _, route = read_route(self.store.conn, project_id)
         graph = (route or {}).get('graph') or {}
@@ -3743,6 +3757,7 @@ class App:
             # transaction. No helper may commit the duplicate check early.
             if action in POSITIVE_ACTIONS:
                 self.store.save_to_library(paper_key, note=reason, project_id=project_id)
+            result["state"] = self.feedback_state(paper_key, project_id)
             return result
 
     def unsave(self, paper_key, project_id=None):
@@ -3782,18 +3797,18 @@ class App:
             except BaseException:
                 self.store.conn.rollback()
                 raise
-        return {"retracted": retracted}
+        return {"retracted": retracted, "state": self.feedback_state(paper_key, project_id)}
 
     def undo_feedback(self, feedback_id, project_id=None):
         with self.store._lock:
             if self.store.conn.in_transaction:
                 raise RuntimeError("Feedback undo requires an idle connection")
-            row = self.store.conn.execute("SELECT project_id FROM feedback WHERE id=?", (feedback_id,)).fetchone()
+            row = self.store.conn.execute("SELECT project_id, paper_key FROM feedback WHERE id=?", (feedback_id,)).fetchone()
             if not row or (project_id and row["project_id"] != project_id):
                 raise ValueError("反馈不属于当前项目")
             # Undo restores the profile signals; a library save is a separate user fact and stays.
             self.store.undo_feedback(feedback_id)
-            return {"undone": feedback_id}
+            return {"undone": feedback_id, "state": self.feedback_state(row["paper_key"], row["project_id"])}
 
 
     # ------------------------------------------------------------- full text

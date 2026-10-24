@@ -30,7 +30,8 @@ class UnderstoodButtonTests(unittest.TestCase):
 
     def test_a_familiarity_label_is_not_kept_as_the_card_feedback(self):
         handler = INDEX[INDEX.index("async function doFeedback"):INDEX.index("$('#cards').addEventListener('click'")]
-        self.assertIn("card.familiarity = action", handler)
+        self.assertIn("card.familiarity = undo ? null : action", handler)
+        self.assertNotIn("card.feedback = action", handler)
 
     def test_the_weekly_report_goes_back_to_the_profile_tab(self):
         weekly = (STATIC / "weekly_report.html").read_text(encoding="utf-8")

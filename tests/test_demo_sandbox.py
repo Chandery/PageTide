@@ -188,6 +188,77 @@ class DemoFlowTests(DemoCase):
         self.assertEqual(status, 403)
         self.assertIn("demo project", blocked["error"])
 
+    def test_welcome_card_saves_language_without_wiping_other_settings_and_the_sandbox_follows_it(self):
+        (self.data / "settings.json").write_text(json.dumps({"theme": "dark", "recommendCount": 7}), encoding="utf-8")
+        status, _ = self.call("POST", "/api/user_settings", {"settings": {"language": "en-US"}, "merge": True}, header=False)
+        self.assertEqual(status, 200)
+        saved = json.loads((self.data / "settings.json").read_text(encoding="utf-8"))
+        self.assertEqual((saved["language"], saved["theme"], saved["recommendCount"]), ("en-US", "dark", 7))
+        status, _ = self.call("POST", "/api/user_settings", {"settings": {"theme": "light"}, "merge": True}, header=False)
+        saved = json.loads((self.data / "settings.json").read_text(encoding="utf-8"))
+        self.assertEqual((saved["language"], saved["theme"], saved["recommendCount"]), ("en-US", "light", 7))
+        self.start()   # the tour's start comes after the save, so the sandbox is built in English
+        status, projects = self.call("GET", "/api/projects", header=False)
+        self.assertEqual(projects["demo"]["name"], "Demo project")
+        generation = demo.current_generation(str(self.data))[0]
+        dump = "\n".join(sqlite3.connect(str(demo.sandbox_root(self.data) / generation / "paperdighelper.sqlite")).iterdump())
+        name = fixture.DIRECTIONS[0]["name"]
+        self.assertIn(name["en"], dump)
+        self.assertNotIn(name["zh"], dump)
+
+    def test_marks_survive_a_reload_and_pressing_again_takes_them_back_in_the_demo(self):
+        self.start()
+        pid = demo.PROJECT_ID
+        status, daily = self.call("POST", "/api/daily", {"project_id": pid})
+        key = daily["cards"][0]["key"]
+        other = daily["cards"][1]["key"]
+        self.assertTrue(all({"feedback", "feedback_id", "familiarity"} <= set(c) for c in daily["cards"]))
+        status, home = self.call("GET", "/api/home?project_id=" + pid)
+        card = next(c for c in home["cards"] if c["key"] == key)
+        self.assertEqual((card["feedback"], card["feedback_id"], card["familiarity"]), (None, None, None))
+        before = self.call("GET", "/api/library?project_id=" + pid)[1]["stats"]
+
+        status, marked = self.call("POST", "/api/feedback", {"key": key, "action": "irrelevant", "project_id": pid})
+        self.assertEqual(status, 200)
+        self.assertEqual(marked["state"]["feedback"], "irrelevant")
+        self.assertEqual(marked["state"]["feedback_id"], marked["feedback_id"])
+        status, _ = self.call("POST", "/api/feedback", {"key": key, "action": "too_hard", "project_id": pid})
+        self.assertEqual(status, 200)
+        # a reload (a fresh /api/home) carries both marks, each on its own
+        for payload in (self.call("GET", "/api/home?project_id=" + pid)[1],):
+            card = next(c for c in payload["cards"] if c["key"] == key)
+            self.assertEqual((card["feedback"], card["familiarity"]), ("irrelevant", "too_hard"), payload.get("batch_id"))
+            self.assertEqual(card["feedback_id"], marked["feedback_id"])
+            untouched = next(c for c in payload["cards"] if c["key"] == other)
+            self.assertEqual((untouched["feedback"], untouched["familiarity"]), (None, None))
+        after = self.call("GET", "/api/library?project_id=" + pid)[1]["stats"]
+        self.assertEqual((after["negative"], after["too_hard"]), (before["negative"] + 1, before["too_hard"] + 1))
+
+        # pressing "not interested" again: undo that record (the route is on the demo allow list); the profile follows
+        status, undone = self.call("POST", "/api/undo", {"feedback_id": marked["feedback_id"], "project_id": pid})
+        self.assertEqual(status, 200, undone)
+        self.assertEqual((undone["state"]["feedback"], undone["state"]["familiarity"]), (None, "too_hard"))
+        status, retracted = self.call("POST", "/api/feedback", {"key": key, "action": "too_hard", "retract": True, "project_id": pid})
+        self.assertEqual(status, 200, retracted)
+        self.assertEqual((retracted["state"]["feedback"], retracted["state"]["familiarity"]), (None, None))
+        card = next(c for c in self.call("GET", "/api/home?project_id=" + pid)[1]["cards"] if c["key"] == key)
+        self.assertEqual((card["feedback"], card["feedback_id"], card["familiarity"]), (None, None, None))
+        final = self.call("GET", "/api/library?project_id=" + pid)[1]["stats"]
+        self.assertEqual((final["negative"], final["too_hard"]), (before["negative"], before["too_hard"]))
+
+    def test_an_undo_brings_back_the_older_interest_label_and_reports_it(self):
+        self.start()
+        pid = demo.PROJECT_ID
+        key = self.call("POST", "/api/daily", {"project_id": pid})[1]["cards"][0]["key"]
+        _, useful = self.call("POST", "/api/feedback", {"key": key, "action": "useful", "project_id": pid})
+        self.assertEqual((useful["state"]["feedback"], useful["state"]["saved"]), ("useful", True))
+        _, no = self.call("POST", "/api/feedback", {"key": key, "action": "irrelevant", "project_id": pid})
+        self.assertEqual(no["state"]["feedback"], "irrelevant")
+        _, back = self.call("POST", "/api/undo", {"feedback_id": no["feedback_id"], "project_id": pid})
+        self.assertEqual((back["state"]["feedback"], back["state"]["feedback_id"]), ("useful", useful["feedback_id"]))
+        status, bad = self.call("POST", "/api/undo", {"feedback_id": 10**9, "project_id": pid})
+        self.assertEqual(status, 400)
+
     def test_triage_of_selected_keys_rejects_others(self):
         self.start()
         self.call("POST", "/api/daily", {"project_id": demo.PROJECT_ID})

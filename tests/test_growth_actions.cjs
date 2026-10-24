@@ -6,7 +6,7 @@ const judge=page.slice(page.indexOf('async function judgeNow()'),page.indexOf("p
 const load=page.slice(page.indexOf('async function loadGrowth()'),page.indexOf("part('findGrowth').onclick"));
 const today=index.slice(index.indexOf('async function doJudge(key)'),index.indexOf('function cardHTML'));
 const prompt=index.slice(index.indexOf('function judgeAskHTML(c)'),index.indexOf('function judgeSummary(results)'));
-const feedback=index.slice(index.indexOf('async function doFeedback(key, action)'),index.indexOf("$('#cards').addEventListener"));
+const feedback=index.slice(index.indexOf('async function doFeedback('),index.indexOf("$('#cards').addEventListener"));
 const R=require('../app/static/route-editor.js');
 const queueResult=(overrides={})=>({ok:true,results:[],judges_left:9,requested:20,processed:20,complete:true,pending:0,model_calls:7,...overrides});
 function mapContext(result) {
