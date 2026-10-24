@@ -497,7 +497,7 @@ window.addEventListener('beforeunload', (event) => {
 
 (async () => {
   if (!projectId) { notice('没有指定项目'); return; }
-  if (window.PDH_ROUTE_BETA === false) {   // beta setting off: nothing is read or changed, the stored map stays as it is
+  if (window.PAGETIDE_ROUTE_BETA === false) {   // beta setting off: nothing is read or changed, the stored map stays as it is
     ['aiBox', 'empty', 'main'].forEach((role) => { part(role).hidden = true; });
     notice('学习图还没有打开', false);
     part('notice').append(' ', Object.assign(document.createElement('a'), {href: '/settings.html', textContent: '去设置'}));

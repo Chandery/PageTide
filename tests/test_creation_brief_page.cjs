@@ -18,7 +18,7 @@ function page(response,lang='zh-CN') {
   const context=vm.createContext({Brief,PDHBrief:Brief,R,map,part,MAX_PATH:8,busy:false,sessionId:()=>sid,mapNotice:m=>messages.push(m),mapAct:{start(){},stop(){}},renderMap(){},refresh(){},confirm:()=>true,
     // Stage DOM rendering is outside this fixed-brief test; generation and validation are shipped functions.
     addPathItem(){},syncPath(){},bindPathConcepts(){},
-    PDH_I18N:{lang,messages:english},document:{documentElement:{},addEventListener(){}},MutationObserver:class{observe(){}},
+    PAGETIDE_I18N:{lang,messages:english},document:{documentElement:{},addEventListener(){}},MutationObserver:class{observe(){}},
     post:async(path,body)=>{calls.push({path,body});return response(()=>{sid='second';});}});
   context.window=context;
   vm.runInContext(i18nSource,context);

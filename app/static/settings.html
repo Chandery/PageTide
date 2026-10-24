@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <title>设置 - PaperDigHelper</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <title>设置 - PageTide</title>
   <script src="/theme.js"></script>
   <script src="/save-file.js"></script>
   <link rel="stylesheet" href="/theme.css">
@@ -638,7 +638,7 @@
       try {
         const res=await fetch('/api/export');const data=await res.json();
         if(!res.ok)throw new Error(data.error||'导出失败');
-        const filename=`paperdighelper-export-${new Date().toISOString().slice(0,10)}.json`;
+        const filename=`pagetide-export-${new Date().toISOString().slice(0,10)}.json`;
         const result=await window.PDHSaveFile(filename,JSON.stringify(data,null,2));
         if(result?.status==='cancelled')window.PDHDialogs.notice('已取消',{target});
         else if(result?.status==='saved')window.PDHDialogs.notice(`导出已保存：${result.path||filename}`,{target,kind:'success'});

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const R = require('../app/static/route-editor.js');
 const source = fs.readFileSync('app/static/project-creation.js', 'utf8');
 const i18n = fs.readFileSync('app/static/i18n.js', 'utf8');
-function chineseLocale(context) { context.window=context;context.PDH_I18N={lang:'zh-CN'};vm.runInContext(i18n,context); }
+function chineseLocale(context) { context.window=context;context.PAGETIDE_I18N={lang:'zh-CN'};vm.runInContext(i18n,context); }
 const bubble = source.slice(source.indexOf('function bubble(entry, live)'), source.indexOf('function renderChat(live)'));
 const esc = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 function render(entry, live) {

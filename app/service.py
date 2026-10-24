@@ -79,7 +79,7 @@ class App:
         self.root = Path(root)
         self.data = Path(data_dir) if data_dir else self.root / ".local" / "app"
         self.data.mkdir(parents=True, exist_ok=True)
-        self.store = Store(self.data / "paperdighelper.sqlite")
+        self.store = Store(self.data / "pagetide.sqlite")
         self.store.init()
         self.source = OpenAlex(self.data / "cache", api_key=openalex_key.load(self.data))
         # Source adapters (app/source_adapters.py): only new code uses this registry; old callers keep using self.source.

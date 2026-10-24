@@ -160,7 +160,7 @@ class ServedPageTests(unittest.TestCase):
         for name in ("index.html", "project_creation.html", "project.html", "route.html", "settings.html"):
             with self.subTest(page=name):
                 html = self.page(name)
-                self.assertIn("window.PDH_ROUTE_BETA=false", html)
+                self.assertIn("window.PAGETIDE_ROUTE_BETA=false", html)
                 self.assertNotIn("classList.add('route-beta')", html)
                 self.assertIn("html:not(.route-beta) [data-route-beta]", html)
 
@@ -169,7 +169,7 @@ class ServedPageTests(unittest.TestCase):
         data.mkdir(parents=True, exist_ok=True)
         (data / "settings.json").write_text(json.dumps({"routeBeta": True}))
         html = self.page("index.html")
-        self.assertIn("window.PDH_ROUTE_BETA=true", html)
+        self.assertIn("window.PAGETIDE_ROUTE_BETA=true", html)
         self.assertIn("classList.add('route-beta')", html)
 
     def test_the_setting_is_saved_and_read_back_through_the_settings_api(self):
@@ -181,7 +181,7 @@ class ServedPageTests(unittest.TestCase):
             self.assertEqual(json.loads(response.read())["status"], "saved")
         with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/user_settings", timeout=5) as response:
             self.assertIs(json.loads(response.read())["settings"]["routeBeta"], True)
-        self.assertIn("window.PDH_ROUTE_BETA=true", self.page("index.html"))
+        self.assertIn("window.PAGETIDE_ROUTE_BETA=true", self.page("index.html"))
 
 
 if __name__ == "__main__":

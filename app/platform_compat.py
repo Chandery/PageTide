@@ -71,10 +71,10 @@ def after_fork_in_child(callback):
 
 
 def default_data_dir(environ=None, platform=None, home=None):
-    """Per-user data directory: ~/Library/Application Support on macOS, %LOCALAPPDATA%\\PaperDigHelperData on Windows.
+    """Per-user data directory: ~/Library/Application Support/PageTide on macOS, %LOCALAPPDATA%\\PageTideData on Windows.
 
     Local (not Roaming): the library holds SQLite files and PDFs that must not roam. The folder is not
-    named PaperDigHelper because the NSIS per-user installer defaults to %LOCALAPPDATA%\\PaperDigHelper
+    named PageTide because the NSIS per-user installer defaults to %LOCALAPPDATA%\\PageTide
     and an uninstall must never be able to touch the library."""
     environ = os.environ if environ is None else environ
     platform = sys.platform if platform is None else platform
@@ -82,11 +82,11 @@ def default_data_dir(environ=None, platform=None, home=None):
     if platform.startswith("win"):
         local = environ.get("LOCALAPPDATA")
         base = Path(local) if local else home / "AppData" / "Local"
-        return base / "PaperDigHelperData"
+        return base / "PageTideData"
     if platform == "darwin":
-        return home / "Library" / "Application Support" / "PaperDigHelper"
+        return home / "Library" / "Application Support" / "PageTide"
     xdg = environ.get("XDG_DATA_HOME")
-    return (Path(xdg) if xdg else home / ".local" / "share") / "PaperDigHelper"
+    return (Path(xdg) if xdg else home / ".local" / "share") / "PageTide"
 
 
 def parent_alive_check(parent_pid, kernel32=None):

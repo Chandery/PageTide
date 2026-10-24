@@ -79,7 +79,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if getattr(args, "dev", False):
         import os
-        os.environ["PDH_DEV"] = "1"
+        os.environ["PAGETIDE_DEV"] = "1"
     app = App(data_dir=args.data_dir)
 
     if args.command == "init":

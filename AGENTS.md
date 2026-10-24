@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Purpose and current phase
-PaperDigHelper's core is useful paper recommendations and a transparent, editable user profile learned from explicit feedback.
+PageTide's core is useful paper recommendations and a transparent, editable user profile learned from explicit feedback.
 The owner reset the old ABCD roadmap on 2026-09-11. Research reusable systems and validate recommendation/profile value before choosing an app stack.
 Current work is research and replanning. At the owner's request, the old app, incomplete reader fixes, dependencies and runtime generators have been removed. The reuse survey, stage plan and a **pre-build token budget proposal** are registered; the budget is unapproved and unmeasured. v1 = recommendation/profile core + PDF download/archive + AI triage with follow-up QA; owner confirmed English AI / world models, macOS + Windows x64 desktop builds (widened 2026-10-23, [ADR 0040](docs/decisions/0040-windows-release.md)), Zotero.
 Read [HANDOFF](docs/HANDOFF.md), [DOMAIN](docs/DOMAIN.md), [ROADMAP](docs/ROADMAP.md), [RESEARCH](docs/RESEARCH.md) and [BRAINSTORM](docs/BRAINSTORM.md) before choosing work.
@@ -46,7 +46,7 @@ Skills use the Agent Skills format; discovery varies by client. If not auto-disc
 5. Run checks, inspect the actual diff, review data/privacy and budget failure paths.
 6. Update the same work unit's change record, task state, relevant docs and HANDOFF.
 7. Report failures and unmeasured items. Independent review is a separate review, not a second self-rating.
-8. Build the desktop release: run `build_desktop.py` then `cargo tauri build --bundles app`. Every completed work unit must end with a green build at `src-tauri/target/release/bundle/macos/PaperDigHelper.app`; a code change that cannot produce a working build is not done.
+8. Build the desktop release: run `build_desktop.py` then `cargo tauri build --bundles app`. Every completed work unit must end with a green build at `src-tauri/target/release/bundle/macos/PageTide.app`; a code change that cannot produce a working build is not done.
 
 ## Commands available now (Python 3.9+, standard library)
 ```sh
@@ -58,7 +58,7 @@ python3 scripts/harness.py review changes/<id>.json
 # Build desktop release (run after tests pass):
 .local/desktop-build-env/bin/python scripts/build_desktop.py
 cargo tauri build --bundles app
-# Output: src-tauri/target/release/bundle/macos/PaperDigHelper.app
+# Output: src-tauri/target/release/bundle/macos/PageTide.app
 ```
 `impact` inspects tracked and untracked changes; `review` requires its record to cover the entire current worktree change set.
 Commit or isolate work units before mixing unrelated edits. Never discard the owner's existing work.

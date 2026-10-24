@@ -9,7 +9,7 @@ use std::{
 };
 use tauri::{App, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, WebviewWindow, State, WindowEvent};
 
-const GUARDED_QUIT: &str = "paperdighelper-prepare-quit";
+const GUARDED_QUIT: &str = "pagetide-prepare-quit";
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -35,7 +35,7 @@ fn native_termination_reply(quitting: bool, dispatch: impl FnOnce()) -> objc2_ap
             // A panic payload may itself panic in Drop. Preserve this exceptional
             // allocation rather than release it across the native callback boundary.
             std::mem::forget(payload);
-            eprintln!("PaperDigHelper native quit guard failed; application remains open");
+            eprintln!("PageTide native quit guard failed; application remains open");
         }
     }
     NSApplicationTerminateReply::TerminateCancel
@@ -163,7 +163,7 @@ fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, filena
         let destination = std::path::Path::new(&path);
         let parent = destination.parent().ok_or("Invalid export destination")?;
         let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
-        let temporary = parent.join(format!(".paperdighelper-export-{}-{}.tmp", std::process::id(), stamp));
+        let temporary = parent.join(format!(".pagetide-export-{}-{}.tmp", std::process::id(), stamp));
         let result = (|| -> std::io::Result<()> {
             use std::io::Write;
             use std::os::unix::fs::OpenOptionsExt;
@@ -194,7 +194,7 @@ async fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, 
         let Some(destination) = destination else { return Ok("{\"status\":\"cancelled\"}".into()); };
         let parent = destination.parent().ok_or("Invalid export destination")?;
         let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_nanos();
-        let temporary = parent.join(format!(".paperdighelper-export-{}-{}.tmp", std::process::id(), stamp));
+        let temporary = parent.join(format!(".pagetide-export-{}-{}.tmp", std::process::id(), stamp));
         let result = (|| -> std::io::Result<()> {
             use std::io::Write;
             // The per-user profile ACL protects the file; there is no POSIX mode to set.
@@ -224,7 +224,7 @@ fn prepare_quit(handle: &tauri::AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
         if let Err(error) = window.eval("window.PDHPrepareQuit ? window.PDHPrepareQuit() : window.__TAURI_INTERNALS__.invoke('complete_quit');") {
-            eprintln!("PaperDigHelper quit guard could not reach the page; application remains open: {error}");
+            eprintln!("PageTide quit guard could not reach the page; application remains open: {error}");
         }
     }
 }
@@ -257,24 +257,24 @@ impl Drop for PythonProcess {
 }
 
 fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::Error>> {
-    let name = if cfg!(windows) { "paperdighelper-server.exe" } else { "paperdighelper-server" };
+    let name = if cfg!(windows) { "pagetide-server.exe" } else { "pagetide-server" };
     let server = app.path().resource_dir()?.join("backend").join(name);
     let mut command = Command::new(server);
     command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .env_remove("PDH_DEV")
+        .env_remove("PAGETIDE_DEV")
         .env_remove("DEEPSEEK_API_KEY")
         // The packaged version, for the update check. A source run has no such variable and never checks.
-        .env("PDH_APP_VERSION", app.package_info().version.to_string());
+        .env("PAGETIDE_APP_VERSION", app.package_info().version.to_string());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         // A GUI-subsystem parent has no valid stderr to inherit, which would leave Python without
         // sys.stderr; give it NUL and have the backend write <data dir>/logs/backend.log itself
-        // (PDH_LOG_STDERR, size-capped, app/desktop.py). No console window for the backend; UTF-8 for
+        // (PAGETIDE_LOG_STDERR, size-capped, app/desktop.py). No console window for the backend; UTF-8 for
         // files with Chinese text.
-        command.stderr(Stdio::null()).env("PYTHONUTF8", "1").env("PDH_LOG_STDERR", "1").creation_flags(CREATE_NO_WINDOW);
+        command.stderr(Stdio::null()).env("PYTHONUTF8", "1").env("PAGETIDE_LOG_STDERR", "1").creation_flags(CREATE_NO_WINDOW);
     }
     #[cfg(not(windows))]
     command.stderr(Stdio::inherit());
@@ -287,7 +287,7 @@ fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::E
     });
     let line = receiver.recv_timeout(Duration::from_secs(30))?
         .ok_or("Python server exited before startup")??;
-    let url: Url = line.strip_prefix("PDH_READY ")
+    let url: Url = line.strip_prefix("PAGETIDE_READY ")
         .ok_or("invalid Python startup message")?.parse()?;
     if url.scheme() != "http" || url.host_str() != Some("127.0.0.1") || url.port().is_none() {
         return Err("invalid local server address".into());
@@ -349,7 +349,7 @@ fn main() {
             app.add_capability(capability.as_str())?;
             app.manage(process);
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
-                .title("PaperDigHelper")
+                .title("PageTide")
                 .inner_size(1120.0, 760.0)
                 .min_inner_size(640.0, 480.0)
                 .resizable(true)
@@ -388,14 +388,14 @@ fn main() {
             }
         }),
         Err(error) => {
-            eprintln!("PaperDigHelper startup failed: {error}");
+            eprintln!("PageTide startup failed: {error}");
             // A GUI-subsystem Windows process has no console: without a dialog the user sees nothing.
             #[cfg(windows)]
             {
                 let _ = rfd::MessageDialog::new()
                     .set_level(rfd::MessageLevel::Error)
-                    .set_title("PaperDigHelper")
-                    .set_description(format!("PaperDigHelper could not start.\n\n{error}\n\nDetails may be in the logs folder inside the PaperDigHelperData folder under %LOCALAPPDATA%."))
+                    .set_title("PageTide")
+                    .set_description(format!("PageTide could not start.\n\n{error}\n\nDetails may be in the logs folder inside the PageTideData folder under %LOCALAPPDATA%."))
                     .set_buttons(rfd::MessageButtons::Ok)
                     .show();
             }

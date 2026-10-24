@@ -1,6 +1,6 @@
 ---
 name: verify-handoff
-description: Close a PaperDigHelper work session or assess a release with fresh check evidence, honest unfinished gates, budget status and portable agent handoff.
+description: Close a PageTide work session or assess a release with fresh check evidence, honest unfinished gates, budget status and portable agent handoff.
 ---
 # Verify and hand off
 

@@ -26,7 +26,7 @@ class GuidedCreationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PDH_DEV": "0"})
+        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PAGETIDE_DEV": "0"})
         env.start()
         self.addCleanup(env.stop)
         # project_guidance is owner-approved, so the gateway would really send: the transport is

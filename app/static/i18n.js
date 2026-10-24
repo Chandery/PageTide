@@ -1,5 +1,5 @@
 /* Interface language. Chinese is the source language: the pages write Chinese inline, and the
-   server injects window.PDH_I18N = {lang, messages} (route /i18n/current.js) from the language
+   server injects window.PAGETIDE_I18N = {lang, messages} (route /i18n/current.js) from the language
    chosen on the settings page. In English this layer replaces every rendered Chinese text node
    and title / placeholder / aria-label / alt by its pack entry: the exact text first, then a
    pattern key whose "{0}" parts are filled from the text. A part next to a counter (篇, 页…) or
@@ -11,7 +11,7 @@
    containers of titles, abstracts, notes and quotes listed in SKIP. */
 (function (global) {
 'use strict';
-const config = global.PDH_I18N || {};
+const config = global.PAGETIDE_I18N || {};
 const lang = config.lang === 'en-US' ? 'en-US' : 'zh-CN';
 const HAN = /[㐀-鿿]/;
 const PLACEHOLDER = /\{(\d+)\}/g;

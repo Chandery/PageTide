@@ -240,7 +240,7 @@ class ManualRouteTests(tm.Fixture):
             with urllib.request.urlopen(request, timeout=5) as response:
                 return json.loads(response.read())
         fake = {"fetched": 9, "added": 3, "new_to_project": 2, "field": 9, "errors": []}
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}), \
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}), \
                 mock.patch("app.service.App.refresh_candidates", return_value=fake):
             job = call("/api/refresh", {"pages": 1, "project_id": self.pid})
             for _ in range(50):

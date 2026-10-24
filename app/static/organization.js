@@ -417,7 +417,7 @@
     return owners(p).includes(want) ? want : (S.scope === 'all' || !S.scope ? owners(p)[0] || null : null);
   };
   function understoodButton(p) {
-    if (window.PDH_ROUTE_BETA === false) return '';   // it moves the learning map on; with the map switched off it is not offered
+    if (window.PAGETIDE_ROUTE_BETA === false) return '';   // it moves the learning map on; with the map switched off it is not offered
     const project = understoodProject(p);
     if (!project) return `<button type="button" disabled title="先收藏到项目">已读懂</button>`;
     const on = (p.understood_in || []).includes(project);
@@ -689,7 +689,7 @@
     return key && present.has(paperNodeId(key)) ? paperNodeId(key) : nodes[0]?.data.id;
   }
   /* The second graph view exists only for a project tab whose project has a learning map. */
-  const routeAvailable = () => window.PDH_ROUTE_BETA !== false && S.scope !== 'all' && (S.snapshot.route_projects || []).includes(S.scope);
+  const routeAvailable = () => window.PAGETIDE_ROUTE_BETA !== false && S.scope !== 'all' && (S.snapshot.route_projects || []).includes(S.scope);
   function renderViewSeg() {
     const box = $('[data-view-seg]'), wrap = $('.org-graph-wrap'); if (!box || !wrap) return;
     const on = routeAvailable();
@@ -1342,7 +1342,7 @@
     dialog('导出论文库', '<label>格式<select name="format"><option value="json">JSON</option><option value="md">Markdown</option></select></label>', '下载', async el => {
       const format = el.querySelector('select').value;
       const payload = format === 'json' ? JSON.stringify(data, null, 2) : (data.markdown || markdownExport(data));
-      const receipt = await window.PDHSaveFile(`paperdighelper-organization-${new Date().toISOString().slice(0, 10)}.${format}`, payload);
+      const receipt = await window.PDHSaveFile(`pagetide-organization-${new Date().toISOString().slice(0, 10)}.${format}`, payload);
       if (receipt.status === 'saved') window.PDH.toast(`导出已保存：${receipt.path}`, 'ok', 8000);
       else window.PDH.toast('已取消导出', 'warn');
     });
@@ -1350,7 +1350,7 @@
   function markdownExport(data) {
     const snap = data.snapshot || data;
     if (!Array.isArray(snap.items)) throw new Error('导出数据缺少论文列表');
-    return '# PaperDigHelper\n\n' + snap.items.map(p => `## ${String(p.title || p.key).replace(/\n/g, ' ')}\n\n${p.published || ''}\n\n${(snap.directions || []).filter(d => memberships(p).includes(String(d.id))).map(d => categoryPath(d.id, snap)).join(', ')}\n\n${p.abstract || ''}\n\n### Note\n\n${p.note || ''}\n`).join('\n');
+    return '# PageTide\n\n' + snap.items.map(p => `## ${String(p.title || p.key).replace(/\n/g, ' ')}\n\n${p.published || ''}\n\n${(snap.directions || []).filter(d => memberships(p).includes(String(d.id))).map(d => categoryPath(d.id, snap)).join(', ')}\n\n${p.abstract || ''}\n\n### Note\n\n${p.note || ''}\n`).join('\n');
   }
   async function refresh() {
     const epoch = S.epoch, token = ++S.refreshToken;

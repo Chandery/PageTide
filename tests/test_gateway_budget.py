@@ -41,7 +41,7 @@ class GatewayBudgetTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name)
-        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PDH_DEV": "0"})
+        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PAGETIDE_DEV": "0"})
         env.start()
         self.addCleanup(env.stop)
         self.gateway = Gateway(root=ROOT, data_dir=self.data, dev=False)
@@ -223,7 +223,7 @@ class GatewayBudgetTests(unittest.TestCase):
 
     def test_no_key_degrades_without_request(self):
         with mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "",
-                                          "PAPERDIGHELPER_KEY_FILE": str(self.data / "none.env")}), \
+                                          "PAGETIDE_KEY_FILE": str(self.data / "none.env")}), \
                 mock.patch.object(Gateway, "_key_candidates", return_value=iter(())), \
                 mock.patch("app.gateway.urllib.request.urlopen") as urlopen:
             result = self.gateway.call("daily_triage", [])
@@ -372,7 +372,7 @@ class ServiceDegradeTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PDH_DEV": "0"})
+        env = mock.patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key", "PAGETIDE_DEV": "0"})
         env.start()
         self.addCleanup(env.stop)
         self.app = App(root=ROOT, data_dir=Path(self.tmp.name) / "app")

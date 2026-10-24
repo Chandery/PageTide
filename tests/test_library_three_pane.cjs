@@ -26,7 +26,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }) 
   ui.setReader = reader => { context.window.PDH.openReader = reader; };
   ui.setSummaries = summaries => { context.window.PDH.state.summaries = summaries; };
   ui.setCytoscape = factory => { context.window.cytoscape = factory; };
-  ui.setBeta = on => { context.window.PDH_ROUTE_BETA = on; };   // the learning-map setting (window.PDH_ROUTE_BETA)
+  ui.setBeta = on => { context.window.PAGETIDE_ROUTE_BETA = on; };   // the learning-map setting (window.PAGETIDE_ROUTE_BETA)
   return ui;
 }
 
@@ -521,7 +521,7 @@ test('after a learning-map revision one press confirms the mark anew; a failed r
 test('with the learning map off the weekly report and the profile evidence say nothing about "已读懂"', () => {
   const vm2 = require('node:vm');
   const load = (file, beta) => {
-    const ctx = vm2.createContext({ window: { PDH_ROUTE_BETA: beta }, module: { exports: {} }, document: {} });
+    const ctx = vm2.createContext({ window: { PAGETIDE_ROUTE_BETA: beta }, module: { exports: {} }, document: {} });
     vm2.runInContext(fs.readFileSync(path.join(STATIC, file), 'utf8'), ctx);
     return ctx;
   };

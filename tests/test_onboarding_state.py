@@ -22,7 +22,7 @@ class VersionTests(unittest.TestCase):
         env = mock.patch.dict(os.environ)
         env.start()
         self.addCleanup(env.stop)
-        os.environ.pop("PDH_APP_VERSION", None)
+        os.environ.pop("PAGETIDE_APP_VERSION", None)
 
     def write_conf(self, value):
         (self.root / "src-tauri").mkdir(exist_ok=True)
@@ -30,18 +30,18 @@ class VersionTests(unittest.TestCase):
 
     def test_the_shell_variable_wins(self):
         self.write_conf({"version": "9.9.9"})
-        os.environ["PDH_APP_VERSION"] = "0.1.0"
+        os.environ["PAGETIDE_APP_VERSION"] = "0.1.0"
         self.assertEqual(app_version.current(self.root), "0.1.0")
 
     def test_prerelease_and_build_suffixes_are_versions(self):
         for value in ("1.2.3-rc.1", "1.2.3+build.5", "10.20.30"):
-            os.environ["PDH_APP_VERSION"] = value
+            os.environ["PAGETIDE_APP_VERSION"] = value
             self.assertEqual(app_version.current(self.root), value)
 
     def test_a_malformed_variable_is_ignored_and_the_config_is_used(self):
         self.write_conf({"version": "0.1.0"})
         for bad in ("", "v1.0.0", "1.0", "latest", "1.0.0 ", "1.0.0\n9"):
-            os.environ["PDH_APP_VERSION"] = bad
+            os.environ["PAGETIDE_APP_VERSION"] = bad
             self.assertEqual(app_version.current(self.root), "0.1.0", repr(bad))
 
     def test_without_the_variable_the_tauri_config_gives_the_version(self):
@@ -66,7 +66,7 @@ class StateTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name) / "data"
-        env = mock.patch.dict(os.environ, {"PDH_APP_VERSION": "0.1.0"})
+        env = mock.patch.dict(os.environ, {"PAGETIDE_APP_VERSION": "0.1.0"})
         env.start()
         self.addCleanup(env.stop)
 
@@ -88,7 +88,7 @@ class StateTests(unittest.TestCase):
         out = self.state(0)
         self.assertEqual((out["show"], out["reason"]), (True, "no_project"))
         # a project and a newer app: offered again
-        os.environ["PDH_APP_VERSION"] = "0.2.0"
+        os.environ["PAGETIDE_APP_VERSION"] = "0.2.0"
         out = self.state(1)
         self.assertEqual((out["show"], out["reason"], out["seen_version"], out["version"]), (True, "new_version", "0.1.0", "0.2.0"))
 
@@ -114,7 +114,7 @@ class HttpTests(unittest.TestCase):
         (root / "harness").mkdir()
         (root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.data = root / "data"
-        for patcher in (mock.patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(self.data), "PDH_APP_VERSION": "0.1.0"}),):
+        for patcher in (mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data), "PAGETIDE_APP_VERSION": "0.1.0"}),):
             patcher.start()
             self.addCleanup(patcher.stop)
         self.root = root

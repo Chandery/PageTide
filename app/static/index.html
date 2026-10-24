@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<title>PaperDigHelper</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<title>PageTide</title>
 <link rel="stylesheet" href="/theme.css">
 <style>
   * { box-sizing:border-box; }
@@ -87,9 +87,8 @@
   /* placeholder page for projects not opened in this session */
   .mc-ph-top { display:flex; align-items:center; gap:14px; padding:14px max(24px,calc((100% - 1200px)/2));
                border-bottom:1px solid var(--line); background:var(--surface-1); }
-  .mc-ph-top img { width:30px; height:30px; }
-  .mc-ph-top b { font:600 20px/1 var(--display); }
-  .mc-ph-top b em { color:var(--accent-text); }
+  .mc-ph-top img { height:24px; width:auto; }
+  html[data-mode="dark"] .mc-ph-top img { content:url(/wordmark-dark.png); }
   .mc-ph-pill { padding:8px 16px; border-radius:999px; font-size:14px; box-shadow:var(--sh-out-sm); }
   /* Centred by its side padding only: a max-width on top of that padding left the content 0 px wide on wide windows. */
   .mc-ph-body { margin:0; padding:40px max(28px,calc((100% - 1200px)/2)); }
@@ -402,10 +401,9 @@
     background:color-mix(in srgb, var(--base) 84%, transparent);
     backdrop-filter:blur(22px) saturate(160%); }
   .brand { font-size:calc(15.5px * var(--s)); letter-spacing:0; gap:calc(10px * var(--s)); white-space:nowrap; }
-  .wordmark { font-family:var(--display); font-size:calc(19px * var(--s)); font-weight:800; }
-  .wordmark em { color:var(--mark); font-style:normal; }
+  .wordmark { height:calc(24px * var(--s)); width:auto; display:block; }
+  html[data-mode="dark"] .wordmark { content:url(/wordmark-dark.png); }
   h1, .card h3, .detail-panel h2, .page h2, #preview h4 { font-family:var(--display); font-weight:750; }
-  .brand-mark { width:30px; height:30px; display:block; flex:none; }
   .dot { width:10px; height:10px; box-shadow:0 0 0 4px var(--accent-soft); }
   .tabs { background:transparent; border:0; padding:0; box-shadow:none; gap:calc(2px * var(--s)); }
   .tab { position:relative; padding:calc(8px * var(--s)) calc(16px * var(--s)); border-radius:999px; font-size:calc(13.5px * var(--s)); color:var(--muted); font-weight:600; }
@@ -586,7 +584,7 @@
     .tab { padding:calc(7px * var(--s)) calc(10px * var(--s)); font-size:calc(12px * var(--s)); }
     .tab .icon { display:none; }
     .brand { font-size:calc(14px * var(--s)); gap:calc(8px * var(--s)); }
-    .brand-mark { width:28px; height:28px; }
+    .wordmark { height:calc(22px * var(--s)); }
     main { padding:calc(20px * var(--s)) calc(16px * var(--s)) calc(70px * var(--s)); }
     .hero { padding:calc(20px * var(--s)) 0; }
     .hero h1 { font-size:calc(24px * var(--s)); }
@@ -626,7 +624,7 @@
 <script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
 <body>
 <header class="top">
-  <div class="brand"><img class="brand-mark" src="/brand-mark.svg" alt="" aria-hidden="true"><span class="wordmark">Paper<em>Dig</em>Helper</span></div>
+  <div class="brand"><img class="wordmark" src="/wordmark.png" alt="PageTide"></div>
   <button class="project-btn" id="projectBtn" title="项目总览" aria-haspopup="dialog">
     <i class="icon folder" aria-hidden="true"></i>
     <span id="currentProjectName">加载中...</span>
@@ -751,7 +749,7 @@ const inDemo = () => state.currentProject === DEMO_ID;   // the demo project exi
 function setMode(m){ document.documentElement.dataset.mode = m; localStorage.setItem('pdh-mode', m);
   window.dispatchEvent(new CustomEvent('pdh-mode', { detail:m })); }
 setMode(localStorage.getItem('pdh-mode') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-localStorage.removeItem('pdh-accent');   // accent picker retired with the PaperDig palette
+localStorage.removeItem('pdh-accent');   // accent picker retired with the PageTide palette
 $('#modeBtn').onclick = async () => {
   try { await window.PDHTheme.set(document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'); }
   catch (e) { toast(e.message, 'err'); }
@@ -837,7 +835,7 @@ function renderRoute(route) {
   const panel = $('#routePanel');
   if (!panel) return;
   $('#btnDaily').textContent = dailyButtonText();
-  if (window.PDH_ROUTE_BETA === false) {
+  if (window.PAGETIDE_ROUTE_BETA === false) {
     // Learning-map mode is a beta setting, off by default: hotspot mode needs no panel at all.
     panel.hidden = true;
     panel.innerHTML = '';

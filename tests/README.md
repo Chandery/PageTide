@@ -1,6 +1,6 @@
 # 测试与验收边界
 
-当前仓库包含实际 Python 应用、SQLite、来源适配器、唯一模型网关及桌面网页界面。标准回归以临时数据目录和合成 transport 运行；不要把 `HOME`、`PDH_DATA_DIR` 指向正式资料，也不要为普通回归提供真实密钥。
+当前仓库包含实际 Python 应用、SQLite、来源适配器、唯一模型网关及桌面网页界面。标准回归以临时数据目录和合成 transport 运行；不要把 `HOME`、`PAGETIDE_DATA_DIR` 指向正式资料，也不要为普通回归提供真实密钥。
 
 ```sh
 python3 -m unittest discover -s tests -v

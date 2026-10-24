@@ -1,8 +1,8 @@
 [package]
-name = "paper-dig-helper"
+name = "pagetide"
 version = "0.1.0"
-description = "Local-first PaperDigHelper desktop shell"
-authors = ["PaperDigHelper"]
+description = "Local-first PageTide desktop shell"
+authors = ["PageTide"]
 edition = "2021"
 
 [build-dependencies]

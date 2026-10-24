@@ -33,7 +33,7 @@ test('goal status and following labels translate complete rendered sentences', (
 function load(lang, messages) {
   const shown = [];
   const context = vm.createContext({
-    PDH_I18N: { lang, messages },
+    PAGETIDE_I18N: { lang, messages },
     document: { documentElement: {}, addEventListener() {} },
     MutationObserver: class { observe() {} },
     alert: (message) => shown.push(message),

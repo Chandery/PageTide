@@ -25,7 +25,7 @@ BUDGET = Path("harness/budget.json")
 USAGE = Path("usage.jsonl")
 # --- test mode -----------------------------------------------------------------
 # Testing must not be blocked by (or consume) the owner-approved runtime ceilings.
-# PDH_DEV=1 or a DEV_MODE file in the user data directory switches to a SEPARATE
+# PAGETIDE_DEV=1 or a DEV_MODE file in the user data directory switches to a SEPARATE
 # ledger and a separate, deliberately loose ceiling. The shipped runtime limits are
 # untouched, and dev spend can never be mistaken for runtime usage.
 DEV_MARKER = Path("DEV_MODE")
@@ -101,7 +101,7 @@ def load_budget(root="."):
 
 def dev_mode_enabled(root=".", data_dir=None):
     base = Path(data_dir) if data_dir else Path(root)
-    return os.environ.get("PDH_DEV") == "1" or (base / DEV_MARKER).exists()
+    return os.environ.get("PAGETIDE_DEV") == "1" or (base / DEV_MARKER).exists()
 
 
 def _read_env_key(path):
@@ -200,7 +200,7 @@ class Gateway:
         return self.data_dir / KEY_FILE_NAME
 
     def _key_candidates(self):
-        explicit = os.environ.get("PAPERDIGHELPER_KEY_FILE")
+        explicit = os.environ.get("PAGETIDE_KEY_FILE")
         if explicit:
             yield Path(explicit)
         yield self.key_file()
@@ -509,7 +509,7 @@ class Gateway:
         request = urllib.request.Request(
             DEEPSEEK_URL, data=body,
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
-                     "User-Agent": "PaperDigHelper/0.1 (local app)"})
+                     "User-Agent": "PageTide/0.1 (local app)"})
         reservation = {"input": cap_in, "output": cap_out, "usd": str(reserve_usd)}
         if _connection_state is not None:
             _connection_state.update(sent=True, reservation=reservation)

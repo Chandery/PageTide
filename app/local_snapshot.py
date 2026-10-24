@@ -37,7 +37,7 @@ def create_snapshot(store, data_dir):
                            {'apiKey', 'api_key', 'openalex_key', 'dailyLimit', 'aiRerank'}}
         else:
             files[name] = path.read_text(encoding='utf-8')
-    return {'format': 'paperdighelper.local-snapshot', 'version': 1,
+    return {'format': 'pagetide.local-snapshot', 'version': 1,
             'exported_at': datetime.now(timezone.utc).isoformat(), 'scope': 'all-projects',
             'includes': ['all-database-tables', 'projects', 'learning-maps', 'feedback-and-profile-versions',
                          'notes-and-history-and-drafts', 'qa-history-and-sessions', 'categories-and-undo',
@@ -55,7 +55,7 @@ def restore_database(snapshot, empty_directory):
     The exported database retains PDF path metadata. Copy/remap archive files before
     using a restored library; this function never follows those paths or changes originals.
     """
-    if snapshot.get('format') != 'paperdighelper.local-snapshot' or snapshot.get('version') != 1:
+    if snapshot.get('format') != 'pagetide.local-snapshot' or snapshot.get('version') != 1:
         raise ValueError('不支持的快照版本')
     target = Path(empty_directory)
     if target.exists():
@@ -78,7 +78,7 @@ def restore_database(snapshot, empty_directory):
     # Validate before creating anything. Own only this newly created directory;
     # a pre-existing destination is never cleaned or overwritten.
     target.mkdir(parents=True, mode=0o700)
-    restored = target / 'paperdighelper.sqlite'
+    restored = target / 'pagetide.sqlite'
     temporary = target / '.restore-partial.sqlite'
     try:
         descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

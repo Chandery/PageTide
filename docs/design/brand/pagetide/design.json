@@ -1,0 +1,20 @@
+{
+  "brand": "PageTide",
+  "date": "2026-10-24",
+  "icon": {
+    "status": "user-selected",
+    "source": "/var/folders/hl/1bs43l6968103s9kq8bsrp2r0000gn/T/codex-clipboard-7eda4998-5f16-4d46-89b3-dcb1d3fde9e1.png",
+    "file": "PageTide-icon.png",
+    "sha256": "8dc6da240e1a8600c4ae4fc8ac5154639e932d703e64c40f7c23403fd1530a9c",
+    "note": "原样复制用户指定的图片；小浪闭合，大浪开口。没有使用后来的全闭合版。"
+  },
+  "wordmark": {
+    "status": "design-proposal",
+    "mode": "built-in image_gen",
+    "source": "/Users/chandery/.codex/generated_images/01a16c3a-050c-7c41-8eeb-5d0d629702f4/exec-3fe53a26-7390-4cec-85fc-5385ef87d69a.png",
+    "file": "PageTide-wordmark.png",
+    "prompt": "Use case: logo-brand. Create ONE refined standalone CUSTOM WORDMARK for the exact name “PageTide”. Image 1 is a PALETTE AND BRAND CHARACTER reference only, not an object to redraw. It is the user's final selected icon: blue bookmark with smooth white surf and a pale yellow exposed page.\n\nOutput ONLY the wordmark PageTide on true transparent exterior. No icon, no mockup, no board, no caption, no underline or other graphics. The wordmark will sit BESIDE the icon in a clean light-gray desktop application header. It must be exceptionally readable and calm at 24–32px high.\n\nExact spelling and case: P a g e T i d e, one continuous word, capital P and T only. Keep P, a, g, e, i, d, e conventional and clear. A bespoke contemporary humanist-geometric sans with medium-bold weight, gently rounded joins, generous open counters and a stable straight baseline. Prefer a clean single-storey g. Carefully balanced kerning across eT; no awkward gap between Page and Tide, no touching glyphs. Letter proportions natural, refined and warm, never bubble-like, cartoonish, condensed or massively heavy.\n\nPage is deep ink navy (#15365B). Tide is vivid confident blue (#086EF5), matching the icon's lower blue. Solid uniform fills. The sole distinctive gesture: a VERY SUBTLE custom capital T crossbar whose top edge gently rises and settles like one low tide swell, with an almost straight lower edge. Curve amplitude no more than about 5% of cap height, crossbar ends soft and restrained. The T is still immediately a T, with the same cap height as P, normal width and no overhang onto the i or e. It is an intrinsic typographic stroke, NOT a separate wave sitting on the T, an exaggerated ribbon or flag. All other letters keep a quiet consistent type family. The typography should complement rather than compete with the already expressive wave icon.\n\nProfessional precise vector-style lettering, flat colors and crisp clean contours. Wide horizontal composition, tightly balanced but with comfortable transparent padding. No serif, italics, wavy baseline, dancing letters, illustrated letters, cut-through waterlines, extra wave strokes, gradients, textures, shadows, glow, 3D, paper effects, sparkle, watermark or border.",
+    "note": "独立PageTide字标，深蓝Page、亮蓝Tide，T横画轻微起伏。PNG概念稿，尚未矢量化。"
+  },
+  "integration": "Design delivery only. No app changes or rebuilding."
+}

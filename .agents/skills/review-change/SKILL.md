@@ -1,6 +1,6 @@
 ---
 name: review-change
-description: Review any PaperDigHelper work unit, from a documentation fix to a critical migration or prompt edit, with proportional records and reproducible evidence.
+description: Review any PageTide work unit, from a documentation fix to a critical migration or prompt edit, with proportional records and reproducible evidence.
 ---
 # Review a change
 

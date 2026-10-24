@@ -183,7 +183,7 @@ class StoreTests(Fixture):
         self.assertEqual(self.app.store.conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE name='org_projects'").fetchone()[0], before)
         if before:
             self.assertEqual(self.app.store.conn.execute("SELECT COUNT(*) FROM org_projects WHERE project=?", (self.pid,)).fetchone()[0], 0)
-        self.assertEqual([p.name for p in self.app.data.glob(".paperdighelper.sqlite.pre-organization-*")], [])
+        self.assertEqual([p.name for p in self.app.data.glob(".pagetide.sqlite.pre-organization-*")], [])
 
     def test_non_string_project_ids_are_value_errors(self):
         for bad in (["x"], {"a": 1}, 5.5):
@@ -393,7 +393,7 @@ class RouteTests(Fixture):
 
     def test_save_read_mark_and_errors_over_http(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             self.assertEqual(self.call(port, f"/api/route?project_id={self.pid}")[1]["enabled"], False)
             status, saved = self.call(port, "/api/route", {"action": "save", "project_id": self.pid, "plan": PLAN})
             self.assertEqual(status, 200)
@@ -413,7 +413,7 @@ class RouteTests(Fixture):
 
     def test_watch_over_http_is_explicit_revision_guarded_and_undoable(self):
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             _, saved = self.call(port, "/api/route", {"action": "save", "project_id": self.pid, "plan": PLAN})
             cid = saved["graph"]["concepts"][0]["id"]
             body = {"action": "watch", "project_id": self.pid, "concept": cid, "value": True, "revision": saved["revision"]}

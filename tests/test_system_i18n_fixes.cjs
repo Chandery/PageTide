@@ -48,8 +48,8 @@ function browser(lang) {
   const all=node=>[node,...(node.childNodes||[]).flatMap(all)];
   const root=new Element('main'),html=new Element('html');html.append(root);
   const document={documentElement:html,createElement:tag=>new Element(tag),addEventListener(){},createTreeWalker(node,_show,filter){const out=[];const visit=element=>{for(const child of element.childNodes||[]){const result=filter.acceptNode(child);if(result!==2){out.push(child);visit(child);}}};visit(node);let index=0;return {nextNode:()=>out[index++]||null};}};
-  const context=vm.createContext({document,NodeFilter:{SHOW_ELEMENT:1,SHOW_TEXT:4,FILTER_ACCEPT:1,FILTER_REJECT:2},MutationObserver:class{constructor(callback){observer=callback;}observe(){}},PDH_I18N:{lang,messages},URLSearchParams});context.window=context;
-  const language=next=>{observer=undefined;context.PDH_I18N={lang:next,messages};vm.runInContext(read('i18n.js'),context);};language(lang);
+  const context=vm.createContext({document,NodeFilter:{SHOW_ELEMENT:1,SHOW_TEXT:4,FILTER_ACCEPT:1,FILTER_REJECT:2},MutationObserver:class{constructor(callback){observer=callback;}observe(){}},PAGETIDE_I18N:{lang,messages},URLSearchParams});context.window=context;
+  const language=next=>{observer=undefined;context.PAGETIDE_I18N={lang:next,messages};vm.runInContext(read('i18n.js'),context);};language(lang);
   vm.runInContext(read('profile-ui.js'),context);
   const flush=()=>observer?.([{type:'childList',addedNodes:[root]}]);
   const text=()=>all(root).filter(node=>node.nodeType===3).map(node=>node.nodeValue).join('');

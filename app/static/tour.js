@@ -27,7 +27,7 @@
     // The welcome card: the person's language is unknown, so it is bilingual and has no spotlight target.
     // Its look and wording live in renderWelcome(); text/phase here are the Chinese defaults.
     { id: 'w0', page: 'index', phase: '开始', target: null, advance: 'next', welcome: true,
-      text: '欢迎使用 PaperDigHelper',
+      text: '欢迎使用 PageTide',
       primary: { label: '开始', choice: 'primary' } },
     { id: 'p1', page: 'index', phase: '项目', target: '#projectBtn', advance: 'next',
       text: '这是项目。点它切换项目，或用 ＋ 新建。现在打开的是演示项目。',
@@ -119,8 +119,8 @@
      group labels are always bilingual so a reader of either language can find them. */
   const WELCOME_GROUPS = { lang: '语言 / Language', mode: '外观 / Appearance' };
   const WELCOME = {
-    'zh-CN': { title: '欢迎使用 PaperDigHelper', light: '浅色', dark: '深色', auto: '跟随系统', start: '开始', skip: '跳过指引' },
-    'en-US': { title: 'Welcome to PaperDigHelper', light: 'Light', dark: 'Dark', auto: 'System', start: 'Start', skip: 'Skip tour' },
+    'zh-CN': { title: '欢迎使用 PageTide', light: '浅色', dark: '深色', auto: '跟随系统', start: '开始', skip: '跳过指引' },
+    'en-US': { title: 'Welcome to PageTide', light: 'Light', dark: 'Dark', auto: 'System', start: 'Start', skip: 'Skip tour' },
   };
   const THEME_MODES = ['light', 'dark', 'auto'];
   /* The saved interface language wins; without one the browser language decides (zh* -> Chinese, else English). */

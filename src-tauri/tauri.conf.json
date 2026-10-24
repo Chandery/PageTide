@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "PaperDigHelper",
+  "productName": "PageTide",
   "version": "0.1.0",
-  "identifier": "com.paperdighelper.desktop",
+  "identifier": "com.pagetide.desktop",
   "build": {
     "frontendDist": "../app/static"
   },
@@ -26,11 +26,11 @@
       "icons/icon.png"
     ],
     "resources": {
-      "resources/paperdighelper-server/": "backend/"
+      "resources/pagetide-server/": "backend/"
     },
     "category": "Productivity",
     "shortDescription": "Local-first paper discovery and reading companion",
-    "longDescription": "PaperDigHelper keeps recommendations, feedback, and reading data on your computer.",
+    "longDescription": "PageTide keeps recommendations, feedback, and reading data on your computer.",
     "windows": {
       "webviewInstallMode": {
         "type": "embedBootstrapper",

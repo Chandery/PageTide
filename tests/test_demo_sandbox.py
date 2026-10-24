@@ -37,7 +37,7 @@ class DemoCase(unittest.TestCase):
         (self.root / "harness").mkdir()
         (self.root / "harness" / "budget.json").write_text((ROOT / "harness" / "budget.json").read_text())
         self.data = self.root / "data"
-        for patcher in (mock.patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(self.data), "DEEPSEEK_API_KEY": "x"}),
+        for patcher in (mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(self.data), "DEEPSEEK_API_KEY": "x"}),
                         mock.patch.object(socket.socket, "connect", _loopback_only),
                         mock.patch.object(Gateway, "call", side_effect=AssertionError("the demo must not call a model")),
                         mock.patch.object(Gateway, "_call", side_effect=AssertionError("the demo must not call a model"))):
@@ -79,7 +79,7 @@ class DemoCase(unittest.TestCase):
                 conn.close()
 
     def real_counts(self):
-        db = sqlite3.connect(str(self.data / "paperdighelper.sqlite"))
+        db = sqlite3.connect(str(self.data / "pagetide.sqlite"))
         try:
             return {t: db.execute("SELECT COUNT(*) FROM %s" % t).fetchone()[0] for t in REAL_TABLES
                     if db.execute("SELECT 1 FROM sqlite_master WHERE name=?", (t,)).fetchone()}
@@ -201,7 +201,7 @@ class DemoFlowTests(DemoCase):
         status, projects = self.call("GET", "/api/projects", header=False)
         self.assertEqual(projects["demo"]["name"], "Demo project")
         generation = demo.current_generation(str(self.data))[0]
-        dump = "\n".join(sqlite3.connect(str(demo.sandbox_root(self.data) / generation / "paperdighelper.sqlite")).iterdump())
+        dump = "\n".join(sqlite3.connect(str(demo.sandbox_root(self.data) / generation / "pagetide.sqlite")).iterdump())
         name = fixture.DIRECTIONS[0]["name"]
         self.assertIn(name["en"], dump)
         self.assertNotIn(name["zh"], dump)

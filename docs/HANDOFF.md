@@ -1,3 +1,15 @@
+# 当前工作单元：产品改名 PageTide + 新图标/字标（2026-10-24，分支 pagetide-brand，critical）
+
+[变更记录](../changes/2026-10-24-pagetide-brand.json)，[检查证据](evidence/2026-10-24-pagetide-brand-checks.txt)，[ADR 0044](decisions/0044-pagetide-brand.md)。
+
+产品名、bundle id（`com.pagetide.desktop`）、Cargo 包与后端可执行（`pagetide`、`pagetide-server`）、数据目录（`PageTide` / `PageTideData`）、`pagetide.sqlite`、环境变量（`PAGETIDE_*`，原 `PAPERDIGHELPER_*` 与 `PDH_*`）、安装包与 zip 名（`PageTide_<版本>_x64-setup.exe`、`PageTide-macos-arm64.zip`）全部改为 PageTide；左上角只放字标（`app/static/wordmark.png`，深色主题 `wordmark-dark.png`），图标由 `docs/design/brand/pagetide/build_icons.py` 从 owner 选定的 PNG 生成（Apple 网格 82% 边距）。没有数据目录搬迁代码：owner 本机的旧数据要手动从 `~/Library/Application Support/PaperDigHelper` 移到 `PageTide`。`tests/test_brand_name.py` 保证 app/、scripts/、src-tauri、.github 里不再出现旧名（只允许 `app/updater.py` 的 `REPO`）。
+
+**GitHub 仓库改名后要改的确切位置**：`app/updater.py` 的 `REPO`（唯一一处，API 地址、下载前缀、`html_url` 校验都由它派生）；`docs/RELEASE.md` 开头一句；`tests/test_brand_name.py` 的 `ALLOWED_LINE` 同步更新或删去；README 另议。`release.yml` 使用 `github.repository`，不用改。
+
+没验证：没有构建（`cargo tauri build`、zip、NSIS），Dock/Finder/Windows 里的真实图标观感没看；`pdh-*` CSS/storage 前缀与 `window.PDH*` 有意保留（ADR 0044）；没有独立审查。
+
+---
+
 # 当前工作单元：旧默认项目清理 · 独立审查后的修正（2026-10-24，第六个提交）
 
 原则：只要用过就一点不动，有疑问保留。修了：标记先以 `in_progress` 单独提交，备份里就带标记（从备份恢复后不再清理）；备份写唯一临时文件，独立连接 `quick_check` 并核对 projects/papers 行数和标记，通过才改名为唯一最终名，旧的 `.bak` 既不信任也不覆盖，失败删残片且不删数据；`profile_versions` 里本项目（或无项目）的非 `initial` 版本都保留整个库；语言策略版本 > 0 或有 `allowed_languages` 保留；链接论文有非 demo 速览或周报有 AI 分析保留（测试夹具不再造速览）；批次不止一个日期保留；有 `source_project_id='default_project'` 的分享保留；只在桌面启动（`desktop.py` 拿到锁之后、`build_server` 之前，需 `PDH_APP_VERSION`）或源码显式 `PDH_LEGACY_CLEANUP=1` 时执行，`build_server` 回到不打开库（所以不需要给 test_maintenance 等三处补 env patch）；`except Exception`；一并删 `route_exploration_evidence_<批次>`，并清别的项目 `org_projects` 里指向被删论文的条目。判定、清单、恢复步骤在 ADR 0042 补充里。

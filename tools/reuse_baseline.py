@@ -7,7 +7,7 @@ Zero model tokens, no network, standard library only. Reads the frozen pool unde
 Systems (both see the same features: sublinear TF-IDF fitted on unlabelled text):
     existing_ranker      app.ranking: seed + Rocchio(pos, explicit neg) + MMR, as build_batch does
     svm_unlabelled_neg   arxiv-sanity-lite recipe: positives vs every other earlier paper
-                         (treats "not tagged" as negative, which PaperDigHelper forbids; reported
+                         (treats "not tagged" as negative, which PageTide forbids; reported
                          only to compare with the upstream recipe)
     svm_explicit_neg     same SVM, but negatives are only explicit "irrelevant" labels
     recency              newest first

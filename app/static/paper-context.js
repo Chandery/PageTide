@@ -9,7 +9,7 @@
   function html(context, key, showCategories = true) {
     if (!context) return '';
     const c = context;
-    const beta = !(typeof window !== 'undefined' && window.PDH_ROUTE_BETA === false);
+    const beta = !(typeof window !== 'undefined' && window.PAGETIDE_ROUTE_BETA === false);
     const map = beta && c.map_available;
     const jump = (view, label, unit = '') => `<button type="button" class="org-link-button" data-action="graph-navigate" data-key="${h(key)}" data-project="${h(c.project_id)}" data-view="${view}" data-unit="${h(unit)}">${h(label)}</button>`;
     const categories = showCategories && c.categories.length ? `<p><b>收藏类别</b> <span data-no-i18n>${c.categories.map(d => h(d.name)).join(' · ')}</span></p>` : '';

@@ -1,6 +1,6 @@
 ---
 name: audit-budget
-description: Audit PaperDigHelper model operations, prompts, token counts, API prices, retries or new features; maintain reproducible runtime and separate developer budgets.
+description: Audit PageTide model operations, prompts, token counts, API prices, retries or new features; maintain reproducible runtime and separate developer budgets.
 ---
 # Audit a budget change
 

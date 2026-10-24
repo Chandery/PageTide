@@ -25,7 +25,7 @@ def provider_reply(content, prompt=100, completion=20):
 class GatewayNoCapsTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
-        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-key', 'PDH_DEV': '0'})
+        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-key', 'PAGETIDE_DEV': '0'})
         env.start(); self.addCleanup(env.stop)
         self.gateway = Gateway(root=ROOT, data_dir=Path(self.tmp.name), dev=False)
         self.provider = self.gateway.config['provider']
@@ -77,7 +77,7 @@ class GatewayNoCapsTests(unittest.TestCase):
 class ReaderAndChatNoCapsTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
-        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-key', 'PDH_DEV': '0'})
+        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-key', 'PAGETIDE_DEV': '0'})
         env.start(); self.addCleanup(env.stop)
         self.app = App(root=ROOT, data_dir=Path(self.tmp.name)); self.addCleanup(self.app.store.close)
         self.pid = self.app.create_project('Public regression')['project_id']

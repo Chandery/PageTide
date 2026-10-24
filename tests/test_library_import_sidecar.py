@@ -49,7 +49,7 @@ class Base(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.data = Path(self.tmp.name)
-        self.store = Store(self.data / "paperdighelper.sqlite")
+        self.store = Store(self.data / "pagetide.sqlite")
         self.store.init()
         self.project = ProjectManager(self.store).create_project("导入测试")
         self.client = FakeClient()

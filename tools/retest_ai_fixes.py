@@ -27,7 +27,7 @@ from app.category_review_service import run_review
 
 BASE = ROOT / '.local/ai-fixes-20261008/real-ai'
 OLD_BASE = Path('/Users/chandery/.codex/worktrees/multidiscipline-audit/PaperDigHelper/.local/multidiscipline-audit-20261007/ai')
-KEY = Path('/Users/chandery/Library/Application Support/PaperDigHelper/deepseek.env')
+KEY = Path('/Users/chandery/Library/Application Support/PageTide/deepseek.env')
 TOKENIZER = Path('/Users/chandery/PaperDigHelper/.local/route-native-20261007/tokenizer/deepseek_v4_tokenizer/tokenizer.json')
 SENTINEL = 'AUDIT_PRIVATE_NOTE_DO_NOT_SEND'
 SOFT_TOKENS = 3_000_000
@@ -385,7 +385,7 @@ def main():
     suffix = '' if args.round == 1 else '-r' + str(args.round)
     run=BASE/(('live' if args.live else 'capture') + suffix)
     run.mkdir(parents=True,exist_ok=True,mode=0o700)
-    os.environ['PAPERDIGHELPER_KEY_FILE']=str(KEY)
+    os.environ['PAGETIDE_KEY_FILE']=str(KEY)
     os.environ['DEEPSEEK_API_KEY']=''
     os.environ['PDH_DEV']='1'
     shared=Gateway(root=ROOT,data_dir=BASE/'ledger',dev=True)

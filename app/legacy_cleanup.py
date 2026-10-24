@@ -11,7 +11,7 @@ carries it too (a restored backup is never cleaned a second time); (2) a consist
 file, verified by a separate connection (quick_check and the project/paper counts), and only then renamed to a unique
 final name `<db>.pre-legacy-cleanup-<time>-<id>.bak` (never overwriting); (3) in one transaction the check is repeated,
 the data deleted and the marker set to the final result. Any doubt keeps everything: only a library that is exactly
-the untouched first-start state is cleaned. To undo: stop the app, copy the .bak over paperdighelper.sqlite.
+the untouched first-start state is cleaned. To undo: stop the app, copy the .bak over pagetide.sqlite.
 """
 import json
 import os

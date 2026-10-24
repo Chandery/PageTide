@@ -390,7 +390,7 @@ class HttpTests(Fixture):
     def test_the_three_actions_over_http_and_a_dry_run_that_sends_nothing(self):
         self.paper("e1", "Epitaxial layers", "epitaxy")
         port = self.serve()
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, body = self.post(port, {"action": "concept-papers", "project_id": self.pid, "concept": self.cid["Epitaxy"]})
             self.assertEqual((status, [p["key"] for p in body["papers"]]), (200, ["e1"]))
             status, body = self.post(port, {"action": "concept-intro", "project_id": self.pid, "concept": self.cid["Epitaxy"], "dry_run": True})

@@ -264,7 +264,7 @@ class ModelHttpTests(creation_tests.Fixture):
     def test_new_http_create_revision_preview_and_confirm_have_explicit_scope(self):
         port=self.serve()
         pid=self.app.create_project('http',keywords=['world model'])['project_id']
-        with mock.patch.dict('os.environ',{'PAPERDIGHELPER_DATA':str(self.app.data)}):
+        with mock.patch.dict('os.environ',{'PAGETIDE_DATA':str(self.app.data)}):
             with mock.patch('app.gateway.Gateway.call',return_value=reply(CREATE)) as called:
                 status,created=self.post(port,'/api/route',{'action':'brief-plan','project_id':pid,'brief':BRIEF})
                 self.assertEqual(status,200);self.assertTrue(created['ok']);self.assertEqual(called.call_args.args[0],rr.CREATE_OPERATION)
@@ -286,14 +286,14 @@ class ModelHttpTests(creation_tests.Fixture):
         body={'action':'save','project_id':pid,'graph':graph,'revision':0}
         self.assertGreater(len(json.dumps(body,ensure_ascii=False).encode()),131072)
         port=self.serve()
-        with mock.patch.dict('os.environ',{'PAPERDIGHELPER_DATA':str(self.app.data)}),mock.patch('app.gateway.Gateway.call') as called:
+        with mock.patch.dict('os.environ',{'PAGETIDE_DATA':str(self.app.data)}),mock.patch('app.gateway.Gateway.call') as called:
             status,saved=self.post(port,'/api/route',body)
             self.assertEqual(status,200);self.assertEqual(len(saved['graph']['concepts']),40)
             self.assertEqual(len(saved['graph']['prereqs']),114);called.assert_not_called()
 
     def test_unapproved_or_disabled_new_operation_sends_no_provider_request(self):
         port=self.serve()
-        with mock.patch.dict('os.environ',{'PAPERDIGHELPER_DATA':str(self.app.data)}),mock.patch('app.gateway.urllib.request.urlopen',side_effect=AssertionError('no model network')):
+        with mock.patch.dict('os.environ',{'PAGETIDE_DATA':str(self.app.data)}),mock.patch('app.gateway.urllib.request.urlopen',side_effect=AssertionError('no model network')):
             # urllib client itself needs urlopen, so HTTP use http.client instead.
             import http.client
             conn=http.client.HTTPConnection('127.0.0.1',port,timeout=5)
@@ -310,7 +310,7 @@ class ModelHttpTests(creation_tests.Fixture):
     def test_raw_duplicate_fields_and_oversized_session_request_refused_before_model(self):
         import http.client
         port=self.serve();conn=http.client.HTTPConnection('127.0.0.1',port,timeout=5)
-        with mock.patch.dict('os.environ',{'PAPERDIGHELPER_DATA':str(self.app.data)}),mock.patch('app.gateway.Gateway.call') as called:
+        with mock.patch.dict('os.environ',{'PAGETIDE_DATA':str(self.app.data)}),mock.patch('app.gateway.Gateway.call') as called:
             for body in ['{"brief":{"goal":"first","goal":"second"}}','{"brief":{"goal":"'+('a'*131072)+'"}}']:
                 conn.request('POST',f'/api/project-guidance/sessions/{self.session}/route',body,{'Content-Type':'application/json'})
                 response=conn.getresponse();response.read();self.assertEqual(response.status,400)

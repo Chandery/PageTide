@@ -14,7 +14,7 @@ Owner 在本会话明确要求“不再设置预算上限，设置里增设按�
 
 新 `ai_connection_test` 只由“测试AI”按钮手工触发，一次固定英文 `Reply only OK.`，完整请求上限768、输出16，无重试；单次最大$0.0002496是未实测 envelope 算术。可测试临时未保存的密钥，也可在 AI 总开关关闭时显式测试但不改开关；不发送项目、论文、笔记、画像或历史，不保存临时密钥，不返回原始 provider 正文或秘密诊断。缺密钥/格式错误/认证、限流、服务、网络故障均保留明确结果。
 
-本次运行时按钮授权不代表新增 paid developer runs。`PDH_DEV`/`DEV_MODE` 仍使用独立 `usage-dev.jsonl` 与独立开启的日500万/月5000万 token、$10/日/$50/月开发帽；普通 runtime 的取消策略不能关闭开发帽。
+本次运行时按钮授权不代表新增 paid developer runs。`PAGETIDE_DEV`/`DEV_MODE` 仍使用独立 `usage-dev.jsonl` 与独立开启的日500万/月5000万 token、$10/日/$50/月开发帽；普通 runtime 的取消策略不能关闭开发帽。
 
 以下按日期保留的总帽描述是历史方案，由本节当前策略取代；单次请求边界与未测质量事项继续有效。
 
@@ -90,13 +90,13 @@ Owner 明确要求“点击一次……肯定就全部看完”。现在一次�
 
 开发/试用期间不要被正式日额度卡住，同时又不能污染正式账目：
 
-- 开启：环境变量 `PDH_DEV=1`，或在本机数据目录创建 `DEV_MODE`（都不进 Git）。
+- 开启：环境变量 `PAGETIDE_DEV=1`，或在本机数据目录创建 `DEV_MODE`（都不进 Git）。
 - 行为：模型调用改用**独立账本** `usage-dev.jsonl`，套用**独立的宽松额度**（日 500 万 token / $10，月 5000 万 / $50）。
 - **不改动**已批准的运行时上限，也不消耗正式账本；页面顶部显示「测试模式」横幅，页脚显示今日用量。
 - CLI：`python3 -m app.cli --dev daily --triage`。
-- 关闭：删除 `DEV_MODE` 或取消 `PDH_DEV`。正式发布前必须关闭并重新核对额度。
+- 关闭：删除 `DEV_MODE` 或取消 `PAGETIDE_DEV`。正式发布前必须关闭并重新核对额度。
 
-账本、`DEV_MODE` 与 API 密钥都位于**用户数据目录**：源码检出是 `.local/app/`，打包的 macOS 应用是 `~/Library/Application Support/PaperDigHelper/`。它们不会写进只读的应用包，重装应用也不应丢失用量或密钥。
+账本、`DEV_MODE` 与 API 密钥都位于**用户数据目录**：源码检出是 `.local/app/`，打包的 macOS 应用是 `~/Library/Application Support/PageTide/`。它们不会写进只读的应用包，重装应用也不应丢失用量或密钥。
 
 ## 4. 可执行检查
 

@@ -363,7 +363,7 @@ class SeedAdoptionTests(Case):
 class RouteTests(Case):
     def serve(self):
         from app import server
-        patcher = mock.patch.dict(os.environ, {"PAPERDIGHELPER_DATA": str(self.root / "data")})      # the server reads this app's data
+        patcher = mock.patch.dict(os.environ, {"PAGETIDE_DATA": str(self.root / "data")})      # the server reads this app's data
         patcher.start()
         self.addCleanup(patcher.stop)
         httpd = server.build_server(port=0, root=str(self.root))

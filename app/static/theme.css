@@ -1,4 +1,4 @@
-/* PaperDig palette — the single source of colour tokens for every page.
+/* PageTide palette — the single source of colour tokens for every page.
    Cool grey page, white cards, one saturated blue (--accent) for the thing to press and the thing that is on.
    Heavy sans headings, pill controls, large radii, almost no borders or shadows.
    tests/test_ui_contrast.py checks every text/surface pair here at WCAG AA. */

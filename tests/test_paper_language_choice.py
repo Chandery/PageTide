@@ -119,7 +119,7 @@ class ProjectLanguages(unittest.TestCase):
         self.assertEqual(dropped['allowed_languages'], ['zh', 'en'])
 
     def test_a_legacy_not_null_discipline_column_does_not_break_a_languages_only_project(self):
-        path = Path(self.tmp.name) / 'nonnull' / 'paperdighelper.sqlite'
+        path = Path(self.tmp.name) / 'nonnull' / 'pagetide.sqlite'
         with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
             old = Store(path)
             old.init()

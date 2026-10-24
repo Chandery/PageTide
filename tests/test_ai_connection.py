@@ -180,7 +180,7 @@ class AIConnectionHTTPTests(unittest.TestCase):
         call.assert_not_called()
 
     def test_settings_report_no_runtime_ceiling_and_preserve_usage(self):
-        with mock.patch.dict(os.environ, {'PDH_DEV': '0'}):
+        with mock.patch.dict(os.environ, {'PAGETIDE_DEV': '0'}):
             status, raw = self._request('GET', '/api/settings')
         self.assertEqual(status, 200); value = json.loads(raw)
         self.assertFalse(value['aggregate_limits_enabled'])

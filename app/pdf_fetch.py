@@ -21,8 +21,8 @@ from pathlib import Path
 
 from .creation import PDF_MAX_BYTES
 
-UA = "PaperDigHelper/0.1 (local app; user-requested PDF download)"
-ROBOTS_AGENT = "PaperDigHelper"
+UA = "PageTide/0.1 (local app; user-requested PDF download)"
+ROBOTS_AGENT = "PageTide"
 GAP_SECONDS = {"arxiv.org": 3.0}  # arXiv asks for at most one request every three seconds
 DEFAULT_GAP_SECONDS = 1.0
 MAX_WAIT_SECONDS = 10.0

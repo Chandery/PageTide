@@ -38,7 +38,7 @@ class GatewayHTTPDiagnosticsTests(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
         self.data = Path(tmp.name)
-        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-secret-key', 'PDH_DEV': '0'})
+        env = mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'synthetic-secret-key', 'PAGETIDE_DEV': '0'})
         env.start(); self.addCleanup(env.stop)
         self.gateway = Gateway(root=ROOT, data_dir=self.data, dev=False)
 

@@ -671,7 +671,7 @@ class HttpTests(Fixture):
         self.addCleanup(httpd.server_close)
         self.addCleanup(httpd.shutdown)
         port = httpd.server_address[1]
-        with mock.patch.dict("os.environ", {"PAPERDIGHELPER_DATA": str(self.app.data)}):
+        with mock.patch.dict("os.environ", {"PAGETIDE_DATA": str(self.app.data)}):
             status, body = self.post(port, {"action": "candidates", "project_id": self.pid})
             self.assertEqual((status, body["candidates"], len(body["pending"])), (200, [], 3))
             status, out = self.post(port, {"action": "direction-judge", "project_id": self.pid, "dry_run": True})

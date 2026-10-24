@@ -2,7 +2,7 @@
 
 The only network access is to GitHub: the public "latest release" JSON of this repository and the two assets
 (installer + .sha256) of that release. Nothing about the user, library or machine is sent (the User-Agent is the app
-name and version, no credentials). A source run without PDH_APP_VERSION is a development build and never checks.
+name and version, no credentials). A source run without PAGETIDE_APP_VERSION is a development build and never checks.
 
 Applying an update never happens while the app is still running: `arm_pending` only records what to do, and the
 desktop backend calls `run_pending` after its HTTP server has stopped (the shell closes its stdin on quit). That
@@ -24,6 +24,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+# The GitHub repository releases are read from. The only place the repository name appears in code; the repository is
+# still called by its old name and is renamed later: change this one line (and docs/RELEASE.md) after the rename.
 REPO = "Chandery/PaperDigHelper"
 LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 DOWNLOAD_PREFIX = f"https://github.com/{REPO}/releases/download/"
@@ -36,8 +38,8 @@ MAX_ASSET_BYTES = 600 * 1024 * 1024
 PENDING_SECONDS = 10 * 60             # an armed update that was not followed by a quit within this time is dropped
 
 TAG = re.compile(r"^v(\d{1,4})\.(\d{1,4})\.(\d{1,4})$")
-MACOS_ASSET = "PaperDigHelper-macos-arm64.zip"
-SAFE_ASSET = re.compile(r"^PaperDigHelper[A-Za-z0-9._-]{0,80}$")
+MACOS_ASSET = "PageTide-macos-arm64.zip"
+SAFE_ASSET = re.compile(r"^PageTide[A-Za-z0-9._-]{0,80}$")
 KEEP_IN_UPDATES = ("apply-update.log", "result")
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 
@@ -63,7 +65,7 @@ def platform_key(platform=None, machine=None):
 def installer_name(key, version):
     """The one installer file name a release of `version` must have for this system."""
     if key == "windows":
-        return f"PaperDigHelper_{version}_x64-setup.exe"
+        return f"PageTide_{version}_x64-setup.exe"
     return MACOS_ASSET if key == "macos" else None
 
 
@@ -102,7 +104,7 @@ class Transport:
     """The real network seam. Tests pass a fake with the same two methods; no test reaches the network."""
 
     def __init__(self, version):
-        self.user_agent = f"PaperDigHelper/{version}"
+        self.user_agent = f"PageTide/{version}"
 
     def _open(self, url, accept, timeout):
         request = urllib.request.Request(url, headers={"User-Agent": self.user_agent, "Accept": accept})
@@ -410,7 +412,7 @@ class Updater:
             return None
         if text.startswith("rollback-failed"):
             backup = Path(text[len("rollback-failed"):].strip())
-            if backup.name.startswith(".PaperDigHelper-update-old.") and backup.exists():
+            if backup.name.startswith(".PageTide-update-old.") and backup.exists():
                 self.reveal(backup)
             return "rollback_failed"
         if text == "failed":
@@ -502,8 +504,8 @@ while kill -0 "$PID" 2>/dev/null; do
   sleep 0.1
 done
 DIR=$(dirname "$OLD")
-STAGE="$DIR/.PaperDigHelper-update-new.$$"
-BACKUP="$DIR/.PaperDigHelper-update-old.$$"
+STAGE="$DIR/.PageTide-update-new.$$"
+BACKUP="$DIR/.PageTide-update-old.$$"
 if /usr/bin/ditto "$NEW" "$STAGE"; then
   if mv "$OLD" "$BACKUP"; then
     if mv "$STAGE" "$OLD"; then

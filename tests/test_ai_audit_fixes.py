@@ -152,7 +152,7 @@ class AuditFixTests(unittest.TestCase):
     def test_b03_request_beyond_the_model_window_stops_before_transport_and_ledger(self):
         # Only the model's own window refuses a request (owner 2026-10-22); shrink it so the cases stay small.
         self.app.gateway.config['provider']['context_tokens'] = 20000
-        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}), \
+        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PAGETIDE_DEV': '0'}), \
              mock.patch('app.gateway.urllib.request.urlopen') as opened:
             for kwargs in [dict(question='x' * 150000), dict(question='q', selection='中' * 10000)]:
                 out = self.app.qa('a', project_id=self.pid, **kwargs)
@@ -169,7 +169,7 @@ class AuditFixTests(unittest.TestCase):
         response = mock.MagicMock(); response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
         question, selection, old = 'LONG_QUESTION ' + 'x' * 20000, 'LONG_SELECTION ' + '中' * 3000, 'OLD_TURN ' + 'old ' * 3000
         self.app.store.add_qa('a', 'assistant', old, project_id=self.pid)
-        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}), \
+        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PAGETIDE_DEV': '0'}), \
              mock.patch('app.gateway.urllib.request.urlopen', return_value=response) as opened:
             out = self.app.qa('a', question, selection=selection, project_id=self.pid)
         self.assertTrue(out['ok'])
@@ -203,7 +203,7 @@ class AuditFixTests(unittest.TestCase):
         payload = {'choices': [{'message': {'content': json.dumps({'answer': 'Full excerpts', 'followups': []})}}],
                    'usage': {'prompt_tokens': 100, 'completion_tokens': 20, 'total_tokens': 120}}
         response = mock.MagicMock(); response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
-        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}), \
+        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PAGETIDE_DEV': '0'}), \
              mock.patch('app.gateway.urllib.request.urlopen', return_value=response) as opened:
             out = self.app.qa('a', 'KEEP_QUESTION world model', selection='KEEP_SELECTION', project_id=self.pid)
         self.assertTrue(out['ok']); self.assertNotIn('context_limits', out)
@@ -225,7 +225,7 @@ class AuditFixTests(unittest.TestCase):
         payloads = [dict(choices=[123], usage={'prompt_tokens': 10, 'completion_tokens': 1}),
                     dict(choices=[{'message': {'content': 123}}], usage={'prompt_tokens': 10, 'completion_tokens': 1}),
                     dict(choices=[], usage={'prompt_tokens': 'bad', 'completion_tokens': 1})]
-        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}):
+        with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PAGETIDE_DEV': '0'}):
             for payload in payloads:
                 response = mock.MagicMock(); response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
                 with mock.patch('app.gateway.urllib.request.urlopen', return_value=response):
@@ -237,7 +237,7 @@ class AuditFixTests(unittest.TestCase):
         for content, finish in [(123, 'stop'), (['text'], 'stop'), ('', 'stop'), (' ', 'stop'), ('cut', 'length')]:
             payload = dict(choices=[{'message': {'content': content}, 'finish_reason': finish}])
             response = mock.MagicMock(); response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
-            with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PDH_DEV': '0'}), \
+            with mock.patch.dict(os.environ, {'DEEPSEEK_API_KEY': 'test-key', 'PAGETIDE_DEV': '0'}), \
                  mock.patch('app.gateway.urllib.request.urlopen', return_value=response):
                 out = self.app.gateway.call('selection_translate', [{'role': 'user', 'content': 'Public phrase'}])
             self.assertFalse(out['ok']); self.assertTrue(out['bad_reply']); self.assertTrue(out['usage_unknown'])
