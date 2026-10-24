@@ -1,61 +1,136 @@
-# PageTide
+<!-- keep in sync with README-zh.md -->
+<div align="center">
 
-**论文推荐与可解释用户画像工具。** 目标是推荐值得看的论文，基于明确反馈改进下一批推荐，并把画像做成你可检查、可修改、可撤销的数据；论文库（列表与图谱、分类整理）、笔记与 AI 速览是在此之上的第二层。
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="app/static/wordmark-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="app/static/wordmark.png">
+  <img src="app/static/wordmark.png" alt="PageTide" width="360">
+</picture>
 
-2026-09-11：旧 ABCD 路线已退出执行，旧应用、未完成阅读器修复和依赖已删除。本轮完成了**复用调研、阶段计划、行动前 token 预算提案和 harness 说明**；**新实现尚未批准或开始，推荐质量与 AI 成本均未实测**，当前只有规划文档和标准库仓库检查，没有可运行应用。
+**An open-source research assistant for discovering and organizing papers.**
 
-## 阅读顺序
+PageTide learns your research profile, recommends new papers every day, and keeps them in a library you own.
 
-1. [产品目标](docs/PRODUCT.md)：推荐与画像的最短闭环，以及首版与后置范围。
-2. [测试领域与种子](docs/DOMAIN.md)：英文 AI / world models 与 10 篇正例种子（无反例）。
-3. [设计头脑风暴](docs/BRAINSTORM.md)：需求拆解、算法选型、候选路线与形态取舍。
-4. [开源与数据源调研](docs/RESEARCH.md)：ASReview/X/lite/PaperFlow 等实际代码、许可与缺口；论文图谱/聚类见 [KNOWLEDGE-GRAPH](docs/KNOWLEDGE-GRAPH.md)。
-5. [路线与阶段](docs/ROADMAP.md)：S0–S6、实验协议与停止条件；标注/裁判协议见 [EVALUATION](docs/EVALUATION.md)。
-6. [预算](docs/BUDGET.md)与[生成表](docs/BUDGET.generated.md)：核心 0 token；AI 层每日最低约 4,500 token 参考、上限约 10,800（未批准）。
-7. [Harness](docs/HARNESS.md) 与 [当前交接](docs/HANDOFF.md)：如何记录、审查、验证与换 agent。
-8. 任务与验收事实源：`harness/tasks.json`、`harness/requirements.json`、`harness/evaluations.json`。
+Lightweight · Easy · Efficient · Open source
 
-## 运行（第一切片，开发模式）
+English · <a href="README-zh.md">简体中文</a>
 
-```sh
-# 1) 初始化：解析 10 篇种子（OpenAlex 公开元数据）
-python3 -m app.cli init
+[![Release](https://img.shields.io/github/v/release/Chandery/PageTide?style=flat-square&color=086EF5)](https://github.com/Chandery/PageTide/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-086EF5?style=flat-square)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon%20%7C%20Windows%20x64-555?style=flat-square)
 
-# 2) 抓候选（可用 --no-distractors；OpenAlex 限流时会跳过并报错）
-python3 -m app.cli refresh --pages 1 --per-page 100
+[![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
-# 3) 生成今日 5 篇，可选 AI 速览（--dry-run 不花钱）
-python3 -m app.cli daily --triage --dry-run
-python3 -m app.cli daily --triage          # 真实调用 DeepSeek，走预算网关
+<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/pagetide-loop.gif" alt="PageTide demo" width="880"></a>
 
-# 4) 反馈与画像
-python3 -m app.cli fb 1 useful             # useful / irrelevant / later / busy / confused
-python3 -m app.cli profile --pin "world model,JEPA"
+</div>
 
-# 5) 网页界面（本地 loopback；Tauri 壳后续包它）
-python3 -m app.server        # http://127.0.0.1:8765
-```
+Twenty thousand new papers come out every day, and only a handful matter to you. PageTide is a desktop app that searches arXiv, OpenAlex and Baidu Scholar for you each morning, picks the papers that fit what you work on, and explains each one in a line. Save the good ones, mark the rest, and your profile gets sharper. Everything stays on your computer.
 
-离线/开发时可用已冻结的候选集：`python3 -m app.cli import-candidates .local/experiments/candidates.json`。
+## Features
 
-**默认零 token**；AI 速览/追问经唯一预算网关（`app/gateway.py`），失败降级为本地卡片。反馈里的“没空/看不懂/以后再看”**不改变兴趣**。
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## 暂保留的安全边界
+**Daily recommendations**
 
-本地保存、低资源、无默认模型权重下载、无托管后端/云同步/遥测；模型和新数据外发先授权；没选/没空/看不懂不等于不喜欢。论文软件连接和预览器都不是核心前提。
+Every morning, a short list of new papers that fit your project, each with a one-line AI preview of what it says and why it matters to you.
 
-## 规划一致性检查
+<img src="docs/assets/readme/en-today.png" alt="Today's picks with AI previews">
 
-Python 3.9+、标准库，无应用依赖：
+</td>
+<td width="50%" valign="top">
 
-```sh
-python3 scripts/budget.py --check
-python3 scripts/harness.py check
-python3 -m unittest discover -s tests -v
-```
+**A profile you control**
 
-这些检查只证明预算算术、仓库契约和 harness 一致性，**不证明推荐质量、真实GUI、模型计费或性能**。发布检查 `python3 scripts/harness.py check --release` 应保持阻断。
+See exactly what PageTide thinks you care about. It learns only from what you do on purpose: saving, marking not interested, pinning keywords. Edit or undo any of it.
 
-## 下一步
+<img src="docs/assets/readme/en-profile.png" alt="Interest profile page">
 
-领域/种子/首版范围已确认（英文 AI / world models，10 篇正例；首版含 PDF 下载与 AI 速览+追问；见 [DOMAIN](docs/DOMAIN.md)）。仍需确认 AI 每日/每月 token 与金额上限、数据外发范围、PDF 存放位置。随后在隔离目录跑上游复用（ASReview/X）与数据覆盖探针。
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Your library, mapped**
+
+Browse saved papers as a list or a graph of how they connect, and let AI suggest categories to sort them into.
+
+<img src="docs/assets/readme/en-graph.png" alt="Library graph view">
+
+</td>
+<td width="50%" valign="top">
+
+**Read and ask**
+
+Open the PDF, highlight a sentence, then translate it or ask a follow-up right beside the page.
+
+<img src="docs/assets/readme/en-reader-ask.png" alt="Reader with a highlighted sentence and an answer">
+
+</td>
+</tr>
+</table>
+
+Also included:
+
+- A weekly report showing how your profile changed.
+- An offline demo project and a short guided tour on first launch.
+- Import an existing library: PDF files and folders, or a Zotero collection exported as BibTeX or RIS.
+- PDF download and archiving for papers that offer an open copy.
+- English and Chinese interface, light and dark themes.
+- In-app update check.
+
+## See it in action
+
+<!-- 30 s promo video: paste the github.com/user-attachments/... URL here on its own line (mp4 under 10 MB) -->
+
+A 30-second walkthrough of PageTide, from creating a project to asking a question about a paper, will be embedded here.
+
+## Private by design
+
+> [!NOTE]
+> - Your papers, profile and notes are stored on your computer only.
+> - No account, no telemetry, no cloud sync.
+> - Recommendations, the profile and the library work offline and use no model tokens.
+> - AI features are optional and use your own DeepSeek API key.
+
+## Download
+
+| Platform | File |
+| --- | --- |
+| macOS (Apple Silicon) | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) |
+| Windows (x64) | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) |
+
+<details>
+<summary>First launch: the app is not signed</summary>
+
+PageTide is an independent open-source project and has no paid code-signing certificate, so your system will warn you the first time.
+
+- **macOS:** unzip, drag PageTide to Applications, then right-click it and choose Open. Or go to System Settings, Privacy & Security, and click Open Anyway. If macOS says the app is damaged, run `xattr -dr com.apple.quarantine /Applications/PageTide.app` in Terminal.
+- **Windows:** when SmartScreen says "Windows protected your PC", click More info, then Run anyway. The installer is per-user and needs no administrator rights.
+
+</details>
+
+## Quick start
+
+1. Open PageTide, pick a language and appearance, and click through the short tour on the demo project.
+2. Create your own project: Quick start, AI-guided or Manual.
+3. Generate today's picks, then save or mark what you see.
+4. Optional: add a DeepSeek API key in Settings to turn on AI previews and follow-up questions.
+
+## Roadmap and feedback
+
+Ideas, bugs and requests are welcome in [Issues](https://github.com/Chandery/PageTide/issues).
+
+## Contributing
+
+Run from source, run the tests and build the desktop app: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Acknowledgments
+
+Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev).
+
+## License
+
+[MIT](LICENSE) © Chandery
