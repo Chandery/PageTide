@@ -19,7 +19,7 @@
 
 [![Release](https://img.shields.io/github/v/release/Chandery/PageTide?style=flat-square&color=086EF5)](https://github.com/Chandery/PageTide/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-086EF5?style=flat-square)](LICENSE)
-![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon%20%7C%20Windows%20x64-555?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon%20%7C%20macOS%20Intel%20%7C%20Windows%20x64-555?style=flat-square)
 
 [![下载 PageTide](https://img.shields.io/badge/下载-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
 
@@ -116,6 +116,7 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 | 平台 | 文件 |
 | --- | --- |
 | macOS（Apple Silicon） | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 22 MB |
+| macOS（Intel） | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) |
 | Windows（x64） | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
 
 <details>

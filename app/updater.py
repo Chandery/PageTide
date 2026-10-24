@@ -38,7 +38,7 @@ MAX_ASSET_BYTES = 600 * 1024 * 1024
 PENDING_SECONDS = 10 * 60             # an armed update that was not followed by a quit within this time is dropped
 
 TAG = re.compile(r"^v(\d{1,4})\.(\d{1,4})\.(\d{1,4})$")
-MACOS_ASSET = "PageTide-macos-arm64.zip"
+MACOS_ASSETS = {"macos": "PageTide-macos-arm64.zip", "macos-x64": "PageTide-macos-x64.zip"}
 SAFE_ASSET = re.compile(r"^PageTide[A-Za-z0-9._-]{0,80}$")
 KEEP_IN_UPDATES = ("apply-update.log", "result")
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
@@ -51,14 +51,15 @@ def parse_version(text):
 
 
 def platform_key(platform=None, machine=None):
-    """"windows" (x64 builds only exist), "macos" (arm64 only) or None for any other system."""
+    """"windows" (x64 builds only exist), "macos" (Apple silicon), "macos-x64" (Intel) or None for any other system.
+    An Intel build running under Rosetta reports x86_64 and so keeps getting the Intel build it has."""
     platform = sys.platform if platform is None else platform
     if platform == "win32":
         return "windows"
     if platform == "darwin":
         import platform as platform_module
         machine = platform_module.machine() if machine is None else machine
-        return "macos" if machine == "arm64" else None
+        return {"arm64": "macos", "x86_64": "macos-x64"}.get(machine)
     return None
 
 
@@ -66,7 +67,7 @@ def installer_name(key, version):
     """The one installer file name a release of `version` must have for this system."""
     if key == "windows":
         return f"PageTide_{version}_x64-setup.exe"
-    return MACOS_ASSET if key == "macos" else None
+    return MACOS_ASSETS.get(key)
 
 
 def pick_assets(assets, key, version):
@@ -377,7 +378,7 @@ class Updater:
             # Started by run_pending once the backend stops; the NSIS installer itself checks for the running app.
             self._arm([str(path)])
             return {"mode": "installer", "version": state.get("version")}
-        if self.key == "macos":
+        if self.key in MACOS_ASSETS:
             staged = self._stage_macos(path, state.get("version"))
             bundle = self.current_app_bundle()
             if staged and bundle and os.access(bundle.parent, os.W_OK) and os.access(bundle, os.W_OK):

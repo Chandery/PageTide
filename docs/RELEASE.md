@@ -2,15 +2,14 @@
 
 产品名自 2026-10-24 起为 PageTide（[ADR 0044](decisions/0044-pagetide-brand.md)）；GitHub 仓库 2026-10-25 改名为 `Chandery/PageTide`，更新检查读取的仓库在 `app/updater.py` 的 `REPO`。
 
-两个平台都是**未签名**构建。macOS 在本机构建，Windows 由 GitHub Actions 构建（[ADR 0040](decisions/0040-windows-release.md)）。
+所有平台都是**未签名**构建，全部由 GitHub Actions 构建（[ADR 0040](decisions/0040-windows-release.md)）：Windows x64、macOS Apple 芯片（arm64，`macos-15`）和 macOS Intel（x64，`macos-15-intel`）。每个 macOS 架构在对应架构的机器上单独构建，没有通用包（PyInstaller 只能打出解释器自己的架构）。`macos-15-intel` 是 GitHub 最后一个 Intel macOS 镜像，约 2027 年 8 月下线，之后 Intel 版需要另想办法或停止提供。
 
 ## 发一个版本
 
 1. 合并到 `main`，本地跑完 AGENTS.md 里的检查（预算、harness、单元测试、Node 测试）。
 2. 改版本号（`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`），提交，打标签并推送（标签必须等于 `v` + `tauri.conf.json` 的 version，`publish` 作业会核对）：`git tag vX.Y.Z && git push origin vX.Y.Z`。
-3. 标签推送触发 `release` 工作流：`test-windows`（Python 与 Node 测试）和 `build-windows`（PyInstaller、冒烟、NSIS、校验和、artifact）并行；两者都通过后 `publish` 作业把 `PageTide_*_x64-setup.exe` 和 `.sha256` 传到该标签的 release（release 不存在则建为**草稿**）。也可在 Actions 页面手动运行（`workflow_dispatch`），此时只产出 artifact，不发布。
-4. macOS 包在本机构建（见下），把 zip 和校验和手动传到同一个 release：`gh release upload vX.Y.Z PageTide-macos-arm64.zip PageTide-macos-arm64.zip.sha256`。
-5. 检查草稿 release 里两个平台的文件，再手动发布。
+3. 标签推送触发 `release` 工作流：`test-windows`、`test-macos`（Python 与 Node 测试）和 `build-windows`（PyInstaller、冒烟、NSIS、校验和）、`build-macos`（arm64 与 x64 各一份：PyInstaller、冒烟、`.app`、架构与版本核对、zip、校验和）并行；全部通过后 `publish` 作业确认三个平台的文件都在，再把 `PageTide_*_x64-setup.exe`、`PageTide-macos-arm64.zip`、`PageTide-macos-x64.zip` 及各自的 `.sha256` 传到该标签的 release（release 不存在则建为**草稿**；已有同名文件会被覆盖）。也可在 Actions 页面手动运行（`workflow_dispatch`），此时只产出 artifact，不发布。
+4. 检查草稿 release 里三个平台的文件，再手动发布。
 
 ## 应用内“检查更新”依赖什么
 
@@ -18,21 +17,20 @@
 
 - **仓库需公开**，release 必须**从草稿发布**为正式版（草稿与预发布不会被 `latest` 返回，应用也会忽略）。
 - tag 严格是 `vX.Y.Z`，且大于已安装版本；版本号以 `tauri.conf.json` 为准（外壳以环境变量传给后端）。
-- 资产名必须正好是（Windows 文件名里的版本必须等于 tag，下载链接必须是 `releases/download/<tag>/<资产名>`）：Windows `PageTide_X.Y.Z_x64-setup.exe`（Tauri NSIS 的默认输出名，工作流不重命名）与 `PageTide_X.Y.Z_x64-setup.exe.sha256`；macOS `PageTide-macos-arm64.zip` 与 `PageTide-macos-arm64.zip.sha256`（上面第 4 步与构建命令产出的就是这个名字）。`.sha256` 首字段为 64 位十六进制 SHA-256（`shasum -a 256` 与工作流的格式都满足）。缺任何一个，该平台就不提示更新。macOS 压缩包里的 `.app` 的 `CFBundleShortVersionString` 必须等于 tag 的版本号（`tauri.conf.json` 的 version），否则应用拒绝替换。
-- 两个平台的资产都传齐后再发布草稿，否则先发布的平台用户会收到提示而另一个平台暂时没有。
+- 资产名必须正好是（Windows 文件名里的版本必须等于 tag，下载链接必须是 `releases/download/<tag>/<资产名>`）：Windows `PageTide_X.Y.Z_x64-setup.exe`（Tauri NSIS 的默认输出名，工作流不重命名）与 `PageTide_X.Y.Z_x64-setup.exe.sha256`；macOS Apple 芯片 `PageTide-macos-arm64.zip`、Intel `PageTide-macos-x64.zip`，以及各自的 `.sha256`（应用按 `platform.machine()` 选：`arm64` 取前者，`x86_64` 取后者；在 Apple 芯片上用 Rosetta 运行的 Intel 版也取 Intel 包）。`.sha256` 首字段为 64 位十六进制 SHA-256（`shasum -a 256` 与工作流的格式都满足）。缺任何一个，该平台就不提示更新。macOS 压缩包里的 `.app` 的 `CFBundleShortVersionString` 必须等于 tag 的版本号（`tauri.conf.json` 的 version），否则应用拒绝替换。
+- 三个平台的资产都传齐后再发布草稿（`publish` 作业会先核对），否则先发布的平台用户会收到提示而其他平台暂时没有。
 - 没有在真实 GitHub 上跑过这条链路（开发沙箱禁止访问），首次发布后请用旧版本的应用实测一次。
 
-## macOS 本机构建
+## macOS 本机构建（可选，仅用于本地测试）
+
+发布用的 macOS 包由 CI 构建。本地想打一个 Apple 芯片的包自测时：
 
 ```sh
 .local/desktop-build-env/bin/python scripts/build_desktop.py
 cargo tauri build --bundles app
-cd src-tauri/target/release/bundle/macos
-ditto -c -k --keepParent PageTide.app PageTide-macos-arm64.zip
-shasum -a 256 PageTide-macos-arm64.zip > PageTide-macos-arm64.zip.sha256
 ```
 
-`build_desktop.py` 用 `PAGETIDE_BUILD_PYTHON` 指定的 Python；没设时在 macOS 上用 `.local/desktop-build-env`（Python 3.9.6），其他情况用当前解释器。
+`build_desktop.py` 用 `PAGETIDE_BUILD_PYTHON` 指定的 Python；没设时在 macOS 上用 `.local/desktop-build-env`（Python 3.9.6），其他情况用当前解释器。CI 用 3.11。
 
 ## 用户首次打开（未签名）
 
@@ -52,3 +50,7 @@ shasum -a 256 PageTide-macos-arm64.zip > PageTide-macos-arm64.zip.sha256
 ## Windows 上没有验证的部分
 
 没有在 Windows 真机上运行过。`Cargo.lock` 已提交（含 `rfd`、`tauri-plugin-single-instance`），CI 用 `--locked`；GitHub 的 Windows 运行器上单元测试、Node 测试、PyInstaller、打包冒烟和 NSIS 已通过，但那不是真机。未验证：安装包与 WebView2 安装、原生保存对话框（`rfd`）、外部链接打开、退出时的草稿保护与后端进程清理、`msvcrt` 文件锁与父进程句柄检查在真实并发下的表现、单实例插件、启动失败消息框、`%LOCALAPPDATA%\PageTideData` 下 SQLite（WAL）的行为、杀毒软件对未签名 PyInstaller 程序的拦截。Windows 的密钥文件没有 0600，依赖用户配置目录的默认 ACL。依赖 POSIX 的少数测试在 Windows 上已显式跳过；CI 的测试运行器在 Windows 上会容忍临时目录清理失败，并在末尾报告没能删除的目录数。仓库用 `.gitattributes` 固定 LF 换行（Windows 检出成 CRLF 会让按源码切片的 Node 测试失败）。
+
+## macOS Intel 上没有验证的部分
+
+Intel 版（`PageTide-macos-x64.zip`）只在 GitHub 的 `macos-15-intel` 运行器上构建并通过打包冒烟测试，没有在 Intel Mac 真机上打开过，也没有验证 Intel 机器上的应用内更新替换。CI 用 Python 3.11，本地 Apple 芯片包用 3.9.6，两者最低支持的 macOS 版本可能不同，未核对。
