@@ -1386,8 +1386,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def clean_legacy_default_project(root="."):
-    """Once per library, right after the database is opened: remove the untouched default project and seed papers that
-    older desktop builds made on first launch (app/legacy_cleanup.py). Never blocks start-up."""
+    """Once per library: remove the untouched default project and seed papers that older desktop builds made on first
+    launch (app/legacy_cleanup.py). Called by app/desktop.py after it holds the instance lock, and by serve() only with
+    PDH_LEGACY_CLEANUP=1; build_server itself never opens the database. Never blocks start-up."""
     try:
         from . import legacy_cleanup
         app = make_app(root)
@@ -1402,7 +1403,6 @@ def clean_legacy_default_project(root="."):
 
 
 def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
-    clean_legacy_default_project(root)
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.root = root
     httpd.desktop_token = desktop_token
@@ -1410,6 +1410,8 @@ def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
 
 
 def serve(host="127.0.0.1", port=8765, root="."):
+    if os.environ.get("PDH_LEGACY_CLEANUP") == "1":   # a source run cleans only when asked to; the desktop app does it in app/desktop.py
+        clean_legacy_default_project(root)
     httpd = build_server(host, port, root)
     print(f"PaperDigHelper UI: http://{host}:{httpd.server_address[1]}  (Ctrl-C to stop)")
     try:

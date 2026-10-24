@@ -1,3 +1,11 @@
+# 当前工作单元：旧默认项目清理 · 独立审查后的修正（2026-10-24，第六个提交）
+
+原则：只要用过就一点不动，有疑问保留。修了：标记先以 `in_progress` 单独提交，备份里就带标记（从备份恢复后不再清理）；备份写唯一临时文件，独立连接 `quick_check` 并核对 projects/papers 行数和标记，通过才改名为唯一最终名，旧的 `.bak` 既不信任也不覆盖，失败删残片且不删数据；`profile_versions` 里本项目（或无项目）的非 `initial` 版本都保留整个库；语言策略版本 > 0 或有 `allowed_languages` 保留；链接论文有非 demo 速览或周报有 AI 分析保留（测试夹具不再造速览）；批次不止一个日期保留；有 `source_project_id='default_project'` 的分享保留；只在桌面启动（`desktop.py` 拿到锁之后、`build_server` 之前，需 `PDH_APP_VERSION`）或源码显式 `PDH_LEGACY_CLEANUP=1` 时执行，`build_server` 回到不打开库（所以不需要给 test_maintenance 等三处补 env patch）；`except Exception`；一并删 `route_exploration_evidence_<批次>`，并清别的项目 `org_projects` 里指向被删论文的条目。判定、清单、恢复步骤在 ADR 0042 补充里。
+
+跨分支风险：清理之后若用旧 main / v0.1.0 的构建打开同一个真实库，它会新建 UUID 默认项目并再塞种子论文；新旧构建不要混用同一个数据目录。没验证：没在真实旧库上跑；没有再做独立审查；备份文件不会自动删除。
+
+---
+
 # 当前工作单元：旧默认项目的一次性自动清理（2026-10-24，onboarding-tour 第五个提交，critical：会删库里的数据）
 
 [变更记录](../changes/2026-10-24-legacy-default-cleanup.json)，[检查证据](evidence/2026-10-24-legacy-default-cleanup-checks.txt)，[ADR 0042 补充](decisions/0042-first-run-demo-and-tour.md)。

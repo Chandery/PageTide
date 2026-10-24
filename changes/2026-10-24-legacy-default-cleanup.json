@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "2026-10-24-legacy-default-cleanup",
   "class": "critical",
-  "summary": "One-time cleanup of the untouched legacy default project: older desktop builds created project default_project (名 默认项目), ten world-model seed papers and an automatic fetch on first launch. app/legacy_cleanup.py (called from build_server after the database opens, source run and desktop alike) deletes exactly that auto-made state in one transaction after writing <db>.pre-legacy-cleanup.bak, only when nothing was ever done in it (no feedback, saved paper, question, note, category, import, keyword, rename, pin history, stored PDF/full text, user-intent setting); anything else leaves the library untouched. Result recorded in settings key legacy_default_cleanup; no migration number; never runs twice.",
+  "summary": "One-time cleanup of the untouched legacy default project (older desktop builds created default_project, ten world-model seed papers and an automatic fetch on first launch). app/legacy_cleanup.py runs once, only from the desktop start-up (app/desktop.py after the instance lock, PDH_APP_VERSION set) or a source run with PDH_LEGACY_CLEANUP=1; build_server does not open the library. Order: commit an in_progress marker, write and verify a uniquely named backup (separate connection, quick_check, row counts, marker present), then in one transaction re-check, delete and set the final marker. Cleans only when nothing was ever done in the project; any doubt keeps everything. Independent-review fixes: marker before backup, verified unique backup, profile-version kinds, language policy, AI previews / weekly AI analysis, multi-day batches, shared papers, desktop-only trigger, exploration evidence and other projects' category entries.",
   "tasks": [
     "PILOT-01",
     "FEAT-ONBOARDING"
@@ -13,6 +13,7 @@
     "R-ONBOARDING"
   ],
   "files": [
+    "app/desktop.py",
     "app/legacy_cleanup.py",
     "app/server.py",
     "changes/2026-10-24-legacy-default-cleanup.json",
@@ -61,10 +62,11 @@
   ],
   "owner_approved": false,
   "open_risks": [
-    "Not independently reviewed (critical class; it deletes data).",
-    "Not run on the owner's real old library; only on constructed states in tests (the old first-start state is reconstructed from the migration and ensure_seed_papers, not from a real old file).",
-    "The backup file <db>.pre-legacy-cleanup.bak is never deleted automatically and holds the old data.",
-    "Conservative by design: an old library where anything was touched (even a downloaded PDF) is left as it is; the owner may delete it by hand.",
-    "The check relies on table names and the old first-start shape (default_project, seed_keys_/last_refresh_ settings, profile version note 'initial'); a state written by a build not examined here may be kept rather than cleaned (safe direction)."
+    "Not independently reviewed after the review fixes (critical class; it deletes data).",
+    "Not run on the owner's real old library; tests use a state reconstructed from the old migration and ensure_seed_papers.",
+    "The verified backup <db>.pre-legacy-cleanup-<time>-<id>.bak is never deleted automatically and holds the old data; restore = copy it over the database (it carries the in_progress marker, so it is not cleaned again).",
+    "Conservative by design: a library where anything was touched is left as it is; the owner may delete it by hand.",
+    "Cross-branch: after the cleanup, opening the same real library with an old main / v0.1.0 build creates a UUID default project and seeds it again; do not mix builds on one data directory.",
+    "Relies on table names and the old first-start shape (default_project, seed_keys_/last_refresh_ settings, profile version note 'initial'); an unknown state is kept (safe direction)."
   ]
 }

@@ -12,15 +12,21 @@
 6. **指引组件**：`app/static/tour.js` + `tour.css`，自写、无依赖，纯逻辑与 DOM 分层，跨页状态在 `sessionStorage`；目标没出现 15 秒就降级为居中气泡，不卡死。步骤分四段（项目、设置、推荐、论文库与画像），界面只写阶段名，不写计数。
 7. **没有选的**：给演示一个真实库里的普通项目（会污染 summaries 等全局表，且删不干净）；录屏或截图式教程（不能交互、要随界面改）；引入第三方引导库（体积与依赖，且选择器依赖同样要自己维护）。
 
-## 补充：旧默认项目的一次性清理（2026-10-24，owner 追加）
+## 补充：旧默认项目的一次性清理（2026-10-24，owner 追加；独立审查后修订）
 
-旧版桌面首次启动会自动建项目 `default_project`（名“默认项目”）、放 10 篇世界模型种子论文并自动抓取，用户没碰过也留在库里。本版不再建这些，所以对**完全没被用过**的这一份旧状态做一次清理（`app/legacy_cleanup.py`，`build_server` 打开库之后、桌面和源码运行都走）：
+旧版桌面首次启动会自动建项目 `default_project`（名“默认项目”）、放 10 篇世界模型种子论文并自动抓取，用户没碰过也留在库里。本版不再建这些，所以对**完全没被用过**的这一份旧状态做一次清理（`app/legacy_cleanup.py`）。原则：有疑问一律保留。
 
-- **只跑一次**：结果记在 `settings` 的 `legacy_default_cleanup = {"done_at","result"}`；之后不再检查。不新增迁移编号（多个分支共用同一个真实库）。
-- **判定（全部满足才清理，任何一项不满足就完全不动，result 写 `kept: <原因>`）**：项目 id 字面为 `default_project`；名称仍是“默认项目”/“Default project”，创建方式 manual，无关键词、无引导记录、无学习路径、无学科；没有任何 feedback（含已撤销）、项目论文库与旧 library 为 0、qa_history 为 0、没有引导会话引用它、没有非空笔记/草稿/分类/学习图/组织事件（`org_*`）、没有导入批次、没有它的钉词历史（profile_versions 的 pin/restore）；与它相关的设置只有首次启动自己写的那几类（`seed_keys`、`last_refresh`、`last_refresh_result`、`last_attempt`、`last_error`、`recommendation_eligibility`、`route_recall`、`source_publication_anomalies`），出现 `project_goal`、`route_revision`、`profile_freeze`、`import_seed_keys` 等用户动作才有的设置或任何未知设置就不动；链接的论文没有已存的 PDF、版本或全文（读过的迹象）。
-- **清理内容（同一事务）**：项目行；它的 `project_papers` 链接、`batches` 与 `exposures`、`profile_snapshots`、`weekly_reports`、`org_*` 里以它命名的行、上述自动设置；只属于它的论文（没被别的项目链接、不在任何论文库、没有反馈/问答/其他曝光/导入引用）连同 `summaries`、`fulltext_languages`、`pdf_verification_*`；被别的项目链接的论文保留，只删链接。`profile_versions`（全局）里首次启动写的 `note="initial"`（`project` 为 `default` 或 `world-models`、无钉词）只在**清理后已没有任何项目、且库里所有版本都是这种自动写入**时才删，否则保留。
-- **备份与失败**：删除前用 `Store.backup` 写 `<库>.pre-legacy-cleanup.bak`（不覆盖已有的）；任何异常回滚并把失败原因记进 result，不重试。清理后若没有真实项目，走既有流程：无项目 → 指引 → 创建项目。
-- **没验证**：没有在 owner 的真实旧库上跑；备份文件不会自动删除；条件偏保守，用过一点（比如下过一个 PDF）的旧库会原样保留，需要 owner 手动删。
+- **何时跑**：只在桌面应用启动时（`app/desktop.py`：拿到实例锁之后、`build_server` 之前，仅当设置了 `PDH_APP_VERSION`）；源码运行需显式 `PDH_LEGACY_CLEANUP=1`（`serve()`）。`build_server` 本身不打开库，和之前一样。只跑一次：结果记在 `settings.legacy_default_cleanup = {"done_at","result"}`，有记录就不再检查。不新增迁移编号（多个分支共用同一个真实库）。
+- **判定（全部满足才清理，任何一项不满足就完全不动，result 写 `kept: <原因>`）**：
+  - 项目：id 字面为 `default_project`；名称仍是“默认项目”/“Default project”；manual；无关键词、引导记录、学习路径、学科；`language_policy_revision` 为 0 且 `allowed_languages` 为空。
+  - 用户动作：无任何 feedback（含已撤销）；项目论文库与旧 library 为 0；qa_history 为 0；无引导会话引用；无非空笔记/草稿、分类、学习图、组织事件；无导入批次；没有 `project_papers.source_project_id='default_project'`（分享出去过）。
+  - 使用迹象：批次只在一个日期（首启当天）；链接论文没有任何非 `demo` 的速览；周报没有 AI 分析；链接论文没有已存的 PDF、PDF 版本或全文。
+  - 画像：`profile_versions` 里除 `note="initial"` 外，凡属于本项目（`project_id` 为 `default_project` 或缺失）的版本（pin / restore / freeze / unfreeze…）一律保留整个库。
+  - 设置：与它相关的只能是首启自己写的 `seed_keys`、`last_refresh`、`last_refresh_result`、`last_attempt`、`last_error`、`recommendation_eligibility`、`route_recall`、`source_publication_anomalies`；`project_goal`、`route_revision`、`profile_freeze`、`import_seed_keys` 等或任何未知设置都不动。
+- **顺序与备份**：(1) 先单独提交标记 `in_progress`，让备份里也带标记（从备份恢复后不会再清理）；(2) `Store.backup` 写到唯一临时名，用另一个连接做 `PRAGMA quick_check` 并核对 projects/papers 行数和标记，通过后改名为唯一最终名 `<库>.pre-legacy-cleanup-<时间>-<id>.bak`（不信任也不覆盖任何已有文件；失败删残片、不删任何数据、记 `failed: backup…`）；(3) 在一个事务里再判定一遍、删除、把标记改成最终结果；任何异常回滚并记 `failed: …`，不重试。
+- **删除清单**：项目行；它的 `project_papers` 链接、`batches` 和 `exposures`、`profile_snapshots`、`weekly_reports`、`org_*` 里以它命名的行、上述自动设置与 `route_exploration_evidence_<批次>`；只属于它的论文（没被别的项目链接、不在任何论文库、没有反馈/问答/其他曝光/导入引用）连同 `summaries`、`fulltext_languages`、`pdf_verification_*`；别的项目的 `org_projects` 里指向被删论文的 memberships/positions/protected 条目；被别的项目链接的论文保留，只删链接。全局的 `initial` 画像版本只在清理后已没有任何项目、且库里所有版本都是这种自动写入时才删。清理后若没有真实项目，走既有流程：无项目 → 指引 → 创建项目。
+- **恢复**：退出应用，把 `<库>.pre-legacy-cleanup-….bak` 复制回 `paperdighelper.sqlite`（备份带 `in_progress` 标记，恢复后不会再清理；同目录的 `-wal`/`-shm` 文件要一起删掉）。备份不会自动删除。
+- **跨分支风险**：清理之后若用旧 main / v0.1.0 的构建打开同一个真实库，它会新建 UUID 默认项目并再塞种子论文；新旧构建不要混用同一个数据目录。
 
 ## 没有验证
 

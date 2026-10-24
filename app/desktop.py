@@ -8,7 +8,7 @@ import threading
 from pathlib import Path
 
 from . import platform_compat, updater
-from .server import build_server, stop_organization_workers
+from .server import build_server, clean_legacy_default_project, stop_organization_workers
 
 
 LOG_LIMIT_BYTES = 1_000_000
@@ -121,6 +121,8 @@ def main():
             redirect_stderr_to_log(root)
         if os.environ.get("PDH_APP_VERSION"):
             updater.Updater(root, os.environ["PDH_APP_VERSION"]).startup_cleanup()
+        if os.environ.get("PDH_APP_VERSION") or os.environ.get("PDH_LEGACY_CLEANUP") == "1":
+            clean_legacy_default_project(resources)   # once per library; holds the instance lock, no request is served yet
         httpd = build_server(port=0, root=resources, desktop_token=secrets.token_hex(32))
 
         def watch_parent():

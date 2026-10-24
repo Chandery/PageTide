@@ -6,16 +6,22 @@ library that still holds exactly that auto-made state is cleaned once. Anything 
 and nothing is touched: it deletes data, so it is deliberately cautious (ADR 0042, "旧默认项目的自动清理").
 
 The check runs once per library (result kept in settings under `legacy_default_cleanup`, no migration number is used because
-several branches open the same real database). Before deleting, a consistent copy is written next to the database
-(`<db>.pre-legacy-cleanup.bak`); the deletion and the marker are one transaction, rolled back on any error.
+several branches open the same real database). Order: (1) the marker is committed as "in_progress" so that the backup
+carries it too (a restored backup is never cleaned a second time); (2) a consistent copy is written to a unique temporary
+file, verified by a separate connection (quick_check and the project/paper counts), and only then renamed to a unique
+final name `<db>.pre-legacy-cleanup-<time>-<id>.bak` (never overwriting); (3) in one transaction the check is repeated,
+the data deleted and the marker set to the final result. Any doubt keeps everything: only a library that is exactly
+the untouched first-start state is cleaned. To undo: stop the app, copy the .bak over paperdighelper.sqlite.
 """
 import json
+import os
 import sqlite3
+import uuid
 
 KEY = "legacy_default_cleanup"
 PROJECT = "default_project"
 NAMES = ("默认项目", "Default project")
-BACKUP_SUFFIX = ".pre-legacy-cleanup.bak"
+BACKUP_PREFIX = ".pre-legacy-cleanup"
 
 # Settings the old first start wrote or derived by itself (keyed `<name>_default_project`).
 AUTO_SETTINGS = ("seed_keys", "last_refresh", "last_refresh_result", "last_attempt", "last_error",
@@ -74,10 +80,21 @@ def blocker(conn):
     for column in ("keywords", "guidance_transcript", "recommended_learning_path", "discipline"):
         if column in cols and not _empty(row[column]):
             return "project_" + column
-    if "language_policy_revision" in cols and (row["language_policy_revision"] or 0) > 1:
+    if "language_policy_revision" in cols and (row["language_policy_revision"] or 0) > 0:
+        return "language_policy"
+    if "allowed_languages" in cols and not _empty(row["allowed_languages"]):
         return "language_policy"
 
     paper_keys = linked_papers(conn)
+    if conn.execute("SELECT 1 FROM project_papers WHERE source_project_id=?", (PROJECT,)).fetchone():
+        return "shared"   # sharing a paper into another project is something a person does
+    if _count(conn, "SELECT COUNT(DISTINCT run_date) FROM batches WHERE project_id=?", (PROJECT,)) > 1:
+        return "used_over_days"   # the first start makes one batch on one day; more means the app was used
+    if conn.execute("SELECT 1 FROM weekly_reports WHERE project_id=? AND ai_analysis IS NOT NULL AND TRIM(ai_analysis)<>''", (PROJECT,)).fetchone():
+        return "ai_analysis"
+    for key in paper_keys:
+        if conn.execute("SELECT 1 FROM summaries WHERE paper_key=? AND COALESCE(model,'')<>'demo'", (key,)).fetchone():
+            return "summaries"   # an AI preview was asked for (or auto-written): it is a result worth keeping
     if _count(conn, "SELECT COUNT(*) FROM feedback WHERE project_id=? OR project_id IS NULL", (PROJECT,)):
         return "feedback"
     if _count(conn, "SELECT COUNT(*) FROM project_library WHERE project_id=?", (PROJECT,)):
@@ -120,13 +137,14 @@ def blocker(conn):
             if table in tables and conn.execute(f"SELECT 1 FROM {table} WHERE paper_key=?", (key,)).fetchone():
                 return "reading"
     for version in conn.execute("SELECT note, data FROM profile_versions"):
-        if version["note"] in ("pin", "restore"):
-            try:
-                owner = json.loads(version["data"]).get("project_id", PROJECT)
-            except ValueError:
-                return "pinned_terms"
-            if owner == PROJECT:
-                return "pinned_terms"
+        if version["note"] == "initial":
+            continue   # the one the first start wrote itself
+        try:
+            owner = json.loads(version["data"]).get("project_id", PROJECT)
+        except ValueError:
+            return "profile_versions"
+        if owner == PROJECT:   # pin, restore, freeze, unfreeze ... of this project (or of no project: the legacy default)
+            return "profile_versions"
     return None
 
 
@@ -142,6 +160,7 @@ def _delete_everything(conn):
     candidates = linked_papers(conn)
     batches = [r[0] for r in conn.execute("SELECT id FROM batches WHERE project_id=?", (PROJECT,))]
     deleted["exposures"] = sum(conn.execute("DELETE FROM exposures WHERE batch_id=?", (b,)).rowcount for b in batches)
+    conn.executemany("DELETE FROM settings WHERE key=?", [("route_exploration_evidence_" + str(b),) for b in batches])
     deleted["batches"] = conn.execute("DELETE FROM batches WHERE project_id=?", (PROJECT,)).rowcount
     deleted["project_papers"] = conn.execute("DELETE FROM project_papers WHERE project_id=?", (PROJECT,)).rowcount
     deleted["profile_snapshots"] = conn.execute("DELETE FROM profile_snapshots WHERE project_id=?", (PROJECT,)).rowcount
@@ -152,7 +171,7 @@ def _delete_everything(conn):
     names = AUTO_SETTINGS + INTENT_SETTINGS
     conn.executemany("DELETE FROM settings WHERE key=?", [(f"{n}_{PROJECT}",) for n in names])
     # Papers that belonged only to this project: no other project links them, nobody saved or rated them, nothing else shows them.
-    gone = 0
+    gone, removed = 0, set()
     for key in sorted(candidates):
         if conn.execute("SELECT 1 FROM project_papers WHERE paper_key=?", (key,)).fetchone():
             continue
@@ -170,8 +189,27 @@ def _delete_everything(conn):
             conn.execute("DELETE FROM fulltext_languages WHERE paper_key=?", (key,))
         conn.execute("DELETE FROM settings WHERE key=?", ("pdf_verification_" + key,))
         conn.execute("DELETE FROM papers WHERE key=?", (key,))
+        removed.add(key)
         gone += 1
     deleted["papers"] = gone
+    if removed and "org_projects" in tables:   # another project's category data may still name a removed paper
+        for project, data in conn.execute("SELECT project, data FROM org_projects").fetchall():
+            try:
+                parsed = json.loads(data)
+            except ValueError:
+                continue
+            changed = False
+            for field in ("memberships", "positions"):
+                if isinstance(parsed.get(field), dict):
+                    for key in removed & set(parsed[field]):
+                        del parsed[field][key]
+                        changed = True
+            if isinstance(parsed.get("protected"), list):
+                kept = [v for v in parsed["protected"] if not (isinstance(v, str) and v in removed)]
+                changed = changed or len(kept) != len(parsed["protected"])
+                parsed["protected"] = kept
+            if changed:
+                conn.execute("UPDATE org_projects SET data=? WHERE project=?", (json.dumps(parsed, ensure_ascii=True, sort_keys=True), project))
     # What stays (shared with another project) no longer points at the removed project.
     conn.execute("UPDATE papers SET project_id=NULL WHERE project_id=?", (PROJECT,))
     deleted["projects"] = conn.execute("DELETE FROM projects WHERE id=?", (PROJECT,)).rowcount
@@ -191,9 +229,45 @@ def _delete_everything(conn):
     return deleted
 
 
-def run(store, backup_path=None):
+def _verified_backup(store, directory_name):
+    """A verified copy of the library under a unique final name, or raises. The copy is written to a unique temporary
+    name (an old file is never trusted or overwritten), checked by a separate connection, then renamed."""
+    import datetime
+    path = store.path
+    temporary = path.with_name(f"{path.name}{BACKUP_PREFIX}.{uuid.uuid4().hex}.tmp")
+    final = None
+    try:
+        store.backup(temporary)
+        copy = sqlite3.connect(str(temporary))
+        try:
+            if copy.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise RuntimeError("backup failed quick_check")
+            for table in ("projects", "papers"):
+                live = store.conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                if copy.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] != live:
+                    raise RuntimeError(f"backup {table} count differs")
+            if not copy.execute("SELECT 1 FROM settings WHERE key=?", (KEY,)).fetchone():
+                raise RuntimeError("backup lacks the marker")
+        finally:
+            copy.close()
+        stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        final = path.with_name(f"{path.name}{BACKUP_PREFIX}-{stamp}-{uuid.uuid4().hex[:8]}.bak")
+        if final.exists():
+            raise RuntimeError("backup name taken")
+        os.replace(temporary, final)
+        return final
+    except Exception:
+        for leftover in (temporary,):
+            try:
+                leftover.unlink()
+            except OSError:
+                pass
+        raise
+
+
+def run(store):
     """Check once, clean if (and only if) the library is exactly the untouched default project. Returns the stored
-    result dict, or None when it had already run. Never raises: a failure is rolled back and recorded."""
+    result dict, or None when it had already run. Never raises: a failure keeps the data and is recorded."""
     conn = store.conn
     try:
         with store._lock:
@@ -203,30 +277,38 @@ def run(store, backup_path=None):
                 return None
             why = blocker(conn)
             if why is not None:
+                result = "kept" if why == "no_default_project" else "kept: " + why
                 conn.execute("BEGIN IMMEDIATE")
-                _write_marker(conn, "kept" if why == "no_default_project" else "kept: " + why)
+                _write_marker(conn, result)
                 conn.commit()
-                return {"result": "kept" if why == "no_default_project" else "kept: " + why}
-            target = backup_path or store.path.with_name(store.path.name + BACKUP_SUFFIX)
-            store.backup(target)
+                return {"result": result}
+            # The marker goes in first and alone, so the backup carries it: a restored backup is never cleaned again.
+            conn.execute("BEGIN IMMEDIATE")
+            _write_marker(conn, "in_progress")
+            conn.commit()
+            try:
+                target = _verified_backup(store, None)
+            except Exception as exc:
+                conn.execute("BEGIN IMMEDIATE")
+                _write_marker(conn, "failed: backup: " + str(exc)[:200])
+                conn.commit()
+                return {"result": "failed: backup: " + str(exc)}
             conn.execute("BEGIN IMMEDIATE")
             try:
-                if conn.execute("SELECT 1 FROM settings WHERE key=?", (KEY,)).fetchone() or blocker(conn) is not None:
-                    conn.rollback()
-                    return None
+                if blocker(conn) is not None:   # something changed since the first look: leave it all
+                    _write_marker(conn, "kept: changed while cleaning")
+                    conn.commit()
+                    return {"result": "kept: changed while cleaning", "backup": str(target)}
                 deleted = _delete_everything(conn)
                 _write_marker(conn, {"cleaned": deleted, "backup": str(target)})
                 conn.commit()
                 return {"result": {"cleaned": deleted, "backup": str(target)}}
-            except BaseException as exc:
+            except Exception as exc:
                 conn.rollback()
-                try:
-                    conn.execute("BEGIN IMMEDIATE")
-                    _write_marker(conn, "failed: " + type(exc).__name__ + ": " + str(exc)[:200])
-                    conn.commit()
-                except sqlite3.Error:
-                    conn.rollback()
-                return {"result": "failed: " + str(exc)}
+                conn.execute("BEGIN IMMEDIATE")
+                _write_marker(conn, "failed: " + type(exc).__name__ + ": " + str(exc)[:200])
+                conn.commit()
+                return {"result": "failed: " + str(exc), "backup": str(target)}
     except sqlite3.Error as exc:
         try:
             conn.rollback()
