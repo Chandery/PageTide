@@ -138,14 +138,17 @@ class SingleSourceTests(unittest.TestCase):
             w, h, _ = decode_png_rgba((ICONS / name).read_bytes())
             self.assertEqual((w, h), (px, px), name)
 
-    def test_dock_artwork_leaves_the_apple_grid_margin(self):
+    def test_dock_tile_leaves_the_apple_grid_margin(self):
         w, h, rgba = decode_png_rgba(IcnsEntryTests.entries_cache()[b"ic10"])
         self.assertEqual((w, h), (1024, 1024))
         xs = [i % w for i in range(w * h) if rgba[i * 4 + 3] > 8]
         ys = [i // w for i in range(w * h) if rgba[i * 4 + 3] > 8]
         share = max(max(xs) - min(xs), max(ys) - min(ys)) / 1024
         self.assertTrue(0.78 <= share <= 0.86, share)
-        self.assertGreater(min(xs), 100, "the artwork does not touch the edge")
+        self.assertGreater(min(xs), 90, "the tile does not touch the edge")
+        centre_row = rgba[(h // 2) * w * 4:(h // 2 + 1) * w * 4]
+        edge = min(xs) + 6   # just inside the tile, left of the artwork: white
+        self.assertEqual(tuple(centre_row[edge * 4:edge * 4 + 4]), (255, 255, 255, 255), "the tile is white")
 
     def test_ico_holds_the_windows_sizes(self):
         data = (ICONS / "icon.ico").read_bytes()

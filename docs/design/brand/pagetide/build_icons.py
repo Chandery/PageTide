@@ -9,8 +9,9 @@ Outputs:
   src-tauri/icons/{32x32,128x128,128x128@2x,icon}.png, icon.icns, icon.ico
   app/static/favicon.png, wordmark.png (light theme), wordmark-dark.png (dark theme)
 
-Dock/Finder icons follow Apple's grid: the artwork fills about 82% of the canvas, centred on its visible
-bounds. The Windows .ico and the browser favicon fill more of the canvas (small sizes need the room).
+Every icon sits on a white rounded tile (owner, 2026-10-25). Dock/Finder icons follow Apple's grid: the tile
+fills about 80% of the canvas, the artwork about 60%, centred on its visible bounds. The Windows .ico and the
+browser favicon fill more of the canvas (small sizes need the room).
 The 1x 16 and 32 px icns slots are ic04/ic05 ("ARGB" + RLE-coded A,R,G,B planes), exactly what Apple's
 iconutil writes, NOT PNG under icp4/icp5: macOS decodes icp4/icp5 PNGs as noise on non-Retina displays.
 
@@ -22,9 +23,9 @@ import sys
 from pathlib import Path
 
 try:
-    from PIL import Image      # only the build needs Pillow; tests import this module for the stdlib helpers
+    from PIL import Image, ImageDraw   # only the build needs Pillow; tests import this module for the stdlib helpers
 except ImportError:
-    Image = None
+    Image = ImageDraw = None
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
@@ -32,8 +33,10 @@ TAURI = ROOT / "src-tauri" / "icons"
 STATIC = ROOT / "app" / "static"
 ICON, WORDMARK = HERE / "PageTide-icon.png", HERE / "PageTide-wordmark.png"
 
-DOCK_FILL = 0.82      # artwork share of the canvas for macOS / Tauri PNGs
-WIDE_FILL = 0.94      # .ico and favicon
+DOCK_TILE, DOCK_ART = 0.805, 0.60   # white tile / artwork share of the canvas for macOS / Tauri PNGs (Apple grid)
+WIDE_TILE, WIDE_ART = 0.94, 0.72     # .ico and favicon
+TILE_RADIUS = 0.225                  # corner radius as a share of the tile side
+TILE_EDGE = (0, 0, 0, 22)            # hairline so the white tile still reads on a white background
 MASTER = 1024
 ICNS = [(b"ic11", 32), (b"ic12", 64), (b"ic07", 128), (b"ic13", 256), (b"ic08", 256), (b"ic14", 512),
         (b"ic09", 512), (b"ic10", 1024)]
@@ -51,16 +54,22 @@ def visible_box(image):
     return image.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
 
 
-def master(fill):
-    """The icon, cropped to its visible bounds and centred on a square canvas at `fill` of its width."""
+def master(tile_fill, art_fill):
+    """The icon on a white rounded tile: the tile at `tile_fill` and the artwork (cropped to its visible bounds) at
+    `art_fill` of the canvas, both centred. Drawn at 4x and reduced, for smooth corners."""
+    big = MASTER * 4
+    canvas = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    side = round(big * tile_fill)
+    left = (big - side) // 2
+    box = (left, left, left + side - 1, left + side - 1)
+    ImageDraw.Draw(canvas).rounded_rectangle(box, radius=round(side * TILE_RADIUS), fill=(255, 255, 255, 255),
+                                             outline=TILE_EDGE, width=max(1, big // 512))
     source = Image.open(ICON).convert("RGBA")
     art = source.crop(visible_box(source))
-    side = round(MASTER * fill)
-    scale = side / max(art.size)
+    scale = round(big * art_fill) / max(art.size)
     art = art.resize((max(1, round(art.width * scale)), max(1, round(art.height * scale))), Image.LANCZOS)
-    canvas = Image.new("RGBA", (MASTER, MASTER), (0, 0, 0, 0))
-    canvas.paste(art, ((MASTER - art.width) // 2, (MASTER - art.height) // 2), art)
-    return canvas
+    canvas.alpha_composite(art, ((big - art.width) // 2, (big - art.height) // 2))
+    return canvas.resize((MASTER, MASTER), Image.LANCZOS)
 
 
 def sized(image, px):
@@ -127,7 +136,7 @@ def wordmarks():
 
 def main():
     TAURI.mkdir(parents=True, exist_ok=True)
-    dock, wide = master(DOCK_FILL), master(WIDE_FILL)
+    dock, wide = master(DOCK_TILE, DOCK_ART), master(WIDE_TILE, WIDE_ART)
     (TAURI / "icon.icns").write_bytes(build_icns(dock))
     for name, px in TAURI_PNGS.items():
         (TAURI / name).write_bytes(png_bytes(sized(dock, px)))
