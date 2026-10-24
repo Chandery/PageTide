@@ -1,5 +1,0 @@
-2026-10-05 large-screen layout checks (sanitized)
-python3 -m unittest discover -s tests -> Ran 872 tests, OK
-node --test tests/*.cjs -> 126 pass, 0 fail
-Browser preview of the real server with the viewport emulated (computed styles read back, no screenshot comparison): 1440 px -> main 1200 px, 2 columns, body 15 px (unchanged); 1920 px -> main 1560 px, 3 columns, body 18 px; 2560 px -> main 2000 px, 3 columns, body 21.75 px, tab 18.85 px; no horizontal overflow at any of them. The 2800 px step (4 columns, x1.8) was not rendered, only pinned by a test.
-Not run: a real external display, the Tauri window, the other pages at large sizes beyond reading their CSS, dark mode.

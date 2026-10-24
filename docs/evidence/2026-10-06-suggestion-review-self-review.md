@@ -1,9 +1,0 @@
-# Self-review: 2026-10-06-suggestion-review
-
-Owner report: 整理建议 "傻乎乎地把所有都整理，整理过的也整理"; it should review organised papers but not redo them each time, and say what needs adjusting and why, saying nothing about what is unchanged.
-
-What changed: the suggester is now a review (organization_facets.review). Only changes are listed (new category for unplaced papers, addition to an existing category the text mentions, merge of same-name categories at one level, and a move for a paper whose categories do not fit its text while another does), each with a one-line reason; moves are unticked by default; categories the matcher cannot read (Chinese names without a glossary entry) are never judged. Organised papers are remembered as reviewed (signature of text + categories + pinned terms in the organization data) so declined or unchanged items do not come back; unplaced papers are always looked at. A review of a project tab looks only at that project's papers. Applying is one undo step.
-
-Judgement calls: the matcher is purely lexical (stems, a glossary), so "does not fit" is a weak signal: moves are never pre-ticked and say why. Merging is limited to the same name at the same level; near-duplicates with different names are not touched. When nothing needs changing the organised papers are marked reviewed at once (no click), because showing "nothing to change" and asking again later would repeat the problem. The early mark is written by the review request itself and is not an undo step (the marks only silence repeats).
-
-Weak spots: the fingerprint covers paper text, not the categories, so a preview computed before a manual category edit can still be applied (the apply code skips what no longer exists, but a stale-looking merge or move could land); the move rule is lexical and untested on a large real library; the final dialog layout was not looked at in the Tauri window.

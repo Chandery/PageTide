@@ -1,7 +1,0 @@
-# Self review: guidance JSON protocol
-
-Reviewed actual wire builders and App callers. The new explicit JSON instruction repairs a documented request-contract defect. The provider screenshot lacks its raw body; only offline protocol-aware reproduction is claimed.
-
-No new operation or exposure, provider/model/price/retry change. Complete1200/500 and existing workflow counts hold; bounded excerpt floor36 fits the added12 UTF8bytes while originals and notices remain local. Core daily minimum0; runtime aggregate remains owner-uncapped/unknown. Development live requests0, coding-agent usage unknown.
-
-HTTP400 input is untrusted. Only an exact known request-format family returns a fixed diagnostic after at most8193bytes read; oversize/malformed/unknown errors keep generic status. Raw message/code/param/body never enter UI or ledger. Four-hundred status releases existing reservation; five-hundred remains unknown/pending. Draft preservation, localized cause and unknown classification are covered by regression tests. Independent source review passed; final2127Python/461Node and signed app build/package checks passed, as recorded in 2026-10-09-guidance-json-checks.txt. Extra supplementary Unicode and quote/backslash cases remain safely refused before transmission when their minimum excerpts exceed the wire bound, as in the baseline; long BMP Chinese coverage is not an all-Unicode admission guarantee.

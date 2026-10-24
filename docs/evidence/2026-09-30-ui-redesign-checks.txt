@@ -1,4 +1,0 @@
-PASS repository checks only; app gates/real billing are not implied
-exit 0
-PASS budget arithmetic and generated document parity (no live API)
-exit 0

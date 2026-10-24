@@ -1,9 +1,0 @@
-# ROUTE-V2-01 data foundation review
-
-Self review: current scope is explicit policy persistence, additive migration009, raw metadata language reports, PDF-version language evidence, and an optional extraction-source hash in local fulltext HTTP writes. Default body readers remain compatible but unbound. No model or external request added. History/batches remain readable.
-
-Independent reviewer /root/paper_quality initially reproduced two defects: late old PDF text was inferred to belong to the latest hash; old migration fixtures deleted version009 records while retaining its columns. Fixes: source hash must be explicitly supplied, unknown source remains NULL, conditional writes reject stale PDF versions and page writes rollback atomically. App/HTTP pass the hash and return400. Old foreign-version005 and backup fixtures now create real old schemas; idempotent006/007/008 tests remove only their own version record. Migration009 is not weakened to swallow structural errors.
-
-Independent final re-review: no new blocking defect within the data foundation. Reviewer actually ran21 language/migration/backup tests and1 HTTP stale-hash test, all passed exit0. The HTTP test first failed under sandbox loopback restriction, then passed in an environment permitting temporary localhost listening. Independent full suite and build not_run; implementing agent's full tests/build logged separately.
-
-Scope still unfinished: project settings/creation UI, new-batch policy gate, eligibility caching and metadata/fulltext indicators are not wired. Existing reader still submits unversioned text; current-version reading and caller propagation must follow. ROUTE-V2-01 remains in_progress and E-ROUTE-V2-01 remains not_run. The slice does not establish language recognition quality, recommendation quality or product completion.

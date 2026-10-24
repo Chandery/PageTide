@@ -1,8 +1,0 @@
-2026-10-05 route-page checks (Route Mode slice 6b; sanitized)
-python3 -m unittest discover -s tests            -> Ran 817 tests, OK (802 before; +15 in route store/runtime/pathgraph/UI tests)
-node --test tests/*.cjs                          -> 102 pass, 0 fail (tests/test_route_editor.cjs now 20)
-python3 scripts/budget.py --check                -> PASS
-python3 scripts/harness.py check                 -> PASS
-Browser (preview of the real server; preview data backed up and restored): Today panel and card badges for a project with a map and a batch; the map page: marks and undo (Defects unlocks only after both Epitaxy and Doping are known, locks again after undoing one), demote and restore, a rejected edit, an unsaved edit and discard, mode off then the panel says the map is off; after the review fixes: a name with a slash edited through checkboxes, duplicate name refused, a conflict keeps the draft and the retry saves, a no-map project (switch disabled until the first save).
-Independent review: docs/evidence/2026-10-05-route-page-review.md (no XSS; 9 other findings, all fixed; fixes not re-read by a reviewer).
-Not run: the Tauri window; dark mode and narrow layouts; a real DeepSeek call.

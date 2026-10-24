@@ -1,7 +1,0 @@
-2026-10-05 ranking-foundation checks (Route Mode slice 0; sanitized)
-python3 -m unittest discover -s tests            -> Ran 511 tests, OK (496 before; +15 in tests/test_ranking_foundation.py)
-python3 scripts/budget.py --check                -> PASS
-python3 scripts/harness.py check                 -> PASS
-Mutation checks: restoring the pool-only profile vector makes the feedback-steering and shown-seed tests fail.
-Tokenizer oracle: English tokenize() output identical to the pre-change implementation on nine inputs including punctuation, hyphens, numbers and non-ASCII letters.
-Not run: any real-data ranking comparison.

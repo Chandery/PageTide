@@ -1,1 +1,0 @@
-PASS budget arithmetic and generated document parity (no live API)

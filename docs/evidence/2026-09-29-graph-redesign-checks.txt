@@ -1,1 +1,0 @@
-PASS repository checks only; app gates/real billing are not implied

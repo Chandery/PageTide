@@ -1,5 +1,0 @@
-2026-10-05 route-plan-approval checks (sanitized)
-python3 scripts/budget.py --check -> PASS
-python3 -m unittest tests.test_project_manage tests.test_route_graph_page tests.test_gateway_budget tests.test_route_plan -> OK
-python3 scripts/harness.py check -> PASS
-Not run: any real provider call.

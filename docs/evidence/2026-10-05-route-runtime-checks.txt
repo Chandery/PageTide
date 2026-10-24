@@ -1,8 +1,0 @@
-2026-10-05 route-runtime checks (Route Mode slice 6a; sanitized)
-python3 -m unittest discover -s tests            -> Ran 802 tests, OK (755 before; +47: tests/test_route_runtime.py)
-python3 scripts/budget.py --check                -> PASS
-python3 scripts/harness.py check                 -> PASS
-Migration 008 on a copy of the real database (offline, copy deleted afterwards): versions 1-7 -> 1-8, exposure columns added, 125 exposure rows kept, integrity_check ok.
-Mutation checks (each made tests fail): padding from locked concepts, locked concepts treated as frontier, no remedial slot, equal weights, unused exploration slot kept back, unbounded remedial, remedial for a known prerequisite, only the id stored, no result paging.
-Independent review: docs/evidence/2026-10-05-route-runtime-review.md (3 medium + low items, all fixed; fixes not re-read by a reviewer).
-Not run: the Today page and profile (slice 6b); real OpenAlex searches with route terms (the owner's terminal); any real-data comparison.

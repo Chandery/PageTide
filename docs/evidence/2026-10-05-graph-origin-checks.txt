@@ -1,8 +1,0 @@
-2026-10-05 knowledge-graph origin fix checks (sanitized)
-Reproduced first: a consistent copy of the real database in the preview data dir, knowledge tab -> "相似关系未加载：Cannot read properties of undefined (reading 'x')" (Safari words it "undefined is not an object (evaluating 'p.x')"); stack: renderGraph (organization.js, the camera start) <- loadRelations.
-Cause: the camera starts from the paper being read; when that paper is not drawn (its category is collapsed, it was removed, or it was chosen under another project) the origin node does not exist and origin.position() is undefined.
-After the fix: same data, same steps -> no error, graph drawn (12 papers, one category collapsed, 2 nodes shown, canvas present, no window errors).
-python3 -m unittest discover -s tests -> Ran 873 tests, OK
-node --test tests/*.cjs -> 127 pass, 0 fail; the new node test fails against the old behaviour (mutation-checked)
-Preview data was restored afterwards; the real database was only read.
-Not run: the Tauri window.

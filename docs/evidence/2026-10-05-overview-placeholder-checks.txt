@@ -1,5 +1,0 @@
-2026-10-05 overview placeholder checks (sanitized)
-Reproduced in the preview at a 2560 px window: the project-overview placeholder for a project not opened in this session had body padding 680 px each side and a 0 px wide content box (title one character per line), caused by max-width:1200px combined with padding:(100% - 1200px)/2.
-After removing the max-width: content box 1200 px, title on one line, for all four placeholders.
-python3 -m unittest tests.test_route_graph_page -> OK; full suites run before the commit (see the final numbers in HANDOFF/commit message).
-Not run: a real external display, the Tauri window; screenshots of the emulated 2560 px page came out unusably small, so the numbers above come from reading layout boxes back.
