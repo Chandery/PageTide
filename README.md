@@ -25,7 +25,7 @@ English · <a href="README-zh.md">简体中文</a>
 
 </div>
 
-https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2
+https://github.com/user-attachments/assets/7897ab24-b2d3-4a2c-b658-a51cfc40690b
 
 <p align="center"><sub>🎵 Music by Pumpupthemind</sub></p>
 
