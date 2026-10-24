@@ -534,8 +534,8 @@
       "url": "https://info.arxiv.org/help/api/index.html",
       "verified_on": "2026-10-24",
       "recheck_after_days": 7,
-      "claim": "The onboarding demo project (app/demo_fixture.py) uses 29 public arXiv papers (Transformer lineage): identifier, title, first-version date and verbatim abstract. arXiv metadata is CC0; the PDFs are not bundled or fetched by the demo.",
-      "verification": "Checked 2026-10-24 with one request to https://export.arxiv.org/api/query?id_list=<29 ids> run from the owner's Terminal panel (the agent sandbox cannot reach arXiv): all 29 identifiers resolve, titles match (case/punctuation-insensitive) and first-version dates match; the abstracts were replaced with the returned text, whitespace collapsed. The one-line zh/en previews are hand-written for the demo, not model output."
+      "claim": "The onboarding demo project (app/demo_fixture.py) uses 29 public arXiv papers (Transformer lineage): identifier, title and first-version date from arXiv, plus a short demo paraphrase of each abstract (labelled as such in the UI, with a link to arXiv). arXiv metadata is CC0; the PDFs are not bundled or fetched by the demo.",
+      "verification": "Checked 2026-10-24 with one request to https://export.arxiv.org/api/query?id_list=<29 ids> run from the owner's Terminal panel (the agent sandbox cannot reach arXiv): all 29 identifiers resolve, titles match (case/punctuation-insensitive) and first-version dates match. The abstracts are deliberately NOT verbatim: owner decision 2026-10-24 after the verbatim text left the offline graph with 9 edges in 14 fragments. The one-line zh/en previews are hand-written for the demo, not model output."
     }
   ]
 }

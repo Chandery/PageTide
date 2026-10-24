@@ -1419,7 +1419,7 @@ async function openDetail(key) {
         ${window.PDHPaperContext.html(d.context, d.key)}
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>${s.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
-        ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div></section>` : ''}
+        ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div>${inDemo() && d.arxiv_id ? `<div class="sub">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${esc(d.arxiv_id)}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</section>` : ''}
       </aside>`;
     $('#detail').classList.remove('hidden');
     const close = closeDetail;

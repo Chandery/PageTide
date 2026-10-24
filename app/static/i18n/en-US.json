@@ -2589,6 +2589,7 @@
     "打不开新手指引：{0}": "Couldn't open the tour: {0}",
     "看看演示": "See the demo",
     "打不开演示：{0}": "Couldn't open the demo: {0}",
-    "演示": "Demo"
+    "演示": "Demo",
+    "演示用的改写摘要，原文见": "A paraphrased summary for the demo; the original is on"
   }
 }

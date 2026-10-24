@@ -1,8 +1,11 @@
 """The built-in data of the demo project (the onboarding tour). Pure data: nothing here reads a file, the network or a clock.
 
 Provenance (read this before trusting any text below):
-  * Identifiers, titles, first-version dates and the `abstract` of every paper are public arXiv metadata (CC0),
-    checked against export.arxiv.org on 2026-10-24: the abstracts are verbatim (whitespace collapsed).
+  * Identifiers, titles and first-version dates are public arXiv metadata (CC0), checked against export.arxiv.org
+    on 2026-10-24 (all 29 match).
+  * The `abstract` of every paper is a SHORT DEMO PARAPHRASE of what the paper says, not the verbatim arXiv abstract
+    (owner decision 2026-10-24: the verbatim abstracts left the offline graph with 9 edges and 14 fragments; the
+    paraphrases keep the four directions visibly connected). The UI labels it as a paraphrase and links to arXiv.
   * The one-line previews (PREVIEWS) are hand-written for the demo in both languages. They are not model output; the
     demo labels them as pre-written.
 The demo project is Transformer lineage on purpose: it has nothing to do with the topic of a person's real project.
@@ -18,7 +21,7 @@ import hashlib
 import json
 
 PROJECT_ID = "pdh-demo"
-ABSTRACTS_VERIFIED = True   # see the header: verbatim arXiv abstracts, checked 2026-10-24
+ABSTRACTS_VERBATIM = False   # see the header: demo paraphrases; ids/titles/dates checked 2026-10-24
 
 NAME = {"zh": "演示项目", "en": "Demo project"}
 
@@ -43,387 +46,144 @@ def _p(arxiv_id, title, published, authors, abstract, role, direction=None, days
 PAPERS = [
     # ---- today's five (unrated) ------------------------------------------------------------------------------
     _p("1706.03762", "Attention Is All You Need", "2017-06-12", ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar"],
-       'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in '
-       'an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an '
-       'attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention '
-       'mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks'
-       ' show these models to be superior in quality while being more parallelizable and requiring significantly less '
-       'time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over'
-       ' the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation '
-       'task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days'
-       ' on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that '
-       'the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing '
-       'both with large and limited training data.', "candidate"),
+       'Sequence models used to be built on recurrent or convolutional networks. This paper proposes the Transformer, '
+       'an architecture made only of attention layers with no recurrence and no convolution. On machine translation it'
+       ' reaches better quality than earlier systems, trains in a fraction of the time because attention can be '
+       'computed in parallel, and also transfers to parsing.', "candidate"),
     _p("1810.04805", "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding", "2018-10-11",
        ["Jacob Devlin", "Ming-Wei Chang", "Kenton Lee"],
-       'We introduce a new language representation model called BERT, which stands for Bidirectional Encoder '
-       'Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train'
-       ' deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context'
-       ' in all layers. As a result, the pre-trained BERT model can be fine-tuned with just one additional output '
-       'layer to create state-of-the-art models for a wide range of tasks, such as question answering and language '
-       'inference, without substantial task-specific architecture modifications. BERT is conceptually simple and '
-       'empirically powerful. It obtains new state-of-the-art results on eleven natural language processing tasks, '
-       'including pushing the GLUE score to 80.5% (7.7% point absolute improvement), MultiNLI accuracy to 86.7% (4.6% '
-       'absolute improvement), SQuAD v1.1 question answering Test F1 to 93.2 (1.5 point absolute improvement) and '
-       'SQuAD v2.0 Test F1 to 83.1 (5.1 point absolute improvement).', "candidate"),
+       'BERT pre-trains a deep bidirectional Transformer on unlabeled text by predicting masked words and whether two '
+       'sentences follow each other. The pre-trained model is then fine-tuned with one small extra layer and improves '
+       'a wide range of language understanding benchmarks, including question answering and inference.', "candidate"),
     _p("2001.08361", "Scaling Laws for Neural Language Models", "2020-01-23", ["Jared Kaplan", "Sam McCandlish", "Tom Henighan"],
-       'We study empirical scaling laws for language model performance on the cross-entropy loss. The loss scales as a'
-       ' power-law with model size, dataset size, and the amount of compute used for training, with some trends '
-       'spanning more than seven orders of magnitude. Other architectural details such as network width or depth have '
-       'minimal effects within a wide range. Simple equations govern the dependence of overfitting on model/dataset '
-       'size and the dependence of training speed on model size. These relationships allow us to determine the optimal'
-       ' allocation of a fixed compute budget. Larger models are significantly more sample-efficient, such that '
-       'optimally compute-efficient training involves training very large models on a relatively modest amount of data'
-       ' and stopping significantly before convergence.', "candidate"),
+       'The loss of a language model follows smooth power laws in model size, dataset size and training compute, over '
+       'many orders of magnitude. Other architectural details matter little. The fitted laws suggest how to split a '
+       'fixed compute budget, and that larger models are more sample efficient.', "candidate"),
     _p("2005.14165", "Language Models are Few-Shot Learners", "2020-05-28", ["Tom B. Brown", "Benjamin Mann", "Nick Ryder"],
-       'Recent work has demonstrated substantial gains on many NLP tasks and benchmarks by pre-training on a large '
-       'corpus of text followed by fine-tuning on a specific task. While typically task-agnostic in architecture, this'
-       ' method still requires task-specific fine-tuning datasets of thousands or tens of thousands of examples. By '
-       'contrast, humans can generally perform a new language task from only a few examples or from simple '
-       'instructions - something which current NLP systems still largely struggle to do. Here we show that scaling up '
-       'language models greatly improves task-agnostic, few-shot performance, sometimes even reaching competitiveness '
-       'with prior state-of-the-art fine-tuning approaches. Specifically, we train GPT-3, an autoregressive language '
-       'model with 175 billion parameters, 10x more than any previous non-sparse language model, and test its '
-       'performance in the few-shot setting. For all tasks, GPT-3 is applied without any gradient updates or '
-       'fine-tuning, with tasks and few-shot demonstrations specified purely via text interaction with the model. '
-       'GPT-3 achieves strong performance on many NLP datasets, including translation, question-answering, and cloze '
-       'tasks, as well as several tasks that require on-the-fly reasoning or domain adaptation, such as unscrambling '
-       'words, using a novel word in a sentence, or performing 3-digit arithmetic. At the same time, we also identify '
-       "some datasets where GPT-3's few-shot learning still struggles, as well as some datasets where GPT-3 faces "
-       'methodological issues related to training on large web corpora. Finally, we find that GPT-3 can generate '
-       'samples of news articles which human evaluators have difficulty distinguishing from articles written by '
-       'humans. We discuss broader societal impacts of this finding and of GPT-3 in general.', "candidate"),
+       'Scaling a language model to 175 billion parameters lets it perform many tasks from a few examples given in the'
+       ' prompt, with no gradient update. The paper evaluates this few-shot ability on translation, question '
+       'answering, arithmetic and more, and also discusses where it fails and the risks of such a model.', "candidate"),
     _p("2010.11929", "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale", "2020-10-22",
        ["Alexey Dosovitskiy", "Lucas Beyer", "Alexander Kolesnikov"],
-       'While the Transformer architecture has become the de-facto standard for natural language processing tasks, its'
-       ' applications to computer vision remain limited. In vision, attention is either applied in conjunction with '
-       'convolutional networks, or used to replace certain components of convolutional networks while keeping their '
-       'overall structure in place. We show that this reliance on CNNs is not necessary and a pure transformer applied'
-       ' directly to sequences of image patches can perform very well on image classification tasks. When pre-trained '
-       'on large amounts of data and transferred to multiple mid-sized or small image recognition benchmarks '
-       '(ImageNet, CIFAR-100, VTAB, etc.), Vision Transformer (ViT) attains excellent results compared to '
-       'state-of-the-art convolutional networks while requiring substantially fewer computational resources to train.', "candidate"),
+       'A pure Transformer applied to a sequence of image patches can classify images without convolutions. When '
+       'pre-trained on large datasets and transferred to smaller benchmarks, this Vision Transformer matches or beats '
+       'strong convolutional networks while needing fewer computing resources to train.', "candidate"),
     # ---- pretrained language models --------------------------------------------------------------------------
     _p("1906.08237", "XLNet: Generalized Autoregressive Pretraining for Language Understanding", "2019-06-19",
        ["Zhilin Yang", "Zihang Dai", "Yiming Yang"],
-       'With the capability of modeling bidirectional contexts, denoising autoencoding based pretraining like BERT '
-       'achieves better performance than pretraining approaches based on autoregressive language modeling. However, '
-       'relying on corrupting the input with masks, BERT neglects dependency between the masked positions and suffers '
-       'from a pretrain-finetune discrepancy. In light of these pros and cons, we propose XLNet, a generalized '
-       'autoregressive pretraining method that (1) enables learning bidirectional contexts by maximizing the expected '
-       'likelihood over all permutations of the factorization order and (2) overcomes the limitations of BERT thanks '
-       'to its autoregressive formulation. Furthermore, XLNet integrates ideas from Transformer-XL, the '
-       'state-of-the-art autoregressive model, into pretraining. Empirically, under comparable experiment settings, '
-       'XLNet outperforms BERT on 20 tasks, often by a large margin, including question answering, natural language '
-       'inference, sentiment analysis, and document ranking.', "useful", "lm", 26.4),
+       'XLNet is a pretrained language model that learns bidirectional context by pretraining on every permutation of '
+       'the word order instead of masking tokens. Built on a Transformer with longer memory, it improves language '
+       'understanding benchmarks over BERT after fine-tuning, including question answering and reading comprehension.', "useful", "lm", 26.4),
     _p("1909.11942", "ALBERT: A Lite BERT for Self-supervised Learning of Language Representations", "2019-09-26",
        ["Zhenzhong Lan", "Mingda Chen", "Sebastian Goodman"],
-       'Increasing model size when pretraining natural language representations often results in improved performance '
-       'on downstream tasks. However, at some point further model increases become harder due to GPU/TPU memory '
-       'limitations and longer training times. To address these problems, we present two parameter-reduction '
-       'techniques to lower memory consumption and increase the training speed of BERT. Comprehensive empirical '
-       'evidence shows that our proposed methods lead to models that scale much better compared to the original BERT. '
-       'We also use a self-supervised loss that focuses on modeling inter-sentence coherence, and show it consistently'
-       ' helps downstream tasks with multi-sentence inputs. As a result, our best model establishes new '
-       'state-of-the-art results on the GLUE, RACE, and \\squad benchmarks while having fewer parameters compared to '
-       'BERT-large. The code and the pretrained models are available at https://github.com/google-research/ALBERT.', "useful", "lm", 25.2),
+       'ALBERT is a lighter pretrained language model: parameter sharing across layers and a factorized embedding '
+       'shrink BERT, and a sentence-order loss replaces next-sentence prediction. Pretraining the smaller model is '
+       'faster, and fine-tuning it still improves language understanding benchmarks.', "useful", "lm", 25.2),
     _p("1910.13461", "BART: Denoising Sequence-to-Sequence Pre-training for Natural Language Generation, Translation, and Comprehension",
        "2019-10-29", ["Mike Lewis", "Yinhan Liu", "Naman Goyal"],
-       'We present BART, a denoising autoencoder for pretraining sequence-to-sequence models. BART is trained by (1) '
-       'corrupting text with an arbitrary noising function, and (2) learning a model to reconstruct the original text.'
-       ' It uses a standard Tranformer-based neural machine translation architecture which, despite its simplicity, '
-       'can be seen as generalizing BERT (due to the bidirectional encoder), GPT (with the left-to-right decoder), and'
-       ' many other more recent pretraining schemes. We evaluate a number of noising approaches, finding the best '
-       'performance by both randomly shuffling the order of the original sentences and using a novel in-filling '
-       'scheme, where spans of text are replaced with a single mask token. BART is particularly effective when fine '
-       'tuned for text generation but also works well for comprehension tasks. It matches the performance of RoBERTa '
-       'with comparable training resources on GLUE and SQuAD, achieves new state-of-the-art results on a range of '
-       'abstractive dialogue, question answering, and summarization tasks, with gains of up to 6 ROUGE. BART also '
-       'provides a 1.1 BLEU increase over a back-translation system for machine translation, with only target language'
-       ' pretraining. We also report ablation experiments that replicate other pretraining schemes within the BART '
-       'framework, to better measure which factors most influence end-task performance.', "useful", "lm", 24.1),
+       'BART is a pretrained sequence-to-sequence language model: pretraining corrupts the text with several noising '
+       'schemes and learns to reconstruct it. After fine-tuning it matches RoBERTa on language understanding '
+       'benchmarks and sets new results on summarization and dialogue generation.', "useful", "lm", 24.1),
     _p("1910.10683", "Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer", "2019-10-23",
        ["Colin Raffel", "Noam Shazeer", "Adam Roberts"],
-       'Transfer learning, where a model is first pre-trained on a data-rich task before being fine-tuned on a '
-       'downstream task, has emerged as a powerful technique in natural language processing (NLP). The effectiveness '
-       'of transfer learning has given rise to a diversity of approaches, methodology, and practice. In this paper, we'
-       ' explore the landscape of transfer learning techniques for NLP by introducing a unified framework that '
-       'converts all text-based language problems into a text-to-text format. Our systematic study compares '
-       'pre-training objectives, architectures, unlabeled data sets, transfer approaches, and other factors on dozens '
-       'of language understanding tasks. By combining the insights from our exploration with scale and our new '
-       "``Colossal Clean Crawled Corpus'', we achieve state-of-the-art results on many benchmarks covering "
-       'summarization, question answering, text classification, and more. To facilitate future work on transfer '
-       'learning for NLP, we release our data set, pre-trained models, and code.', "useful", "lm", 22.7,
+       'T5 pretrains one text-to-text Transformer language model and compares pretraining objectives, architectures '
+       'and data on language understanding benchmarks. Scaling the pretraining corpus and the model, then fine-tuning '
+       'on summarization, question answering and classification, gives strong benchmark results.', "useful", "lm", 22.7,
        marks=[("understood", 8.0)]),
     _p("2003.10555", "ELECTRA: Pre-training Text Encoders as Discriminators Rather Than Generators", "2020-03-23",
        ["Kevin Clark", "Minh-Thang Luong", "Quoc V. Le"],
-       'Masked language modeling (MLM) pre-training methods such as BERT corrupt the input by replacing some tokens '
-       'with [MASK] and then train a model to reconstruct the original tokens. While they produce good results when '
-       'transferred to downstream NLP tasks, they generally require large amounts of compute to be effective. As an '
-       'alternative, we propose a more sample-efficient pre-training task called replaced token detection. Instead of '
-       'masking the input, our approach corrupts it by replacing some tokens with plausible alternatives sampled from '
-       'a small generator network. Then, instead of training a model that predicts the original identities of the '
-       'corrupted tokens, we train a discriminative model that predicts whether each token in the corrupted input was '
-       'replaced by a generator sample or not. Thorough experiments demonstrate this new pre-training task is more '
-       'efficient than MLM because the task is defined over all input tokens rather than just the small subset that '
-       'was masked out. As a result, the contextual representations learned by our approach substantially outperform '
-       'the ones learned by BERT given the same model size, data, and compute. The gains are particularly strong for '
-       'small models; for example, we train a model on one GPU for 4 days that outperforms GPT (trained using 30x more'
-       ' compute) on the GLUE natural language understanding benchmark. Our approach also works well at scale, where '
-       'it performs comparably to RoBERTa and XLNet while using less than 1/4 of their compute and outperforms them '
-       'when using the same amount of compute.', "useful", "lm", 21.3),
+       'ELECTRA is pretrained as a discriminator: instead of masking tokens it learns to detect which tokens a small '
+       'generator replaced. Pretraining over every token is more efficient than masked language modeling, and fine- '
+       'tuning gives better language understanding benchmark results than BERT at the same compute.', "useful", "lm", 21.3),
     _p("1907.11692", "RoBERTa: A Robustly Optimized BERT Pretraining Approach", "2019-07-26",
        ["Yinhan Liu", "Myle Ott", "Naman Goyal"],
-       'Language model pretraining has led to significant performance gains but careful comparison between different '
-       'approaches is challenging. Training is computationally expensive, often done on private datasets of different '
-       'sizes, and, as we will show, hyperparameter choices have significant impact on the final results. We present a'
-       ' replication study of BERT pretraining (Devlin et al., 2019) that carefully measures the impact of many key '
-       'hyperparameters and training data size. We find that BERT was significantly undertrained, and can match or '
-       'exceed the performance of every model published after it. Our best model achieves state-of-the-art results on '
-       'GLUE, RACE and SQuAD. These results highlight the importance of previously overlooked design choices, and '
-       'raise questions about the source of recently reported improvements. We release our models and code.', "useful", "lm", 18.9, marks=[("understood", 1.8)]),
+       'RoBERTa revisits BERT pretraining and finds the language model was undertrained. Pretraining longer with '
+       'bigger batches on more tokens, with dynamic masking and no next-sentence objective, improves language '
+       'understanding benchmarks after fine-tuning.', "useful", "lm", 18.9, marks=[("understood", 1.8)]),
     _p("2203.15556", "Training Compute-Optimal Large Language Models", "2022-03-29",
        ["Jordan Hoffmann", "Sebastian Borgeaud", "Arthur Mensch"],
-       'We investigate the optimal model size and number of tokens for training a transformer language model under a '
-       'given compute budget. We find that current large language models are significantly undertrained, a consequence'
-       ' of the recent focus on scaling language models whilst keeping the amount of training data constant. By '
-       'training over 400 language models ranging from 70 million to over 16 billion parameters on 5 to 500 billion '
-       'tokens, we find that for compute-optimal training, the model size and the number of training tokens should be '
-       'scaled equally: for every doubling of model size the number of training tokens should also be doubled. We test'
-       ' this hypothesis by training a predicted compute-optimal model, Chinchilla, that uses the same compute budget '
-       'as Gopher but with 70B parameters and 4$\\times$ more more data. Chinchilla uniformly and significantly '
-       'outperforms Gopher (280B), GPT-3 (175B), Jurassic-1 (178B), and Megatron-Turing NLG (530B) on a large range of'
-       ' downstream evaluation tasks. This also means that Chinchilla uses substantially less compute for fine-tuning '
-       'and inference, greatly facilitating downstream usage. As a highlight, Chinchilla reaches a state-of-the-art '
-       'average accuracy of 67.5% on the MMLU benchmark, greater than a 7% improvement over Gopher.', "useful", "lm", 17.4),
+       'For a fixed compute budget, a pretrained language model should grow in parameters and in training tokens in '
+       'equal proportion. Earlier large language models were undertrained; Chinchilla, smaller but pretrained on more '
+       'tokens, beats them on language understanding benchmarks with the same compute.', "useful", "lm", 17.4),
     # ---- vision Transformers -----------------------------------------------------------------------------------
     _p("2103.14030", "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows", "2021-03-25",
        ["Ze Liu", "Yutong Lin", "Yue Cao"],
-       'This paper presents a new vision Transformer, called Swin Transformer, that capably serves as a '
-       'general-purpose backbone for computer vision. Challenges in adapting Transformer from language to vision arise'
-       ' from differences between the two domains, such as large variations in the scale of visual entities and the '
-       'high resolution of pixels in images compared to words in text. To address these differences, we propose a '
-       'hierarchical Transformer whose representation is computed with \\textbf{S}hifted \\textbf{win}dows. The shifted '
-       'windowing scheme brings greater efficiency by limiting self-attention computation to non-overlapping local '
-       'windows while also allowing for cross-window connection. This hierarchical architecture has the flexibility to'
-       ' model at various scales and has linear computational complexity with respect to image size. These qualities '
-       'of Swin Transformer make it compatible with a broad range of vision tasks, including image classification '
-       '(87.3 top-1 accuracy on ImageNet-1K) and dense prediction tasks such as object detection (58.7 box AP and 51.1'
-       ' mask AP on COCO test-dev) and semantic segmentation (53.5 mIoU on ADE20K val). Its performance surpasses the '
-       'previous state-of-the-art by a large margin of +2.7 box AP and +2.6 mask AP on COCO, and +3.2 mIoU on ADE20K, '
-       'demonstrating the potential of Transformer-based models as vision backbones. The hierarchical design and the '
-       'shifted window approach also prove beneficial for all-MLP architectures. The code and models are publicly '
-       'available at~\\url{https://github.com/microsoft/Swin-Transformer}.', "useful", "vit", 16.8, marks=[("understood", 7.6)]),
+       'Swin is a hierarchical vision Transformer: self-attention runs inside shifted windows of image patches and '
+       'patches merge across stages. Cost grows linearly with image size, and the visual backbone works for image '
+       'recognition, detection and segmentation.', "useful", "vit", 16.8, marks=[("understood", 7.6)]),
     _p("2012.12877", "Training data-efficient image transformers & distillation through attention", "2020-12-23",
        ["Hugo Touvron", "Matthieu Cord", "Matthijs Douze"],
-       'Recently, neural networks purely based on attention were shown to address image understanding tasks such as '
-       'image classification. However, these visual transformers are pre-trained with hundreds of millions of images '
-       'using an expensive infrastructure, thereby limiting their adoption. In this work, we produce a competitive '
-       'convolution-free transformer by training on Imagenet only. We train them on a single computer in less than 3 '
-       'days. Our reference vision transformer (86M parameters) achieves top-1 accuracy of 83.1% (single-crop '
-       'evaluation) on ImageNet with no external data. More importantly, we introduce a teacher-student strategy '
-       'specific to transformers. It relies on a distillation token ensuring that the student learns from the teacher '
-       'through attention. We show the interest of this token-based distillation, especially when using a convnet as a'
-       ' teacher. This leads us to report results competitive with convnets for both Imagenet (where we obtain up to '
-       '85.2% accuracy) and when transferring to other tasks. We share our code and models.', "useful", "vit", 15.9),
+       'DeiT trains a vision Transformer for image recognition on ImageNet alone, using a stronger training recipe and'
+       ' a distillation token that learns from a convolutional teacher through attention. Image patches are processed '
+       'by the Transformer without any large external dataset.', "useful", "vit", 15.9),
     _p("2103.00020", "Learning Transferable Visual Models From Natural Language Supervision", "2021-02-26",
        ["Alec Radford", "Jong Wook Kim", "Chris Hallacy"],
-       'State-of-the-art computer vision systems are trained to predict a fixed set of predetermined object '
-       'categories. This restricted form of supervision limits their generality and usability since additional labeled'
-       ' data is needed to specify any other visual concept. Learning directly from raw text about images is a '
-       'promising alternative which leverages a much broader source of supervision. We demonstrate that the simple '
-       'pre-training task of predicting which caption goes with which image is an efficient and scalable way to learn '
-       'SOTA image representations from scratch on a dataset of 400 million (image, text) pairs collected from the '
-       'internet. After pre-training, natural language is used to reference learned visual concepts (or describe new '
-       'ones) enabling zero-shot transfer of the model to downstream tasks. We study the performance of this approach '
-       'by benchmarking on over 30 different existing computer vision datasets, spanning tasks such as OCR, action '
-       'recognition in videos, geo-localization, and many types of fine-grained object classification. The model '
-       'transfers non-trivially to most tasks and is often competitive with a fully supervised baseline without the '
-       'need for any dataset specific training. For instance, we match the accuracy of the original ResNet-50 on '
-       'ImageNet zero-shot without needing to use any of the 1.28 million training examples it was trained on. We '
-       'release our code and pre-trained model weights at https://github.com/OpenAI/CLIP.', "useful", "vit", 3.0),
+       'CLIP pretrains an image encoder and a text encoder to match images with captions on web data. The visual model'
+       ' recognizes images zero-shot from text descriptions of the classes and transfers across image recognition '
+       'tasks without task-specific training.', "useful", "vit", 3.0),
     _p("2111.06377", "Masked Autoencoders Are Scalable Vision Learners", "2021-11-11",
        ["Kaiming He", "Xinlei Chen", "Saining Xie"],
-       'This paper shows that masked autoencoders (MAE) are scalable self-supervised learners for computer vision. Our'
-       ' MAE approach is simple: we mask random patches of the input image and reconstruct the missing pixels. It is '
-       'based on two core designs. First, we develop an asymmetric encoder-decoder architecture, with an encoder that '
-       'operates only on the visible subset of patches (without mask tokens), along with a lightweight decoder that '
-       'reconstructs the original image from the latent representation and mask tokens. Second, we find that masking a'
-       ' high proportion of the input image, e.g., 75%, yields a nontrivial and meaningful self-supervisory task. '
-       'Coupling these two designs enables us to train large models efficiently and effectively: we accelerate '
-       'training (by 3x or more) and improve accuracy. Our scalable approach allows for learning high-capacity models '
-       'that generalize well: e.g., a vanilla ViT-Huge model achieves the best accuracy (87.8%) among methods that use'
-       ' only ImageNet-1K data. Transfer performance in downstream tasks outperforms supervised pre-training and shows'
-       ' promising scaling behavior.', "useful", "vit", 11.8),
+       'A masked autoencoder hides most image patches and reconstructs them. The vision Transformer encoder sees only '
+       'the visible patches, which makes pretraining fast and lets large visual models learn good representations for '
+       'image recognition from images alone.', "useful", "vit", 11.8),
     _p("2105.01601", "MLP-Mixer: An all-MLP Architecture for Vision", "2021-05-04",
        ["Ilya Tolstikhin", "Neil Houlsby", "Alexander Kolesnikov"],
-       'Convolutional Neural Networks (CNNs) are the go-to model for computer vision. Recently, attention-based '
-       'networks, such as the Vision Transformer, have also become popular. In this paper we show that while '
-       'convolutions and attention are both sufficient for good performance, neither of them are necessary. We present'
-       ' MLP-Mixer, an architecture based exclusively on multi-layer perceptrons (MLPs). MLP-Mixer contains two types '
-       'of layers: one with MLPs applied independently to image patches (i.e. "mixing" the per-location features), and'
-       ' one with MLPs applied across patches (i.e. "mixing" spatial information). When trained on large datasets, or '
-       'with modern regularization schemes, MLP-Mixer attains competitive scores on image classification benchmarks, '
-       'with pre-training and inference cost comparable to state-of-the-art models. We hope that these results spark '
-       'further research beyond the realms of well established CNNs and Transformers.', "irrelevant", "vit", 11.2),
+       'MLP-Mixer is an image recognition architecture built only from multilayer perceptrons that mix information '
+       'across image patches and across channels, with no convolution and no attention. At large scale it is '
+       'competitive with vision Transformers.', "irrelevant", "vit", 11.2),
     _p("2005.12872", "End-to-End Object Detection with Transformers", "2020-05-26", ["Nicolas Carion", "Francisco Massa", "Gabriel Synnaeve"],
-       'We present a new method that views object detection as a direct set prediction problem. Our approach '
-       'streamlines the detection pipeline, effectively removing the need for many hand-designed components like a '
-       'non-maximum suppression procedure or anchor generation that explicitly encode our prior knowledge about the '
-       'task. The main ingredients of the new framework, called DEtection TRansformer or DETR, are a set-based global '
-       'loss that forces unique predictions via bipartite matching, and a transformer encoder-decoder architecture. '
-       'Given a fixed small set of learned object queries, DETR reasons about the relations of the objects and the '
-       'global image context to directly output the final set of predictions in parallel. The new model is '
-       'conceptually simple and does not require a specialized library, unlike many other modern detectors. DETR '
-       'demonstrates accuracy and run-time performance on par with the well-established and highly-optimized Faster '
-       'RCNN baseline on the challenging COCO object detection dataset. Moreover, DETR can be easily generalized to '
-       'produce panoptic segmentation in a unified manner. We show that it significantly outperforms competitive '
-       'baselines. Training code and pretrained models are available at https://github.com/facebookresearch/detr.', "irrelevant", "vit", 10.4),
+       'DETR casts object detection in images as direct set prediction with a Transformer encoder-decoder and removes '
+       'hand-designed components such as anchors. It matches strong detection baselines and extends to segmentation.', "irrelevant", "vit", 10.4),
     # ---- efficient attention and long context -----------------------------------------------------------------
     _p("2004.05150", "Longformer: The Long-Document Transformer", "2020-04-10", ["Iz Beltagy", "Matthew E. Peters", "Arman Cohan"],
-       'Transformer-based models are unable to process long sequences due to their self-attention operation, which '
-       'scales quadratically with the sequence length. To address this limitation, we introduce the Longformer with an'
-       ' attention mechanism that scales linearly with sequence length, making it easy to process documents of '
-       "thousands of tokens or longer. Longformer's attention mechanism is a drop-in replacement for the standard "
-       'self-attention and combines a local windowed attention with a task motivated global attention. Following prior'
-       ' work on long-sequence transformers, we evaluate Longformer on character-level language modeling and achieve '
-       'state-of-the-art results on text8 and enwik8. In contrast to most prior work, we also pretrain Longformer and '
-       'finetune it on a variety of downstream tasks. Our pretrained Longformer consistently outperforms RoBERTa on '
-       'long document tasks and sets new state-of-the-art results on WikiHop and TriviaQA. We finally introduce the '
-       'Longformer-Encoder-Decoder (LED), a Longformer variant for supporting long document generative '
-       'sequence-to-sequence tasks, and demonstrate its effectiveness on the arXiv summarization dataset.', "useful", "eff", 9.7),
+       'Longformer makes attention efficient for long documents: a sliding window plus a few global tokens makes the '
+       'cost linear in sequence length instead of quadratic. It processes long sequences with less memory and improves'
+       ' long document question answering and summarization.', "useful", "eff", 9.7),
     _p("2001.04451", "Reformer: The Efficient Transformer", "2020-01-13", ["Nikita Kitaev", "Lukasz Kaiser", "Anselm Levskaya"],
-       'Large Transformer models routinely achieve state-of-the-art results on a number of tasks but training these '
-       'models can be prohibitively costly, especially on long sequences. We introduce two techniques to improve the '
-       'efficiency of Transformers. For one, we replace dot-product attention by one that uses locality-sensitive '
-       'hashing, changing its complexity from O($L^2$) to O($L\\log L$), where $L$ is the length of the sequence. '
-       'Furthermore, we use reversible residual layers instead of the standard residuals, which allows storing '
-       'activations only once in the training process instead of $N$ times, where $N$ is the number of layers. The '
-       'resulting model, the Reformer, performs on par with Transformer models while being much more memory-efficient '
-       'and much faster on long sequences.', "useful", "eff", 9.1),
+       'Reformer makes Transformers efficient on long sequences: locality-sensitive hashing replaces dot-product '
+       'attention so the cost drops from quadratic to near-linear in sequence length, and reversible layers cut '
+       'memory. Quality stays close to the standard model.', "useful", "eff", 9.1),
     _p("2006.04768", "Linformer: Self-Attention with Linear Complexity", "2020-06-08", ["Sinong Wang", "Belinda Z. Li", "Madian Khabsa"],
-       'Large transformer models have shown extraordinary success in achieving state-of-the-art results in many '
-       'natural language processing applications. However, training and deploying these models can be prohibitively '
-       'costly for long sequences, as the standard self-attention mechanism of the Transformer uses $O(n^2)$ time and '
-       'space with respect to sequence length. In this paper, we demonstrate that the self-attention mechanism can be '
-       'approximated by a low-rank matrix. We further exploit this finding to propose a new self-attention mechanism, '
-       'which reduces the overall self-attention complexity from $O(n^2)$ to $O(n)$ in both time and space. The '
-       'resulting linear transformer, the \\textit{Linformer}, performs on par with standard Transformer models, while '
-       'being much more memory- and time-efficient.', "useful", "eff", 8.4),
+       'Linformer shows the attention matrix is low rank and projects keys and values to a shorter length, so self- '
+       'attention costs linear time and memory in sequence length. Efficient attention on long sequences stays close '
+       'to standard Transformer quality.', "useful", "eff", 8.4),
     _p("2009.14794", "Rethinking Attention with Performers", "2020-09-30", ["Krzysztof Choromanski", "Valerii Likhosherstov", "David Dohan"],
-       'We introduce Performers, Transformer architectures which can estimate regular (softmax) full-rank-attention '
-       'Transformers with provable accuracy, but using only linear (as opposed to quadratic) space and time '
-       'complexity, without relying on any priors such as sparsity or low-rankness. To approximate softmax '
-       'attention-kernels, Performers use a novel Fast Attention Via positive Orthogonal Random features approach '
-       '(FAVOR+), which may be of independent interest for scalable kernel methods. FAVOR+ can be also used to '
-       'efficiently model kernelizable attention mechanisms beyond softmax. This representational power is crucial to '
-       'accurately compare softmax with other kernels for the first time on large-scale tasks, beyond the reach of '
-       'regular Transformers, and investigate optimal attention-kernels. Performers are linear architectures fully '
-       'compatible with regular Transformers and with strong theoretical guarantees: unbiased or nearly-unbiased '
-       'estimation of the attention matrix, uniform convergence and low estimation variance. We tested Performers on a'
-       ' rich set of tasks stretching from pixel-prediction through text models to protein sequence modeling. We '
-       'demonstrate competitive results with other examined efficient sparse and dense attention methods, showcasing '
-       'effectiveness of the novel attention-learning paradigm leveraged by Performers.', "useful", "eff", 7.3, marks=[("too_hard", 3.8)]),
+       'Performers approximate softmax attention with random features, giving efficient attention whose cost and '
+       'memory are linear in sequence length, with provable estimates and no sparsity or low-rank assumption. They '
+       'work on long sequences of text, images and proteins.', "useful", "eff", 7.3, marks=[("too_hard", 3.8)]),
     _p("2205.14135", "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness", "2022-05-27",
        ["Tri Dao", "Daniel Y. Fu", "Stefano Ermon"],
-       'Transformers are slow and memory-hungry on long sequences, since the time and memory complexity of '
-       'self-attention are quadratic in sequence length. Approximate attention methods have attempted to address this '
-       'problem by trading off model quality to reduce the compute complexity, but often do not achieve wall-clock '
-       'speedup. We argue that a missing principle is making attention algorithms IO-aware -- accounting for reads and'
-       ' writes between levels of GPU memory. We propose FlashAttention, an IO-aware exact attention algorithm that '
-       'uses tiling to reduce the number of memory reads/writes between GPU high bandwidth memory (HBM) and GPU '
-       'on-chip SRAM. We analyze the IO complexity of FlashAttention, showing that it requires fewer HBM accesses than'
-       ' standard attention, and is optimal for a range of SRAM sizes. We also extend FlashAttention to block-sparse '
-       'attention, yielding an approximate attention algorithm that is faster than any existing approximate attention '
-       'method. FlashAttention trains Transformers faster than existing baselines: 15% end-to-end wall-clock speedup '
-       'on BERT-large (seq. length 512) compared to the MLPerf 1.1 training speed record, 3$\\times$ speedup on GPT-2 '
-       '(seq. length 1K), and 2.4$\\times$ speedup on long-range arena (seq. length 1K-4K). FlashAttention and '
-       'block-sparse FlashAttention enable longer context in Transformers, yielding higher quality models (0.7 better '
-       'perplexity on GPT-2 and 6.4 points of lift on long-document classification) and entirely new capabilities: the'
-       ' first Transformers to achieve better-than-chance performance on the Path-X challenge (seq. length 16K, 61.4% '
-       'accuracy) and Path-256 (seq. length 64K, 63.1% accuracy).', "useful", "eff", 4.6),
+       'FlashAttention computes exact attention efficiently by tiling it so that data stays in fast on-chip memory, '
+       'reducing reads and writes to slow GPU memory. It is faster and uses less memory than standard attention, which'
+       ' makes long sequences practical.', "useful", "eff", 4.6),
     _p("2104.09864", "RoFormer: Enhanced Transformer with Rotary Position Embedding", "2021-04-20", ["Jianlin Su", "Yu Lu", "Shengfeng Pan"],
-       'Position encoding recently has shown effective in the transformer architecture. It enables valuable '
-       'supervision for dependency modeling between elements at different positions of the sequence. In this paper, we'
-       ' first investigate various methods to integrate positional information into the learning process of '
-       'transformer-based language models. Then, we propose a novel method named Rotary Position Embedding(RoPE) to '
-       'effectively leverage the positional information. Specifically, the proposed RoPE encodes the absolute position'
-       ' with a rotation matrix and meanwhile incorporates the explicit relative position dependency in self-attention'
-       ' formulation. Notably, RoPE enables valuable properties, including the flexibility of sequence length, '
-       'decaying inter-token dependency with increasing relative distances, and the capability of equipping the linear'
-       ' self-attention with relative position encoding. Finally, we evaluate the enhanced transformer with rotary '
-       'position embedding, also called RoFormer, on various long text classification benchmark datasets. Our '
-       'experiments show that it consistently overcomes its alternatives. Furthermore, we provide a theoretical '
-       'analysis to explain some experimental results. RoFormer is already integrated into Huggingface: '
-       '\\url{https://huggingface.co/docs/transformers/model_doc/roformer}.', "useful", "eff", 4.1),
+       'RoFormer encodes position with rotary embeddings so attention over long sequences depends on relative '
+       'distance: query and key vectors are rotated, which handles flexible sequence length with efficient memory '
+       'growth and improves long text classification at unchanged attention cost.', "useful", "eff", 4.1),
     # ---- alignment and instruction tuning ---------------------------------------------------------------------
     _p("2109.01652", "Finetuned Language Models Are Zero-Shot Learners", "2021-09-03", ["Jason Wei", "Maarten Bosma", "Vincent Y. Zhao"],
-       'This paper explores a simple method for improving the zero-shot learning abilities of language models. We show'
-       ' that instruction tuning -- finetuning language models on a collection of tasks described via instructions -- '
-       'substantially improves zero-shot performance on unseen tasks. We take a 137B parameter pretrained language '
-       'model and instruction-tune it on over 60 NLP tasks verbalized via natural language instruction templates. We '
-       'evaluate this instruction-tuned model, which we call FLAN, on unseen task types. FLAN substantially improves '
-       'the performance of its unmodified counterpart and surpasses zero-shot 175B GPT-3 on 20 of 25 tasks that we '
-       'evaluate. FLAN even outperforms few-shot GPT-3 by a large margin on ANLI, RTE, BoolQ, AI2-ARC, OpenbookQA, and'
-       ' StoryCloze. Ablation studies reveal that number of finetuning datasets, model scale, and natural language '
-       'instructions are key to the success of instruction tuning.', "useful", "align", 2.7),
+       'Instruction tuning fine-tunes a language model on many tasks written as natural language instructions, which '
+       'improves zero-shot performance on unseen tasks. The gain from instructions grows with model size and with the '
+       'number of instruction tasks.', "useful", "align", 2.7),
     _p("2201.11903", "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models", "2022-01-28",
        ["Jason Wei", "Xuezhi Wang", "Dale Schuurmans"],
-       'We explore how generating a chain of thought -- a series of intermediate reasoning steps -- significantly '
-       'improves the ability of large language models to perform complex reasoning. In particular, we show how such '
-       'reasoning abilities emerge naturally in sufficiently large language models via a simple method called chain of'
-       ' thought prompting, where a few chain of thought demonstrations are provided as exemplars in prompting. '
-       'Experiments on three large language models show that chain of thought prompting improves performance on a '
-       'range of arithmetic, commonsense, and symbolic reasoning tasks. The empirical gains can be striking. For '
-       'instance, prompting a 540B-parameter language model with just eight chain of thought exemplars achieves state '
-       'of the art accuracy on the GSM8K benchmark of math word problems, surpassing even finetuned GPT-3 with a '
-       'verifier.', "useful", "align", 2.1),
+       'Chain-of-thought prompting gives a language model instructions in the prompt as a few examples with reasoning '
+       'steps. The large model then writes its own steps, improving arithmetic and commonsense reasoning with no human'
+       ' feedback or fine-tuning, so the instructions alone steer its behaviour.', "useful", "align", 2.1),
     _p("2203.02155", "Training language models to follow instructions with human feedback", "2022-03-04",
        ["Long Ouyang", "Jeff Wu", "Xu Jiang"],
-       "Making language models bigger does not inherently make them better at following a user's intent. For example, "
-       'large language models can generate outputs that are untruthful, toxic, or simply not helpful to the user. In '
-       'other words, these models are not aligned with their users. In this paper, we show an avenue for aligning '
-       'language models with user intent on a wide range of tasks by fine-tuning with human feedback. Starting with a '
-       'set of labeler-written prompts and prompts submitted through the OpenAI API, we collect a dataset of labeler '
-       'demonstrations of the desired model behavior, which we use to fine-tune GPT-3 using supervised learning. We '
-       'then collect a dataset of rankings of model outputs, which we use to further fine-tune this supervised model '
-       'using reinforcement learning from human feedback. We call the resulting models InstructGPT. In human '
-       'evaluations on our prompt distribution, outputs from the 1.3B parameter InstructGPT model are preferred to '
-       'outputs from the 175B GPT-3, despite having 100x fewer parameters. Moreover, InstructGPT models show '
-       'improvements in truthfulness and reductions in toxic output generation while having minimal performance '
-       'regressions on public NLP datasets. Even though InstructGPT still makes simple mistakes, our results show that'
-       ' fine-tuning with human feedback is a promising direction for aligning language models with human intent.', "useful", "align", 3.3),
+       'Larger language models do not follow user instructions better by default. Fine-tuning a language model on '
+       'human demonstrations and then using reinforcement learning from human feedback on preference rankings yields a'
+       ' smaller model that follows instructions and is preferred by people.', "useful", "align", 3.3),
     _p("2212.08073", "Constitutional AI: Harmlessness from AI Feedback", "2022-12-15", ["Yuntao Bai", "Saurav Kadavath", "Sandipan Kundu"],
-       'As AI systems become more capable, we would like to enlist their help to supervise other AIs. We experiment '
-       'with methods for training a harmless AI assistant through self-improvement, without any human labels '
-       'identifying harmful outputs. The only human oversight is provided through a list of rules or principles, and '
-       "so we refer to the method as 'Constitutional AI'. The process involves both a supervised learning and a "
-       'reinforcement learning phase. In the supervised phase we sample from an initial model, then generate '
-       'self-critiques and revisions, and then finetune the original model on revised responses. In the RL phase, we '
-       'sample from the finetuned model, use a model to evaluate which of the two samples is better, and then train a '
-       'preference model from this dataset of AI preferences. We then train with RL using the preference model as the '
-       "reward signal, i.e. we use 'RL from AI Feedback' (RLAIF). As a result we are able to train a harmless but "
-       'non-evasive AI assistant that engages with harmful queries by explaining its objections to them. Both the SL '
-       'and RL methods can leverage chain-of-thought style reasoning to improve the human-judged performance and '
-       'transparency of AI decision making. These methods make it possible to control AI behavior more precisely and '
-       'with far fewer human labels.', "useful", "align", 1.4),
+       'Constitutional AI aligns a language model for harmlessness with a short written list of principles instead of '
+       'human labels: the model critiques and revises its answers, then reinforcement learning uses AI feedback from a'
+       ' preference model, with less human feedback.', "useful", "align", 1.4),
     _p("2305.18290", "Direct Preference Optimization: Your Language Model is Secretly a Reward Model", "2023-05-29",
        ["Rafael Rafailov", "Archit Sharma", "Eric Mitchell"],
-       'While large-scale unsupervised language models (LMs) learn broad world knowledge and some reasoning skills, '
-       'achieving precise control of their behavior is difficult due to the completely unsupervised nature of their '
-       'training. Existing methods for gaining such steerability collect human labels of the relative quality of model'
-       ' generations and fine-tune the unsupervised LM to align with these preferences, often with reinforcement '
-       'learning from human feedback (RLHF). However, RLHF is a complex and often unstable procedure, first fitting a '
-       'reward model that reflects the human preferences, and then fine-tuning the large unsupervised LM using '
-       'reinforcement learning to maximize this estimated reward without drifting too far from the original model. In '
-       'this paper we introduce a new parameterization of the reward model in RLHF that enables extraction of the '
-       'corresponding optimal policy in closed form, allowing us to solve the standard RLHF problem with only a simple'
-       ' classification loss. The resulting algorithm, which we call Direct Preference Optimization (DPO), is stable, '
-       'performant, and computationally lightweight, eliminating the need for sampling from the LM during fine-tuning '
-       'or performing significant hyperparameter tuning. Our experiments show that DPO can fine-tune LMs to align with'
-       ' human preferences as well as or better than existing methods. Notably, fine-tuning with DPO exceeds PPO-based'
-       ' RLHF in ability to control sentiment of generations, and matches or improves response quality in '
-       'summarization and single-turn dialogue while being substantially simpler to implement and train.', "useful", "align", 0.9,
+       'Direct preference optimization aligns a language model to human preferences without a separate reward model or'
+       ' reinforcement learning: a simple classification loss on preference pairs optimizes the same objective, '
+       'matching human feedback pipelines with more stable, cheaper training.', "useful", "align", 0.9,
        marks=[("too_hard", 0.6)]),
 ]
 
