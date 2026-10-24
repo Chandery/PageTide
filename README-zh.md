@@ -25,7 +25,7 @@
 
 </div>
 
-https://github.com/user-attachments/assets/7897ab24-b2d3-4a2c-b658-a51cfc40690b
+https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
 <p align="center"><sub>🎵 配乐：Pumpupthemind</sub></p>
 
