@@ -348,7 +348,9 @@ fn main() {
                 "permissions":["allow-save-export", "allow-complete-quit"]}).to_string();
             app.add_capability(capability.as_str())?;
             app.manage(process);
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+            #[cfg(windows)]
+            let new_window_origin = origin.clone();
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
                 .title("PageTide")
                 .inner_size(1120.0, 760.0)
                 .min_inner_size(640.0, 480.0)
@@ -364,8 +366,19 @@ fn main() {
                         open_external(url);
                         false
                     }
-                })
-                .build()?;
+                });
+            // WebView2 raises no navigation event for a target="_blank" link or window.open: it asks for a new
+            // window, which Tauri silently refuses without a handler, so "original page" and publisher links did
+            // nothing on Windows. External http(s) pages go to the default browser; our own origin never gets a
+            // second window. (WebKit on macOS reports such clicks to on_navigation first.)
+            #[cfg(windows)]
+            let window = window.on_new_window(move |url, _features| {
+                if url.origin() != new_window_origin {
+                    open_external(&url);
+                }
+                tauri::webview::NewWindowResponse::Deny
+            });
+            window.build()?;
             Ok(())
         })
         .build(tauri::generate_context!());

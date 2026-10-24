@@ -18,6 +18,24 @@ else:
     import fcntl
 
 
+def add_bundled_ca_certificates():
+    """Windows: Python trusts only the root certificates already in the Windows store, and Windows installs many
+    roots (arXiv's Starfield Root G2 among them) only when its own components first need one. On a fresh machine
+    PDF downloads from such sites failed TLS while Edge and AI calls worked. certifi's bundle is added on top of
+    the store: ssl's load_default_certs reads the store and then SSL_CERT_FILE. An SSL_CERT_FILE the person set,
+    another system or a build without certifi changes nothing. Returns the bundle path that was added, or None."""
+    if not IS_WINDOWS or os.environ.get("SSL_CERT_FILE"):
+        return None
+    try:
+        import certifi
+    except ImportError:
+        return None
+    path = certifi.where()
+    if not os.path.isfile(path):
+        return None
+    os.environ["SSL_CERT_FILE"] = path   # inherited by the organization worker processes too
+    return path
+
 def _windows_try_lock(handle):
     descriptor = handle.fileno()
     os.lseek(descriptor, 0, os.SEEK_SET)

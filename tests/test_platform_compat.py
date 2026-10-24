@@ -334,3 +334,40 @@ class DataDirTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BundledCaCertificateTests(unittest.TestCase):
+    """Windows adds certifi's roots on top of the Windows store (arXiv's Starfield G2 is often missing there)."""
+
+    def run_with(self, windows, env, certifi_module):
+        modules = {"certifi": certifi_module} if certifi_module is not None else {"certifi": None}
+        with mock.patch.object(pc, "IS_WINDOWS", windows), mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.dict(sys.modules, modules):
+            return pc.add_bundled_ca_certificates(), os.environ.get("SSL_CERT_FILE")
+
+    def test_windows_points_ssl_at_the_bundle(self):
+        with tempfile.NamedTemporaryFile(suffix=".pem") as pem:
+            certifi = types.SimpleNamespace(where=lambda: pem.name)
+            self.assertEqual(self.run_with(True, {}, certifi), (pem.name, pem.name))
+
+    def test_nothing_changes_elsewhere_or_when_set_or_missing(self):
+        with tempfile.NamedTemporaryFile(suffix=".pem") as pem:
+            certifi = types.SimpleNamespace(where=lambda: pem.name)
+            self.assertEqual(self.run_with(False, {}, certifi), (None, None))
+            self.assertEqual(self.run_with(True, {"SSL_CERT_FILE": "mine.pem"}, certifi), (None, "mine.pem"))
+        self.assertEqual(self.run_with(True, {}, None), (None, None))                       # build without certifi
+        gone = types.SimpleNamespace(where=lambda: "/no/such/cacert.pem")
+        self.assertEqual(self.run_with(True, {}, gone), (None, None))
+
+    def test_ssl_reads_the_variable_after_the_store(self):
+        import inspect
+        import ssl
+        source = inspect.getsource(ssl.SSLContext.load_default_certs)
+        self.assertLess(source.index("_load_windows_store_certs"), source.index("set_default_verify_paths"))
+
+    def test_the_desktop_backend_adds_the_bundle_before_anything_connects(self):
+        source = (Path(__file__).resolve().parents[1] / "app" / "desktop.py").read_text(encoding="utf-8")
+        main = source[source.index("def main():"):]
+        self.assertLess(main.index("add_bundled_ca_certificates()"), main.index("--organization-worker"))
+        requirements = (Path(__file__).resolve().parents[1] / "requirements-desktop.txt").read_text(encoding="utf-8")
+        self.assertIn('certifi==2026.4.22; sys_platform == "win32"', requirements)

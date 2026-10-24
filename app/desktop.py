@@ -98,6 +98,7 @@ def on_parent_gone(httpd):
 
 def main():
     platform_compat.force_utf8_std_streams()
+    platform_compat.add_bundled_ca_certificates()
     if sys.argv[1:2] == ["--organization-worker"]:
         from .organization_worker import main as run_worker
         return run_worker(sys.argv[2:])
