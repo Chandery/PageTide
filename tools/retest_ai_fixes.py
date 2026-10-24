@@ -19,6 +19,18 @@ from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _primary_checkout(root):
+    """The main checkout: `root` itself, or the one a worktree's `.git` file points into (<main>/.git/worktrees/<n>)."""
+    git = root / '.git'
+    if git.is_dir():
+        return root
+    gitdir = Path(git.read_text(encoding='utf-8').split(':', 1)[1].strip())
+    return (gitdir if gitdir.is_absolute() else (root / gitdir).resolve()).parents[2]
+
+
+PRIMARY = _primary_checkout(ROOT)
 sys.path.insert(0, str(ROOT))
 from app.service import App
 from app.gateway import Gateway, request_envelope, input_bound
@@ -28,7 +40,7 @@ from app.category_review_service import run_review
 BASE = ROOT / '.local/ai-fixes-20261008/real-ai'
 OLD_BASE = Path('/Users/chandery/.codex/worktrees/multidiscipline-audit/PaperDigHelper/.local/multidiscipline-audit-20261007/ai')
 KEY = Path('/Users/chandery/Library/Application Support/PageTide/deepseek.env')
-TOKENIZER = Path('/Users/chandery/PaperDigHelper/.local/route-native-20261007/tokenizer/deepseek_v4_tokenizer/tokenizer.json')
+TOKENIZER = PRIMARY / '.local/route-native-20261007/tokenizer/deepseek_v4_tokenizer/tokenizer.json'
 SENTINEL = 'AUDIT_PRIVATE_NOTE_DO_NOT_SEND'
 SOFT_TOKENS = 3_000_000
 SOFT_USD = Decimal('2.00')
@@ -363,7 +375,7 @@ def main():
     kinds = tuple(args.kinds.split(','))
     if len(set(kinds)) != len(kinds) or any(k not in {'quick','guided','create','revision','intro','triage','growth','category','qa','vision','translate'} for k in kinds):
         raise SystemExit('invalid or duplicated audit operation')
-    if ROOT == Path('/Users/chandery/PaperDigHelper'):
+    if ROOT == PRIMARY:
         raise SystemExit('refuse primary checkout')
     from tokenizers import Tokenizer
     tokenizer=Tokenizer.from_file(str(TOKENIZER))
