@@ -16,7 +16,7 @@
     {
       "name": "app-ui",
       "runtimeExecutable": "env",
-      "runtimeArgs": ["PAPERDIGHELPER_DATA=.local/ui-redesign-data", "python3", "-m", "app.server", "8767"],
+      "runtimeArgs": ["PAGETIDE_DATA=.local/ui-redesign-data", "python3", "-m", "app.server", "8767"],
       "port": 8767
     }
   ]
