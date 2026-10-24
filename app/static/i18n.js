@@ -6,7 +6,7 @@
    after 第/共 takes only a number; a Chinese part is translated only when it is a whole pack
    entry, and is otherwise kept verbatim (a name, a note, AI text), never half-translated. It also
    wraps alert / confirm / prompt. Text without a pack entry stays Chinese and is listed in
-   PDHi18n.misses() so a preview audit can find it. Zero tokens; nothing leaves the page.
+   PTi18n.misses() so a preview audit can find it. Zero tokens; nothing leaves the page.
    Never translated: the PDF text layer, form fields being edited, [data-no-i18n] and the
    containers of titles, abstracts, notes and quotes listed in SKIP. */
 (function (global) {
@@ -155,7 +155,7 @@ function systemText(text) {
   return t(value);
 }
 
-global.PDHi18n = {lang, t, translate, exact: exactly, system: systemText, misses: () => [...missed]};
+global.PTi18n = {lang, t, translate, exact: exactly, system: systemText, misses: () => [...missed]};
 if (lang !== 'en-US') return;
 
 document.documentElement.lang = 'en';

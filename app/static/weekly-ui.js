@@ -5,7 +5,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHWeekly = api;
+  else root.PTWeekly = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   'use strict';
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

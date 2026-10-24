@@ -520,7 +520,7 @@ class PageContractTests(unittest.TestCase):
 
     def test_the_request_and_the_apply_body(self):
         source = (Path(__file__).resolve().parents[1] / "app" / "static" / "organization.js").read_text(encoding="utf-8")
-        self.assertTrue("const asked = S.scope !== 'all' ? S.scope : window.PDH.state?.currentProject;" in source, "asked project")
+        self.assertTrue("const asked = S.scope !== 'all' ? S.scope : window.PT.state?.currentProject;" in source, "asked project")
         self.assertTrue("...(S.scope === 'all' ? { scope: 'all' } : {})" in source, "all tab")
         self.assertTrue("apply_mode:'add', fingerprint:preview.fingerprint, suggestions, merges, moves, dismissed, finish: true" in source, "the apply body")
         self.assertTrue("data-move-dismiss" in source and "保持现状，不再提示" in source, "a move is dismissed only on purpose")

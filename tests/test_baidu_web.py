@@ -1069,6 +1069,19 @@ class DocsTests(WebCase):
         adr = (ROOT / "docs" / "decisions" / "0039-chinese-source-baidu-scholar-and-source-adapters.md").read_text(encoding="utf-8")
         self.assertIn("合计", adr.split("## 增补", 1)[1])
 
+# The Baidu Scholar interface is not offered any more (app.user_settings.BAIDU_SCHOLAR_OFFERED); these tests exercise the
+# adapter itself, so the offer is switched on for this module only.
+_OFFER_SCHOLAR = __import__("unittest.mock", fromlist=["patch"]).patch.object(
+    __import__("app.user_settings", fromlist=["x"]), "BAIDU_SCHOLAR_OFFERED", True)
+
+
+def setUpModule():
+    _OFFER_SCHOLAR.start()
+
+
+def tearDownModule():
+    _OFFER_SCHOLAR.stop()
+
 
 if __name__ == "__main__":
     unittest.main()

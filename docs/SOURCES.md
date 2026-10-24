@@ -2,7 +2,7 @@
 
 这是将来写给用户的“数据源”文档的骨架。事实只来自代码里的 `SourceInfo` 常量（`app/source_adapters.py`、`app/baidu_scholar.py`、`app/baidu_web.py`）和 `harness/sources.json` 里登记的外部事实；`tests/test_source_adapters.py` 会检查每个已注册来源在本文件里都有一节，且“要不要密钥”与 `SourceInfo.key` 一致。新增来源时先写 `SourceInfo`，再补一节；不要只改这里。
 
-设置页“数据源”里每个来源一行（两个百度来源在同一个“百度学术”块里：一行密钥，下面两个开关“百度学术接口”和“百度搜索”）：开关、密钥输入、一个状态词、测试、清除、获取。密钥只存在数据目录里该来源自己的 0600 文件，不进 `settings.json`，不出现在网址、缓存、日志和错误信息里，也只会作为请求头发给该来源自己的 https 主机。
+设置页“数据源”里每个来源一行（百度只有“百度搜索”一行：开关，下面一行密钥；2026-10-24 起不再提供“百度学术接口”开关，旧设置里残留的该开关被忽略）：开关、密钥输入、一个状态词、测试、清除、获取。AI 的 DeepSeek 密钥旁也有“获取”（固定指向 <https://platform.deepseek.com/api_keys>，登记为 `DS-KEY-PAGE`）。密钥只存在数据目录里该来源自己的 0600 文件，不进 `settings.json`，不出现在网址、缓存、日志和错误信息里，也只会作为请求头发给该来源自己的 https 主机。
 
 接入状态（2026-10-23）：单元 A（适配器、密钥、设置页、测试按钮）、单元 B（每日推送、DOI 补全、语言、PDF 路线）和单元 C（创建项目候选、种子检索）已接入；第二个百度来源 `baidu_web`（百度 AI 搜索限定百度学术站点）接在同三处。学习图（beta）的刷新不使用百度来源。
 
@@ -25,6 +25,8 @@
 - 外部事实：`harness/sources.json` 的 `OPENALEX`、`OPENALEX-AUTH`、`OPENALEX-OA`。
 
 ## `baidu_scholar` 百度学术（百度千帆 API）
+
+> 2026-10-24：owner 确认“百度学术接口现在是没有的，只有百度搜索接口”。设置页已删除这个开关，`user_settings.baidu_scholar()` 恒为关（常量 `BAIDU_SCHOLAR_OFFERED = False`），适配器代码和下面的说明只作历史记录保留。
 
 - 密钥：必须有密钥（你自己的百度千帆 API Key）。默认关闭；第一次打开时有一次确认。
 - 去哪拿：<https://console.bce.baidu.com/qianfan/ais/console/apiKey>（地址未核实，以百度智能云千帆平台为准）。

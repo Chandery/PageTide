@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-settings-demo-extras",
+  "class": "critical",
+  "summary": "Settings page: the Baidu Scholar interface checkbox is removed (only the Baidu search row remains, its key line unchanged; user_settings.baidu_scholar() is pinned off by BAIDU_SCHOLAR_OFFERED=False so a stored sourceBaiduScholar no longer enables the source; stored data and migrations untouched); a 获取 link beside the DeepSeek key (fixed https://platform.deepseek.com/api_keys, registered as DS-KEY-PAGE). Demo (tour): (1) library import runs the real import page and import code offline in the sandbox on a bundled three-record BibTeX sample (demo.import_options forces online=false and include_fileless=true, resolve runs inside the request, allow list limited to the sample flow, PDF upload and seeds stay 403); (2) selection questions on a bundled original English reading text (app/static/demo/reading-material.pdf, generated deterministically by scripts/make_demo_reading_pdf.py from demo_fixture.READING, registered as the local PDF of Attention Is All You Need in the sandbox): DemoApp.qa/translate answer from pre-written zh/en text matched to the selection (demo.match_selection), zero gateway calls; the assistant prefilling, labels, hidden cost switches; tour gets k1-k5 and i1-i6 (27 steps), clickOn, an import page boot. IPC allow list and packaged assets change, hence critical. .gitignore: *.pdf is ignored, so the one committed PDF (app/static/demo/reading-material.pdf) is un-ignored explicitly.",
+  "tasks": [
+    "FEAT-ONBOARDING"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-BUDGET",
+    "R-ONBOARDING"
+  ],
+  "files": [
+    ".gitignore",
+    "app/demo.py",
+    "app/demo_fixture.py",
+    "app/server.py",
+    "app/static/demo/reading-material.pdf",
+    "app/static/demo/sample-library.bib",
+    "app/static/i18n/en-US.json",
+    "app/static/import.css",
+    "app/static/import.html",
+    "app/static/import.js",
+    "app/static/index.html",
+    "app/static/settings.html",
+    "app/static/tour.js",
+    "app/user_settings.py",
+    "changes/2026-10-24-settings-demo-extras.json",
+    "docs/ARCHITECTURE.md",
+    "docs/HANDOFF.md",
+    "docs/PRODUCT.md",
+    "docs/SOURCES.md",
+    "docs/decisions/0039-chinese-source-baidu-scholar-and-source-adapters.md",
+    "docs/decisions/0042-first-run-demo-and-tour.md",
+    "docs/evidence/2026-10-24-settings-demo-extras-checks.txt",
+    "harness/sources.json",
+    "scripts/make_demo_reading_pdf.py",
+    "tests/test_baidu_creation.py",
+    "tests/test_baidu_refresh.py",
+    "tests/test_baidu_web.py",
+    "tests/test_baidu_web_wiring.py",
+    "tests/test_demo_extras.py",
+    "tests/test_demo_sandbox.py",
+    "tests/test_guidance_zh.py",
+    "tests/test_import_ui.py",
+    "tests/test_source_adapters.py",
+    "tests/test_source_settings_ui.cjs",
+    "tests/test_tour.cjs",
+    "tests/test_tour_wiring.cjs"
+  ],
+  "scope_note": "Worktree settings-demo-extras, one commit on top of main b400029 (the onboarding-tour merge). The main checkout's uncommitted logo changes are not part of it.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "The demo answers and translations are pre-written text (model=demo) from DemoApp.qa/translate; the sandbox gateway still raises on any call; the import runs offline (online=false, no OpenAlex). The only new link opens an address in the browser. No provider call, prompt, retry or quota changes.",
+    "before": "demo without reading or import; Baidu Scholar switch in settings",
+    "after": "demo with reading, selection questions and import at zero tokens and no network; no Baidu Scholar switch",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-settings-demo-extras-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-settings-demo-extras-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-settings-demo-extras-checks.txt"
+    }
+  ],
+  "additional_checks": [
+    {
+      "command": "node --test tests/*.cjs",
+      "exit_code": 0,
+      "scope": "650 pass, 0 fail"
+    },
+    {
+      "command": "python3 scripts/i18n_extract.py",
+      "exit_code": 0,
+      "scope": "0 of 1233 keys missing"
+    },
+    {
+      "command": "browser run in the preview pane (source backend, empty data directory, 1280x820)",
+      "exit_code": 0,
+      "scope": "full tour in Chinese/light and English/dark including selection, ask, translate, import of 3 papers; real database tables all 0; no console or server errors; see the evidence file for the steps and what was done instead of a mouse drag"
+    }
+  ],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Working agent; not independent",
+      "evidence": "docs/evidence/2026-10-24-settings-demo-extras-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not independently reviewed (critical class: IPC allow list and packaged assets).",
+    "The selection was made through a script (Range + mouseup) in the preview pane, not by a mouse drag in WKWebView/WebView2.",
+    "The reading material is English only (a Chinese text layer needs an embedded CJK font); answers, translation and questions follow the interface language.",
+    "Reloading in the middle of the reader steps (k2-k4) leaves the target absent; the step degrades to a centred bubble after 15 seconds and the person can continue.",
+    "platform.deepseek.com/api_keys is a signed-in page; only the link on the official docs page was checked.",
+    "Baidu Scholar adapter code, /api/source-test for baidu_scholar and their tests remain (switched on per test module); a stored sourceBaiduScholar stays in settings.json until the next save in the settings page."
+  ],
+  "review_notes": []
+}

@@ -1,7 +1,7 @@
 (function(root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHPaperContext = api;
+  else root.PTPaperContext = api;
 })(typeof window !== 'undefined' ? window : this, function() {
   const h = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   /* Where a paper sits: its categories and (learning-map beta) its units, with jumps to the graphs. Nothing else, and no

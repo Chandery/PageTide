@@ -14,8 +14,8 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }) 
   const storage = new Map();
   const context = vm.createContext({
     module: { exports: {} },
-    window: { PDH: { api, toast() {}, md: text => `<div class="md">${String(text).replace(/</g, '&lt;')}</div>`, state: { currentProject: null, summaries: {} } },
-      PDHPaperContext: require('../app/static/paper-context.js'), addEventListener() {} },
+    window: { PT: { api, toast() {}, md: text => `<div class="md">${String(text).replace(/</g, '&lt;')}</div>`, state: { currentProject: null, summaries: {} } },
+      PTPaperContext: require('../app/static/paper-context.js'), addEventListener() {} },
     document: { activeElement: null },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
     crypto: { randomUUID: () => 'client-1' }, setTimeout, clearTimeout, URL,
@@ -23,8 +23,8 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }) 
   });
   vm.runInContext(fs.readFileSync(path.join(STATIC, 'organization.js'), 'utf8'), context);
   const ui = context.module.exports;
-  ui.setReader = reader => { context.window.PDH.openReader = reader; };
-  ui.setSummaries = summaries => { context.window.PDH.state.summaries = summaries; };
+  ui.setReader = reader => { context.window.PT.openReader = reader; };
+  ui.setSummaries = summaries => { context.window.PT.state.summaries = summaries; };
   ui.setCytoscape = factory => { context.window.cytoscape = factory; };
   ui.setBeta = on => { context.window.PAGETIDE_ROUTE_BETA = on; };   // the learning-map setting (window.PAGETIDE_ROUTE_BETA)
   return ui;
@@ -530,7 +530,7 @@ test('with the learning map off the weekly report and the profile evidence say n
     units: { done: 1, total: 3, items: [{ name: 'U', status: 'satisfied', current: { understood: 1 } }] } };
   for (const beta of [false, true]) {
     const ctx = load('weekly-ui.js', beta);
-    const weekly = ctx.module.exports.weeklyHTML ? ctx.module.exports : ctx.window.PDHWeekly || ctx.PDHWeekly;
+    const weekly = ctx.module.exports.weeklyHTML ? ctx.module.exports : ctx.window.PTWeekly || ctx.PTWeekly;
     const html = weekly.weeklyHTML(report);
     if (beta) assert.match(html, /已读懂/); else assert.doesNotMatch(html, /已读懂|学习图进度/);
   }

@@ -15,7 +15,7 @@ function fixture(reply = {ok:false,reason:"AI disabled"}) {
     addMsg:(...args)=>{messages.push(args);return {prepend(){},remove(){}};},refCard(){},
     setReference(){pet.selection=null;pet.selPage=null;pet.referenceIdentity=null;},
     setAttachPage:value=>{pet.attachPage=value;},
-    PDHFigure:{figureRequest:()=>null},PDHReaderIdentity:require('../app/static/reader-identity.js'),
+    PTFigure:{figureRequest:()=>null},PTReaderIdentity:require('../app/static/reader-identity.js'),
     api:async(path,body)=>{sent.push({path,body});return reply;},aiFailure:r=>r});
   vm.runInContext(html.slice(html.indexOf('function aiUsageText(result)'),html.indexOf('function aiFailure(reason)')),context);
   vm.runInContext(source,context);

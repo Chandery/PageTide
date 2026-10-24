@@ -5,10 +5,10 @@ function setup(){
  const events=[],nodes=new Map(),listeners=new Map();let flags={dirty:false,busy:false};
  const node=id=>{if(!nodes.has(id))nodes.set(id,{id,open:false,disabled:false,isConnected:true,inert:false,value:'',textContent:'',attrs:{},listeners:{},setAttribute(k,v){this.attrs[k]=v;},focus(){doc.activeElement=this;events.push(['focus',id]);},showModal(){this.open=true;events.push(['dialog',id]);},close(){this.open=false;},addEventListener(k,f){this.listeners[k]=f;},contains(el){return el===this||['creationQuitCancel','creationQuitReview','creationQuitDiscard'].includes(el?.id);},querySelectorAll(){return ['creationQuitCancel','creationQuitReview','creationQuitDiscard'].map(node);}});return nodes.get(id);};
  const doc={activeElement:node('editor'),querySelector:s=>node(s.slice(1))};
- const window={addEventListener:(k,f)=>listeners.set(k,f),__TAURI_INTERNALS__:{invoke:async command=>events.push(['quit',command])},PDHDialogs:{notice:(message,{target})=>{target.textContent=message;events.push(['notice',message]);}}};
+ const window={addEventListener:(k,f)=>listeners.set(k,f),__TAURI_INTERNALS__:{invoke:async command=>events.push(['quit',command])},PTDialogs:{notice:(message,{target})=>{target.textContent=message;events.push(['notice',message]);}}};
  const context=vm.createContext({window,document:doc});vm.runInContext(fs.readFileSync(path.join(dir,'creation-quit.js'),'utf8'),context);
- window.PDHCreationQuit.mount({dirty:()=>flags.dirty,busy:()=>flags.busy,focus:()=>node('editor').focus()});
- return {window,node,events,listeners,flags,doc,quit:()=>window.PDHPrepareQuit()};
+ window.PTCreationQuit.mount({dirty:()=>flags.dirty,busy:()=>flags.busy,focus:()=>node('editor').focus()});
+ return {window,node,events,listeners,flags,doc,quit:()=>window.PTPrepareQuit()};
 }
 test('creation inputs and unconfirmed edits require explicit choice, default Cancel preserves data',async()=>{
  const h=setup();h.flags.dirty=true;h.node('editor').value='中文学习目标';await h.quit();assert.equal(h.node('creationQuitDialog').open,true);assert.equal(h.doc.activeElement,h.node('creationQuitCancel'));assert.equal(h.events.some(e=>e[0]==='quit'),false);
@@ -30,8 +30,8 @@ test('Escape cancels, keyboard cycles, browser unload guards dirty/busy, clean p
 });
 test('actual creation adapter detects programmatic field edits, map/brief/edit/keyword and in-flight state',()=>{
  const source=fs.readFileSync(path.join(dir,'project-creation.js'),'utf8');
- const slice=source.slice(source.indexOf('function creationInputSignature('),source.indexOf('window.PDHCreationQuit.mount('));
- const input={id:'manualName',value:'',type:'text',checked:false,closest:()=>null},ctx={document:{querySelectorAll:()=>[input]},creationPending:0,modeConfirming:false,guidedBusy:false,seeds:[],seedKeywords:{get:()=>[]},session:null,review:null,window:{PDHDialogs:{active:()=>false}}};vm.createContext(ctx);vm.runInContext(slice+';globalThis.exitState=creationExitState;',ctx);
+ const slice=source.slice(source.indexOf('function creationInputSignature('),source.indexOf('window.PTCreationQuit.mount('));
+ const input={id:'manualName',value:'',type:'text',checked:false,closest:()=>null},ctx={document:{querySelectorAll:()=>[input]},creationPending:0,modeConfirming:false,guidedBusy:false,seeds:[],seedKeywords:{get:()=>[]},session:null,review:null,window:{PTDialogs:{active:()=>false}}};vm.createContext(ctx);vm.runInContext(slice+';globalThis.exitState=creationExitState;',ctx);
  assert.equal(ctx.exitState().dirty,false);input.value='中文材料方向';assert.equal(ctx.exitState().dirty,true);input.value='';assert.equal(ctx.exitState().dirty,false);
  for(const state of [{dirty:true,busy:false},{dirty:false,busy:true}]){ctx.review={quitState:()=>state};assert.equal(ctx.exitState().dirty,state.dirty);assert.equal(ctx.exitState().busy,state.busy);}
  ctx.review=null;ctx.seeds.push({status:'working'});assert.equal(ctx.exitState().busy,true);ctx.seeds.length=0;ctx.creationPending=1;assert.equal(ctx.exitState().busy,true);

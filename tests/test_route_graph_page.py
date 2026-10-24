@@ -240,7 +240,7 @@ class ProjectPageTests(unittest.TestCase):
 class MapPageStructureTests(unittest.TestCase):
     def test_the_graph_is_mounted_with_a_detail_panel_and_a_height_limit(self):
         js, html = read("route-page.js"), read("route.html")
-        self.assertIn("window.PDHGraph.mount(", js)
+        self.assertIn("window.PTGraph.mount(", js)
         self.assertIn("maxHeight:", js)
         self.assertIn('data-role="detail"', html)
         self.assertIn("overflow:auto", read("project-creation.css").replace(" ", ""))

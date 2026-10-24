@@ -6,7 +6,7 @@ const R=require('../app/static/route-editor.js');
 function functionSource(name,next){const s=source(),start=s.indexOf(`function ${name}(`);assert.ok(start>=0,`production ${name} exists`);return s.slice(start,s.indexOf(next,start));}
 const graph=()=>({concepts:[{id:'c1',name:'基础',terms:['world models'],hint:2,origin:'plan',state:'active'}],prereqs:[],targets:['c1']});
 test('stage editing updates the real route concept and purpose, preserving independent branches and mastery',()=>{
- const context={window:{PDHRoute:R}};vm.createContext(context);vm.runInContext(functionSource('updateStageGraph','\nfunction creationFieldError(')+';globalThis.update=updateStageGraph;',context);
+ const context={window:{PTRoute:R}};vm.createContext(context);vm.runInContext(functionSource('updateStageGraph','\nfunction creationFieldError(')+';globalThis.update=updateStageGraph;',context);
  const original=graph(),out=context.update(original,{title:'潜变量',purpose:'读懂隐状态'},'c1',['latent dynamics']);
  assert.equal(out.graph.concepts[0].name,'潜变量');assert.equal(out.graph.concepts[0].intro,'读懂隐状态');assert.equal(out.graph.concepts[0].intro_by,'user');assert.equal(out.graph.prereqs.length,0);assert.equal(JSON.stringify(out.graph.targets),'["c1"]');assert.equal(original.concepts[0].name,'基础');
  const added=context.update(out.graph,{title:'Planning',purpose:'学会规划'},null,['latent dynamics']);assert.equal(added.graph.concepts.length,2);assert.equal(added.graph.targets.length,2);assert.equal(added.graph.prereqs.length,0);assert.equal(added.graph.concepts[1].terms[0],'Planning');

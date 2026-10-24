@@ -4,7 +4,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHReaderPage = api;
+  else root.PTReaderPage = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   'use strict';
 

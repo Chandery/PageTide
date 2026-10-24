@@ -19,11 +19,11 @@ function runtime(){
  }
  doc.body=new Element('body');doc.createElement=tag=>new Element(tag);doc.querySelector=()=>null;
  const before=new Element('button');before.focus();
- const context={window:{PDHi18n:{translate:s=>s}},document:doc,queueMicrotask};
+ const context={window:{PTi18n:{translate:s=>s}},document:doc,queueMicrotask};
  vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(staticDir,'dialogs.js'),'utf8'),context);
  const buttons=()=>doc.body.children.filter(x=>x.open).at(-1)?.querySelectorAll();
  const dialog=()=>doc.body.children.filter(x=>x.open).at(-1);
- return {api:context.window.PDHDialogs,doc,before,buttons,dialog};
+ return {api:context.window.PTDialogs,doc,before,buttons,dialog};
 }
 test('confirm really renders and cancellation/Escape stay false with focus restored',async()=>{
  const r=runtime(),p=r.api.confirm('Delete draft?');assert.equal(r.api.active(),true);assert.equal(r.doc.activeElement.textContent,'取消');

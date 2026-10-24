@@ -14,7 +14,7 @@ def create_snapshot(store, data_dir):
     root = Path(data_dir)
     if store.conn.in_transaction:
         raise ValueError('请先完成当前数据库操作，再导出一致性快照')
-    with tempfile.TemporaryDirectory(prefix='pdh-export-') as directory:
+    with tempfile.TemporaryDirectory(prefix='pt-export-') as directory:
         path = Path(directory) / 'snapshot.sqlite'
         with sqlite3.connect(path) as copy:
             store.conn.backup(copy)
@@ -65,7 +65,7 @@ def restore_database(snapshot, empty_directory):
     if hashlib.sha256(raw).hexdigest() != database['sha256'] or len(raw) != database['bytes']:
         raise ValueError('快照校验失败')
     # Verify outside the requested directory; failed validation leaves no partial restoration.
-    with tempfile.TemporaryDirectory(prefix='pdh-restore-check-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='pt-restore-check-') as temporary:
         path = Path(temporary) / 'snapshot.sqlite'; path.write_bytes(raw)
         with sqlite3.connect(f'file:{path}?mode=ro', uri=True) as copy:
             if copy.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':

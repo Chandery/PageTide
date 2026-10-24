@@ -223,7 +223,7 @@ fn prepare_quit(handle: &tauri::AppHandle) {
         // The page flushes recoverable drafts before acknowledging; a failure keeps the app open.
         let _ = window.show();
         let _ = window.set_focus();
-        if let Err(error) = window.eval("window.PDHPrepareQuit ? window.PDHPrepareQuit() : window.__TAURI_INTERNALS__.invoke('complete_quit');") {
+        if let Err(error) = window.eval("window.PTPrepareQuit ? window.PTPrepareQuit() : window.__TAURI_INTERNALS__.invoke('complete_quit');") {
             eprintln!("PageTide quit guard could not reach the page; application remains open: {error}");
         }
     }

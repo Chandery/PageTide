@@ -298,7 +298,7 @@ class URLProjectPrecedenceTests(unittest.TestCase):
         end = source.index("await loadProjects();", start)
         snippet = source[start:end]
         script = (
-            "const DEMO_ID='pdh-demo';const results=[];for (const [search, stored] of [['?project_id=url', 'stored'], ['', 'stored'], ['', null]]) {"
+            "const DEMO_ID='pt-demo';const results=[];for (const [search, stored] of [['?project_id=url', 'stored'], ['', 'stored'], ['', null]]) {"
             "const window={location:{search}};const localStorage={getItem:()=>stored};const state={currentProject:'default'};"
             + snippet + "results.push(state.currentProject);}console.log(JSON.stringify(results));")
         try:

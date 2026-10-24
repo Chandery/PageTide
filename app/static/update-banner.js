@@ -10,7 +10,7 @@ function mount(options = {}) {
   if (!bar || !label || !act || !close) return null;
   const call = options.fetch || ((...args) => fetch(...args));
   const wait = options.wait || (ms => new Promise(resolve => setTimeout(resolve, ms)));
-  const quit = options.quit || (() => window.PDHPrepareQuit && window.PDHPrepareQuit());
+  const quit = options.quit || (() => window.PTPrepareQuit && window.PTPrepareQuit());
   const grace = options.grace ?? 1500;   // if the page is still here this long after asking to quit, the quit was cancelled
   let latest = null, busy = false;
   const post = async (path, body = {}) => {
@@ -74,5 +74,5 @@ function mount(options = {}) {
   check();
   return {check, update};
 }
-window.PDHUpdate = {mount};
+window.PTUpdate = {mount};
 })();

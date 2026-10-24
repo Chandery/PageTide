@@ -67,3 +67,8 @@
 .linkbutton:hover{background:var(--surface-3)}
 .linkbutton.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .linkbutton:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* The demo project imports a bundled sample file: no pickers, no drop zone, no options, no seeds. */
+.demo-sample{margin:0 0 calc(14px * var(--s))}
+.demo-sample .hint{margin:0 0 calc(16px * var(--s))}
+html.pt-demo .picker,html.pt-demo #drop,html.pt-demo .zotero,html.pt-demo #options,html.pt-demo #seedsCard,html.pt-demo #aiCard,html.pt-demo #catsDone,html.pt-demo .row-actions input,html.pt-demo .row-actions [data-act="lookup"]{display:none !important}

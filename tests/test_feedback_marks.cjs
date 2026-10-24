@@ -7,7 +7,7 @@ const cardSrc = index.slice(index.indexOf('function cardHTML('), index.indexOf('
 const fbSrc = index.slice(index.indexOf('async function doFeedback('), index.indexOf("$('#cards').addEventListener"));
 
 function cardContext() {
-  const ctx = vm.createContext({ window: { PDHMarks: Marks }, esc, state: { triaging: false, triagingKeys: new Set() },
+  const ctx = vm.createContext({ window: { PTMarks: Marks }, esc, state: { triaging: false, triagingKeys: new Set() },
     workTypeLabel: v => v, pdfBadge: () => '', routeBadge: () => '', aiSlot: () => '', judgeAskHTML: () => '' });
   vm.runInContext(cardSrc, ctx);
   return ctx;

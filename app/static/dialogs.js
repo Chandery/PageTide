@@ -4,7 +4,7 @@
 'use strict';
 const queue = [];
 let current = null, noticeNode = null, sequence = 0;
-const text = value => window.PDHi18n?.translate(String(value ?? '')) || String(value ?? '');
+const text = value => window.PTi18n?.translate(String(value ?? '')) || String(value ?? '');
 const valid = request => { try { return !request.options.valid || request.options.valid(); } catch { return false; } };
 function next() {
   if (current) return;
@@ -13,12 +13,12 @@ function next() {
   if (!valid(request)) { request.resolve(false); next(); return; }
   const previous = document.activeElement;
   const dialog = document.createElement('dialog');
-  dialog.className = 'pdh-confirm';
+  dialog.className = 'pt-confirm';
   const title = document.createElement('h2'), message = document.createElement('p'), actions = document.createElement('div');
-  title.id = 'pdh-confirm-title-' + (++sequence); title.textContent = text('请确认');
-  message.id = 'pdh-confirm-message-' + sequence; message.textContent = text(request.message);
+  title.id = 'pt-confirm-title-' + (++sequence); title.textContent = text('请确认');
+  message.id = 'pt-confirm-message-' + sequence; message.textContent = text(request.message);
   dialog.setAttribute('aria-labelledby', title.id); dialog.setAttribute('aria-describedby', message.id);
-  actions.className = 'pdh-confirm-actions';
+  actions.className = 'pt-confirm-actions';
   const cancel = document.createElement('button'), approve = document.createElement('button');
   cancel.type = approve.type = 'button'; cancel.textContent = text('取消'); approve.textContent = text('确认');
   approve.className = 'primary'; actions.append(cancel, approve); dialog.append(title, message, actions);
@@ -54,7 +54,7 @@ function confirm(message, options = {}) {
 function notice(message, options = {}) {
   let node = options.target;
   if (!node) {
-    if (!noticeNode?.isConnected) { noticeNode = document.createElement('div'); noticeNode.className = 'pdh-notice'; document.body.append(noticeNode); }
+    if (!noticeNode?.isConnected) { noticeNode = document.createElement('div'); noticeNode.className = 'pt-notice'; document.body.append(noticeNode); }
     node = noticeNode;
   }
   node.setAttribute('role', options.kind === 'error' ? 'alert' : 'status');
@@ -63,5 +63,5 @@ function notice(message, options = {}) {
   node.textContent = text(message); node.hidden = false;
   return node;
 }
-window.PDHDialogs = {confirm, notice, active: () => !!current};
+window.PTDialogs = {confirm, notice, active: () => !!current};
 })();

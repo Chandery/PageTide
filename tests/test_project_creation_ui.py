@@ -72,11 +72,11 @@ class ProjectCreationUITests(unittest.TestCase):
         for marker in ('id="seedInput"', 'id="dropzone"', 'id="pdfPick"'):
             self.assertIn(marker, self.html)
         for marker in ("/api/seeds/resolve", "/api/seeds/search", "/api/seeds/pdf", "pdf_id",
-                       "PDHPdfHints", "looksLikeIdentifier"):
+                       "PTPdfHints", "looksLikeIdentifier"):
             self.assertIn(marker, self.js)
         # Reading the first pages is shared with library import: one reader, loaded before the page script.
         reader = (STATIC / "pdf-hints.js").read_text(encoding="utf-8")
-        for marker in ("getTextContent", "PDHCreationPdf.identify"):
+        for marker in ("getTextContent", "PTCreationPdf.identify"):
             self.assertIn(marker, reader)
         self.assertLess(self.html.index('/pdf-hints.js'), self.html.index('/project-creation.js'))
         self.assertIn("creation_mode: 'manual'", self.js)

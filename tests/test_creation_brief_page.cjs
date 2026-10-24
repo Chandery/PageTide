@@ -15,7 +15,7 @@ function page(response,lang='zh-CN') {
   function part(role){if(!parts.has(role))parts.set(role,{hidden:false,disabled:false,querySelectorAll(){return [...controls.values()];},querySelector(s){if(!controls.has(s))controls.set(s,{value:'',disabled:false});return controls.get(s);}});return parts.get(role);}
   Brief.mount(part('mapBrief'),brief);
   const map={graph:{concepts:[{id:'saved',name:'Old',terms:['old'],state:'active'}],prereqs:[],targets:['saved']},mastered:['saved'],checking:false,generating:false};
-  const context=vm.createContext({Brief,PDHBrief:Brief,R,map,part,MAX_PATH:8,busy:false,sessionId:()=>sid,mapNotice:m=>messages.push(m),mapAct:{start(){},stop(){}},renderMap(){},refresh(){},confirm:()=>true,
+  const context=vm.createContext({Brief,PTBrief:Brief,R,map,part,MAX_PATH:8,busy:false,sessionId:()=>sid,mapNotice:m=>messages.push(m),mapAct:{start(){},stop(){}},renderMap(){},refresh(){},confirm:()=>true,
     // Stage DOM rendering is outside this fixed-brief test; generation and validation are shipped functions.
     addPathItem(){},syncPath(){},bindPathConcepts(){},
     PAGETIDE_I18N:{lang,messages:english},document:{documentElement:{},addEventListener(){}},MutationObserver:class{observe(){}},
@@ -45,7 +45,7 @@ test('AI off still allows a manual graph with explicit target and preserves requ
     assert.equal(R.check(p.map.graph).ok,true);assert.deepEqual(JSON.parse(JSON.stringify(p.map.graph.targets)),['c1']);
     assert.equal(p.map.graph.concepts[0].name,lang==='en-US'?english['第一个概念']:'第一个概念');
     if(lang==='en-US')assert.doesNotMatch(p.map.graph.concepts[0].name,/[㐀-鿿]/);
-    assert.equal(p.context.PDHi18n.lang,lang);
+    assert.equal(p.context.PTi18n.lang,lang);
     assert.deepEqual(Brief.read(p.part('mapBrief')),brief);assert.equal(p.calls.length,0);
   }
 });

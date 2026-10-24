@@ -9,7 +9,7 @@ function loadContext(flag){
   sandbox.module={exports:{}};
   vm.createContext(sandbox);
   vm.runInContext(read('paper-context.js'),sandbox);
-  return sandbox.window.PDHPaperContext||sandbox.module.exports;
+  return sandbox.window.PTPaperContext||sandbox.module.exports;
 }
 const context={project_id:'p',categories:[{name:'Cat'}],units:[{id:'a',name:'Unit A'}],map_available:true,route_enabled:true,
   saved_in_project:true,recommendation:{kind:'route',name:'Unit A'}};
@@ -32,7 +32,7 @@ function settingsPage(stored){
   const nodes=new Map(),calls=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',checked:false,textContent:'',disabled:false,dataset:{},setAttribute(){}});return nodes.get(id);};
   const context={document:{querySelector:node,documentElement:{dataset:{}}},localStorage:{getItem(){return null;},setItem(){},removeItem(){}},matchMedia(){return {matches:false};},
-    window:{location:{},PDHTheme:{apply(){}},PDHSaveFile:async()=>({})},alert(){},confirm(){return true;},
+    window:{location:{},PTTheme:{apply(){}},PTSaveFile:async()=>({})},alert(){},confirm(){return true;},
     fetch:async(url,init)=>{calls.push({url,init});
       if(url==='/api/user_settings'&&!init)return {ok:true,json:async()=>({settings:stored})};
       return {ok:true,json:async()=>({status:'saved'})};}};

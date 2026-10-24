@@ -4,7 +4,7 @@
    The four-finger swipe and Ctrl+Up belong to macOS, so it opens with Option+Up,
    a click on the project name, or a trackpad pinch (spread to enter the highlighted project). */
 (function () {
-  const MRU_KEY = 'pdh-project-mru';
+  const MRU_KEY = 'pt-project-mru';
   const MRU_LIMIT = 20;
   const SNAPSHOT_LIMIT = 8;
   const PINCH_STEP = 40;      // accumulated pinch distance that counts as a gesture

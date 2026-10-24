@@ -130,10 +130,10 @@ test('the main page keeps the reader out of the overview pinch', () => {
 
 test('the demo project carries a small 演示 tag and has no manage button; real projects keep theirs', () => {
   const sw = load();
-  const demo = sw.labelHTML({ id: 'pdh-demo', name: 'Demo', demo: true }, 'pdh-demo', true);
+  const demo = sw.labelHTML({ id: 'pt-demo', name: 'Demo', demo: true }, 'pt-demo', true);
   assert.match(demo, /class="mc-demo">演示</);
   assert.doesNotMatch(demo, /mc-edit/);
-  const real = sw.labelHTML({ id: 'a', name: '项目A' }, 'pdh-demo', true);
+  const real = sw.labelHTML({ id: 'a', name: '项目A' }, 'pt-demo', true);
   assert.match(real, /mc-edit/);
   assert.doesNotMatch(real, /mc-demo/);
   assert.doesNotMatch(sw.labelHTML({ id: 'a', name: 'x' }, 'a', false), /mc-edit/);

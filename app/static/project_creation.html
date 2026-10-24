@@ -15,7 +15,7 @@
 <h1>创建研究项目</h1>
 <p class="lead" data-route-beta>选一种方式开始。</p><p class="lead" data-route-beta-off>选一种方式开始。</p>
 <div id="creationPaperPolicy"></div>
-<div id="creationQuitStatus" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="creationQuitStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div class="modes" role="radiogroup" aria-label="创建方式">
   <button type="button" class="mode-card" role="radio" aria-checked="false" data-mode="quick">
@@ -175,11 +175,11 @@
 <script src="/route-brief.js"></script>
 <script src="/route-graph.js"></script>
 <script src="/paper-policy.js"></script>
-<dialog id="creationQuitDialog" class="pdh-confirm" aria-labelledby="creationQuitTitle" aria-describedby="creationQuitText">
+<dialog id="creationQuitDialog" class="pt-confirm" aria-labelledby="creationQuitTitle" aria-describedby="creationQuitText">
 <h2 id="creationQuitTitle">离开创建页？</h2>
 <p id="creationQuitText">还没有创建项目，未提交的内容会丢失。</p>
-<div id="creationQuitError" data-pdh-status role="alert" aria-live="assertive" aria-atomic="true"></div>
-<div class="pdh-confirm-actions creation-quit-actions"><button type="button" id="creationQuitCancel">取消退出</button><button type="button" id="creationQuitReview">返回审阅</button><button type="button" id="creationQuitDiscard">放弃未提交修改并退出</button></div>
+<div id="creationQuitError" data-pt-status role="alert" aria-live="assertive" aria-atomic="true"></div>
+<div class="pt-confirm-actions creation-quit-actions"><button type="button" id="creationQuitCancel">取消退出</button><button type="button" id="creationQuitReview">返回审阅</button><button type="button" id="creationQuitDiscard">放弃未提交修改并退出</button></div>
 </dialog>
 <script src="/creation-quit.js"></script>
 <script src="/project-creation.js"></script>
@@ -189,7 +189,7 @@
 (async()=>{
   try {
     const list=await (await fetch('/api/projects')).json();
-    if((list.projects||[]).length){PDHTour.dismiss('c1');return;}   // a project exists now: the "create your first project" hint is moot
+    if((list.projects||[]).length){PTTour.dismiss('c1');return;}   // a project exists now: the "create your first project" hint is moot
     const link=document.querySelector('a.back');
     link.textContent='看看演示';
     link.addEventListener('click',async e=>{
@@ -198,12 +198,12 @@
         const res=await fetch('/api/onboarding');
         const data=await res.json();
         if(!res.ok)throw new Error(data.error||`HTTP ${res.status}`);
-        PDHTour.begin({step:'w0',version:data.version,returnProject:null});   // the welcome card builds the sandbox
+        PTTour.begin({step:'w0',version:data.version,returnProject:null});   // the welcome card builds the sandbox
         window.location.href='/';
-      } catch(err) { window.PDHDialogs.notice(`打不开演示：${err.message}`,{target:document.getElementById('creationQuitStatus'),kind:'error'}); }
+      } catch(err) { window.PTDialogs.notice(`打不开演示：${err.message}`,{target:document.getElementById('creationQuitStatus'),kind:'error'}); }
     });
-    PDHTour.boot('creation',{});
-  } catch(e) { PDHTour.boot('creation',{}); /* keep the plain back link */ }
+    PTTour.boot('creation',{});
+  } catch(e) { PTTour.boot('creation',{}); /* keep the plain back link */ }
 })();
 </script>
 </body>

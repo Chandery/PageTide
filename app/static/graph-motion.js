@@ -96,5 +96,5 @@
   }
   const api={create,limited};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
-  if(typeof window!=='undefined') window.PDHGraphMotion=api;
+  if(typeof window!=='undefined') window.PTGraphMotion=api;
 })();

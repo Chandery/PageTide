@@ -20,7 +20,7 @@ week. Weeks are UTC calendar days ending tomorrow: the current week holds days_a
 import hashlib
 import json
 
-PROJECT_ID = "pdh-demo"
+PROJECT_ID = "pt-demo"
 ABSTRACTS_VERBATIM = False   # see the header: demo paraphrases; ids/titles/dates checked 2026-10-24
 
 NAME = {"zh": "演示项目", "en": "Demo project"}
@@ -396,9 +396,100 @@ PREVIEWS = {
 }
 
 
+# ------------------------------------------------------------------------------------------- the demo reading material
+# A short text WRITTEN FOR THIS DEMO (our own words, the abstract paraphrase expanded; it quotes nothing from the paper) so the
+# reader, the text layer and the selection bar can be shown without redistributing the paper's PDF (arXiv's default licence
+# does not allow that). It is set as app/static/demo/reading-material.pdf by scripts/make_demo_reading_pdf.py from the data
+# below; the PDF is English only (a Chinese text layer would need an embedded CJK font). The first line says so.
+READING_ARXIV_ID = "1706.03762"
+READING_KEY = "https://doi.org/10.48550/arxiv." + READING_ARXIV_ID
+READING_FILE = "reading-material.pdf"
+SAMPLE_BIB_FILE = "sample-library.bib"
+
+# A sentence the person may ask about: `sentence` is set in the PDF word for word (the matcher compares words, not layout);
+# `highlight` paints it in the PDF; `question` is the follow-up question that leads to its answer; the answers, the
+# Chinese translation of the sentence and the follow-ups (ids of other entries) are pre-written, not model output.
+READING_QA = [
+    {"id": "self-attention", "highlight": True,
+     "sentence": "Self-attention lets every position look at every other position in a single step, so two distant words are connected by a path of length one.",
+     "translation": "自注意力让每个位置在一步之内就能看到其他所有位置，因此相隔很远的两个词之间只有长度为一的路径。",
+     "question": {"zh": "自注意力和循环网络相比有什么不同？", "en": "How is self-attention different from a recurrent network?"},
+     "answer": {
+         "zh": "**这句话在说什么**：自注意力让句子里的每个位置，一步就能直接“看到”其他所有位置。\n\n"
+               "**为什么重要**：循环网络要把信息一个词一个词地往后传，相隔很远的两个词之间隔着很多步，远距离的关系不容易学到；自注意力里任意两个词之间只有一步，而且整句可以同时算，训练快得多。\n\n"
+               "**代价**：每个位置都要和所有位置比较，计算量随句子长度的平方增长。",
+         "en": "**What the sentence says**: Self-attention lets every word in a sentence look directly at every other word in one step.\n\n"
+               "**Why it matters**: A recurrent network passes information along one word at a time, so two distant words are many steps apart and long-range relations are hard to learn. With self-attention any two words are one step apart, and the whole sentence can be computed at once, which trains much faster.\n\n"
+               "**The price**: Every position is compared with every other one, so the cost grows with the square of the sentence length."},
+     "followups": ["position", "heads"]},
+    {"id": "position",
+     "sentence": "Attention by itself ignores word order, so the model adds a position signal to every word before the first layer.",
+     "translation": "注意力本身不考虑词序，所以模型在第一层之前给每个词加上一个位置信号。",
+     "question": {"zh": "为什么要加入位置信息？", "en": "Why add position information?"},
+     "answer": {
+         "zh": "**这句话在说什么**：注意力只看词和词之间的关系，把句子里的词打乱顺序，它算出的结果不会变。\n\n"
+               "**怎么解决**：在每个词进入第一层之前，先给它加上一个表示“我是第几个”的信号，模型就能区分“狗咬人”和“人咬狗”。论文用不同波长的正弦、余弦曲线来做这个信号。",
+         "en": "**What the sentence says**: Attention only looks at relations between words, so shuffling the words of a sentence would not change what it computes.\n\n"
+               "**The fix**: Before a word enters the first layer, a signal saying which position it holds is added to it, so the model can tell \"dog bites man\" from \"man bites dog\". The paper builds this signal from sine and cosine waves of different lengths."},
+     "followups": ["self-attention", "heads"]},
+    {"id": "heads",
+     "sentence": "Multi-head attention runs several small attention computations side by side, so different heads can follow different relations in the same sentence.",
+     "translation": "多头注意力并排运行几组较小的注意力计算，因此不同的头可以在同一个句子里关注不同的关系。",
+     "question": {"zh": "多头注意力有什么用？", "en": "What is multi-head attention for?"},
+     "answer": {
+         "zh": "**这句话在说什么**：与其只做一次大的注意力，不如把它拆成几组小的并排做，每一组叫一个“头”。\n\n"
+               "**好处**：不同的头可以各看各的关系，比如一个头找代词指的是哪个名词，另一个头看相邻的词。最后把各个头的结果拼起来，信息比单个头丰富。",
+         "en": "**What the sentence says**: Instead of one large attention computation, the model runs several small ones side by side. Each one is called a head.\n\n"
+               "**The benefit**: Different heads can look for different relations, for example one finds the noun a pronoun refers to while another watches neighbouring words. Their results are joined, which carries more than a single head could."},
+     "followups": ["self-attention", "position"]},
+]
+# Any other selection or question: one pre-written reply that says what the real assistant would do.
+READING_GENERIC = {
+    "answer": {
+        "zh": "这是演示里预先写好的回答，并不是针对你选的这段话生成的。\n\n真实使用时，AI 会根据你选中的文字和这篇论文的相关内容，用简短的话解释它的意思和作用。想看演示里的回答，请选中高亮的那句话再追问。",
+        "en": "This is a pre-written demo reply, not an answer to the text you selected.\n\nWhen you use it for real, the AI reads the text you selected together with the relevant parts of the paper and explains briefly what it means and what it does. To see a demo answer, select the highlighted sentence and ask about it."},
+    "translation": {
+        "zh": "演示里只预先翻译了高亮的那句话。真实使用时，AI 会翻译你选中的任何文字。",
+        "en": "The demo only has a translation for the highlighted sentence. When you use it for real, the AI translates any text you select."},
+    "default_question": {"zh": "这句话是什么意思？", "en": "What does this sentence mean?"},
+    "followups": ["self-attention", "position", "heads"],
+}
+
+# The document itself: [heading, [paragraph, ...]] in reading order. Every READING_QA sentence appears in one paragraph.
+READING = {
+    "banner": "Demo reading material, not the paper's original text",
+    "title": "Attention Is All You Need",
+    "subtitle": "Reading notes written for the PageTide demo",
+    "sections": [
+        ["Why this paper matters", [
+            "Before 2017 the strongest systems for translating and modelling text read a sentence one word at a time, "
+            "passing a hidden state along a chain. That made them slow to train, and information from a distant word "
+            "had a long way to travel. This paper proposes a different design, the Transformer, in which every layer is "
+            "built from attention and small feed-forward networks."]],
+        ["The core idea", [
+            "Attention lets a word put a question to the other words in the sentence and take a weighted mix of their "
+            "answers. " + READING_QA[0]["sentence"] + " Because all positions are handled together, the whole sentence "
+            "can be processed in parallel on modern hardware, which is a large part of why training became so much faster."]],
+        ["Order and several views", [
+            READING_QA[1]["sentence"] + " The paper uses fixed sine and cosine patterns of different wavelengths for this "
+            "signal, and reports that learned position vectors worked about as well.",
+            READING_QA[2]["sentence"] + " One head may track which noun a pronoun points to while another follows the "
+            "words nearby."]],
+        ["What the results showed", [
+            "On English-to-German and English-to-French translation the Transformer reached higher scores than the best "
+            "earlier systems at a fraction of their training cost. The same architecture also worked for English "
+            "constituency parsing, which suggested it was not tied to translation alone."]],
+        ["Limits to keep in mind", [
+            "Attention compares every position with every other one, so its cost grows with the square of the sequence "
+            "length. Very long documents therefore need cheaper variants, which is why many later papers in this library "
+            "are about efficient attention."]],
+    ],
+}
+
+
 def _digest():
     payload = {"name": NAME, "keywords": KEYWORDS, "pins": PIN_HISTORY, "directions": DIRECTIONS, "papers": PAPERS,
-               "previews": PREVIEWS}
+               "previews": PREVIEWS, "reading": READING, "reading_qa": READING_QA, "reading_generic": READING_GENERIC}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
 
 

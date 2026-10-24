@@ -43,7 +43,7 @@ function fixture(api) {
     dialogs.push(d);
   }});
   const state = {currentProject:'p1'};
-  const context = vm.createContext({module:{exports:{}},window:{PDH:{api,state,toast:(...args)=>toasts.push(args)},addEventListener(){}},document:{activeElement:null},
+  const context = vm.createContext({module:{exports:{}},window:{PT:{api,state,toast:(...args)=>toasts.push(args)},addEventListener(){}},document:{activeElement:null},
     localStorage:{getItem(){return null;},setItem(){}},crypto:{randomUUID:()=> 'synthetic-client'},setTimeout,clearTimeout,URL});
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../app/static/organization.js'),'utf8'),context);
   const ui = context.module.exports;

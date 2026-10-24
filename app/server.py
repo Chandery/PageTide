@@ -396,14 +396,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == "GET" and hmac.compare_digest(self.path, f"/_desktop/{token}"):
             self.send_response(303)
             self.send_header("Location", "/")
-            self.send_header("Set-Cookie", f"pdh_session={token}; HttpOnly; SameSite=Strict; Path=/")
+            self.send_header("Set-Cookie", f"pt_session={token}; HttpOnly; SameSite=Strict; Path=/")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return False
         cookie = SimpleCookie()
         cookie.load(self.headers.get("Cookie", ""))
-        supplied = cookie["pdh_session"].value if "pdh_session" in cookie else ""
+        supplied = cookie["pt_session"].value if "pt_session" in cookie else ""
         if not hmac.compare_digest(supplied, token):
             self._json({"error": "desktop session required"}, 403)
             return False
@@ -528,12 +528,16 @@ class Handler(BaseHTTPRequestHandler):
                 project_id, source = body.get("project_id"), body.get("source")
                 if not isinstance(project_id, str) or not isinstance(source, str):
                     raise ValueError("缺少项目或导入来源")
-                return self._json(imp.create_batch(project_id, source, body.get("root_name"), body.get("options")))
+                options = demo.import_options(body.get("options")) if self._demo else body.get("options")
+                return self._json(imp.create_batch(project_id, source, body.get("root_name"), options))
             if len(parts) < 6 or parts[3] != "batches":
                 return self._json({"error": "unknown route"}, 404)
             batch_id, action = parts[4], parts[5]
             if action == "resolve":
                 imp.ensure_open(batch_id)
+                if self._demo:   # offline and tiny: matched here, in the sandbox app (the worker thread would open the real library)
+                    imp.resolve(batch_id)
+                    return self._json({"started": True, "worker_alive": False})
                 _import_start(getattr(self.server, "root", "."), batch_id)
                 return self._json({"started": True, "worker_alive": _import_worker_alive(batch_id)})
             if action == "cancel":
@@ -1261,7 +1265,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._json({"error": "unknown route"}, 404)
 
     def _update_post(self, route, body):
-        """Download / apply / dismiss an update. Quitting afterwards is the page's job (PDHPrepareQuit keeps drafts safe)."""
+        """Download / apply / dismiss an update. Quitting afterwards is the page's job (PTPrepareQuit keeps drafts safe)."""
         current = make_updater(getattr(self.server, "root", "."))
         try:
             if route == "/api/update/download":

@@ -1,0 +1,72 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Title (Attention Is All You Need: demo reading notes) /Subject (Demo reading material, not the paper's original text) /Producer (PageTide scripts/make_demo_reading_pdf.py) >>
+endobj
+6 0 obj
+<< /Length 3227 >>
+stream
+BT 0.42 0.42 0.42 rg /F1 9 Tf 72 711 Td (Demo reading material, not the paper's original text) Tj ET
+BT 0 g /F2 22 Tf 72 677 Td (Attention Is All You Need) Tj ET
+BT 0.42 0.42 0.42 rg /F1 11 Tf 72 657 Td (Reading notes written for the PageTide demo) Tj ET
+BT 0 g /F2 13 Tf 72 623 Td (Why this paper matters) Tj ET
+BT 0 g /F1 11 Tf 72 599 Td (Before 2017 the strongest systems for translating and modelling text read a sentence one word) Tj ET
+BT 0 g /F1 11 Tf 72 583 Td (at a time, passing a hidden state along a chain. That made them slow to train, and information) Tj ET
+BT 0 g /F1 11 Tf 72 567 Td (from a distant word had a long way to travel. This paper proposes a different design, the) Tj ET
+BT 0 g /F1 11 Tf 72 551 Td (Transformer, in which every layer is built from attention and small feed-forward networks.) Tj ET
+BT 0 g /F2 13 Tf 72 524 Td (The core idea) Tj ET
+BT 0 g /F1 11 Tf 72 500 Td (Attention lets a word put a question to the other words in the sentence and take a weighted mix) Tj ET
+1 0.92 0.45 rg 154.25 480.4 372.9 15.4 re f
+BT 0 g /F1 11 Tf 72 484 Td (of their answers. Self-attention lets every position look at every other position in a single step,) Tj ET
+1 0.92 0.45 rg 70.5 464.4 293.44 15.4 re f
+BT 0 g /F1 11 Tf 72 468 Td (so two distant words are connected by a path of length one. Because all positions are handled) Tj ET
+BT 0 g /F1 11 Tf 72 452 Td (together, the whole sentence can be processed in parallel on modern hardware, which is a large) Tj ET
+BT 0 g /F1 11 Tf 72 436 Td (part of why training became so much faster.) Tj ET
+BT 0 g /F2 13 Tf 72 409 Td (Order and several views) Tj ET
+BT 0 g /F1 11 Tf 72 385 Td (Attention by itself ignores word order, so the model adds a position signal to every word before) Tj ET
+BT 0 g /F1 11 Tf 72 369 Td (the first layer. The paper uses fixed sine and cosine patterns of different wavelengths for this) Tj ET
+BT 0 g /F1 11 Tf 72 353 Td (signal, and reports that learned position vectors worked about as well.) Tj ET
+BT 0 g /F1 11 Tf 72 330 Td (Multi-head attention runs several small attention computations side by side, so different heads) Tj ET
+BT 0 g /F1 11 Tf 72 314 Td (can follow different relations in the same sentence. One head may track which noun a pronoun) Tj ET
+BT 0 g /F1 11 Tf 72 298 Td (points to while another follows the words nearby.) Tj ET
+BT 0 g /F2 13 Tf 72 271 Td (What the results showed) Tj ET
+BT 0 g /F1 11 Tf 72 247 Td (On English-to-German and English-to-French translation the Transformer reached higher) Tj ET
+BT 0 g /F1 11 Tf 72 231 Td (scores than the best earlier systems at a fraction of their training cost. The same architecture) Tj ET
+BT 0 g /F1 11 Tf 72 215 Td (also worked for English constituency parsing, which suggested it was not tied to translation) Tj ET
+BT 0 g /F1 11 Tf 72 199 Td (alone.) Tj ET
+BT 0 g /F2 13 Tf 72 172 Td (Limits to keep in mind) Tj ET
+BT 0 g /F1 11 Tf 72 148 Td (Attention compares every position with every other one, so its cost grows with the square of the) Tj ET
+BT 0 g /F1 11 Tf 72 132 Td (sequence length. Very long documents therefore need cheaper variants, which is why many) Tj ET
+BT 0 g /F1 11 Tf 72 116 Td (later papers in this library are about efficient attention.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000514 00000 n 
+0000003792 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info 5 0 R >>
+startxref
+3928
+%%EOF

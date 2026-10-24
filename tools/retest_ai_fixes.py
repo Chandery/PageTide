@@ -387,7 +387,7 @@ def main():
     run.mkdir(parents=True,exist_ok=True,mode=0o700)
     os.environ['PAGETIDE_KEY_FILE']=str(KEY)
     os.environ['DEEPSEEK_API_KEY']=''
-    os.environ['PDH_DEV']='1'
+    os.environ['PT_DEV']='1'
     shared=Gateway(root=ROOT,data_dir=BASE/'ledger',dev=True)
     if args.live and not (BASE/('capture'+suffix)/'summary.json').exists():
         raise SystemExit('capture first')

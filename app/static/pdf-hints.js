@@ -4,7 +4,7 @@
 (function (root, factory) {
   const api = factory(root);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else root.PDHPdfHints = api;
+  else root.PTPdfHints = api;
 })(this, function (root) {
   'use strict';
 
@@ -51,6 +51,6 @@
     return { extractHints };
   }
 
-  const shared = create(loadPdfjs, (input) => root.PDHCreationPdf.identify(input));
+  const shared = create(loadPdfjs, (input) => root.PTCreationPdf.identify(input));
   return { extractHints: shared.extractHints, withTimeout, create, loadPdfjs };
 });

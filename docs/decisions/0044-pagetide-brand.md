@@ -20,11 +20,14 @@
 5. **Dock 与文件图标**：由 `docs/design/brand/pagetide/PageTide-icon.png`（owner 选定）经 `docs/design/brand/pagetide/build_icons.py` 生成 `src-tauri/icons/*`（PNG、icns、ico）。macOS/Tauri PNG 与 icns 按 Apple 图标网格把图形缩到画布的 82% 并居中（原图几乎贴边，直接用会在 Dock 里偏大）；ico 与网页 `favicon.png` 用 94%。icns 的 1x 16/32 槽仍写 `ic04/ic05` ARGB（旧缺陷：PNG 放在 `icp4/icp5` 下会在非 Retina 屏变成噪点）。旧海狮设计稿 `docs/design/logo/` 保留作历史，不再被构建使用。`favicon.svg`、`brand-mark.svg` 删除，页面改用 `favicon.png`。
 6. **仓库地址例外**：GitHub 仓库仍叫 `Chandery/PaperDigHelper`，owner 说稍后随 README 一起改。代码里只有 `app/updater.py` 的 `REPO` 一处（API 地址、下载前缀、`html_url` 校验都由它派生；`release.yml` 用 `github.repository`）。仓库改名后要改：`app/updater.py` 的 `REPO`，`docs/RELEASE.md` 开头那句。`tests/test_brand_name.py` 的白名单只有这一行。
 
+## 缩写前缀也改（owner：“全部都改掉”）
+
+`pdh-*` CSS 类与 data 属性、`pdh-mode` / `pdh-tour` / `pdh-current-project` 等 localStorage 键、`window.PDH*`（`PDHTour`、`PDHDialogs` 等）、`pdh_session` Cookie、`X-PDH-Demo` 请求头、演示项目 id `pdh-demo`、临时目录前缀，机械改为 `pt-` / `PT` / `pt_`（`X-PT-Demo`、`pt-demo`）。按词边界替换，`app/static/vendor/`（第三方代码）不动；没有已发布用户，本地偏好（主题等）因键名变化重置可以接受。`tests/test_brand_name.py` 同时禁止旧名与 `pdh` 前缀（只豁免 vendor）。
+
 ## 有意保留
 
-- `pdh-*` CSS 类、`pdh-mode`/`pdh-tour` 等 localStorage 键、`window.PDH*` 全局：它们是缩写前缀，不是产品名；量大（约 600 处，横跨正在并行修改的页面），改动只会增加合并冲突和重置用户主题设置。需要时另做一次机械改名。
 - 历史记录不改写：`changes/*.json`、`docs/evidence/*`、已有 ADR 正文、HANDOFF 过去条目，以及 `docs/design/logo/`、`docs/archive/`。仓库目录 `/Users/chandery/PaperDigHelper` 的绝对路径（仓库改名前不变）。
 
 ## 没有验证
 
-没有构建：`cargo tauri build`、DMG/zip、NSIS 安装包、Dock 与 Finder 里的真实图标观感、Windows 上的图标都没看过；Cargo 包名改为 `pagetide` 后只做了 `cargo check --offline`。可执行文件名在 macOS 包里是 `pagetide`（Activity Monitor 里显示它），如要显示 `PageTide` 需另加 `mainBinaryName` 并构建验证。
+没有构建：`cargo tauri build`、DMG/zip、NSIS 安装包、Dock 与 Finder 里的真实图标观感、Windows 上的图标都没看过；Cargo 包名改为 `pagetide` 后只做了 `cargo check --offline`。`tauri.conf.json` 设了 `mainBinaryName: "PageTide"`（进程名/可执行名为 PageTide；Cargo 包名仍是 `pagetide`）。`main.rs`、CI、脚本里没有依赖可执行文件名的地方，但打包后的实际文件名未构建验证。

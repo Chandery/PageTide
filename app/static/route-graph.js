@@ -5,7 +5,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHGraph = api;
+  else root.PTGraph = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const DEFAULTS = { nodeW: 176, nodeH: 72, gapX: 28, gapY: 54, dummyW: 10, pad: 16 };
   const SWEEPS = 12;

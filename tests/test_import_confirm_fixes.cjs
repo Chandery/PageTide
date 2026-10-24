@@ -4,7 +4,7 @@ const source=fs.readFileSync(path.join(__dirname,'../app/static/import.js'),'utf
 const discard=source.slice(source.indexOf("$('#discard').onclick = "),source.indexOf("$('#commit').onclick = "));
 function page(){
  const button={disabled:false},calls=[],S={batch:{id:'a'},pendingActions:0};let decide;
- const context={$:()=>button,S,post:async url=>calls.push(url),guarded:async fn=>fn(),location:{reload:()=>calls.push('reload')},window:{PDHDialogs:{confirm:(_,options)=>new Promise(resolve=>decide=choice=>resolve(choice&&options.valid()))}}};vm.createContext(context);vm.runInContext(discard,context);
+ const context={$:()=>button,S,post:async url=>calls.push(url),guarded:async fn=>fn(),location:{reload:()=>calls.push('reload')},window:{PTDialogs:{confirm:(_,options)=>new Promise(resolve=>decide=choice=>resolve(choice&&options.valid()))}}};vm.createContext(context);vm.runInContext(discard,context);
  return {button,calls,S,choose:choice=>decide(choice)};
 }
 test('actual discard waits for explicit confirmation, ignores double click and preserves cancelled batch',async()=>{

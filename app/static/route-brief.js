@@ -2,7 +2,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHBrief = api;
+  else root.PTBrief = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const FIELDS = [
     ['goal', '学习目标', 250, '例如：能读懂并复现基础的图神经网络论文'],

@@ -9,18 +9,18 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
   let clientCounter = 0;
   const context = vm.createContext({
     module: { exports: {} },
-    window: { PDH: { api, toast() {} }, PDHPaperContext: require('../app/static/paper-context.js'), addEventListener() {} },
+    window: { PT: { api, toast() {} }, PTPaperContext: require('../app/static/paper-context.js'), addEventListener() {} },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
     crypto: { randomUUID: () => `fresh-client-${++clientCounter}` }, setTimeout, clearTimeout, URL,
   });
   vm.runInContext(fs.readFileSync(path.join(__dirname, '../app/static/organization.js'), 'utf8'), context);
   const ui = context.module.exports;
-  ui.setReader = reader => { context.window.PDH.openReader = reader; };
-  ui.setDetail = open => { context.window.PDH.openDetail = open; };
+  ui.setReader = reader => { context.window.PT.openReader = reader; };
+  ui.setDetail = open => { context.window.PT.openDetail = open; };
   ui.setDocument = doc => { context.document = doc; };
-  ui.setProject = project => { context.window.PDH.state = {currentProject: project}; };
-  ui.setAPI = api => { context.window.PDH.api = api; };
-  ui.publicUI = context.window.PDHOrganization;
+  ui.setProject = project => { context.window.PT.state = {currentProject: project}; };
+  ui.setAPI = api => { context.window.PT.api = api; };
+  ui.publicUI = context.window.PTOrganization;
   ui.setCytoscape = factory => { context.window.cytoscape = factory; };
   ui.reduceMotion = enabled => { context.window.matchMedia = () => ({matches: enabled}); };
   ui.createGraph = elements => {

@@ -154,7 +154,7 @@ class UserTextMarkupTests(unittest.TestCase):
                        "注意：</span><span data-no-i18n>${esc(s.caution)}</span>",
                        '<button class="paper-title" data-no-i18n>',
                        "<h2 data-no-i18n>${esc(d.title)}</h2>", "<div data-no-i18n>${md(d.abstract)}</div>",
-                       "quoted.dataset.noI18n = ''", "PDHi18n.exact(q)"]:
+                       "quoted.dataset.noI18n = ''", "PTi18n.exact(q)"]:
             self.assertIn(marked, html)
         script = (ROOT / "app" / "static" / "i18n.js").read_text(encoding="utf-8")
         for container in [".org-markdown", ".org-detail-title", ".org-abstract p", "pre"]:

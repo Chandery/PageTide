@@ -8,7 +8,7 @@ function mount(options) {
   const buttons=[cancel,review,discard];
   let completing=false, leaving=false, previous=null;
   const busy=()=>!!options.busy(), dirty=()=>!!options.dirty();
-  const notice=(message,kind='error')=>window.PDHDialogs.notice(message,{target:$(dialog.open?'#creationQuitError':'#creationQuitStatus'),kind});
+  const notice=(message,kind='error')=>window.PTDialogs.notice(message,{target:$(dialog.open?'#creationQuitError':'#creationQuitStatus'),kind});
   const close=restore=>{dialog.close();if(restore && previous?.isConnected && !previous.inert && !previous.disabled)previous.focus();};
   async function complete() {
     if(completing)return;
@@ -20,7 +20,7 @@ function mount(options) {
       notice(`退出未完成，草稿和输入保持不变：${error.message}`);
     }
   }
-  window.PDHPrepareQuit=async()=>{
+  window.PTPrepareQuit=async()=>{
     if(completing)return;
     if(busy()){notice('当前操作还没结束，请等完成后再退出。');return;}
     if(!dirty()){await complete();return;}
@@ -44,5 +44,5 @@ function mount(options) {
     if(!leaving && !options.leaving?.() && (dirty() || busy())) {event.preventDefault();event.returnValue='';}
   });
 }
-window.PDHCreationQuit={mount};
+window.PTCreationQuit={mount};
 })();

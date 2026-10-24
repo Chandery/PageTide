@@ -106,7 +106,7 @@ def main():
     # Windows cannot delete a directory holding an open file: tolerate a failed cleanup there only (after a gc),
     # so a real failure above is reported instead of being buried under WinError 32.
     options={'ignore_cleanup_errors':True} if sys.platform=='win32' else {}
-    with tempfile.TemporaryDirectory(prefix='pdh-packaged-route-',**options) as tmp:
+    with tempfile.TemporaryDirectory(prefix='pt-packaged-route-',**options) as tmp:
         root=Path(tmp); data=root/'data'; home=root/'home';home.mkdir();data.mkdir()
         marker=home/'default-library-marker'; marker.write_bytes(b'untouched default library')
         (data/'AI_DISABLED').touch()
@@ -423,17 +423,17 @@ def main():
         fresh=root/'data-first-run'; fresh.mkdir(); (fresh/'AI_DISABLED').touch()
         def first_run(call):
             listing=call('/api/projects')
-            assert listing['projects']==[] and listing['demo']['id']=='pdh-demo', listing
+            assert listing['projects']==[] and listing['demo']['id']=='pt-demo', listing
             offer=call('/api/onboarding')
             assert offer['show'] is True and offer['reason']=='no_project' and offer['project_count']==0, offer
             assert call('/api/home')['no_project'] is True
             assert call('/api/onboarding',{'action':'start'})['ok'] is True
-            demo={'X-PDH-Demo':'1'}
-            daily=call('/api/daily',{'project_id':'pdh-demo'},headers=demo)
+            demo={'X-PT-Demo':'1'}
+            daily=call('/api/daily',{'project_id':'pt-demo'},headers=demo)
             assert len(daily['cards'])==5, daily
-            triage=call('/api/triage',{'project_id':'pdh-demo'},headers=demo)
+            triage=call('/api/triage',{'project_id':'pt-demo'},headers=demo)
             assert triage['mode']=='demo' and len(triage['items'])==5, triage
-            fed=call('/api/feedback',{'key':daily['cards'][0]['key'],'action':'useful','project_id':'pdh-demo'},headers=demo)
+            fed=call('/api/feedback',{'key':daily['cards'][0]['key'],'action':'useful','project_id':'pt-demo'},headers=demo)
             assert fed['saved'] is True
             assert len(call('/api/organization',headers=demo)['items'])>=20
             started=call('/api/organization',{'op':'graph'},headers=demo)['job']

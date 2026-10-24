@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-function setup(window){vm.runInNewContext(fs.readFileSync('app/static/save-file.js','utf8'),{window});return window.PDHSaveFile;}
+function setup(window){vm.runInNewContext(fs.readFileSync('app/static/save-file.js','utf8'),{window});return window.PTSaveFile;}
 test('native export waits for a saved path or cancellation receipt',async()=>{
   const calls=[];
   const saved=setup({__TAURI_INTERNALS__:{invoke:async(...args)=>{calls.push(args);return '{"status":"saved","path":"/chosen/export.json"}';}}});

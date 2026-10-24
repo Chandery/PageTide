@@ -73,3 +73,7 @@
 6. 万方（`ai.wfdata.com`）：owner 订阅后发现收费、试用只有十天，已评估且**不采用**；探测记录在 `harness/sources.json` 的 `CH-WANFANG-OPEN` 和 [SOURCES](../SOURCES.md)，没有适配器。
 
 **未验证项（保持可见）**：`date` 的含义、错误响应的形状（非 200 按 HTTP 状态分类，200 且有 `code`/`message` 而没有 `references` 的按信息文字分类）、超额是否计费、站点限定是否会收费、日界时区、72 个单位的精确计法、百度 AI 搜索一次最多返回几条有效论文。`tools/source_smoke.py baidu_web` 用真实密钥跑一次即可核对。
+
+## 增补（2026-10-24）：百度学术接口不再提供
+
+owner：“百度学术接口现在是没有的，只有百度搜索接口，把百度学术那个复选框删掉。”设置页的“百度学术接口”复选框和它的确认已删除，百度只剩“百度搜索”一行（同一把千帆密钥）。`user_settings.baidu_scholar()` 恒为关（`BAIDU_SCHOLAR_OFFERED = False`），所以旧 `settings.json` 里残留的 `sourceBaiduScholar: true` 不会再让刷新、创建检索或来源策略启用 `baidu_scholar`；存储数据不删，不改迁移。适配器、`/api/source-test` 的 `baidu_scholar` 和相关测试保留（测试按模块把常量打开）。上面写“两个开关”“百度学术接口”的段落是 2026-10-23 的历史描述。见 [ADR 0042 补充](0042-first-run-demo-and-tour.md)。

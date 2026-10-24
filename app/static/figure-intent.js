@@ -103,6 +103,6 @@ function findFigurePage(texts, kind, number) {
   return best;   // null when the figure is not mentioned anywhere in the extracted text
 }
 
-global.PDHFigure = {figureRequest, cnToInt, findFigurePage};
-if (typeof module !== 'undefined') module.exports = global.PDHFigure;
+global.PTFigure = {figureRequest, cnToInt, findFigurePage};
+if (typeof module !== 'undefined') module.exports = global.PTFigure;
 })(typeof window !== 'undefined' ? window : globalThis);

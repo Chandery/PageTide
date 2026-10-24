@@ -9,5 +9,5 @@
   }
   const api={hash};
   if (typeof module==='object' && module.exports) module.exports=api;
-  root.PDHReaderSource=api;
+  root.PTReaderSource=api;
 })(typeof window==='object'?window:globalThis);

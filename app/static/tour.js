@@ -1,26 +1,30 @@
-/* First-run guided tour (PDHTour). UMD: the pure layer (STEPS, shouldOffer, next, stepsFor,
+/* First-run guided tour (PTTour). UMD: the pure layer (STEPS, shouldOffer, next, stepsFor,
    finishTarget, state serialisation) is Node-testable; the DOM layer (boot/begin/finish/skip)
    draws a spotlight and a small bubble. Chinese UI text lives here; i18n.js translates it. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.PDHTour = factory();
+  else root.PTTour = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const KEY = 'pdh-tour';
-  const OFFERED_KEY = 'pdh-tour-offered';
+  const KEY = 'pt-tour';
+  const OFFERED_KEY = 'pt-tour-offered';
   const VERSION = 1;
   const WAIT_MS = 15000;
-  const DEMO_ID = 'pdh-demo';
+  const DEMO_ID = 'pt-demo';
+  const READING_KEY = 'https://doi.org/10.48550/arxiv.1706.03762';   // the demo paper that has reading material (app/demo_fixture.py)
   const PAGE_URL = {
     index: '/',
     settings: '/settings.html',
     weekly: '/weekly_report.html?project_id=' + DEMO_ID,
     creation: '/project_creation.html',
+    import: '/import.html?project_id=' + DEMO_ID,
   };
 
-  /* Four phases, in this order. A step: id, page, phase, text, advance ('next' | 'click'),
-     target (CSS selector, null = centred bubble), closest (optional ancestor to highlight),
+  /* Phases (start, project, settings, recommendations, reading, library and profile), in this order. A step: id, page, phase, text,
+     advance ('next' | 'click'), target (CSS selector, null = centred bubble), closest (optional ancestor to highlight),
+     clickOn (optional: a click step is done by a click on this selector instead of on the target, for a target that is only
+     the area where the person works, such as the reader's pages),
      ready (optional selector to wait for before showing; defaults to target), view (index tab to
      show first), primary / secondary ({label, choice}), skipTo (step for choice 'skip'), end. */
   const STEPS = [
@@ -40,13 +44,13 @@
       primary: { label: '去设置', choice: 'primary' },
       secondary: { label: '跳过这段', choice: 'skip' }, skipTo: 'r1' },
     { id: 's2', page: 'settings', phase: '设置', target: '#apiKey', closest: '.section', advance: 'next',
-      text: '填 DeepSeek 密钥后可用 AI 速览和提问。',
+      text: '填 DeepSeek 密钥后可用 AI 速览和提问，点“获取”去申请。',
       primary: { label: '下一步', choice: 'primary' } },
     { id: 's3', page: 'settings', phase: '设置', target: '#openalexKey', closest: '.source-row', advance: 'next',
       text: '期刊与会议论文来自 OpenAlex，密钥可选。',
       primary: { label: '下一步', choice: 'primary' } },
     { id: 's4', page: 'settings', phase: '设置', target: '#baiduScholarKey', closest: '.source-row', advance: 'next',
-      text: '中文论文可打开百度学术，需要千帆密钥。',
+      text: '中文论文可用百度搜索，需要千帆密钥。',
       primary: { label: '回到演示', choice: 'primary' } },
     { id: 'r1', page: 'index', phase: '推荐', target: '#btnDaily', advance: 'click', view: 'today',
       text: '点这里生成今天的推荐。' },
@@ -55,11 +59,40 @@
       primary: { label: '下一步', choice: 'primary' } },
     { id: 'f1', page: 'index', phase: '推荐', target: '#cards .card:first-child [data-fb="useful"]', advance: 'click', view: 'today',
       text: '觉得有用就收藏。画像只从你明确的操作里学习。' },
+    // Reading and asking about a selection. The card of this paper is on today's page; its PDF is a demo text written for this
+    // purpose, with one highlighted sentence. The answers are pre-written (zero tokens) and say so.
+    { id: 'k1', page: 'index', phase: '阅读', target: '[data-read="' + READING_KEY + '"]', advance: 'click', view: 'today',
+      text: '这篇带一份演示阅读材料，点“阅读 PDF”打开。' },
+    { id: 'k2', page: 'index', phase: '阅读', target: '#readerPages', ready: '#readerPages .textLayer span', advance: 'click',
+      clickOn: '#selbar [data-sel="ask"]',
+      text: '选中高亮的这句话，然后点“追问”。' },
+    { id: 'k3', page: 'index', phase: '阅读', target: '#petPanel .pcompose', advance: 'click', clickOn: '#petSend',
+      text: '问题已经填好，点“发送”。' },
+    { id: 'k4', page: 'index', phase: '阅读', target: '#petLog .msg.ai', ready: '#petLog .msg.ai', advance: 'next',
+      text: '这是预先写好的回答。真实使用时，AI 会针对你选中的内容回答。',
+      primary: { label: '下一步', choice: 'primary' } },
+    { id: 'k5', page: 'index', phase: '阅读', target: '#readerBack', advance: 'click',
+      text: '读完点“返回”。' },
     { id: 'f2', page: 'index', phase: '论文库与画像', target: '.tab[data-view="library"]', advance: 'click',
       text: '收藏的论文在论文库里。' },
     { id: 'f3', page: 'index', phase: '论文库与画像', target: '#organizationRoot .org-list', advance: 'next', view: 'library',
       ready: '#organizationRoot .org-list .org-paper',
       text: '列表里是收藏的论文。',
+      primary: { label: '下一步', choice: 'primary' } },
+    // Importing: the real import page and code, run offline in the sandbox on a bundled three-record sample export.
+    { id: 'i1', page: 'index', phase: '论文库与画像', target: '#organizationRoot [data-action="import"]', advance: 'click', view: 'library',
+      text: '已有的 PDF 或 Zotero 导出，可以从这里导入。' },
+    { id: 'i2', page: 'import', phase: '论文库与画像', target: '#demoSampleBtn', advance: 'click',
+      text: '演示里用一份示例文件，点这里。' },
+    { id: 'i3', page: 'import', phase: '论文库与画像', target: '#start', advance: 'click',
+      text: '点“开始导入”。' },
+    { id: 'i4', page: 'import', phase: '论文库与画像', target: '#commit', ready: '#commit:not([disabled])', advance: 'click',
+      text: '核对后点“导入到论文库”。' },
+    { id: 'i5', page: 'import', phase: '论文库与画像', target: '#toLibrary', advance: 'click',
+      text: '导入完成，回论文库看看。' },
+    { id: 'i6', page: 'index', phase: '论文库与画像', target: '#organizationRoot .org-list', advance: 'next', view: 'library',
+      ready: '#organizationRoot .org-list .org-paper',
+      text: '刚导入的几篇在列表里。',
       primary: { label: '下一步', choice: 'primary' } },
     { id: 'f4', page: 'index', phase: '论文库与画像', target: '#organizationRoot .org-tabs [data-action="graph"]', advance: 'click', view: 'library',
       text: '切到图谱，看论文之间的关系。' },
@@ -224,14 +257,14 @@
   }
 
   function buildUI() {
-    const rootEl = mk('div', 'pdh-tour');
-    rootEl.setAttribute('data-pdh-tour', '');
+    const rootEl = mk('div', 'pt-tour');
+    rootEl.setAttribute('data-pt-tour', '');
     const blocks = {};
     ['t', 'b', 'l', 'r', 'h'].forEach(function (k) {
-      blocks[k] = mk('div', 'pdh-tour-block pdh-tour-block-' + k);
+      blocks[k] = mk('div', 'pt-tour-block pt-tour-block-' + k);
       rootEl.appendChild(blocks[k]);
     });
-    const hole = mk('div', 'pdh-tour-hole');
+    const hole = mk('div', 'pt-tour-hole');
     rootEl.appendChild(hole);
     document.body.appendChild(rootEl);
     return { root: rootEl, blocks: blocks, hole: hole, bubble: null };
@@ -248,11 +281,11 @@
     const ui = ctx.ui, vw = window.innerWidth, vh = window.innerHeight, b = ui.blocks;
     if (!rect) {
       ui.hole.style.display = 'none';
-      setBox(b.t, 0, 0, vw, vh); b.t.classList.add('pdh-tour-dim');
+      setBox(b.t, 0, 0, vw, vh); b.t.classList.add('pt-tour-dim');
       ['b', 'l', 'r', 'h'].forEach(function (k) { b[k].style.display = 'none'; });
       return null;
     }
-    b.t.classList.remove('pdh-tour-dim');
+    b.t.classList.remove('pt-tour-dim');
     const pad = 6;
     const x1 = Math.max(0, rect.left - pad), y1 = Math.max(0, rect.top - pad);
     const x2 = Math.min(vw, rect.right + pad), y2 = Math.min(vh, rect.bottom + pad);
@@ -288,24 +321,24 @@
   function renderBubble(st, anchored) {
     const ui = ctx.ui;
     if (ui.bubble) ui.bubble.remove();
-    const id = 'pdh-tour-title';
-    const bub = mk('div', 'pdh-tour-bubble');
+    const id = 'pt-tour-title';
+    const bub = mk('div', 'pt-tour-bubble');
     bub.setAttribute('role', 'dialog');
     bub.setAttribute('aria-labelledby', id);
-    bub.setAttribute('aria-describedby', 'pdh-tour-text');
+    bub.setAttribute('aria-describedby', 'pt-tour-text');
     bub.tabIndex = -1;
-    bub.appendChild(mk('div', 'pdh-tour-phase', st.phase)).id = id;
-    const text = mk('p', 'pdh-tour-text', st.text); text.id = 'pdh-tour-text';
+    bub.appendChild(mk('div', 'pt-tour-phase', st.phase)).id = id;
+    const text = mk('p', 'pt-tour-text', st.text); text.id = 'pt-tour-text';
     bub.appendChild(text);
-    const row = mk('div', 'pdh-tour-actions');
+    const row = mk('div', 'pt-tour-actions');
     if (!st.standalone) {
-      const skip = mk('button', 'pdh-tour-skip', SKIP_LABEL); skip.type = 'button';
+      const skip = mk('button', 'pt-tour-skip', SKIP_LABEL); skip.type = 'button';
       skip.addEventListener('click', function () { skipTour(); });
       row.appendChild(skip);
     }
-    row.appendChild(mk('span', 'pdh-tour-spacer'));
+    row.appendChild(mk('span', 'pt-tour-spacer'));
     if (st.secondary) {
-      const sec = mk('button', 'pdh-tour-btn', st.secondary.label); sec.type = 'button';
+      const sec = mk('button', 'pt-tour-btn', st.secondary.label); sec.type = 'button';
       sec.addEventListener('click', function () { advance(st.secondary.choice); });
       row.appendChild(sec);
     }
@@ -313,7 +346,7 @@
     if (!primary && !anchored) primary = { label: FALLBACK_LABEL, choice: 'primary' };   // target never appeared
     let main = null;
     if (primary) {
-      main = mk('button', 'pdh-tour-btn pdh-tour-main', primary.label); main.type = 'button';
+      main = mk('button', 'pt-tour-btn pt-tour-main', primary.label); main.type = 'button';
       main.addEventListener('click', function () { advance(primary.choice); });
       row.appendChild(main);
     }
@@ -338,14 +371,14 @@
       if (res.ok) saved = ((await res.json()).settings || {}).language;
     } catch (e) { /* the browser language decides */ }
     let mode = 'auto';
-    try { if (window.PDHTheme) mode = await window.PDHTheme.ready; } catch (e) { /* keep auto */ }
+    try { if (window.PTTheme) mode = await window.PTTheme.ready; } catch (e) { /* keep auto */ }
     if (THEME_MODES.indexOf(mode) < 0) mode = 'auto';
     return { lang: welcomeLang(saved, typeof navigator !== 'undefined' ? navigator.language : ''), mode: mode };
   }
 
   /* A radiogroup of buttons: arrow keys move and select, only the selected one is a tab stop. */
   function radioGroup(labelId, values, current, onPick) {
-    const el = mk('div', 'seg pdh-tour-seg');
+    const el = mk('div', 'seg pt-tour-seg');
     el.setAttribute('role', 'radiogroup'); el.setAttribute('aria-labelledby', labelId);
     const buttons = values.map(function (v) {
       const b = mk('button', ''); b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.value = v;
@@ -373,7 +406,7 @@
   }
 
   function applyMode(mode) {
-    if (window.PDHTheme && window.PDHTheme.apply) window.PDHTheme.apply(mode);
+    if (window.PTTheme && window.PTTheme.apply) window.PTTheme.apply(mode);
     else if (typeof document !== 'undefined') document.documentElement.dataset.mode = mode === 'dark' ? 'dark' : 'light';
   }
 
@@ -383,22 +416,22 @@
         body: JSON.stringify({ settings: { language: lang }, merge: true }) });
       if (!res.ok) throw new Error('HTTP ' + res.status);
     },
-    saveTheme: async function (mode) { if (window.PDHTheme) await window.PDHTheme.set(mode); },
+    saveTheme: async function (mode) { if (window.PTTheme) await window.PTTheme.set(mode); },
   };
 
   function renderWelcome(init) {
     const ui = ctx.ui, hooks = ctx.hooks;
     if (ui.bubble) ui.bubble.remove();
     const choice = { lang: init.lang, mode: init.mode };
-    const bub = mk('div', 'pdh-tour-bubble pdh-tour-welcome');
+    const bub = mk('div', 'pt-tour-bubble pt-tour-welcome');
     bub.setAttribute('data-no-i18n', '');   // this card writes both languages itself
-    bub.setAttribute('role', 'dialog'); bub.setAttribute('aria-labelledby', 'pdh-tour-title');
+    bub.setAttribute('role', 'dialog'); bub.setAttribute('aria-labelledby', 'pt-tour-title');
     bub.tabIndex = -1;
-    const title = mk('h2', 'pdh-tour-title'); title.id = 'pdh-tour-title';
+    const title = mk('h2', 'pt-tour-title'); title.id = 'pt-tour-title';
     bub.appendChild(title);
     function group(key, values, current, onPick) {
-      const wrap = mk('div', 'pdh-tour-group');
-      const label = mk('div', 'pdh-tour-grouplabel', WELCOME_GROUPS[key]); label.id = 'pdh-tour-g-' + key;
+      const wrap = mk('div', 'pt-tour-group');
+      const label = mk('div', 'pt-tour-grouplabel', WELCOME_GROUPS[key]); label.id = 'pt-tour-g-' + key;
       const g = radioGroup(label.id, values, current, onPick);
       wrap.appendChild(label); wrap.appendChild(g.el);
       bub.appendChild(wrap);
@@ -408,10 +441,10 @@
     langGroup.buttons[0].textContent = '中文'; langGroup.buttons[0].lang = 'zh';
     langGroup.buttons[1].textContent = 'English'; langGroup.buttons[1].lang = 'en';
     const modeGroup = group('mode', THEME_MODES, choice.mode, function (v) { choice.mode = v; applyMode(v); });
-    const row = mk('div', 'pdh-tour-actions');
-    const skip = mk('button', 'pdh-tour-skip', ''); skip.type = 'button';
-    const main = mk('button', 'pdh-tour-btn pdh-tour-main', ''); main.type = 'button';
-    row.appendChild(skip); row.appendChild(mk('span', 'pdh-tour-spacer')); row.appendChild(main);
+    const row = mk('div', 'pt-tour-actions');
+    const skip = mk('button', 'pt-tour-skip', ''); skip.type = 'button';
+    const main = mk('button', 'pt-tour-btn pt-tour-main', ''); main.type = 'button';
+    row.appendChild(skip); row.appendChild(mk('span', 'pt-tour-spacer')); row.appendChild(main);
     bub.appendChild(row);
     function paint() {
       const w = WELCOME[choice.lang];
@@ -562,7 +595,8 @@
     if (!ctx || !ctx.active || !ctx.anchored || ctx.step.advance !== 'click') return;
     const st = ctx.step, t = e.target;
     if (!(t && t.nodeType === 1)) return;
-    if (!((ctx.el && ctx.el.contains(t)) || t.closest(st.target))) return;
+    const hit = st.clickOn ? t.closest(st.clickOn) : ((ctx.el && ctx.el.contains(t)) || t.closest(st.target));
+    if (!hit) return;
     if (ctx.ui && ctx.ui.root.contains(t)) return;
     const nxt = next(pending(), st.id, 'primary');
     if (nxt === 'finish') { setTimeout(finish, 0); return; }
@@ -645,5 +679,5 @@
     shouldOffer: shouldOffer, next: next, stepsFor: stepsFor, finishTarget: finishTarget,
     serialize: serialize, parse: parse, WELCOME: WELCOME, THEME_MODES: THEME_MODES,
     welcomeLang: welcomeLang, saveChoice: saveChoice, current: current, pending: pending, setStorage: setStorage,
-    waitFor: waitFor, strandedStep: strandedStep, dismiss: dismiss, begin: begin, boot: boot, finish: finish, skip: skipTour, stop: stop };
+    READING_KEY: READING_KEY, waitFor: waitFor, strandedStep: strandedStep, dismiss: dismiss, begin: begin, boot: boot, finish: finish, skip: skipTour, stop: stop };
 });

@@ -37,5 +37,5 @@ test('the baseline stays where pdf.js put it when the font changes', () => {
 test('the reader refits the text layer after pdf.js builds it', () => {
   const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), 'utf8');
   assert.match(html, /<script src="\/reader-textfit\.js"><\/script>/);
-  assert.match(html, /PDHReaderTextFit\?\.apply\(textLayer\.textDivs, /);
+  assert.match(html, /PTReaderTextFit\?\.apply\(textLayer\.textDivs, /);
 });

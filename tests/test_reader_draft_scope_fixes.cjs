@@ -8,7 +8,7 @@ function runtime(){
  const context={$:node,state:{currentProject:'cs',projects:[]},R:{key:null},window:{},lastFol:null,
  api:async url=>{calls.push(url);return {session:{id:'s'},history:[]};},setReference(){},setAttachPage(){},hideSel(){},closeReader(){},addIntro(){},addMsg(){},growInput(){}};
  vm.createContext(context);vm.runInContext(source.slice(start,end),context);
- const change=(key,project='cs')=>context.window.PDHSetContext(key,key,project);
+ const change=(key,project='cs')=>context.window.PTSetContext(key,key,project);
  return {context,node,change,calls};
 }
 const draft='这篇论文的动作输入是什么？\nPD-1 / Li6PS5Cl，保持用户原文。';

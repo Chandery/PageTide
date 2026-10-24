@@ -6,7 +6,7 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.PDHRouteDetail = api;
+  else root.PTRouteDetail = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const UNIT_W = 210, PAPER_GAP = 118, PAPER_ROW = 78, PAPER_DROP = 120, ROW_PAD = 110, MAX_COLS = 3, FREE_COLS = 8;
 

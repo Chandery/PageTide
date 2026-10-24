@@ -3,7 +3,7 @@
    show as saved. Pressing a pressed mark takes it back (index.html feedbackClick). Pure: Node-testable. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.PDHMarks = factory();
+  else root.PTMarks = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const INTEREST = ['useful', 'irrelevant'];

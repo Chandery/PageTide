@@ -104,7 +104,7 @@ test('quick creation sends the language choice with its one AI call', async () =
 test('quick creation shows the session draft in the review before its first AI call, so that call sends no stale empty lists', async () => {
   const order = [], nodes = new Map(), at = id => { if (!nodes.has(id)) nodes.set(id, {...node(), value: 'x'}); return nodes.get(id); };
   const context = vm.createContext({
-    $: at, validateCreationStart: () => true, window: {PDHDialogs: {notice() {}}}, session: null, finalize() {},
+    $: at, validateCreationStart: () => true, window: {PTDialogs: {notice() {}}}, session: null, finalize() {},
     makeReview: () => ({root: node(), setDraft: () => order.push('setDraft'), search: async () => order.push('search')}),
     quickAct: {start() {}, stop() {}}, stopQuick() {},
     createSession: async () => { order.push('createSession'); context.session = {draft: {}}; },
