@@ -1,6 +1,8 @@
 # Contributing to PageTide
 
-Thanks for your interest. Issues and pull requests are welcome. 欢迎提 Issue 和 PR。
+Thank you for being here. **Contributions of every kind are welcome**: bug reports, feature ideas, documentation and translation fixes, and pull requests. 欢迎任何形式的贡献：报告 bug、提建议、改文档与翻译、提 PR。
+
+You do not need to be an expert, and small fixes are as welcome as new features. For a bigger change, please open an [issue](https://github.com/Chandery/PageTide/issues) first so we can agree on the direction. Then use the steps below to run and test the app.
 
 ## Run from source
 
