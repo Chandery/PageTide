@@ -256,6 +256,11 @@ impl Drop for PythonProcess {
     }
 }
 
+// CI compiles release builds with PAGETIDE_RELEASE=1. Anything else (`cargo tauri dev`, a local `cargo tauri build`)
+// is a development build: the backend gets PAGETIDE_CHANNEL=dev, so it uses its own data directory (PageTide-Dev)
+// and never updates itself, and developing on a machine never touches the library of the PageTide in daily use.
+const RELEASE_BUILD: bool = option_env!("PAGETIDE_RELEASE").is_some();
+
 fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::Error>> {
     let name = if cfg!(windows) { "pagetide-server.exe" } else { "pagetide-server" };
     let server = app.path().resource_dir()?.join("backend").join(name);
@@ -267,6 +272,11 @@ fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::E
         .env_remove("DEEPSEEK_API_KEY")
         // The packaged version, for the update check. A source run has no such variable and never checks.
         .env("PAGETIDE_APP_VERSION", app.package_info().version.to_string());
+    if RELEASE_BUILD {
+        command.env_remove("PAGETIDE_CHANNEL");
+    } else {
+        command.env("PAGETIDE_CHANNEL", "dev");
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -351,7 +361,7 @@ fn main() {
             #[cfg(windows)]
             let new_window_origin = origin.clone();
             let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
-                .title("PageTide")
+                .title(if RELEASE_BUILD { "PageTide" } else { "PageTide Dev" })
                 .inner_size(1120.0, 760.0)
                 .min_inner_size(640.0, 480.0)
                 .resizable(true)

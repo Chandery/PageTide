@@ -40,12 +40,14 @@ cargo tauri build --bundles app
 
 ## 数据位置
 
-| 系统 | 数据目录 |
-| --- | --- |
-| macOS | `~/Library/Application Support/PageTide` |
-| Windows | `%LOCALAPPDATA%\PageTideData`（日志在其 `logs\backend.log`） |
+| 系统 | 正式版（CI 构建） | 开发版（本地 `cargo tauri dev` / `cargo tauri build`） |
+| --- | --- | --- |
+| macOS | `~/Library/Application Support/PageTide` | `~/Library/Application Support/PageTide-Dev` |
+| Windows | `%LOCALAPPDATA%\PageTideData`（日志在其 `logs\backend.log`） | `%LOCALAPPDATA%\PageTideDevData` |
 
-环境变量 `PAGETIDE_DATA` 可覆盖（两系统相同）。卸载应用不会删除数据目录（Windows 的数据目录刻意不与安装目录 `%LOCALAPPDATA%\PageTide` 同名）。
+正式版由 CI 用 `PAGETIDE_RELEASE=1` 编译；没有这个变量编出来的都是开发版：外壳给后端设 `PAGETIDE_CHANNEL=dev`，后端改用开发目录，窗口标题是 “PageTide Dev”，应用内更新关闭（否则开发版会把自己换成正式版并打开日常数据）。这样同一台电脑上开发调试和日常使用互不影响。源码直接运行的服务（`python3 -m app.server`）和命令行仍默认用仓库里的 `.local/app`。
+
+环境变量 `PAGETIDE_DATA` 可覆盖（两系统、两种构建都一样）。卸载应用不会删除数据目录（Windows 的数据目录刻意不与安装目录 `%LOCALAPPDATA%\PageTide` 同名）。
 
 ## Windows 上没有验证的部分
 

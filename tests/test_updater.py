@@ -8,6 +8,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
 import urllib.request
 from pathlib import Path
 from unittest.mock import patch
@@ -97,6 +98,13 @@ class CheckTests(unittest.TestCase):
 
     def make(self, transport, version="0.1.0", platform="darwin", machine="arm64"):
         return updater.Updater(self.data, version, transport, platform=platform, machine=machine, clock=self.clock)
+
+    def test_a_development_build_never_checks_or_updates_itself(self):
+        transport = FakeTransport(release())
+        with mock.patch.dict(os.environ, {"PAGETIDE_CHANNEL": "dev"}):
+            result = self.make(transport, "0.1.0").check(force=True)
+        self.assertEqual((result["status"], result["reason_code"], result["available"]), ("disabled", "dev_build", False))
+        self.assertEqual(transport.requests, [])
 
     def test_source_run_without_version_never_requests(self):
         transport = FakeTransport(release())

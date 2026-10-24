@@ -92,8 +92,15 @@ def after_fork_in_child(callback):
         os.register_at_fork(after_in_child=callback)
 
 
+def is_dev_channel(environ=None):
+    """True in a development build of the desktop app: the shell sets PAGETIDE_CHANNEL=dev unless it was compiled
+    for a release (CI sets PAGETIDE_RELEASE=1), so developing on a machine never touches the library in daily use."""
+    return (os.environ if environ is None else environ).get("PAGETIDE_CHANNEL") == "dev"
+
+
 def default_data_dir(environ=None, platform=None, home=None):
     """Per-user data directory: ~/Library/Application Support/PageTide on macOS, %LOCALAPPDATA%\\PageTideData on Windows.
+    A development build (is_dev_channel) uses PageTide-Dev / PageTideDevData next to it instead.
 
     Local (not Roaming): the library holds SQLite files and PDFs that must not roam. The folder is not
     named PageTide because the NSIS per-user installer defaults to %LOCALAPPDATA%\\PageTide
@@ -101,14 +108,16 @@ def default_data_dir(environ=None, platform=None, home=None):
     environ = os.environ if environ is None else environ
     platform = sys.platform if platform is None else platform
     home = Path(home) if home is not None else Path.home()
+    dev = is_dev_channel(environ)
     if platform.startswith("win"):
         local = environ.get("LOCALAPPDATA")
         base = Path(local) if local else home / "AppData" / "Local"
-        return base / "PageTideData"
+        return base / ("PageTideDevData" if dev else "PageTideData")
+    name = "PageTide-Dev" if dev else "PageTide"
     if platform == "darwin":
-        return home / "Library" / "Application Support" / "PageTide"
+        return home / "Library" / "Application Support" / name
     xdg = environ.get("XDG_DATA_HOME")
-    return (Path(xdg) if xdg else home / ".local" / "share") / "PageTide"
+    return (Path(xdg) if xdg else home / ".local" / "share") / name
 
 
 def parent_alive_check(parent_pid, kernel32=None):

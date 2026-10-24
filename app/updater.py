@@ -236,7 +236,8 @@ class Updater:
         `force` is the user pressing "check now": it skips the cache and the automatic-check switch."""
         result = {"status": "disabled", "reason_code": None, "current": self.version, "latest": None, "available": False,
                   "notes": "", "asset": None, "html_url": "", "dismissed": False}
-        if not self.version:
+        # A development build must not replace itself with a release (which would then open the everyday library).
+        if not self.version or os.environ.get("PAGETIDE_CHANNEL") == "dev":
             return {**result, "reason_code": "dev_build"}
         if not self.current:
             return {**result, "reason_code": "invalid_version"}

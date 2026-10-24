@@ -384,3 +384,28 @@ class NetworkReasonTextTests(unittest.TestCase):
             self.assertEqual(text.count("still counts" if english else "额度仍会计入"), 1, text)
             code, text = creation.degrade_reason({"ok": False, "reason": "URLError: refused"}, english)
             self.assertNotIn("still counts" if english else "额度仍会计入", text)   # nothing was billed
+
+
+class DevChannelDataDirTests(unittest.TestCase):
+    """A development build of the desktop app (PAGETIDE_CHANNEL=dev) keeps its own library next to the everyday one."""
+
+    def test_dev_builds_use_their_own_directory(self):
+        home = Path("/Users/someone")
+        dev = {"PAGETIDE_CHANNEL": "dev"}
+        self.assertEqual(pc.default_data_dir({}, "darwin", home), home / "Library" / "Application Support" / "PageTide")
+        self.assertEqual(pc.default_data_dir(dev, "darwin", home), home / "Library" / "Application Support" / "PageTide-Dev")
+        local = {"LOCALAPPDATA": r"C:\Users\someone\AppData\Local"}
+        self.assertEqual(pc.default_data_dir(local, "win32", home).name, "PageTideData")
+        self.assertEqual(pc.default_data_dir({**local, **dev}, "win32", home).name, "PageTideDevData")
+        self.assertEqual(pc.default_data_dir(dev, "linux", home).name, "PageTide-Dev")
+        self.assertFalse(pc.is_dev_channel({"PAGETIDE_CHANNEL": "release"}))
+
+    def test_the_shell_marks_only_non_release_builds_as_dev(self):
+        root = Path(__file__).resolve().parents[1]
+        main = (root / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
+        self.assertIn('const RELEASE_BUILD: bool = option_env!("PAGETIDE_RELEASE").is_some();', main)
+        self.assertIn('command.env("PAGETIDE_CHANNEL", "dev");', main)
+        workflow = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        for step in ("Build the NSIS installer", "Build the app bundle"):
+            block = workflow[workflow.index(f"- name: {step}"):][:400]
+            self.assertIn('PAGETIDE_RELEASE: "1"', block, step)

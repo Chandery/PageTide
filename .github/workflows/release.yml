@@ -93,6 +93,8 @@ jobs:
       # `-- --locked` is passed to cargo: the build must use the committed Cargo.lock.
       - name: Build the NSIS installer
         working-directory: src-tauri
+        env:
+          PAGETIDE_RELEASE: "1"   # a release build: everyday data directory and self-update (src-tauri/src/main.rs)
         run: cargo tauri build --bundles nsis -- --locked
 
       # LF line endings, ASCII, no BOM: `shasum -a 256 -c` on macOS must accept the file.
@@ -179,6 +181,8 @@ jobs:
 
       - name: Build the app bundle
         working-directory: src-tauri
+        env:
+          PAGETIDE_RELEASE: "1"   # a release build: everyday data directory and self-update (src-tauri/src/main.rs)
         run: cargo tauri build --bundles app -- --locked
 
       # The shell and the backend must both be this job's architecture, and the bundle version the app version
