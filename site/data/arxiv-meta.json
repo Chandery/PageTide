@@ -1,0 +1,2138 @@
+{
+"_note": "Public arXiv metadata (CC0) fetched from export.arxiv.org on 2026-10-25: title, first-version date, first three authors, primary category. Summaries and keywords are our own (data/corpus.txt).",
+"papers": {
+"1412.6980": {
+"title": "Adam: A Method for Stochastic Optimization",
+"date": "2014-12-22",
+"authors": [
+"Diederik P. Kingma",
+"Jimmy Ba"
+],
+"cat": "cs.LG"
+},
+"1711.05101": {
+"title": "Decoupled Weight Decay Regularization",
+"date": "2017-11-14",
+"authors": [
+"Ilya Loshchilov",
+"Frank Hutter"
+],
+"cat": "cs.LG"
+},
+"1502.03167": {
+"title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift",
+"date": "2015-02-11",
+"authors": [
+"Sergey Ioffe",
+"Christian Szegedy"
+],
+"cat": "cs.LG"
+},
+"1607.06450": {
+"title": "Layer Normalization",
+"date": "2016-07-21",
+"authors": [
+"Jimmy Lei Ba",
+"Jamie Ryan Kiros",
+"Geoffrey E. Hinton"
+],
+"cat": "stat.ML"
+},
+"1312.6114": {
+"title": "Auto-Encoding Variational Bayes",
+"date": "2013-12-20",
+"authors": [
+"Diederik P Kingma",
+"Max Welling"
+],
+"cat": "stat.ML"
+},
+"1406.2661": {
+"title": "Generative Adversarial Networks",
+"date": "2014-06-10",
+"authors": [
+"Ian J. Goodfellow",
+"Jean Pouget-Abadie",
+"Mehdi Mirza"
+],
+"cat": "stat.ML"
+},
+"2006.11239": {
+"title": "Denoising Diffusion Probabilistic Models",
+"date": "2020-06-19",
+"authors": [
+"Jonathan Ho",
+"Ajay Jain",
+"Pieter Abbeel"
+],
+"cat": "cs.LG"
+},
+"2010.02502": {
+"title": "Denoising Diffusion Implicit Models",
+"date": "2020-10-06",
+"authors": [
+"Jiaming Song",
+"Chenlin Meng",
+"Stefano Ermon"
+],
+"cat": "cs.LG"
+},
+"2011.13456": {
+"title": "Score-Based Generative Modeling through Stochastic Differential Equations",
+"date": "2020-11-26",
+"authors": [
+"Yang Song",
+"Jascha Sohl-Dickstein",
+"Diederik P. Kingma"
+],
+"cat": "cs.LG"
+},
+"2112.10752": {
+"title": "High-Resolution Image Synthesis with Latent Diffusion Models",
+"date": "2021-12-20",
+"authors": [
+"Robin Rombach",
+"Andreas Blattmann",
+"Dominik Lorenz"
+],
+"cat": "cs.CV"
+},
+"2204.06125": {
+"title": "Hierarchical Text-Conditional Image Generation with CLIP Latents",
+"date": "2022-04-13",
+"authors": [
+"Aditya Ramesh",
+"Prafulla Dhariwal",
+"Alex Nichol"
+],
+"cat": "cs.CV"
+},
+"2102.12092": {
+"title": "Zero-Shot Text-to-Image Generation",
+"date": "2021-02-24",
+"authors": [
+"Aditya Ramesh",
+"Mikhail Pavlov",
+"Gabriel Goh"
+],
+"cat": "cs.CV"
+},
+"2205.11487": {
+"title": "Photorealistic Text-to-Image Diffusion Models with Deep Language Understanding",
+"date": "2022-05-23",
+"authors": [
+"Chitwan Saharia",
+"William Chan",
+"Saurabh Saxena"
+],
+"cat": "cs.CV"
+},
+"1703.10593": {
+"title": "Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks",
+"date": "2017-03-30",
+"authors": [
+"Jun-Yan Zhu",
+"Taesung Park",
+"Phillip Isola"
+],
+"cat": "cs.CV"
+},
+"1611.07004": {
+"title": "Image-to-Image Translation with Conditional Adversarial Networks",
+"date": "2016-11-21",
+"authors": [
+"Phillip Isola",
+"Jun-Yan Zhu",
+"Tinghui Zhou"
+],
+"cat": "cs.CV"
+},
+"1812.04948": {
+"title": "A Style-Based Generator Architecture for Generative Adversarial Networks",
+"date": "2018-12-12",
+"authors": [
+"Tero Karras",
+"Samuli Laine",
+"Timo Aila"
+],
+"cat": "cs.NE"
+},
+"1912.04958": {
+"title": "Analyzing and Improving the Image Quality of StyleGAN",
+"date": "2019-12-03",
+"authors": [
+"Tero Karras",
+"Samuli Laine",
+"Miika Aittala"
+],
+"cat": "cs.CV"
+},
+"1512.03385": {
+"title": "Deep Residual Learning for Image Recognition",
+"date": "2015-12-10",
+"authors": [
+"Kaiming He",
+"Xiangyu Zhang",
+"Shaoqing Ren"
+],
+"cat": "cs.CV"
+},
+"1409.1556": {
+"title": "Very Deep Convolutional Networks for Large-Scale Image Recognition",
+"date": "2014-09-04",
+"authors": [
+"Karen Simonyan",
+"Andrew Zisserman"
+],
+"cat": "cs.CV"
+},
+"1409.4842": {
+"title": "Going Deeper with Convolutions",
+"date": "2014-09-17",
+"authors": [
+"Christian Szegedy",
+"Wei Liu",
+"Yangqing Jia"
+],
+"cat": "cs.CV"
+},
+"1905.11946": {
+"title": "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks",
+"date": "2019-05-28",
+"authors": [
+"Mingxing Tan",
+"Quoc V. Le"
+],
+"cat": "cs.LG"
+},
+"2201.03545": {
+"title": "A ConvNet for the 2020s",
+"date": "2022-01-10",
+"authors": [
+"Zhuang Liu",
+"Hanzi Mao",
+"Chao-Yuan Wu"
+],
+"cat": "cs.CV"
+},
+"1311.2524": {
+"title": "Rich feature hierarchies for accurate object detection and semantic segmentation",
+"date": "2013-11-11",
+"authors": [
+"Ross Girshick",
+"Jeff Donahue",
+"Trevor Darrell"
+],
+"cat": "cs.CV"
+},
+"1506.01497": {
+"title": "Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks",
+"date": "2015-06-04",
+"authors": [
+"Shaoqing Ren",
+"Kaiming He",
+"Ross Girshick"
+],
+"cat": "cs.CV"
+},
+"1703.06870": {
+"title": "Mask R-CNN",
+"date": "2017-03-20",
+"authors": [
+"Kaiming He",
+"Georgia Gkioxari",
+"Piotr Dollár"
+],
+"cat": "cs.CV"
+},
+"1506.02640": {
+"title": "You Only Look Once: Unified, Real-Time Object Detection",
+"date": "2015-06-08",
+"authors": [
+"Joseph Redmon",
+"Santosh Divvala",
+"Ross Girshick"
+],
+"cat": "cs.CV"
+},
+"1708.02002": {
+"title": "Focal Loss for Dense Object Detection",
+"date": "2017-08-07",
+"authors": [
+"Tsung-Yi Lin",
+"Priya Goyal",
+"Ross Girshick"
+],
+"cat": "cs.CV"
+},
+"1505.04597": {
+"title": "U-Net: Convolutional Networks for Biomedical Image Segmentation",
+"date": "2015-05-18",
+"authors": [
+"Olaf Ronneberger",
+"Philipp Fischer",
+"Thomas Brox"
+],
+"cat": "cs.CV"
+},
+"1612.00593": {
+"title": "PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation",
+"date": "2016-12-02",
+"authors": [
+"Charles R. Qi",
+"Hao Su",
+"Kaichun Mo"
+],
+"cat": "cs.CV"
+},
+"2003.08934": {
+"title": "NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis",
+"date": "2020-03-19",
+"authors": [
+"Ben Mildenhall",
+"Pratul P. Srinivasan",
+"Matthew Tancik"
+],
+"cat": "cs.CV"
+},
+"2308.04079": {
+"title": "3D Gaussian Splatting for Real-Time Radiance Field Rendering",
+"date": "2023-08-08",
+"authors": [
+"Bernhard Kerbl",
+"Georgios Kopanas",
+"Thomas Leimkühler"
+],
+"cat": "cs.GR"
+},
+"2002.05709": {
+"title": "A Simple Framework for Contrastive Learning of Visual Representations",
+"date": "2020-02-13",
+"authors": [
+"Ting Chen",
+"Simon Kornblith",
+"Mohammad Norouzi"
+],
+"cat": "cs.LG"
+},
+"1911.05722": {
+"title": "Momentum Contrast for Unsupervised Visual Representation Learning",
+"date": "2019-11-13",
+"authors": [
+"Kaiming He",
+"Haoqi Fan",
+"Yuxin Wu"
+],
+"cat": "cs.CV"
+},
+"2006.07733": {
+"title": "Bootstrap your own latent: A new approach to self-supervised Learning",
+"date": "2020-06-13",
+"authors": [
+"Jean-Bastien Grill",
+"Florian Strub",
+"Florent Altché"
+],
+"cat": "cs.LG"
+},
+"2104.14294": {
+"title": "Emerging Properties in Self-Supervised Vision Transformers",
+"date": "2021-04-29",
+"authors": [
+"Mathilde Caron",
+"Hugo Touvron",
+"Ishan Misra"
+],
+"cat": "cs.CV"
+},
+"2106.08254": {
+"title": "BEiT: BERT Pre-Training of Image Transformers",
+"date": "2021-06-15",
+"authors": [
+"Hangbo Bao",
+"Li Dong",
+"Songhao Piao"
+],
+"cat": "cs.CV"
+},
+"2304.02643": {
+"title": "Segment Anything",
+"date": "2023-04-05",
+"authors": [
+"Alexander Kirillov",
+"Eric Mintun",
+"Nikhila Ravi"
+],
+"cat": "cs.CV"
+},
+"2204.14198": {
+"title": "Flamingo: a Visual Language Model for Few-Shot Learning",
+"date": "2022-04-29",
+"authors": [
+"Jean-Baptiste Alayrac",
+"Jeff Donahue",
+"Pauline Luc"
+],
+"cat": "cs.CV"
+},
+"2301.12597": {
+"title": "BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models",
+"date": "2023-01-30",
+"authors": [
+"Junnan Li",
+"Dongxu Li",
+"Silvio Savarese"
+],
+"cat": "cs.CV"
+},
+"2304.08485": {
+"title": "Visual Instruction Tuning",
+"date": "2023-04-17",
+"authors": [
+"Haotian Liu",
+"Chunyuan Li",
+"Qingyang Wu"
+],
+"cat": "cs.CV"
+},
+"1409.0473": {
+"title": "Neural Machine Translation by Jointly Learning to Align and Translate",
+"date": "2014-09-01",
+"authors": [
+"Dzmitry Bahdanau",
+"Kyunghyun Cho",
+"Yoshua Bengio"
+],
+"cat": "cs.CL"
+},
+"1409.3215": {
+"title": "Sequence to Sequence Learning with Neural Networks",
+"date": "2014-09-10",
+"authors": [
+"Ilya Sutskever",
+"Oriol Vinyals",
+"Quoc V. Le"
+],
+"cat": "cs.CL"
+},
+"1301.3781": {
+"title": "Efficient Estimation of Word Representations in Vector Space",
+"date": "2013-01-16",
+"authors": [
+"Tomas Mikolov",
+"Kai Chen",
+"Greg Corrado"
+],
+"cat": "cs.CL"
+},
+"1310.4546": {
+"title": "Distributed Representations of Words and Phrases and their Compositionality",
+"date": "2013-10-16",
+"authors": [
+"Tomas Mikolov",
+"Ilya Sutskever",
+"Kai Chen"
+],
+"cat": "cs.CL"
+},
+"1904.09751": {
+"title": "The Curious Case of Neural Text Degeneration",
+"date": "2019-04-22",
+"authors": [
+"Ari Holtzman",
+"Jan Buys",
+"Li Du"
+],
+"cat": "cs.CL"
+},
+"2302.13971": {
+"title": "LLaMA: Open and Efficient Foundation Language Models",
+"date": "2023-02-27",
+"authors": [
+"Hugo Touvron",
+"Thibaut Lavril",
+"Gautier Izacard"
+],
+"cat": "cs.CL"
+},
+"2307.09288": {
+"title": "Llama 2: Open Foundation and Fine-Tuned Chat Models",
+"date": "2023-07-18",
+"authors": [
+"Hugo Touvron",
+"Louis Martin",
+"Kevin Stone"
+],
+"cat": "cs.CL"
+},
+"2303.08774": {
+"title": "GPT-4 Technical Report",
+"date": "2023-03-15",
+"authors": [
+"OpenAI",
+"Josh Achiam",
+"Steven Adler"
+],
+"cat": "cs.CL"
+},
+"2210.11416": {
+"title": "Scaling Instruction-Finetuned Language Models",
+"date": "2022-10-20",
+"authors": [
+"Hyung Won Chung",
+"Le Hou",
+"Shayne Longpre"
+],
+"cat": "cs.LG"
+},
+"2205.01068": {
+"title": "OPT: Open Pre-trained Transformer Language Models",
+"date": "2022-05-02",
+"authors": [
+"Susan Zhang",
+"Stephen Roller",
+"Naman Goyal"
+],
+"cat": "cs.CL"
+},
+"2211.05100": {
+"title": "BLOOM: A 176B-Parameter Open-Access Multilingual Language Model",
+"date": "2022-11-09",
+"authors": [
+"BigScience Workshop",
+":",
+"Teven Le Scao"
+],
+"cat": "cs.CL"
+},
+"2204.02311": {
+"title": "PaLM: Scaling Language Modeling with Pathways",
+"date": "2022-04-05",
+"authors": [
+"Aakanksha Chowdhery",
+"Sharan Narang",
+"Jacob Devlin"
+],
+"cat": "cs.CL"
+},
+"2112.11446": {
+"title": "Scaling Language Models: Methods, Analysis & Insights from Training Gopher",
+"date": "2021-12-08",
+"authors": [
+"Jack W. Rae",
+"Sebastian Borgeaud",
+"Trevor Cai"
+],
+"cat": "cs.CL"
+},
+"2101.03961": {
+"title": "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity",
+"date": "2021-01-11",
+"authors": [
+"William Fedus",
+"Barret Zoph",
+"Noam Shazeer"
+],
+"cat": "cs.LG"
+},
+"2401.04088": {
+"title": "Mixtral of Experts",
+"date": "2024-01-08",
+"authors": [
+"Albert Q. Jiang",
+"Alexandre Sablayrolles",
+"Antoine Roux"
+],
+"cat": "cs.LG"
+},
+"2310.06825": {
+"title": "Mistral 7B",
+"date": "2023-10-10",
+"authors": [
+"Albert Q. Jiang",
+"Alexandre Sablayrolles",
+"Arthur Mensch"
+],
+"cat": "cs.CL"
+},
+"2305.13245": {
+"title": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints",
+"date": "2023-05-22",
+"authors": [
+"Joshua Ainslie",
+"James Lee-Thorp",
+"Michiel de Jong"
+],
+"cat": "cs.CL"
+},
+"2307.08691": {
+"title": "FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning",
+"date": "2023-07-17",
+"authors": [
+"Tri Dao"
+],
+"cat": "cs.LG"
+},
+"2309.06180": {
+"title": "Efficient Memory Management for Large Language Model Serving with PagedAttention",
+"date": "2023-09-12",
+"authors": [
+"Woosuk Kwon",
+"Zhuohan Li",
+"Siyuan Zhuang"
+],
+"cat": "cs.LG"
+},
+"2106.09685": {
+"title": "LoRA: Low-Rank Adaptation of Large Language Models",
+"date": "2021-06-17",
+"authors": [
+"Edward J. Hu",
+"Yelong Shen",
+"Phillip Wallis"
+],
+"cat": "cs.CL"
+},
+"2305.14314": {
+"title": "QLoRA: Efficient Finetuning of Quantized LLMs",
+"date": "2023-05-23",
+"authors": [
+"Tim Dettmers",
+"Artidoro Pagnoni",
+"Ari Holtzman"
+],
+"cat": "cs.LG"
+},
+"2203.11171": {
+"title": "Self-Consistency Improves Chain of Thought Reasoning in Language Models",
+"date": "2022-03-21",
+"authors": [
+"Xuezhi Wang",
+"Jason Wei",
+"Dale Schuurmans"
+],
+"cat": "cs.CL"
+},
+"2305.10601": {
+"title": "Tree of Thoughts: Deliberate Problem Solving with Large Language Models",
+"date": "2023-05-17",
+"authors": [
+"Shunyu Yao",
+"Dian Yu",
+"Jeffrey Zhao"
+],
+"cat": "cs.CL"
+},
+"2210.03629": {
+"title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+"date": "2022-10-06",
+"authors": [
+"Shunyu Yao",
+"Jeffrey Zhao",
+"Dian Yu"
+],
+"cat": "cs.CL"
+},
+"2302.04761": {
+"title": "Toolformer: Language Models Can Teach Themselves to Use Tools",
+"date": "2023-02-09",
+"authors": [
+"Timo Schick",
+"Jane Dwivedi-Yu",
+"Roberto Dessì"
+],
+"cat": "cs.CL"
+},
+"2005.11401": {
+"title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+"date": "2020-05-22",
+"authors": [
+"Patrick Lewis",
+"Ethan Perez",
+"Aleksandra Piktus"
+],
+"cat": "cs.CL"
+},
+"2212.10560": {
+"title": "Self-Instruct: Aligning Language Models with Self-Generated Instructions",
+"date": "2022-12-20",
+"authors": [
+"Yizhong Wang",
+"Yeganeh Kordi",
+"Swaroop Mishra"
+],
+"cat": "cs.CL"
+},
+"2307.15043": {
+"title": "Universal and Transferable Adversarial Attacks on Aligned Language Models",
+"date": "2023-07-27",
+"authors": [
+"Andy Zou",
+"Zifan Wang",
+"Nicholas Carlini"
+],
+"cat": "cs.CL"
+},
+"2108.07258": {
+"title": "On the Opportunities and Risks of Foundation Models",
+"date": "2021-08-16",
+"authors": [
+"Rishi Bommasani",
+"Drew A. Hudson",
+"Ehsan Adeli"
+],
+"cat": "cs.LG"
+},
+"2009.03300": {
+"title": "Measuring Massive Multitask Language Understanding",
+"date": "2020-09-07",
+"authors": [
+"Dan Hendrycks",
+"Collin Burns",
+"Steven Basart"
+],
+"cat": "cs.CY"
+},
+"2206.04615": {
+"title": "Beyond the Imitation Game: Quantifying and extrapolating the capabilities of language models",
+"date": "2022-06-09",
+"authors": [
+"Aarohi Srivastava",
+"Abhinav Rastogi",
+"Abhishek Rao"
+],
+"cat": "cs.CL"
+},
+"2107.03374": {
+"title": "Evaluating Large Language Models Trained on Code",
+"date": "2021-07-07",
+"authors": [
+"Mark Chen",
+"Jerry Tworek",
+"Heewoo Jun"
+],
+"cat": "cs.LG"
+},
+"2308.12950": {
+"title": "Code Llama: Open Foundation Models for Code",
+"date": "2023-08-24",
+"authors": [
+"Baptiste Rozière",
+"Jonas Gehring",
+"Fabian Gloeckle"
+],
+"cat": "cs.CL"
+},
+"2203.07814": {
+"title": "Competition-Level Code Generation with AlphaCode",
+"date": "2022-02-08",
+"authors": [
+"Yujia Li",
+"David Choi",
+"Junyoung Chung"
+],
+"cat": "cs.PL"
+},
+"2110.14168": {
+"title": "Training Verifiers to Solve Math Word Problems",
+"date": "2021-10-27",
+"authors": [
+"Karl Cobbe",
+"Vineet Kosaraju",
+"Mohammad Bavarian"
+],
+"cat": "cs.LG"
+},
+"2305.20050": {
+"title": "Let's Verify Step by Step",
+"date": "2023-05-31",
+"authors": [
+"Hunter Lightman",
+"Vineet Kosaraju",
+"Yura Burda"
+],
+"cat": "cs.LG"
+},
+"2206.14858": {
+"title": "Solving Quantitative Reasoning Problems with Language Models",
+"date": "2022-06-29",
+"authors": [
+"Aitor Lewkowycz",
+"Anders Andreassen",
+"David Dohan"
+],
+"cat": "cs.CL"
+},
+"2212.10535": {
+"title": "A Survey of Deep Learning for Mathematical Reasoning",
+"date": "2022-12-20",
+"authors": [
+"Pan Lu",
+"Liang Qiu",
+"Wenhao Yu"
+],
+"cat": "cs.AI"
+},
+"2312.00752": {
+"title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+"date": "2023-12-01",
+"authors": [
+"Albert Gu",
+"Tri Dao"
+],
+"cat": "cs.LG"
+},
+"2111.00396": {
+"title": "Efficiently Modeling Long Sequences with Structured State Spaces",
+"date": "2021-10-31",
+"authors": [
+"Albert Gu",
+"Karan Goel",
+"Christopher Ré"
+],
+"cat": "cs.LG"
+},
+"2305.13048": {
+"title": "RWKV: Reinventing RNNs for the Transformer Era",
+"date": "2023-05-22",
+"authors": [
+"Bo Peng",
+"Eric Alcaide",
+"Quentin Anthony"
+],
+"cat": "cs.CL"
+},
+"2307.08621": {
+"title": "Retentive Network: A Successor to Transformer for Large Language Models",
+"date": "2023-07-17",
+"authors": [
+"Yutao Sun",
+"Li Dong",
+"Shaohan Huang"
+],
+"cat": "cs.CL"
+},
+"2405.04517": {
+"title": "xLSTM: Extended Long Short-Term Memory",
+"date": "2024-05-07",
+"authors": [
+"Maximilian Beck",
+"Korbinian Pöppel",
+"Markus Spanring"
+],
+"cat": "cs.LG"
+},
+"2404.19756": {
+"title": "KAN: Kolmogorov-Arnold Networks",
+"date": "2024-04-30",
+"authors": [
+"Ziming Liu",
+"Yixuan Wang",
+"Sachin Vaidya"
+],
+"cat": "cs.LG"
+},
+"1611.03530": {
+"title": "Understanding deep learning requires rethinking generalization",
+"date": "2016-11-10",
+"authors": [
+"Chiyuan Zhang",
+"Samy Bengio",
+"Moritz Hardt"
+],
+"cat": "cs.LG"
+},
+"1806.07572": {
+"title": "Neural Tangent Kernel: Convergence and Generalization in Neural Networks",
+"date": "2018-06-20",
+"authors": [
+"Arthur Jacot",
+"Franck Gabriel",
+"Clément Hongler"
+],
+"cat": "cs.LG"
+},
+"1812.11118": {
+"title": "Reconciling modern machine learning practice and the bias-variance trade-off",
+"date": "2018-12-28",
+"authors": [
+"Mikhail Belkin",
+"Daniel Hsu",
+"Siyuan Ma"
+],
+"cat": "stat.ML"
+},
+"1803.03635": {
+"title": "The Lottery Ticket Hypothesis: Finding Sparse, Trainable Neural Networks",
+"date": "2018-03-09",
+"authors": [
+"Jonathan Frankle",
+"Michael Carbin"
+],
+"cat": "cs.LG"
+},
+"2201.02177": {
+"title": "Grokking: Generalization Beyond Overfitting on Small Algorithmic Datasets",
+"date": "2022-01-06",
+"authors": [
+"Alethea Power",
+"Yuri Burda",
+"Harri Edwards"
+],
+"cat": "cs.LG"
+},
+"1710.09412": {
+"title": "mixup: Beyond Empirical Risk Minimization",
+"date": "2017-10-25",
+"authors": [
+"Hongyi Zhang",
+"Moustapha Cisse",
+"Yann N. Dauphin"
+],
+"cat": "cs.LG"
+},
+"1806.07366": {
+"title": "Neural Ordinary Differential Equations",
+"date": "2018-06-19",
+"authors": [
+"Ricky T. Q. Chen",
+"Yulia Rubanova",
+"Jesse Bettencourt"
+],
+"cat": "cs.LG"
+},
+"1404.7828": {
+"title": "Deep Learning in Neural Networks: An Overview",
+"date": "2014-04-30",
+"authors": [
+"Juergen Schmidhuber"
+],
+"cat": "cs.NE"
+},
+"1312.5602": {
+"title": "Playing Atari with Deep Reinforcement Learning",
+"date": "2013-12-19",
+"authors": [
+"Volodymyr Mnih",
+"Koray Kavukcuoglu",
+"David Silver"
+],
+"cat": "cs.LG"
+},
+"1509.06461": {
+"title": "Deep Reinforcement Learning with Double Q-learning",
+"date": "2015-09-22",
+"authors": [
+"Hado van Hasselt",
+"Arthur Guez",
+"David Silver"
+],
+"cat": "cs.LG"
+},
+"1511.06581": {
+"title": "Dueling Network Architectures for Deep Reinforcement Learning",
+"date": "2015-11-20",
+"authors": [
+"Ziyu Wang",
+"Tom Schaul",
+"Matteo Hessel"
+],
+"cat": "cs.LG"
+},
+"1509.02971": {
+"title": "Continuous control with deep reinforcement learning",
+"date": "2015-09-09",
+"authors": [
+"Timothy P. Lillicrap",
+"Jonathan J. Hunt",
+"Alexander Pritzel"
+],
+"cat": "cs.LG"
+},
+"1502.05477": {
+"title": "Trust Region Policy Optimization",
+"date": "2015-02-19",
+"authors": [
+"John Schulman",
+"Sergey Levine",
+"Philipp Moritz"
+],
+"cat": "cs.LG"
+},
+"1707.06347": {
+"title": "Proximal Policy Optimization Algorithms",
+"date": "2017-07-20",
+"authors": [
+"John Schulman",
+"Filip Wolski",
+"Prafulla Dhariwal"
+],
+"cat": "cs.LG"
+},
+"1801.01290": {
+"title": "Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor",
+"date": "2018-01-04",
+"authors": [
+"Tuomas Haarnoja",
+"Aurick Zhou",
+"Pieter Abbeel"
+],
+"cat": "cs.LG"
+},
+"1602.01783": {
+"title": "Asynchronous Methods for Deep Reinforcement Learning",
+"date": "2016-02-04",
+"authors": [
+"Volodymyr Mnih",
+"Adrià Puigdomènech Badia",
+"Mehdi Mirza"
+],
+"cat": "cs.LG"
+},
+"1712.01815": {
+"title": "Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm",
+"date": "2017-12-05",
+"authors": [
+"David Silver",
+"Thomas Hubert",
+"Julian Schrittwieser"
+],
+"cat": "cs.AI"
+},
+"1707.01495": {
+"title": "Hindsight Experience Replay",
+"date": "2017-07-05",
+"authors": [
+"Marcin Andrychowicz",
+"Filip Wolski",
+"Alex Ray"
+],
+"cat": "cs.LG"
+},
+"1912.01603": {
+"title": "Dream to Control: Learning Behaviors by Latent Imagination",
+"date": "2019-12-03",
+"authors": [
+"Danijar Hafner",
+"Timothy Lillicrap",
+"Jimmy Ba"
+],
+"cat": "cs.LG"
+},
+"2106.01345": {
+"title": "Decision Transformer: Reinforcement Learning via Sequence Modeling",
+"date": "2021-06-02",
+"authors": [
+"Lili Chen",
+"Kevin Lu",
+"Aravind Rajeswaran"
+],
+"cat": "cs.LG"
+},
+"2005.01643": {
+"title": "Offline Reinforcement Learning: Tutorial, Review, and Perspectives on Open Problems",
+"date": "2020-05-04",
+"authors": [
+"Sergey Levine",
+"Aviral Kumar",
+"George Tucker"
+],
+"cat": "cs.LG"
+},
+"1703.03400": {
+"title": "Model-Agnostic Meta-Learning for Fast Adaptation of Deep Networks",
+"date": "2017-03-09",
+"authors": [
+"Chelsea Finn",
+"Pieter Abbeel",
+"Sergey Levine"
+],
+"cat": "cs.LG"
+},
+"2212.06817": {
+"title": "RT-1: Robotics Transformer for Real-World Control at Scale",
+"date": "2022-12-13",
+"authors": [
+"Anthony Brohan",
+"Noah Brown",
+"Justice Carbajal"
+],
+"cat": "cs.RO"
+},
+"2307.15818": {
+"title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+"date": "2023-07-28",
+"authors": [
+"Anthony Brohan",
+"Noah Brown",
+"Justice Carbajal"
+],
+"cat": "cs.RO"
+},
+"2204.01691": {
+"title": "Do As I Can, Not As I Say: Grounding Language in Robotic Affordances",
+"date": "2022-04-04",
+"authors": [
+"Michael Ahn",
+"Anthony Brohan",
+"Noah Brown"
+],
+"cat": "cs.RO"
+},
+"2303.03378": {
+"title": "PaLM-E: An Embodied Multimodal Language Model",
+"date": "2023-03-06",
+"authors": [
+"Danny Driess",
+"Fei Xia",
+"Mehdi S. M. Sajjadi"
+],
+"cat": "cs.LG"
+},
+"2304.13705": {
+"title": "Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware",
+"date": "2023-04-23",
+"authors": [
+"Tony Z. Zhao",
+"Vikash Kumar",
+"Sergey Levine"
+],
+"cat": "cs.RO"
+},
+"2303.04137": {
+"title": "Diffusion Policy: Visuomotor Policy Learning via Action Diffusion",
+"date": "2023-03-07",
+"authors": [
+"Cheng Chi",
+"Zhenjia Xu",
+"Siyuan Feng"
+],
+"cat": "cs.RO"
+},
+"2405.12213": {
+"title": "Octo: An Open-Source Generalist Robot Policy",
+"date": "2024-05-20",
+"authors": [
+"Octo Model Team",
+"Dibya Ghosh",
+"Homer Walke"
+],
+"cat": "cs.RO"
+},
+"2406.09246": {
+"title": "OpenVLA: An Open-Source Vision-Language-Action Model",
+"date": "2024-06-13",
+"authors": [
+"Moo Jin Kim",
+"Karl Pertsch",
+"Siddharth Karamcheti"
+],
+"cat": "cs.RO"
+},
+"2310.08864": {
+"title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+"date": "2023-10-13",
+"authors": [
+"Open X-Embodiment Collaboration",
+"Abby O'Neill",
+"Abdul Rehman"
+],
+"cat": "cs.RO"
+},
+"2108.10470": {
+"title": "Isaac Gym: High Performance GPU-Based Physics Simulation For Robot Learning",
+"date": "2021-08-24",
+"authors": [
+"Viktor Makoviychuk",
+"Lukasz Wawrzyniak",
+"Yunrong Guo"
+],
+"cat": "cs.RO"
+},
+"1906.01563": {
+"title": "Hamiltonian Neural Networks",
+"date": "2019-06-04",
+"authors": [
+"Sam Greydanus",
+"Misko Dzamba",
+"Jason Yosinski"
+],
+"cat": "cs.NE"
+},
+"1711.10561": {
+"title": "Physics Informed Deep Learning (Part I): Data-driven Solutions of Nonlinear Partial Differential Equations",
+"date": "2017-11-28",
+"authors": [
+"Maziar Raissi",
+"Paris Perdikaris",
+"George Em Karniadakis"
+],
+"cat": "cs.AI"
+},
+"2010.08895": {
+"title": "Fourier Neural Operator for Parametric Partial Differential Equations",
+"date": "2020-10-18",
+"authors": [
+"Zongyi Li",
+"Nikola Kovachki",
+"Kamyar Azizzadenesheli"
+],
+"cat": "cs.LG"
+},
+"1910.03193": {
+"title": "DeepONet: Learning nonlinear operators for identifying differential equations based on the universal approximation theorem of operators",
+"date": "2019-10-08",
+"authors": [
+"Lu Lu",
+"Pengzhan Jin",
+"George Em Karniadakis"
+],
+"cat": "cs.LG"
+},
+"2010.03409": {
+"title": "Learning Mesh-Based Simulation with Graph Networks",
+"date": "2020-10-07",
+"authors": [
+"Tobias Pfaff",
+"Meire Fortunato",
+"Alvaro Sanchez-Gonzalez"
+],
+"cat": "cs.LG"
+},
+"1706.02216": {
+"title": "Inductive Representation Learning on Large Graphs",
+"date": "2017-06-07",
+"authors": [
+"William L. Hamilton",
+"Rex Ying",
+"Jure Leskovec"
+],
+"cat": "cs.SI"
+},
+"1609.02907": {
+"title": "Semi-Supervised Classification with Graph Convolutional Networks",
+"date": "2016-09-09",
+"authors": [
+"Thomas N. Kipf",
+"Max Welling"
+],
+"cat": "cs.LG"
+},
+"1710.10903": {
+"title": "Graph Attention Networks",
+"date": "2017-10-30",
+"authors": [
+"Petar Veličković",
+"Guillem Cucurull",
+"Arantxa Casanova"
+],
+"cat": "stat.ML"
+},
+"1810.00826": {
+"title": "How Powerful are Graph Neural Networks?",
+"date": "2018-10-01",
+"authors": [
+"Keyulu Xu",
+"Weihua Hu",
+"Jure Leskovec"
+],
+"cat": "cs.LG"
+},
+"1806.01261": {
+"title": "Relational inductive biases, deep learning, and graph networks",
+"date": "2018-06-04",
+"authors": [
+"Peter W. Battaglia",
+"Jessica B. Hamrick",
+"Victor Bapst"
+],
+"cat": "cs.LG"
+},
+"1905.12265": {
+"title": "Strategies for Pre-training Graph Neural Networks",
+"date": "2019-05-29",
+"authors": [
+"Weihua Hu",
+"Bowen Liu",
+"Joseph Gomes"
+],
+"cat": "cs.LG"
+},
+"2005.00687": {
+"title": "Open Graph Benchmark: Datasets for Machine Learning on Graphs",
+"date": "2020-05-02",
+"authors": [
+"Weihua Hu",
+"Matthias Fey",
+"Marinka Zitnik"
+],
+"cat": "cs.LG"
+},
+"1704.01212": {
+"title": "Neural Message Passing for Quantum Chemistry",
+"date": "2017-04-04",
+"authors": [
+"Justin Gilmer",
+"Samuel S. Schoenholz",
+"Patrick F. Riley"
+],
+"cat": "cs.LG"
+},
+"1706.08566": {
+"title": "SchNet: A continuous-filter convolutional neural network for modeling quantum interactions",
+"date": "2017-06-26",
+"authors": [
+"Kristof T. Schütt",
+"Pieter-Jan Kindermans",
+"Huziel E. Sauceda"
+],
+"cat": "stat.ML"
+},
+"2003.03123": {
+"title": "Directional Message Passing for Molecular Graphs",
+"date": "2020-03-06",
+"authors": [
+"Johannes Gasteiger",
+"Janek Groß",
+"Stephan Günnemann"
+],
+"cat": "cs.LG"
+},
+"2106.08903": {
+"title": "GemNet: Universal Directional Graph Neural Networks for Molecules",
+"date": "2021-06-02",
+"authors": [
+"Johannes Gasteiger",
+"Florian Becker",
+"Stephan Günnemann"
+],
+"cat": "physics.comp-ph"
+},
+"2206.07697": {
+"title": "MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields",
+"date": "2022-06-15",
+"authors": [
+"Ilyes Batatia",
+"Dávid Péter Kovács",
+"Gregor N. C. Simm"
+],
+"cat": "stat.ML"
+},
+"2102.09844": {
+"title": "E(n) Equivariant Graph Neural Networks",
+"date": "2021-02-19",
+"authors": [
+"Victor Garcia Satorras",
+"Emiel Hoogeboom",
+"Max Welling"
+],
+"cat": "cs.LG"
+},
+"2006.10503": {
+"title": "SE(3)-Transformers: 3D Roto-Translation Equivariant Attention Networks",
+"date": "2020-06-18",
+"authors": [
+"Fabian B. Fuchs",
+"Daniel E. Worrall",
+"Volker Fischer"
+],
+"cat": "cs.LG"
+},
+"2206.11990": {
+"title": "Equiformer: Equivariant Graph Attention Transformer for 3D Atomistic Graphs",
+"date": "2022-06-23",
+"authors": [
+"Yi-Lun Liao",
+"Tess Smidt"
+],
+"cat": "cs.LG"
+},
+"1509.09292": {
+"title": "Convolutional Networks on Graphs for Learning Molecular Fingerprints",
+"date": "2015-09-30",
+"authors": [
+"David Duvenaud",
+"Dougal Maclaurin",
+"Jorge Aguilera-Iparraguirre"
+],
+"cat": "cs.LG"
+},
+"1610.02415": {
+"title": "Automatic chemical design using a data-driven continuous representation of molecules",
+"date": "2016-10-07",
+"authors": [
+"Rafael Gómez-Bombarelli",
+"Jennifer N. Wei",
+"David Duvenaud"
+],
+"cat": "cs.LG"
+},
+"1802.04364": {
+"title": "Junction Tree Variational Autoencoder for Molecular Graph Generation",
+"date": "2018-02-12",
+"authors": [
+"Wengong Jin",
+"Regina Barzilay",
+"Tommi Jaakkola"
+],
+"cat": "cs.LG"
+},
+"1805.11973": {
+"title": "MolGAN: An implicit generative model for small molecular graphs",
+"date": "2018-05-30",
+"authors": [
+"Nicola De Cao",
+"Thomas Kipf"
+],
+"cat": "stat.ML"
+},
+"1811.02633": {
+"title": "Molecular Transformer - A Model for Uncertainty-Calibrated Chemical Reaction Prediction",
+"date": "2018-11-06",
+"authors": [
+"Philippe Schwaller",
+"Teodoro Laino",
+"Théophile Gaudin"
+],
+"cat": "physics.chem-ph"
+},
+"2010.09885": {
+"title": "ChemBERTa: Large-Scale Self-Supervised Pretraining for Molecular Property Prediction",
+"date": "2020-10-19",
+"authors": [
+"Seyone Chithrananda",
+"Gabriel Grand",
+"Bharath Ramsundar"
+],
+"cat": "cs.LG"
+},
+"2304.05376": {
+"title": "ChemCrow: Augmenting large-language models with chemistry tools",
+"date": "2023-04-11",
+"authors": [
+"Andres M Bran",
+"Sam Cox",
+"Oliver Schilter"
+],
+"cat": "physics.chem-ph"
+},
+"2203.17003": {
+"title": "Equivariant Diffusion for Molecule Generation in 3D",
+"date": "2022-03-31",
+"authors": [
+"Emiel Hoogeboom",
+"Victor Garcia Satorras",
+"Clément Vignac"
+],
+"cat": "cs.LG"
+},
+"2210.01776": {
+"title": "DiffDock: Diffusion Steps, Twists, and Turns for Molecular Docking",
+"date": "2022-10-04",
+"authors": [
+"Gabriele Corso",
+"Hannes Stärk",
+"Bowen Jing"
+],
+"cat": "q-bio.BM"
+},
+"2210.13695": {
+"title": "Structure-based Drug Design with Equivariant Diffusion Models",
+"date": "2022-10-24",
+"authors": [
+"Arne Schneuing",
+"Charles Harris",
+"Yuanqi Du"
+],
+"cat": "q-bio.BM"
+},
+"1812.05055": {
+"title": "Graph Networks as a Universal Machine Learning Framework for Molecules and Crystals",
+"date": "2018-12-12",
+"authors": [
+"Chi Chen",
+"Weike Ye",
+"Yunxing Zuo"
+],
+"cat": "cond-mat.mtrl-sci"
+},
+"1710.10324": {
+"title": "Crystal Graph Convolutional Neural Networks for an Accurate and Interpretable Prediction of Material Properties",
+"date": "2017-10-27",
+"authors": [
+"Tian Xie",
+"Jeffrey C. Grossman"
+],
+"cat": "cond-mat.mtrl-sci"
+},
+"2010.09990": {
+"title": "The Open Catalyst 2020 (OC20) Dataset and Community Challenges",
+"date": "2020-10-20",
+"authors": [
+"Lowik Chanussot",
+"Abhishek Das",
+"Siddharth Goyal"
+],
+"cat": "cond-mat.mtrl-sci"
+},
+"2202.02450": {
+"title": "A Universal Graph Deep Learning Interatomic Potential for the Periodic Table",
+"date": "2022-02-05",
+"authors": [
+"Chi Chen",
+"Shyue Ping Ong"
+],
+"cat": "cond-mat.mtrl-sci"
+},
+"2302.14231": {
+"title": "CHGNet: Pretrained universal neural network potential for charge-informed atomistic modeling",
+"date": "2023-02-28",
+"authors": [
+"Bowen Deng",
+"Peichen Zhong",
+"KyuJung Jun"
+],
+"cat": "cond-mat.mtrl-sci"
+},
+"2110.06197": {
+"title": "Crystal Diffusion Variational Autoencoder for Periodic Material Generation",
+"date": "2021-10-12",
+"authors": [
+"Tian Xie",
+"Xiang Fu",
+"Octavian-Eugen Ganea"
+],
+"cat": "cs.LG"
+},
+"1901.08746": {
+"title": "BioBERT: a pre-trained biomedical language representation model for biomedical text mining",
+"date": "2019-01-25",
+"authors": [
+"Jinhyuk Lee",
+"Wonjin Yoon",
+"Sungdong Kim"
+],
+"cat": "cs.CL"
+},
+"1904.05342": {
+"title": "ClinicalBERT: Modeling Clinical Notes and Predicting Hospital Readmission",
+"date": "2019-04-10",
+"authors": [
+"Kexin Huang",
+"Jaan Altosaar",
+"Rajesh Ranganath"
+],
+"cat": "cs.CL"
+},
+"1903.10676": {
+"title": "SciBERT: A Pretrained Language Model for Scientific Text",
+"date": "2019-03-26",
+"authors": [
+"Iz Beltagy",
+"Kyle Lo",
+"Arman Cohan"
+],
+"cat": "cs.CL"
+},
+"2212.13138": {
+"title": "Large Language Models Encode Clinical Knowledge",
+"date": "2022-12-26",
+"authors": [
+"Karan Singhal",
+"Shekoofeh Azizi",
+"Tao Tu"
+],
+"cat": "cs.CL"
+},
+"2305.09617": {
+"title": "Towards Expert-Level Medical Question Answering with Large Language Models",
+"date": "2023-05-16",
+"authors": [
+"Karan Singhal",
+"Tao Tu",
+"Juraj Gottweis"
+],
+"cat": "cs.CL"
+},
+"1711.05225": {
+"title": "CheXNet: Radiologist-Level Pneumonia Detection on Chest X-Rays with Deep Learning",
+"date": "2017-11-14",
+"authors": [
+"Pranav Rajpurkar",
+"Jeremy Irvin",
+"Kaylie Zhu"
+],
+"cat": "cs.CV"
+},
+"2007.06225": {
+"title": "ProtTrans: Towards Cracking the Language of Life's Code Through Self-Supervised Deep Learning and High Performance Computing",
+"date": "2020-07-13",
+"authors": [
+"Ahmed Elnaggar",
+"Michael Heinzinger",
+"Christian Dallago"
+],
+"cat": "cs.LG"
+},
+"2004.03497": {
+"title": "ProGen: Language Modeling for Protein Generation",
+"date": "2020-03-08",
+"authors": [
+"Ali Madani",
+"Bryan McCann",
+"Nikhil Naik"
+],
+"cat": "q-bio.BM"
+},
+"1906.08230": {
+"title": "Evaluating Protein Transfer Learning with TAPE",
+"date": "2019-06-19",
+"authors": [
+"Roshan Rao",
+"Nicholas Bhattacharya",
+"Neil Thomas"
+],
+"cat": "cs.LG"
+},
+"2009.01411": {
+"title": "Learning from Protein Structure with Geometric Vector Perceptrons",
+"date": "2020-09-03",
+"authors": [
+"Bowen Jing",
+"Stephan Eismann",
+"Patricia Suriana"
+],
+"cat": "q-bio.BM"
+},
+"1606.03813": {
+"title": "Towards an integration of deep learning and neuroscience",
+"date": "2016-06-13",
+"authors": [
+"Adam Marblestone",
+"Greg Wayne",
+"Konrad Kording"
+],
+"cat": "q-bio.NC"
+},
+"2004.11342": {
+"title": "Estimating the number of infections and the impact of non-pharmaceutical interventions on COVID-19 in European countries: technical description update",
+"date": "2020-04-23",
+"authors": [
+"Seth Flaxman",
+"Swapnil Mishra",
+"Axel Gandy"
+],
+"cat": "stat.AP"
+},
+"2202.11214": {
+"title": "FourCastNet: A Global Data-driven High-resolution Weather Model using Adaptive Fourier Neural Operators",
+"date": "2022-02-22",
+"authors": [
+"Jaideep Pathak",
+"Shashank Subramanian",
+"Peter Harrington"
+],
+"cat": "physics.ao-ph"
+},
+"2212.12794": {
+"title": "GraphCast: Learning skillful medium-range global weather forecasting",
+"date": "2022-12-24",
+"authors": [
+"Remi Lam",
+"Alvaro Sanchez-Gonzalez",
+"Matthew Willson"
+],
+"cat": "cs.LG"
+},
+"2211.02556": {
+"title": "Pangu-Weather: A 3D High-Resolution Model for Fast and Accurate Global Weather Forecast",
+"date": "2022-11-03",
+"authors": [
+"Kaifeng Bi",
+"Lingxi Xie",
+"Hengheng Zhang"
+],
+"cat": "physics.ao-ph"
+},
+"2301.10343": {
+"title": "ClimaX: A foundation model for weather and climate",
+"date": "2023-01-24",
+"authors": [
+"Tung Nguyen",
+"Johannes Brandstetter",
+"Ashish Kapoor"
+],
+"cat": "cs.LG"
+},
+"2405.13063": {
+"title": "A Foundation Model for the Earth System",
+"date": "2024-05-20",
+"authors": [
+"Cristian Bodnar",
+"Wessel P. Bruinsma",
+"Ana Lucic"
+],
+"cat": "physics.ao-ph"
+},
+"2311.07222": {
+"title": "Neural General Circulation Models for Weather and Climate",
+"date": "2023-11-13",
+"authors": [
+"Dmitrii Kochkov",
+"Janni Yuval",
+"Ian Langmore"
+],
+"cat": "physics.ao-ph"
+},
+"2306.12873": {
+"title": "FuXi: A cascade machine learning forecasting system for 15-day global weather forecast",
+"date": "2023-06-22",
+"authors": [
+"Lei Chen",
+"Xiaohui Zhong",
+"Feng Zhang"
+],
+"cat": "physics.ao-ph"
+},
+"1906.05433": {
+"title": "Tackling Climate Change with Machine Learning",
+"date": "2019-06-10",
+"authors": [
+"David Rolnick",
+"Priya L. Donti",
+"Lynn H. Kaack"
+],
+"cat": "cs.CY"
+},
+"1912.12132": {
+"title": "Machine Learning for Precipitation Nowcasting from Radar Images",
+"date": "2019-12-11",
+"authors": [
+"Shreya Agrawal",
+"Luke Barrington",
+"Carla Bromberg"
+],
+"cat": "cs.CV"
+},
+"2104.00954": {
+"title": "Skillful Precipitation Nowcasting using Deep Generative Models of Radar",
+"date": "2021-04-02",
+"authors": [
+"Suman Ravuri",
+"Karel Lenc",
+"Matthew Willson"
+],
+"cat": "cs.LG"
+},
+"2207.08051": {
+"title": "SatMAE: Pre-training Transformers for Temporal and Multi-Spectral Satellite Imagery",
+"date": "2022-07-17",
+"authors": [
+"Yezhen Cong",
+"Samar Khanna",
+"Chenlin Meng"
+],
+"cat": "cs.CV"
+},
+"1902.06148": {
+"title": "BigEarthNet: A Large-Scale Benchmark Archive For Remote Sensing Image Understanding",
+"date": "2019-02-16",
+"authors": [
+"Gencer Sumbul",
+"Marcela Charfuelan",
+"Begüm Demir"
+],
+"cat": "cs.CV"
+},
+"1709.00029": {
+"title": "EuroSAT: A Novel Dataset and Deep Learning Benchmark for Land Use and Land Cover Classification",
+"date": "2017-08-31",
+"authors": [
+"Patrick Helber",
+"Benjamin Bischke",
+"Andreas Dengel"
+],
+"cat": "cs.CV"
+},
+"1906.02243": {
+"title": "Energy and Policy Considerations for Deep Learning in NLP",
+"date": "2019-06-05",
+"authors": [
+"Emma Strubell",
+"Ananya Ganesh",
+"Andrew McCallum"
+],
+"cat": "cs.CL"
+},
+"1608.00060": {
+"title": "Double/Debiased Machine Learning for Treatment and Causal Parameters",
+"date": "2016-07-30",
+"authors": [
+"Victor Chernozhukov",
+"Denis Chetverikov",
+"Mert Demirer"
+],
+"cat": "stat.ML"
+},
+"1504.01132": {
+"title": "Recursive Partitioning for Heterogeneous Causal Effects",
+"date": "2015-04-05",
+"authors": [
+"Susan Athey",
+"Guido Imbens"
+],
+"cat": "stat.ML"
+},
+"1510.04342": {
+"title": "Estimation and Inference of Heterogeneous Treatment Effects using Random Forests",
+"date": "2015-10-14",
+"authors": [
+"Stefan Wager",
+"Susan Athey"
+],
+"cat": "stat.ME"
+},
+"1610.01271": {
+"title": "Generalized Random Forests",
+"date": "2016-10-05",
+"authors": [
+"Susan Athey",
+"Julie Tibshirani",
+"Stefan Wager"
+],
+"cat": "stat.ME"
+},
+"1903.10075": {
+"title": "Machine Learning Methods Economists Should Know About",
+"date": "2019-03-24",
+"authors": [
+"Susan Athey",
+"Guido Imbens"
+],
+"cat": "econ.EM"
+},
+"1812.09970": {
+"title": "Synthetic Difference in Differences",
+"date": "2018-12-24",
+"authors": [
+"Dmitry Arkhangelsky",
+"Susan Athey",
+"David A. Hirshberg"
+],
+"cat": "stat.ME"
+},
+"1803.09015": {
+"title": "Difference-in-Differences with Multiple Time Periods",
+"date": "2018-03-23",
+"authors": [
+"Brantly Callaway",
+"Pedro H. C. Sant'Anna"
+],
+"cat": "econ.EM"
+},
+"2303.10130": {
+"title": "GPTs are GPTs: An Early Look at the Labor Market Impact Potential of Large Language Models",
+"date": "2023-03-17",
+"authors": [
+"Tyna Eloundou",
+"Sam Manning",
+"Pamela Mishkin"
+],
+"cat": "econ.GN"
+},
+"2301.07543": {
+"title": "Large Language Models as Simulated Economic Agents: What Can We Learn from Homo Silicus?",
+"date": "2023-01-18",
+"authors": [
+"John J. Horton",
+"Apostolos Filippas",
+"Benjamin S. Manning"
+],
+"cat": "econ.GN"
+},
+"2209.06899": {
+"title": "Out of One, Many: Using Language Models to Simulate Human Samples",
+"date": "2022-09-14",
+"authors": [
+"Lisa P. Argyle",
+"Ethan C. Busby",
+"Nancy Fulda"
+],
+"cat": "cs.LG"
+},
+"2304.03442": {
+"title": "Generative Agents: Interactive Simulacra of Human Behavior",
+"date": "2023-04-07",
+"authors": [
+"Joon Sung Park",
+"Joseph C. O'Brien",
+"Carrie J. Cai"
+],
+"cat": "cs.HC"
+},
+"1104.3913": {
+"title": "Fairness Through Awareness",
+"date": "2011-04-20",
+"authors": [
+"Cynthia Dwork",
+"Moritz Hardt",
+"Toniann Pitassi"
+],
+"cat": "cs.CC"
+},
+"1609.05807": {
+"title": "Inherent Trade-Offs in the Fair Determination of Risk Scores",
+"date": "2016-09-19",
+"authors": [
+"Jon Kleinberg",
+"Sendhil Mullainathan",
+"Manish Raghavan"
+],
+"cat": "cs.LG"
+},
+"1610.02413": {
+"title": "Equality of Opportunity in Supervised Learning",
+"date": "2016-10-07",
+"authors": [
+"Moritz Hardt",
+"Eric Price",
+"Nathan Srebro"
+],
+"cat": "cs.LG"
+},
+"1908.09635": {
+"title": "A Survey on Bias and Fairness in Machine Learning",
+"date": "2019-08-23",
+"authors": [
+"Ninareh Mehrabi",
+"Fred Morstatter",
+"Nripsuta Saxena"
+],
+"cat": "cs.LG"
+},
+"cond-mat/9910332": {
+"title": "Emergence of scaling in random networks",
+"date": "1999-10-21",
+"authors": [
+"Albert-Laszlo Barabasi",
+"Reka Albert"
+],
+"cat": "cond-mat.dis-nn"
+},
+"cond-mat/0112110": {
+"title": "Community structure in social and biological networks",
+"date": "2001-12-07",
+"authors": [
+"Michelle Girvan",
+"M. E. J. Newman"
+],
+"cat": "cond-mat.stat-mech"
+},
+"0803.0476": {
+"title": "Fast unfolding of communities in large networks",
+"date": "2008-03-04",
+"authors": [
+"Vincent D. Blondel",
+"Jean-Loup Guillaume",
+"Renaud Lambiotte"
+],
+"cat": "physics.soc-ph"
+},
+"1602.03837": {
+"title": "Observation of Gravitational Waves from a Binary Black Hole Merger",
+"date": "2016-02-11",
+"authors": [
+"The LIGO Scientific Collaboration",
+"the Virgo Collaboration"
+],
+"cat": "gr-qc"
+},
+"1207.7214": {
+"title": "Observation of a new particle in the search for the Standard Model Higgs boson with the ATLAS detector at the LHC",
+"date": "2012-07-31",
+"authors": [
+"The ATLAS Collaboration"
+],
+"cat": "hep-ex"
+},
+"1207.7235": {
+"title": "Observation of a new boson at a mass of 125 GeV with the CMS experiment at the LHC",
+"date": "2012-07-31",
+"authors": [
+"The CMS Collaboration"
+],
+"cat": "hep-ex"
+},
+"1803.02342": {
+"title": "Magic-angle graphene superlattices: a new platform for unconventional superconductivity",
+"date": "2018-03-06",
+"authors": [
+"Yuan Cao",
+"Valla Fatemi",
+"Shiang Fang"
+],
+"cat": "cond-mat.mes-hall"
+},
+"1605.01735": {
+"title": "Machine learning phases of matter",
+"date": "2016-05-05",
+"authors": [
+"Juan Carrasquilla",
+"Roger G. Melko"
+],
+"cat": "cond-mat.str-el"
+},
+"1606.02318": {
+"title": "Solving the Quantum Many-Body Problem with Artificial Neural Networks",
+"date": "2016-06-07",
+"authors": [
+"Giuseppe Carleo",
+"Matthias Troyer"
+],
+"cat": "cond-mat.dis-nn"
+},
+"1807.06209": {
+"title": "Planck 2018 results. VI. Cosmological parameters",
+"date": "2018-07-17",
+"authors": [
+"Planck Collaboration",
+"N. Aghanim",
+"Y. Akrami"
+],
+"cat": "astro-ph.CO"
+},
+"1906.11238": {
+"title": "First M87 Event Horizon Telescope Results. I. The Shadow of the Supermassive Black Hole",
+"date": "2019-06-26",
+"authors": [
+"The Event Horizon Telescope Collaboration"
+],
+"cat": "astro-ph.GA"
+},
+"2404.03002": {
+"title": "DESI 2024 VI: Cosmological Constraints from the Measurements of Baryon Acoustic Oscillations",
+"date": "2024-04-03",
+"authors": [
+"DESI Collaboration",
+"A. G. Adame",
+"J. Aguilar"
+],
+"cat": "astro-ph.CO"
+},
+"2208.00211": {
+"title": "Gaia Data Release 3: Summary of the content and survey properties",
+"date": "2022-07-30",
+"authors": [
+"Gaia Collaboration",
+"A. Vallenari",
+"A. G. A. Brown"
+],
+"cat": "astro-ph.GA"
+},
+"2207.12446": {
+"title": "A population of red candidate massive galaxies ~600 Myr after the Big Bang",
+"date": "2022-07-25",
+"authors": [
+"Ivo Labbe",
+"Pieter van Dokkum",
+"Erica Nelson"
+],
+"cat": "astro-ph.GA"
+},
+"2208.11692": {
+"title": "Identification of carbon dioxide in an exoplanet atmosphere",
+"date": "2022-08-24",
+"authors": [
+"The JWST Transiting Exoplanet Community Early Release Science Team",
+"Eva-Maria Ahrer",
+"Lili Alderson"
+],
+"cat": "astro-ph.EP"
+},
+"quant-ph/9508027": {
+"title": "Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer",
+"date": "1995-08-30",
+"authors": [
+"Peter W. Shor"
+],
+"cat": "quant-ph"
+},
+"quant-ph/9605043": {
+"title": "A fast quantum mechanical algorithm for database search",
+"date": "1996-05-29",
+"authors": [
+"Lov K. Grover"
+],
+"cat": "quant-ph"
+},
+"1411.4028": {
+"title": "A Quantum Approximate Optimization Algorithm",
+"date": "2014-11-14",
+"authors": [
+"Edward Farhi",
+"Jeffrey Goldstone",
+"Sam Gutmann"
+],
+"cat": "quant-ph"
+},
+"1801.00862": {
+"title": "Quantum Computing in the NISQ era and beyond",
+"date": "2018-01-02",
+"authors": [
+"John Preskill"
+],
+"cat": "quant-ph"
+},
+"2207.06431": {
+"title": "Suppressing quantum errors by scaling a surface code logical qubit",
+"date": "2022-07-13",
+"authors": [
+"Rajeev Acharya",
+"Igor Aleiner",
+"Richard Allen"
+],
+"cat": "quant-ph"
+},
+"math/0211159": {
+"title": "The entropy formula for the Ricci flow and its geometric applications",
+"date": "2002-11-11",
+"authors": [
+"Grisha Perelman"
+],
+"cat": "math.DG"
+},
+"math/0303109": {
+"title": "Ricci flow with surgery on three-manifolds",
+"date": "2003-03-10",
+"authors": [
+"Grisha Perelman"
+],
+"cat": "math.DG"
+},
+"1311.4600": {
+"title": "Small gaps between primes",
+"date": "2013-11-19",
+"authors": [
+"James Maynard"
+],
+"cat": "math.NT"
+},
+"math/0404188": {
+"title": "The primes contain arbitrarily long arithmetic progressions",
+"date": "2004-04-08",
+"authors": [
+"Ben Green",
+"Terence Tao"
+],
+"cat": "math.NT"
+},
+"1512.03547": {
+"title": "Graph Isomorphism in Quasipolynomial Time",
+"date": "2015-12-11",
+"authors": [
+"László Babai"
+],
+"cat": "cs.DS"
+}
+}
+}
