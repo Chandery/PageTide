@@ -1,6 +1,7 @@
 {
   "name": "pagetide-desktop",
   "version": "0.1.1",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "desktop:prepare": ".local/desktop-build-env/bin/python scripts/build_desktop.py",
