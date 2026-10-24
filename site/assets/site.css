@@ -148,6 +148,7 @@ p { margin: 0 0 1em; }
 /* Features: a list of features and one big app window that follows the choice */
 .showcase { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 28px; align-items: stretch; }
 .feat-list { display: flex; flex-direction: column; gap: 10px; }
+.feat-list .feat { flex: 1 1 0; align-items: center; }
 .feat { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 4px 14px; text-align: left; padding: 16px 18px; border: 0; font: inherit; color: inherit; cursor: pointer;
   position: relative; overflow: hidden; transition: transform .2s var(--ease-out), box-shadow .2s, background-color .2s; }
 .feat:hover { transform: translateY(-2px); box-shadow: var(--sh-2); }
@@ -156,14 +157,18 @@ p { margin: 0 0 1em; }
 .feat-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .feat-body strong { font: 750 1.02rem/1.3 var(--display); letter-spacing: -.01em; }
 .feat-body span { font-size: .88rem; color: var(--muted); display: none; }
-.feat.active .feat-body span { display: block; }
 .feat::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; }
 .feat-shot { display: none; grid-column: 1 / -1; margin-top: 12px; aspect-ratio: 16 / 10; border-radius: var(--r-sm); overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); }
 .feat-shot picture { height: 100%; }
 .feat-shot img, .shot img { width: 100%; height: 100%; object-fit: cover; object-position: top left; }
-.window { position: relative; min-height: 360px; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); background: var(--surface-1); box-shadow: var(--sh-3); }
+.stage { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.caps { display: grid; }
+.cap { grid-area: 1 / 1; margin: 0; font-size: 1rem; line-height: 1.55; color: var(--muted); opacity: 0; transition: opacity .35s ease; }
+.cap.active { opacity: 1; }
+.window { position: relative; aspect-ratio: 16 / 10; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); background: var(--surface-1); box-shadow: var(--sh-3); }
 .shot { position: absolute; inset: 0; opacity: 0; transition: opacity .5s ease; }
 .shot picture { display: block; height: 100%; }
+.shot img { object-fit: contain; object-position: top center; }
 .shot.active { opacity: 1; }
 @media (min-width: 901px) {
   .showcase.playing:not(.manual):not(.hover) .feat.active::after { animation: feat-progress 6s linear forwards; }
@@ -235,8 +240,9 @@ p { margin: 0 0 1em; }
   .demo-grid { grid-template-columns: minmax(0, 1fr); }
   .profile { position: static; }
   .showcase { grid-template-columns: minmax(0, 1fr); }
-  .window { display: none; }
+  .stage { display: none; }
   .feat-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+  .feat-list .feat { flex: none; align-items: start; }
   .feat { grid-template-columns: minmax(0, 1fr); padding: 18px; cursor: default; }
   .feat-body span { display: block; }
   .feat-shot { display: block; }

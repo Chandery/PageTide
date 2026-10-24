@@ -63,13 +63,14 @@
     /* Feature showcase: pick a feature to change the big screenshot; it also advances by itself while visible and not hovered. */
     var show = doc.getElementById("showcase");
     if (show) {
-      var tabs = show.querySelectorAll(".feat"), shots = show.querySelectorAll(".shot"), cur = 0;
+      var tabs = show.querySelectorAll(".feat"), shots = show.querySelectorAll(".shot, .cap"), cur = 0;
       var select = function (i) {
         cur = (i + tabs.length) % tabs.length;
         Array.prototype.forEach.call(tabs, function (t, k) {
           t.classList.toggle("active", k === cur); t.setAttribute("aria-pressed", k === cur ? "true" : "false");
         });
-        Array.prototype.forEach.call(shots, function (s, k) {
+        Array.prototype.forEach.call(shots, function (s) {
+          var k = +s.getAttribute("data-i");
           s.classList.toggle("active", k === cur);
           if (k === cur) s.removeAttribute("aria-hidden"); else s.setAttribute("aria-hidden", "true");
         });

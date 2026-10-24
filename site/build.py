@@ -194,7 +194,10 @@ def build(date):
                          '<span class="feat-shot">%s</span></button>'
                          % (" active" if on else "", n, "true" if on else "false", icon(it["icon"]), it["title"], it["body"], pic))
             panels.append('<div class="shot%s" data-i="%d"%s>%s</div>' % (" active" if on else "", n, "" if on else ' aria-hidden="true"', pic))
-        ctx["features_html"] = ('<div class="feat-list">%s</div><div class="window">%s</div>' % ("".join(feats), "".join(panels)))
+        caps = "".join('<p class="cap%s" data-i="%d"%s>%s</p>' % (" active" if n == 0 else "", n, "" if n == 0 else ' aria-hidden="true"', it["body"])
+                       for n, it in enumerate(t["features"]["items"]))
+        ctx["features_html"] = ('<div class="feat-list">%s</div><div class="stage"><div class="caps">%s</div><div class="window">%s</div></div>'
+                                % ("".join(feats), caps, "".join(panels)))
         for kind in ("less", "more"):
             ctx["numbers_%s_html" % kind] = "".join('<li class="num card"><span class="num-v">%s</span><span class="num-t">%s</span></li>'
                                                     % (esc(n["v"]), esc(n["t"])) for n in t["numbers"][kind])
