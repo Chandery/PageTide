@@ -665,6 +665,7 @@
       try {
         const res=await fetch('/api/update?force=1'); const data=await res.json();
         if(data.reason_code==='dev_build')window.PDHDialogs.notice('开发版不检查更新',{target,kind:'info'});
+        else if(data.reason_code==='no_asset')window.PDHDialogs.notice('新版本暂无适用于本机的安装包',{target,kind:'info'});
         else if(data.status!=='ok')window.PDHDialogs.notice('暂时无法检查更新',{target,kind:'error'});
         else if(data.available)window.PDHDialogs.notice(`有新版本 v${data.latest}，回到主页即可更新`,{target,kind:'success'});
         else window.PDHDialogs.notice('已是最新版本',{target,kind:'success'});

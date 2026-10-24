@@ -741,7 +741,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json({'session': current, 'history': history(app.store, key, requested_project, current)})   # the same turns the model receives
         elif route == "/api/update":
             force = query.get("force", [""])[0] == "1"
-            self._json(make_updater(getattr(self.server, "root", ".")).check(force=force))
+            current = make_updater(getattr(self.server, "root", "."))
+            result = current.check(force=force)
+            result["apply_result"] = current.take_result()   # a macOS replacement that failed last time, reported once
+            self._json(result)
         elif route == "/api/update/download":
             self._json(updater.download_state())
         elif route == "/api/user_settings":
@@ -1268,6 +1271,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(updater.download_state())
             if route == "/api/update/apply":
                 return self._json(current.apply())
+            if route == "/api/update/cancel":
+                current.cancel()
+                return self._json({"ok": True})
             if route == "/api/update/dismiss":
                 current.dismiss(body.get("version"))
                 return self._json({"ok": True})

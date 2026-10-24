@@ -11,6 +11,7 @@ function mount(options = {}) {
   const call = options.fetch || ((...args) => fetch(...args));
   const wait = options.wait || (ms => new Promise(resolve => setTimeout(resolve, ms)));
   const quit = options.quit || (() => window.PDHPrepareQuit && window.PDHPrepareQuit());
+  const grace = options.grace ?? 1500;   // if the page is still here this long after asking to quit, the quit was cancelled
   let latest = null, busy = false;
   const post = async (path, body = {}) => {
     const res = await call(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
@@ -26,7 +27,9 @@ function mount(options = {}) {
     try {
       const res = await call('/api/update');
       const data = await res.json();
-      if (res.ok && data.available && !data.dismissed) {
+      if (res.ok && data.apply_result) {
+        show(data.apply_result === 'rollback_failed' ? '更新未完成，旧版本的备份已在访达中显示' : '更新未完成，已在访达中显示下载的文件，请手动替换', null);
+      } else if (res.ok && data.available && !data.dismissed) {
         latest = data.latest; bar.title = data.notes || '';
         show(`有新版本 v${latest}`, '更新');
       }
@@ -53,7 +56,11 @@ function mount(options = {}) {
       }
       show(done.mode === 'installer' ? '应用将关闭以完成安装' : '应用将重启以完成更新', null);
       await quit();   // the page's own quit guard keeps unsaved drafts safe; the helper starts after the app stopped
-      busy = false;
+      await wait(grace);
+      // Still running: a draft could not be saved or the dialog was cancelled. Forget the armed update.
+      await post('/api/update/cancel').catch(() => {});
+      busy = false; act.disabled = false; close.hidden = false;
+      show(`有新版本 v${latest}`, '更新');
     } catch (error) {
       busy = false; act.disabled = false; close.hidden = false;
       show(`更新失败：${error.message}`, '重试');

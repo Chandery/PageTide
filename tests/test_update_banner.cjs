@@ -2,7 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../app/static/update-banner.js'), 'utf8');
 
-function page(routes) {
+function page(routes, labels) {
   const el = () => ({hidden: true, textContent: '', title: '', disabled: false, onclick: null});
   const nodes = {updateBar: el(), updateLabel: el(), updateAct: el(), updateClose: el()};
   const calls = [], quits = [];
@@ -14,6 +14,7 @@ function page(routes) {
     const value = typeof route === 'function' ? route() : route;
     return {ok: value?.status ? value.status < 400 : true, json: async () => value?.body ?? value};
   };
+  if (labels) Object.defineProperty(nodes.updateLabel, 'textContent', {get() { return this._t || ''; }, set(v) { this._t = v; labels.push(v); }});
   const mounted = context.window.PDHUpdate.mount({document: context.document, fetch: fetchFn, wait: async () => {}, quit: async () => { quits.push(1); }});
   return {nodes, calls, quits, mounted};
 }
@@ -39,18 +40,46 @@ test('a newer version shows its name and an update button; close remembers the v
   assert.deepEqual(p.calls.pop().body, {version: '0.2.0'});
 });
 
-test('update downloads, applies, then asks the page to quit (its draft guard)', async () => {
+test('update downloads, applies, asks the page to quit, and a quit that did not happen cancels the armed update', async () => {
   let polls = 0;
   const p = page({
     'GET /api/update': {available: true, latest: '0.2.0'},
     'POST /api/update/download': {state: 'downloading', received: 1, total: 4},
     'GET /api/update/download': () => (++polls < 2 ? {state: 'downloading', received: 2, total: 4} : {state: 'ready'}),
     'POST /api/update/apply': {mode: 'installer'},
+    'POST /api/update/cancel': {ok: true},
   });
   await flush(); await p.nodes.updateAct.onclick();
-  assert.equal(p.nodes.updateLabel.textContent, '应用将关闭以完成安装');
   assert.equal(p.quits.length, 1);
-  assert.deepEqual(p.calls.map(c => c.url).slice(1, 3), ['/api/update/download', '/api/update/download']);
+  const urls = p.calls.map(c => `${c.method} ${c.url}`);
+  assert.deepEqual(urls.slice(1, 3), ['POST /api/update/download', 'GET /api/update/download']);
+  // The script is still running after the grace time: drafts were not saved or the dialog was cancelled.
+  assert.equal(urls.at(-1), 'POST /api/update/cancel');
+  assert.ok(urls.indexOf('POST /api/update/apply') < urls.indexOf('POST /api/update/cancel'));
+  assert.equal(p.nodes.updateLabel.textContent, '有新版本 v0.2.0');
+  assert.equal(p.nodes.updateAct.textContent, '更新');
+  assert.equal(p.nodes.updateAct.hidden, false);
+  assert.equal(p.nodes.updateAct.disabled, false);
+  assert.equal(p.nodes.updateClose.hidden, false);
+});
+
+test('the message of the quit-in-progress shows before the page goes away', async () => {
+  const labels = [];
+  const p = page({
+    'GET /api/update': {available: true, latest: '0.2.0'}, 'POST /api/update/download': {state: 'ready'},
+    'POST /api/update/apply': {mode: 'restart'}, 'POST /api/update/cancel': {ok: true},
+  }, labels);
+  await flush(); await p.nodes.updateAct.onclick();
+  assert.ok(labels.includes('应用将重启以完成更新'));
+});
+
+test('a failed replacement of the last run is announced once', async () => {
+  const p = page({'GET /api/update': {available: false, apply_result: 'failed'}}); await flush();
+  assert.equal(p.nodes.updateBar.hidden, false);
+  assert.match(p.nodes.updateLabel.textContent, /更新未完成/);
+  assert.equal(p.nodes.updateAct.hidden, true);
+  const backup = page({'GET /api/update': {apply_result: 'rollback_failed'}}); await flush();
+  assert.match(backup.nodes.updateLabel.textContent, /备份/);
 });
 
 test('macOS manual fallback does not quit; a failure shows retry and keeps the app open', async () => {
