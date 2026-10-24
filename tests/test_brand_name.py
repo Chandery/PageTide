@@ -1,8 +1,8 @@
 """The product is called PageTide: the old name must not remain in shipped code, packaging or the web UI.
 
 The old abbreviation PDH / pdh (CSS classes, storage keys, globals, env prefix) is banned the same way.
-Scope: app/, scripts/, src-tauri sources and manifests, .github and app/static. The only allowed trace is the GitHub
-repository address in app/updater.py (the repository is renamed later; change that one line then). Historical
+Scope: app/, scripts/, src-tauri sources and manifests, .github and app/static; no exception (the GitHub repository
+was renamed to Chandery/PageTide on 2026-10-25). Historical
 records (changes/, docs/evidence/, past ADRs, HANDOFF entries) are facts of their time and are not scanned.
 """
 import re
@@ -13,7 +13,6 @@ ROOT = Path(__file__).resolve().parents[1]
 OLD_NAME = re.compile(r"paper[-_ ]?dig[-_ ]?helper|(?<![A-Za-z0-9])pdh(?![a-z])", re.IGNORECASE)
 VENDOR = "app/static/vendor/"   # third-party minified code is not ours to rename
 TEXT = {".py", ".js", ".cjs", ".html", ".css", ".json", ".toml", ".rs", ".yml", ".yaml", ".svg", ".md", ".txt", ".cfg", ".lock"}
-ALLOWED_LINE = ('app/updater.py', 'REPO = "Chandery/PaperDigHelper"')
 
 
 def scanned_files():
@@ -31,7 +30,7 @@ class BrandNameTests(unittest.TestCase):
         for path in scanned_files():
             relative = path.relative_to(ROOT).as_posix()
             for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-                if OLD_NAME.search(line) and not (relative == ALLOWED_LINE[0] and line.strip() == ALLOWED_LINE[1]):
+                if OLD_NAME.search(line):
                     found.append(f"{relative}:{number}: {line.strip()[:100]}")
         self.assertEqual(found, [], "old product name found:\n" + "\n".join(found))
 

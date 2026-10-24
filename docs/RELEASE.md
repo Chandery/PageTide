@@ -1,6 +1,6 @@
 # 发布流程
 
-产品名自 2026-10-24 起为 PageTide（[ADR 0044](decisions/0044-pagetide-brand.md)）；GitHub 仓库名暂时仍是 `Chandery/PaperDigHelper`，更新检查读取的就是它；**仓库改名后要改的地方：`app/updater.py` 的 `REPO`（唯一一处）和本句**。
+产品名自 2026-10-24 起为 PageTide（[ADR 0044](decisions/0044-pagetide-brand.md)）；GitHub 仓库 2026-10-25 改名为 `Chandery/PageTide`，更新检查读取的仓库在 `app/updater.py` 的 `REPO`。
 
 两个平台都是**未签名**构建。macOS 在本机构建，Windows 由 GitHub Actions 构建（[ADR 0040](decisions/0040-windows-release.md)）。
 

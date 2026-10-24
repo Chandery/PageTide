@@ -26,7 +26,7 @@ from pathlib import Path
 
 # The GitHub repository releases are read from. The only place the repository name appears in code; the repository is
 # still called by its old name and is renamed later: change this one line (and docs/RELEASE.md) after the rename.
-REPO = "Chandery/PaperDigHelper"
+REPO = "Chandery/PageTide"
 LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 DOWNLOAD_PREFIX = f"https://github.com/{REPO}/releases/download/"
 REDIRECT_HOSTS = ("github.com", "githubusercontent.com")   # release assets redirect to *.githubusercontent.com
