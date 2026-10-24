@@ -85,6 +85,11 @@ jobs:
       - name: Packaged backend smoke test
         run: python scripts/verify_packaged_route.py src-tauri/resources/pagetide-server/pagetide-server.exe
 
+      # The Windows store lacks some public roots (arXiv's Starfield G2) until Windows itself fetches them.
+      - name: Packaged backend carries certifi's roots
+        shell: bash
+        run: find src-tauri/resources/pagetide-server -path "*certifi/cacert.pem" | grep -q . || { echo "certifi/cacert.pem missing" >&2; exit 1; }
+
       # `-- --locked` is passed to cargo: the build must use the committed Cargo.lock.
       - name: Build the NSIS installer
         working-directory: src-tauri
@@ -188,6 +193,9 @@ jobs:
             got=$(lipo -archs "$bin")
             [ "$got" = "$want" ] || { echo "$bin is $got, expected $want" >&2; exit 1; }
           done
+          # python.org's Python has no root certificates of its own: without certifi's bundle every HTTPS call fails.
+          find "$app/Contents/Resources/backend" -path "*certifi/cacert.pem" | grep -q . \
+            || { echo "certifi/cacert.pem missing from the packaged backend" >&2; exit 1; }
           plist=$(plutil -extract CFBundleShortVersionString raw "$app/Contents/Info.plist")
           conf=$(python -c "import json;print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
           [ "$plist" = "$conf" ] || { echo "bundle version $plist != $conf" >&2; exit 1; }

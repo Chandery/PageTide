@@ -296,7 +296,8 @@ _REASONS = {
     "http": ("DeepSeek 拒绝了这次请求", "DeepSeek rejected the request"),
     "request_format": ("应用的 AI 请求缺少 JSON 输出声明，请更新应用后重试；草稿已保留 (HTTP 400)",
                        "The app's AI request is missing its JSON output instruction; update the app and retry. Your draft was preserved (HTTP 400)"),
-    "network": ("请求没有成功（网络或超时）；这次的额度仍会计入", "The request did not complete (network or timeout); the budget for this call still counts"),
+    # The "still counts" clause is added below only when usage is really unknown; saying it here doubled it.
+    "network": ("请求没有成功（网络或超时）", "The request did not complete (network or timeout)"),
     "bad_reply": ("AI 回复为空或格式无效；请重新尝试，原有内容已保留", "The AI reply is empty or invalid; try again. Existing content was preserved"),
     "error": ("调用出现意外错误", "The call failed unexpectedly"),
     "dry_run": ("试运行：只预留额度，没有发送", "Dry run: budget reserved, nothing was sent"),

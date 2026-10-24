@@ -337,23 +337,25 @@ if __name__ == "__main__":
 
 
 class BundledCaCertificateTests(unittest.TestCase):
-    """Windows adds certifi's roots on top of the Windows store (arXiv's Starfield G2 is often missing there)."""
+    """Windows adds certifi's roots on top of the Windows store (arXiv's Starfield G2 is often missing there);
+    macOS CI builds use python.org's Python, whose OpenSSL has no roots at all."""
 
-    def run_with(self, windows, env, certifi_module):
+    def run_with(self, windows, env, certifi_module, platform="win32"):
         modules = {"certifi": certifi_module} if certifi_module is not None else {"certifi": None}
-        with mock.patch.object(pc, "IS_WINDOWS", windows), mock.patch.dict(os.environ, env, clear=True), \
-                mock.patch.dict(sys.modules, modules):
+        with mock.patch.object(pc, "IS_WINDOWS", windows), mock.patch.object(pc.sys, "platform", platform), \
+                mock.patch.dict(os.environ, env, clear=True), mock.patch.dict(sys.modules, modules):
             return pc.add_bundled_ca_certificates(), os.environ.get("SSL_CERT_FILE")
 
     def test_windows_points_ssl_at_the_bundle(self):
         with tempfile.NamedTemporaryFile(suffix=".pem") as pem:
             certifi = types.SimpleNamespace(where=lambda: pem.name)
             self.assertEqual(self.run_with(True, {}, certifi), (pem.name, pem.name))
+            self.assertEqual(self.run_with(False, {}, certifi, platform="darwin"), (pem.name, pem.name))
 
     def test_nothing_changes_elsewhere_or_when_set_or_missing(self):
         with tempfile.NamedTemporaryFile(suffix=".pem") as pem:
             certifi = types.SimpleNamespace(where=lambda: pem.name)
-            self.assertEqual(self.run_with(False, {}, certifi), (None, None))
+            self.assertEqual(self.run_with(False, {}, certifi, platform="linux"), (None, None))
             self.assertEqual(self.run_with(True, {"SSL_CERT_FILE": "mine.pem"}, certifi), (None, "mine.pem"))
         self.assertEqual(self.run_with(True, {}, None), (None, None))                       # build without certifi
         gone = types.SimpleNamespace(where=lambda: "/no/such/cacert.pem")
@@ -370,4 +372,15 @@ class BundledCaCertificateTests(unittest.TestCase):
         main = source[source.index("def main():"):]
         self.assertLess(main.index("add_bundled_ca_certificates()"), main.index("--organization-worker"))
         requirements = (Path(__file__).resolve().parents[1] / "requirements-desktop.txt").read_text(encoding="utf-8")
-        self.assertIn('certifi==2026.4.22; sys_platform == "win32"', requirements)
+        self.assertIn('certifi==2026.4.22; sys_platform == "win32" or sys_platform == "darwin"', requirements)
+
+
+class NetworkReasonTextTests(unittest.TestCase):
+    def test_the_budget_clause_appears_once(self):
+        from app import creation
+        for english in (False, True):
+            code, text = creation.degrade_reason({"ok": False, "reason": "URLError: timed out", "usage_unknown": True}, english)
+            self.assertEqual(code, "network")
+            self.assertEqual(text.count("still counts" if english else "额度仍会计入"), 1, text)
+            code, text = creation.degrade_reason({"ok": False, "reason": "URLError: refused"}, english)
+            self.assertNotIn("still counts" if english else "额度仍会计入", text)   # nothing was billed

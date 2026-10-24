@@ -19,12 +19,16 @@ else:
 
 
 def add_bundled_ca_certificates():
-    """Windows: Python trusts only the root certificates already in the Windows store, and Windows installs many
-    roots (arXiv's Starfield Root G2 among them) only when its own components first need one. On a fresh machine
-    PDF downloads from such sites failed TLS while Edge and AI calls worked. certifi's bundle is added on top of
-    the store: ssl's load_default_certs reads the store and then SSL_CERT_FILE. An SSL_CERT_FILE the person set,
-    another system or a build without certifi changes nothing. Returns the bundle path that was added, or None."""
-    if not IS_WINDOWS or os.environ.get("SSL_CERT_FILE"):
+    """Windows and macOS: point TLS at certifi's root bundle, so a packaged backend trusts the usual public roots.
+
+    Windows: Python trusts only the roots already in the Windows store, and Windows installs many (arXiv's
+    Starfield Root G2 among them) only when its own components first need one; PDF downloads failed while Edge and
+    AI calls worked. ssl's load_default_certs reads the store and then SSL_CERT_FILE, so the bundle is added on top.
+    macOS: the CI builds use python.org's Python, whose OpenSSL ships with no roots at all (python.org asks users to
+    run "Install Certificates.command"), so every HTTPS call failed, AI included. OpenSSL does not read the
+    Keychain either way. An SSL_CERT_FILE the person set, another system or a build without certifi changes
+    nothing. Returns the bundle path that was set, or None."""
+    if not (IS_WINDOWS or sys.platform == "darwin") or os.environ.get("SSL_CERT_FILE"):
         return None
     try:
         import certifi
