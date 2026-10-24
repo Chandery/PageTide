@@ -37,25 +37,21 @@
 <body>
 <a class="skip" href="#main">{{skip}}</a>
 
-<header class="masthead" id="top">
-  <div class="dateline-bar">
-    <p class="dateline"><time datetime="{{build_date}}">{{masthead.dateline}}</time></p>
+<header class="topbar" id="top">
+  <div class="topbar-in">
+    <a class="brand" href="{{path}}" aria-label="{{masthead.home}}">
+      <img class="brand-icon" src="/assets/icon.png" width="32" height="32" alt="">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="/assets/wordmark-dark.png">
+        <img class="brand-word" src="/assets/wordmark.png" width="403" height="96" alt="PageTide">
+      </picture>
+    </a>
     <nav class="nav" aria-label="{{nav.label}}">
       <a href="#features">{{nav.features}}</a>
       <a href="#download">{{nav.download}}</a>
       <a href="https://github.com/Chandery/PageTide" rel="noopener">{{nav.github}}</a>
       <a class="lang-switch" href="{{other_path}}" hreflang="{{other_hreflang}}" lang="{{other_hreflang}}" aria-label="{{nav.switch_label}}" data-lang-switch>{{nav.switch_text}}</a>
     </nav>
-  </div>
-  <div class="nameplate">
-    <a class="brand" href="{{path}}" aria-label="{{masthead.home}}">
-      <img class="brand-icon" src="/assets/icon.png" width="48" height="48" alt="">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="/assets/wordmark-dark.png">
-        <img class="brand-word" src="/assets/wordmark.png" width="403" height="96" alt="PageTide">
-      </picture>
-    </a>
-    <p class="edition">{{masthead.edition}}</p>
   </div>
 </header>
 
@@ -76,17 +72,21 @@
     <p class="cta-alt" id="cta-alt" hidden></p>
   </div>
   <p class="fine">{{hero.fine}}</p>
-  <div class="sea" role="img" aria-label="{{hero.sea_label}}"><span class="wave wave-b"></span><span class="wave wave-a"></span></div>
+  <figure class="hero-shot">
+    <picture>
+      <source type="image/webp" srcset="/assets/{{lang}}-today-hero.webp">
+      <img src="/assets/{{lang}}-today.png" width="1600" height="1000" fetchpriority="high" decoding="async" alt="{{hero.shot_alt}}">
+    </picture>
+  </figure>
 </section>
 
 <section class="section demo" id="today" aria-labelledby="demo-title">
   <header class="section-head">
-    <p class="kicker"><span>{{demo.kicker}}</span></p>
     <h2 id="demo-title">{{demo.title}}</h2>
     <p class="lede">{{demo.lede}}</p>
   </header>
   <div class="demo-grid">
-    <aside class="profile" aria-labelledby="profile-title">
+    <aside class="profile card" aria-labelledby="profile-title">
       <h3 id="profile-title">{{demo.profile_title}}</h3>
       <p class="hint">{{demo.profile_hint}}</p>
       <ul class="tags" id="tags">{{tags_html}}</ul>
@@ -94,53 +94,48 @@
         <label for="add-input">{{demo.add_label}}</label>
         <div class="add-row">
           <input id="add-input" type="text" maxlength="40" placeholder="{{demo.add_placeholder}}" enterkeyhint="done">
-          <button class="btn btn-small" type="submit">{{demo.add_button}}</button>
+          <button class="btn btn-small btn-primary" type="submit">{{demo.add_button}}</button>
         </div>
       </form>
-      <button class="btn btn-small btn-quiet" id="reset" type="button">{{demo.reset}}</button>
+      <button class="btn btn-small" id="reset" type="button">{{demo.reset}}</button>
     </aside>
     <div class="stories-wrap">
       <ol class="stories" id="stories" aria-label="{{demo.stories_label}}">{{stories_html}}</ol>
       <noscript><p class="noscript">{{demo.noscript}}</p></noscript>
       <p class="demo-status" id="demo-status" role="status" aria-live="polite"></p>
-      <p class="demo-meta"><span class="badge badge-zero">{{demo.badge}}</span> {{demo.library_note}}</p>
-      <p class="demo-meta">{{demo.disclaimer}}</p>
+      <p class="demo-meta"><span class="st st-zero">{{demo.badge}}</span></p>
+      <p class="demo-meta">{{demo.library_note}} {{demo.disclaimer}}</p>
     </div>
   </div>
 </section>
 
-<section class="section editorial" id="why" aria-labelledby="ed-title">
+<section class="section features" id="features" aria-labelledby="col-title">
   <header class="section-head">
-    <p class="kicker"><span>{{editorial.kicker}}</span></p>
-    <h2 id="ed-title">{{editorial.title}}</h2>
+    <h2 id="col-title">{{features.title}}</h2>
   </header>
-  <div class="ed-body">{{editorial_html}}</div>
-  <p class="footnote" id="fn-papers">{{editorial.footnote}}</p>
+  <div class="feat-grid">{{features_html}}</div>
 </section>
 
-<section class="section columns" id="features" aria-labelledby="col-title">
-  <header class="section-head">
-    <p class="kicker"><span>{{columns.kicker}}</span></p>
-    <h2 id="col-title">{{columns.title}}</h2>
-  </header>
-  <div class="col-grid">{{columns_html}}</div>
+<section class="section why" id="why" aria-labelledby="ed-title">
+  <div class="why-card card">
+    <h2 id="ed-title">{{editorial.title}}</h2>
+    <div class="why-body">{{editorial_html}}</div>
+    <p class="footnote" id="fn-papers">{{editorial.footnote}}</p>
+  </div>
 </section>
 
 <section class="section numbers" id="numbers" aria-labelledby="num-title">
   <header class="section-head">
-    <p class="kicker"><span>{{numbers.kicker}}</span></p>
     <h2 id="num-title">{{numbers.title}}</h2>
-    <p class="lede">{{numbers.lede}}</p>
   </header>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="/assets/numbers-{{lang}}-dark.svg">
-    <img class="numbers-img" src="/assets/numbers-{{lang}}-light.svg" width="880" height="350" loading="lazy" decoding="async" alt="{{numbers.alt}}">
-  </picture>
+  <h3 class="num-group less">{{numbers.less_title}}</h3>
+  <ul class="num-grid less">{{numbers_less_html}}</ul>
+  <h3 class="num-group more">{{numbers.more_title}} <span class="num-note">· {{numbers.more_note}}</span></h3>
+  <ul class="num-grid more">{{numbers_more_html}}</ul>
 </section>
 
 <section class="section watch" id="watch" aria-labelledby="watch-title">
   <header class="section-head">
-    <p class="kicker"><span>{{watch.kicker}}</span></p>
     <h2 id="watch-title">{{watch.title}}</h2>
   </header>
   <figure class="video">
@@ -154,10 +149,10 @@
 
 <section class="section get" id="download" aria-labelledby="get-title">
   <header class="section-head">
-    <p class="kicker"><span>{{get.kicker}}</span></p>
     <h2 id="get-title">{{get.title}}</h2>
     <p class="lede">{{get.lede}}</p>
   </header>
+  <div class="dl-card card">
   <table class="dl-table">
     <caption class="sr-only">{{get.table_caption}}</caption>
     <thead><tr><th scope="col">{{get.col_platform}}</th><th scope="col">{{get.col_file}}</th><th scope="col">{{get.col_size}}</th><th scope="col"><span class="sr-only">{{get.download}}</span></th></tr></thead>
@@ -167,8 +162,9 @@
     </tbody>
   </table>
   <p class="all-releases"><a href="https://github.com/Chandery/PageTide/releases" rel="noopener">{{get.all_releases}} →</a></p>
+  </div>
 
-  <div class="first-launch" role="note">
+  <div class="first-launch card" role="note">
     <h3>{{get.first_title}}</h3>
     <p>{{get.first_lead}}</p>
     <div class="fl-cols">
@@ -186,11 +182,11 @@
   </div>
 
   <div class="req-cols">
-    <div>
+    <div class="card">
       <h3>{{get.req_title}}</h3>
       <ul><li>{{get.req_mac}}</li><li>{{get.req_win}}</li></ul>
     </div>
-    <div>
+    <div class="card">
       <h3>{{get.keys_title}}</h3>
       <p>{{get.keys_lead}}</p>
       <ul>{{keys_html}}</ul>
@@ -199,25 +195,24 @@
 </section>
 
 <section class="section contribute" id="contribute" aria-labelledby="contrib-title">
-  <header class="section-head">
-    <p class="kicker"><span>{{contribute.kicker}}</span></p>
+  <div class="contrib-card card">
     <h2 id="contrib-title">{{contribute.title}}</h2>
-  </header>
-  <p class="contrib-body">{{contribute.body}}</p>
-  <p class="contrib-links">
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/issues" rel="noopener">{{contribute.issues}}</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/pulls" rel="noopener">{{contribute.pulls}}</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/blob/main/CONTRIBUTING.md" rel="noopener">{{contribute.guide}}</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide" rel="noopener">{{contribute.repo}}</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/releases" rel="noopener">{{contribute.releases}}</a>
-  </p>
+    <p class="contrib-body">{{contribute.body}}</p>
+    <p class="contrib-links">
+      <a class="btn btn-primary" href="https://github.com/Chandery/PageTide/issues" rel="noopener">{{contribute.issues}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/pulls" rel="noopener">{{contribute.pulls}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/blob/main/CONTRIBUTING.md" rel="noopener">{{contribute.guide}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide" rel="noopener">{{contribute.repo}}</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/releases" rel="noopener">{{contribute.releases}}</a>
+    </p>
+  </div>
 </section>
 </main>
 
 <footer class="colophon">
   <p><strong>{{footer.license}}</strong> · <a href="https://github.com/Chandery/PageTide" rel="noopener">GitHub</a> · v{{version}}</p>
   <p>{{footer.privacy}}</p>
-  <p>{{footer.music}}</p>
+  <p>{{footer.music}} · {{footer.icons}}</p>
   <p>{{footer.arxiv}}</p>
 </footer>
 

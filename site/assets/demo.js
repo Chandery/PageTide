@@ -26,8 +26,9 @@
   }
 
   function storyInner(p, rank, matched) {
-    var why = matched.length ? ui.matched + ui.colon + matched.slice(0, 4).map(esc).join(" · ") : "";
-    return '<p class="kicker-line"><span class="rank" aria-hidden="true">' + rank + '</span><span class="badge">' + esc(p.source) +
+    var why = matched.length ? '<span class="why-label">' + esc(ui.matched) + '</span>' +
+      matched.slice(0, 4).map(function (m) { return '<span class="kw">' + esc(m) + '</span>'; }).join("") : "";
+    return '<p class="story-meta"><span class="rank" aria-hidden="true">' + rank + '</span><span class="st">' + esc(p.source) +
       '</span> <time datetime="' + esc(p.date) + '">' + esc(p.date) + '</time></p>' +
       '<h3><a href="https://arxiv.org/abs/' + esc(p.id) + '" rel="noopener">' + esc(p.title) + '</a></h3>' +
       '<p class="by">' + esc(p.authors[0]) + " " + esc(ui.et_al) + '</p><p class="blurb">' + esc(p.preview[lang]) + '</p>' +

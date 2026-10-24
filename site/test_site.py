@@ -86,7 +86,7 @@ def contrast(a, b):
 class SiteTests(unittest.TestCase):
     def test_pages_exist_and_are_current(self):
         before = {k: p.read_bytes() for k, p in PAGES.items()}
-        date = re.search(r'<time datetime="(\d{4}-\d{2}-\d{2})"', before["en"].decode()).group(1)
+        date = re.search(r"<lastmod>(\d{4}-\d{2}-\d{2})</lastmod>", (HERE / "sitemap.xml").read_text()).group(1)
         extra = {n: (HERE / n).read_bytes() for n in ("sitemap.xml", "assets/papers.json")}
         try:
             build.build(date)
@@ -143,7 +143,7 @@ class SiteTests(unittest.TestCase):
                 if t:
                     paths.add(t)
         for f in ("favicon.ico", "favicon.png", "apple-touch-icon.png", "site.webmanifest", "robots.txt", "sitemap.xml",
-                  "vercel.json", "assets/papers.json", "assets/wave.svg", "assets/rank.js", "assets/demo.js", "assets/site.js",
+                  "vercel.json", "assets/papers.json", "assets/rank.js", "assets/demo.js", "assets/site.js",
                   "assets/platform.js", "assets/site.css", "index.html", "zh/index.html"):
             paths.add(HERE / f)
         for p in sorted(paths):
@@ -175,8 +175,8 @@ class SiteTests(unittest.TestCase):
                     out.add(p + k)
             return out
         self.assertEqual(keys(en), keys(zh))
-        self.assertEqual(len(en["columns"]["items"]), 6)
-        self.assertEqual(len(zh["columns"]["items"]), 6)
+        self.assertEqual(len(en["features"]["items"]), 6)
+        self.assertEqual(len(zh["features"]["items"]), 6)
         for lang, path in PAGES.items():
             p = parse(path)
             for img in p.imgs:
@@ -184,6 +184,11 @@ class SiteTests(unittest.TestCase):
             self.assertEqual(len(p.ids), len(set(p.ids)), "duplicate ids on " + lang)
             for anchor in ("today", "why", "features", "numbers", "watch", "download", "contribute", "main"):
                 self.assertIn(anchor, p.ids)
+        # no newspaper wording on either page
+        for path in PAGES.values():
+            low = path.read_text(encoding="utf-8")
+            for word in ("Daily Tide", "每日潮报", "Editorial", "社论", "专栏", "数据版", "影像版", "订阅指南", "读者来信", "From readers", "Vol. 1"):
+                self.assertNotIn(word, low)
         # screenshots follow the page language
         self.assertIn("/assets/zh-today.png", PAGES["zh"].read_text(encoding="utf-8"))
         self.assertNotIn("/assets/zh-today.png", PAGES["en"].read_text(encoding="utf-8"))
@@ -219,11 +224,13 @@ class SiteTests(unittest.TestCase):
     def test_colour_contrast_is_aa(self):
         css = (HERE / "assets/site.css").read_text(encoding="utf-8")
         light = dict(re.findall(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})", re.search(r":root \{(.*?)\n\}", css, re.S).group(1)))
+        self.assertEqual(light["accent"], "#0a6bef", "the site must use the app's accent")
         dark = dict(re.findall(r"--([\w-]+):\s*(#[0-9a-fA-F]{6})",
                                re.search(r"prefers-color-scheme: dark\) \{\s*:root \{(.*?)\n  \}", css, re.S).group(1)))
         dark = dict(light, **dark)
-        pairs = [("ink", "paper"), ("ink", "paper-2"), ("muted", "paper"), ("muted", "paper-2"), ("accent-text", "paper"),
-                 ("accent-text", "paper-2"), ("btn-ink", "btn"), ("warn-ink", "warn-bg"), ("good", "paper")]
+        pairs = [("text", "base"), ("text", "surface-1"), ("text", "surface-2"), ("muted", "base"), ("muted", "surface-1"),
+                 ("muted", "surface-2"), ("accent-text", "base"), ("accent-text", "surface-1"), ("accent-text", "surface-2"),
+                 ("accent-ink", "accent"), ("good", "surface-1"), ("good", "base"), ("warn", "surface-1"), ("warn", "base")]
         for name, theme in (("light", light), ("dark", dark)):
             for fg, bg in pairs:
                 self.assertGreaterEqual(contrast(theme[fg], theme[bg]), 4.5, "%s: %s on %s" % (name, fg, bg))

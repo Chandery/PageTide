@@ -56,6 +56,13 @@ def papers_json():
     return out
 
 
+def icon(name):
+    """Inline a Lucide icon (ISC) from the app's own icon set so the site and the app share one look."""
+    svg = (REPO / "app" / "static" / "icons" / (name + ".svg")).read_text(encoding="utf-8")
+    svg = re.sub(r'\s+(width|height)="24"', "", svg, count=2)
+    return svg.replace("<svg", '<svg class="icon" aria-hidden="true" focusable="false"', 1).replace("\n", "").replace("  ", " ")
+
+
 def png_size(path):
     with open(path, "rb") as f:
         head = f.read(24)
@@ -84,8 +91,8 @@ def tag_html(text, weight, ui):
 
 def story_html(p, rank, lang, ui):
     first = p["authors"][0] + " " + ui["et_al"]
-    return ('<li class="story%s" data-id="%s"><p class="kicker-line"><span class="rank" aria-hidden="true">%d</span>'
-            '<span class="badge">%s</span> <time datetime="%s">%s</time></p>'
+    return ('<li class="story%s" data-id="%s"><p class="story-meta"><span class="rank" aria-hidden="true">%d</span>'
+            '<span class="st">%s</span> <time datetime="%s">%s</time></p>'
             '<h3><a href="https://arxiv.org/abs/%s" rel="noopener">%s</a></h3>'
             '<p class="by">%s</p><p class="blurb">%s</p><p class="why" hidden></p></li>'
             % (" lead" if rank == 1 else "", esc(p["id"]), rank, esc(p["source"]), esc(p["date"]), esc(p["date"]),
@@ -125,30 +132,29 @@ def build(date):
         t = json.loads((HERE / "i18n" / ("%s.json" % lang)).read_text(encoding="utf-8"))
         ui = t["demo"]["ui"]
         ctx = {k: v.replace("{version}", ver) for k, v in flat(t).items()}
-        d = datetime.date.fromisoformat(date)
-        # strftime's %-d / %-m are not portable, so the date format is filled in by hand
-        shown = (t["meta"]["date_fmt"].replace("%B", d.strftime("%B")).replace("%Y", str(d.year))
-                 .replace("%-m", str(d.month)).replace("%-d", str(d.day)))
-        ctx["masthead.dateline"] = t["masthead"]["dateline"].replace("{date}", shown)
         other = "zh" if lang == "en" else "en"
         ctx.update({
             "html_lang": t["html_lang"], "lang": lang, "path": t["path"], "other_path": t["other_path"],
             "other_hreflang": "zh-Hans" if other == "zh" else "en",
             "canonical": pages[lang], "url_en": pages["en"], "url_zh": pages["zh"], "site": SITE,
-            "build_date": date, "version": ver, "asset_v": asset_v,
+            "version": ver, "asset_v": asset_v,
             "mac_file": mac_file, "win_file": win_file, "mac_url": mac_url, "win_url": win_url,
         })
         ctx["tags_html"] = "".join(tag_html(tx, w, ui) for tx, w in DEFAULT_TAGS)
         ctx["stories_html"] = "".join(story_html(by_id[i], n + 1, lang, ui) for n, i in enumerate(INITIAL_IDS))
         ctx["editorial_html"] = "".join("<p>%s</p>" % para for para in t["editorial"]["body"])
-        cols = []
-        for it in t["columns"]["items"]:
+        feats = []
+        for it in t["features"]["items"]:
             base = "/assets/%s-%s" % (lang, it["img"])
             w, h = png_size(HERE / "assets" / ("%s-%s.png" % (lang, it["img"])))
-            cols.append('<article class="col"><figure><picture><source type="image/webp" srcset="%s.webp">'
-                        '<img src="%s.png" width="%d" height="%d" loading="lazy" decoding="async" alt="%s"></picture></figure>'
-                        '<h3>%s</h3><p>%s</p></article>' % (base, base, w, h, esc(it["alt"]), it["title"], it["body"]))
-        ctx["columns_html"] = "".join(cols)
+            feats.append('<article class="feat card"><span class="feat-icon">%s</span><h3>%s</h3><p>%s</p>'
+                         '<figure><picture><source type="image/webp" srcset="%s.webp">'
+                         '<img src="%s.png" width="%d" height="%d" loading="lazy" decoding="async" alt="%s"></picture></figure></article>'
+                         % (icon(it["icon"]), it["title"], it["body"], base, base, w, h, esc(it["alt"])))
+        ctx["features_html"] = "".join(feats)
+        for kind in ("less", "more"):
+            ctx["numbers_%s_html" % kind] = "".join('<li class="num card"><span class="num-v">%s</span><span class="num-t">%s</span></li>'
+                                                    % (esc(n["v"]), esc(n["t"])) for n in t["numbers"][kind])
         ctx["keys_html"] = "".join("<li><strong>%s</strong> %s</li>" % (k["name"], k["note"]) for k in t["get"]["keys"])
         banner = ""
         if lang == "en":

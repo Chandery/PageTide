@@ -30,9 +30,8 @@ def main():
             f = f"{lang}-{name}.png"
             shutil.copy2(README / f, OUT / f)
             webp(README / f, OUT / f.replace(".png", ".webp"), 1000)
-        for theme in ("light", "dark"):
-            f = f"numbers-{lang}-{theme}.svg"
-            shutil.copy2(README / f, OUT / f)
+    for lang in ("en", "zh"):
+        webp(README / f"{lang}-today.png", OUT / f"{lang}-today-hero.webp", 1600, 84)
     webp(README / "cover.jpg", OUT / "cover.webp", 1280)
     shutil.copy2(README / "cover.jpg", OUT / "cover.jpg")
     shutil.copy2(MAIN / ".local/readme-video/pagetide-readme-cover-first.mp4", OUT / "pagetide-promo.mp4")

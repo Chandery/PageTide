@@ -31,31 +31,27 @@
 <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="stylesheet" href="/assets/site.css?v=15e48fec">
+<link rel="stylesheet" href="/assets/site.css?v=5530cd2a">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "PageTide", "description": "PageTide learns your research profile, recommends new papers every day, and keeps them in a library you own. Open source, no account, no telemetry. For macOS and Windows.", "url": "https://pagetide.chandery.org/", "applicationCategory": "ProductivityApplication", "operatingSystem": "macOS, Windows", "softwareVersion": "0.1.1", "inLanguage": ["en", "zh-Hans"], "license": "https://opensource.org/licenses/MIT", "downloadUrl": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "image": "https://pagetide.chandery.org/assets/og.png", "author": {"@type": "Person", "name": "Chandery"}, "sameAs": ["https://github.com/Chandery/PageTide"], "codeRepository": "https://github.com/Chandery/PageTide"}</script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 
-<header class="masthead" id="top">
-  <div class="dateline-bar">
-    <p class="dateline"><time datetime="2026-10-25">Vol. 1 · October 25, 2026 · Today’s issue</time></p>
+<header class="topbar" id="top">
+  <div class="topbar-in">
+    <a class="brand" href="/" aria-label="PageTide home">
+      <img class="brand-icon" src="/assets/icon.png" width="32" height="32" alt="">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="/assets/wordmark-dark.png">
+        <img class="brand-word" src="/assets/wordmark.png" width="403" height="96" alt="PageTide">
+      </picture>
+    </a>
     <nav class="nav" aria-label="Main navigation">
       <a href="#features">Features</a>
       <a href="#download">Download</a>
       <a href="https://github.com/Chandery/PageTide" rel="noopener">GitHub</a>
       <a class="lang-switch" href="/zh/" hreflang="zh-Hans" lang="zh-Hans" aria-label="查看中文版" data-lang-switch>中文</a>
     </nav>
-  </div>
-  <div class="nameplate">
-    <a class="brand" href="/" aria-label="PageTide home">
-      <img class="brand-icon" src="/assets/icon.png" width="48" height="48" alt="">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="/assets/wordmark-dark.png">
-        <img class="brand-word" src="/assets/wordmark.png" width="403" height="96" alt="PageTide">
-      </picture>
-    </a>
-    <p class="edition">The Daily Tide</p>
   </div>
 </header>
 
@@ -76,17 +72,21 @@
     <p class="cta-alt" id="cta-alt" hidden></p>
   </div>
   <p class="fine">MIT · No account · No telemetry</p>
-  <div class="sea" role="img" aria-label="A slow wave"><span class="wave wave-b"></span><span class="wave wave-a"></span></div>
+  <figure class="hero-shot">
+    <picture>
+      <source type="image/webp" srcset="/assets/en-today-hero.webp">
+      <img src="/assets/en-today.png" width="1600" height="1000" fetchpriority="high" decoding="async" alt="The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons.">
+    </picture>
+  </figure>
 </section>
 
 <section class="section demo" id="today" aria-labelledby="demo-title">
   <header class="section-head">
-    <p class="kicker"><span>Front page</span></p>
-    <h2 id="demo-title">Today’s 5</h2>
-    <p class="lede">Tune the profile and the five stories re-rank. Click a keyword to cycle strong, weak and off, or add your own.</p>
+    <h2 id="demo-title">Try the profile</h2>
+    <p class="lede">Change a keyword and today’s five picks re-rank. Click a keyword to cycle strong, weak and off, or add your own.</p>
   </header>
   <div class="demo-grid">
-    <aside class="profile" aria-labelledby="profile-title">
+    <aside class="profile card" aria-labelledby="profile-title">
       <h3 id="profile-title">Your profile</h3>
       <p class="hint">Keywords the demo ranks by</p>
       <ul class="tags" id="tags"><li class="tag-item" data-w="strong"><button type="button" class="tag" data-tag="transformer" aria-label="transformer: strong. Press to change the weight."><span class="tag-text">transformer</span><span class="tag-w">strong</span></button><button type="button" class="tag-x" data-remove="transformer" aria-label="Remove transformer"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="strong"><button type="button" class="tag" data-tag="attention" aria-label="attention: strong. Press to change the weight."><span class="tag-text">attention</span><span class="tag-w">strong</span></button><button type="button" class="tag-x" data-remove="attention" aria-label="Remove attention"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="vision" aria-label="vision: weak. Press to change the weight."><span class="tag-text">vision</span><span class="tag-w">weak</span></button><button type="button" class="tag-x" data-remove="vision" aria-label="Remove vision"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="efficient attention" aria-label="efficient attention: weak. Press to change the weight."><span class="tag-text">efficient attention</span><span class="tag-w">weak</span></button><button type="button" class="tag-x" data-remove="efficient attention" aria-label="Remove efficient attention"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="weak"><button type="button" class="tag" data-tag="alignment" aria-label="alignment: weak. Press to change the weight."><span class="tag-text">alignment</span><span class="tag-w">weak</span></button><button type="button" class="tag-x" data-remove="alignment" aria-label="Remove alignment"><span aria-hidden="true">×</span></button></li><li class="tag-item" data-w="strong"><button type="button" class="tag" data-tag="language model" aria-label="language model: strong. Press to change the weight."><span class="tag-text">language model</span><span class="tag-w">strong</span></button><button type="button" class="tag-x" data-remove="language model" aria-label="Remove language model"><span aria-hidden="true">×</span></button></li></ul>
@@ -94,54 +94,49 @@
         <label for="add-input">Add a keyword</label>
         <div class="add-row">
           <input id="add-input" type="text" maxlength="40" placeholder="e.g. diffusion" enterkeyhint="done">
-          <button class="btn btn-small" type="submit">Add</button>
+          <button class="btn btn-small btn-primary" type="submit">Add</button>
         </div>
       </form>
-      <button class="btn btn-small btn-quiet" id="reset" type="button">Reset</button>
+      <button class="btn btn-small" id="reset" type="button">Reset</button>
     </aside>
     <div class="stories-wrap">
-      <ol class="stories" id="stories" aria-label="Today’s five papers"><li class="story lead" data-id="2012.12877"><p class="kicker-line"><span class="rank" aria-hidden="true">1</span><span class="badge">arXiv</span> <time datetime="2020-12-23">2020-12-23</time></p><h3><a href="https://arxiv.org/abs/2012.12877" rel="noopener">Training data-efficient image transformers &amp; distillation through attention</a></h3><p class="by">Hugo Touvron et al.</p><p class="blurb">A better recipe plus a distillation token lets a Vision Transformer train on ImageNet alone.</p><p class="why" hidden></p></li><li class="story" data-id="2006.04768"><p class="kicker-line"><span class="rank" aria-hidden="true">2</span><span class="badge">arXiv</span> <time datetime="2020-06-08">2020-06-08</time></p><h3><a href="https://arxiv.org/abs/2006.04768" rel="noopener">Linformer: Self-Attention with Linear Complexity</a></h3><p class="by">Sinong Wang et al.</p><p class="blurb">The attention matrix is nearly low rank, so projecting keys and values to a shorter length gives linear cost.</p><p class="why" hidden></p></li><li class="story" data-id="2001.04451"><p class="kicker-line"><span class="rank" aria-hidden="true">3</span><span class="badge">arXiv</span> <time datetime="2020-01-13">2020-01-13</time></p><h3><a href="https://arxiv.org/abs/2001.04451" rel="noopener">Reformer: The Efficient Transformer</a></h3><p class="by">Nikita Kitaev et al.</p><p class="blurb">Uses hashing to find similar keys and reversible layers to save memory, making long-sequence Transformers cheaper.</p><p class="why" hidden></p></li><li class="story" data-id="2103.14030"><p class="kicker-line"><span class="rank" aria-hidden="true">4</span><span class="badge">arXiv</span> <time datetime="2021-03-25">2021-03-25</time></p><h3><a href="https://arxiv.org/abs/2103.14030" rel="noopener">Swin Transformer: Hierarchical Vision Transformer using Shifted Windows</a></h3><p class="by">Ze Liu et al.</p><p class="blurb">Does attention inside shifted local windows and merges patches layer by layer, so cost grows linearly with image size.</p><p class="why" hidden></p></li><li class="story" data-id="1706.03762"><p class="kicker-line"><span class="rank" aria-hidden="true">5</span><span class="badge">arXiv</span> <time datetime="2017-06-12">2017-06-12</time></p><h3><a href="https://arxiv.org/abs/1706.03762" rel="noopener">Attention Is All You Need</a></h3><p class="by">Ashish Vaswani et al.</p><p class="blurb">Introduces the Transformer, built on attention alone with no recurrence or convolution, which trains faster and translates better.</p><p class="why" hidden></p></li></ol>
+      <ol class="stories" id="stories" aria-label="Today’s five papers"><li class="story lead" data-id="2012.12877"><p class="story-meta"><span class="rank" aria-hidden="true">1</span><span class="st">arXiv</span> <time datetime="2020-12-23">2020-12-23</time></p><h3><a href="https://arxiv.org/abs/2012.12877" rel="noopener">Training data-efficient image transformers &amp; distillation through attention</a></h3><p class="by">Hugo Touvron et al.</p><p class="blurb">A better recipe plus a distillation token lets a Vision Transformer train on ImageNet alone.</p><p class="why" hidden></p></li><li class="story" data-id="2006.04768"><p class="story-meta"><span class="rank" aria-hidden="true">2</span><span class="st">arXiv</span> <time datetime="2020-06-08">2020-06-08</time></p><h3><a href="https://arxiv.org/abs/2006.04768" rel="noopener">Linformer: Self-Attention with Linear Complexity</a></h3><p class="by">Sinong Wang et al.</p><p class="blurb">The attention matrix is nearly low rank, so projecting keys and values to a shorter length gives linear cost.</p><p class="why" hidden></p></li><li class="story" data-id="2001.04451"><p class="story-meta"><span class="rank" aria-hidden="true">3</span><span class="st">arXiv</span> <time datetime="2020-01-13">2020-01-13</time></p><h3><a href="https://arxiv.org/abs/2001.04451" rel="noopener">Reformer: The Efficient Transformer</a></h3><p class="by">Nikita Kitaev et al.</p><p class="blurb">Uses hashing to find similar keys and reversible layers to save memory, making long-sequence Transformers cheaper.</p><p class="why" hidden></p></li><li class="story" data-id="2103.14030"><p class="story-meta"><span class="rank" aria-hidden="true">4</span><span class="st">arXiv</span> <time datetime="2021-03-25">2021-03-25</time></p><h3><a href="https://arxiv.org/abs/2103.14030" rel="noopener">Swin Transformer: Hierarchical Vision Transformer using Shifted Windows</a></h3><p class="by">Ze Liu et al.</p><p class="blurb">Does attention inside shifted local windows and merges patches layer by layer, so cost grows linearly with image size.</p><p class="why" hidden></p></li><li class="story" data-id="1706.03762"><p class="story-meta"><span class="rank" aria-hidden="true">5</span><span class="st">arXiv</span> <time datetime="2017-06-12">2017-06-12</time></p><h3><a href="https://arxiv.org/abs/1706.03762" rel="noopener">Attention Is All You Need</a></h3><p class="by">Ashish Vaswani et al.</p><p class="blurb">Introduces the Transformer, built on attention alone with no recurrence or convolution, which trains faster and translates better.</p><p class="why" hidden></p></li></ol>
       <noscript><p class="noscript">The demo needs JavaScript. The five papers below are the unranked default.</p></noscript>
       <p class="demo-status" id="demo-status" role="status" aria-live="polite"></p>
-      <p class="demo-meta"><span class="badge badge-zero">Ranked in your browser · 0 tokens</span> Ranked from the 29 papers of the app’s demo project.</p>
-      <p class="demo-meta">Simplified demo — the app ranks with your full profile and feedback.</p>
+      <p class="demo-meta"><span class="st st-zero">Ranked in your browser · 0 tokens</span></p>
+      <p class="demo-meta">Ranked from the 29 papers of the app’s demo project. Simplified demo — the app ranks with your full profile and feedback.</p>
     </div>
   </div>
 </section>
 
-<section class="section editorial" id="why" aria-labelledby="ed-title">
+<section class="section features" id="features" aria-labelledby="col-title">
   <header class="section-head">
-    <p class="kicker"><span>Editorial</span></p>
-    <h2 id="ed-title">More papers is not the problem. Finding yours is.</h2>
+    <h2 id="col-title">Everything for your reading, in one app</h2>
   </header>
-  <div class="ed-body"><p>About 20,000 new papers appear every day<sup><a href="#fn-papers" id="fnref-papers">1</a></sup>. A handful of them matter to your work, and no one can read a feed that long. Most tools answer with a bigger feed. PageTide answers with a smaller one.</p><p>It learns a research profile from what you mark useful or not relevant, then ranks each day’s new papers on your own computer. The profile is a list of plain words you can read, correct and delete. AI is optional, and its job is to explain a paper to you, not to choose it for you.</p><p>Your library, your PDFs, your notes and your profile stay on your computer. There is no account, no server and no telemetry.</p></div>
-  <p class="footnote" id="fn-papers"><a href="#fnref-papers" aria-label="Back to the text">1</a> OpenAlex lists 626,339 journal articles published in September 2026, about 20,900 a day; queried 2026-10-25. Source: <a href="https://openalex.org" rel="noopener">OpenAlex</a>.</p>
+  <div class="feat-grid"><article class="feat card"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></svg></span><h3>Daily picks, explained</h3><p>Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews all five picks at once.</p><figure><picture><source type="image/webp" srcset="/assets/en-today.webp"><img src="/assets/en-today.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons."></picture></figure></article><article class="feat card"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <line x1="21" x2="14" y1="4" y2="4" /> <line x1="10" x2="3" y1="4" y2="4" /> <line x1="21" x2="12" y1="12" y2="12" /> <line x1="8" x2="3" y1="12" y2="12" /> <line x1="21" x2="16" y1="20" y2="20" /> <line x1="12" x2="3" y1="20" y2="20" /> <line x1="14" x2="14" y1="2" y2="6" /> <line x1="8" x2="8" y1="10" y2="14" /> <line x1="16" x2="16" y1="18" y2="22" /></svg></span><h3>A profile you can read and edit</h3><p>No black box. See the terms behind every pick, pin or remove keywords, and undo any feedback. Doing nothing never counts as a dislike.</p><figure><picture><source type="image/webp" srcset="/assets/en-profile.webp"><img src="/assets/en-profile.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The profile screen: the keywords behind every pick, with weights, pins and an undo list."></picture></figure></article><article class="feat card"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m16 6 4 14" /> <path d="M12 6v14" /> <path d="M8 8v12" /> <path d="M4 4v16" /></svg></span><h3>A library that connects itself</h3><p>Saved papers become a list and a graph of related work. Open-access PDFs are archived on your computer, and nothing is reorganized until you confirm.</p><figure><picture><source type="image/webp" srcset="/assets/en-graph.webp"><img src="/assets/en-graph.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The library graph: saved papers grouped into directions and linked to related work."></picture></figure></article><article class="feat card"><span class="feat-icon"><svg class="icon" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M12 7v14" /> <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg></span><h3>Highlight, ask, understand</h3><p>Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.</p><figure><picture><source type="image/webp" srcset="/assets/en-reader-ask.webp"><img src="/assets/en-reader-ask.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The PDF reader with a highlighted sentence and an answer to a follow-up question beside the page."></picture></figure></article><article class="feat card"><span class="feat-icon"><!-- @license lucide-static v1.46.0 - ISC --><svg class="icon" aria-hidden="true" focusable="false" class="lucide lucide-folder-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg></span><h3>Bring what you have</h3><p>Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX, RIS or CSL JSON.</p><figure><picture><source type="image/webp" srcset="/assets/en-import.webp"><img src="/assets/en-import.png" width="1200" height="778" loading="lazy" decoding="async" alt="The import screen with PDF files, folders, BibTeX, RIS and CSL JSON."></picture></figure></article><article class="feat card"><span class="feat-icon"><!-- @license lucide-static v1.46.0 - ISC --><svg class="icon" aria-hidden="true" focusable="false" class="lucide lucide-chart-column" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg></span><h3>A weekly report</h3><p>What you saved, what you skipped and which directions grew this week, so the shape of your reading is visible.</p><figure><picture><source type="image/webp" srcset="/assets/en-weekly.webp"><img src="/assets/en-weekly.png" width="1200" height="776" loading="lazy" decoding="async" alt="The weekly report: what you saved, what you skipped and which directions grew."></picture></figure></article></div>
 </section>
 
-<section class="section columns" id="features" aria-labelledby="col-title">
-  <header class="section-head">
-    <p class="kicker"><span>Columns</span></p>
-    <h2 id="col-title">What PageTide does</h2>
-  </header>
-  <div class="col-grid"><article class="col"><figure><picture><source type="image/webp" srcset="/assets/en-today.webp"><img src="/assets/en-today.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons."></picture></figure><h3>Daily picks, explained</h3><p>Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews all five picks at once.</p></article><article class="col"><figure><picture><source type="image/webp" srcset="/assets/en-profile.webp"><img src="/assets/en-profile.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The profile screen: the keywords behind every pick, with weights, pins and an undo list."></picture></figure><h3>A profile you can read and edit</h3><p>No black box. See the terms behind every pick, pin or remove keywords, and undo any feedback. Doing nothing never counts as a dislike.</p></article><article class="col"><figure><picture><source type="image/webp" srcset="/assets/en-graph.webp"><img src="/assets/en-graph.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The library graph: saved papers grouped into directions and linked to related work."></picture></figure><h3>A library that connects itself</h3><p>Saved papers become a list and a graph of related work. Open-access PDFs are archived on your computer, and nothing is reorganized until you confirm.</p></article><article class="col"><figure><picture><source type="image/webp" srcset="/assets/en-reader-ask.webp"><img src="/assets/en-reader-ask.png" width="1600" height="1000" loading="lazy" decoding="async" alt="The PDF reader with a highlighted sentence and an answer to a follow-up question beside the page."></picture></figure><h3>Highlight, ask, understand</h3><p>Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.</p></article><article class="col"><figure><picture><source type="image/webp" srcset="/assets/en-import.webp"><img src="/assets/en-import.png" width="1200" height="778" loading="lazy" decoding="async" alt="The import screen with PDF files, folders, BibTeX, RIS and CSL JSON."></picture></figure><h3>Bring what you have</h3><p>Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX, RIS or CSL JSON.</p></article><article class="col"><figure><picture><source type="image/webp" srcset="/assets/en-weekly.webp"><img src="/assets/en-weekly.png" width="1200" height="776" loading="lazy" decoding="async" alt="The weekly report: what you saved, what you skipped and which directions grew."></picture></figure><h3>A weekly report</h3><p>What you saved, what you skipped and which directions grew this week, so the shape of your reading is visible.</p></article></div>
+<section class="section why" id="why" aria-labelledby="ed-title">
+  <div class="why-card card">
+    <h2 id="ed-title">More papers is not the problem. Finding yours is.</h2>
+    <div class="why-body"><p>About 20,000 new papers appear every day<sup><a href="#fn-papers" id="fnref-papers">1</a></sup>. A handful of them matter to your work, and no one can read a feed that long. Most tools answer with a bigger feed. PageTide answers with a smaller one.</p><p>It learns a research profile from what you mark useful or not relevant, then ranks each day’s new papers on your own computer. The profile is a list of plain words you can read, correct and delete. AI is optional, and its job is to explain a paper to you, not to choose it for you.</p><p>Your library, your PDFs, your notes and your profile stay on your computer. There is no account, no server and no telemetry.</p></div>
+    <p class="footnote" id="fn-papers"><a href="#fnref-papers" aria-label="Back to the text">1</a> OpenAlex lists 626,339 journal articles published in September 2026, about 20,900 a day; queried 2026-10-25. Source: <a href="https://openalex.org" rel="noopener">OpenAlex</a>.</p>
+  </div>
 </section>
 
 <section class="section numbers" id="numbers" aria-labelledby="num-title">
   <header class="section-head">
-    <p class="kicker"><span>By the numbers</span></p>
     <h2 id="num-title">Less is more. More for you.</h2>
-    <p class="lede">Green is what gets smaller, blue is what grows.</p>
   </header>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="/assets/numbers-en-dark.svg">
-    <img class="numbers-img" src="/assets/numbers-en-light.svg" width="880" height="350" loading="lazy" decoding="async" alt="PageTide by the numbers: zero tokens to rank papers, zero accounts, a single AI call for five previews, a 22 MB download; 3 open sources, 5 ways to import, 3 ways to start a project, 2 platforms by 2 languages.">
-  </picture>
+  <h3 class="num-group less">↓ Less is more</h3>
+  <ul class="num-grid less"><li class="num card"><span class="num-v">Zero</span><span class="num-t">model tokens to rank papers and learn your profile</span></li><li class="num card"><span class="num-v">Zero</span><span class="num-t">accounts, servers or telemetry</span></li><li class="num card"><span class="num-v">Single</span><span class="num-t">AI call previews five picks at once</span></li><li class="num card"><span class="num-v">22 MB</span><span class="num-t">download on macOS (17 MB on Windows)</span></li></ul>
+  <h3 class="num-group more">↑ More for you <span class="num-note">· and growing with every release</span></h3>
+  <ul class="num-grid more"><li class="num card"><span class="num-v">3</span><span class="num-t">open sources: arXiv, OpenAlex, Baidu Scholar</span></li><li class="num card"><span class="num-v">5</span><span class="num-t">ways to import: PDFs, folders, BibTeX, RIS, CSL</span></li><li class="num card"><span class="num-v">3</span><span class="num-t">ways to start a project: quick, AI-guided, manual</span></li><li class="num card"><span class="num-v">2 × 2</span><span class="num-t">platforms × languages: macOS, Windows · EN, 中文</span></li></ul>
 </section>
 
 <section class="section watch" id="watch" aria-labelledby="watch-title">
   <header class="section-head">
-    <p class="kicker"><span>Watch</span></p>
-    <h2 id="watch-title">Thirty seconds with PageTide</h2>
+    <h2 id="watch-title">Watch PageTide in 30 seconds</h2>
   </header>
   <figure class="video">
     <video controls preload="none" playsinline poster="/assets/cover.jpg" width="1920" height="1080" aria-label="PageTide promo video, 30 seconds">
@@ -154,10 +149,10 @@
 
 <section class="section get" id="download" aria-labelledby="get-title">
   <header class="section-head">
-    <p class="kicker"><span>Get PageTide</span></p>
-    <h2 id="get-title">Free to download. Yours to keep.</h2>
+    <h2 id="get-title">Download PageTide</h2>
     <p class="lede">Version 0.1.1. Free and open source under the MIT license.</p>
   </header>
+  <div class="dl-card card">
   <table class="dl-table">
     <caption class="sr-only">Downloads</caption>
     <thead><tr><th scope="col">Platform</th><th scope="col">File</th><th scope="col">Size</th><th scope="col"><span class="sr-only">Download</span></th></tr></thead>
@@ -167,8 +162,9 @@
     </tbody>
   </table>
   <p class="all-releases"><a href="https://github.com/Chandery/PageTide/releases" rel="noopener">All releases on GitHub →</a></p>
+  </div>
 
-  <div class="first-launch" role="note">
+  <div class="first-launch card" role="note">
     <h3>First launch: the app is not signed</h3>
     <p>PageTide is an independent open-source project with no paid code-signing certificate, so your system will warn you the first time. This is expected.</p>
     <div class="fl-cols">
@@ -186,11 +182,11 @@
   </div>
 
   <div class="req-cols">
-    <div>
+    <div class="card">
       <h3>Requirements</h3>
       <ul><li>macOS on Apple Silicon (M1 or later). Intel Macs are not supported yet.</li><li>Windows on x64.</li></ul>
     </div>
-    <div>
+    <div class="card">
       <h3>Keys for outside services</h3>
       <p>The core (picking, the profile, the library) works offline with no key. Optional services use your own key, stored on your computer.</p>
       <ul><li><strong>DeepSeek</strong> for the AI features (previews, questions, suggestions). Optional.</li><li><strong>OpenAlex</strong> for a wider paper source. Optional.</li><li><strong>Baidu Scholar</strong> needs a Qianfan key.</li><li><strong>arXiv</strong> needs no key.</li></ul>
@@ -199,33 +195,32 @@
 </section>
 
 <section class="section contribute" id="contribute" aria-labelledby="contrib-title">
-  <header class="section-head">
-    <p class="kicker"><span>From readers</span></p>
+  <div class="contrib-card card">
     <h2 id="contrib-title">Contributions welcome</h2>
-  </header>
-  <p class="contrib-body">PageTide is built in the open. Bug reports, feature ideas, documentation and translation fixes, and pull requests are all welcome, and small fixes count as much as new features. For a bigger change, please open an issue first so we can agree on the direction.</p>
-  <p class="contrib-links">
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/issues" rel="noopener">Open an issue</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/pulls" rel="noopener">Pull requests</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/blob/main/CONTRIBUTING.md" rel="noopener">Contributing guide</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide" rel="noopener">GitHub repository</a>
-    <a class="btn btn-ghost" href="https://github.com/Chandery/PageTide/releases" rel="noopener">Releases</a>
-  </p>
+    <p class="contrib-body">PageTide is built in the open. Bug reports, feature ideas, documentation and translation fixes, and pull requests are all welcome, and small fixes count as much as new features. For a bigger change, please open an issue first so we can agree on the direction.</p>
+    <p class="contrib-links">
+      <a class="btn btn-primary" href="https://github.com/Chandery/PageTide/issues" rel="noopener">Open an issue</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/pulls" rel="noopener">Pull requests</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/blob/main/CONTRIBUTING.md" rel="noopener">Contributing guide</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide" rel="noopener">GitHub repository</a>
+      <a class="btn" href="https://github.com/Chandery/PageTide/releases" rel="noopener">Releases</a>
+    </p>
+  </div>
 </section>
 </main>
 
 <footer class="colophon">
   <p><strong>MIT © Chandery</strong> · <a href="https://github.com/Chandery/PageTide" rel="noopener">GitHub</a> · v0.1.1</p>
   <p>This site uses no analytics or cookies. The app has zero telemetry too.</p>
-  <p>Music by Pumpupthemind</p>
+  <p>Music by Pumpupthemind · Icons: Lucide (ISC license)</p>
   <p>Thank you to arXiv for use of its open access interoperability.</p>
 </footer>
 
-<script type="application/json" id="demo-i18n">{"lang": "en", "ui": {"strong": "strong", "weak": "weak", "off": "off", "tag_aria": "{tag}: {weight}. Press to change the weight.", "remove": "Remove {tag}", "matched": "Matched", "nothing": "Nothing matches the profile, so the papers are in library order.", "unmatched": "No paper in this demo mentions: {tags}.", "announce": "Ranking updated. {list}", "reset_done": "Profile reset. {list}", "added": "Added {tag}.", "removed": "Removed {tag}.", "max": "The demo holds up to 12 keywords.", "dupe": "{tag} is already in the profile.", "load_failed": "The demo could not load its papers.", "et_al": "et al.", "colon": ": ", "weight_word": "weight"}, "initial_ids": ["2012.12877", "2006.04768", "2001.04451", "2103.14030", "1706.03762"], "default_tags": [{"text": "transformer", "w": "strong"}, {"text": "attention", "w": "strong"}, {"text": "vision", "w": "weak"}, {"text": "efficient attention", "w": "weak"}, {"text": "alignment", "w": "weak"}, {"text": "language model", "w": "strong"}], "papers_url": "/assets/papers.json?v=15e48fec"}</script>
+<script type="application/json" id="demo-i18n">{"lang": "en", "ui": {"strong": "strong", "weak": "weak", "off": "off", "tag_aria": "{tag}: {weight}. Press to change the weight.", "remove": "Remove {tag}", "matched": "Matched", "nothing": "Nothing matches the profile, so the papers are in library order.", "unmatched": "No paper in this demo mentions: {tags}.", "announce": "Ranking updated. {list}", "reset_done": "Profile reset. {list}", "added": "Added {tag}.", "removed": "Removed {tag}.", "max": "The demo holds up to 12 keywords.", "dupe": "{tag} is already in the profile.", "load_failed": "The demo could not load its papers.", "et_al": "et al.", "colon": ": ", "weight_word": "weight"}, "initial_ids": ["2012.12877", "2006.04768", "2001.04451", "2103.14030", "1706.03762"], "default_tags": [{"text": "transformer", "w": "strong"}, {"text": "attention", "w": "strong"}, {"text": "vision", "w": "weak"}, {"text": "efficient attention", "w": "weak"}, {"text": "alignment", "w": "weak"}, {"text": "language model", "w": "strong"}], "papers_url": "/assets/papers.json?v=5530cd2a"}</script>
 <script type="application/json" id="site-i18n">{"dl_mac": "Download for macOS (Apple Silicon)", "dl_win": "Download for Windows (x64)", "copy": "Open on a computer", "copied": "Link copied. Open it on your Mac or PC.", "copy_failed": "Copy this address: ", "note_mac_unknown": "Requires Apple Silicon (M1 or later). Intel Macs are not supported yet.", "note_mac_arm": "Apple Silicon detected · 22 MB", "note_mac_intel": "This looks like an Intel Mac. PageTide does not support Intel Macs yet.", "note_win": "Windows x64 · 17 MB · first launch needs “More info → Run anyway”", "note_mobile": "PageTide is a desktop app for macOS and Windows.", "other_os": "Also available for {other}.", "mac": "macOS", "win": "Windows", "share_title": "PageTide", "lang": "en", "mac_url": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide-macos-arm64.zip", "win_url": "https://github.com/Chandery/PageTide/releases/latest/download/PageTide_0.1.1_x64-setup.exe"}</script>
-<script src="/assets/platform.js?v=15e48fec" defer></script>
-<script src="/assets/site.js?v=15e48fec" defer></script>
-<script src="/assets/rank.js?v=15e48fec" defer></script>
-<script src="/assets/demo.js?v=15e48fec" defer></script>
+<script src="/assets/platform.js?v=5530cd2a" defer></script>
+<script src="/assets/site.js?v=5530cd2a" defer></script>
+<script src="/assets/rank.js?v=5530cd2a" defer></script>
+<script src="/assets/demo.js?v=5530cd2a" defer></script>
 </body>
 </html>

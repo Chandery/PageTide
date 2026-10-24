@@ -23,8 +23,6 @@
     "switch_label": "查看中文版"
   },
   "masthead": {
-    "edition": "The Daily Tide",
-    "dateline": "Vol. 1 · {date} · Today’s issue",
     "home": "PageTide home"
   },
   "hero": {
@@ -35,12 +33,11 @@
     "star": "★ Star on GitHub",
     "fine": "MIT · No account · No telemetry",
     "note_default": "macOS needs Apple Silicon (M1 or later). Windows needs x64.",
-    "sea_label": "A slow wave"
+    "shot_alt": "The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons."
   },
   "demo": {
-    "kicker": "Front page",
-    "title": "Today’s 5",
-    "lede": "Tune the profile and the five stories re-rank. Click a keyword to cycle strong, weak and off, or add your own.",
+    "title": "Try the profile",
+    "lede": "Change a keyword and today’s five picks re-rank. Click a keyword to cycle strong, weak and off, or add your own.",
     "profile_title": "Your profile",
     "profile_hint": "Keywords the demo ranks by",
     "add_label": "Add a keyword",
@@ -74,7 +71,6 @@
     }
   },
   "editorial": {
-    "kicker": "Editorial",
     "title": "More papers is not the problem. Finding yours is.",
     "body": [
       "About 20,000 new papers appear every day<sup><a href=\"#fn-papers\" id=\"fnref-papers\">1</a></sup>. A handful of them matter to your work, and no one can read a feed that long. Most tools answer with a bigger feed. PageTide answers with a smaller one.",
@@ -83,34 +79,56 @@
     ],
     "footnote": "<a href=\"#fnref-papers\" aria-label=\"Back to the text\">1</a> OpenAlex lists 626,339 journal articles published in September 2026, about 20,900 a day; queried 2026-10-25. Source: <a href=\"https://openalex.org\" rel=\"noopener\">OpenAlex</a>."
   },
-  "columns": {
-    "kicker": "Columns",
-    "title": "What PageTide does",
-    "items": [
-      {"img": "today", "alt": "The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons.", "title": "Daily picks, explained", "body": "Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews all five picks at once."},
-      {"img": "profile", "alt": "The profile screen: the keywords behind every pick, with weights, pins and an undo list.", "title": "A profile you can read and edit", "body": "No black box. See the terms behind every pick, pin or remove keywords, and undo any feedback. Doing nothing never counts as a dislike."},
-      {"img": "graph", "alt": "The library graph: saved papers grouped into directions and linked to related work.", "title": "A library that connects itself", "body": "Saved papers become a list and a graph of related work. Open-access PDFs are archived on your computer, and nothing is reorganized until you confirm."},
-      {"img": "reader-ask", "alt": "The PDF reader with a highlighted sentence and an answer to a follow-up question beside the page.", "title": "Highlight, ask, understand", "body": "Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page."},
-      {"img": "import", "alt": "The import screen with PDF files, folders, BibTeX, RIS and CSL JSON.", "title": "Bring what you have", "body": "Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX, RIS or CSL JSON."},
-      {"img": "weekly", "alt": "The weekly report: what you saved, what you skipped and which directions grew.", "title": "A weekly report", "body": "What you saved, what you skipped and which directions grew this week, so the shape of your reading is visible."}
+  "numbers": {
+    "title": "Less is more. More for you.",
+    "less_title": "↓ Less is more",
+    "more_title": "↑ More for you",
+    "more_note": "and growing with every release",
+    "less": [
+      {
+        "v": "Zero",
+        "t": "model tokens to rank papers and learn your profile"
+      },
+      {
+        "v": "Zero",
+        "t": "accounts, servers or telemetry"
+      },
+      {
+        "v": "Single",
+        "t": "AI call previews five picks at once"
+      },
+      {
+        "v": "22 MB",
+        "t": "download on macOS (17 MB on Windows)"
+      }
+    ],
+    "more": [
+      {
+        "v": "3",
+        "t": "open sources: arXiv, OpenAlex, Baidu Scholar"
+      },
+      {
+        "v": "5",
+        "t": "ways to import: PDFs, folders, BibTeX, RIS, CSL"
+      },
+      {
+        "v": "3",
+        "t": "ways to start a project: quick, AI-guided, manual"
+      },
+      {
+        "v": "2 × 2",
+        "t": "platforms × languages: macOS, Windows · EN, 中文"
+      }
     ]
   },
-  "numbers": {
-    "kicker": "By the numbers",
-    "title": "Less is more. More for you.",
-    "lede": "Green is what gets smaller, blue is what grows.",
-    "alt": "PageTide by the numbers: zero tokens to rank papers, zero accounts, a single AI call for five previews, a 22 MB download; 3 open sources, 5 ways to import, 3 ways to start a project, 2 platforms by 2 languages."
-  },
   "watch": {
-    "kicker": "Watch",
-    "title": "Thirty seconds with PageTide",
+    "title": "Watch PageTide in 30 seconds",
     "label": "PageTide promo video, 30 seconds",
     "fallback": "Your browser cannot play this video. You can <a href=\"/assets/pagetide-promo.mp4\">download it</a>.",
     "credit": "Music by Pumpupthemind"
   },
   "get": {
-    "kicker": "Get PageTide",
-    "title": "Free to download. Yours to keep.",
+    "title": "Download PageTide",
     "lede": "Version {version}. Free and open source under the MIT license.",
     "table_caption": "Downloads",
     "col_platform": "Platform",
@@ -133,14 +151,25 @@
     "keys_title": "Keys for outside services",
     "keys_lead": "The core (picking, the profile, the library) works offline with no key. Optional services use your own key, stored on your computer.",
     "keys": [
-      {"name": "DeepSeek", "note": "for the AI features (previews, questions, suggestions). Optional."},
-      {"name": "OpenAlex", "note": "for a wider paper source. Optional."},
-      {"name": "Baidu Scholar", "note": "needs a Qianfan key."},
-      {"name": "arXiv", "note": "needs no key."}
+      {
+        "name": "DeepSeek",
+        "note": "for the AI features (previews, questions, suggestions). Optional."
+      },
+      {
+        "name": "OpenAlex",
+        "note": "for a wider paper source. Optional."
+      },
+      {
+        "name": "Baidu Scholar",
+        "note": "needs a Qianfan key."
+      },
+      {
+        "name": "arXiv",
+        "note": "needs no key."
+      }
     ]
   },
   "contribute": {
-    "kicker": "From readers",
     "title": "Contributions welcome",
     "body": "PageTide is built in the open. Bug reports, feature ideas, documentation and translation fixes, and pull requests are all welcome, and small fixes count as much as new features. For a bigger change, please open an issue first so we can agree on the direction.",
     "issues": "Open an issue",
@@ -153,7 +182,8 @@
     "license": "MIT © Chandery",
     "privacy": "This site uses no analytics or cookies. The app has zero telemetry too.",
     "music": "Music by Pumpupthemind",
-    "arxiv": "Thank you to arXiv for use of its open access interoperability."
+    "arxiv": "Thank you to arXiv for use of its open access interoperability.",
+    "icons": "Icons: Lucide (ISC license)"
   },
   "banner": {
     "text": "这个页面也有中文版。",
@@ -175,5 +205,52 @@
     "mac": "macOS",
     "win": "Windows",
     "share_title": "PageTide"
+  },
+  "features": {
+    "title": "Everything for your reading, in one app",
+    "items": [
+      {
+        "img": "today",
+        "alt": "The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons.",
+        "title": "Daily picks, explained",
+        "body": "Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews all five picks at once.",
+        "icon": "sparkles"
+      },
+      {
+        "img": "profile",
+        "alt": "The profile screen: the keywords behind every pick, with weights, pins and an undo list.",
+        "title": "A profile you can read and edit",
+        "body": "No black box. See the terms behind every pick, pin or remove keywords, and undo any feedback. Doing nothing never counts as a dislike.",
+        "icon": "sliders-horizontal"
+      },
+      {
+        "img": "graph",
+        "alt": "The library graph: saved papers grouped into directions and linked to related work.",
+        "title": "A library that connects itself",
+        "body": "Saved papers become a list and a graph of related work. Open-access PDFs are archived on your computer, and nothing is reorganized until you confirm.",
+        "icon": "library"
+      },
+      {
+        "img": "reader-ask",
+        "alt": "The PDF reader with a highlighted sentence and an answer to a follow-up question beside the page.",
+        "title": "Highlight, ask, understand",
+        "body": "Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.",
+        "icon": "book-open"
+      },
+      {
+        "img": "import",
+        "alt": "The import screen with PDF files, folders, BibTeX, RIS and CSL JSON.",
+        "title": "Bring what you have",
+        "body": "Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX, RIS or CSL JSON.",
+        "icon": "folder-open"
+      },
+      {
+        "img": "weekly",
+        "alt": "The weekly report: what you saved, what you skipped and which directions grew.",
+        "title": "A weekly report",
+        "body": "What you saved, what you skipped and which directions grew this week, so the shape of your reading is visible.",
+        "icon": "chart-column"
+      }
+    ]
   }
 }
