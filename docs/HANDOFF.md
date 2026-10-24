@@ -1,3 +1,13 @@
+# 当前工作单元：旧默认项目的一次性自动清理（2026-10-24，onboarding-tour 第五个提交，critical：会删库里的数据）
+
+[变更记录](../changes/2026-10-24-legacy-default-cleanup.json)，[检查证据](evidence/2026-10-24-legacy-default-cleanup-checks.txt)，[ADR 0042 补充](decisions/0042-first-run-demo-and-tour.md)。
+
+`app/legacy_cleanup.py`，由 `build_server` 在打开库后调用（源码运行和桌面都走，只一次，结果在 `settings.legacy_default_cleanup`，不用迁移编号）。只在“旧版首次启动自动建的 `default_project` 完全没被用过”时清理：id 字面为 `default_project`、名仍是“默认项目”、无关键词/引导/学科，没有反馈（含已撤销）、收藏、问答、笔记、分类、导入、钉词历史、已存 PDF/全文、用户动作类设置、未知设置。满足才在一个事务里删项目、它的链接/批次/曝光/快照/周报/`org_*`/自动设置，以及只属于它的论文和速览；被别的项目链接的论文只删链接；全局的 `initial` 画像版本只在清理后已没有任何项目且库里只有这种版本时才删。删之前写 `<库>.pre-legacy-cleanup.bak`；失败回滚并记原因。判定与清单的最终版本在 ADR 0042 补充里。
+
+没验证：没在 owner 的真实旧库上跑，测试里的“旧首次启动状态”是按迁移和 `ensure_seed_papers` 重建的；备份文件不会自动删除；没有独立审查。条件偏保守，用过一点的旧库会原样保留。
+
+---
+
 # 当前工作单元：onboarding-tour 独立审查后的修正（2026-10-24，第四个提交）
 
 M1 “不感兴趣”与“收藏”原子互斥：后端 `record_feedback(irrelevant)` 在同一事务里把已收藏论文移出论文库，并把移出的内容记在设置表 `feedback_unsaved:<反馈 id>`；`undo_feedback` 在同一次提交里撤销标签并按原保存时间和笔记放回（返回 `restored_saved`）；前端不再单独调 `/api/unsave`，按返回的 `state` 重画。M2 变更记录 `files` 改成整条分支（`7fe946d` 之后、不含 update-check 提交）的并集，过时风险与证据里“逐字摘要/阈值 8”的说法已更正（现为改写摘要，图谱 ≥ 20 条边）。`harness.py review` 只比较“未提交改动”，所以用基线做法：在 `7fe946d` 的临时 detached worktree 里只拷入记录列出的文件后运行（主 worktree 提交后工作区是干净的，直接运行会因为没有改动而不适用）。L1 创建页等知道项目列表后再决定是否显示 c1，已有项目则丢弃该提示。L2 “太难”撤回被后端改成重新确认时提示“已记录”。L3 主页打开时存储步骤属于别的页面（s2–s4、f7）显示居中“继续 / 跳过指引”。L4 演示 403 只吞同一次请求调用方的重复提示。L5 f5 文案不再承诺钉住/撤销，演示里隐藏“编辑类别”，论文库详情加“演示用的改写摘要”标注。

@@ -1385,7 +1385,24 @@ class Handler(BaseHTTPRequestHandler):
             app.store.close()
 
 
+def clean_legacy_default_project(root="."):
+    """Once per library, right after the database is opened: remove the untouched default project and seed papers that
+    older desktop builds made on first launch (app/legacy_cleanup.py). Never blocks start-up."""
+    try:
+        from . import legacy_cleanup
+        app = make_app(root)
+        try:
+            outcome = legacy_cleanup.run(app.store)
+        finally:
+            app.close()
+        if outcome:
+            print("legacy default project cleanup:", json.dumps(outcome, ensure_ascii=False), file=sys.stderr, flush=True)
+    except Exception as exc:   # a library that cannot be opened is reported by the first request anyway
+        print("legacy default project cleanup skipped:", exc, file=sys.stderr, flush=True)
+
+
 def build_server(host="127.0.0.1", port=8765, root=".", desktop_token=None):
+    clean_legacy_default_project(root)
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.root = root
     httpd.desktop_token = desktop_token

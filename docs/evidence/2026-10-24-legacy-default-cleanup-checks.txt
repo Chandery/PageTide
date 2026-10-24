@@ -1,0 +1,13 @@
+Legacy default project cleanup (2026-10-24), macOS, Python 3.12, Node 22.
+New: app/legacy_cleanup.py, hook clean_legacy_default_project() in app/server.py build_server, tests/test_legacy_cleanup.py (23 tests).
+Covered by tests/test_legacy_cleanup.py:
+ (a) constructed old first-start state (default_project, 10 seed + 5 fetched papers with summaries, a batch with 5 exposures, snapshot, weekly report, "initial" profile version with project world-models, seed_keys/last_refresh settings, no feedback) -> 0 projects/papers/summaries/batches/exposures/versions/settings of that project, backup file present and still holds the old rows, marker written with the deleted counts;
+ (b) a feedback row (also an undone one) -> nothing touched, marker "kept: feedback", no backup;
+ (c) a saved paper, a legacy library row, a qa_history row, a non-empty note, a category, a stored PDF, an import batch, a learning-goal setting, an unknown setting naming the project, a pin history -> nothing touched with the matching reason;
+ (d) renamed project, keywords, guidance transcript -> nothing touched; a project with another id is never touched;
+ (e) another project linking a seed paper -> paper, its summary and the other project's data stay, only the default project's link goes; the global profile version stays while a project remains;
+ (f) second run does nothing (marker spent), also through build_server twice;
+ (g) a new library with no default project -> no error, marker "kept", no backup;
+ plus: a failure inside the deletion rolls everything back, keeps the backup and records "failed: ...".
+Not run: the owner's real old library (none available to the agent); the frozen binary; Windows. Not independently reviewed.
+Checks: python3 -m unittest discover -s tests: 2974 tests OK; node --test tests/*.cjs: 647 pass / 0 fail; i18n_extract 0 missing; budget --check PASS; harness check/review: see the commit.

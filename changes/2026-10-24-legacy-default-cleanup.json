@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "id": "2026-10-24-legacy-default-cleanup",
+  "class": "critical",
+  "summary": "One-time cleanup of the untouched legacy default project: older desktop builds created project default_project (名 默认项目), ten world-model seed papers and an automatic fetch on first launch. app/legacy_cleanup.py (called from build_server after the database opens, source run and desktop alike) deletes exactly that auto-made state in one transaction after writing <db>.pre-legacy-cleanup.bak, only when nothing was ever done in it (no feedback, saved paper, question, note, category, import, keyword, rename, pin history, stored PDF/full text, user-intent setting); anything else leaves the library untouched. Result recorded in settings key legacy_default_cleanup; no migration number; never runs twice.",
+  "tasks": [
+    "PILOT-01",
+    "FEAT-ONBOARDING"
+  ],
+  "requirements": [
+    "R-LOCAL",
+    "R-DURABILITY",
+    "R-ONBOARDING"
+  ],
+  "files": [
+    "app/legacy_cleanup.py",
+    "app/server.py",
+    "changes/2026-10-24-legacy-default-cleanup.json",
+    "docs/ARCHITECTURE.md",
+    "docs/HANDOFF.md",
+    "docs/decisions/0042-first-run-demo-and-tour.md",
+    "docs/evidence/2026-10-24-legacy-default-cleanup-checks.txt",
+    "tests/test_legacy_cleanup.py"
+  ],
+  "scope_note": "Worktree onboarding-tour, fifth commit. Deletes user-library data, hence critical; the conditions are deliberately conservative.",
+  "budget_impact": {
+    "runtime": "zero",
+    "rationale": "Local SQLite work at start-up; no model call, network request or prompt.",
+    "before": "an untouched legacy default project and seed papers stayed in the library",
+    "after": "removed once, with a backup file",
+    "developer_usage": "none"
+  },
+  "checks": [
+    {
+      "category": "budget",
+      "command": "python3 scripts/budget.py --check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    },
+    {
+      "category": "repository",
+      "command": "python3 scripts/harness.py check",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    },
+    {
+      "category": "tests",
+      "command": "python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "evidence": "docs/evidence/2026-10-24-onboarding-tour-checks.txt"
+    }
+  ],
+  "additional_checks": [],
+  "reviews": [
+    {
+      "kind": "self",
+      "result": "passed",
+      "reviewer": "Working agent; not independent",
+      "evidence": "docs/evidence/2026-10-24-legacy-default-cleanup-checks.txt"
+    }
+  ],
+  "owner_approved": false,
+  "open_risks": [
+    "Not independently reviewed (critical class; it deletes data).",
+    "Not run on the owner's real old library; only on constructed states in tests (the old first-start state is reconstructed from the migration and ensure_seed_papers, not from a real old file).",
+    "The backup file <db>.pre-legacy-cleanup.bak is never deleted automatically and holds the old data.",
+    "Conservative by design: an old library where anything was touched (even a downloaded PDF) is left as it is; the owner may delete it by hand.",
+    "The check relies on table names and the old first-start shape (default_project, seed_keys_/last_refresh_ settings, profile version note 'initial'); a state written by a build not examined here may be kept rather than cleaned (safe direction)."
+  ]
+}
