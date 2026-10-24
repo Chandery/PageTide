@@ -369,6 +369,8 @@
                border:1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
                background:color-mix(in srgb, var(--warn) 14%, transparent); }
   .devbanner b { color:var(--warn); }
+  .updatebar { max-width:1080px; margin:10px auto 0; display:flex; align-items:center; justify-content:center; gap:10px; font-size:12.5px; color:var(--muted); }
+  .updatebar[hidden] { display:none; }
 
   #toasts { position:fixed; right:18px; bottom:18px; z-index:95; display:flex; flex-direction:column; gap:10px; }
   .toast { padding:13px 17px; font-size:13px; background:var(--base); box-shadow:var(--sh-out);
@@ -630,6 +632,7 @@
 </header>
 
 <div id="devbanner" class="devbanner" style="display:none"></div>
+<div id="updateBar" class="updatebar" hidden><span id="updateLabel"></span><button type="button" class="tiny" id="updateAct"></button><button type="button" class="tiny ghost" id="updateClose" title="关闭提示" aria-label="关闭提示">×</button></div>
 <div class="mc" id="projectSwitcher" role="dialog" aria-modal="true" aria-label="项目总览" hidden>
   <div class="mc-desk"></div>
   <div class="mc-bar">
@@ -2502,6 +2505,8 @@ document.addEventListener('keydown', (e) => {
 <script src="/route-detail.js"></script>
 <script src="/paper-context.js"></script>
 <script src="/organization.js"></script>
+<script src="/update-banner.js"></script>
+<script>window.PDHUpdate.mount();</script>
 
 </body>
 </html>

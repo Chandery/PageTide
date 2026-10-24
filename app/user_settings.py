@@ -60,7 +60,7 @@ def validate(values):
             v=values[key]
             if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or not low<=v<=high or (integer and int(v)!=v):
                 raise ValueError(f'{key} must be between {low} and {high}')
-    for key in ('sourceArxiv','sourceOpenAlex','sourceBaiduScholar','sourceBaiduWeb','baiduScholarConfirmed','routeBeta'):
+    for key in ('sourceArxiv','sourceOpenAlex','sourceBaiduScholar','sourceBaiduWeb','baiduScholarConfirmed','routeBeta','autoCheckUpdates'):
         if key in values and not isinstance(values[key],bool):raise ValueError(f'{key} must be boolean')
     for key,allowed in {'theme':('light','dark','auto'),'language':('zh-CN','en-US'),'timePreference':('recent','month','all'),'updateFrequency':('daily','weekly','manual'),'apiProvider':('deepseek',)}.items():
         if key in values and values[key] not in allowed:raise ValueError(f'Invalid {key}')

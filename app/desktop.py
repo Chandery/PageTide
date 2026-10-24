@@ -7,7 +7,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import maintenance, platform_compat
+from . import maintenance, platform_compat, updater
 from .server import build_server, stop_organization_workers
 from .service import App
 
@@ -141,3 +141,5 @@ def main():
         finally:
             stop_organization_workers()
             httpd.server_close()
+            # An update the user asked for starts only now, with the server stopped and the shell about to exit.
+            updater.run_pending()

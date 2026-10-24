@@ -194,6 +194,20 @@
     </div>
 
     <div class="section">
+      <h2>更新</h2>
+      <div class="field">
+        <label class="inline">
+          <input type="checkbox" id="autoCheckUpdates" checked>
+          自动检查更新
+        </label>
+      </div>
+      <div class="field">
+        <button type="button" id="checkUpdateBtn" class="ghost">检查更新</button>
+        <span id="updateStatus" class="source-state" data-pdh-status role="status" aria-live="polite" aria-atomic="true"></span>
+      </div>
+    </div>
+
+    <div class="section">
       <h2>实验功能</h2>
       <div class="field">
         <label class="inline">
@@ -465,6 +479,7 @@
       $('#decayWindow').value    = settings.decayWindow    ?? 30;
       $('#newPaperBoost').value  = settings.newPaperBoost  ?? 0.5;
       $('#routeBeta').checked    = settings.routeBeta === true;
+      $('#autoCheckUpdates').checked = settings.autoCheckUpdates !== false;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
       $('#sourceBaiduScholar').checked = settings.sourceBaiduScholar === true;      // off until the user switches it on
@@ -536,6 +551,7 @@
         decayWindow:    Number($('#decayWindow').value),
         newPaperBoost:  Number($('#newPaperBoost').value),
         routeBeta:      $('#routeBeta').checked,
+        autoCheckUpdates: $('#autoCheckUpdates').checked,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
         sourceBaiduScholar: $('#sourceBaiduScholar').checked && baiduConfirmed,
@@ -638,6 +654,21 @@
         const names={'source-response-cache':'已下载的论文信息','pdf-archives':'归档 PDF','fulltext':'全文','notes':'笔记','projects':'项目'};
         window.PDHDialogs.notice(`已清除：${(data.removed||[]).map(x=>window.PDHi18n?.t(names[x]||x)||names[x]||x).join('、')||'无'}`,{target,kind:'success'});
       } catch(e) {window.PDHDialogs.notice(`清理失败：${e.message}`,{target,kind:'error'});}
+      finally {button.disabled=false;}
+    };
+
+    // "Check now" is an explicit request: it ignores the cache and the automatic-check switch.
+    $('#checkUpdateBtn').onclick = async () => {
+      const button=$('#checkUpdateBtn'), target=$('#updateStatus');
+      if(button.disabled)return;
+      button.disabled=true;
+      try {
+        const res=await fetch('/api/update?force=1'); const data=await res.json();
+        if(data.reason_code==='dev_build')window.PDHDialogs.notice('开发版不检查更新',{target,kind:'info'});
+        else if(data.status!=='ok')window.PDHDialogs.notice('暂时无法检查更新',{target,kind:'error'});
+        else if(data.available)window.PDHDialogs.notice(`有新版本 v${data.latest}，回到主页即可更新`,{target,kind:'success'});
+        else window.PDHDialogs.notice('已是最新版本',{target,kind:'success'});
+      } catch(e) {window.PDHDialogs.notice('暂时无法检查更新',{target,kind:'error'});}
       finally {button.disabled=false;}
     };
 

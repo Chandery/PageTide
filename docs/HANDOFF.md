@@ -1,3 +1,15 @@
+# 当前工作单元：检查更新（2026-10-24）
+
+worktree `update-check`，基线 main `36d2070`，类别 critical。[变更记录](../changes/2026-10-24-update-check.json)，[检查证据](evidence/2026-10-24-update-check-checks.txt)，[ADR 0041](decisions/0041-update-check.md)。
+
+起因：owner 要求“检测更新功能，要在 app 里提醒用户可以更新了，在 app 里可以点击更新键”，选定“查 GitHub 最新 Release + 下载对应平台安装包并打开”（不用 tauri-plugin-updater）。
+
+做了什么：Rust 外壳把版本以 `PDH_APP_VERSION` 传给后端（源码运行没有，视为开发版不检查）；`app/updater.py` 请求 `releases/latest`（6 小时缓存，失败静默，设置“自动检查更新”默认开，关了就不请求）；主页顶部一条细条“有新版本 vX.Y.Z · 更新 ×”（关闭按版本记在后端）；点“更新”由后端下载到 `<数据目录>/updates/` 并校验 `.sha256`，页面再走现有的 `PDHPrepareQuit` 退出；**后端在 HTTP 服务停止之后**才启动脱离的辅助脚本（Windows PowerShell 启动安装程序；macOS 等外壳进程退出后用新 `.app` 替换旧的，任何失败回滚，再 `open`），所以退出被取消时什么都不会发生。macOS 的 `.app` 不可写或解压失败时只在访达里显示 zip 提示手动替换。新的对外网络请求已登记在 ARCHITECTURE 与 ADR 0041；RELEASE.md 写明依赖的资产名、仓库公开、草稿要发布。`release.yml` 产出的资产名已核对，无需改。
+
+没验证：**从未向真实 GitHub 发过请求**（沙箱禁止）；Windows 辅助脚本与安装程序接管、macOS 脚本在真实 `.app` 上（Gatekeeper、目录权限）、桌面应用里的端到端点击（按要求没有构建）。没有独立审查。首次发布后请用旧版本实测一次。
+
+---
+
 # 当前工作单元：Windows 审查修正（2026-10-24，第六个提交）
 
 [变更记录](../changes/2026-10-24-windows-release-review-fixes.json)，[检查证据](evidence/2026-10-24-windows-release-review-fixes-checks.txt)。接在协调者的 `e60bac5`（`.gitattributes` 固定 LF：CI 第 5 轮里 Windows 检出成 CRLF，按源码切片的 5 个 Node 测试失败）之后；CI 第 6 轮已全绿。

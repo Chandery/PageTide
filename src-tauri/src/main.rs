@@ -264,7 +264,9 @@ fn start_server(app: &App) -> Result<(PythonProcess, Url), Box<dyn std::error::E
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .env_remove("PDH_DEV")
-        .env_remove("DEEPSEEK_API_KEY");
+        .env_remove("DEEPSEEK_API_KEY")
+        // The packaged version, for the update check. A source run has no such variable and never checks.
+        .env("PDH_APP_VERSION", app.package_info().version.to_string());
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

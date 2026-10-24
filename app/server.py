@@ -22,7 +22,7 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import creation, maintenance
+from . import creation, maintenance, updater
 from .organization import Conflict as OrganizationConflict
 from .language import language
 from .service import App
@@ -150,6 +150,12 @@ def i18n_script(lang):
             lang, messages = "zh-CN", {}   # a broken pack shows the Chinese source, never a blank page
     payload = json.dumps({"lang": lang, "messages": messages}, ensure_ascii=False)
     return ("window.PDH_I18N=" + payload.replace("</", "<\\/") + ";\n").encode()
+
+
+def make_updater(root="."):
+    """The update checker for this process. PDH_APP_VERSION is set only by the desktop shell: a source run has none,
+    is a development build and never checks. Tests replace this to inject a fake transport."""
+    return updater.Updater(data_dir(root), os.environ.get("PDH_APP_VERSION"))
 
 
 def make_app(root="."):
@@ -687,6 +693,11 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app(); key = (query.get('key') or [''])[0]
             current = session(app.store, key, requested_project)
             self._json({'session': current, 'history': history(app.store, key, requested_project, current)})   # the same turns the model receives
+        elif route == "/api/update":
+            force = query.get("force", [""])[0] == "1"
+            self._json(make_updater(getattr(self.server, "root", ".")).check(force=force))
+        elif route == "/api/update/download":
+            self._json(updater.download_state())
         elif route == "/api/user_settings":
             # GET settings from file
             settings_file = Path(self._data()) / "settings.json"
@@ -729,6 +740,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"error": "invalid JSON"}, 400)
         if not isinstance(body, dict):
             return self._json({"error": "request must be an object"}, 400)
+        if route.startswith("/api/update/"):
+            return self._update_post(route, body)
         if route == "/api/import/batches" or route.startswith("/api/import/batches/"):
             return self._import_post(route, body)
         if route == "/api/organization":
@@ -1178,6 +1191,24 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": str(exc)}, 404)
             except ValueError as exc:
                 return self._json({"error": str(exc)}, 409)
+        return self._json({"error": "unknown route"}, 404)
+
+    def _update_post(self, route, body):
+        """Download / apply / dismiss an update. Quitting afterwards is the page's job (PDHPrepareQuit keeps drafts safe)."""
+        current = make_updater(getattr(self.server, "root", "."))
+        try:
+            if route == "/api/update/download":
+                if not current.check()["available"]:
+                    return self._json({"error": "没有可下载的新版本"}, 409)
+                current.start_download()
+                return self._json(updater.download_state())
+            if route == "/api/update/apply":
+                return self._json(current.apply())
+            if route == "/api/update/dismiss":
+                current.dismiss(body.get("version"))
+                return self._json({"ok": True})
+        except updater.UpdateError as exc:
+            return self._json({"error": str(exc)}, 409)
         return self._json({"error": "unknown route"}, 404)
 
     @staticmethod

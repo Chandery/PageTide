@@ -10,6 +10,16 @@
 4. macOS 包在本机构建（见下），把 zip 和校验和手动传到同一个 release：`gh release upload vX.Y.Z PaperDigHelper-macos-arm64.zip PaperDigHelper-macos-arm64.zip.sha256`。
 5. 检查草稿 release 里两个平台的文件，再手动发布。
 
+## 应用内“检查更新”依赖什么
+
+已安装的应用（[ADR 0041](decisions/0041-update-check.md)）读取 GitHub 的 `releases/latest`，所以：
+
+- **仓库需公开**，release 必须**从草稿发布**为正式版（草稿与预发布不会被 `latest` 返回，应用也会忽略）。
+- tag 严格是 `vX.Y.Z`，且大于已安装版本；版本号以 `tauri.conf.json` 为准（外壳以环境变量传给后端）。
+- 资产名必须正好是：Windows `PaperDigHelper_X.Y.Z_x64-setup.exe`（Tauri NSIS 的默认输出名，工作流不重命名）与 `PaperDigHelper_X.Y.Z_x64-setup.exe.sha256`；macOS `PaperDigHelper-macos-arm64.zip` 与 `PaperDigHelper-macos-arm64.zip.sha256`（上面第 4 步与构建命令产出的就是这个名字）。`.sha256` 首字段为 64 位十六进制 SHA-256（`shasum -a 256` 与工作流的格式都满足）。缺任何一个，该平台就不提示更新。
+- 两个平台的资产都传齐后再发布草稿，否则先发布的平台用户会收到提示而另一个平台暂时没有。
+- 没有在真实 GitHub 上跑过这条链路（开发沙箱禁止访问），首次发布后请用旧版本的应用实测一次。
+
 ## macOS 本机构建
 
 ```sh
