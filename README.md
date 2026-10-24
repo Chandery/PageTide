@@ -21,9 +21,11 @@ English · <a href="README-zh.md">简体中文</a>
 [![License: MIT](https://img.shields.io/badge/license-MIT-086EF5?style=flat-square)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon%20%7C%20Windows%20x64-555?style=flat-square)
 
-[![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
+[![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest) [![Website](https://img.shields.io/badge/Website-pagetide.chandery.org-12315c?style=for-the-badge)](https://pagetide.chandery.org/)
 
-<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide: papers that fit your research" width="880"></a>
+🌐 **[pagetide.chandery.org](https://pagetide.chandery.org/)** · try the profile demo in your browser
+
+<a href="https://pagetide.chandery.org/"><img src="docs/assets/readme/cover.jpg" alt="PageTide: papers that fit your research" width="880"></a>
 
 </div>
 

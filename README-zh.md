@@ -21,9 +21,11 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-086EF5?style=flat-square)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon%20%7C%20Windows%20x64-555?style=flat-square)
 
-[![下载 PageTide](https://img.shields.io/badge/下载-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest)
+[![下载 PageTide](https://img.shields.io/badge/下载-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest) [![官网](https://img.shields.io/badge/官网-pagetide.chandery.org-12315c?style=for-the-badge)](https://pagetide.chandery.org/zh/)
 
-<a href="https://github.com/Chandery/PageTide/releases/latest"><img src="docs/assets/readme/cover.jpg" alt="PageTide：推荐贴合你研究的论文" width="880"></a>
+🌐 **[pagetide.chandery.org](https://pagetide.chandery.org/zh/)** · 在浏览器里直接试玩画像 demo
+
+<a href="https://pagetide.chandery.org/zh/"><img src="docs/assets/readme/cover.jpg" alt="PageTide：推荐贴合你研究的论文" width="880"></a>
 
 </div>
 
