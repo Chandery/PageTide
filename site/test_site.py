@@ -199,23 +199,33 @@ class SiteTests(unittest.TestCase):
                     self.assertTrue(ref.startswith("/assets/"), ref)
 
     def test_demo_data(self):
-        papers = json.loads((HERE / "assets/papers.json").read_text(encoding="utf-8"))
-        fx = build.load_fixture()
-        self.assertEqual(len(papers), len(fx.PAPERS))
+        data = json.loads((HERE / "assets/papers.json").read_text(encoding="utf-8"))
+        papers = data["papers"]
+        self.assertTrue(150 <= len(papers) <= 250, len(papers))
+        self.assertLess((HERE / "assets/papers.json").stat().st_size, 150 * 1024)
         ids = [p["id"] for p in papers]
         self.assertEqual(len(ids), len(set(ids)))
+        fx = build.load_fixture()
+        self.assertTrue({p["arxiv_id"] for p in fx.PAPERS} <= set(ids))
+        meta = json.loads((HERE / "data/arxiv-meta.json").read_text(encoding="utf-8"))["papers"]
         for i in build.INITIAL_IDS:
             self.assertIn(i, ids)
         for p in papers:
-            self.assertTrue(p["preview"]["en"] and p["preview"]["zh"])
+            self.assertIn(p["topic"], data["topics"])
+            self.assertTrue(p["preview"]["en"] and p["preview"]["zh"] and p["kw"]["en"] and p["kw"]["zh"], p["id"])
+            self.assertRegex(p["id"], r"^(\d{4}\.\d{4,5}|[a-z-]+(\.[A-Z]{2})?/\d{7})$")   # only real, checked arXiv ids
+            if p["id"] in meta:   # titles and dates come from the checked arXiv snapshot, never from the summaries
+                self.assertEqual(p["title"], meta[p["id"]]["title"])
+                self.assertEqual(p["date"], meta[p["id"]]["date"])
+        self.assertGreaterEqual(len(data["topics"]), 12)
 
     def test_initial_ranking_matches_rank_js(self):
         node = shutil.which("node")
         if not node:
             self.skipTest("node is not installed")
-        script = ("const R=require(%s);const P=require(%s);const idx=R.buildIndex(P);"
+        script = ("const R=require(%s);const P=require(%s);const idx=R.buildIndex(R.prepare(P));"
                   "const tags=%s.map(t=>({text:t[0],weight:R.WEIGHTS[t[1]]}));"
-                  "console.log(JSON.stringify(R.rank(idx,tags).ranked.slice(0,5).map(r=>r.id)))"
+                  "console.log(JSON.stringify(R.pickTop(R.rank(idx,tags),tags,5).map(r=>r.id)))"
                   % (json.dumps(str(HERE / "assets/rank.js")), json.dumps(str(HERE / "assets/papers.json")),
                      json.dumps(build.DEFAULT_TAGS)))
         out = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True).stdout

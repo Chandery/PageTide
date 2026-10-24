@@ -24,9 +24,9 @@ SITE = "https://pagetide.chandery.org"
 GITHUB = "https://github.com/Chandery/PageTide"
 
 # The demo profile the page starts with, and the five papers that profile ranks first. tests check that rank.js agrees.
-DEFAULT_TAGS = [("transformer", "strong"), ("attention", "strong"), ("vision", "weak"),
-                ("efficient attention", "weak"), ("alignment", "weak"), ("language model", "strong")]
-INITIAL_IDS = ["2012.12877", "2006.04768", "2001.04451", "2103.14030", "1706.03762"]
+DEFAULT_TAGS = [("transformer", "strong"), ("language model", "strong"), ("vision", "weak"),
+                ("efficient attention", "weak"), ("alignment", "weak")]
+INITIAL_IDS = ["2307.08621", "2205.01068", "2212.10560", "2104.14294", "2009.14794"]
 
 
 def esc(s):
@@ -44,16 +44,50 @@ def load_fixture():
     return mod
 
 
+TOPICS = {
+    "ml": ("Machine learning", "机器学习"), "nlp": ("Language models and NLP", "语言模型与自然语言处理"),
+    "cv": ("Computer vision", "计算机视觉"), "gen": ("Generative models", "生成模型"),
+    "rl": ("Reinforcement learning", "强化学习"), "rob": ("Robotics and embodied AI", "机器人与具身智能"),
+    "gnn": ("Graph learning", "图学习"), "sci": ("Scientific machine learning", "科学计算与机器学习"),
+    "chem": ("Chemistry and materials", "化学与材料"), "bio": ("Biology and medicine", "生物与医学"),
+    "earth": ("Climate and Earth science", "气候与地球科学"), "soc": ("Economics and social science", "经济与社会科学"),
+    "phys": ("Physics", "物理"), "astro": ("Astronomy", "天文"), "qc": ("Quantum computing", "量子计算"),
+    "math": ("Mathematics and theory", "数学与理论计算机"),
+}
+# the original 29 papers of the app's demo project: topic by id, plus the direction names as keywords
+ORIGINAL_TOPIC = {"1706.03762": "nlp", "1810.04805": "nlp", "2001.08361": "nlp", "2005.14165": "nlp", "2010.11929": "cv"}
+DIRECTION_TOPIC = {"lm": "nlp", "vit": "cv", "eff": "ml", "align": "nlp"}
+
+
 def papers_json():
-    """The 29 demo papers as the page's data file. Abstracts are the fixture's own paraphrases; nothing is fetched."""
+    """The demo library: the 29 papers of the app's demo project (fixture, our paraphrased abstracts) plus the sample papers in
+    data/corpus.txt. Titles, dates and authors are public arXiv metadata checked on 2026-10-25 (data/arxiv-meta.json); the
+    one-liners and keywords are our own. Nothing is fetched at build time."""
     fx = load_fixture()
+    dirs = {d["id"]: d for d in fx.DIRECTIONS}
     out = []
     for p in fx.PAPERS:
         prev = fx.PREVIEWS[p["arxiv_id"]]
-        out.append({"id": p["arxiv_id"], "title": p["title"], "date": p["published"], "authors": p["authors"],
-                    "abstract": p["abstract"], "source": "arXiv",
-                    "preview": {"en": prev["en"]["one_liner"], "zh": prev["zh"]["one_liner"]}})
-    return out
+        d = dirs.get(p["direction"])
+        out.append({"id": p["arxiv_id"], "title": p["title"], "date": p["published"], "by": p["authors"][0],
+                    "topic": ORIGINAL_TOPIC.get(p["arxiv_id"]) or DIRECTION_TOPIC[p["direction"]],
+                    "abstract": p["abstract"],
+                    "preview": {"en": prev["en"]["one_liner"], "zh": prev["zh"]["one_liner"]},
+                    "kw": {"en": "transformer" + ("; " + d["name"]["en"] if d else ""),
+                           "zh": "Transformer" + ("; " + d["name"]["zh"] if d else "")}})
+    meta = json.loads((HERE / "data" / "arxiv-meta.json").read_text(encoding="utf-8"))["papers"]
+    seen = {p["id"] for p in out}
+    for line in (HERE / "data" / "corpus.txt").read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        pid, topic, en, zh, kw_en, kw_zh = line.split("|")
+        assert pid in meta and pid not in seen and topic in TOPICS, pid
+        seen.add(pid)
+        m = meta[pid]
+        out.append({"id": pid, "title": m["title"], "date": m["date"], "by": m["authors"][0], "topic": topic,
+                    "preview": {"en": en, "zh": zh},
+                    "kw": {"en": kw_en.replace(";", ";"), "zh": kw_zh}})
+    return {"topics": {k: {"en": v[0], "zh": v[1]} for k, v in TOPICS.items()}, "papers": out}
 
 
 def icon(name):
@@ -90,12 +124,12 @@ def tag_html(text, weight, ui):
 
 
 def story_html(p, rank, lang, ui):
-    first = p["authors"][0] + " " + ui["et_al"]
+    first = p["by"] + " " + ui["et_al"]
     return ('<li class="story%s" data-id="%s"><p class="story-meta"><span class="rank" aria-hidden="true">%d</span>'
             '<span class="st">%s</span> <time datetime="%s">%s</time></p>'
             '<h3><a href="https://arxiv.org/abs/%s" rel="noopener">%s</a></h3>'
             '<p class="by">%s</p><p class="blurb">%s</p><p class="why" hidden></p></li>'
-            % (" lead" if rank == 1 else "", esc(p["id"]), rank, esc(p["source"]), esc(p["date"]), esc(p["date"]),
+            % (" lead" if rank == 1 else "", esc(p["id"]), rank, "arXiv", esc(p["date"]), esc(p["date"]),
                esc(p["id"]), esc(p["title"]), esc(first), esc(p["preview"][lang])))
 
 
@@ -114,13 +148,14 @@ def render(tpl, ctx):
 
 def build(date):
     ver = version()
-    papers = papers_json()
+    data = papers_json()
+    papers = data["papers"]
     by_id = {p["id"]: p for p in papers}
     (HERE / "assets").mkdir(exist_ok=True)
-    (HERE / "assets" / "papers.json").write_text(json.dumps(papers, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    (HERE / "assets" / "papers.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
 
     asset_v = hashlib.sha1(b"".join((HERE / "assets" / f).read_bytes()
-                                    for f in ("site.css", "site.js", "platform.js", "rank.js", "demo.js"))).hexdigest()[:8]
+                                    for f in ("site.css", "site.js", "platform.js", "rank.js", "demo.js", "fx.js"))).hexdigest()[:8]
     mac_file = "PageTide-macos-arm64.zip"
     win_file = "PageTide_%s_x64-setup.exe" % ver
     mac_url = GITHUB + "/releases/latest/download/" + mac_file
@@ -142,16 +177,24 @@ def build(date):
         })
         ctx["tags_html"] = "".join(tag_html(tx, w, ui) for tx, w in DEFAULT_TAGS)
         ctx["stories_html"] = "".join(story_html(by_id[i], n + 1, lang, ui) for n, i in enumerate(INITIAL_IDS))
+        ctx["examples_html"] = "".join(
+            '<li><button type="button" class="ex" data-add="%s" aria-label="%s">%s</button></li>'
+            % (esc(x), esc(ui["example_aria"].format(tag=x)), esc(x)) for x in ui["examples"])
+        ctx["demo.library_note"] = ctx["demo.library_note"].replace("{n}", str(len(papers)))
         ctx["editorial_html"] = "".join("<p>%s</p>" % para for para in t["editorial"]["body"])
-        feats = []
-        for it in t["features"]["items"]:
+        feats, panels = [], []
+        for n, it in enumerate(t["features"]["items"]):
             base = "/assets/%s-%s" % (lang, it["img"])
             w, h = png_size(HERE / "assets" / ("%s-%s.png" % (lang, it["img"])))
-            feats.append('<article class="feat card"><span class="feat-icon">%s</span><h3>%s</h3><p>%s</p>'
-                         '<figure><picture><source type="image/webp" srcset="%s.webp">'
-                         '<img src="%s.png" width="%d" height="%d" loading="lazy" decoding="async" alt="%s"></picture></figure></article>'
-                         % (icon(it["icon"]), it["title"], it["body"], base, base, w, h, esc(it["alt"])))
-        ctx["features_html"] = "".join(feats)
+            pic = ('<picture><source type="image/webp" srcset="%s.webp"><img src="%s.png" width="%d" height="%d" '
+                   'loading="lazy" decoding="async" alt="%s"></picture>' % (base, base, w, h, esc(it["alt"])))
+            on = n == 0
+            feats.append('<button type="button" class="feat card%s" data-i="%d" aria-pressed="%s">'
+                         '<span class="feat-icon">%s</span><span class="feat-body"><strong>%s</strong><span>%s</span></span>'
+                         '<span class="feat-shot">%s</span></button>'
+                         % (" active" if on else "", n, "true" if on else "false", icon(it["icon"]), it["title"], it["body"], pic))
+            panels.append('<div class="shot%s" data-i="%d"%s>%s</div>' % (" active" if on else "", n, "" if on else ' aria-hidden="true"', pic))
+        ctx["features_html"] = ('<div class="feat-list">%s</div><div class="window">%s</div>' % ("".join(feats), "".join(panels)))
         for kind in ("less", "more"):
             ctx["numbers_%s_html" % kind] = "".join('<li class="num card"><span class="num-v">%s</span><span class="num-t">%s</span></li>'
                                                     % (esc(n["v"]), esc(n["t"])) for n in t["numbers"][kind])

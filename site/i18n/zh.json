@@ -41,13 +41,13 @@
     "profile_title": "你的画像",
     "profile_hint": "演示按这些关键词排序",
     "add_label": "添加关键词",
-    "add_placeholder": "例如 diffusion",
+    "add_placeholder": "例如 机器人 或 robot",
     "add_button": "添加",
     "reset": "重置",
     "stories_label": "今日五篇论文",
     "badge": "在你的浏览器里排序 · 0 token",
     "disclaimer": "简化演示：应用里会结合你的完整画像与反馈排序。",
-    "library_note": "从应用演示项目里的 29 篇论文中排序。关键词请用英文，论文是英文的。",
+    "library_note": "从 {n} 篇示例论文中排序，覆盖机器学习、机器人、生物、化学、气候、物理、经济等方向。",
     "noscript": "这个演示需要 JavaScript。下面是未排序的默认五篇。",
     "ui": {
       "strong": "强",
@@ -57,7 +57,7 @@
       "remove": "删除 {tag}",
       "matched": "命中",
       "nothing": "没有论文命中画像，所以按论文库原顺序显示。",
-      "unmatched": "演示库里没有论文提到：{tags}。",
+      "unmatched": "演示库里没有论文提到“{tags}”。实际应用会去 arXiv、OpenAlex 和百度学术里真正搜索。",
       "announce": "排序已更新。{list}",
       "reset_done": "画像已重置。{list}",
       "added": "已添加 {tag}。",
@@ -67,8 +67,21 @@
       "load_failed": "演示没能加载论文数据。",
       "et_al": "等",
       "colon": "：",
-      "weight_word": "权重"
-    }
+      "weight_word": "权重",
+      "examples": [
+        "机器人",
+        "蛋白质",
+        "气候",
+        "强化学习",
+        "图神经网络",
+        "扩散模型",
+        "量子计算",
+        "因果推断"
+      ],
+      "nomatch_label": "无命中",
+      "example_aria": "把 {tag} 加入画像"
+    },
+    "examples_label": "换个方向试试"
   },
   "editorial": {
     "title": "论文不缺，难的是找到你的那几篇。",

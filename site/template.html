@@ -32,6 +32,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <link rel="stylesheet" href="/assets/site.css?v={{asset_v}}">
+<script>(function(d){if(!matchMedia("(prefers-reduced-motion: reduce)").matches){d.classList.add("fx");setTimeout(function(){if(!d.dataset.fxReady)d.classList.remove("fx")},3000)}})(document.documentElement)</script>
 <script type="application/ld+json">{{jsonld}}</script>
 </head>
 <body>
@@ -72,12 +73,12 @@
     <p class="cta-alt" id="cta-alt" hidden></p>
   </div>
   <p class="fine">{{hero.fine}}</p>
-  <figure class="hero-shot">
+  <div class="hero-stage"><figure class="hero-shot" id="hero-shot">
     <picture>
       <source type="image/webp" srcset="/assets/{{lang}}-today-hero.webp">
       <img src="/assets/{{lang}}-today.png" width="1600" height="1000" fetchpriority="high" decoding="async" alt="{{hero.shot_alt}}">
     </picture>
-  </figure>
+  </figure></div>
 </section>
 
 <section class="section demo" id="today" aria-labelledby="demo-title">
@@ -97,6 +98,8 @@
           <button class="btn btn-small btn-primary" type="submit">{{demo.add_button}}</button>
         </div>
       </form>
+      <p class="ex-label" id="ex-label">{{demo.examples_label}}</p>
+      <ul class="examples" aria-labelledby="ex-label">{{examples_html}}</ul>
       <button class="btn btn-small" id="reset" type="button">{{demo.reset}}</button>
     </aside>
     <div class="stories-wrap">
@@ -113,7 +116,7 @@
   <header class="section-head">
     <h2 id="col-title">{{features.title}}</h2>
   </header>
-  <div class="feat-grid">{{features_html}}</div>
+  <div class="showcase" id="showcase">{{features_html}}</div>
 </section>
 
 <section class="section why" id="why" aria-labelledby="ed-title">
@@ -222,5 +225,6 @@
 <script src="/assets/site.js?v={{asset_v}}" defer></script>
 <script src="/assets/rank.js?v={{asset_v}}" defer></script>
 <script src="/assets/demo.js?v={{asset_v}}" defer></script>
+<script src="/assets/fx.js?v={{asset_v}}" defer></script>
 </body>
 </html>

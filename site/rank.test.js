@@ -1,14 +1,15 @@
-// node --test site/
+// node --test site/rank.test.js
 const test = require("node:test");
 const assert = require("node:assert");
-const path = require("node:path");
 const R = require("./assets/rank.js");
 const P = require("./assets/platform.js");
-const papers = require("./assets/papers.json");
+const data = require("./assets/papers.json");
 
-const index = R.buildIndex(papers);
-const tags = (list) => list.map(([text, w]) => ({ text, weight: R.WEIGHTS[w] }));
-const top = (list, n = 5) => R.rank(index, tags(list)).ranked.slice(0, n).map((r) => r.id);
+const index = R.buildIndex(R.prepare(data));
+const tags = (list) => list.map(([text, w]) => ({ text, weight: R.WEIGHTS[w || "strong"] }));
+const rank = (list) => R.rank(index, tags(list));
+const top = (list, n = 5) => rank(list).ranked.slice(0, n).map((r) => r.id);
+const topic = (id) => data.papers.find((p) => p.id === id).topic;
 
 test("stemming folds plurals and endings", () => {
   assert.strictEqual(R.stem("transformers"), R.stem("transformer"));
@@ -16,37 +17,98 @@ test("stemming folds plurals and endings", () => {
   assert.strictEqual(R.stem("attention"), "attention");
 });
 
-test("tokens drop stop words and punctuation", () => {
+test("tokens drop stop words and punctuation, and leave Chinese to the Han matcher", () => {
   assert.deepStrictEqual(R.tokens("The Attention-Is of it"), ["attention"]);
+  assert.deepStrictEqual(R.tokens("强化学习 robot"), ["robot"]);
+  assert.deepStrictEqual(R.hanRuns("强化学习 robot 机器人"), ["强化学习", "机器人"]);
+});
+
+test("the library covers many fields", () => {
+  assert.ok(data.papers.length >= 150 && data.papers.length <= 250);
+  assert.ok(Object.keys(data.topics).length >= 12);
+});
+
+test("a keyword the default profile never mentioned changes the ranking and finds its own field", () => {
+  const base = [["transformer"], ["attention"]];
+  const before = top(base);
+  const after = top([...base, ["robot"]]);
+  assert.notDeepStrictEqual(after, before);
+  assert.ok(after.some((id) => topic(id) === "rob"), "a robotics paper enters the top five: " + after);
+  for (const [word, field, n] of [["climate", "earth", 3], ["quantum", "qc", 2], ["galaxy", "astro", 2]]) {
+    const ids = top([[word]], n);
+    assert.ok(ids.every((id) => topic(id) === field), word + " -> " + ids);
+  }
+  assert.ok(top([["protein"]], 3).every((id) => ["bio", "chem"].includes(topic(id))));
+});
+
+test("prefix and stem matching: robot finds robotics, optimization finds optimizer", () => {
+  assert.ok(top([["robot"]], 8).every((id) => rank([["robot"]]).ranked.find((r) => r.id === id).score > 0));
+  const hit = rank([["robot"]]).ranked.find((r) => r.id === "2212.06817");   // RT-1: "Robotics Transformer"
+  assert.ok(hit.score > 0);
+  const opt = rank([["optimizers"]]);
+  assert.ok(opt.unmatched.length === 0 && opt.ranked[0].score > 0);
+});
+
+test("multi-word keywords score by their words, and a phrase scores more", () => {
+  const r = rank([["reinforcement learning"]]);
+  assert.ok(r.unmatched.length === 0);
+  assert.ok(r.ranked.slice(0, 5).every((x) => topic(x.id) === "rl" || x.score > 0));
+  const partial = rank([["learning zebra"]]);   // only one of the two words exists
+  assert.ok(partial.ranked[0].score > 0 && partial.unmatched.length === 0);
+});
+
+test("Chinese keywords match the hand-written Chinese keywords", () => {
+  for (const [word, field] of [["强化学习", "rl"], ["机器人", "rob"], ["蛋白质", "bio"], ["气候", "earth"], ["图神经网络", "gnn"], ["扩散模型", "gen"]]) {
+    const ids = top([[word]], 3);
+    assert.ok(ids.every((id) => topic(id) === field || ["蛋白质", "机器人", "图神经网络", "扩散模型"].includes(word)), word + " -> " + ids);
+    assert.deepStrictEqual(rank([[word]]).unmatched, [], word);
+  }
+  assert.ok(top([["强化学习"]], 1).every((id) => topic(id) === "rl"));
+  assert.ok(!top([["强化学习"]], 5).some((id) => topic(id) === "chem"), "强化学习 must not match 化学");
+});
+
+test("a keyword that is added always shows up in the top five, even next to strong older keywords", () => {
+  const base = [["transformer"], ["language model"], ["vision", "weak"], ["efficient attention", "weak"], ["alignment", "weak"]];
+  const pick = (list) => { const t = tags(list); return R.pickTop(R.rank(index, t), t, 5).map((r) => r.id); };
+  const before = pick(base);
+  assert.strictEqual(before.length, 5);
+  for (const [word, field] of [["robot", "rob"], ["protein", "bio"], ["climate", "earth"], ["quantum", "qc"], ["强化学习", "rl"], ["机器人", "rob"]]) {
+    const after = pick([...base, [word]]);
+    assert.notDeepStrictEqual(after, before, word);
+    assert.ok(after.some((id) => topic(id) === field), word + " -> " + after.map(topic));
+  }
+  const many = pick([...base, ["robot"], ["protein"], ["climate"]]);
+  assert.ok(["rob", "bio", "earth"].every((f) => many.some((id) => topic(id) === f)), many.map(topic).join());
+  assert.deepStrictEqual(pick(base), before, "deterministic");
+});
+
+test("a keyword with no match changes nothing and is reported", () => {
+  const t = tags([["transformer"], ["zzzz"]]);
+  const res = R.rank(index, t);
+  assert.deepStrictEqual(res.unmatched, ["zzzz"]);
+  assert.deepStrictEqual(R.pickTop(res, t, 5).map((r) => r.id), R.pickTop(R.rank(index, tags([["transformer"]])), tags([["transformer"]]), 5).map((r) => r.id));
+});
+
+test("off keywords do not score; an empty profile keeps the library order", () => {
+  const r = rank([["transformer", "off"], ["attention", "off"]]);
+  assert.ok(r.ranked.every((x) => x.score === 0));
+  assert.deepStrictEqual(r.ranked.map((x) => x.id), data.papers.map((p) => p.id));
+});
+
+test("a keyword no paper mentions is reported as unmatched, not silently ignored", () => {
+  assert.deepStrictEqual(rank([["zzzz"], ["attention"]]).unmatched, ["zzzz"]);
+  assert.deepStrictEqual(rank([["龘龘"]]).unmatched, ["龘龘"]);
+  assert.deepStrictEqual(rank([["zzzz", "off"]]).unmatched, []);
 });
 
 test("a strong keyword outranks the same keyword weak", () => {
-  const strong = R.rank(index, tags([["vision", "strong"], ["alignment", "weak"]])).ranked[0];
-  assert.ok(strong.matched.includes("vision"));
-  const flipped = top([["vision", "weak"], ["alignment", "strong"]], 2);
-  assert.ok(["2212.08073", "2305.18290"].includes(flipped[0]), "alignment papers lead when alignment is strong: " + flipped);
-});
-
-test("off keywords do not score", () => {
-  const r = R.rank(index, tags([["transformer", "off"], ["attention", "off"]]));
-  assert.ok(r.ranked.every((x) => x.score === 0));
-  assert.deepStrictEqual(r.ranked.map((x) => x.id), papers.map((p) => p.id), "empty profile keeps the library order");
-});
-
-test("a keyword no paper mentions is reported, not silently ignored", () => {
-  const r = R.rank(index, tags([["zzzz", "strong"], ["attention", "strong"]]));
-  assert.deepStrictEqual(r.unmatched, ["zzzz"]);
-});
-
-test("a multi-word tag gets a phrase bonus", () => {
-  const phrase = R.rank(index, tags([["language model", "strong"]])).ranked[0];
-  assert.ok(phrase.score > 0);
+  const a = rank([["vision", "strong"], ["alignment", "weak"]]).ranked[0];
+  const b = rank([["vision", "weak"], ["alignment", "strong"]]).ranked[0];
+  assert.notStrictEqual(a.id, b.id);
 });
 
 test("ranking is deterministic", () => {
-  const a = top([["transformer", "strong"], ["vision", "weak"]], 10);
-  const b = top([["transformer", "strong"], ["vision", "weak"]], 10);
-  assert.deepStrictEqual(a, b);
+  assert.deepStrictEqual(top([["transformer"], ["vision", "weak"]], 10), top([["transformer"], ["vision", "weak"]], 10));
 });
 
 test("platform detection", () => {
@@ -71,4 +133,20 @@ test("architecture hints", () => {
   assert.strictEqual(P.archKind("x86"), "x86");
   assert.strictEqual(P.archKind(""), "unknown");
   assert.strictEqual(P.archKind(undefined), "unknown");
+});
+
+test("count-up text only grows and ends on the real value", () => {
+  const F = require("./assets/fx.js");
+  for (const text of ["22 MB", "3", "5", "2 × 2", "Zero"]) {
+    let prev = F.countText(text, 0);
+    for (let i = 1; i <= 20; i++) {
+      const cur = F.countText(text, F.ease(i / 20));
+      const nums = (s) => (s.match(/\d+/g) || []).map(Number);
+      nums(cur).forEach((n, k) => assert.ok(n >= nums(prev)[k], `${text}: ${prev} -> ${cur}`));
+      prev = cur;
+    }
+    assert.strictEqual(prev, text);
+  }
+  assert.strictEqual(F.countText("22 MB", 0), "0 MB");
+  assert.strictEqual(F.countText("Zero", 0.3), "Zero");
 });

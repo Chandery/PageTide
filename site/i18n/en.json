@@ -47,7 +47,7 @@
     "stories_label": "Today’s five papers",
     "badge": "Ranked in your browser · 0 tokens",
     "disclaimer": "Simplified demo — the app ranks with your full profile and feedback.",
-    "library_note": "Ranked from the 29 papers of the app’s demo project.",
+    "library_note": "Ranked from {n} sample papers across machine learning, robotics, biology, chemistry, climate, physics, economics and more.",
     "noscript": "The demo needs JavaScript. The five papers below are the unranked default.",
     "ui": {
       "strong": "strong",
@@ -57,7 +57,7 @@
       "remove": "Remove {tag}",
       "matched": "Matched",
       "nothing": "Nothing matches the profile, so the papers are in library order.",
-      "unmatched": "No paper in this demo mentions: {tags}.",
+      "unmatched": "No paper in this demo library mentions “{tags}”. The app searches arXiv, OpenAlex and Baidu Scholar for real.",
       "announce": "Ranking updated. {list}",
       "reset_done": "Profile reset. {list}",
       "added": "Added {tag}.",
@@ -67,8 +67,21 @@
       "load_failed": "The demo could not load its papers.",
       "et_al": "et al.",
       "colon": ": ",
-      "weight_word": "weight"
-    }
+      "weight_word": "weight",
+      "examples": [
+        "robot",
+        "protein",
+        "climate",
+        "reinforcement learning",
+        "graph neural network",
+        "diffusion",
+        "quantum",
+        "causal inference"
+      ],
+      "nomatch_label": "no match",
+      "example_aria": "Add {tag} to the profile"
+    },
+    "examples_label": "Try another field"
   },
   "editorial": {
     "title": "More papers is not the problem. Finding yours is.",
