@@ -415,7 +415,7 @@ def triage(app, keys=None):
     cards = app.cards(project_id=PROJECT_ID)
     if keys is not None:
         if not isinstance(keys, list) or not keys or any(not isinstance(k, str) for k in keys):
-            raise ValueError("请选择 1 到 5 篇论文" if not app.english() else "Choose 1 to 5 papers")
+            raise ValueError("请选择 1 到 20 篇论文" if not app.english() else "Choose 1 to 20 papers")
         wanted = set(keys)
         if not wanted <= {card["key"] for card in cards}:
             raise ValueError("这些论文不在当前推荐里" if not app.english() else "Those papers are not in today's picks")

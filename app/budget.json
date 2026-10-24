@@ -2,7 +2,7 @@
   "schema_version": 1,
   "baseline_id": "2026-10-09-ai-no-aggregate-ceilings",
   "approved_by_owner": true,
-  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003). 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical. 2026-10-07 owner 在本会话对新增 category_review 范围与上限问题明确回复“批准”：完整共享目录最多60类、每批最多12篇标题80/摘要160片段及临时 c/p 归属别名；输入8000、输出2000，每批一次无重试，沿用全局55k/day、1.5M/month、$0.15/day、$1.50/month。明确显式审阅才调用、完整预览确认才改分类；不发PDF、笔记、反馈、画像、私有ID或历史，不自动打开AI总开关，不扩大其他操作。初始登记为false等待答复，现按此次人类批准登记true；不是agent自行批准。 2026-10-09 owner 在本会话明确要求“不再设置预算上限，设置里增设按钮：测试AI”：取消 App 运行时 aggregate 日/月 token 与 USD 准入上限，保留逐次用量、未知预留与各操作单次请求合同；旧总帽数值仅为历史，不是当前余额或0额度。新增 ai_connection_test 仅手工按钮单次固定消息，可临时测试未保存密钥及在 AI 总开关关闭时测试而不改开关；无自动重试、无用户内容外发。本授权不扩展其他操作单次 caps，不批准额外 paid developer calls；独立开发账本与开发上限保持。 2026-10-22 owner 在本会话明确说“不要给 ai 对话设上限啊，预算只是用来预估的，并不是用来限制用户的”，并在追问中选择“对话放开，后台留保护”：单次输入上限改为预估，只受模型窗口限制；对话类操作请求模型最大输出，后台结构化操作保留输出上限防失控。不是 agent 自行批准。",
+  "owner_approval_note": "Owner accepted the daily/monthly token+USD ceilings for daily_triage, paper_qa, weekly_digest, selection_translate and query_expand on 2026-09-11, and then approved the raised ceilings that cover llm_rerank the same day. llm_rerank stays default-off until the hybrid ranking is measured against the sparse baseline and the owner enables it (ADR 0003). 2026-10-07 human owner explicitly replied “授权啊，全都授权” to the pending native acceptance and Route expanded AI scope/paid-test request. Approves this registered scope and caps within unchanged global 55k/day,1.5M/month,$0.15/day,$1.50/month; no unlimited spend, default enablement or unrelated scope. Prior grants remain historical. 2026-10-07 owner 在本会话对新增 category_review 范围与上限问题明确回复“批准”：完整共享目录最多60类、每批最多12篇标题80/摘要160片段及临时 c/p 归属别名；输入8000、输出2000，每批一次无重试，沿用全局55k/day、1.5M/month、$0.15/day、$1.50/month。明确显式审阅才调用、完整预览确认才改分类；不发PDF、笔记、反馈、画像、私有ID或历史，不自动打开AI总开关，不扩大其他操作。初始登记为false等待答复，现按此次人类批准登记true；不是agent自行批准。 2026-10-09 owner 在本会话明确要求“不再设置预算上限，设置里增设按钮：测试AI”：取消 App 运行时 aggregate 日/月 token 与 USD 准入上限，保留逐次用量、未知预留与各操作单次请求合同；旧总帽数值仅为历史，不是当前余额或0额度。新增 ai_connection_test 仅手工按钮单次固定消息，可临时测试未保存密钥及在 AI 总开关关闭时测试而不改开关；无自动重试、无用户内容外发。本授权不扩展其他操作单次 caps，不批准额外 paid developer calls；独立开发账本与开发上限保持。 2026-10-22 owner 在本会话明确说“不要给 ai 对话设上限啊，预算只是用来预估的，并不是用来限制用户的”，并在追问中选择“对话放开，后台留保护”：单次输入上限改为预估，只受模型窗口限制；对话类操作请求模型最大输出，后台结构化操作保留输出上限防失控。不是 agent 自行批准。 2026-10-25 owner 在本会话要求 AI 速览与推荐篇数一致（“AI 速览要支持 1-20 篇”），并要求速览“稍微说多一点，而不是就一句话”：daily_triage 每批最多20篇、摘要片段800字符、每篇2到3句概述；单次估算输入23500/输出9000（输出仍作防失控上限），仍为每次触发一次调用、无重试。不是 agent 自行批准。",
   "pending_approval": [],
   "measurement_status": "owner_approved_planning_envelopes_no_runtime_or_tokenizer_measurement",
   "provider": {
@@ -65,21 +65,21 @@
       "trigger": "background",
       "enabled_by_default": true,
       "reference": {
-        "input": 3000,
-        "output": 900
+        "input": 6500,
+        "output": 6000
       },
       "cap": {
-        "input": 4200,
-        "output": 1300
+        "input": 23500,
+        "output": 9000
       },
       "input_cap_components": {
-        "instructions_and_json_example": 700,
+        "instructions_and_json_example": 900,
         "profile_terms": 250,
-        "paper_ids_titles_and_flags": 450,
-        "abstracts_5x520": 2600,
-        "framing_and_margin": 200
+        "paper_ids_titles_and_flags": 1200,
+        "abstracts_20x1040": 20800,
+        "framing_and_margin": 350
       },
-      "scope": "one batch of at most five abstract-only cards; no tools, full PDFs, notes or history"
+      "scope": "one batch of at most twenty abstract-only cards (the whole recommendation batch), abstract fragments up to 800 characters; a 2-3 sentence summary, 1-2 sentence relevance and one caution per card; no tools, full PDFs, notes or history"
     },
     "llm_rerank": {
       "prompt": "prompts/llm-rerank.md",
