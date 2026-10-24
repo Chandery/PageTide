@@ -150,9 +150,11 @@ Once a week, see what you saved, what you skipped and which directions grew.
 
 ## 🎬 See it in action
 
-<!-- 30 s promo video: paste the github.com/user-attachments/... URL here on its own line (mp4 under 10 MB) -->
+A 30-second tour: from a flood of new papers to the few that fit your research.
 
-A 30-second walkthrough of PageTide, from creating a project to asking a question about a paper, will be embedded here.
+https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2
+
+<sub>🎵 Music by Pumpupthemind</sub>
 
 ## 🔒 Private by design
 
@@ -228,7 +230,7 @@ If PageTide saves you time, a star on GitHub helps other researchers find it. �
 
 ## 🙏 Acknowledgments
 
-Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev).
+Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev). Promo video music by Pumpupthemind.
 
 ## 📄 License
 

@@ -150,9 +150,11 @@
 
 ## 🎬 实际演示
 
-<!-- 30 s promo video: paste the github.com/user-attachments/... URL here on its own line (mp4 under 10 MB) -->
+30 秒看懂 PageTide：从每天涌来的新论文里，挑出贴合你研究的那几篇。
 
-这里将嵌入一段 30 秒的演示视频：从创建项目到对论文提问。
+https://github.com/user-attachments/assets/031e2f69-5985-4d31-b595-9411cec919c2
+
+<sub>🎵 配乐：Pumpupthemind</sub>
 
 ## 🔒 隐私优先
 
@@ -228,7 +230,7 @@ PageTide 会自己检查更新并弹出提示，也可以在设置里点“检�
 
 ## 🙏 致谢
 
-Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。
+Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。宣传视频配乐来自 Pumpupthemind。
 
 ## 📄 许可证
 
