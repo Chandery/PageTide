@@ -419,11 +419,22 @@ class ServiceWiringTests(unittest.TestCase):
             self.app.refresh_candidates(project_id=project)
         self.assertEqual((asked[0]["order"], asked[0]["from_date"]), ("recent", sources.window_start(5)))
 
-    def test_refresh_for_the_default_project_keeps_the_world_model_recipe(self):
+    def test_refresh_for_the_legacy_default_project_keeps_the_world_model_recipe(self):
+        # Only the project a pre-multi-project database was migrated into keeps the "world model" recipe.
+        pid = self.app.projects.create_project("legacy", "manual", [])
+        self.app.store.conn.execute("UPDATE projects SET id='default_project' WHERE id=?", (pid,))
+        self.app.store.conn.commit()
         with mock.patch.object(self.app.source, "discover", return_value=[]) as legacy, \
                 mock.patch.object(self.app.source, "discover_topic", side_effect=AssertionError("default project keeps its recipe")):
-            self.app.refresh_candidates()
+            self.app.refresh_candidates(project_id="default_project")
         self.assertEqual(legacy.call_args.kwargs["search"], "world model")
+
+    def test_refresh_for_a_project_without_keywords_asks_no_source(self):
+        pid = self.app.projects.create_project("empty", "manual", [])
+        with mock.patch.object(self.app.source, "discover", side_effect=AssertionError("no query")), \
+                mock.patch.object(self.app.source, "discover_topic", side_effect=AssertionError("no query")):
+            result = self.app.refresh_candidates(project_id=pid)
+        self.assertEqual((result["fetched"], result["reason_code"]), (0, "no_keywords"))
 
     def test_refresh_reports_a_failed_keyword_and_continues(self):
         project = self.app.create_project("p", "manual", ["alpha", "beta"])["project_id"]

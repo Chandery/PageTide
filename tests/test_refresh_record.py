@@ -175,10 +175,12 @@ class GuardTests(tm.Fixture):
             maintenance.manual_refresh(self.app, self.pid, now=at(5, 8), include_distractors=True)
         self.assertIsNone(maintenance.status(self.app, self.pid)["last_refresh_result"])
 
-    def test_the_first_launch_bootstrap_refresh_is_recorded_like_any_other(self):
+    def test_the_desktop_backend_fetches_nothing_on_its_own_at_start(self):
+        # A first launch has no project to fetch for and no seed papers: no bootstrap refresh, so no unrecorded one either.
         source = (ROOT / "app" / "desktop.py").read_text(encoding="utf-8")
-        self.assertIn("maintenance.manual_refresh(", source)
-        self.assertNotIn("app.refresh_candidates(", source)
+        self.assertNotIn("manual_refresh(", source)
+        self.assertNotIn("refresh_candidates(", source)
+        self.assertNotIn("ensure_seed_papers", source)
 
 
 class RecommendableTests(tm.Fixture):

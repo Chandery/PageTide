@@ -11,7 +11,7 @@ class ProfileInsightsTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.app = App(root=".", data_dir=Path(self.tmp.name) / "app")
-        self.project = self.app.get_default_project_id()
+        self.project = self.app.projects.create_project("Test project", "manual", [])   # a fresh app has no project
         self.app.store.upsert_papers([
             {"key": "p1", "title": "Latent world model planning", "abstract": "planning with temporal memory", "published": "2025", "source": "test", "project_id": self.project},
             {"key": "p2", "title": "Visual representation learning", "abstract": "contrastive representation for agents", "published": "2025", "source": "test", "project_id": self.project},

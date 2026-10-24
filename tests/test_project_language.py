@@ -93,6 +93,7 @@ class ProjectLanguageTests(unittest.TestCase):
         path = Path(self.tmp.name) / 'old.sqlite'
         with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
             old = Store(path); old.init()
+            old.conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES ('default_project','默认项目','manual','2026-01-01','[]')")   # a database from before this migration already held its default project
             old.upsert_papers([{'key': 'old', 'title': 'Old English title'}])
             old.close()
         upgraded = Store(path); upgraded.init()
@@ -136,6 +137,7 @@ class ProjectLanguageTests(unittest.TestCase):
         path = Path(self.tmp.name) / 'legacy-discipline.sqlite'
         with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
             old = Store(path); old.init()
+            old.conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES ('default_project','默认项目','manual','2026-01-01','[]')")   # an older database already held its default project
             old.conn.execute('ALTER TABLE projects ADD COLUMN discipline TEXT')
             old.conn.execute('UPDATE projects SET discipline=?', ('legacy research field',))
             old.upsert_papers([{'key': 'legacy', 'title': 'Preserved paper'}])
@@ -165,6 +167,7 @@ class ProjectLanguageTests(unittest.TestCase):
         path = Path(self.tmp.name) / 'legacy-rollback.sqlite'
         with mock.patch.object(migrations, 'MIGRATIONS', [m for m in migrations.MIGRATIONS if migrations._number(m) < 9]):
             old = Store(path); old.init()
+            old.conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES ('default_project','默认项目','manual','2026-01-01','[]')")   # an older database already held its default project
             old.conn.execute('ALTER TABLE projects ADD COLUMN discipline TEXT')
             old.conn.execute("UPDATE projects SET discipline='stem'")
             old.conn.commit(); old.close()
@@ -201,7 +204,8 @@ class ProjectLanguageTests(unittest.TestCase):
             self.assertEqual(policy['allowed_languages'], [])
             self.assertEqual(app.set_project_language(pid, 'stem', ['en'])['language_policy']['status'], 'ready')
             app.store.conn.execute('DELETE FROM projects'); app.store.conn.commit()
-            rebuilt = app.get_default_project_id()
+            self.assertIsNone(app.get_default_project_id())   # nothing recreates a project behind the person's back
+            rebuilt = app.create_project('Rebuilt pending project')['project_id']
             self.assertEqual(app.projects.get_project(rebuilt)['language_policy']['status'], 'pending')
             self.assertEqual(app.projects.get_project(rebuilt)['language_policy']['discipline'], 'cs_ai')
         finally:

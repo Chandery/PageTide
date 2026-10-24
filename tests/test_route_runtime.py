@@ -91,7 +91,8 @@ class MigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = Store(Path(tmp) / "db.sqlite")
             store.init()
-            store.upsert_papers([{"key": "k", "title": "T"}])
+            store.conn.execute("INSERT INTO projects(id,name,creation_mode,creation_timestamp,keywords) VALUES ('default_project','默认项目','manual','2026-01-01','[]')")
+            store.upsert_papers([{"key": "k", "title": "T"}], project_id="default_project")
             store.create_batch("2026-01-01", ["k"], project_id="default_project")
             store.conn.execute("DELETE FROM schema_version WHERE version=8")
             store.conn.commit()

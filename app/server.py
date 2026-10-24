@@ -25,7 +25,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from . import creation, maintenance, updater
 from .organization import Conflict as OrganizationConflict
 from .language import language
-from .service import App
+from .service import App, NoProject
 
 STATIC = Path(__file__).resolve().parent / "static"
 VERSION = "0.12"
@@ -110,7 +110,7 @@ def suggestion_profile(app, project_id=None):
     from .service import PROFILE_STOPWORDS
     if project_id is not None and (not isinstance(project_id, str) or not app.projects.get_project(project_id)):
         raise ValueError("未知项目")
-    project_id = project_id or app.get_default_project_id()
+    project_id = project_id or app.require_default_project_id()
     project = app.projects.get_project(project_id) or {}
     return {"project": project.get("name") or project_id,
             "pinned": [term for term in app.profile(project_id)["pinned_terms"]
@@ -126,7 +126,7 @@ def category_review_job(root, project_id, all_papers=False, cancelled=None):
     app = make_app(root)
     try:
         profile = suggestion_profile(app, project_id)
-        scope = None if all_papers else (project_id or app.get_default_project_id())
+        scope = None if all_papers else (project_id or app.require_default_project_id())
         return run_review(app, scope, profile, cancelled=cancelled)
     finally:
         app.store.close()
@@ -278,6 +278,13 @@ class Handler(BaseHTTPRequestHandler):
             # A client that went away while we were writing a response is routine. The same error types raised
             # before any response started come from handler code (e.g. an upstream timeout): log those.
             if self._response_started and isinstance(exc, (ConnectionError, TimeoutError)):
+                return
+            if isinstance(exc, NoProject) and not self._response_started:
+                # A route that needs a project was called before the person made one: a plain 400, not a crash.
+                try:
+                    self._json({"error": str(exc), "reason_code": "no_project"}, 400)
+                except Exception:
+                    pass
                 return
             import traceback
             traceback.print_exc()
@@ -574,6 +581,8 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app()
             # Extract project_id from query if provided
             project_id = query.get("project_id", [None])[0]
+            if not project_id and app.get_default_project_id() is None:
+                return self._json(self._no_project_payload(app))
             self._json({**app.home_maintenance(project_id), "route": app.home_route(project_id),
                         "server_version": VERSION, "stats": app.stats(project_id),
                         "profile": app.profile(project_id),
@@ -592,6 +601,8 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/state":  # kept for compatibility
             app = self._app()
             project_id = query.get("project_id", [None])[0]
+            if not project_id and app.get_default_project_id() is None:
+                return self._json(self._no_project_payload(app))
             self._json({"profile": app.profile(project_id), "cards": app.cards(project_id=project_id)})
         elif route.startswith("/api/project-guidance/sessions/"):
             session_id = route.split("/")[-1]
@@ -963,6 +974,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({'error': '本地保存失败；原修改未保存，请保留草稿后重试'}, 500)
         elif route == "/api/maintain":
             project_id = body.get("project_id") or app.get_default_project_id()
+            if project_id is None:
+                return self._json({"due": False, "status": None, "reason_code": "no_project"})
             wanted = maintenance.plan(app, project_id)
             if not (wanted["refresh"] or wanted["batch"]):
                 self._json({"due": False, "status": maintenance.status(app, project_id)})
@@ -1221,6 +1234,15 @@ class Handler(BaseHTTPRequestHandler):
                 "limits": {k: limits[k] for k in ("daily_total_tokens", "monthly_total_tokens",
                                                    "daily_usd", "monthly_usd")}}
 
+    @staticmethod
+    def _no_project_payload(app):
+        """/api/home and /api/state before the first project exists: 200 with nothing in it, so the page can send the
+        person to project creation instead of showing an error."""
+        return {"no_project": True, "maintenance": None, "recommendation_eligibility": None, "route": None,
+                "server_version": VERSION, "stats": None, "profile": None, "cards": [], "summaries": {},
+                "usage": app.usage(), "dev_mode": app.gateway.dev, "provider": app.provider_status(),
+                "latest_jobs": []}
+
     def _list_projects(self):
         """GET /api/projects - list all projects"""
         app = self._app()
@@ -1270,7 +1292,7 @@ class Handler(BaseHTTPRequestHandler):
             if operation in {"suggest", "graph"}:
                 path = app.store.path.resolve()
                 request = ({"profile": suggestion_profile(app, body.get("project_id")),
-                            "scope_project": None if body.get("scope") == "all" else (body.get("project_id") or app.get_default_project_id())}
+                            "scope_project": None if body.get("scope") == "all" else (body.get("project_id") or app.require_default_project_id())}
                            if operation == "suggest" else None)
                 job = _job_start("organization", lambda: organization_job(path, "default", operation, request))
                 return self._json({"job": job})

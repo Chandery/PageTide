@@ -53,8 +53,6 @@ def main():
             f"{ROOT / 'app' / 'static'}{SEP}app/static",
             "--add-data",
             f"{ROOT / 'harness' / 'budget.json'}{SEP}harness",
-            "--add-data",
-            f"{ROOT / 'harness' / 'seeds.json'}{SEP}harness",
             "--paths",
             str(ROOT),
             str(ROOT / "scripts" / "server_entry.py"),

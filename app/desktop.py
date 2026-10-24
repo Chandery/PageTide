@@ -7,9 +7,8 @@ import sys
 import threading
 from pathlib import Path
 
-from . import maintenance, platform_compat, updater
+from . import platform_compat, updater
 from .server import build_server, stop_organization_workers
-from .service import App
 
 
 LOG_LIMIT_BYTES = 1_000_000
@@ -101,10 +100,6 @@ def main():
     harness = root / "harness"
     harness.mkdir(exist_ok=True)
     shutil.copyfile(resources / "harness" / "budget.json", harness / "budget.json")
-    seeds = harness / "seeds.json"
-    bundled_seeds = resources / "harness" / "seeds.json"
-    if bundled_seeds.exists() and (not seeds.exists() or seeds.stat().st_size < 100):
-        shutil.copyfile(bundled_seeds, seeds)
     os.environ["PAPERDIGHELPER_DATA"] = str(root)
     os.chdir(root)
     with (root / ".desktop.lock").open("a", encoding="utf-8") as lock:
@@ -116,18 +111,6 @@ def main():
         if os.environ.get("PDH_LOG_STDERR") == "1":
             redirect_stderr_to_log(root)
         httpd = build_server(port=0, root=resources, desktop_token=secrets.token_hex(32))
-
-        def bootstrap():
-            try:
-                app = App(root=resources, data_dir=root)
-                if not app.store.papers():
-                    app.ensure_seed_papers()
-                    maintenance.manual_refresh(app, pages=1, per_page=100)
-                app.store.conn.close()
-            except Exception as exc:
-                print(f"PDH_BOOTSTRAP_FAILED {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
-
-        threading.Thread(target=bootstrap, daemon=True).start()
 
         def watch_parent():
             sys.stdin.buffer.read()

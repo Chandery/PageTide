@@ -33,6 +33,20 @@ def set_schema_version(conn, version):
     conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (?,?)", (version, now()))
 
 
+_LEGACY_TABLES = ("papers", "feedback", "batches", "profile_versions", "library", "qa_history")
+
+
+def _has_legacy_rows(conn):
+    """True when any pre-project table already holds data (an upgrade, not a fresh install)."""
+    for table in _LEGACY_TABLES:
+        try:
+            if conn.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone():
+                return True
+        except sqlite3.OperationalError:
+            continue
+    return False
+
+
 def migrate_001_multi_project(conn):
     """Add multi-project support: projects table, project_id foreign keys, snapshots and reports."""
 
@@ -58,12 +72,13 @@ def migrate_001_multi_project(conn):
         )
     """)
 
-    # Create default project for existing data
+    # Pre-multi-project data needs a project to belong to; a fresh database has none and gets no project.
     default_project_id = "default_project"
-    conn.execute("""
-        INSERT OR IGNORE INTO projects (id, name, creation_mode, creation_timestamp, keywords)
-        VALUES (?, ?, ?, ?, ?)
-    """, (default_project_id, "默认项目", "manual", now(), json.dumps([])))
+    if _has_legacy_rows(conn):
+        conn.execute("""
+            INSERT OR IGNORE INTO projects (id, name, creation_mode, creation_timestamp, keywords)
+            VALUES (?, ?, ?, ?, ?)
+        """, (default_project_id, "默认项目", "manual", now(), json.dumps([])))
 
     # Add project_id to papers table
     try:

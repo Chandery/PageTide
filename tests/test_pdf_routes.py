@@ -107,6 +107,7 @@ class AppCase(unittest.TestCase):
         self.pdf_fetch = pdf_fetch
         self.app = App(root=str(root), data_dir=str(root / "data"))
         self.addCleanup(self.app.store.close)
+        self.app.projects.create_project("Test project", "manual", [])   # a fresh app has no project
         mock.patch.object(pdf_fetch.time, "sleep").start()
         self.addCleanup(mock.patch.stopall)
 

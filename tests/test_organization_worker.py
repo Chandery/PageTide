@@ -112,6 +112,7 @@ class SuggestionProfileTests(unittest.TestCase):
             with patch.dict(os.environ, {"PAPERDIGHELPER_DATA": tmp}):
                 app = server.make_app(tmp)
             try:
+                app.projects.create_project("Test project", "manual", [])   # a fresh app has no project
                 with patch("app.profile_insights.keywords", return_value=terms):
                     profile = server.suggestion_profile(app)
             finally:

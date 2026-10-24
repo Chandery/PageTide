@@ -134,6 +134,7 @@ class ServiceTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.app = App(root=".", data_dir=Path(self.tmp.name) / "app")
+        self.app.projects.create_project("Test project", "manual", [])   # a fresh app has no project: the test makes its own
         from recommendation_fixtures import legacy_recommendation_settings
         legacy_recommendation_settings(self.app, route_beta=False)
         self.app.store.upsert_papers([
@@ -240,9 +241,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(card["mode"], "sparse")
 
     def test_pinned_terms_are_used(self):
-        data = self.app.store.current_profile() or {"project": "world-models", "weights": {"pos": 1.0, "neg": 0.5}}
-        data["pinned_terms"] = ["planning"]
-        self.app.save_profile(data, note="pin")
+        self.app.pin_terms(["planning"])
         self.assertEqual(self.app.profile()["pinned_terms"], ["planning"])
 
     def test_useful_saves_to_library_and_card_stays(self):

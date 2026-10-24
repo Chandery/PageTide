@@ -1,3 +1,15 @@
+# 当前工作单元：去掉默认项目（2026-10-24，onboarding-tour 第一步）
+
+worktree `onboarding-tour`，基线 update-check `b7cb191`，类别 critical。[变更记录](../changes/2026-10-24-no-default-project.json)，[检查证据](evidence/2026-10-24-no-default-project-checks.txt)。后面还有演示项目与新手指引（第二个提交，进行中）。
+
+做了什么：新安装没有项目、没有论文、不自动联网。第一个迁移只在旧库已有数据时才建 `default_project`；`get_default_project_id()` 无项目返回 `None`，永不创建；需要项目的调用抛 `NoProject`（HTTP 400，`reason_code: "no_project"`）；`/api/home`、`/api/state` 无项目回 200 `{"no_project": true, "cards": [], "profile": null, ...}`；桌面后端启动不再放 10 篇世界模型种子、不再后台抓取，打包也不再带 `seeds.json`；没有关键词的项目刷新返回 `no_keywords`、不联网，只有字面 id `default_project`（旧库迁移来的）保留 "world model" 配方、种子标题回退和旧全局钉词。
+
+对已有用户的行为变化（写给下一位接手的人）：把项目全删光后不会再冒出一个空的“默认项目”，页面要把人带去创建页；没有关键词的非旧项目不再按 "world model" 抓取；旧的全局钉词不再落到最新项目上（以前 `list_projects()` 按创建时间倒序，“默认项目”其实是最新的那个）。
+
+没验证：前端还没处理 `no_project`（页面重定向在后续步骤接线，在此之前全新安装的界面不可用）；没构建、没在真实 `.app` 上首次启动；没有独立审查。
+
+---
+
 # 当前工作单元：检查更新（2026-10-24）
 
 worktree `update-check`，基线 main `36d2070`，类别 critical。[变更记录](../changes/2026-10-24-update-check.json)，[检查证据](evidence/2026-10-24-update-check-checks.txt)，[ADR 0041](decisions/0041-update-check.md)。
