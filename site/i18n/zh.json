@@ -41,7 +41,7 @@
     "profile_title": "你的画像",
     "profile_hint": "推荐按这些关键词来排",
     "add_label": "加一个关键词",
-    "add_placeholder": "比如：机器人、robot",
+    "add_placeholder": "比如：robot、protein",
     "add_button": "加入",
     "reset": "恢复默认",
     "stories_label": "今天的五篇",
@@ -69,14 +69,14 @@
       "colon": "：",
       "weight_word": "权重",
       "examples": [
-        "机器人",
-        "蛋白质",
-        "气候",
-        "强化学习",
-        "图神经网络",
-        "扩散模型",
-        "量子计算",
-        "因果推断"
+        "robot",
+        "protein",
+        "climate",
+        "reinforcement learning",
+        "graph neural network",
+        "diffusion",
+        "quantum",
+        "causal inference"
       ],
       "nomatch_label": "没找到",
       "example_aria": "把“{tag}”加进画像"
