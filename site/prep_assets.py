@@ -33,7 +33,7 @@ def main():
     cover = MAIN / ".local/readme-video/pagetide-x30-cover.png"          # the promo cover, 1920x1080, the hero image
     webp(cover, OUT / "cover.webp", 1920, 90)
     Image.open(cover).convert("RGB").save(OUT / "cover.jpg", "JPEG", quality=90, optimize=True, progressive=True)
-    shutil.copy2(MAIN / ".local/readme-video/pagetide-readme-cover-first.mp4", OUT / "pagetide-promo.mp4")
+    # The promo video is hosted on the owner's object storage (see template.html), not in the repository.
     shutil.copy2(MAIN / ".local/social/pagetide-social-preview.png", OUT / "og.png")
     shutil.copy2(REPO / "app/static/wordmark.png", OUT / "wordmark.png")
     shutil.copy2(REPO / "app/static/wordmark-dark.png", OUT / "wordmark-dark.png")

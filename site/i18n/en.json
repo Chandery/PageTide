@@ -137,7 +137,7 @@
   "watch": {
     "title": "Watch PageTide in 30 seconds",
     "label": "PageTide promo video, 30 seconds",
-    "fallback": "Your browser cannot play this video. You can <a href=\"/assets/pagetide-promo.mp4\">download it</a>.",
+    "fallback": "Your browser cannot play this video. You can <a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-x30-cover-first.mp4\">download it</a>.",
     "credit": "Music by Pumpupthemind"
   },
   "get": {

@@ -137,7 +137,7 @@
   "watch": {
     "title": "30 秒看懂 PageTide",
     "label": "PageTide 宣传片（30 秒）",
-    "fallback": "你的浏览器播放不了这个视频，可以<a href=\"/assets/pagetide-promo.mp4\">下载下来看</a>。",
+    "fallback": "你的浏览器播放不了这个视频，可以<a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-x30-cover-first.mp4\">下载下来看</a>。",
     "credit": "配乐：Pumpupthemind"
   },
   "get": {
