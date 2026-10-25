@@ -29,7 +29,7 @@ English · <a href="README-zh.md">简体中文</a>
 
 </div>
 
-https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
+https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 <p align="center"><sub>Music by Pumpupthemind</sub></p>
 
@@ -39,8 +39,10 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-en-dark.svg">
-  <img src="docs/assets/readme/numbers-en-light.svg" alt="PageTide by the numbers: zero tokens to rank, zero accounts, a single AI call for five previews, 22 MB download; 3 sources, 5 import formats, 3 ways to start, 2 platforms by 2 languages" width="880">
+  <img src="docs/assets/readme/numbers-en-light.svg" alt="PageTide by the numbers: 0 model tokens to rank papers and learn your profile; 0 accounts, servers or telemetry; 24 MB download on Apple Silicon Macs, 17 MB on Windows; 3 open paper sources: arXiv, OpenAlex and Baidu Scholar" width="880">
 </picture>
+
+<sub>Ranking runs on your computer, without AI. Sizes are the current release downloads.</sub>
 
 ## Features
 
@@ -117,8 +119,8 @@ PageTide works out of the box on arXiv. Add your own keys to switch on more sour
 
 | Platform | File |
 | --- | --- |
-| macOS (Apple Silicon) | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 22 MB |
-| macOS (Intel) | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) |
+| macOS (Apple Silicon) | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 24 MB |
+| macOS (Intel) | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 26 MB |
 | Windows (x64) | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
 
 <details>

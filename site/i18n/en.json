@@ -93,51 +93,32 @@
     "footnote": "<a href=\"#fnref-papers\" aria-label=\"Back to the text\">1</a> OpenAlex lists 626,339 journal articles published in September 2026, about 20,900 a day; queried 2026-10-25. Source: <a href=\"https://openalex.org\" rel=\"noopener\">OpenAlex</a>."
   },
   "numbers": {
-    "title": "Less is more. More for you.",
-    "less_title": "↓ Less is more",
-    "more_title": "↑ More for you",
-    "more_note": "and growing with every release",
-    "less": [
+    "title": "By the numbers",
+    "items": [
       {
-        "v": "Zero",
+        "v": "0",
         "t": "model tokens to rank papers and learn your profile"
       },
       {
-        "v": "Zero",
+        "v": "0",
         "t": "accounts, servers or telemetry"
       },
       {
-        "v": "Single",
-        "t": "AI call previews up to 20 picks at once"
+        "v": "24",
+        "u": "MB",
+        "t": "download on Apple Silicon Macs, 17 MB on Windows"
       },
       {
-        "v": "24 MB",
-        "t": "download on macOS (17 MB on Windows)"
+        "v": "3",
+        "t": "open paper sources: arXiv, OpenAlex and Baidu Scholar"
       }
     ],
-    "more": [
-      {
-        "v": "3",
-        "t": "open sources: arXiv, OpenAlex, Baidu Scholar"
-      },
-      {
-        "v": "5",
-        "t": "ways to import: PDFs, folders, BibTeX, RIS, CSL"
-      },
-      {
-        "v": "3",
-        "t": "ways to start a project: quick, AI-guided, manual"
-      },
-      {
-        "v": "2 × 2",
-        "t": "platforms × languages: macOS, Windows · EN, 中文"
-      }
-    ]
+    "foot": "Ranking runs on your computer, without AI. Sizes are the current release downloads."
   },
   "watch": {
-    "title": "Watch PageTide in 30 seconds",
-    "label": "PageTide promo video, 30 seconds",
-    "fallback": "Your browser cannot play this video. You can <a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-x30-cover-first.mp4\">download it</a>.",
+    "title": "Watch PageTide in 40 seconds",
+    "label": "PageTide promo video, 40 seconds",
+    "fallback": "Your browser cannot play this video. You can <a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-final-cover-first.mp4\">download it</a>.",
     "credit": "Music by Pumpupthemind"
   },
   "get": {

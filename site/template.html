@@ -131,10 +131,8 @@
   <header class="section-head">
     <h2 id="num-title">{{numbers.title}}</h2>
   </header>
-  <h3 class="num-group less">{{numbers.less_title}}</h3>
-  <ul class="num-grid less">{{numbers_less_html}}</ul>
-  <h3 class="num-group more">{{numbers.more_title}} <span class="num-note">· {{numbers.more_note}}</span></h3>
-  <ul class="num-grid more">{{numbers_more_html}}</ul>
+  <ul class="num-band">{{numbers_html}}</ul>
+  <p class="num-foot">{{numbers.foot}}</p>
 </section>
 
 <section class="section watch" id="watch" aria-labelledby="watch-title">
@@ -143,7 +141,7 @@
   </header>
   <figure class="video">
     <video controls preload="none" playsinline poster="/assets/cover.jpg" width="1920" height="1080" aria-label="{{watch.label}}">
-      <source src="https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-x30-cover-first.mp4" type="video/mp4">
+      <source src="https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-final-cover-first.mp4" type="video/mp4">
       <p>{{watch.fallback}}</p>
     </video>
     <figcaption>{{watch.credit}}</figcaption>
