@@ -8,6 +8,7 @@
   --good:#1b6e42; --bad:#b9261a; --warn:#855500;
   --display:"SF Pro Display","SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans GB",system-ui,sans-serif;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Georgia,"Songti SC","STSong","SimSun",serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --sh-1:0 1px 2px rgba(16,24,40,.04); --sh-2:0 8px 24px rgba(16,24,40,.07);
   --sh-3:0 20px 48px rgba(16,24,40,.14);
@@ -73,9 +74,14 @@ p { margin: 0 0 1em; }
 /* Hero */
 .hero { text-align: center; padding: 72px 0 8px; position: relative; }
 .hero::before { content: ""; position: absolute; left: 50%; top: -60px; width: min(900px, 90vw); height: 460px; margin-left: calc(min(900px, 90vw) / -2); z-index: -1; pointer-events: none;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 22%, transparent), transparent);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 12%, transparent), transparent);
   translate: var(--gx, 0px) var(--gy, 0px); transition: translate .6s var(--ease-out); }
-.hero h1 { font-size: clamp(2.1rem, 5.6vw, 3.9rem); font-weight: 800; max-width: 16em; margin: 0 auto 18px; text-wrap: balance; }
+.eyebrow { margin: 0 0 18px; font-size: .9rem; font-weight: 600; letter-spacing: .01em; color: var(--muted); }
+.hero h1 { font-size: clamp(2.5rem, 1.4rem + 4.4vw, 4.25rem); font-weight: 600; line-height: 1.04; letter-spacing: -.035em;
+  max-width: 20ch; margin: 0 auto 22px; text-wrap: balance; }
+.hero h1 em { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 1.06em; letter-spacing: -.012em; }
+:lang(zh) .hero h1 { max-width: 9.5em; line-height: 1.2; letter-spacing: -.01em; }
+:lang(zh) .hero h1 em { font-style: normal; font-weight: 600; font-size: 1em; letter-spacing: 0; }
 .sub { font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--muted); max-width: 34em; margin: 0 auto 30px; text-wrap: balance; }
 .cta-buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .cta .btn { padding: 14px 28px; font-size: 1rem; }
@@ -288,7 +294,7 @@ p { margin: 0 0 1em; }
 .req-cols .card, .dl-card, .first-launch { transition: transform .2s var(--ease-out), box-shadow .2s; }
 .req-cols .card:hover { transform: translateY(-3px); box-shadow: var(--sh-2); }
 
-html.fx .hero h1, html.fx .hero .sub, html.fx .hero .cta, html.fx .hero .fine { animation: rise .8s var(--ease-out) both; }
+html.fx .hero .eyebrow, html.fx .hero h1, html.fx .hero .sub, html.fx .hero .cta, html.fx .hero .fine { animation: rise .8s var(--ease-out) both; }
 html.fx .hero .sub { animation-delay: .1s; }
 html.fx .hero .cta { animation-delay: .2s; }
 html.fx .hero .fine { animation-delay: .3s; }

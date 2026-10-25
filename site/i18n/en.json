@@ -26,8 +26,9 @@
     "home": "PageTide home"
   },
   "hero": {
-    "title": "An open-source research assistant for discovering and organizing papers.",
-    "sub": "PageTide learns your research profile, recommends new papers every day, and keeps them in a library you own.",
+    "eyebrow": "Open-source research assistant",
+    "title": "Papers worth reading,<br> <em>every morning.</em>",
+    "sub": "PageTide learns your research profile, ranks new papers on your own computer, and keeps the ones you save in a library you own.",
     "dl_mac": "Download for macOS",
     "dl_win": "Download for Windows",
     "star": "★ Star on GitHub",
