@@ -6,7 +6,7 @@
   "meta": {
     "title": "PageTide: Open-Source Research Assistant for Papers",
     "description": "PageTide is an open-source research assistant that learns your research profile and recommends new papers daily. No account, no telemetry. macOS and Windows.",
-    "og_title": "PageTide: discover and organize papers",
+    "og_title": "PageTide: let the right papers find you",
     "og_description": "An open-source research assistant. It learns your research profile, recommends new papers every day, and keeps them in a library you own.",
     "og_alt": "PageTide: an open-source research assistant for discovering and organizing papers",
     "locale": "en_US",
@@ -27,7 +27,7 @@
   },
   "hero": {
     "eyebrow": "Open-source research assistant",
-    "title": "Papers worth reading,<br> <em>every morning.</em>",
+    "title": "Let the right papers<br> <em>find you.</em>",
     "sub": "PageTide learns your research profile, ranks new papers on your own computer, and keeps the ones you save in a library you own.",
     "dl_mac": "Download for macOS",
     "dl_win": "Download for Windows",
