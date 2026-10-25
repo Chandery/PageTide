@@ -100,6 +100,9 @@
     .source-row .source-key input[type="password"] { flex: 1 1 calc(220px * var(--s)); width: auto; }
     .source-row .source-key .source-state { min-width: 4.5em; }
     .field.actions-row .control { justify-content: flex-start; flex-wrap: wrap; }
+    .previous-dir { display: flex; align-items: center; gap: calc(12px * var(--s)); font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
+    .previous-dir[hidden] { display: none; }
+    .previous-dir span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
     /* — save bar: stays at the bottom of the window while the page scrolls — */
     .actions {
       position: sticky; bottom: 0; display: flex; align-items: center; gap: calc(10px * var(--s)); justify-content: flex-end;
@@ -288,6 +291,7 @@
           <label for="dataDir">数据目录</label>
           <div class="control"><input type="text" id="dataDir" value="读取中…" readonly><button type="button" id="moveDataBtn" hidden>更改…</button></div>
           <div id="dataDirStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
+          <div class="previous-dir" id="previousDir" hidden><span id="previousDirText"></span><button type="button" id="removePreviousBtn" class="danger">删除</button></div>
         </div>
         <div class="field stack actions-row">
           <div class="control">
@@ -690,13 +694,15 @@
     // Data folder: choose a folder, copy the library there (the old folder stays as it was), restart into it.
     const MOVE_WORDS = {invalid:'找不到这个文件夹', not_found:'找不到这个文件夹', same:'这就是现在的数据目录',
       inside_current:'不能选当前数据目录里面的文件夹', not_writable:'这个文件夹不能写入', occupied:'这个文件夹里已有名为 PageTide 的其他内容',
-      busy:'还有任务在运行，请稍后再试', copy_failed:'复制没有完成，原来的论文库没有改动', moving:'正在移动中', fixed:'数据目录由环境变量指定，不能在这里更改'};
+      busy:'还有任务在运行，请稍后再试', no_previous:'原来的文件夹已经不在了', copy_failed:'复制没有完成，原来的论文库没有改动', moving:'正在移动中', fixed:'数据目录由环境变量指定，不能在这里更改'};
     const tauri = () => window.__TAURI_INTERNALS__;
     async function loadLocation() {
       try {
         const res=await fetch('/api/data-location'); if(!res.ok)throw new Error(); const data=await res.json();
         $('#dataDir').value=data.data_dir;
         $('#moveDataBtn').hidden=!data.movable;
+        $('#previousDir').hidden=!data.previous; $('#previousDir').dataset.path=data.previous||'';
+        $('#previousDirText').textContent=data.previous?`原来的文件夹还在：${data.previous}`:'';
         if(data.missing)window.PTDialogs.notice(`找不到数据目录 ${data.missing}，这次用的是原来的位置`,{target:$('#dataDirStatus'),kind:'error'});
         return data;
       } catch { $('#dataDir').value='无法读取'; return null; }
@@ -711,6 +717,20 @@
       if(!res.ok || data.ok===false)throw new Error(MOVE_WORDS[data.reason]||'没能更改数据目录');
       return data;
     }
+    // The copy the library left behind: deleted only on request, after a confirmation.
+    $('#removePreviousBtn').onclick = async () => {
+      const button=$('#removePreviousBtn'), target=$('#dataDirStatus');
+      const old=$('#previousDir').dataset.path;
+      if(button.disabled)return;
+      button.disabled=true;
+      try {
+        if(!await window.PTDialogs.confirm(`删除 ${old} 里原来的论文库？现在用的论文库不受影响，这一步不能撤销。`))return;
+        await postLocation({action:'remove-previous'});
+        window.PTDialogs.notice('已删除原来的论文库',{target,kind:'success'});
+        await loadLocation();
+      } catch(e) { window.PTDialogs.notice(e.message||'没能删除',{target,kind:'error'}); }
+      finally { button.disabled=false; }
+    };
     $('#moveDataBtn').onclick = async () => {
       const button=$('#moveDataBtn'), target=$('#dataDirStatus');
       if(button.disabled)return;

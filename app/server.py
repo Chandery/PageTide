@@ -201,12 +201,13 @@ MOVE_LOCK = threading.Lock()
 def _location(current):
     """Where the library is, the default folder, whether the page may move it, and the last move's progress."""
     root = Path(current).resolve()
-    source = os.environ.get("PAGETIDE_DATA_SOURCE")
+    source, default = os.environ.get("PAGETIDE_DATA_SOURCE"), os.environ.get("PAGETIDE_DEFAULT_DATA")
     with MOVE_LOCK:
         move = dict(MOVE)
     return {"data_dir": str(root), "pdf_dir": str(root / "pdfs"), "cache_dir": str(root / "cache"),
             "default_dir": os.environ.get("PAGETIDE_DEFAULT_DATA"), "moved": source == "moved",
-            "movable": source in ("default", "moved"), "missing": os.environ.get("PAGETIDE_DATA_MISSING"), "move": move}
+            "movable": source in ("default", "moved"), "missing": os.environ.get("PAGETIDE_DATA_MISSING"), "move": move,
+            "previous": data_location.previous(default, root) if default and source in ("default", "moved") else None}
 
 
 def _busy():
@@ -1036,6 +1037,9 @@ class Handler(BaseHTTPRequestHandler):
                     data_location.inspect(place["data_dir"], body.get("path"))
                     started = _move_start(place["data_dir"], body.get("path"))
                     return self._json(started, 200 if started["ok"] else 409)
+                if body.get("action") == "remove-previous":
+                    removed = data_location.remove_previous(place["default_dir"], place["data_dir"])
+                    return self._json({"ok": True, "removed": removed, **_location(self._data())})
             except data_location.MoveError as exc:
                 return self._json({"ok": False, "reason": exc.reason}, 400)
             return self._json({"error": "unknown action"}, 400)

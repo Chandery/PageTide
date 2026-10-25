@@ -36,27 +36,63 @@ def _pointer(default_dir):
     return Path(default_dir) / POINTER
 
 
-def read_pointer(default_dir):
+def _read(default_dir):
     try:
         value = json.loads(_pointer(default_dir).read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return None
-    path = value.get("data_dir") if isinstance(value, dict) else None
-    return path if isinstance(path, str) and Path(path).is_absolute() else None
+        return {}
+    return {k: v for k, v in value.items() if isinstance(v, str) and Path(v).is_absolute()} if isinstance(value, dict) else {}
 
 
-def write_pointer(default_dir, data_dir):
-    """Point the default folder at `data_dir` (atomic); pointing it at itself removes the pointer."""
+def read_pointer(default_dir):
+    return _read(default_dir).get("data_dir")
+
+
+def write_pointer(default_dir, data_dir, previous=None):
+    """Point the default folder at `data_dir` (atomic) and remember `previous`, the folder the library left, so the
+    settings page can offer to delete it. Pointing at the default folder itself keeps only `previous`."""
     default_dir = Path(default_dir)
-    if Path(data_dir).resolve() == default_dir.resolve():
+    value = {} if Path(data_dir).resolve() == default_dir.resolve() else {"data_dir": str(Path(data_dir).resolve())}
+    if previous:
+        value["previous"] = str(Path(previous).resolve())
+    if not value:
         _pointer(default_dir).unlink(missing_ok=True)
         return
     default_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=default_dir, delete=False, suffix=".tmp") as staged:
-        json.dump({"data_dir": str(Path(data_dir).resolve())}, staged)
+        json.dump(value, staged)
         staged.flush()
         os.fsync(staged.fileno())
     os.replace(staged.name, _pointer(default_dir))
+
+
+def previous(default_dir, current):
+    """The folder the library was moved away from, while it still holds that old copy; None otherwise."""
+    old = _read(default_dir).get("previous")
+    if not old or not _is_library(old):
+        return None
+    if Path(old).resolve() == Path(current).resolve() or _inside(current, old) or _inside(old, current):
+        return None
+    return old
+
+
+def remove_previous(default_dir, current):
+    """Delete the old copy `previous` names: everything in that folder except the pointer (the default folder must
+    keep it to find the library); the folder itself stays. Returns the folder that was emptied."""
+    old = previous(default_dir, current)
+    if not old:
+        raise MoveError("no_previous")
+    old = Path(old)
+    keep = _pointer(default_dir).resolve()
+    for child in list(old.iterdir()):
+        if child.resolve() == keep:
+            continue
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+    write_pointer(default_dir, current)          # forget it: nothing is left to offer
+    return str(old)
 
 
 def resolve(default_dir):
@@ -69,6 +105,14 @@ def resolve(default_dir):
     if (Path(target) / LIBRARY_MARK).is_file():
         return Path(target), None
     return default_dir, target
+
+
+SYSTEM_FILES = {".DS_Store", "Thumbs.db", "desktop.ini", ".localized"}
+
+
+def _empty(folder):
+    """No files of the person's own: system bookkeeping files (Finder, Explorer) do not count."""
+    return all(child.name in SYSTEM_FILES for child in Path(folder).iterdir())
 
 
 def _is_library(folder):
@@ -103,13 +147,13 @@ def inspect(current, chosen):
         return {"kind": "library", "target": str(chosen)}
     if not os.access(chosen, os.W_OK):
         raise MoveError("not_writable")
-    if not any(chosen.iterdir()):
+    if _empty(chosen):
         return {"kind": "empty", "target": str(chosen)}
     sub = chosen / SUBFOLDER
     if sub.exists():
         if _is_library(sub):
             return {"kind": "library", "target": str(sub)}
-        if sub.is_dir() and not any(sub.iterdir()):
+        if sub.is_dir() and _empty(sub):
             return {"kind": "empty", "target": str(sub)}
         raise MoveError("occupied")
     return {"kind": "subfolder", "target": str(sub)}
@@ -211,7 +255,7 @@ def move(current, chosen, default_dir, progress=None):
     plan = inspect(str(current), chosen)
     target = Path(plan["target"])
     if plan["kind"] == "library":
-        write_pointer(default_dir, target)
+        write_pointer(default_dir, target)        # a different library, not a copy: the old one is not offered for deletion
         return {"data_dir": str(target), "copied": 0, "kind": "library"}
     files = _files(current)
     total = sum((current / rel).stat().st_size for rel in files)
@@ -260,5 +304,5 @@ def move(current, chosen, default_dir, progress=None):
     except Exception as exc:   # any failure (an OSError, a database that will not open...) leaves no partial copy behind
         shutil.rmtree(staging, ignore_errors=True)
         raise MoveError("copy_failed", f"{type(exc).__name__}: {exc}") from None
-    write_pointer(default_dir, target)
+    write_pointer(default_dir, target, previous=current)
     return {"data_dir": str(target), "copied": len(files), "kind": plan["kind"]}

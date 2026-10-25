@@ -252,6 +252,57 @@ class StartTests(Base):
         self.assertIn("unable to open database file", (self.default / "logs" / "move.log").read_text())
 
 
+class PreviousTests(Base):
+    """The old copy a move leaves behind is offered for deletion, and deleted only on request."""
+
+    def setUp(self):
+        super().setUp()
+        library(self.default).close()
+
+    def test_a_folder_holding_only_system_files_counts_as_empty(self):
+        (self.root / "fresh").mkdir()
+        (self.root / "fresh" / ".DS_Store").write_bytes(b"finder")
+        self.assertEqual(data_location.inspect(str(self.default), str(self.root / "fresh"))["kind"], "empty")
+
+    def test_after_a_copy_the_old_folder_is_offered_and_deleting_it_keeps_the_pointer(self):
+        (self.root / "new").mkdir()
+        data_location.move(self.default, str(self.root / "new"), self.default)
+        new = self.root / "new"
+        self.assertEqual(data_location.previous(self.default, new), str(self.default))
+        self.assertEqual(data_location.remove_previous(self.default, new), str(self.default))
+        self.assertEqual([p.name for p in self.default.iterdir()], ["location.json"])   # the way to the library stays
+        self.assertEqual(data_location.resolve(self.default), (new, None))
+        self.assertEqual(keys(new / "pagetide.sqlite"), ["p0", "p1", "p2"])
+        self.assertIsNone(data_location.previous(self.default, new))                  # nothing left to offer
+        with self.assertRaises(MoveError) as caught:
+            data_location.remove_previous(self.default, new)
+        self.assertEqual(caught.exception.reason, "no_previous")
+
+    def test_a_second_move_offers_the_folder_it_left_not_the_default_one(self):
+        (self.root / "a").mkdir(); (self.root / "b").mkdir()
+        data_location.move(self.default, str(self.root / "a"), self.default)
+        data_location.move(self.root / "a", str(self.root / "b"), self.default)
+        self.assertEqual(data_location.previous(self.default, self.root / "b"), str(self.root / "a"))
+        data_location.remove_previous(self.default, self.root / "b")
+        self.assertEqual(list((self.root / "a").iterdir()), [])                        # emptied; the folder itself stays
+        self.assertTrue((self.default / "pagetide.sqlite").is_file())                  # the first copy is not touched
+
+    def test_switching_to_an_existing_library_offers_nothing_to_delete(self):
+        library(self.root / "other", rows=1).close()
+        data_location.move(self.default, str(self.root / "other"), self.default)
+        self.assertIsNone(data_location.previous(self.default, self.root / "other"))   # it was not copied: never a duplicate
+
+    def test_the_server_reports_it_and_deletes_it_on_request(self):
+        from app import server
+        (self.root / "new").mkdir()
+        data_location.move(self.default, str(self.root / "new"), self.default)
+        env = {"PAGETIDE_DATA_SOURCE": "moved", "PAGETIDE_DEFAULT_DATA": str(self.default)}
+        with mock.patch.dict(os.environ, env):
+            self.assertEqual(server._location(str(self.root / "new"))["previous"], str(self.default))
+        with mock.patch.dict(os.environ, {"PAGETIDE_DATA_SOURCE": "env", "PAGETIDE_DEFAULT_DATA": str(self.default)}):
+            self.assertIsNone(server._location(str(self.root / "new"))["previous"])
+
+
 class WiringTests(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[1]
 
@@ -262,6 +313,9 @@ class WiringTests(unittest.TestCase):
         self.assertIn("invoke('relaunch')", page)
         self.assertIn("action:'inspect'", page)
         self.assertIn("if(!await window.PTDialogs.confirm(question))return;", page)          # nothing is copied without a yes
+        self.assertIn('<button type="button" id="removePreviousBtn" class="danger">删除</button>', page)
+        self.assertIn("action:'remove-previous'", page)
+        self.assertIn("这一步不能撤销", page)                                                # the old copy goes only after a yes
         rust = (self.ROOT / "src-tauri/src/main.rs").read_text()
         self.assertIn("generate_handler![save_export, complete_quit, pick_folder, relaunch]", rust)
         self.assertIn('"allow-pick-folder", "allow-relaunch"', rust)

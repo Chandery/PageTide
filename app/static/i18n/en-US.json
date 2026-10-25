@@ -2658,6 +2658,11 @@
     "数据目录已改为 {0}，正在重新启动…": "Data folder changed to {0}. Restarting…",
     "数据目录已改为 {0}，重新启动 PageTide 后生效": "Data folder changed to {0}. Restart PageTide to use it.",
     "{0} 里已经有一个 PageTide 论文库。切换后会使用它，当前的论文库不会搬过去，也不会被改动。继续吗？": "{0} already holds a PageTide library. PageTide will use it; the current library is not copied there and is not changed. Continue?",
-    "把论文库复制到 {0}？复制完成后 PageTide 会重新启动。原来的文件夹会保留，确认没问题后可以自己删除。": "Copy the library to {0}? PageTide restarts when the copy is done. The original folder is kept; delete it yourself once everything looks right."
+    "把论文库复制到 {0}？复制完成后 PageTide 会重新启动。原来的文件夹会保留，确认没问题后可以自己删除。": "Copy the library to {0}? PageTide restarts when the copy is done. The original folder is kept; delete it yourself once everything looks right.",
+    "原来的文件夹还在：{0}": "The original folder is still there: {0}",
+    "删除 {0} 里原来的论文库？现在用的论文库不受影响，这一步不能撤销。": "Delete the original library in {0}? The library in use is not affected. This cannot be undone.",
+    "已删除原来的论文库": "The original library was deleted",
+    "没能删除": "Could not delete",
+    "原来的文件夹已经不在了": "The original folder is no longer there"
   }
 }
