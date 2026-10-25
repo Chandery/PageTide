@@ -70,10 +70,10 @@
     return out;
   }
 
-  function paint(scope) {
-    scope.querySelectorAll('.pg > .selLayer').forEach((layer) => layer.replaceChildren());
+  /* The current selection as [{pg, lines}]: one merged box per line, in each page's own (unzoomed) pixels. */
+  function selectedLines(scope) {
     const sel = scope.ownerDocument.getSelection();
-    if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return [];
     const pages = [...scope.querySelectorAll('.pg')].map((pg) => ({pg, box: pg.getBoundingClientRect()}));
     const byPage = new Map();
     for (let i = 0; i < sel.rangeCount; i++) {
@@ -88,7 +88,12 @@
         byPage.get(hit.pg).push(local);
       }
     }
-    for (const [pg, rects] of byPage) {
+    return [...byPage].map(([pg, rects]) => ({pg, lines: mergeLineRects(rects)}));
+  }
+
+  function paint(scope) {
+    scope.querySelectorAll('.pg > .selLayer').forEach((layer) => layer.replaceChildren());
+    for (const {pg, lines} of selectedLines(scope)) {
       let layer = pg.querySelector(':scope > .selLayer');
       if (!layer) {
         layer = scope.ownerDocument.createElement('div');
@@ -96,7 +101,7 @@
         layer.setAttribute('aria-hidden', 'true');
         pg.insertBefore(layer, pg.querySelector('.textLayer'));   // under the text layer, over the canvas
       }
-      for (const l of mergeLineRects(rects)) {
+      for (const l of lines) {
         const box = scope.ownerDocument.createElement('i');
         box.style.cssText = `left:${l.left}px;top:${l.top}px;width:${l.right - l.left}px;height:${l.bottom - l.top}px`;
         layer.appendChild(box);
@@ -104,7 +109,7 @@
     }
   }
 
-  const api = {mergeLineRects, textRects, paint, install, current: null};
+  const api = {mergeLineRects, textRects, selectedLines, paint, install, current: null};
 
   function install(scope) {
     let frame = 0;

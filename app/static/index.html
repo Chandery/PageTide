@@ -280,9 +280,80 @@
   .reader .rload.pdf-fail { flex-direction:column; text-align:center; max-width:480px; line-height:1.6; }
   .reader .pdf-fail-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   .reader .rbody { flex:1; display:flex; min-height:0; }
-  .reader .rside { width:158px; overflow:auto; padding:12px 10px; box-shadow:var(--sh-in-sm); display:none;
-                   flex-direction:column; gap:12px; align-items:center; }
+  /* Sidebar: one pill switch (the app's .seg look), then a quiet list. Plain text weight; only the current item is blue. */
+  .reader .rside { width:224px; background:var(--base); border-right:1px solid var(--line); display:none; flex-direction:column; }
   .reader.side .rside { display:flex; }
+  .reader .rtabs { display:flex; gap:2px; margin:12px 12px 6px; padding:3px; border-radius:999px; background:var(--surface-2); flex:0 0 auto; }
+  .reader .rtabs button { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:5px; height:28px; padding:0 6px;
+                          border:0; border-radius:999px; background:transparent; box-shadow:none; color:var(--muted);
+                          font-size:var(--fs-sm); font-weight:500; white-space:nowrap; transform:none; }
+  .reader .rtabs button:hover { background:transparent; color:var(--text); transform:none; }
+  .reader .rtabs button:active { transform:none; }
+  .reader .rtabs button[aria-selected="true"] { background:var(--surface-1); color:var(--accent-text); font-weight:600; box-shadow:var(--sh-1); }
+  .reader .rtabs button:focus-visible { outline:2px solid var(--accent-text); outline-offset:1px; }
+  .reader .rtabs .icon { width:14px; height:14px; flex:0 0 14px; }
+  .reader .rpane { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; padding:6px 10px 16px; }
+  .reader .rpane[hidden] { display:none; }
+  .reader #readerThumbs:not([hidden]) { display:flex; flex-direction:column; gap:14px; align-items:center; padding-top:10px; }
+  .reader .outline ul { list-style:none; margin:0; padding:0; }
+  .reader .outline ul ul { padding-left:14px; }
+  .reader .outline li > div { display:flex; align-items:center; gap:2px; border-radius:var(--r-md); }
+  .reader .outline li > div:hover { background:var(--surface-2); }
+  .reader .outline .oc { flex:0 0 18px; width:18px; height:30px; display:flex; align-items:center; justify-content:center; padding:0;
+                         border:0; background:transparent; box-shadow:none; color:var(--muted); transform:none; }
+  .reader .outline .oc:hover { background:transparent; color:var(--text); transform:none; }
+  .reader .outline .oc .icon { width:12px; height:12px; flex:0 0 12px; transition:transform .15s ease; }
+  .reader .outline li:not(.shut) > div > .oc .icon { transform:rotate(90deg); }
+  .reader .outline .ot { flex:1; min-width:0; height:30px; padding:0 6px 0 0; border:0; background:transparent; box-shadow:none;
+                         text-align:left; font-size:var(--fs-sm); font-weight:500; color:var(--text); transform:none;
+                         white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .reader .outline ul ul .ot { font-weight:400; color:var(--muted); font-size:var(--fs-sm); }
+  .reader .outline .ot:hover { background:transparent; color:var(--text); transform:none; }
+  .reader .outline li > div:has(.ot.active) { background:var(--accent-soft); }
+  .reader .outline .ot.active, .reader .outline ul ul .ot.active { color:var(--accent-text); font-weight:600; }
+  .reader .outline .ot:disabled { color:var(--muted); opacity:.7; }
+  .reader .outline li.shut > ul { display:none; }
+  .reader .rempty { font-size:var(--fs-sm); line-height:1.6; color:var(--muted); padding:14px 6px; text-align:center; }
+  /* Notes: one card per highlight, in reading order. */
+  .reader .nlist { display:flex; flex-direction:column; gap:8px; padding-top:4px; }
+  .reader .nitem { display:block; width:100%; text-align:left; padding:8px 10px 8px 12px; border:0; border-radius:var(--r-md);
+                   background:var(--surface-1); box-shadow:var(--sh-1), inset 3px 0 0 var(--c, #ffd400); color:var(--text);
+                   font-weight:400; white-space:normal; transform:none; }
+  .reader .nitem:hover { background:var(--surface-1); box-shadow:var(--sh-2), inset 3px 0 0 var(--c, #ffd400); transform:none; }
+  .reader .nitem.on { box-shadow:0 0 0 1.5px var(--accent), inset 3px 0 0 var(--c, #ffd400); }
+  .reader .nitem .nq { font-size:var(--fs-sm); line-height:1.5; color:var(--muted); display:-webkit-box; -webkit-line-clamp:3;
+                       -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+  .reader .nitem .nc { font-size:var(--fs-sm); line-height:1.5; margin-top:5px; white-space:pre-wrap; display:-webkit-box;
+                       -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+  .reader .nitem .np { font-size:var(--fs-xs); color:var(--muted); margin-top:6px; }
+  /* Highlights: under the text layer (selection still works over them), multiplied into the printed page. */
+  .reader .annLayer { position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; }
+  .reader .annLayer i { position:absolute; display:block; opacity:.42; border-radius:var(--r-xs); }
+  .reader .annLayer i.on { opacity:.62; }
+  .reader .annLayer b { position:absolute; width:7px; height:7px; border-radius:50%; transform:translate(-11px, 2px); }
+  .reader .pages.onnote .textLayer span, .reader .pages.onnote .textLayer { cursor:pointer; }
+  #selbar .sw { width:16px; height:16px; padding:0; border-radius:50%; border:0; background:var(--c, #ffd400); align-self:center;
+                cursor:pointer; box-shadow:inset 0 0 0 1px rgba(0,0,0,.12); }
+  #selbar .sw:hover { box-shadow:inset 0 0 0 1px rgba(0,0,0,.12), 0 0 0 2px var(--base), 0 0 0 3px var(--c, #ffd400); }
+  #selbar .sep { width:1px; align-self:stretch; background:var(--line); margin:2px 2px; }
+  #selbar .pdf-only { display:contents; }
+  #selbar:not(.in-pdf) .pdf-only { display:none; }
+  #notePop { position:fixed; z-index:97; display:none; width:min(320px,92vw); padding:12px 14px; box-sizing:border-box;
+             background:var(--base); box-shadow:var(--sh-out); border-radius:var(--r-md); }
+  #notePop.show { display:flex; flex-direction:column; gap:8px; animation:pop .16s ease both; }
+  #notePop .nquote { font-size:var(--fs-sm); line-height:1.5; color:var(--muted); padding-left:8px; border-left:3px solid var(--c, #ffd400);
+                     display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+  #notePop textarea { width:100%; box-sizing:border-box; min-height:64px; max-height:40vh; resize:vertical; font:inherit;
+                      font-size:var(--fs-sm); line-height:1.55; padding:7px 9px; border:1px solid var(--line-strong); border-radius:var(--r-md);
+                      background:var(--surface-1); color:var(--text); outline:none; }
+  #notePop textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  #notePop .nfoot { display:flex; align-items:center; gap:6px; }
+  #notePop .nfoot .sw { width:15px; height:15px; padding:0; border-radius:50%; border:0; background:var(--c, #ffd400); cursor:pointer;
+                        box-shadow:inset 0 0 0 1px rgba(0,0,0,.12); }
+  #notePop .nfoot .sw[aria-pressed="true"] { box-shadow:0 0 0 2px var(--base), 0 0 0 3.5px var(--c, #ffd400); }
+  #notePop .ncolors { display:flex; gap:8px; padding-left:2px; }
+  #notePop .nfoot .grow { flex:1; }
+  #notePop #noteDelete:hover { color:var(--bad); }
   .reader .rside .thumb { cursor:pointer; border-radius:var(--r-sm); overflow:hidden; background:#fff;
                           box-shadow:var(--sh-2); outline:2px solid transparent; }
   .reader .rside .thumb.active { outline-color:var(--accent); }
@@ -292,7 +363,7 @@
   .reader .pgno { font-size:var(--fs-xs); color:var(--muted); }
   .reader .pg { flex:0 0 auto; }
   .reader .rbody { min-height:0; }
-  .reader .rside { overflow-y:auto; overflow-x:hidden; flex:0 0 auto; scrollbar-width:thin; }
+  .reader .rside { flex:0 0 auto; }
   .reader .rside .thumb { flex:0 0 auto; }
   .reader .rside .thumb canvas { width:120px; height:auto; display:block; }
   .petpanel.docked { position:static; width:380px; flex:0 0 auto; margin:14px 14px 14px 0;
@@ -526,6 +597,10 @@
   .icon.chevron-down{ mask-image:url("/icons/chevron-down.svg");       -webkit-mask-image:url("/icons/chevron-down.svg"); }
   .icon.plus        { mask-image:url("/icons/plus.svg");               -webkit-mask-image:url("/icons/plus.svg"); }
   .icon.check       { mask-image:url("/icons/check.svg");              -webkit-mask-image:url("/icons/check.svg"); }
+  .icon.pages       { mask-image:url("/icons/gallery-vertical-end.svg"); -webkit-mask-image:url("/icons/gallery-vertical-end.svg"); }
+  .icon.outline     { mask-image:url("/icons/list-tree.svg");          -webkit-mask-image:url("/icons/list-tree.svg"); }
+  .icon.notes       { mask-image:url("/icons/notebook-pen.svg");       -webkit-mask-image:url("/icons/notebook-pen.svg"); }
+  .icon.chevron-right{ mask-image:url("/icons/chevron-right.svg");     -webkit-mask-image:url("/icons/chevron-right.svg"); }
 
   /* — header controls — */
   .modes { box-shadow:none; padding:0; }
@@ -569,7 +644,8 @@
     .devbanner { margin:calc(10px * var(--s)) calc(16px * var(--s)) 0; border-radius:var(--r-md); }
     .petpanel.docked { position:absolute; right:12px; bottom:0; width:min(380px,calc(100% - 24px));
       height:min(60%,480px); margin:calc(12px * var(--s)); z-index:5; }
-    .reader .rside { width:100px; }
+    .reader .rside { width:172px; }
+    .reader .rtabs .lbl { display:none; }
     .reader .rside .thumb canvas { width:72px; }
     .reader .rbar { gap:calc(5px * var(--s)); padding:calc(8px * var(--s)); flex-wrap:wrap; }
     .reader .rbar h2 { min-width:120px; }
@@ -659,7 +735,7 @@
 <div id="reader" class="reader hidden" role="dialog" aria-modal="true" aria-labelledby="readerTitle" tabindex="-1">
   <div class="rbar">
     <button class="ghost" id="readerBack">← 返回</button>
-    <button class="tiny ghost" id="readerToggleSide" title="页面缩略图">☰</button>
+    <button class="tiny ghost" id="readerToggleSide" title="缩略图与大纲">☰</button>
     <h2 id="readerTitle" data-tex></h2>
     <span class="stat" id="readerInfo"></span>
     <div class="zoombar">
@@ -671,7 +747,16 @@
     <button class="tiny" id="readerAsk">对这篇提问</button>
   </div>
   <div class="rbody">
-    <aside class="rside" id="readerSide"></aside>
+    <aside class="rside" id="readerSide">
+      <div class="rtabs" role="tablist">
+        <button type="button" role="tab" id="tabThumbs" data-tab="thumbs" aria-selected="true" aria-controls="readerThumbs" title="缩略图"><i class="icon pages" aria-hidden="true"></i><span class="lbl">缩略图</span></button>
+        <button type="button" role="tab" id="tabOutline" data-tab="outline" aria-selected="false" aria-controls="readerOutline" title="大纲"><i class="icon outline" aria-hidden="true"></i><span class="lbl">大纲</span></button>
+        <button type="button" role="tab" id="tabNotes" data-tab="notes" aria-selected="false" aria-controls="readerNotes" title="笔记"><i class="icon notes" aria-hidden="true"></i><span class="lbl">笔记</span></button>
+      </div>
+      <div class="rpane" id="readerThumbs" role="tabpanel" aria-labelledby="tabThumbs"></div>
+      <div class="rpane outline" id="readerOutline" role="tabpanel" aria-labelledby="tabOutline" hidden></div>
+      <div class="rpane" id="readerNotes" role="tabpanel" aria-labelledby="tabNotes" hidden></div>
+    </aside>
     <div class="pages" id="readerPages"></div>
   </div>
 </div>
@@ -694,8 +779,9 @@
     </div>
   </div>
 </div>
-<div id="selbar"><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button><button class="tiny ghost" data-sel="clear" title="取消选择">✕</button></div>
+<div id="selbar"><span class="pdf-only"><button class="sw" data-sel="highlight" data-color="yellow" style="--c:#ffd400" title="高亮" aria-label="黄色高亮"></button><button class="sw" data-sel="highlight" data-color="red" style="--c:#ff6666" title="高亮" aria-label="红色高亮"></button><button class="sw" data-sel="highlight" data-color="green" style="--c:#5fb236" title="高亮" aria-label="绿色高亮"></button><button class="sw" data-sel="highlight" data-color="blue" style="--c:#2ea8e5" title="高亮" aria-label="蓝色高亮"></button><button class="sw" data-sel="highlight" data-color="purple" style="--c:#a28ae5" title="高亮" aria-label="紫色高亮"></button><button class="tiny" data-sel="note">笔记</button><i class="sep"></i></span><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button><button class="tiny ghost" data-sel="clear" title="取消选择">✕</button></div>
 <div id="transPop"></div>
+<div id="notePop" role="dialog" aria-label="笔记"><div class="nquote" data-no-i18n></div><textarea id="noteText" rows="3" placeholder="写笔记…" aria-label="笔记"></textarea><div class="nfoot"><span class="ncolors"></span><span class="grow"></span><button class="tiny ghost" id="noteDelete">删除</button><button class="tiny" id="noteDone">完成</button></div></div>
 
 <div id="preview"></div>
 <div id="detail" class="page detail-page hidden"></div>
@@ -714,6 +800,7 @@
 <script src="/math.js"></script>
 <script src="/reader-identity.js"></script>
 <script src="/reader-selection.js"></script>
+<script src="/reader-notes.js"></script>
 <script src="/reader-textfit.js"></script>
 <script src="/reader-page.js"></script>
 <script src="/save-file.js"></script>
@@ -1676,14 +1763,14 @@ let readerFocus = null;
 const readerBackground = new Map();
 function lockReaderBackground() {
   for (const node of document.body.children) {
-    if (['SCRIPT','STYLE'].includes(node.tagName) || ['reader','selbar','transPop','toasts'].includes(node.id)) continue;
+    if (['SCRIPT','STYLE'].includes(node.tagName) || ['reader','selbar','transPop','notePop','toasts'].includes(node.id)) continue;
     if (!readerBackground.has(node)) readerBackground.set(node, node.inert);
     node.inert = true;
   }
 }
 function closeReader() {
   R.epoch++; R.loading = false; $('#petSend').disabled = pet.busy;
-  setPetOpen(false, false); $('#transPop').classList.remove('show');
+  setPetOpen(false, false); $('#transPop').classList.remove('show'); closeNote();
   $('#reader').classList.add('hidden'); document.body.classList.remove('reader-open'); dockPanel(false);
   for (const [node, wasInert] of readerBackground) node.inert = wasInert;
   readerBackground.clear(); setReference(null); setAttachPage(false); hideSel();
@@ -1697,7 +1784,8 @@ function readerControls() {
 document.addEventListener('keydown', event => {
   if (event.defaultPrevented || event.isComposing || event.keyCode===229 || window.PTDialogs?.active() || document.querySelector('dialog[open]')) return;
   if (event.key === 'Escape') {
-    if ($('#transPop').classList.contains('show')) { $('#transPop').classList.remove('show'); (readerControls()[0] || $('#reader')).focus(); }
+    if ($('#notePop').classList.contains('show')) { closeNote(); (readerControls()[0] || $('#reader')).focus(); }
+    else if ($('#transPop').classList.contains('show')) { $('#transPop').classList.remove('show'); (readerControls()[0] || $('#reader')).focus(); }
     else if ($('#selbar').classList.contains('show')) { hideSel(); window.getSelection()?.removeAllRanges(); (readerControls()[0] || $('#reader')).focus(); }
     else if ($('#petPanel').classList.contains('open')) setPetOpen(false);
     else if (!$('#reader').classList.contains('hidden')) closeReader();
@@ -1706,6 +1794,7 @@ document.addEventListener('keydown', event => {
   }
   if ($('#reader').classList.contains('hidden')) return;
   if (event.key === 'Tab') {
+    if ($('#notePop').contains(document.activeElement)) return;   // the note editor keeps its own tab order
     const controls = readerControls(), first = controls[0], last = controls.at(-1);
     if (!first) { event.preventDefault(); $('#reader').focus(); return; }
     if ((event.shiftKey && (document.activeElement === first || !$('#reader').contains(document.activeElement))) ||
@@ -1715,7 +1804,7 @@ document.addEventListener('keydown', event => {
   }
 }, true);
 document.addEventListener('focusin', event => {
-  if (!window.PTDialogs?.active() && !document.querySelector('dialog[open]') && !$('#reader').classList.contains('hidden') && !$('#reader').contains(event.target) && !event.target.closest('#transPop,#selbar'))
+  if (!window.PTDialogs?.active() && !document.querySelector('dialog[open]') && !$('#reader').classList.contains('hidden') && !$('#reader').contains(event.target) && !event.target.closest('#transPop,#selbar,#notePop'))
     (readerControls()[0] || $('#reader')).focus();
 }, true);
 
@@ -1771,12 +1860,13 @@ async function openReader(key, title, project = state.currentProject) {
   if ($('#reader').classList.contains('hidden')) readerFocus = document.activeElement;
   setReference(null);
   setAttachPage(false);   // a pending 附本页图 belongs to the paper it was pressed on
-  const box = $('#readerPages'), side = $('#readerSide'), reader = $('#reader');
+  const box = $('#readerPages'), reader = $('#reader');
+  closeNote(); R.notes = [];
   $('#readerTitle').textContent = title || '';
   $('#readerInfo').textContent = '';
   box.innerHTML = '<div class="rload"><span class="spin"></span>加载中…</div>';
   box.ondragleave = box.ondragover = box.ondrop = null; box.classList.remove('drop');   // an earlier failure's drop target ends here
-  side.innerHTML = '';
+  $('#readerThumbs').innerHTML = ''; $('#readerOutline').innerHTML = ''; $('#readerNotes').innerHTML = '';
   reader.classList.remove('hidden');
   reader.classList.add('side');   // page thumbnails visible by default, like the native viewer
   document.body.classList.add('reader-open');
@@ -1813,8 +1903,10 @@ async function openReader(key, title, project = state.currentProject) {
     for (let n = 1; n <= doc.numPages; n++) { pages.push(await doc.getPage(n)); if (!current()) { doc.destroy(); return; } }
     R.doc = doc; R.pages = pages;
     $('#readerInfo').textContent = `${R.doc.numPages} 页`;
+    loadNotes(current);   // drawn by each page as it renders, and once more when they arrive
     await layoutPages();
     buildThumbs();
+    buildOutline(doc, current);
     extractFulltext(key, R.doc, [...R.pages]);
   } catch (e) {
     if (!current()) return;
@@ -2024,6 +2116,7 @@ function renderPage(n, root = document, jobs = R.jobs) {
     const textLayer = new L.TextLayer({ textContentSource: textContent, container: textDiv, viewport: vp });
     await textLayer.render();
     window.PTReaderTextFit?.apply(textLayer.textDivs, textContent.items, textContent.styles);   // text over the printed letters
+    drawNotes(pageDiv, n);
     window.PTReaderSelection?.current?.repaint();   // a page rebuilt at a new zoom keeps the selection drawn where the text now is
     return true;
   })().catch((e) => { toast(`第 ${n} 页渲染失败：${e.message}`, 'err'); return false; });
@@ -2034,6 +2127,7 @@ function renderPage(n, root = document, jobs = R.jobs) {
 function markCurrent(n) {
   R.current = n;
   document.querySelectorAll('#readerSide .thumb').forEach((t) => t.classList.toggle('active', Number(t.dataset.n) === n));
+  markOutline();
 }
 function pageInView() {   // the page the reader is showing right now
   const view = $('#readerPages').getBoundingClientRect();
@@ -2045,7 +2139,7 @@ function pageInView() {   // the page the reader is showing right now
 }
 let pageFrame = 0;
 $('#readerPages').addEventListener('scroll', () => {
-  if (!pageFrame) pageFrame = requestAnimationFrame(() => { pageFrame = 0; const n = pageInView(); if (n && n !== R.current) markCurrent(n); });
+  if (!pageFrame) pageFrame = requestAnimationFrame(() => { pageFrame = 0; const n = pageInView(); if (n && n !== R.current) markCurrent(n); else if (!$('#readerOutline').hidden) markOutline(); });
 }, { passive: true });
 
 /* --------------------------------------------------- full text + vision */
@@ -2103,7 +2197,7 @@ async function pageImage(pageNumber) {
 
 let thumbObserver = null;
 function buildThumbs() {
-  const side = $('#readerSide');
+  const side = $('#readerThumbs');
   side.innerHTML = '';
   if (thumbObserver) { thumbObserver.disconnect(); thumbObserver = null; }
   thumbObserver = new IntersectionObserver((entries) => {
@@ -2141,6 +2235,257 @@ async function renderThumb(n) {
 }
 
 $('#readerToggleSide').onclick = () => { R.side = !R.side; $('#reader').classList.toggle('side', R.side); };
+
+/* ------------------------------------------------- sidebar tabs + outline */
+function showSideTab(tab) {
+  for (const b of document.querySelectorAll('#readerSide [role=tab]')) {
+    b.setAttribute('aria-selected', String(b.dataset.tab === tab)); b.tabIndex = b.dataset.tab === tab ? 0 : -1;
+  }
+  $('#readerThumbs').hidden = tab !== 'thumbs';
+  $('#readerOutline').hidden = tab !== 'outline';
+  $('#readerNotes').hidden = tab !== 'notes';
+  if (tab === 'outline') markOutline(true);
+}
+$('#readerSide .rtabs').addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) showSideTab(b.dataset.tab); });
+$('#readerSide .rtabs').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const tabs = [...document.querySelectorAll('#readerSide [role=tab]')];
+  const at = tabs.findIndex((b) => b.getAttribute('aria-selected') === 'true');
+  const next = tabs[(at + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+  e.preventDefault(); showSideTab(next.dataset.tab); next.focus();
+});
+showSideTab('thumbs');
+
+async function buildOutline(doc, current) {
+  const pane = $('#readerOutline');
+  let items = [];
+  try { items = await PTReaderNotes.resolveOutline(doc, await doc.getOutline()); } catch (e) { items = []; }
+  if (!current()) return;
+  pane.innerHTML = '';
+  if (!items.length) { pane.innerHTML = '<div class="rempty">这份 PDF 没有大纲</div>'; return; }
+  const list = (nodes, depth) => {
+    const ul = document.createElement('ul');
+    for (const node of nodes) {
+      const li = document.createElement('li'), row = document.createElement('div');
+      const caret = document.createElement('button'), title = document.createElement('button');
+      caret.type = title.type = 'button'; caret.className = 'oc'; title.className = 'ot';
+      title.textContent = node.title || '—'; title.title = node.title || '';
+      if (node.page) { title.dataset.page = node.page; title.dataset.top = node.top ?? 0; title.onclick = () => goToPlace(node.page, node.top); }
+      else title.disabled = true;
+      if (node.children.length) {
+        const shut = depth > 0;   // first level open, deeper levels folded
+        li.classList.toggle('shut', shut); caret.setAttribute('aria-expanded', String(!shut)); caret.setAttribute('aria-label', '展开或收起');
+        caret.innerHTML = '<i class="icon chevron-right" aria-hidden="true"></i>';
+        caret.onclick = () => { const now = li.classList.toggle('shut'); caret.setAttribute('aria-expanded', String(!now)); };
+      } else { caret.tabIndex = -1; caret.setAttribute('aria-hidden', 'true'); }
+      row.append(caret, title); li.appendChild(row);
+      if (node.children.length) li.appendChild(list(node.children, depth + 1));
+      ul.appendChild(li);
+    }
+    return ul;
+  };
+  const tree = list(items, 0);
+  tree.setAttribute('data-no-i18n', '');   // the paper's own headings
+  pane.appendChild(tree);
+  markOutline();
+}
+function goToPlace(page, top) {
+  const box = $('#readerPages'), pg = box.querySelector(`.pgwrap[data-n="${page}"] .pg`);
+  if (!pg) return;
+  const y = contentTopOf(pg, box) + (top == null ? -12 : top * pg.getBoundingClientRect().height - 24);
+  box.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+}
+function markOutline(reveal = false) {   // the last visible heading at or above the top third of the view
+  const items = [...document.querySelectorAll('#readerOutline .ot[data-page]')];
+  const box = $('#readerPages'), at = currentAnchor(box.scrollTop + box.clientHeight / 3);
+  const here = at.page + Math.min(1, Math.max(0, at.within / at.height));
+  let best = null;
+  for (const b of items) if (Number(b.dataset.page) + Number(b.dataset.top) <= here + 0.005 && b.getClientRects().length) best = b;
+  items.forEach((b) => b.classList.toggle('active', b === best));
+  if (reveal && best) best.scrollIntoView({ block: 'nearest' });
+}
+
+/* ----------------------------------------------------------- annotations */
+// Highlights and notes are the person's own text, stored per PDF file version on this computer; no model sees them.
+const NOTE_COLORS = PTReaderNotes.COLORS;
+const COLOR_LABEL = { yellow: '黄色', red: '红色', green: '绿色', blue: '蓝色', purple: '紫色' };
+let noteOpen = null, noteTimer = null, selBoxes = [], noteJump = 0;
+const demoBody = () => (R.project === DEMO_ID ? { project_id: DEMO_ID } : {});
+async function loadNotes(current) {
+  try {
+    const r = await api(`/api/annotations?key=${encodeURIComponent(R.key)}&sha256=${encodeURIComponent(R.sha256)}`
+      + (R.project === DEMO_ID ? '&project_id=' + DEMO_ID : ''));
+    if (!current()) return;
+    R.notes = r.items || [];
+    redrawNotes();
+  } catch (e) { if (current()) toast('笔记没能加载：' + e.message, 'warn'); }
+}
+function drawNotes(pageDiv, n) {
+  pageDiv.querySelector(':scope > .annLayer')?.remove();
+  const mine = (R.notes || []).filter((a) => a.rects.some((r) => r.p === n));
+  if (!mine.length) return;
+  const layer = document.createElement('div');
+  layer.className = 'annLayer'; layer.setAttribute('aria-hidden', 'true');
+  const pct = (v) => `${(v * 100).toFixed(4)}%`;
+  for (const a of mine) {
+    const color = NOTE_COLORS[a.color] || NOTE_COLORS.yellow, rects = a.rects.filter((r) => r.p === n);
+    for (const r of rects) {
+      const box = document.createElement('i');
+      if (noteOpen?.id === a.id) box.className = 'on';
+      box.style.cssText = `left:${pct(r.x0)};top:${pct(r.y0)};width:${pct(r.x1 - r.x0)};height:${pct(r.y1 - r.y0)};background:${color}`;
+      layer.appendChild(box);
+    }
+    if (a.comment.trim() && a.page === n) {   // a dot before the first line says "this highlight has a note"
+      const dot = document.createElement('b');
+      dot.style.cssText = `left:${pct(rects[0].x0)};top:${pct(rects[0].y0)};background:${color}`;
+      layer.appendChild(dot);
+    }
+  }
+  pageDiv.insertBefore(layer, pageDiv.querySelector('canvas')?.nextSibling || null);   // over the canvas, under selection and text
+}
+function redrawNotes() {
+  for (const wrap of document.querySelectorAll('#readerPages .pgwrap')) drawNotes(wrap.querySelector('.pg'), Number(wrap.dataset.n));
+  listNotes();
+}
+// The 笔记 tab: every highlight of this file in reading order; a click goes there and opens it.
+function listNotes() {
+  const pane = $('#readerNotes');
+  if (!R.doc) { pane.innerHTML = ''; return; }
+  const notes = PTReaderNotes.readingOrder(R.notes || []);
+  if (!notes.length) { pane.innerHTML = '<div class="rempty">选中文字后可以高亮或写笔记</div>'; return; }
+  const list = document.createElement('div');
+  list.className = 'nlist';
+  for (const a of notes) {
+    const item = document.createElement('button');
+    item.type = 'button'; item.className = 'nitem' + (noteOpen?.id === a.id ? ' on' : '');
+    item.style.setProperty('--c', NOTE_COLORS[a.color] || NOTE_COLORS.yellow);
+    const quote = document.createElement('div'), page = document.createElement('div');
+    quote.className = 'nq'; quote.textContent = a.quote; quote.setAttribute('data-no-i18n', '');
+    page.className = 'np'; page.textContent = `第 ${a.page} 页`;
+    if (a.quote) item.appendChild(quote);
+    if (a.comment.trim()) {
+      const comment = document.createElement('div');
+      comment.className = 'nc'; comment.textContent = a.comment; comment.setAttribute('data-no-i18n', '');
+      item.appendChild(comment);
+    }
+    item.appendChild(page);
+    item.onclick = () => showNote(a);
+    list.appendChild(item);
+  }
+  pane.replaceChildren(list);
+}
+function showNote(note) {
+  const first = note.rects.find((r) => r.p === note.page) || note.rects[0];
+  const box = $('#readerPages'), pg = box.querySelector(`.pgwrap[data-n="${first.p}"] .pg`);
+  if (!pg) return;
+  closeNote();
+  box.scrollTop = Math.max(0, contentTopOf(pg, box) + first.y0 * pg.getBoundingClientRect().height - box.clientHeight / 3);
+  noteJump = performance.now();   // the scroll this causes must not close the editor it opens
+  setTimeout(() => { if (R.notes?.includes(note)) openNote(note, noteRect(note, pg)); }, 60);
+}
+function selectionBoxes() {
+  const lines = [], size = {};
+  for (const { pg, lines: own } of PTReaderSelection.selectedLines($('#readerPages'))) {
+    const p = Number(pg.closest('.pgwrap')?.dataset.n);
+    if (!p) continue;
+    size[p] = { w: pg.offsetWidth, h: pg.offsetHeight };
+    for (const l of own) lines.push({ p, ...l });
+  }
+  return PTReaderNotes.toFractions(lines, size);
+}
+function noteRect(note, pg) {
+  const n = Number(pg.closest('.pgwrap')?.dataset.n), b = pg.getBoundingClientRect();
+  const rs = note.rects.filter((r) => r.p === n);
+  if (!rs.length) return b;
+  const left = b.left + Math.min(...rs.map((r) => r.x0)) * b.width, top = b.top + Math.min(...rs.map((r) => r.y0)) * b.height;
+  const right = b.left + Math.max(...rs.map((r) => r.x1)) * b.width, bottom = b.top + Math.max(...rs.map((r) => r.y1)) * b.height;
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+function noteAt(e) {
+  const pg = e.target.closest?.('#readerPages .pg');
+  if (!pg || !R.notes?.length) return null;
+  const b = pg.getBoundingClientRect();
+  const note = PTReaderNotes.hit(R.notes, Number(pg.closest('.pgwrap')?.dataset.n), (e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height);
+  return note ? { note, pg } : null;
+}
+async function createNote(color, boxes, quote, rect, edit) {
+  if (!R.doc || !R.sha256 || !boxes.length) return;
+  const epoch = R.epoch;
+  try {
+    const made = await api('/api/annotations', { op: 'create', key: R.key, sha256: R.sha256, rects: boxes,
+      quote: String(quote || '').slice(0, 5000), color, ...demoBody() });
+    if (epoch !== R.epoch) return;
+    R.notes.push(made); redrawNotes();
+    if (edit) openNote(made, rect);
+  } catch (e) { toast('没能保存高亮：' + e.message, 'err'); }
+}
+async function saveNote(note, change) {
+  const before = { comment: note.comment, color: note.color };
+  Object.assign(note, change); redrawNotes();
+  try { Object.assign(note, await api('/api/annotations', { op: 'update', id: note.id, ...change, ...demoBody() })); }
+  catch (e) { Object.assign(note, before); toast('笔记没能保存：' + e.message, 'err'); }
+  redrawNotes();
+}
+function flushNote() {
+  clearTimeout(noteTimer); noteTimer = null;
+  if (noteOpen && $('#noteText').value !== noteOpen.comment) saveNote(noteOpen, { comment: $('#noteText').value });
+}
+function openNote(note, rect) {
+  if (noteOpen && noteOpen.id !== note.id) flushNote();
+  noteOpen = note;
+  const pop = $('#notePop'), quote = pop.querySelector('.nquote');
+  pop.style.setProperty('--c', NOTE_COLORS[note.color] || NOTE_COLORS.yellow);
+  quote.textContent = note.quote || ''; quote.hidden = !note.quote;
+  $('#noteText').value = note.comment || '';
+  pop.querySelector('.ncolors').innerHTML = Object.entries(NOTE_COLORS).map(([name, c]) =>
+    `<button type="button" class="sw" data-color="${name}" style="--c:${c}" aria-pressed="${name === note.color}" title="${COLOR_LABEL[name]}" aria-label="${COLOR_LABEL[name]}"></button>`).join('');
+  pop.classList.add('show');
+  pop.style.left = '0px'; pop.style.top = '0px';
+  const position = PTReaderIdentity.popupPosition(rect, { width: pop.offsetWidth, height: pop.offsetHeight }, { width: innerWidth, height: innerHeight });
+  pop.style.left = `${position.left}px`; pop.style.top = `${position.top}px`;
+  redrawNotes();
+  $('#noteText').focus();
+}
+function closeNote() {
+  if (!noteOpen) return;
+  flushNote(); noteOpen = null;
+  $('#notePop').classList.remove('show');
+  redrawNotes();
+}
+$('#noteText').addEventListener('input', () => { clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 600); });
+$('#noteDone').onclick = () => { closeNote(); (readerControls()[0] || $('#reader')).focus(); };
+$('#notePop .ncolors').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-color]');
+  if (!b || !noteOpen) return;
+  $('#notePop').style.setProperty('--c', NOTE_COLORS[b.dataset.color]);
+  $('#notePop .ncolors').querySelectorAll('[data-color]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  saveNote(noteOpen, { color: b.dataset.color });
+});
+$('#noteDelete').onclick = async () => {
+  const note = noteOpen;
+  if (!note) return;
+  if (($('#noteText').value.trim() || note.comment.trim()) && !await window.PTDialogs.confirm('删除这条高亮和它的笔记？')) return;
+  clearTimeout(noteTimer); noteTimer = null;
+  try { await api('/api/annotations', { op: 'delete', id: note.id, ...demoBody() }); }
+  catch (e) { toast('没能删除：' + e.message, 'err'); return; }
+  R.notes = R.notes.filter((a) => a.id !== note.id);
+  if (noteOpen === note) { noteOpen = null; $('#notePop').classList.remove('show'); }
+  redrawNotes();
+};
+$('#readerPages').addEventListener('click', (e) => {
+  if (window.getSelection()?.toString().trim()) return;
+  const found = noteAt(e);
+  if (found) openNote(found.note, noteRect(found.note, found.pg));
+});
+let noteHover = 0;
+$('#readerPages').addEventListener('mousemove', (e) => {
+  if (noteHover || !R.notes?.length) return;
+  noteHover = requestAnimationFrame(() => { noteHover = 0; $('#readerPages').classList.toggle('onnote', Boolean(noteAt(e))); });
+});
+document.addEventListener('mousedown', (e) => {
+  if ($('#notePop').classList.contains('show') && !$('#notePop').contains(e.target) && !e.target.closest?.('.pt-confirm')) closeNote();
+});
+$('#readerPages').addEventListener('scroll', () => { if (noteOpen && performance.now() - noteJump > 400) closeNote(); }, { passive: true });
 $('#zoomIn').onclick = () => setScale(currentScale() + 0.2);
 $('#zoomOut').onclick = () => setScale(currentScale() - 0.2);
 $('#zoomFit').onclick = async () => {
@@ -2184,6 +2529,8 @@ document.addEventListener('mouseup', (e) => {
   selRect = sel.getRangeAt(0).getBoundingClientRect();
   const start = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
   selPage = Number(start?.closest?.('.pgwrap')?.dataset.n) || null;
+  selBoxes = selPage && R.doc && R.sha256 ? selectionBoxes() : [];   // captured now: clicking the bar may drop the selection
+  $('#selbar').classList.toggle('in-pdf', selBoxes.length > 0);
   $('#selbar [data-sel="ask"]').classList.toggle('hidden', !e.target.closest('#readerPages'));   // questions only in the PDF reader
   showSel(selRect, text);
 });
@@ -2566,9 +2913,14 @@ $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sel]');
   if (!btn) return;
-  const text = selText, rect = selRect, page = selPage;
+  const text = selText, rect = selRect, page = selPage, boxes = selBoxes;
   hideSel();
   if (btn.dataset.sel === 'clear') { window.getSelection()?.removeAllRanges(); return; }
+  if (btn.dataset.sel === 'highlight' || btn.dataset.sel === 'note') {
+    window.getSelection()?.removeAllRanges();
+    createNote(btn.dataset.color || 'yellow', boxes, text, rect, btn.dataset.sel === 'note');
+    return;
+  }
   if (btn.dataset.sel === 'translate') translate(text, rect);
   else {
     setReference(text, page); openPet();

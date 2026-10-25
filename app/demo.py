@@ -42,13 +42,14 @@ REAL_ONLY_PREFIXES = ("/api/update",)
 # What the demo may do. Everything else under the demo is blocked.
 ALLOWED_GET = frozenset({"/api/home", "/api/state", "/api/profile", "/api/profile/insights", "/api/profile/evidence",
                          "/api/library", "/api/organization", "/api/paper", "/api/qa", "/api/qa/session", "/api/fulltext",
-                         "/api/route", "/api/weekly_report", "/api/pdf/view", "/api/figure-page", "/api/import/batches"})
+                         "/api/route", "/api/weekly_report", "/api/pdf/view", "/api/figure-page", "/api/import/batches",
+                         "/api/annotations"})
 ALLOWED_GET_PREFIXES = ("/api/paper/", "/api/jobs/", "/api/import/batches/")
 # /api/qa and /api/translate are answered by DemoApp with pre-written text (zero tokens); /api/pdf/prepare only finds the one
 # demo reading material that is already in the sandbox.
 ALLOWED_POST = frozenset({"/api/daily", "/api/triage", "/api/feedback", "/api/unsave", "/api/undo", "/api/detail",
                           "/api/maintain", "/api/library", "/api/pdf/prepare", "/api/fulltext", "/api/qa", "/api/qa/session",
-                          "/api/translate", "/api/import/batches"})
+                          "/api/translate", "/api/import/batches", "/api/annotations"})
 # The import of a library file runs for real inside the sandbox (offline). Uploading PDFs and setting seeds stay blocked.
 IMPORT_POST = re.compile(r"^/api/import/batches/[0-9a-f]{32}/(?:sidecar|resolve|cancel|commit|discard|settle|categories|items/\d+)$")
 # POST /api/organization: only the read-only or layout operations.

@@ -684,6 +684,13 @@ class Handler(BaseHTTPRequestHandler):
             status = app.fulltext_status(key, source_pdf_sha256=source_hash,
                                         include_texts=(query.get('text') or ['0'])[0]=='1')
             self._json(status)
+        elif route == "/api/annotations":
+            from . import annotations
+            try:
+                self._json({"items": annotations.list_for(self._app().store, (query.get("key") or [""])[0],
+                                                          (query.get("sha256") or [""])[0])})
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
         elif route == "/api/figure-page":
             app = self._app()
             self._json({"page": app.figure_page((query.get("key") or [""])[0], (query.get("q") or [""])[0])})
@@ -1100,6 +1107,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(app.save_fulltext(body.get("key") or "", body.get("pages") or [],
                                              source_pdf_sha256=body.get('source_pdf_sha256')))
             except (ValueError, TypeError) as exc:
+                return self._json({"error": str(exc)}, 400)
+        elif route == "/api/annotations":
+            from . import annotations
+            op = body.get("op")
+            try:
+                if op == "create":
+                    self._json(annotations.create(app.store, body.get("key"), body.get("sha256"), body.get("rects"),
+                                                  body.get("quote"), body.get("comment"), body.get("color")))
+                elif op == "update":
+                    self._json(annotations.update(app.store, body.get("id"), body.get("comment"), body.get("color")))
+                elif op == "delete":
+                    self._json(annotations.delete(app.store, body.get("id")))
+                else:
+                    self._json({"error": "unknown op"}, 400)
+            except ValueError as exc:
                 return self._json({"error": str(exc)}, 400)
         elif route == "/api/qa":
             try:
