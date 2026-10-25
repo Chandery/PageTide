@@ -9,11 +9,11 @@
   <img src="app/static/wordmark.png" alt="PageTide" width="320">
 </picture>
 
-📚 **An open-source research assistant for discovering and organizing papers.** 🌊
+**An open-source research assistant for discovering and organizing papers.**
 
 PageTide learns your research profile, recommends new papers every day, and keeps them in a library you own.
 
-🪶 Lightweight &nbsp;·&nbsp; ⚡ Easy &nbsp;·&nbsp; 🚀 Efficient &nbsp;·&nbsp; 🌊 Open source
+Lightweight &nbsp;·&nbsp; Easy &nbsp;·&nbsp; Efficient &nbsp;·&nbsp; Open source
 
 English · <a href="README-zh.md">简体中文</a>
 
@@ -23,7 +23,7 @@ English · <a href="README-zh.md">简体中文</a>
 
 [![Download PageTide](https://img.shields.io/badge/Download-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest) [![Website](https://img.shields.io/badge/Website-pagetide.chandery.org-12315c?style=for-the-badge)](https://pagetide.chandery.org/)
 
-🌐 **[pagetide.chandery.org](https://pagetide.chandery.org/)** · try the profile demo in your browser
+**[pagetide.chandery.org](https://pagetide.chandery.org/)** · try the profile demo in your browser
 
 <a href="https://pagetide.chandery.org/"><img src="docs/assets/readme/cover.jpg" alt="PageTide: papers that fit your research" width="880"></a>
 
@@ -31,30 +31,30 @@ English · <a href="README-zh.md">简体中文</a>
 
 https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
-<p align="center"><sub>🎵 Music by Pumpupthemind</sub></p>
+<p align="center"><sub>Music by Pumpupthemind</sub></p>
 
 **Stop scrolling feeds. Start the day with papers that fit your research.** PageTide searches arXiv, OpenAlex and Baidu Scholar every morning, ranks what it finds against a research profile you can read and edit, and keeps the papers you save in a library of your own. Ranking runs on your computer without AI; AI explains your picks and answers your questions.
 
-## 📊 By the numbers
+## By the numbers
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-en-dark.svg">
   <img src="docs/assets/readme/numbers-en-light.svg" alt="PageTide by the numbers: zero tokens to rank, zero accounts, a single AI call for five previews, 22 MB download; 3 sources, 5 import formats, 3 ways to start, 2 platforms by 2 languages" width="880">
 </picture>
 
-## ✨ Features
+## Features
 
-**📬 Daily picks, explained.** Each morning a short list of new papers ranked against your profile. Every card has a one-line AI preview: what the paper says and why it matters to you. Save it, or mark it **Not interested** or **Too hard** in one click.
+**Daily picks, explained.** Each morning a short list of new papers ranked against your profile. Every card has a one-line AI preview: what the paper says and why it matters to you. Save it, or mark it **Not interested** or **Too hard** in one click.
 
-**🧭 A profile you can read and edit.** No black box. See the terms behind every pick, pin keywords, remove tags, undo any feedback. It learns only from what you do on purpose: doing nothing never counts as a dislike, and Too hard is not a dislike either.
+**A profile you can read and edit.** No black box. See the terms behind every pick, pin keywords, remove tags, undo any feedback. It learns only from what you do on purpose: doing nothing never counts as a dislike, and Too hard is not a dislike either.
 
-**🕸️ A library that connects itself.** Saved papers become a list and a graph of related work. Open-access PDFs are archived locally. AI can suggest categories, but nothing changes until you confirm, and every change can be undone.
+**A library that connects itself.** Saved papers become a list and a graph of related work. Open-access PDFs are archived locally. AI can suggest categories, but nothing changes until you confirm, and every change can be undone.
 
-**✍️ Highlight. Ask. Understand.** Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.
+**Highlight. Ask. Understand.** Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.
 
-**📥 Bring what you have.** Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX or RIS.
+**Bring what you have.** Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX or RIS.
 
-**📈 A weekly report** of what you saved, what you skipped and which directions grew, plus an offline demo project with a guided tour, English and Chinese interface, light and dark themes, and in-app updates.
+**A weekly report** of what you saved, what you skipped and which directions grew, plus an offline demo project with a guided tour, English and Chinese interface, light and dark themes, and in-app updates.
 
 <table>
 <tr>
@@ -83,7 +83,7 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 </tr>
 </table>
 
-## 🔌 Connect your services
+## Connect your services
 
 PageTide works out of the box on arXiv. Add your own keys to switch on more sources and the AI features. Everything is optional and lives in **Settings**.
 
@@ -97,15 +97,15 @@ PageTide works out of the box on arXiv. Add your own keys to switch on more sour
 > [!NOTE]
 > You type every key into Settings yourself. Keys are saved in a local file inside PageTide's data folder, never in the settings file, and each key is sent only to the service it belongs to. There is no PageTide server.
 
-## 🚀 Getting started
+## Getting started
 
-1. **Download** PageTide for macOS or Windows (see [Download](#-download)) and open it.
+1. **Download** PageTide for macOS or Windows (see [Download](#download)) and open it.
 2. **Pick a language and a look**, then follow the short tour through the demo project. It is offline and needs no key.
 3. **Create your project**: Quick start (one sentence, one AI call), AI guided (chat until the keywords feel right) or Manual (no AI).
-4. **Add your keys** in Settings if you want AI and more sources (see [Connect your services](#-connect-your-services)).
+4. **Add your keys** in Settings if you want AI and more sources (see [Connect your services](#connect-your-services)).
 5. **Press Pick today's papers.** Save what you like, mark the rest, and watch the profile follow.
 
-## 🔒 Private by design
+## Private by design
 
 > [!NOTE]
 > - Your papers, profile and notes are stored on your computer only.
@@ -113,7 +113,7 @@ PageTide works out of the box on arXiv. Add your own keys to switch on more sour
 > - Recommendations, the profile and the library work offline and use no model tokens.
 > - AI features are optional and use your own DeepSeek API key.
 
-## 📥 Download
+## Download
 
 | Platform | File |
 | --- | --- |
@@ -131,7 +131,7 @@ PageTide is an independent open-source project and has no paid code-signing cert
 
 </details>
 
-## ❓ FAQ
+## FAQ
 
 <details>
 <summary><b>Where is my data stored?</b></summary>
@@ -168,7 +168,7 @@ PageTide checks for updates itself and shows a banner. You can also press Check 
 
 </details>
 
-## 🤝 Contributing
+## Contributing
 
 **Contributions of every kind are welcome.** Found a bug? Have an idea? Spotted a typo, or want to translate a screen? Open an [issue](https://github.com/Chandery/PageTide/issues) or send a pull request. You do not need to be an expert, and small fixes are as welcome as new features.
 
@@ -176,12 +176,12 @@ PageTide checks for updates itself and shows a banner. You can also press Check 
 - **Improve the docs or translations:** just edit and open a PR.
 - **Write code:** for bigger changes, start with an issue so we can agree on the direction first. Setup, tests and build commands are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-If PageTide saves you time, a star on GitHub helps other researchers find it. ⭐
+If PageTide saves you time, a star on GitHub helps other researchers find it.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev). Promo video music by Pumpupthemind.
 
-## 📄 License
+## License
 
 [MIT](LICENSE) © Chandery

@@ -118,17 +118,12 @@
 
   function stepsFor(page) { return STEPS.filter(function (s) { return s.page === page; }); }
 
-  /* ob: the /api/onboarding body. A boolean `show` wins; otherwise it is derived from
-     no project (project_count === 0 / has_project === false) or seen_version !== version. */
+  /* ob: the /api/onboarding body. The server's boolean `show` decides (once per install, app/onboarding.py); a body
+     without it offers the tour only if it was never seen. */
   function shouldOffer(ob, offeredVersion) {
     if (!ob || typeof ob !== 'object') return false;
     const version = ob.version == null ? '' : String(ob.version);
-    let show;
-    if (typeof ob.show === 'boolean') show = ob.show;
-    else {
-      const noProject = ob.has_project === false || ob.project_count === 0;
-      show = noProject || (ob.seen_version == null ? '' : String(ob.seen_version)) !== version;
-    }
+    const show = typeof ob.show === 'boolean' ? ob.show : ob.seen_version == null && ob.completed_at == null;
     if (!show) return false;
     return offeredVersion == null || String(offeredVersion) !== version;
   }

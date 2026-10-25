@@ -229,6 +229,55 @@ fn prepare_quit(handle: &tauri::AppHandle) {
     }
 }
 
+fn show_main_window(handle: &tauri::AppHandle) {
+    if let Some(window) = handle.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+// Windows: the title-bar X hides the window to the tray, so a running import or download is not interrupted.
+// Quitting stays the guarded path (tray "Quit" -> prepare_quit -> complete_quit).
+fn hide_to_tray(window: &WebviewWindow) {
+    let _ = window.hide();
+}
+
+// The shell does not know the UI language, so the labels carry both.
+fn install_tray(app: &App) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    const SHOW: &str = "tray-show";
+    const QUIT: &str = "tray-quit";
+    let menu = Menu::with_items(app, &[
+        &MenuItem::with_id(app, SHOW, "打开 PageTide / Open", true, None::<&str>)?,
+        &MenuItem::with_id(app, QUIT, "退出 / Quit", true, None::<&str>)?,
+    ])?;
+    let mut tray = TrayIconBuilder::new()
+        .tooltip(if RELEASE_BUILD { "PageTide" } else { "PageTide Dev" })
+        .menu(&menu)
+        // Left click restores the window; the menu is for the right click.
+        .show_menu_on_left_click(false)
+        .on_menu_event(|handle, event| match event.id().as_ref() {
+            SHOW => show_main_window(handle),
+            QUIT => {
+                show_main_window(handle);
+                prepare_quit(handle);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_main_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
 struct PythonProcess(Mutex<Option<Child>>);
 
 impl PythonProcess {
@@ -389,6 +438,9 @@ fn main() {
                 tauri::webview::NewWindowResponse::Deny
             });
             window.build()?;
+            if cfg!(windows) {
+                install_tray(app)?;
+            }
             Ok(())
         })
         .build(tauri::generate_context!());
@@ -398,9 +450,15 @@ fn main() {
                 RunEvent::ExitRequested { api, .. } if !handle.state::<DesktopSession>().quitting.load(Ordering::SeqCst) => {
                     api.prevent_exit(); prepare_quit(handle);
                 }
-                RunEvent::WindowEvent { event: WindowEvent::CloseRequested { api, .. }, .. }
+                RunEvent::WindowEvent { label, event: WindowEvent::CloseRequested { api, .. }, .. }
                     if !handle.state::<DesktopSession>().quitting.load(Ordering::SeqCst) => {
-                    api.prevent_close(); prepare_quit(handle);
+                    api.prevent_close();
+                    // cfg! (not #[cfg]) so the Windows branch is type-checked on macOS builds too.
+                    if cfg!(windows) {
+                        if let Some(window) = handle.get_webview_window(label) { hide_to_tray(&window); }
+                    } else {
+                        prepare_quit(handle);
+                    }
                 }
                 _ => {}
             }

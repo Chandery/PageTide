@@ -24,8 +24,10 @@
   --sh-out:var(--sh-1); --sh-out-sm:none;
   --sh-in:inset 0 0 0 1px var(--line); --sh-in-sm:inset 0 0 0 1px var(--line);
   --ease-out:cubic-bezier(.2,.8,.3,1);
+  --scroll-thumb:rgba(16,24,40,.26);
 }
 html[data-mode="dark"] {
+  --scroll-thumb:rgba(255,255,255,.24);
   --base:#0d0e11; --text:#f3f4f6; --muted:#9aa1ad;
   --line:#25272d; --line-strong:#363942;
   --surface-1:#17181c; --surface-2:#212228; --surface-3:#2b2d34;
@@ -45,6 +47,21 @@ html[data-mode="dark"] {
 @media (min-width:1700px) { :root { --s:1.2;  --wrap:1560px; } }
 @media (min-width:2200px) { :root { --s:1.45; --wrap:2000px; } }
 @media (min-width:2800px) { :root { --s:1.8;  --wrap:2560px; } }
+
+/* Text is selected only where it is read: an abstract, the PDF page and form fields. A drag anywhere else (cards,
+   lists, buttons, the library) selects nothing. */
+body { -webkit-user-select:none; user-select:none; }
+input, textarea, [contenteditable="true"], #detail .detail-section .full, .org-abstract > :not(summary), .reader .textLayer {
+  -webkit-user-select:text; user-select:text; }
+
+/* Scrollbars are hidden until a region scrolls or the pointer reaches its edge, and hide again 3 s later
+   (.pt-scrolling, set by theme.js). Chromium (Windows) reads scrollbar-color; WebKit (macOS) the ::-webkit rules. */
+* { scrollbar-width:thin; scrollbar-color:transparent transparent; }
+.pt-scrolling { scrollbar-color:var(--scroll-thumb) transparent; }
+::-webkit-scrollbar { width:10px; height:10px; background:transparent; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background:transparent; }
+::-webkit-scrollbar-thumb { background-color:transparent; border:2px solid transparent; border-radius:999px; background-clip:padding-box; }
+.pt-scrolling::-webkit-scrollbar-thumb { background-color:var(--scroll-thumb); }
 
 /* Segmented control: a short list of mutually exclusive choices (role=radiogroup). */
 .seg { display:inline-flex; gap:calc(2px * var(--s)); padding:calc(3px * var(--s)); border:0; border-radius:999px; background:var(--surface-2); vertical-align:middle; }

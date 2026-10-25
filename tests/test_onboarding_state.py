@@ -73,29 +73,44 @@ class StateTests(unittest.TestCase):
     def state(self, projects):
         return onboarding.state(self.data, ROOT, projects)
 
-    def test_the_four_combinations(self):
-        # no project, never seen: offered because there is no project
-        out = self.state(0)
-        self.assertEqual((out["show"], out["reason"]), (True, "no_project"))
-        # a project, never seen: offered because the version is new to this person
-        out = self.state(1)
-        self.assertEqual((out["show"], out["reason"], out["seen_version"]), (True, "new_version", None))
+    def use_install(self, name):
+        patcher = mock.patch.object(onboarding, "install_id", return_value=name)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return patcher
+
+    def test_the_tour_is_offered_once_per_install(self):
+        install = self.use_install("copy-1")
+        # first launch after installing: offered, with or without a project
+        self.assertEqual((self.state(0)["show"], self.state(0)["reason"]), (True, "first_run"))
+        self.assertEqual(self.state(1)["reason"], "first_run")
         onboarding.mark_done(self.data, ROOT)
-        # a project, seen this version: not offered
-        out = self.state(2)
-        self.assertEqual((out["show"], out["reason"]), (False, "seen"))
-        # no project again (all deleted) even though the version was seen: offered again
-        out = self.state(0)
-        self.assertEqual((out["show"], out["reason"]), (True, "no_project"))
-        # a project and a newer app: offered again
+        # seen on this install: never again, whether projects exist, were all deleted, or the app was updated
+        for projects in (0, 2):
+            self.assertEqual((self.state(projects)["show"], self.state(projects)["reason"]), (False, "seen"))
         os.environ["PAGETIDE_APP_VERSION"] = "0.2.0"
-        out = self.state(1)
-        self.assertEqual((out["show"], out["reason"], out["seen_version"], out["version"]), (True, "new_version", "0.1.0", "0.2.0"))
+        self.assertEqual(self.state(1)["show"], False)
+        # reinstalled (a new copy of the app): offered again only when there is no project
+        install.stop()
+        self.use_install("copy-2")
+        self.assertEqual(self.state(3)["show"], False)
+        self.assertEqual((self.state(0)["show"], self.state(0)["reason"]), (True, "reinstalled"))
+        onboarding.mark_done(self.data, ROOT)
+        self.assertEqual(self.state(0)["show"], False)
+
+    def test_a_tour_seen_before_installs_were_recorded_stays_seen_while_there_is_a_project(self):
+        self.data.mkdir()
+        (self.data / "onboarding.json").write_text('{"seen_version": "0.1.0", "completed_at": "2026-10-24T08:30:15+00:00"}')
+        self.assertEqual(self.state(1)["show"], False)
+        self.assertEqual(self.state(0)["reason"], "reinstalled")   # nothing to come back to: one more offer, then remembered
+
+    def test_a_source_run_is_one_install(self):
+        self.assertEqual(onboarding.install_id(), "source")
 
     def test_done_writes_an_atomic_file_with_the_server_chosen_version(self):
         when = datetime(2026, 10, 24, 8, 30, 15, 999, tzinfo=timezone.utc)
         stored = onboarding.mark_done(self.data, ROOT, now=when)
-        self.assertEqual(stored, {"seen_version": "0.1.0", "completed_at": "2026-10-24T08:30:15+00:00"})
+        self.assertEqual(stored, {"seen_version": "0.1.0", "completed_at": "2026-10-24T08:30:15+00:00", "install_id": "source"})
         self.assertEqual(json.loads((self.data / "onboarding.json").read_text()), stored)
         self.assertEqual([p.name for p in self.data.iterdir()], ["onboarding.json"])   # no staging file left behind
 
@@ -103,7 +118,7 @@ class StateTests(unittest.TestCase):
         self.data.mkdir()
         for text in ("{", "[]", '{"seen_version": 3, "completed_at": []}', ""):
             (self.data / "onboarding.json").write_text(text, encoding="utf-8")
-            self.assertEqual(onboarding.read(self.data), {"seen_version": None, "completed_at": None}, text)
+            self.assertEqual(onboarding.read(self.data), {"seen_version": None, "completed_at": None, "install_id": None}, text)
 
 
 class HttpTests(unittest.TestCase):
@@ -136,10 +151,10 @@ class HttpTests(unittest.TestCase):
 
     def test_a_new_install_is_offered_the_tour_and_done_is_remembered(self):
         status, out = self.call("GET", "/api/onboarding")
-        self.assertEqual((status, out["show"], out["reason"], out["version"], out["project_count"]), (200, True, "no_project", "0.1.0", 0))
+        self.assertEqual((status, out["show"], out["reason"], out["version"], out["project_count"]), (200, True, "first_run", "0.1.0", 0))
         status, made = self.call("POST", "/api/projects", {"name": "Mine"})
         status, out = self.call("GET", "/api/onboarding")
-        self.assertEqual((out["show"], out["reason"]), (True, "new_version"))
+        self.assertEqual((out["show"], out["reason"]), (True, "first_run"))
         status, out = self.call("POST", "/api/onboarding", {"action": "done"})
         self.assertEqual((status, out["ok"], out["state"]["show"]), (200, True, False))
         status, out = self.call("GET", "/api/onboarding")

@@ -148,7 +148,7 @@ class LargeScreenTests(unittest.TestCase):
     def test_page_widths_follow_the_scale(self):
         self.assertIn("max-width:calc(1040px * var(--s))", read("project-creation.css"))
         self.assertIn("max-width:calc(1120px * var(--s))", read("profile.css"))
-        self.assertIn("max-width: calc(680px * var(--s))", read("settings.html"))
+        self.assertIn("max-width: calc(720px * var(--s))", read("settings.html"))
         self.assertIn("max-width:calc(980px * var(--s))", read("weekly_report.html"))
 
     def test_the_detail_rail_has_two_control_sizes_and_links_match_buttons(self):

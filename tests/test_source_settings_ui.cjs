@@ -225,7 +225,7 @@ test('the Baidu row is one switch with one key line under it, like the OpenAlex 
   const order=['sourceBaiduWeb','baiduScholarKey','baiduScholarKeyStatus','testBaiduScholarBtn','clearBaiduScholarKeyBtn','baiduScholarKeyLink'].map(at);
   assert.ok(order.every(i=>i>0),'every id is there');
   assert.deepEqual([...order].sort((a,b)=>a-b),order,'the switch first, then the key line');
-  assert.match(section.slice(at('sourceBaiduWeb'),at('sourceBaiduWeb')+120),/百度搜索/);
+  assert.match(section,/<label for="sourceBaiduWeb">百度搜索<\/label>/);                  // the row's name is the switch's label
   assert.doesNotMatch(section,/class="source-name"|source-option/);
   assert.match(section,/aria-label="百度搜索密钥"/);
   assert.equal((section.match(/id="baiduScholarKey"/g)||[]).length,1);   // one key field for the row
@@ -245,5 +245,5 @@ test('the AI key has a get-key link to the DeepSeek key page, always shown',()=>
   assert.doesNotMatch(link[0],/hidden/);
   assert.equal(link[1],'获取');                                              // the same word as the source rows
   const ai=html.slice(html.indexOf('<h2>API 配置</h2>'),html.indexOf('<h2>推荐设置</h2>'));
-  assert.ok(ai.indexOf('id="apiKey"')<ai.indexOf('id="apiKeyLink"')&&ai.indexOf('id="apiKeyLink"')<ai.indexOf('id="testAiBtn"'));
+  for(const id of ['apiKey','apiKeyLink','apiKeyStatus','testAiBtn'])assert.ok(ai.includes('id="'+id+'"'),id);   // the link sits in the key row's heading, beside its status
 });

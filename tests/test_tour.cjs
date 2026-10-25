@@ -7,16 +7,15 @@ function memory() {
   return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) };
 }
 
-test('shouldOffer: no project, new version, seen version, already offered this session', () => {
-  assert.equal(T.shouldOffer({ version: '0.1.0', seen_version: '0.1.0', project_count: 0 }, null), true);   // no project
-  assert.equal(T.shouldOffer({ version: '0.2.0', seen_version: '0.1.0', project_count: 2 }, null), true);   // version differs
+test('shouldOffer: the server decides; without its answer only a never-seen tour is offered; once per session', () => {
+  assert.equal(T.shouldOffer({ show: true, version: '0.1.0' }, null), true);
+  assert.equal(T.shouldOffer({ show: false, version: '0.1.0', seen_version: null }, null), false);           // the server's word wins
   assert.equal(T.shouldOffer({ version: '0.1.0', seen_version: null, project_count: 2 }, null), true);      // never seen
-  assert.equal(T.shouldOffer({ version: '0.1.0', seen_version: '0.1.0', project_count: 2 }, null), false);  // seen, has project
-  assert.equal(T.shouldOffer({ version: '0.1.0', seen_version: '0.1.0', has_project: false }, null), true);
+  assert.equal(T.shouldOffer({ version: '0.1.0', seen_version: '0.1.0', project_count: 0 }, null), false);  // seen: not again, even with no project
+  assert.equal(T.shouldOffer({ version: '0.2.0', seen_version: '0.1.0', project_count: 2 }, null), false);  // an update is not a reason
   assert.equal(T.shouldOffer({ show: true, version: '0.1.0' }, '0.1.0'), false);                            // offered this session
   assert.equal(T.shouldOffer({ show: true, version: '0.2.0' }, '0.1.0'), true);                             // offered an older one
   assert.equal(T.shouldOffer({ show: false, version: '0.2.0' }, null), false);
-  assert.equal(T.shouldOffer({ version: '0.1.0', seen_version: '0.1.0', project_count: 0 }, '0.1.0'), false);
   assert.equal(T.shouldOffer(null, null), false);
 });
 

@@ -15,117 +15,103 @@
       background: var(--base);
       color: var(--text);
       font-size: calc(var(--fs-md) * var(--s));
-      line-height: 1.6;
+      line-height: 1.55;
       min-height: 100vh;
-      padding: calc(40px * var(--s)) calc(20px * var(--s)) calc(80px * var(--s));
+      padding: calc(40px * var(--s)) calc(24px * var(--s)) 0;
     }
-    /* — layout — */
-    .container { max-width: calc(680px * var(--s)); margin: 0 auto; }
+    /* — layout: a titled group of rows; each row is a name on the left and its control on the right — */
+    .container { max-width: calc(720px * var(--s)); margin: 0 auto; }
     .back-link {
       display: inline-flex; align-items: center; gap: calc(6px * var(--s));
       color: var(--muted); text-decoration: none; font-size: calc(var(--fs-sm) * var(--s));
-      margin-bottom: calc(28px * var(--s)); transition: color .16s ease;
+      margin-bottom: calc(20px * var(--s)); transition: color .16s ease;
     }
     .back-link:hover { color: var(--text); }
-    h1 { font-family: var(--display); font-size: calc(var(--fs-2xl) * var(--s)); font-weight: 600; margin-bottom: calc(28px * var(--s)); }
-    /* — section cards — */
-    .section {
-      background: var(--surface-1); border: 1px solid var(--line);
-      border-radius: var(--r-lg); padding: calc(22px * var(--s)) calc(24px * var(--s)); margin-bottom: calc(16px * var(--s));
-      box-shadow: var(--sh-1);
-    }
+    h1 { font-family: var(--display); font-size: calc(var(--fs-2xl) * var(--s)); font-weight: 700; margin-bottom: calc(32px * var(--s)); }
+    .section { margin-bottom: calc(32px * var(--s)); }
     .section h2 {
       font-size: calc(var(--fs-sm) * var(--s)); font-weight: 600; color: var(--muted);
-      margin-bottom: calc(18px * var(--s)); padding-bottom: calc(12px * var(--s)); border-bottom: 1px solid var(--line);
+      margin: 0 0 calc(10px * var(--s)) calc(4px * var(--s));
     }
-    /* — fields — */
-    .field { margin-bottom: calc(16px * var(--s)); }
-    .field:last-child { margin-bottom: 0; }
-    .field label {
-      display: block; font-size: calc(var(--fs-sm) * var(--s)); font-weight: 500;
-      color: var(--text); margin-bottom: calc(6px * var(--s));
+    .card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--sh-1); }
+    .field {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: calc(24px * var(--s));
+      padding: calc(14px * var(--s)) calc(20px * var(--s)); min-height: calc(56px * var(--s));
     }
-    .field label.inline {
-      display: flex; align-items: center; gap: calc(10px * var(--s));
-      font-weight: 400; cursor: pointer; user-select: none;
-    }
-    .field small { display: block; margin-top: calc(5px * var(--s)); font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
-    .field .key-meta { display: flex; align-items: center; gap: calc(10px * var(--s)); margin-top: calc(5px * var(--s)); }
-    .field .key-meta small { margin-top: 0; }
-    .field .key-meta a { font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
-    .field .key-meta a:hover { color: var(--text); }
-    .readonly-note { font-size: calc(var(--fs-sm) * var(--s)); color: var(--text, inherit); padding: calc(8px * var(--s)) calc(10px * var(--s)); border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: var(--r-md); }
+    .field + .field { border-top: 1px solid var(--line); }
+    .field > label, .field-head > label { font-size: calc(var(--fs-md) * var(--s)); font-weight: 500; color: var(--text); }
+    .field .control { display: flex; align-items: center; justify-content: flex-end; gap: calc(10px * var(--s)); min-width: 0; }
+    /* a row whose control needs the whole width (a key, a path, a usage line) puts it under the name */
+    .field.stack { grid-template-columns: minmax(0, 1fr); row-gap: calc(10px * var(--s)); }
+    .field.stack .control { justify-content: flex-start; }
+    .field.stack .field-head { display: flex; align-items: baseline; justify-content: space-between; gap: calc(12px * var(--s)); }
+    .field .key-meta { display: inline-flex; align-items: baseline; gap: calc(12px * var(--s)); font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
+    .field .key-meta small { font-size: inherit; }
+    .field a { color: var(--accent-text); text-decoration: none; font-size: calc(var(--fs-sm) * var(--s)); }
+    .field a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .readonly-note { font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.7; }
     /* — inputs — */
     .field input[type="text"],
     .field input[type="password"],
     .field input[type="number"],
     .field select {
-      width: 100%; padding: calc(8px * var(--s)) calc(11px * var(--s)); font-size: calc(var(--fs-sm) * var(--s));
-      border: 1px solid var(--line); border-radius: var(--r-sm);
-      background: var(--base); color: var(--text); outline: none;
+      height: calc(36px * var(--s)); padding: 0 calc(12px * var(--s)); font: inherit; font-size: calc(var(--fs-sm) * var(--s));
+      border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+      background: var(--surface-1); color: var(--text); outline: none;
       transition: border-color .16s ease, box-shadow .16s ease;
     }
-    .field input:focus, .field select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-soft);
+    .field select { width: calc(200px * var(--s)); cursor: pointer; }
+    .field input[type="number"] { width: calc(96px * var(--s)); text-align: right; font-variant-numeric: tabular-nums; }
+    .field input[type="text"], .field input[type="password"] { flex: 1 1 auto; min-width: 0; width: 100%; }
+    .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .field input[readonly] { color: var(--muted); background: var(--surface-2); border-color: transparent; cursor: default; }
+    /* on/off: a switch at the right end of its row */
+    .field input.switch {
+      appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; margin: 0; position: relative;
+      background: var(--line-strong); cursor: pointer; transition: background .18s ease; flex: 0 0 auto;
     }
-    .field input[readonly] { color: var(--muted); cursor: default; }
-    /* checkbox */
-    .field input[type="checkbox"] {
-      width: 16px; height: 16px; flex: 0 0 16px;
-      accent-color: var(--accent); cursor: pointer;
+    .field input.switch::after {
+      content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+      background: #fff; box-shadow: var(--sh-1); transition: transform .18s ease;
     }
-    /* — buttons — */
+    .field input.switch:checked { background: var(--accent); }
+    .field input.switch:checked::after { transform: translateX(16px); }
+    .field input.switch:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+    /* — buttons: every one has an edge; only Save is filled — */
     button {
-      padding: calc(8px * var(--s)) calc(18px * var(--s)); font-size: calc(var(--fs-sm) * var(--s)); font-weight: 500;
-      border: 1px solid var(--line); border-radius: var(--r-sm);
+      height: calc(36px * var(--s)); padding: 0 calc(16px * var(--s)); font: inherit; font-size: calc(var(--fs-sm) * var(--s)); font-weight: 500;
+      border: 1px solid var(--line-strong); border-radius: var(--r-sm); white-space: nowrap;
       cursor: pointer; background: var(--surface-1); color: var(--text);
-      transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
+      transition: background .16s ease, border-color .16s ease;
     }
     button:hover { background: var(--surface-2); }
-    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    button.primary {
-      background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
-    }
-    button.primary:hover { background: color-mix(in srgb, var(--accent) 86%, var(--surface-1)); }
-    button.danger {
-      background: var(--surface-1); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, transparent);
-    }
-    button.danger:hover { background: color-mix(in srgb, var(--bad) 8%, transparent); }
-    button.ghost { border-color: transparent; background: transparent; }
-    button.ghost:hover { background: var(--surface-2); }
-    /* — data sources: one row each (switch, key, one status word, test, clear, get) — */
-    .source-row .source-key { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8px * var(--s)); margin: calc(8px * var(--s)) 0 0 calc(26px * var(--s)); }
-    .source-row .source-key input[type="password"] { flex: 1 1 calc(180px * var(--s)); width: auto; min-width: 0; }
-    .source-row .source-key .source-state { margin-top: 0; min-width: 5em; font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
-    .source-row .source-key button { padding: calc(5px * var(--s)) calc(10px * var(--s)); }
-    .source-row .source-key a { font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
-    .source-row .source-key a:hover { color: var(--text); }
-    .source-row .source-name { font-size: calc(var(--fs-sm) * var(--s)); font-weight: 500; color: var(--text); }
-    .source-row .source-option { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8px * var(--s)); margin: calc(8px * var(--s)) 0 0 calc(26px * var(--s)); }
-    .source-row .source-option label.inline { margin-bottom: 0; }
-    .source-row .source-option .source-state { margin-top: 0; min-width: 5em; font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
-    .source-row .source-option button { padding: calc(5px * var(--s)) calc(10px * var(--s)); }
-    /* — actions bar — */
+    button:disabled { opacity: .55; cursor: default; }
+    button:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+    button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+    button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+    button.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line-strong)); }
+    button.danger:hover { background: color-mix(in srgb, var(--bad) 8%, var(--surface-1)); }
+    /* — results: a word next to the button that asked for it; success is green with a tick, failure red with a cross (dialogs.css) — */
+    [data-pt-status] { margin-top: 0; font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
+    [data-pt-status]:empty { display: none; }
+    .field.stack > [data-pt-status] { margin-top: calc(-2px * var(--s)); }
+    /* — data sources: the switch row, then the key line under it — */
+    .source-row .source-key { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: calc(10px * var(--s)); margin-top: calc(12px * var(--s)); }
+    .source-row .source-key input[type="password"] { flex: 1 1 calc(220px * var(--s)); width: auto; }
+    .source-row .source-key .source-state { min-width: 4.5em; }
+    .field.actions-row .control { justify-content: flex-start; flex-wrap: wrap; }
+    /* — save bar: stays at the bottom of the window while the page scrolls — */
     .actions {
-      display: flex; gap: calc(10px * var(--s)); justify-content: flex-end;
-      margin-top: calc(28px * var(--s)); padding-top: calc(20px * var(--s)); border-top: 1px solid var(--line);
+      position: sticky; bottom: 0; display: flex; align-items: center; gap: calc(10px * var(--s)); justify-content: flex-end;
+      margin: calc(8px * var(--s)) calc(-24px * var(--s)) 0; padding: calc(16px * var(--s)) calc(24px * var(--s));
+      background: var(--base); border-top: 1px solid var(--line);
     }
-    /* motion */
-    @media (prefers-reduced-motion: no-preference) {
-      .section { animation: fadeUp .22s ease both; }
-      .section:nth-child(2) { animation-delay: .04s; }
-      .section:nth-child(3) { animation-delay: .08s; }
-      .section:nth-child(4) { animation-delay: .12s; }
-      .section:nth-child(5) { animation-delay: .16s; }
-    }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    .actions #settingsStatus { margin-right: auto; }
     @media (max-width:600px) {
-      body { padding: calc(24px * var(--s)) calc(16px * var(--s)) calc(60px * var(--s)); }
-      .section { padding: calc(18px * var(--s)) calc(16px * var(--s)); }
+      body { padding: calc(24px * var(--s)) calc(16px * var(--s)) 0; }
+      .field { grid-template-columns: minmax(0, 1fr); row-gap: calc(10px * var(--s)); }
+      .field .control { justify-content: flex-start; }
       h1 { font-size: calc(var(--fs-xl) * var(--s)); }
-      .actions { flex-direction: column-reverse; }
-      .actions button { width: 100%; justify-content: center; }
     }
   </style>
 <script src="/dialogs.js"></script><link rel="stylesheet" href="/dialogs.css"></head>
@@ -134,169 +120,187 @@
     <a href="/" class="back-link">← 返回主页</a>
     <h1>设置</h1>
 
-    <div class="section">
+    <section class="section">
       <h2>通用</h2>
-      <div class="field">
-        <label for="language">语言 / Language</label>
-        <select id="language">
-          <option value="zh-CN" data-no-i18n>中文</option>
-          <option value="en-US">English</option>
-        </select>
+      <div class="card">
+        <div class="field">
+          <label for="language">语言 / Language</label>
+          <div class="control">
+            <select id="language">
+              <option value="zh-CN" data-no-i18n>中文</option>
+              <option value="en-US">English</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="theme">主题</label>
+          <div class="control">
+            <select id="theme">
+              <option value="light">浅色</option>
+              <option value="dark">深色</option>
+              <option value="auto">跟随系统</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="replayTourBtn">新手指引</label>
+          <div class="control"><button type="button" id="replayTourBtn">重新查看</button></div>
+        </div>
       </div>
-      <div class="field">
-        <label for="theme">主题</label>
-        <select id="theme">
-          <option value="light">浅色</option>
-          <option value="dark">深色</option>
-          <option value="auto">跟随系统</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="replayTourBtn">新手指引</label>
-        <button type="button" id="replayTourBtn" class="ghost">重新查看</button>
-      </div>
-    </div>
+    </section>
 
-    <div class="section">
+    <section class="section">
       <h2>API 配置</h2>
-      <div class="field">
-        <label for="apiProvider">提供商</label>
-        <select id="apiProvider">
-          <option value="deepseek">DeepSeek</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="apiKey">API 密钥</label>
-        <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" aria-describedby="apiKeyStatus aiTestStatus">
-        <div class="key-meta">
-          <small id="apiKeyStatus"></small>
-          <a id="apiKeyLink" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">获取</a>
+      <div class="card">
+        <div class="field">
+          <label for="aiEnabled">启用 AI</label>
+          <div class="control"><input type="checkbox" id="aiEnabled" class="switch" checked></div>
         </div>
-        <button type="button" id="testAiBtn" title="调用 1 次 AI，只发送固定测试消息">测试 AI</button>
-        <div id="aiTestStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
+        <div class="field">
+          <label for="apiProvider">提供商</label>
+          <div class="control">
+            <select id="apiProvider">
+              <option value="deepseek">DeepSeek</option>
+            </select>
+          </div>
+        </div>
+        <div class="field stack">
+          <div class="field-head">
+            <label for="apiKey">API 密钥</label>
+            <span class="key-meta">
+              <small id="apiKeyStatus"></small>
+              <a id="apiKeyLink" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">获取</a>
+            </span>
+          </div>
+          <div class="control">
+            <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" aria-describedby="apiKeyStatus aiTestStatus">
+            <button type="button" id="testAiBtn" title="调用 1 次 AI，只发送固定测试消息">测试 AI</button>
+          </div>
+          <div id="aiTestStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
+        </div>
+        <div class="field stack">
+          <label>AI 用量记录</label>
+          <div id="budgetLimits" class="readonly-note">读取中…</div>
+        </div>
       </div>
-      <div class="field">
-        <label class="inline">
-          <input type="checkbox" id="aiEnabled" checked>
-          启用 AI
-        </label>
-      </div>
-      <div class="field">
-        <label>AI 用量记录</label>
-        <div id="budgetLimits" class="readonly-note">读取中…</div>
-      </div>
-    </div>
+    </section>
 
-    <div class="section">
+    <section class="section">
       <h2>推荐设置</h2>
-      <div class="field">
-        <label for="recommendCount">每日推荐数量</label>
-        <input type="number" id="recommendCount" value="5" min="1" max="20">
+      <div class="card">
+        <div class="field">
+          <label for="recommendCount">每日推荐数量</label>
+          <div class="control"><input type="number" id="recommendCount" value="5" min="1" max="20"></div>
+        </div>
+        <div class="field">
+          <label for="decayWindow">反馈的有效期（天）</label>
+          <div class="control"><input type="number" id="decayWindow" value="30" min="7" max="365"></div>
+        </div>
+        <div class="field">
+          <label for="newPaperBoost">偏向新论文</label>
+          <div class="control"><input type="number" id="newPaperBoost" value="0.5" min="0" max="1" step="0.1"></div>
+        </div>
       </div>
-      <div class="field">
-        <label for="decayWindow">反馈的有效期（天）</label>
-        <input type="number" id="decayWindow" value="30" min="7" max="365">
-      </div>
-      <div class="field">
-        <label for="newPaperBoost">偏向新论文</label>
-        <input type="number" id="newPaperBoost" value="0.5" min="0" max="1" step="0.1">
-      </div>
-    </div>
+    </section>
 
-    <div class="section">
-      <h2>更新</h2>
-      <div class="field">
-        <label class="inline">
-          <input type="checkbox" id="autoCheckUpdates" checked>
-          自动检查更新
-        </label>
-      </div>
-      <div class="field">
-        <button type="button" id="checkUpdateBtn" class="ghost">检查更新</button>
-        <span id="updateStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>实验功能</h2>
-      <div class="field">
-        <label class="inline">
-          <input type="checkbox" id="routeBeta">
-          打开学习图模式（beta）
-        </label>
-      </div>
-    </div>
-
-    <div class="section">
+    <section class="section">
       <h2>数据源</h2>
-      <div class="field">
-        <label class="inline">
-          <input type="checkbox" id="sourceArxiv" checked>
-          arXiv
-        </label>
-      </div>
-      <div class="field source-row">
-        <label class="inline">
-          <input type="checkbox" id="sourceOpenAlex" checked>
-          期刊与会议论文
-        </label>
-        <div class="source-key">
-          <input type="password" id="openalexKey" placeholder="密钥（可选）" aria-label="期刊与会议论文密钥" autocomplete="off">
-          <span id="openalexKeyStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
-          <button type="button" id="testOpenalexBtn" class="ghost">测试</button>
-          <button type="button" id="clearOpenalexKeyBtn" class="ghost" hidden>清除</button>
-          <a id="openalexKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
+      <div class="card">
+        <div class="field">
+          <label for="sourceArxiv">arXiv</label>
+          <div class="control"><input type="checkbox" id="sourceArxiv" class="switch" checked></div>
+        </div>
+        <div class="field source-row">
+          <label for="sourceOpenAlex">期刊与会议论文</label>
+          <div class="control"><input type="checkbox" id="sourceOpenAlex" class="switch" checked></div>
+          <div class="source-key">
+            <input type="password" id="openalexKey" placeholder="密钥（可选）" aria-label="期刊与会议论文密钥" autocomplete="off">
+            <span id="openalexKeyStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
+            <button type="button" id="testOpenalexBtn">测试</button>
+            <button type="button" id="clearOpenalexKeyBtn" hidden>清除</button>
+            <a id="openalexKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
+          </div>
+        </div>
+        <div class="field source-row">
+          <label for="sourceBaiduWeb">百度搜索</label>
+          <div class="control"><input type="checkbox" id="sourceBaiduWeb" class="switch"></div>
+          <div class="source-key">
+            <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度搜索密钥" autocomplete="off">
+            <span id="baiduScholarKeyStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
+            <button type="button" id="testBaiduScholarBtn">测试</button>
+            <button type="button" id="clearBaiduScholarKeyBtn" hidden>清除</button>
+            <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
+          </div>
+        </div>
+        <div class="field">
+          <label for="updateFrequency">更新频率</label>
+          <div class="control">
+            <select id="updateFrequency">
+              <option value="daily">每天</option>
+              <option value="weekly">每周</option>
+              <option value="manual">手动</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="timePreference">时间偏好</label>
+          <div class="control">
+            <select id="timePreference">
+              <option value="recent">最近 1 周</option>
+              <option value="month">最近 30 天</option>
+              <option value="all">所有时间</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div class="field source-row">
-        <label class="inline">
-          <input type="checkbox" id="sourceBaiduWeb">
-          百度搜索
-        </label>
-        <div class="source-key">
-          <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度搜索密钥" autocomplete="off">
-          <span id="baiduScholarKeyStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
-          <button type="button" id="testBaiduScholarBtn" class="ghost">测试</button>
-          <button type="button" id="clearBaiduScholarKeyBtn" class="ghost" hidden>清除</button>
-          <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
-        </div>
-      </div>
-      <div class="field">
-        <label for="updateFrequency">更新频率</label>
-        <select id="updateFrequency">
-          <option value="daily">每天</option>
-          <option value="weekly">每周</option>
-          <option value="manual">手动</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="timePreference">时间偏好</label>
-        <select id="timePreference">
-          <option value="recent">最近 1 周</option>
-          <option value="month">最近 30 天</option>
-          <option value="all">所有时间</option>
-        </select>
-      </div>
-    </div>
+    </section>
 
-    <div class="section">
+    <section class="section">
+      <h2>更新</h2>
+      <div class="card">
+        <div class="field">
+          <label for="autoCheckUpdates">自动检查更新</label>
+          <div class="control"><input type="checkbox" id="autoCheckUpdates" class="switch" checked></div>
+        </div>
+        <div class="field actions-row">
+          <div class="control">
+            <button type="button" id="checkUpdateBtn">检查更新</button>
+            <span id="updateStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>实验功能</h2>
+      <div class="card">
+        <div class="field">
+          <label for="routeBeta">打开学习图模式（beta）</label>
+          <div class="control"><input type="checkbox" id="routeBeta" class="switch"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
       <h2>存储与导出</h2>
-      <div class="field">
-        <label for="dataDir">数据目录</label>
-        <input type="text" id="dataDir" value="读取中…" readonly>
+      <div class="card">
+        <div class="field stack">
+          <label for="dataDir">数据目录</label>
+          <div class="control"><input type="text" id="dataDir" value="读取中…" readonly></div>
+        </div>
+        <div class="field stack actions-row">
+          <div class="control">
+            <button id="exportBtn">导出数据</button>
+            <button id="clearCacheBtn" class="danger">清除已下载的论文信息</button>
+          </div>
+          <div id="exportStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
+        </div>
       </div>
-      <div class="field">
-        <button id="exportBtn" class="ghost" style="padding-left:0">导出数据</button>
-        <div id="exportStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
-      </div>
-      <div class="field">
-        <button id="clearCacheBtn" class="danger">清除已下载的论文信息</button>
-      </div>
-    </div>
+    </section>
 
-    <div id="settingsStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="actions">
-      <button id="cancelBtn" class="ghost">取消</button>
+      <div id="settingsStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
+      <button id="cancelBtn">取消</button>
       <button id="saveBtn" class="primary">保存设置</button>
     </div>
   </div>

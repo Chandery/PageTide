@@ -9,11 +9,11 @@
   <img src="app/static/wordmark.png" alt="PageTide" width="320">
 </picture>
 
-📚 **开源的论文发现与管理助手。** 🌊
+**开源的论文发现与管理助手。**
 
 学习你的研究画像，每天推荐新论文，收进属于你自己的论文库。
 
-🪶 轻量 &nbsp;·&nbsp; ⚡ 简单 &nbsp;·&nbsp; 🚀 高效 &nbsp;·&nbsp; 🌊 开源
+轻量 &nbsp;·&nbsp; 简单 &nbsp;·&nbsp; 高效 &nbsp;·&nbsp; 开源
 
 <a href="README.md">English</a> · 简体中文
 
@@ -23,7 +23,7 @@
 
 [![下载 PageTide](https://img.shields.io/badge/下载-PageTide-086EF5?style=for-the-badge)](https://github.com/Chandery/PageTide/releases/latest) [![官网](https://img.shields.io/badge/官网-pagetide.chandery.org-12315c?style=for-the-badge)](https://pagetide.chandery.org/zh/)
 
-🌐 **[pagetide.chandery.org](https://pagetide.chandery.org/zh/)** · 在浏览器里直接试玩画像 demo
+**[pagetide.chandery.org](https://pagetide.chandery.org/zh/)** · 在浏览器里直接试玩画像 demo
 
 <a href="https://pagetide.chandery.org/zh/"><img src="docs/assets/readme/cover.jpg" alt="PageTide：推荐贴合你研究的论文" width="880"></a>
 
@@ -31,30 +31,30 @@
 
 https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
-<p align="center"><sub>🎵 配乐：Pumpupthemind</sub></p>
+<p align="center"><sub>配乐：Pumpupthemind</sub></p>
 
 **别再刷论文列表了。每天早上，只看贴合你研究的那几篇。** PageTide 每天早上检索 arXiv、OpenAlex 和百度学术，按一份你能看懂、能修改的研究画像给结果排序，再把你收藏的论文收进属于你自己的论文库。排序在你的电脑上完成，不用 AI；AI 负责讲清每篇推荐、回答你的问题。
 
-## 📊 数字说话
+## 数字说话
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-zh-dark.svg">
   <img src="docs/assets/readme/numbers-zh-light.svg" alt="PageTide 数字：排序零 token、零账号、一次 AI 调用速览五篇、22 MB 安装包；3 个数据源、5 种导入方式、3 种建项目方式、2 个平台 × 2 种语言" width="880">
 </picture>
 
-## ✨ 功能
+## 功能
 
-**📬 每日推荐，附带讲解。** 每天早上按你的画像排好一小份新论文。每张卡片都有一句 AI 速览：这篇讲了什么、和你有什么关系。觉得有用就收藏，不想看就点**不感兴趣**或**太难**，一键完成。
+**每日推荐，附带讲解。** 每天早上按你的画像排好一小份新论文。每张卡片都有一句 AI 速览：这篇讲了什么、和你有什么关系。觉得有用就收藏，不想看就点**不感兴趣**或**太难**，一键完成。
 
-**🧭 看得懂、改得了的画像。** 不是黑箱。每篇推荐背后的关键词都摆在眼前，你可以钉住关键词、删掉标签、撤销任何一次反馈。它只从你明确的操作里学习：什么都不做不算不喜欢，“太难”也不算不喜欢。
+**看得懂、改得了的画像。** 不是黑箱。每篇推荐背后的关键词都摆在眼前，你可以钉住关键词、删掉标签、撤销任何一次反馈。它只从你明确的操作里学习：什么都不做不算不喜欢，“太难”也不算不喜欢。
 
-**🕸️ 会自己连起来的论文库。** 收藏的论文自动整理成列表和关联图谱，开放获取的 PDF 会下载到本地归档。AI 可以建议分类，但要你确认才会生效，每次改动都能撤销。
+**会自己连起来的论文库。** 收藏的论文自动整理成列表和关联图谱，开放获取的 PDF 会下载到本地归档。AI 可以建议分类，但要你确认才会生效，每次改动都能撤销。
 
-**✍️ 划一句，问一句，读明白。** 在 PageTide 里直接读 PDF，选中看不懂的句子，翻译或追问，回答就出现在页面旁边。
+**划一句，问一句，读明白。** 在 PageTide 里直接读 PDF，选中看不懂的句子，翻译或追问，回答就出现在页面旁边。
 
-**📥 已有的论文直接带过来。** 导入 PDF 文件或整个文件夹（子文件夹自动变成分类），或从 Zotero 导出的 BibTeX、RIS。
+**已有的论文直接带过来。** 导入 PDF 文件或整个文件夹（子文件夹自动变成分类），或从 Zotero 导出的 BibTeX、RIS。
 
-**📈 每周周报**，看你收藏了什么、跳过了什么、哪些方向在变强。另外还有离线演示项目和新手指引、中英文界面、亮暗主题和应用内更新。
+**每周周报**，看你收藏了什么、跳过了什么、哪些方向在变强。另外还有离线演示项目和新手指引、中英文界面、亮暗主题和应用内更新。
 
 <table>
 <tr>
@@ -83,7 +83,7 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 </tr>
 </table>
 
-## 🔌 接入服务
+## 接入服务
 
 开箱即可使用 arXiv。想要更多数据源和 AI 功能，填入你自己的密钥即可。全部可选，都在 **设置** 里。
 
@@ -97,15 +97,15 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 > [!NOTE]
 > 所有密钥都由你自己在设置里填写。密钥保存在 PageTide 数据文件夹里的本地文件中，不写进设置文件，每个密钥只发给它所属的服务。PageTide 没有自己的服务器。
 
-## 🚀 上手指南
+## 上手指南
 
-1. **下载**适合你系统的 PageTide（见[下载](#-下载)），打开它。
+1. **下载**适合你系统的 PageTide（见[下载](#下载)），打开它。
 2. **选界面语言和外观**，跟着新手指引在演示项目里走一遍。全程离线，不需要任何密钥。
 3. **新建项目**：快速创建（一句话，一次 AI 调用）、AI 引导（和 AI 聊到关键词满意为止）或手动创建（不用 AI）。
-4. **在设置里填密钥**，开启 AI 功能和更多数据源（见[接入服务](#-接入服务)）。
+4. **在设置里填密钥**，开启 AI 功能和更多数据源（见[接入服务](#接入服务)）。
 5. **点“生成今日推荐”。** 收藏喜欢的，标记不要的，看着画像一点点变准。
 
-## 🔒 隐私优先
+## 隐私优先
 
 > [!NOTE]
 > - 论文、画像和笔记只保存在你的电脑上。
@@ -113,7 +113,7 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 > - 推荐、画像和论文库离线运行，不消耗模型 token。
 > - AI 功能可选，使用你自己的 DeepSeek 密钥。
 
-## 📥 下载
+## 下载
 
 | 平台 | 文件 |
 | --- | --- |
@@ -131,7 +131,7 @@ PageTide 是独立开源项目，没有购买付费的代码签名证书，所�
 
 </details>
 
-## ❓ 常见问题
+## 常见问题
 
 <details>
 <summary><b>我的数据存在哪里？</b></summary>
@@ -168,7 +168,7 @@ PageTide 会自己检查更新并弹出提示，也可以在设置里点“检�
 
 </details>
 
-## 🤝 参与贡献
+## 参与贡献
 
 **欢迎任何形式的贡献。** 发现了 bug？有新想法？看到错别字，或想翻译某个界面？提个 [Issue](https://github.com/Chandery/PageTide/issues) 或发个 Pull Request 就行。不用是专家，小修小补和新功能一样受欢迎。
 
@@ -176,12 +176,12 @@ PageTide 会自己检查更新并弹出提示，也可以在设置里点“检�
 - **改进文档或翻译：** 直接改，然后开 PR。
 - **写代码：** 较大的改动请先开 Issue，把方向聊一聊。本地运行、测试和构建命令都在 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-如果 PageTide 帮你省了时间，在 GitHub 上点个 Star，能让更多研究者发现它。⭐
+如果 PageTide 帮你省了时间，在 GitHub 上点个 Star，能让更多研究者发现它。
 
-## 🙏 致谢
+## 致谢
 
 Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。宣传视频配乐来自 Pumpupthemind。
 
-## 📄 许可证
+## 许可证
 
 [MIT](LICENSE) © Chandery
