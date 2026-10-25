@@ -207,18 +207,18 @@
     "title": "A research assistant for every step of your reading",
     "items": [
       {
+        "img": "profile",
+        "alt": "The profile screen: the keywords behind every pick, with weights, pins and an undo list.",
+        "title": "A profile that keeps itself current",
+        "body": "Every save and every Not interested updates your research profile, so you never maintain keywords by hand. It stays readable: see the terms behind each pick, pin or remove any of them, undo any feedback. Doing nothing never counts as a dislike.",
+        "icon": "sliders-horizontal"
+      },
+      {
         "img": "today",
         "alt": "The Today screen: a ranked list of new papers, each with a one-line AI preview and Save, Not interested and Too hard buttons.",
         "title": "Daily picks, explained",
         "body": "Each morning a short list of new papers, ranked against your profile, each with a one-line reason. One optional AI call previews up to 20 picks at once.",
         "icon": "sparkles"
-      },
-      {
-        "img": "profile",
-        "alt": "The profile screen: the keywords behind every pick, with weights, pins and an undo list.",
-        "title": "A profile you can read and edit",
-        "body": "No black box. See the terms behind every pick, pin or remove keywords, and undo any feedback. Doing nothing never counts as a dislike.",
-        "icon": "sliders-horizontal"
       },
       {
         "img": "graph",
