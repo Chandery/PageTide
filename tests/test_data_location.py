@@ -167,6 +167,16 @@ class MoveTests(Base):
             self.assertEqual(copy.execute("SELECT x FROM t").fetchall(), [(7,)])
 
 
+    def test_a_database_error_during_the_copy_also_leaves_nothing_behind(self):
+        (self.root / "new").mkdir()
+        with mock.patch.object(data_location, "_backup", side_effect=sqlite3.OperationalError("unable to open database file")):
+            with self.assertRaises(MoveError) as caught:
+                data_location.move(self.default, str(self.root / "new"), self.default)
+        self.assertEqual(caught.exception.reason, "copy_failed")
+        self.assertEqual(list((self.root / "new").iterdir()), [])
+        self.assertIsNone(data_location.read_pointer(self.default))
+
+
 class ServerTests(Base):
     def setUp(self):
         super().setUp()
@@ -222,6 +232,24 @@ class StartTests(Base):
     def test_an_environment_choice_wins_and_cannot_be_moved(self):
         root, env = self.choose(PAGETIDE_DATA=str(self.root / "chosen"))
         self.assertEqual((root, env["PAGETIDE_DATA_SOURCE"]), (self.root / "chosen", "env"))
+
+
+    def test_a_failed_move_gives_the_page_a_reason_and_keeps_the_details_in_a_log(self):
+        import time
+        from app import server
+        library(self.default).close()
+        (self.root / "new").mkdir()
+        with mock.patch.dict(os.environ, {"PAGETIDE_DEFAULT_DATA": str(self.default)}), \
+                mock.patch.object(data_location, "_backup", side_effect=sqlite3.OperationalError("unable to open database file")):
+            self.assertTrue(server._move_start(str(self.default), str(self.root / "new"))["ok"])
+            for _ in range(100):
+                with server.MOVE_LOCK:
+                    if server.MOVE.get("state") != "running":
+                        break
+                time.sleep(.02)
+        with server.MOVE_LOCK:
+            self.assertEqual((server.MOVE["state"], server.MOVE["reason"]), ("failed", "copy_failed"))
+        self.assertIn("unable to open database file", (self.default / "logs" / "move.log").read_text())
 
 
 class WiringTests(unittest.TestCase):

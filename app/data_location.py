@@ -257,7 +257,7 @@ def move(current, chosen, default_dir, progress=None):
     except MoveError:
         shutil.rmtree(staging, ignore_errors=True)
         raise
-    except OSError as exc:
+    except Exception as exc:   # any failure (an OSError, a database that will not open...) leaves no partial copy behind
         shutil.rmtree(staging, ignore_errors=True)
         raise MoveError("copy_failed", f"{type(exc).__name__}: {exc}") from None
     write_pointer(default_dir, target)

@@ -14,6 +14,7 @@ import re
 import sqlite3
 import sys
 import threading
+import time
 import traceback
 import subprocess
 from datetime import datetime
@@ -219,6 +220,19 @@ def _busy():
     return bool(maintenance._RUNNING)
 
 
+def _move_log(current, text):
+    """A failed move's details, for the developer: stderr, and <data>/logs/move.log, since nobody sees the macOS
+    app's stderr. Never shown on the page (it gets the reason word only)."""
+    print(f"PageTide move failed: {text}", file=sys.stderr)
+    try:
+        log = Path(current) / "logs" / "move.log"
+        log.parent.mkdir(exist_ok=True)
+        with log.open("a", encoding="utf-8") as handle:
+            handle.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {text}\n")
+    except OSError:
+        pass
+
+
 def _move_start(current, chosen):
     current, default = Path(current).resolve(), os.environ.get("PAGETIDE_DEFAULT_DATA")
     with MOVE_LOCK:
@@ -235,11 +249,11 @@ def _move_start(current, chosen):
             result = data_location.move(current, chosen, default, progress)
             outcome = {"state": "done", "result": result}
         except data_location.MoveError as exc:
-            print(f"PageTide move failed: {exc.reason}: {exc}", file=sys.stderr)
             outcome = {"state": "failed", "reason": exc.reason}
-        except Exception as exc:  # the old folder is untouched; say so and keep the details in the log
-            traceback.print_exc()
+            _move_log(current, f"{exc.reason}: {exc}")
+        except Exception:  # the old folder is untouched; say so and keep the details in the log
             outcome = {"state": "failed", "reason": "copy_failed"}
+            _move_log(current, traceback.format_exc())
         with MOVE_LOCK:
             MOVE.update(outcome)
     threading.Thread(target=run, daemon=True).start()
