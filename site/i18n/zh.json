@@ -5,9 +5,9 @@
   "other_path": "/",
   "meta": {
     "title": "PageTide：开源的论文发现与管理助手",
-    "description": "PageTide 会记住你的研究方向，每天从新论文里挑出和你相关的几篇，再帮你把读过的收进自己的论文库。开源免费，不用注册，不收集任何数据，支持 macOS 和 Windows。",
-    "og_title": "PageTide：每天只读和你相关的论文",
-    "og_description": "开源的论文发现与管理助手：记住你的研究方向，每天推荐新论文，收进你自己的论文库。不用注册，数据只在你的电脑上。",
+    "description": "每天从新论文里，挑出和你研究方向对得上的几篇。开源免费，免注册，不收集数据，支持 macOS 和 Windows。",
+    "og_title": "PageTide：让好论文每天来找你",
+    "og_description": "开源的论文发现与管理助手。按你的研究方向推荐新论文，收藏的论文存在本机。免注册，不上传任何数据。",
     "og_alt": "PageTide：开源的论文发现与管理助手",
     "locale": "zh_CN",
     "locale_alt": "en_US",
@@ -28,28 +28,28 @@
   "hero": {
     "eyebrow": "开源的论文发现与管理助手",
     "title": "让好论文每天来找你",
-    "sub": "它记住你的研究方向，从新论文里挑出值得读的几篇。<wbr>排序在你自己的电脑上完成，收藏的论文都留在你自己的库里。",
+    "sub": "按你的研究方向，从海量新论文里挑出值得读的几篇。<wbr>排序在本机完成，论文库存在你自己的电脑上。",
     "dl_mac": "下载 macOS 版",
     "dl_win": "下载 Windows 版",
     "star": "★ 去 GitHub 点个 Star",
-    "fine": "MIT 开源 · 不用注册 · 不收集数据",
-    "note_default": "macOS 版支持 M 系列芯片和 Intel 芯片，Windows 版需要 64 位系统。",
-    "shot_alt": "PageTide 封面：推荐贴合你研究的论文。今日推荐与 AI 速览、背后的画像关键词，以及 PageTide 检索的开放来源。"
+    "fine": "MIT 开源 · 免注册 · 不收集数据",
+    "note_default": "macOS 支持 M 系列和 Intel 芯片，Windows 需要 64 位系统。",
+    "shot_alt": "PageTide 封面：贴合你研究的论文推荐，附 AI 速览、画像关键词和检索来源。"
   },
   "demo": {
-    "title": "动手试试画像",
-    "lede": "改一个关键词，今天的五篇推荐马上重新排。点关键词可以在“强 / 弱 / 关”之间切换，也可以加上你自己的研究方向。",
+    "title": "试一试：改画像，看排序",
+    "lede": "改一个关键词，下面五篇立刻重排。点关键词可在“强 / 弱 / 关”之间切换，也可以加上你自己的方向。",
     "profile_title": "你的画像",
-    "profile_hint": "推荐按这些关键词来排",
+    "profile_hint": "推荐按这些词排序",
     "add_label": "加一个关键词",
     "add_placeholder": "比如：robot、protein",
     "add_button": "加入",
     "reset": "恢复默认",
     "stories_label": "今天的五篇",
     "badge": "在你的浏览器里排序 · 不花一个 token",
-    "disclaimer": "这是简化演示。真正的应用会结合你完整的画像和每一次反馈来排序。",
-    "library_note": "演示库里有 {n} 篇示例论文，涵盖机器学习、机器人、生物、化学、气候、物理、经济等领域。",
-    "noscript": "这个演示需要开启 JavaScript。下面是默认的五篇，还没有按画像排序。",
+    "disclaimer": "这是简化演示。实际应用会结合完整画像和你的每一次反馈。",
+    "library_note": "演示库收录 {n} 篇示例论文，覆盖机器学习、机器人、生物、化学、气候、物理、经济等领域。",
+    "noscript": "演示需要开启 JavaScript。下面是默认的五篇，还没按画像排序。",
     "ui": {
       "strong": "强",
       "weak": "弱",
@@ -57,15 +57,15 @@
       "tag_aria": "{tag}：{weight}。点一下可以切换权重。",
       "remove": "移除 {tag}",
       "matched": "命中",
-      "nothing": "画像里的词一个都没命中，先按论文库原来的顺序显示。",
-      "unmatched": "演示库里没有论文提到“{tags}”。真正的应用会去 arXiv、OpenAlex 和百度学术里实时检索。",
+      "nothing": "画像里的词都没命中，先按原顺序显示。",
+      "unmatched": "演示库里没有论文提到“{tags}”。实际应用会实时检索 arXiv、OpenAlex 和百度学术。",
       "announce": "排序已更新：{list}",
       "reset_done": "画像已恢复默认：{list}",
       "added": "已加入“{tag}”。",
       "removed": "已移除“{tag}”。",
       "max": "演示里最多放 12 个关键词。",
       "dupe": "“{tag}”已经在画像里了。",
-      "load_failed": "演示的论文数据没能加载出来，刷新一下试试。",
+      "load_failed": "演示数据没加载出来，刷新试试。",
       "et_al": "等",
       "colon": "：",
       "weight_word": "权重",
@@ -85,11 +85,11 @@
     "examples_label": "换个研究方向试试"
   },
   "editorial": {
-    "title": "论文从来不缺，缺的是找到你要的那几篇。",
+    "title": "论文不缺，缺的是你要的那几篇。",
     "body": [
-      "如今每天都有约两万篇新论文发表<sup><a href=\"#fn-papers\" id=\"fnref-papers\">1</a></sup>，和你的研究真正相关的，往往只有寥寥几篇，谁也读不完。大多数工具的做法是推给你更多，PageTide 反其道而行：只给你更少、更准的。",
-      "你标过“有用”或“不相关”的论文，它都记在心里，慢慢形成你的研究画像，然后每天在你自己的电脑上给新论文排序。画像就是一组看得懂的关键词，你随时可以查看、修改、删掉。AI 只是可选项，它负责把论文讲给你听，挑哪篇读，始终由你决定。",
-      "你的论文库、PDF、笔记和画像都只存在你的电脑上。不用注册账号，没有服务器，也不收集任何使用数据。"
+      "如今每天新发表的论文约有两万篇<sup><a href=\"#fn-papers\" id=\"fnref-papers\">1</a></sup>，和你研究真正相关的，往往只有几篇。多数工具给你更多，PageTide 只给你更少、更准的。",
+      "你标过“有用”或“不相关”的论文，会慢慢沉淀成你的研究画像；每天的新论文，就在你的电脑上按这份画像排序。画像是一组看得懂的关键词，随时能看、能改、能删。AI 可开可关，只负责讲解论文，读哪篇由你定。",
+      "论文库、PDF、笔记和画像都只存在本机。没有账号，没有服务器，不收集任何使用数据。"
     ],
     "footnote": "<a href=\"#fnref-papers\" aria-label=\"回到正文\">1</a> 据 OpenAlex 统计，2026 年 9 月发表的期刊论文共 626,339 篇，平均每天约 20,900 篇（2026-10-25 查询）。数据来源：<a href=\"https://openalex.org\" rel=\"noopener\">OpenAlex</a>。"
   },
@@ -98,28 +98,28 @@
     "items": [
       {
         "v": "0",
-        "t": "排序论文、学习画像所用的模型 token"
+        "t": "排序和学习画像消耗的模型 token"
       },
       {
         "v": "0",
-        "t": "账号、服务器和遥测"
+        "t": "账号、服务器和数据上报"
       },
       {
         "v": "24",
         "u": "MB",
-        "t": "Apple Silicon Mac 安装包，Windows 版 17 MB"
+        "t": "M 系列 Mac 安装包，Windows 版 17 MB"
       },
       {
         "v": "3",
         "t": "开放论文来源：arXiv、OpenAlex、百度学术"
       }
     ],
-    "foot": "排序在你的电脑上完成，不用 AI。安装包大小以当前发布版为准。"
+    "foot": "排序全在本机完成，不用 AI。安装包大小以当前版本为准。"
   },
   "watch": {
     "title": "40 秒看懂 PageTide",
     "label": "PageTide 宣传片（40 秒）",
-    "fallback": "你的浏览器播放不了这个视频，可以<a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-final-cover-first.mp4\">下载下来看</a>。",
+    "fallback": "浏览器无法播放这段视频，可以<a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-final-cover-first.mp4\">下载观看</a>。",
     "credit": "配乐：Pumpupthemind"
   },
   "get": {
@@ -134,26 +134,26 @@
     "win_name": "Windows（64 位）",
     "download": "下载",
     "all_releases": "在 GitHub 查看所有版本",
-    "first_title": "第一次打开前，先看这里",
-    "first_lead": "PageTide 是个人开发的开源项目，没有购买付费的代码签名证书，所以第一次打开时系统会弹出安全提示。这是正常现象，按下面的方法放行就好。",
+    "first_title": "首次打开前请看",
+    "first_lead": "PageTide 是个人开发的开源项目，没有购买代码签名证书，首次打开时系统会弹出安全提示。这很正常，按下面的步骤放行即可。",
     "first_mac_title": "macOS",
-    "first_mac": "解压后把 PageTide 拖进“应用程序”文件夹，然后右键点它，选<strong>打开</strong>。也可以打开“系统设置 → 隐私与安全性”，点<strong>仍要打开</strong>。",
-    "first_mac_damaged": "如果提示“应用已损坏，无法打开”，在“终端”里运行下面这行：",
+    "first_mac": "解压后把 PageTide 拖进“应用程序”，右键点击，选<strong>打开</strong>。也可以在“系统设置 → 隐私与安全性”里点<strong>仍要打开</strong>。",
+    "first_mac_damaged": "如果提示“应用已损坏，无法打开”，在“终端”里运行这一行：",
     "first_win_title": "Windows",
-    "first_win": "弹出“Windows 已保护你的电脑”时，点<strong>更多信息</strong>，再点<strong>仍要运行</strong>。安装只对当前用户生效，不需要管理员权限。",
+    "first_win": "出现“Windows 已保护你的电脑”时，点<strong>更多信息</strong>，再点<strong>仍要运行</strong>。只为当前用户安装，不需要管理员权限。",
     "req_title": "系统要求",
-    "req_mac": "macOS：M 系列芯片（M1 及更新）或 Intel 芯片的 Mac 都可以。",
+    "req_mac": "macOS：M 系列芯片（M1 及以后）或 Intel 芯片的 Mac。",
     "req_win": "Windows：64 位系统。",
-    "keys_title": "需要准备哪些密钥",
-    "keys_lead": "推荐、画像、论文库这些核心功能离线就能用，不需要任何密钥。下面这些服务是可选的，用的是你自己申请的密钥，只保存在你的电脑上。",
+    "keys_title": "需要哪些密钥",
+    "keys_lead": "推荐、画像和论文库都能离线使用，不需要任何密钥。下面这些服务按需开启，用你自己的密钥，只存在本机。",
     "keys": [
       {
         "name": "DeepSeek",
-        "note": "开启 AI 功能（速览、追问、分类建议）时需要，可选。"
+        "note": "开启 AI 速览、追问和分类建议。可选。"
       },
       {
         "name": "OpenAlex",
-        "note": "扩充期刊与会议论文来源，可选。"
+        "note": "补充期刊和会议论文。可选。"
       },
       {
         "name": "百度学术",
@@ -161,13 +161,13 @@
       },
       {
         "name": "arXiv",
-        "note": "直接可用，不需要密钥。"
+        "note": "开箱即用，无需密钥。"
       }
     ]
   },
   "contribute": {
-    "title": "欢迎一起参与",
-    "body": "PageTide 完全公开开发。发现 bug、有新想法、想改文档或翻译，或者直接提交代码，我们都非常欢迎，哪怕只是改一个错别字也很有帮助。如果打算做比较大的改动，建议先开一个 issue 聊聊方向。",
+    "title": "一起把它做好",
+    "body": "PageTide 完全公开开发。报 bug、提想法、改文档、做翻译、提交代码都欢迎，改一个错别字也算。较大的改动，建议先开个 issue 聊聊。",
     "issues": "提交 issue",
     "pulls": "Pull Request",
     "guide": "贡献指南",
@@ -176,7 +176,7 @@
   },
   "footer": {
     "license": "MIT 协议 © Chandery",
-    "privacy": "本站不使用任何统计脚本，也不写入 cookie；PageTide 应用本身同样不收集任何数据。",
+    "privacy": "本站不用统计脚本，也不写 cookie；PageTide 应用同样不收集任何数据。",
     "music": "宣传片配乐：Pumpupthemind",
     "arxiv": "感谢 arXiv 开放的论文接口（Thank you to arXiv for use of its open access interoperability.）",
     "icons": "图标来自 Lucide（ISC 协议）"
@@ -191,61 +191,61 @@
     "dl_mac_intel": "下载 macOS 版（Intel 芯片）",
     "dl_win": "下载 Windows 版（64 位）",
     "copy": "去电脑上打开",
-    "copied": "链接已复制，到你的 Mac 或 Windows 电脑上打开就行。",
+    "copied": "链接已复制，到 Mac 或 Windows 电脑上打开即可。",
     "copy_failed": "复制这个网址：",
-    "note_mac_unknown": "适用于 M 系列芯片（M1 及更新）。Intel 芯片的 Mac 请在下方下载 Intel 版。",
+    "note_mac_unknown": "适用于 M 系列芯片（M1 及以后）的 Mac。Intel 芯片请在下方下载 Intel 版。",
     "note_mac_arm": "已识别为 M 系列芯片的 Mac · 24 MB",
     "note_mac_intel": "已识别为 Intel 芯片的 Mac · 26 MB",
     "note_win": "Windows 64 位 · 17 MB · 第一次打开时点“更多信息 → 仍要运行”",
-    "note_mobile": "PageTide 是电脑上用的桌面应用，支持 macOS 和 Windows。",
-    "other_os": "也有 {other} 版本。",
+    "note_mobile": "PageTide 是桌面应用，支持 macOS 和 Windows。",
+    "other_os": "也有 {other} 版。",
     "mac": "macOS",
     "win": "Windows",
     "share_title": "PageTide"
   },
   "features": {
-    "title": "读论文这件事，一个应用全包了",
+    "title": "从发现到读懂，一个应用搞定",
     "items": [
       {
         "img": "today",
         "alt": "“今日推荐”界面：按画像排好序的新论文，每篇附一句 AI 速览，以及“收藏”“不感兴趣”“太难”三个按钮。",
-        "title": "每日推荐，篇篇有理由",
-        "body": "每天早上，按你的画像排好一份新论文短名单，每篇都告诉你为什么推荐。开启 AI 后，一次调用最多能速览 20 篇。",
+        "title": "每日推荐，条条有理由",
+        "body": "每天早上，按画像排好一份新论文短名单，每篇都写明推荐理由。开启 AI 后，一次调用就能速览多达 20 篇。",
         "icon": "sparkles"
       },
       {
         "img": "profile",
         "alt": "画像界面：每条推荐背后的关键词、权重、固定关键词和可撤销的反馈记录。",
         "title": "看得懂、改得了的画像",
-        "body": "不是黑箱。每篇推荐背后是哪些词，一目了然；关键词可以固定、可以删掉，每次反馈都能撤销。你没点过的论文，不会被当成“不喜欢”。",
+        "body": "不是黑箱。每篇推荐由哪些词决定，一眼就能看到；关键词能固定、能删除，每次反馈都能撤销。没点过的论文，不会被算作“不喜欢”。",
         "icon": "sliders-horizontal"
       },
       {
         "img": "graph",
         "alt": "论文库图谱：收藏的论文按研究方向聚成几组，并与相关论文连在一起。",
-        "title": "会自己织成网的论文库",
-        "body": "收藏的论文既是一份清单，也是一张关联图谱。能开放获取的 PDF 会自动存到你的电脑上；AI 给出的整理建议，你点了确认才会生效。",
+        "title": "自动连成网的论文库",
+        "body": "收藏的论文既是清单，也是一张关联图谱。开放获取的 PDF 自动存到本机；AI 的整理建议，你确认后才生效。",
         "icon": "library"
       },
       {
         "img": "reader-ask",
         "alt": "PDF 阅读器：选中一句话，页面旁边给出对追问的回答。",
-        "title": "划一句，问一句，读明白",
-        "body": "在 PageTide 里直接读 PDF，遇到看不懂的句子，选中就能翻译或追问，答案就在页面旁边。",
+        "title": "划一句，问一句",
+        "body": "在 PageTide 里直接读 PDF。看不懂的句子，选中就能翻译或追问，答案显示在页面旁边。",
         "icon": "book-open"
       },
       {
         "img": "import",
         "alt": "导入界面：支持 PDF 文件、文件夹、BibTeX、RIS 和 CSL JSON。",
         "title": "旧文献，一键搬进来",
-        "body": "拖进 PDF 文件或整个文件夹（子文件夹会自动变成分类），也能导入从 Zotero 导出的 BibTeX、RIS 或 CSL JSON。",
+        "body": "拖入 PDF 或整个文件夹，子文件夹自动变成分类；也支持从 Zotero 导出的 BibTeX、RIS 和 CSL JSON。",
         "icon": "folder-open"
       },
       {
         "img": "weekly",
         "alt": "周报界面：这一周收藏了什么、跳过了什么、哪些方向在升温。",
         "title": "每周一份周报",
-        "body": "这一周收藏了哪些、跳过了哪些、哪些方向在升温，你的阅读轨迹一眼就能看清。",
+        "body": "这周收藏了什么、跳过了什么、哪些方向在升温，一目了然。",
         "icon": "chart-column"
       }
     ]
