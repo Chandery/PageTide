@@ -14,7 +14,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--base);
       color: var(--text);
-      font-size: calc(14px * var(--s));
+      font-size: calc(var(--fs-md) * var(--s));
       line-height: 1.6;
       min-height: 100vh;
       padding: calc(40px * var(--s)) calc(20px * var(--s)) calc(80px * var(--s));
@@ -23,11 +23,11 @@
     .container { max-width: calc(680px * var(--s)); margin: 0 auto; }
     .back-link {
       display: inline-flex; align-items: center; gap: calc(6px * var(--s));
-      color: var(--muted); text-decoration: none; font-size: calc(13px * var(--s));
+      color: var(--muted); text-decoration: none; font-size: calc(var(--fs-sm) * var(--s));
       margin-bottom: calc(28px * var(--s)); transition: color .16s ease;
     }
     .back-link:hover { color: var(--text); }
-    h1 { font-family: var(--display); font-size: calc(26px * var(--s)); font-weight: 600; margin-bottom: calc(28px * var(--s)); }
+    h1 { font-family: var(--display); font-size: calc(var(--fs-2xl) * var(--s)); font-weight: 600; margin-bottom: calc(28px * var(--s)); }
     /* — section cards — */
     .section {
       background: var(--surface-1); border: 1px solid var(--line);
@@ -35,33 +35,32 @@
       box-shadow: var(--sh-1);
     }
     .section h2 {
-      font-size: calc(13px * var(--s)); font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: .06em;
+      font-size: calc(var(--fs-sm) * var(--s)); font-weight: 600; color: var(--muted);
       margin-bottom: calc(18px * var(--s)); padding-bottom: calc(12px * var(--s)); border-bottom: 1px solid var(--line);
     }
     /* — fields — */
     .field { margin-bottom: calc(16px * var(--s)); }
     .field:last-child { margin-bottom: 0; }
     .field label {
-      display: block; font-size: calc(13px * var(--s)); font-weight: 500;
+      display: block; font-size: calc(var(--fs-sm) * var(--s)); font-weight: 500;
       color: var(--text); margin-bottom: calc(6px * var(--s));
     }
     .field label.inline {
       display: flex; align-items: center; gap: calc(10px * var(--s));
       font-weight: 400; cursor: pointer; user-select: none;
     }
-    .field small { display: block; margin-top: calc(5px * var(--s)); font-size: calc(12px * var(--s)); color: var(--muted); }
+    .field small { display: block; margin-top: calc(5px * var(--s)); font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
     .field .key-meta { display: flex; align-items: center; gap: calc(10px * var(--s)); margin-top: calc(5px * var(--s)); }
     .field .key-meta small { margin-top: 0; }
-    .field .key-meta a { font-size: calc(12px * var(--s)); color: var(--muted); }
+    .field .key-meta a { font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
     .field .key-meta a:hover { color: var(--text); }
-    .readonly-note { font-size: calc(13px * var(--s)); color: var(--text, inherit); padding: calc(8px * var(--s)) calc(10px * var(--s)); border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: 8px; }
+    .readonly-note { font-size: calc(var(--fs-sm) * var(--s)); color: var(--text, inherit); padding: calc(8px * var(--s)) calc(10px * var(--s)); border: 1px solid var(--line, rgba(0,0,0,.12)); border-radius: var(--r-md); }
     /* — inputs — */
     .field input[type="text"],
     .field input[type="password"],
     .field input[type="number"],
     .field select {
-      width: 100%; padding: calc(8px * var(--s)) calc(11px * var(--s)); font-size: calc(13px * var(--s));
+      width: 100%; padding: calc(8px * var(--s)) calc(11px * var(--s)); font-size: calc(var(--fs-sm) * var(--s));
       border: 1px solid var(--line); border-radius: var(--r-sm);
       background: var(--base); color: var(--text); outline: none;
       transition: border-color .16s ease, box-shadow .16s ease;
@@ -78,7 +77,7 @@
     }
     /* — buttons — */
     button {
-      padding: calc(8px * var(--s)) calc(18px * var(--s)); font-size: calc(13px * var(--s)); font-weight: 500;
+      padding: calc(8px * var(--s)) calc(18px * var(--s)); font-size: calc(var(--fs-sm) * var(--s)); font-weight: 500;
       border: 1px solid var(--line); border-radius: var(--r-sm);
       cursor: pointer; background: var(--surface-1); color: var(--text);
       transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
@@ -98,14 +97,14 @@
     /* — data sources: one row each (switch, key, one status word, test, clear, get) — */
     .source-row .source-key { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8px * var(--s)); margin: calc(8px * var(--s)) 0 0 calc(26px * var(--s)); }
     .source-row .source-key input[type="password"] { flex: 1 1 calc(180px * var(--s)); width: auto; min-width: 0; }
-    .source-row .source-key .source-state { margin-top: 0; min-width: 5em; font-size: calc(12px * var(--s)); color: var(--muted); }
+    .source-row .source-key .source-state { margin-top: 0; min-width: 5em; font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
     .source-row .source-key button { padding: calc(5px * var(--s)) calc(10px * var(--s)); }
-    .source-row .source-key a { font-size: calc(12px * var(--s)); color: var(--muted); }
+    .source-row .source-key a { font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
     .source-row .source-key a:hover { color: var(--text); }
-    .source-row .source-name { font-size: calc(13px * var(--s)); font-weight: 500; color: var(--text); }
+    .source-row .source-name { font-size: calc(var(--fs-sm) * var(--s)); font-weight: 500; color: var(--text); }
     .source-row .source-option { display: flex; flex-wrap: wrap; align-items: center; gap: calc(8px * var(--s)); margin: calc(8px * var(--s)) 0 0 calc(26px * var(--s)); }
     .source-row .source-option label.inline { margin-bottom: 0; }
-    .source-row .source-option .source-state { margin-top: 0; min-width: 5em; font-size: calc(12px * var(--s)); color: var(--muted); }
+    .source-row .source-option .source-state { margin-top: 0; min-width: 5em; font-size: calc(var(--fs-sm) * var(--s)); color: var(--muted); }
     .source-row .source-option button { padding: calc(5px * var(--s)) calc(10px * var(--s)); }
     /* — actions bar — */
     .actions {
@@ -124,7 +123,7 @@
     @media (max-width:600px) {
       body { padding: calc(24px * var(--s)) calc(16px * var(--s)) calc(60px * var(--s)); }
       .section { padding: calc(18px * var(--s)) calc(16px * var(--s)); }
-      h1 { font-size: calc(20px * var(--s)); }
+      h1 { font-size: calc(var(--fs-xl) * var(--s)); }
       .actions { flex-direction: column-reverse; }
       .actions button { width: 100%; justify-content: center; }
     }

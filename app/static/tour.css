@@ -3,7 +3,7 @@
 .pt-tour-block { position: fixed; display: none; pointer-events: auto; background: transparent; }
 .pt-tour-block.pt-tour-dim { background: rgba(0,0,0,.45); }
 .pt-tour-hole {
-  position: fixed; display: none; pointer-events: none; border-radius: 10px;
+  position: fixed; display: none; pointer-events: none; border-radius: var(--r-md);
   box-shadow: 0 0 0 9999px rgba(0,0,0,.45), 0 0 0 2px var(--accent);
   transition: left .2s var(--ease-out), top .2s var(--ease-out), width .2s var(--ease-out), height .2s var(--ease-out);
 }
@@ -15,19 +15,19 @@ html[data-mode="dark"] .pt-tour-block.pt-tour-dim { background: rgba(0,0,0,.6); 
   width: min(340px, calc(100vw - 24px)); padding: 16px 18px 14px;
   background: var(--surface-1); color: var(--text);
   border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--sh-3);
-  font-size: 14px; line-height: 1.55; outline: none;
+  font-size: var(--fs-md); line-height: 1.55; outline: none;
 }
-.pt-tour-phase { font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--accent-text); margin-bottom: 6px; }
+.pt-tour-phase { font-size: var(--fs-sm); font-weight: 600; letter-spacing: .04em; color: var(--accent-text); margin-bottom: 6px; }
 .pt-tour-text { margin: 0 0 14px; }
 .pt-tour-actions { display: flex; align-items: center; gap: 8px; }
 .pt-tour-spacer { flex: 1; }
 .pt-tour-skip {
   appearance: none; border: 0; background: transparent; padding: 6px 2px; cursor: pointer;
-  font: inherit; font-size: 12px; color: var(--muted);
+  font: inherit; font-size: var(--fs-sm); color: var(--muted);
 }
 .pt-tour-skip:hover { color: var(--text); text-decoration: underline; }
 .pt-tour-btn {
-  appearance: none; cursor: pointer; font: inherit; font-size: 13px; padding: 6px 14px;
+  appearance: none; cursor: pointer; font: inherit; font-size: var(--fs-sm); padding: 6px 14px;
   border-radius: var(--r-sm); border: 1px solid var(--line-strong); background: transparent; color: var(--text);
 }
 .pt-tour-btn:hover { background: var(--surface-2); }
@@ -39,9 +39,9 @@ html[data-mode="dark"] .pt-tour-block.pt-tour-dim { background: rgba(0,0,0,.6); 
 }
 /* Welcome card: centred, no spotlight; language and appearance as two radiogroups. */
 .pt-tour-welcome { width: min(380px, calc(100vw - 24px)); padding: 26px 26px 18px; }
-.pt-tour-title { margin: 0 0 22px; font-size: 19px; font-weight: 650; line-height: 1.3; color: var(--text); }
+.pt-tour-title { margin: 0 0 22px; font-size: var(--fs-lg); font-weight: 650; line-height: 1.3; color: var(--text); }
 .pt-tour-group { margin-bottom: 18px; }
-.pt-tour-grouplabel { font-size: 12px; color: var(--muted); margin-bottom: 7px; }
+.pt-tour-grouplabel { font-size: var(--fs-sm); color: var(--muted); margin-bottom: 7px; }
 .pt-tour-welcome .pt-tour-actions { margin-top: 24px; }
 .pt-tour-welcome .pt-tour-main { padding: 7px 22px; }
 .pt-tour-welcome button:disabled { opacity: .55; cursor: default; }

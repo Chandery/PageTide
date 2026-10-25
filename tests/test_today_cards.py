@@ -65,7 +65,7 @@ class LabelFamiliesTests(unittest.TestCase):
 
     def test_keyword_tags_are_scaled_with_the_screen_and_readable_in_both_modes(self):
         block = theme[theme.index(".kw {"):]
-        self.assertIn("calc(12px * var(--s))", block)
+        self.assertIn("font-size:calc(var(--fs-sm) * var(--s))", block)
         self.assertIn("color-mix(in srgb, var(--accent-text)", block)   # derived from theme colours, so dark mode follows
 
 
