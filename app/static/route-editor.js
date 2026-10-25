@@ -276,7 +276,7 @@
   function matchedPapersHTML(result) {
     const papers = (result && result.papers) || [], total = Number(result && result.total) || 0;
     if (!papers.length) return '<h4>项目里的论文</h4><p class="map-note">还没有相关论文</p>';
-    const rows = papers.map((p) => `<li><span data-no-i18n>${esc(p.title)}</span> <small data-no-i18n>${esc((p.terms || []).join(' · '))}</small>`
+    const rows = papers.map((p) => `<li><span data-no-i18n data-tex>${esc(p.title)}</span> <small data-no-i18n>${esc((p.terms || []).join(' · '))}</small>`
       + [FEEDBACK_TEXT[p.feedback], FAMILIAR_TEXT[p.familiarity]].filter(Boolean).map((t) => ` <em class="mark">${t}</em>`).join('') + '</li>').join('');
     return `<h4>项目里的论文</h4><ul class="concept-list">${rows}</ul>${total > papers.length ? `<p class="map-note">另有 ${total - papers.length} 篇</p>` : ''}`;
   }
@@ -395,7 +395,7 @@
     const locked = options && options.locked ? ' disabled title="先保存或放弃修改"' : '';
     const g = c.gates || {};
     const missing = (c.missing || []).length ? `<ul class="growth-missing">${c.missing.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>` : '';
-    const papers = (c.papers || []).map((p) => `<li><span data-no-i18n>${esc(p.title)}</span>${p.explicit ? ' <em class="mark">你点过</em>' : ''}${p.source ? ` <small data-no-i18n>${esc(p.source)}</small>` : ''}</li>`).join('');
+    const papers = (c.papers || []).map((p) => `<li><span data-no-i18n data-tex>${esc(p.title)}</span>${p.explicit ? ' <em class="mark">你点过</em>' : ''}${p.source ? ` <small data-no-i18n>${esc(p.source)}</small>` : ''}</li>`).join('');
     const terms = (c.terms || []).length ? `<div class="terms" data-no-i18n>${esc(c.terms.join(' · '))}</div>` : '';
     const brief = (c.intro || c.barrier)
       ? `<p class="concept-intro" data-no-i18n>${esc(c.intro || '')}</p>${c.barrier ? `<p class="concept-intro"><b>门槛：</b><span data-no-i18n>${esc(c.barrier)}</span></p>` : ''}`
@@ -416,7 +416,7 @@
     const left = Number(result.judges_left) || 0;
     const off = left <= 0 ? ' disabled title="今天的次数用完了"' : (options && options.busy ? ' disabled' : '');
     return `<div class="growth-pending"><p>待判断的论文：<b>${list.length}</b></p>`
-      + `<ul class="growth-papers">${list.slice(0, 3).map((p) => `<li data-no-i18n>${esc(p.title)}</li>`).join('')}</ul>`
+      + `<ul class="growth-papers">${list.slice(0, 3).map((p) => `<li data-no-i18n data-tex>${esc(p.title)}</li>`).join('')}</ul>`
       + `<div class="row"><button type="button" class="small" data-growth="judge"${off} title="调用 AI，只发送论文标题、摘要节选和学习图概念">${options && options.busy ? '正在判断…' : '判断全部'}</button></div></div>`;
   }
 

@@ -198,9 +198,9 @@ function candidateCard(paper, selected, onToggle) {
   const hasAbstract = !!(paper.abstract || '').trim();
   el.innerHTML = `<input type="checkbox" aria-label="选择这篇论文"${selected ? ' checked' : ''}>
     <div>
-      <div class="title" data-no-i18n>${esc(paper.title)}</div>
+      <div class="title" data-no-i18n data-tex>${esc(paper.title)}</div>
       <div class="meta" data-no-i18n>${esc(meta(paper))}</div>
-      <div class="abstract" data-no-i18n>${hasAbstract ? esc(paper.abstract) : ''}</div>
+      <div class="abstract" data-no-i18n data-tex>${hasAbstract ? esc(paper.abstract) : ''}</div>
       <div class="more">
         ${hasAbstract ? '<button type="button" class="toggle">展开摘要</button>' : ''}
         ${paper.url ? `<a href="${esc(paper.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
@@ -913,7 +913,7 @@ function seedRow(item) {
   } else if (item.status === 'help') {
     state = '<span class="warn">?</span>'; title = label;
     sub = `${item.error ? `<span class="bad" data-no-i18n>${esc(window.PTi18n?.system(item.error) || item.error)}</span> ` : ''}<span>请选一篇，或改标题 / DOI</span>`;
-    help = `<div class="help">${(item.hits || []).map((p, i) => `<button type="button" class="pick" data-do="pick" data-index="${i}"><span data-no-i18n>${esc(p.title)}</span><small data-no-i18n>${esc(meta(p))}</small></button>`).join('')}
+    help = `<div class="help">${(item.hits || []).map((p, i) => `<button type="button" class="pick" data-do="pick" data-index="${i}"><span data-no-i18n data-tex>${esc(p.title)}</span><small data-no-i18n>${esc(meta(p))}</small></button>`).join('')}
       <div class="row"><input data-help-input placeholder="标题、DOI 或 arXiv 编号" value="${esc(item.guess || '')}"><button type="button" data-do="again">再查一次</button></div></div>`;
   } else {
     title = label; sub = item.stage || '处理中…';
@@ -1006,7 +1006,7 @@ async function openSeedSearch(query) {
     const hit = document.createElement('div');
     hit.className = 'seed-hit';
     const added = () => seeds.some((s) => s.status !== 'failed' && s.paper && s.paper.key === paper.key);
-    hit.innerHTML = `<div class="title" data-no-i18n>${esc(paper.title)}</div><div class="meta" data-no-i18n>${esc(meta(paper))}</div>
+    hit.innerHTML = `<div class="title" data-no-i18n data-tex>${esc(paper.title)}</div><div class="meta" data-no-i18n>${esc(meta(paper))}</div>
       <div class="abstract" data-no-i18n>${esc(paper.abstract || '')}</div><button type="button">添加</button>`;
     const button = $('button', hit);
     button.onclick = () => {

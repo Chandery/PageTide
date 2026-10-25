@@ -1,0 +1,24 @@
+{
+ "_note": "arXiv 2610.30712, saved 2026-10-25 from a real refresh: LaTeX in the title and abstract ($...$, \\mathbb, sub/superscripts, \\, spacing).",
+ "key": "https://doi.org/10.48550/arxiv.2610.30712",
+ "doi": "https://doi.org/10.48550/arxiv.2610.30712",
+ "arxiv_id": "2610.30712",
+ "title": "Fuglede's conjecture holds in $\\mathbb{F}_{p}^{d}$ for $p=2,\\,d=8$ and $p=11,\\,d=3$",
+ "abstract": "Fuglede's conjecture in $\\mathbb{F}_p^d$ says that a nonempty set tiles by translation if and only if it is spectral. We prove the conjecture in $\\mathbb{F}_2^8$ and $\\mathbb{F}_{11}^3$. Over $\\mathbb{F}_2$ we show more generally that the Fourier support of a nonconstant indicator of density different from one half contains a plane. Consequently every spectral set of density one quarter has a subspace tiling complement. This supplies one of the dimension-eight reductions left by Kadowaki; the others are completed using classified Hadamard matrices and perfect binary codes. In $\\mathbb{F}_2^9$ we prove that every tile is spectral and that every spectral set has power-of-two cardinality. All spectral cardinalities except $64$ are shown to tile, and we give further reductions of the remaining case. We also construct a spectral set of density one eighth whose Fourier support contains no three-dimensional subspace. For $\\mathbb{F}_{11}^3$ we extend the geometric method of Fallon, Mayeli, and Villano by using moment identities, polynomial plane profiles, weighted incidence counts, and exact finite computations. The computations and their verification programs are described in the appendices.",
+ "published": "2026-10-22",
+ "source": "arXiv (Cornell University)",
+ "work_type": "preprint",
+ "topic": "Mathematical Analysis and Transform Methods",
+ "metadata_language": null,
+ "metadata_language_source": "arXiv",
+ "oa": {
+  "is_oa": true,
+  "oa_status": "green",
+  "pdf_urls": [
+   "https://arxiv.org/pdf/2610.30712"
+  ],
+  "landing_page": "https://arxiv.org/abs/2610.30712",
+  "license": null,
+  "version": "submittedVersion"
+ }
+}

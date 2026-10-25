@@ -180,7 +180,7 @@ PageTide 会自己检查更新并弹出提示，也可以在设置里点“检�
 
 ## 致谢
 
-Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。宣传视频配乐来自 Pumpupthemind。
+Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[KaTeX](https://katex.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。宣传视频配乐来自 Pumpupthemind。
 
 ## 许可证
 

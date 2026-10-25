@@ -540,7 +540,7 @@ function paperLine(item) {
   const paper = item.paper;
   if (!paper) return '';
   const meta = [paper.published ? String(paper.published).slice(0, 4) : '', (paper.authors || []).slice(0, 3).join(', ')].filter(Boolean).join(' · ');
-  return `<div class="row-paper" data-no-i18n>${esc(paper.title)}</div><div class="row-meta">`
+  return `<div class="row-paper" data-no-i18n data-tex>${esc(paper.title)}</div><div class="row-meta">`
     + `${paper.unresolved ? '<span class="tag unresolved">未识别</span>' : ''}`
     + `${meta ? `<span data-no-i18n>${esc(meta)}</span>` : ''}</div>`;
 }
@@ -548,7 +548,7 @@ function paperLine(item) {
 function candidates(item) {
   return (item.candidates || []).map((c, i) => {
     const p = c.paper, meta = [p.published ? String(p.published).slice(0, 4) : '', (p.authors || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ');
-    return `<div class="cand"><div><div class="cand-title" data-no-i18n>${esc(p.title)}</div><div class="cand-meta">`
+    return `<div class="cand"><div><div class="cand-title" data-no-i18n data-tex>${esc(p.title)}</div><div class="cand-meta">`
       + `${c.existing ? '<span class="tag">已在库</span> ' : ''}${meta ? `<span data-no-i18n>${esc(meta)}</span> ` : ''}<span>${c.score >= 0.85 ? '很接近' : c.score >= 0.6 ? '较接近' : '不太接近'}</span></div></div>`
       + `<button type="button" class="small" data-act="pick" data-index="${i}">${c.existing ? '就是它（已在库）' : '选这个'}</button></div>`;
   }).join('');

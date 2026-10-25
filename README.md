@@ -180,7 +180,7 @@ If PageTide saves you time, a star on GitHub helps other researchers find it.
 
 ## Acknowledgments
 
-Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev). Promo video music by Pumpupthemind.
+Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [KaTeX](https://katex.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev). Promo video music by Pumpupthemind.
 
 ## License
 

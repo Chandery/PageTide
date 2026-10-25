@@ -722,6 +722,7 @@
 <script src="/reader-source.js"></script>
 <script src="/route-editor.js"></script>
 <script src="/theme.js"></script>
+<script src="/math.js"></script>
 <script src="/reader-identity.js"></script>
 <script src="/reader-selection.js"></script>
 <script src="/reader-textfit.js"></script>
@@ -934,14 +935,14 @@ function cardHTML(c, i) {
   const exploring = c.route && /^explore/.test(c.route.kind || '');
   return `
   <article class="card${exploring ? ' is-explore' : ''}${v.irrelevant ? ' is-passed' : ''}" data-key="${esc(c.key)}" style="animation-delay:${i*50}ms">
-    <h3><button class="paper-title" data-no-i18n>${esc(c.title)}</button></h3>
+    <h3><button class="paper-title" data-no-i18n data-tex>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
       ${c.work_type ? `<span>${esc(workTypeLabel(c.work_type))}</span>` : ''}
       ${c.pdf_status === 'page' ? pdfBadge(c.pdf_status) : ''}
       ${routeBadge(c)}
     </div>
-    <div class="abs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '暂无摘要'}</div>
+    <div class="abs">${c.abstract ? `<span data-no-i18n data-tex>${esc(c.abstract)}</span>` : '暂无摘要'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     ${c.judgeAsk ? judgeAskHTML(c) : ''}
     <div class="actions">
@@ -1381,7 +1382,7 @@ $('#preview').addEventListener('mouseleave', scheduleHide);
 function showPreview(card) {
   const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
   const p = $('#preview');
-  p.innerHTML = `<h4 data-no-i18n>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n>${esc(c.abstract)}</span>` : '（无摘要）'}</div>`;
+  p.innerHTML = `<h4 data-no-i18n data-tex>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n data-tex>${esc(c.abstract)}</span>` : '（无摘要）'}</div>`;
   p.style.left = '0px'; p.style.top = '0px';
   p.classList.add('show');
   const r = card.getBoundingClientRect();
@@ -1415,7 +1416,7 @@ async function openDetail(key) {
       <button class="detail-scrim" data-detail-close aria-label="关闭论文详情"></button>
       <aside class="detail-panel page-inner" role="dialog" aria-modal="true" aria-label="论文详情">
         <div class="detail-head"><span></span><button class="detail-close ghost" id="backBtn" aria-label="关闭论文详情">×</button></div>
-        <h2 data-no-i18n>${esc(d.title)}</h2>
+        <h2 data-no-i18n data-tex>${esc(d.title)}</h2>
         <div class="detail-meta">
           ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}
           ${d.work_type ? `<span>${esc(workTypeLabel(d.work_type))}</span>` : ''}
@@ -1442,7 +1443,7 @@ async function openDetail(key) {
         ${window.PTPaperContext.html(d.context, d.key)}
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>${s.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
-        ${d.abstract ? `<section class="detail-section"><div class="full"><div data-no-i18n>${md(d.abstract)}</div></div>${inDemo() && d.arxiv_id ? `<div class="sub">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${esc(d.arxiv_id)}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</section>` : ''}
+        ${d.abstract ? `<section class="detail-section"><div class="full"><div class="abstract-text" data-no-i18n data-tex>${esc(d.abstract)}</div></div>${inDemo() && d.arxiv_id ? `<div class="sub">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${esc(d.arxiv_id)}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</section>` : ''}
       </aside>`;
     $('#detail').classList.remove('hidden');
     const close = closeDetail;

@@ -82,7 +82,7 @@
     const widest = Math.max(1, ...list.flatMap((d) => [n(d.current.papers), n(d.previous.papers)]));
     const cards = list.map((d) => {
       const counts = shown(KINDS).filter((k) => n(d.current[k])).map((k) => `<span class="k-${k}"><i></i>${LABEL[k]} ${n(d.current[k])}</span>`).join('');
-      const papers = (d.papers || []).map((p) => `<li><span class="wk-paper-title" data-no-i18n>${esc(p.title)}</span>${(p.kinds || []).filter((k) => LABEL[k]).map((k) => `<em class="k-${k}">${LABEL[k]}</em>`).join('')}</li>`).join('');
+      const papers = (d.papers || []).map((p) => `<li><span class="wk-paper-title" data-no-i18n data-tex>${esc(p.title)}</span>${(p.kinds || []).filter((k) => LABEL[k]).map((k) => `<em class="k-${k}">${LABEL[k]}</em>`).join('')}</li>`).join('');
       return `<article class="wk-dir s-${esc(d.status)}"><header>${named('h4', d.name)}<span class="wk-pill s-${esc(d.status)}">${esc((d.status === 'other' && !mapOn() ? '本周没有收藏' : STATUS[d.status]) || '')}</span></header>`
         + `<div class="wk-bars"><div class="wk-track is-prev"><div class="wk-bar" style="width:${(n(d.previous.papers) / widest * 100).toFixed(1)}%">${segments(d.previous, d.previous.papers)}</div></div><span>上周论文 ${n(d.previous.papers)}</span>`
         + `<div class="wk-track"><div class="wk-bar" style="width:${(n(d.current.papers) / widest * 100).toFixed(1)}%">${segments(d.current, d.current.papers)}</div></div><span>本周论文 ${n(d.current.papers)}</span></div>`
@@ -111,7 +111,7 @@
   function picks(r) {
     const list = r.picks || [];
     if (!list.length) return '';
-    const rows = list.map((p) => `<li><span class="wk-paper-title" data-no-i18n>${esc(p.title)}</span><span class="wk-tags">`
+    const rows = list.map((p) => `<li><span class="wk-paper-title" data-no-i18n data-tex>${esc(p.title)}</span><span class="wk-tags">`
       + (p.directions || []).map((d) => named('span', d, 'wk-chip')).join('')
       + (p.unit ? `<span class="wk-chip is-unit" data-no-i18n>${esc(p.unit)}</span>` : '')
       + (p.kinds || []).filter((k) => LABEL[k]).map((k) => `<em class="k-${k}">${LABEL[k]}</em>`).join('') + '</span></li>').join('');

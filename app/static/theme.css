@@ -97,3 +97,7 @@ input, textarea, [contenteditable="true"], #detail .detail-section .full, .org-a
 .card.is-explore { outline:1px solid var(--ai-text); outline-offset:-1px; }
 .route-explore { margin-top:calc(6px * var(--s)); }
 .judge-ask { display:flex; flex-wrap:wrap; align-items:center; gap:calc(8px * var(--s)); margin-top:calc(10px * var(--s)); padding:calc(8px * var(--s)) calc(10px * var(--s)); border:1px dashed var(--line-strong); border-radius:var(--r-md); font-size:calc(var(--fs-sm) * var(--s)); color:var(--muted); }
+
+/* A formula in a title or an abstract (math.js, KaTeX): about the size of the text around it. */
+.tex .katex { font-size:1.05em; line-height:1; }
+.abstract-text { white-space:pre-line; }

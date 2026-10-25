@@ -153,8 +153,8 @@ class UserTextMarkupTests(unittest.TestCase):
                        "<span data-no-i18n>${md(s.one_liner || '')}</span>",
                        "相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>",
                        "注意：</span><span data-no-i18n>${esc(s.caution)}</span>",
-                       '<button class="paper-title" data-no-i18n>',
-                       "<h2 data-no-i18n>${esc(d.title)}</h2>", "<div data-no-i18n>${md(d.abstract)}</div>",
+                       '<button class="paper-title" data-no-i18n data-tex>',
+                       "<h2 data-no-i18n data-tex>${esc(d.title)}</h2>", "<div class=\"abstract-text\" data-no-i18n data-tex>${esc(d.abstract)}</div>",
                        "quoted.dataset.noI18n = ''", "PTi18n.exact(q)"]:
             self.assertIn(marked, html)
         script = (ROOT / "app" / "static" / "i18n.js").read_text(encoding="utf-8")
