@@ -113,6 +113,10 @@ def main():
         # The learning map is a beta mode, off until the owner switches it on in Settings; this script exercises it.
         (data/'settings.json').write_text(json.dumps({'routeBeta': True}), encoding='utf-8')
         app=App(data_dir=data)
+        # OpenAlex is searched only with a key (without one, arXiv's own API answers). The cached fixtures below are
+        # OpenAlex answers, so a dummy key keeps refresh on them; the key goes in a header, never in a cache URL.
+        app.save_openalex_key('packaged-smoke-openalex-0000')
+        app.source.api_key='packaged-smoke-openalex-0000'
         pid=app.create_project('Quality fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
         pending=app.create_project('Legacy pending')['project_id']
         route_pid=app.create_project('Goal fixture',keywords=['model'],language_policy={'discipline':'stem','allowed_languages':['en']})['project_id']
@@ -425,7 +429,7 @@ def main():
             listing=call('/api/projects')
             assert listing['projects']==[] and listing['demo']['id']=='pt-demo', listing
             offer=call('/api/onboarding')
-            assert offer['show'] is True and offer['reason']=='no_project' and offer['project_count']==0, offer
+            assert offer['show'] is True and offer['reason']=='first_run' and offer['project_count']==0, offer
             assert call('/api/home')['no_project'] is True
             assert call('/api/onboarding',{'action':'start'})['ok'] is True
             demo={'X-PT-Demo':'1'}
