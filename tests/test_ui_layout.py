@@ -52,7 +52,7 @@ class LayoutTests(unittest.TestCase):
         self.assertRegex(self.css, r"\.plog \{[^}]*min-height:140px")
         self.assertIn(".petpanel > header, .pcompose { flex:0 0 auto; }", self.css)
         # The quote lives in the composer, below the log.
-        panel = self.html[self.html.index('id="petPanel"'):self.html.index('id="pet"')]
+        panel = self.html[self.html.index('id="petPanel"'):self.html.index('id="selbar"')]
         self.assertLess(panel.index('id="petLog"'), panel.index('id="petRef"'))
         self.assertLess(panel.index('id="petRef"'), panel.index('id="petInput"'))
 

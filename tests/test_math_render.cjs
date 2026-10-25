@@ -37,7 +37,8 @@ test('source text cannot use KaTeX to make links or load anything', () => {
 test('titles and abstracts are marked on every page that shows them, and those pages load math.js', () => {
   const index = read('index.html');
   for (const marked of ['class="paper-title" data-no-i18n data-tex>${esc(c.title)}', '<span data-no-i18n data-tex>${esc(c.abstract)}</span>',
-    '<h2 data-no-i18n data-tex>${esc(d.title)}</h2>', 'data-no-i18n data-tex>${esc(d.abstract)}</div>']) assert.ok(index.includes(marked), marked);
+    '<h2 data-no-i18n data-tex>${esc(d.title)}</h2>', 'data-no-i18n data-tex>${esc(d.abstract)}</div>',
+    '<h2 id="readerTitle" data-tex></h2>', 'id="petPaper" data-tex>']) assert.ok(index.includes(marked), marked);
   assert.doesNotMatch(index, /md\(d\.abstract\)/);                     // an abstract is not Markdown: its * and _ belong to formulas
   for (const [file, count] of [['organization.js', 3], ['weekly-ui.js', 2], ['route-editor.js', 3], ['project-creation.js', 4], ['import.js', 2]])
     assert.equal((read(file).match(/data-tex/g) || []).length, count, file);

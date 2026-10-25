@@ -89,7 +89,7 @@ test('in the demo reading is on for the one paper with reading material, and not
   const rule = index.slice(index.indexOf('Reading is on for the one paper'));
   assert.match(rule, /html\.pt-demo \.read-action:not\(\[data-read="https:\/\/doi\.org\/10\.48550\/arxiv\.1706\.03762"\]\)/);
   assert.match(rule, /html\.pt-demo #dRead:not\(\[data-key="https:\/\/doi\.org\/10\.48550\/arxiv\.1706\.03762"\]\)/);
-  assert.match(rule, /html\.pt-demo #pet,[^{]*#petImg[^{]*#petPanel \.switch[^{]*#petLog \.msg\.sys \.fol[^{]*\{ display:none/);
+  assert.match(rule, /html\.pt-demo #petImg[^{]*#petPanel \.switch[^{]*#petLog \.msg\.sys \.fol[^{]*\{ display:none/);
   assert.match(index, /id="dRead" data-key="\$\{esc\(d\.key\)\}"/);
   // pdf.js fetches the PDF without the demo header: the address names the demo project instead
   assert.match(index, /\/api\/pdf\/view\?key=\$\{encodeURIComponent\(key\)\}` \+ \(project === 'pt-demo' \? '&project_id=pt-demo' : ''\)/);

@@ -78,5 +78,14 @@ class TrayTests(unittest.TestCase):
         self.assertIn("QUIT => {\n                show_main_window(handle);\n                prepare_quit(handle);", tray)
 
 
+class AssistantTests(unittest.TestCase):
+    def test_questions_are_asked_only_in_the_pdf_reader(self):
+        index = read("index.html")
+        self.assertNotIn('id="pet"', index)                      # no floating assistant button on the home page
+        self.assertNotRegex(index, r"\.pet\s*\{")
+        self.assertIn("$('#readerAsk').onclick = () => { openPet();", index)   # the reader keeps its own ask button
+        self.assertIn("""$('#selbar [data-sel="ask"]').classList.toggle('hidden', !e.target.closest('#readerPages'));""", index)
+
+
 if __name__ == "__main__":
     unittest.main()

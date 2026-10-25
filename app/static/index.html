@@ -298,14 +298,8 @@
   .petpanel.docked { position:static; width:380px; flex:0 0 auto; margin:14px 14px 14px 0;
                     max-height:none; height:calc(100% - 28px); }
   .petpanel.docked header { box-shadow:var(--sh-out-sm); }
-  body.reader-open .pet { bottom:14px; right:14px; opacity:.62; }
-  body.reader-open .pet:hover { opacity:1; }
 
   /* ------------------------------------------------------------ assistant */
-  .pet { position:fixed; right:22px; bottom:22px; z-index:88; width:58px; height:58px; border-radius:50%;
-         background:var(--base); box-shadow:var(--sh-out); display:flex; align-items:center; justify-content:center;
-         cursor:pointer; font-size:var(--fs-xl); user-select:none; transition:transform .18s ease, box-shadow .18s; }
-  .pet:active { box-shadow:var(--sh-in); transform:none; }
   .petpanel { position:fixed; right:22px; bottom:92px; z-index:89; width:min(410px,92vw);
               max-height:min(72vh,640px); display:none; flex-direction:column; background:var(--base);
               box-shadow:var(--sh-out); border-radius:var(--r-lg); overflow:hidden; }
@@ -492,10 +486,6 @@
   .page-inner { max-width:860px; padding:36px 48px; background:transparent; border:0; border-radius:0; box-shadow:none; }
 
   /* — chat panel — */
-  .pet { width:46px; height:46px; background:var(--accent); color:var(--accent-ink); padding:0;
-    box-shadow:var(--sh-2); border:0; }
-  .pet .icon { width:20px; height:20px; }
-  .pet:hover { background:color-mix(in srgb, var(--accent) 88%, #000); }
   .petpanel { border:0; box-shadow:var(--sh-3); background:var(--surface-1); border-radius:var(--r-lg); }
   .petpanel header { box-shadow:none; border-bottom:1px solid var(--line); padding:11px 14px; }
   .msg { border:0; box-shadow:none; border-radius:var(--r-md); }
@@ -542,7 +532,7 @@
   #modeBtn { width:34px; height:34px; padding:calc(8px * var(--s)); border-radius:50%; }
 
   /* — motion — */
-  button, .btn, .tab, .card, .pet {
+  button, .btn, .tab, .card {
     transition: transform .16s var(--ease-out), background .18s ease, border-color .18s ease,
                 box-shadow .22s var(--ease-out), color .18s ease, opacity .18s ease;
   }
@@ -601,7 +591,7 @@
      page-image or longer-context switches because nothing is sent. */
   html.pt-demo .read-action:not([data-read="https://doi.org/10.48550/arxiv.1706.03762"]),
   html.pt-demo #dRead:not([data-key="https://doi.org/10.48550/arxiv.1706.03762"]),
-  html.pt-demo #pet, html.pt-demo #petImg, html.pt-demo #petPanel .switch, html.pt-demo #petLog .msg.sys .fol { display:none !important; }   /* the general starter questions would all get the one general reply */
+  html.pt-demo #petImg, html.pt-demo #petPanel .switch, html.pt-demo #petLog .msg.sys .fol { display:none !important; }   /* the general starter questions would all get the one general reply */
   .ai-demo-tag { color:var(--muted, inherit); }
   @media (min-width:1700px) { .grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
   @media (min-width:2800px) { .grid { grid-template-columns:repeat(4, minmax(0, 1fr)); } }
@@ -670,7 +660,7 @@
   <div class="rbar">
     <button class="ghost" id="readerBack">← 返回</button>
     <button class="tiny ghost" id="readerToggleSide" title="页面缩略图">☰</button>
-    <h2 id="readerTitle"></h2>
+    <h2 id="readerTitle" data-tex></h2>
     <span class="stat" id="readerInfo"></span>
     <div class="zoombar">
       <button class="tiny ghost" id="zoomOut" title="缩小">−</button><span id="zoomLabel">100%</span>
@@ -688,7 +678,7 @@
 
 <div class="petpanel" id="petPanel">
   <header>
-    <div class="phead"><b id="petTitle">阅读助手</b><span class="ppaper" id="petPaper">未选择论文</span></div>
+    <div class="phead"><b id="petTitle">阅读助手</b><span class="ppaper" id="petPaper" data-tex>未选择论文</span></div>
     <button class="tiny ghost" id="petClear" title="开始新会话">新会话</button>
     <button class="tiny ghost" id="petClose" title="关闭">✕</button>
   </header>
@@ -704,7 +694,6 @@
     </div>
   </div>
 </div>
-<button class="pet" id="pet" title="阅读助手" aria-label="阅读助手"><i class="icon sparkles" aria-hidden="true"></i></button>
 <div id="selbar"><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button><button class="tiny ghost" data-sel="clear" title="取消选择">✕</button></div>
 <div id="transPop"></div>
 
@@ -2195,6 +2184,7 @@ document.addEventListener('mouseup', (e) => {
   selRect = sel.getRangeAt(0).getBoundingClientRect();
   const start = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
   selPage = Number(start?.closest?.('.pgwrap')?.dataset.n) || null;
+  $('#selbar [data-sel="ask"]').classList.toggle('hidden', !e.target.closest('#readerPages'));   // questions only in the PDF reader
   showSel(selRect, text);
 });
 document.addEventListener('scroll', hideSel, true);
@@ -2405,7 +2395,6 @@ function placeTransPop(rect) {
 let transAnchor = null;
 window.addEventListener('resize', () => { if ($('#transPop').classList.contains('show')) placeTransPop(transAnchor); });
 if (window.ResizeObserver) new ResizeObserver(() => { if ($('#transPop').classList.contains('show')) placeTransPop(transAnchor); }).observe($('#transPop'));
-$('#pet').onclick = () => setPetOpen(!$('#petPanel').classList.contains('open'));
 $('#petClose').onclick = () => setPetOpen(false);
 $('#petClear').onclick = async () => {
   if (pet.busy || !pet.key) return;
