@@ -148,7 +148,7 @@ test('closing the actual reader refreshes learning views after a version or text
   const body={classList:classes(),appendChild(element){element.parentElement=this;}},state={key:'p',epoch:0,doc:{}};
   node('#petPanel').classList.add('open');node('#petPanel').classList.add('docked');node('#transPop').classList.add('show');
   node('#petInput').value='中文问题\n第二行';body.classList.add('reader-open');
-  vm.runInNewContext(line,{$:node,R:state,pet:{busy:false},readerBackground:new Map(),readerFocus:null,setReference(){},setAttachPage(){},hideSel(){},document:{body},requestAnimationFrame:fn=>frames.push(fn),layoutPages:()=>calls.push(['layout']),toast(){},window:{PTOrganization:{invalidateLearning:(...args)=>{calls.push(args);return Promise.resolve();}}}});
+  vm.runInNewContext(line,{$:node,R:state,pet:{busy:false},readerBackground:new Map(),readerFocus:null,setReference(){},setAttachPage(){},hideSel(){},closeNote(){},document:{body},requestAnimationFrame:fn=>frames.push(fn),layoutPages:()=>calls.push(['layout']),toast(){},window:{PTOrganization:{invalidateLearning:(...args)=>{calls.push(args);return Promise.resolve();}}}});
   node('#readerBack').onclick();assert.deepEqual(calls,[['p',true]]);
   assert.equal(node('#petPanel').classList.contains('open'),false);
   assert.equal(node('#petPanel').classList.contains('docked'),false);assert.equal(node('#petPanel').parentElement,body);

@@ -29,7 +29,7 @@ test('actual renderPage success waits for canvas and text, failures cannot claim
  let finish,fail=false;const notes=[],canvas={style:{},getContext:()=>({})},text={innerHTML:'',style:{setProperty(){}}};
  const page={getViewport:()=>({width:80,height:100,scale:1}),render:()=>({promise:fail?Promise.reject(new Error('bad canvas')):new Promise(resolve=>finish=resolve)}),getTextContent:async()=>({items:[],styles:{}})};
  const root={querySelector:()=>({querySelector:()=>({querySelector:q=>q==='canvas'?canvas:text})})};
- const context={R:{pages:[page],renderedScale:1,jobs:new Map()},document:root,window:{devicePixelRatio:1},lib:async()=>({TextLayer:class{async render(){}}}),toast:msg=>notes.push(msg)};
+ const context={R:{pages:[page],renderedScale:1,jobs:new Map()},document:root,window:{devicePixelRatio:1},lib:async()=>({TextLayer:class{async render(){}}}),drawNotes(){},toast:msg=>notes.push(msg)};
  vm.createContext(context);vm.runInContext(fn,context);const pending=context.renderPage(1,root);let ready=false;pending.then(()=>ready=true);
  await new Promise(resolve=>setImmediate(resolve));assert.equal(ready,false);finish();assert.equal(await pending,true);
  fail=true;assert.equal(await context.renderPage(1,root,new Map()),false);assert.match(notes.at(-1),/bad canvas/);
