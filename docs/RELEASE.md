@@ -10,6 +10,7 @@
 2. 改版本号（`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`），提交，打标签并推送（标签必须等于 `v` + `tauri.conf.json` 的 version，`publish` 作业会核对）：`git tag vX.Y.Z && git push origin vX.Y.Z`。
 3. 标签推送触发 `release` 工作流：`test-windows`、`test-macos`（Python 与 Node 测试）和 `build-windows`（PyInstaller、冒烟、NSIS、校验和）、`build-macos`（arm64 与 x64 各一份：PyInstaller、冒烟、`.app`、架构与版本核对、zip、校验和）并行；全部通过后 `publish` 作业确认三个平台的文件都在，再把 `PageTide_*_x64-setup.exe`、`PageTide-macos-arm64.zip`、`PageTide-macos-x64.zip` 及各自的 `.sha256` 传到该标签的 release（release 不存在则建为**草稿**；已有同名文件会被覆盖）。也可在 Actions 页面手动运行（`workflow_dispatch`），此时只产出 artifact，不发布。
 4. 检查草稿 release 里三个平台的文件，再手动发布。
+5. 发布后更新网站：把 `site/release.json` 的 version 改成新版本，跑 `python3 site/build.py`，按实际安装包大小改 `site/i18n/*.json`、`site/template.html` 和 README 里的 MB 数，提交并推送（Vercel 随 `main` 部署）。发布前网站一直指向上一个已发布版本。
 
 ## 应用内“检查更新”依赖什么
 

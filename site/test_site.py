@@ -153,7 +153,10 @@ class SiteTests(unittest.TestCase):
                 self.assertTrue((REPO / m).exists() and not ignored(REPO / m), m)
 
     def test_download_links_match_version(self):
-        ver = json.loads((REPO / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))["version"]
+        ver = json.loads((HERE / "release.json").read_text(encoding="utf-8"))["version"]
+        app = json.loads((REPO / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))["version"]
+        key = lambda v: tuple(int(x) for x in v.split("."))
+        self.assertLessEqual(key(ver), key(app), "the site cannot offer a release newer than the app")
         base = "https://github.com/Chandery/PageTide/releases/latest/download/"
         for lang, path in PAGES.items():
             text = path.read_text(encoding="utf-8")

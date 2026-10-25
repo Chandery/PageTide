@@ -4,7 +4,8 @@
     python3 site/build.py [--date YYYY-MM-DD]
 
 Writes site/index.html (English, "/"), site/zh/index.html (Chinese, "/zh/"), site/assets/papers.json (the demo
-library) and site/sitemap.xml. Version and installer file names come from src-tauri/tauri.conf.json. The generated files
+library) and site/sitemap.xml. Version and installer file names come from site/release.json: the latest published release, which can lag the app
+version in src-tauri/tauri.conf.json while the next release is being prepared. Bump it once that release is out. The generated files
 are committed, so Vercel needs no build step (Root Directory = site). Binary assets are made by prep_assets.py.
 """
 import argparse
@@ -34,7 +35,7 @@ def esc(s):
 
 
 def version():
-    return json.loads((REPO / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))["version"]
+    return json.loads((HERE / "release.json").read_text(encoding="utf-8"))["version"]
 
 
 def load_fixture():
