@@ -29,7 +29,7 @@ English · <a href="README-zh.md">简体中文</a>
 
 </div>
 
-<p align="center"><a href="https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-final-cover-first.mp4"><strong>▶ Watch PageTide in 40 seconds</strong></a></p>
+https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 <p align="center"><sub>Music by Pumpupthemind</sub></p>
 
