@@ -6,7 +6,7 @@
   "meta": {
     "title": "PageTide：开源的论文发现与管理助手",
     "description": "每天从新论文里，挑出和你研究方向对得上的几篇。开源免费，免注册，不收集数据，支持 macOS 和 Windows。",
-    "og_title": "PageTide：让好论文每天来找你",
+    "og_title": "PageTide：让好论文来找你",
     "og_description": "开源的论文发现与管理助手。按你的研究方向推荐新论文，收藏的论文存在本机。免注册，不上传任何数据。",
     "og_alt": "PageTide：开源的论文发现与管理助手",
     "locale": "zh_CN",
@@ -27,7 +27,7 @@
   },
   "hero": {
     "eyebrow": "开源的论文发现与管理助手",
-    "title": "让好论文每天来找你",
+    "title": "让好论文来找你",
     "sub": "按你的研究方向，从海量新论文里挑出值得读的几篇。<wbr>排序在本机完成，论文库存在你自己的电脑上。",
     "dl_mac": "下载 macOS 版",
     "dl_win": "下载 Windows 版",
