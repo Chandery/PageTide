@@ -159,18 +159,48 @@ def _stamp(path):
     return tuple(out)
 
 
+def _check(destination):
+    dst = sqlite3.connect(str(destination))
+    try:
+        if dst.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+            raise MoveError("copy_failed", f"{destination.name} failed its check")
+    finally:
+        dst.close()
+
+
 def _backup(source, destination):
-    src = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True, timeout=30)
+    try:
+        src = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True, timeout=30)
+    except sqlite3.OperationalError:
+        src = None
+    if src is None or not _readable(src):
+        # A WAL database nobody has open (no -shm beside it, e.g. a file left by an older version) cannot be opened
+        # read-only. Nothing is writing it, so its bytes and its log are a consistent copy.
+        if src is not None:
+            src.close()
+        shutil.copy2(source, destination)
+        log = Path(str(source) + "-wal")
+        if log.exists():
+            shutil.copy2(log, Path(str(destination) + "-wal"))
+        _check(destination)
+        return
     try:
         dst = sqlite3.connect(str(destination))
         try:
             src.backup(dst)
-            if dst.execute("PRAGMA quick_check").fetchone()[0] != "ok":
-                raise MoveError("copy_failed", f"{destination.name} failed its check")
         finally:
             dst.close()
     finally:
         src.close()
+    _check(destination)
+
+
+def _readable(conn):
+    try:
+        conn.execute("SELECT 1 FROM sqlite_master LIMIT 1")
+        return True
+    except sqlite3.OperationalError:
+        return False
 
 
 def move(current, chosen, default_dir, progress=None):

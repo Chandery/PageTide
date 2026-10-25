@@ -155,6 +155,18 @@ class MoveTests(Base):
         self.assertEqual(keys(self.default / "pagetide.sqlite"), ["p0", "p1", "p2"])
 
 
+    def test_a_wal_database_nobody_has_open_is_copied_too(self):
+        # e.g. paperdig.sqlite left by an older version: WAL mode, no -shm, so it cannot be opened read-only
+        legacy = sqlite3.connect(self.default / "legacy.sqlite")
+        legacy.execute("PRAGMA journal_mode=WAL"); legacy.execute("CREATE TABLE t(x)"); legacy.execute("INSERT INTO t VALUES (7)")
+        legacy.commit(); legacy.close()
+        self.assertFalse((self.default / "legacy.sqlite-shm").exists())
+        (self.root / "new").mkdir()
+        data_location.move(self.default, str(self.root / "new"), self.default)
+        with sqlite3.connect(self.root / "new" / "legacy.sqlite") as copy:
+            self.assertEqual(copy.execute("SELECT x FROM t").fetchall(), [(7,)])
+
+
 class ServerTests(Base):
     def setUp(self):
         super().setUp()
