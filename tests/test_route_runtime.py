@@ -40,6 +40,7 @@ class Fixture(unittest.TestCase):
         (self.root / "app" / "budget.json").write_text((ROOT / "app" / "budget.json").read_text())
         self.app = App(root=str(self.root), data_dir=str(self.root / "data"))
         self.addCleanup(self.app.store.close)
+        self.app.save_openalex_key("test-openalex-key-0000")  # OpenAlex is only searched with a key (also read by per-request Apps)
         patcher = mock.patch.object(self.app.gateway, "call", side_effect=AssertionError("the route must never call a model"))
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -571,7 +572,7 @@ class RefreshPagingTests(Fixture):
 class DiscoverPageTests(unittest.TestCase):
     def test_the_page_number_reaches_openalex_and_changes_the_cache_entry(self):
         with tempfile.TemporaryDirectory() as tmp:
-            client = sources.OpenAlex(tmp)
+            client = sources.OpenAlex(tmp, api_key="test-openalex-key-0000")  # OpenAlex is only searched with a key
             urls = []
 
             class Reply:

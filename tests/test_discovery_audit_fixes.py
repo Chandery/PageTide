@@ -41,7 +41,7 @@ class ScienceLexicalTests(unittest.TestCase):
 class SourcePolicyTests(unittest.TestCase):
     def test_review_conference_are_allowed_and_future_rejected_locally(self):
         with tempfile.TemporaryDirectory() as tmp:
-            oa=OpenAlex(tmp)
+            oa=OpenAlex(tmp,api_key='test-openalex-key-0000')
             works=[dict(id='https://openalex.org/W'+str(i),title='planning '+str(i),type=t,publication_date=d) for i,(t,d) in enumerate([('review','2020-01-01'),('conference-paper','2020-02-01'),('article','2099-01-01')])]
             with mock.patch.object(oa,'_fetch',return_value={'results':works}) as fetch:
                 found=oa.discover_topic('planning')

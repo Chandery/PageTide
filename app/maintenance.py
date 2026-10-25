@@ -7,6 +7,7 @@ Zero model tokens. Written to keep the no-debt rules (R-NODEBT, E-NO-DEBT, E-OFF
 """
 import datetime
 import json
+import sys
 import threading
 from pathlib import Path
 from . import user_settings
@@ -63,6 +64,9 @@ def refresh_due(last_iso, freq, now, tz=None):
 
 def _key(name, project_id):
     return f"{name}_{project_id}"
+
+
+FAILURE_KINDS = ("unavailable", "quota_exhausted", "network_error", "auth_required", "failed")
 
 
 def refresh_ok(result):
@@ -188,15 +192,20 @@ def run(app, project_id, now=None):
                 result = app.refresh_candidates(project_id=project_id)
                 errors = result.get("errors") or []
                 ok = refresh_ok(result)
-                detail = (errors[0].get("error") or errors[0].get("kind") or "refresh failed") if errors else ""
+                detail = (errors[0].get("kind") or "failed") if errors else ""
             except Exception as exc:  # the batch and the app must not depend on the network being up
-                result, ok, errors, detail = {}, False, [], f"{type(exc).__name__}: {exc}"
+                result, ok, errors, detail = {}, False, [], "failed"
+                print(f"PageTide refresh failed: {type(exc).__name__}: {exc}", file=sys.stderr)
             if ok:
                 record_success(app, project_id, result, now if injected else _now(None))
                 out.update(refreshed=True, added=result.get("added", 0), errors=errors)
             else:
-                app.store.set_setting(_key("last_error", project_id), str(detail)[:200])
-                out["errors"] = errors or [{"error": detail}]
+                # Only the kind is kept for the page (refreshFailureText in index.html); the request and the provider's words,
+                # which can hold a URL, go to the log.
+                app.store.set_setting(_key("last_error", project_id), detail if detail in FAILURE_KINDS else "failed")
+                for error in errors:
+                    print(f"PageTide refresh error: {error.get('kind')}: {error.get('error')}", file=sys.stderr)
+                out["errors"] = errors or [{"kind": "failed"}]
         if wanted["frequency"] != "manual" and not _has_batch_today(app, project_id, now) and _has_unseen(app, project_id):
             built = app.build_batch(limit=user_settings.count(app.data), run_date=_today(now), project_id=project_id)
             out["batch"] = bool(built.get("batch_id"))

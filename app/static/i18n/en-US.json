@@ -2610,6 +2610,11 @@
     "点“开始导入”。": "Choose “Start import”.",
     "核对后点“导入到论文库”。": "Check the list, then choose “Import into library”.",
     "导入完成，回论文库看看。": "Import done. Go back to the library to see it.",
-    "刚导入的几篇在列表里。": "The papers you just imported are in the list."
+    "刚导入的几篇在列表里。": "The papers you just imported are in the list.",
+    "论文来源暂时限流，稍后会自动再试": "The paper source is rate limiting requests; PageTide will try again later",
+    "论文来源今天的额度用完了，明天会自动再试": "Today's allowance at the paper source is used up; PageTide will try again tomorrow",
+    "连不上论文来源，请检查网络": "Cannot reach the paper source; check the network",
+    "论文来源的密钥无效，请在设置里检查": "The paper source refused the key; check it in Settings",
+    "上次抓取没有完成，稍后会自动再试": "The last fetch did not finish; PageTide will try again later"
   }
 }

@@ -52,15 +52,15 @@ class SourceInfo:
 
 
 ARXIV_INFO = SourceInfo(
-    id="arxiv", label="arXiv", provider="arXiv（经 OpenAlex 索引检索）", key="none",
+    id="arxiv", label="arXiv", provider="arXiv（无 OpenAlex 密钥时直接查 arXiv 接口；有密钥时经 OpenAlex 索引）", key="none",
     key_benefit="", key_url="", key_env="", key_pattern="",
     serves_languages=("en",), query_scripts=("latin",), daily_cap=None,
-    provider_quota="与 OpenAlex 共用额度", sends="英文检索词与日期范围（公开元数据查询）；不含画像、笔记、论文库和私有 ID",
+    provider_quota="arXiv 接口每 3 秒最多 1 次请求；经 OpenAlex 时与其共用额度", sends="英文检索词与日期范围（公开元数据查询）；不含画像、笔记、论文库和私有 ID",
     claims_id="ARXIV")
 
 OPENALEX_INFO = SourceInfo(
-    id="openalex", label="期刊与会议论文", provider="OpenAlex", key="optional",
-    key_benefit="免费密钥把每日额度提高约 10 倍（1000 点提高到 10000 点）",
+    id="openalex", label="期刊与会议论文", provider="OpenAlex", key="required",
+    key_benefit="没有密钥时不检索 OpenAlex：匿名额度很小、同一网络的人共用，匿名检索有时会被暂停；免费密钥每天 10000 点",
     key_url="https://help.openalex.org/api-reference/authentication",
     key_env="OPENALEX_API_KEY", key_pattern=r"[A-Za-z0-9._~-]{8,256}",
     serves_languages=("en", "zh"), query_scripts=("latin", "cjk"), daily_cap=None,

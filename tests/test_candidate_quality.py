@@ -85,7 +85,7 @@ class OrderingTests(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        self.client = sources.OpenAlex(tmp.name)
+        self.client = sources.OpenAlex(tmp.name, api_key="test-openalex-key-0000")  # the OpenAlex path needs a key
         mock.patch.object(sources.time, "sleep").start()
         self.addCleanup(mock.patch.stopall)
 

@@ -396,9 +396,42 @@ class OpenAlex:
             return False
         return True
 
+    FALLBACK_KINDS = ("unavailable", "network_error", "quota_exhausted")   # OpenAlex could not answer, not "no such paper"
+    DOWN_SECONDS = 600   # after an outage the rest of a refresh goes to arXiv at once instead of waiting out OpenAlex again
+
+    @property
+    def arxiv(self):
+        if getattr(self, "_arxiv", None) is None:
+            from .arxiv_api import ArxivAPI
+            self._arxiv = ArxivAPI()
+        return self._arxiv
+
+    @arxiv.setter
+    def arxiv(self, client):
+        self._arxiv = client
+
     def discover_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance", prefer_pdf=True, page=1,
                        source_arxiv=True, source_openalex=True):
-        """Candidate papers for a research topic, for project creation and per-project refresh.
+        """Which index answers a topic search. OpenAlex is searched only with a key: without one its allowance is small
+        and shared by everyone behind the same address, and anonymous search is sometimes paused. So with no key the arXiv
+        switch searches arXiv's own API and journals and conferences are not searched (their row asks for a key). With a
+        key, an OpenAlex outage falls back to arXiv's API for the arXiv part."""
+        if not source_arxiv and not source_openalex:
+            return []
+        if self.api_key and time.time() >= getattr(self, "_down_until", 0):
+            try:
+                return self._openalex_topic(query, per_page, from_date, to_date, order, prefer_pdf, page, source_arxiv, source_openalex)
+            except SourceError as exc:
+                if not source_arxiv or exc.kind not in self.FALLBACK_KINDS:
+                    raise
+                self._down_until = time.time() + self.DOWN_SECONDS
+        elif not source_arxiv:
+            return []
+        return self.arxiv.discover_topic(query, per_page=per_page, from_date=from_date, to_date=to_date, order=order, page=page)
+
+    def _openalex_topic(self, query, per_page=12, from_date=None, to_date=None, order="relevance", prefer_pdf=True, page=1,
+                        source_arxiv=True, source_openalex=True):
+        """Candidate papers for a research topic from OpenAlex, for project creation and per-project refresh.
 
         English phrases are matched against title AND abstract (every word must appear), in any source
         (journals as well as arXiv). order="relevance" ranks those matches by OpenAlex relevance (project
@@ -461,10 +494,13 @@ class OpenAlex:
                  source_id=ARXIV_SOURCE_ID):
         """Discovery recipe validated in DATA-01: arXiv source + title.search + date bounds.
 
-        Stops early on the first persistent failure so a hot shared API cannot hang the app.
+        Stops early on the first persistent failure so a hot shared API cannot hang the app. Without an OpenAlex key
+        (see discover_topic) arXiv's own API answers instead, newest first.
         """
         import datetime
         to_date = min(str(to_date or datetime.date.today().isoformat()), datetime.date.today().isoformat())
+        if not self.api_key and source_id == ARXIV_SOURCE_ID:
+            return self.arxiv.discover_topic(search, per_page=min(int(per_page), 50), from_date=from_date, to_date=to_date, order="recent")
         works, seen = [], set()
         for page in range(1, pages + 1):
             params = {

@@ -136,7 +136,7 @@ class RunTests(Fixture):
         status = maintenance.status(self.app, self.pid, at(5, 8))
         self.assertFalse(result["refreshed"])
         self.assertIsNone(status["last_refresh"])
-        self.assertIn("OpenAlex busy", status["last_error"])
+        self.assertEqual(status["last_error"], "unavailable")   # the kind only: the provider's words and the URL go to the log
         self.assertTrue(result["batch"])  # the papers already in the project are still delivered
 
     def test_a_failed_refresh_is_not_hammered(self):
@@ -150,7 +150,7 @@ class RunTests(Fixture):
         with mock.patch.object(self.app, "refresh_candidates", side_effect=RuntimeError("boom")):
             result = maintenance.run(self.app, self.pid, at(5))
         self.assertFalse(result["refreshed"])
-        self.assertIn("boom", maintenance.status(self.app, self.pid, at(5))["last_error"])
+        self.assertEqual(maintenance.status(self.app, self.pid, at(5))["last_error"], "failed")
 
     def test_a_second_run_while_one_is_running_is_skipped(self):
         gate = threading.Event()

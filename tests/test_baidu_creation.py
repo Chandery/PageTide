@@ -90,8 +90,8 @@ class Case(unittest.TestCase):
         patcher = mock.patch.dict(os.environ, {}, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
-        for name in ("OPENALEX_API_KEY", "BAIDU_SCHOLAR_API_KEY"):
-            os.environ.pop(name, None)
+        os.environ.pop("BAIDU_SCHOLAR_API_KEY", None)
+        os.environ["OPENALEX_API_KEY"] = "test-openalex-key-0000"  # OpenAlex is only searched with a key
         sleeper = mock.patch("time.sleep")
         sleeper.start()
         self.addCleanup(sleeper.stop)
@@ -199,6 +199,8 @@ class GuidanceSearchTests(Case):
 
     def test_an_openalex_failure_is_unchanged_and_baidu_results_still_come(self):
         self.net.openalex_error = urllib.error.URLError("offline")
+        # An OpenAlex outage hands the search to arXiv's API; when that is down as well, the error still reaches the page.
+        self.app.source.arxiv = mock.Mock(discover_topic=mock.Mock(side_effect=__import__("app.sources", fromlist=["x"]).SourceError("arXiv offline", "network_error")))
         result, _ = self.search()
         self.assertEqual(result["error"]["kind"], "network_error")
         self.assertIn(DOI_1, [i["key"] for i in result["items"]])

@@ -57,9 +57,15 @@ test('the line under the fetch button shows the last successful fetch, local tim
     assert.equal(els['#refreshRecord'].hidden, true); assert.equal(els['#refreshRecord'].textContent, '');
   }
 });
+test('a failure note is one plain sentence per reason, never the request or the provider text', () => {
+  assert.equal(render({last_error: 'unavailable'})['#maintainNote'].textContent, '论文来源暂时限流，稍后会自动再试');
+  assert.equal(render({last_error: 'network_error'})['#maintainNote'].textContent, '连不上论文来源，请检查网络');
+  const raw = render({last_error: 'OpenAlex fetch failed: https://api.openalex.org/works?mailto=owner%40example.invalid: HTTP Error 429'});
+  assert.equal(raw['#maintainNote'].textContent, '上次抓取没有完成，稍后会自动再试');
+});
 test('a failure note and the success record are independent', () => {
   const els = render({last_error: 'busy', last_refresh_result: {at: new Date(2026, 9, 23, 9, 0).toISOString(), fetched: 4, new_to_project: 1}});
-  assert.equal(els['#maintainNote'].textContent, '上次刷新失败：busy');
+  assert.equal(els['#maintainNote'].textContent, '上次抓取没有完成，稍后会自动再试');   // an old raw record gets the general sentence
   assert.match(els['#refreshRecord'].textContent, /^最近抓取 10-23 09:00/);
 });
 

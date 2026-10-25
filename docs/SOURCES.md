@@ -9,14 +9,14 @@
 ## `arxiv` arXiv
 
 - 密钥：无需密钥。
-- 怎么用：随“arXiv”开关一起，经 OpenAlex 的索引检索（与下一节共用额度）。
+- 怎么用：没有 OpenAlex 密钥时，直接查 arXiv 自己的检索接口（`export.arxiv.org`，每 3 秒最多 1 次请求）；配了 OpenAlex 密钥时经 OpenAlex 的索引检索，OpenAlex 限流、暂停或连不上时再改查 arXiv 接口。两条路找到的同一篇论文用同一个 arXiv DOI 记录，不会重复。
 - 会发送什么：英文检索词与日期范围（公开元数据查询）；不含画像、笔记、论文库和私有 ID。
 - 怎么拿 PDF：arXiv 论文直接下载 arXiv 的 PDF（两次请求之间等待 arXiv 要求的间隔）。
 - 外部事实：`harness/sources.json` 的 `ARXIV`、`ARXIV-PDF`。
 
 ## `openalex` 期刊与会议论文（OpenAlex）
 
-- 密钥：密钥可选。不填也能用；填一个免费密钥把每日额度提高约 10 倍。
+- 密钥：必须有密钥。没有密钥时不检索期刊与会议论文：OpenAlex 的匿名额度很小、同一网络的人共用，匿名检索有时会被整体暂停，常常一篇也取不到。按 DOI 或标题补全单篇论文信息、找开放获取 PDF 这类查询不受影响，没有密钥也照常发。
 - 去哪拿：<https://help.openalex.org/api-reference/authentication>（注册账号后在 API 设置里复制）。
 - 环境变量：`OPENALEX_API_KEY`（优先于密钥文件）；密钥文件 `openalex.key`。
 - 密钥带来什么：免费密钥把每天 1000 点（约 0.1 美元）提高到 10000 点（约 1 美元）；邮箱参数已被 OpenAlex 忽略，应用不发用户邮箱。

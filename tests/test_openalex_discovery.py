@@ -62,7 +62,7 @@ class DiscoverTopicTests(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        self.client = sources.OpenAlex(tmp.name)
+        self.client = sources.OpenAlex(tmp.name, api_key="test-openalex-key-0000")  # the OpenAlex path needs a key
         mock.patch.object(sources.time, "sleep").start()
         self.addCleanup(mock.patch.stopall)
 
@@ -168,6 +168,23 @@ class DiscoverTopicTests(unittest.TestCase):
         router = Router([])
         self.run_topic(router, "world model", from_date="2024-01-01")
         self.assertIn("from_publication_date:2024-01-01", router.filters()[0]["filter"])
+
+    def test_without_a_key_openalex_is_not_searched_and_arxiv_answers(self):
+        class FakeArxiv:
+            def __init__(self):
+                self.calls = []
+
+            def discover_topic(self, query, **kw):
+                self.calls.append((query, kw))
+                return [{"title": "from arxiv"}]
+        self.client.api_key = None
+        fake = self.client.arxiv = FakeArxiv()
+        router = Router([])
+        self.assertEqual(self.run_topic(router, "world model"), [{"title": "from arxiv"}])
+        self.assertEqual(router.urls, [])
+        self.assertEqual(len(fake.calls), 1)
+        self.assertEqual(self.run_topic(router, "world model", source_arxiv=False), [])
+        self.assertEqual(router.urls, [])
 
     def test_the_api_key_is_sent_as_a_header_on_these_requests(self):
         seen = []

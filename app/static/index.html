@@ -1119,10 +1119,18 @@ function refreshRecordText(rec) {   // the last successful fetch, in the person'
   const when = `${year}${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
   return `最近抓取 ${when} · ${fetchedText(rec.fetched || 0, rec.new_to_project || 0)}`;
 }
+// One plain sentence per stored reason (app/maintenance.py FAILURE_KINDS); an older record holding raw error text gets the general one.
+const REFRESH_FAILURES = {
+  unavailable: '论文来源暂时限流，稍后会自动再试',
+  quota_exhausted: '论文来源今天的额度用完了，明天会自动再试',
+  network_error: '连不上论文来源，请检查网络',
+  auth_required: '论文来源的密钥无效，请在设置里检查',
+};
+function refreshFailureText(kind) { return REFRESH_FAILURES[kind] || '上次抓取没有完成，稍后会自动再试'; }
 function renderMaintenance(m) {
   const note = $('#maintainNote'), line = $('#refreshRecord');
   if (!note || !m) return;
-  note.textContent = m.last_error ? `上次刷新失败：${m.last_error}` : '';
+  note.textContent = m.last_error ? refreshFailureText(m.last_error) : '';
   if (line) { line.textContent = refreshRecordText(m.last_refresh_result); line.hidden = !line.textContent; }
 }
 function renderEligibility(snapshot) {

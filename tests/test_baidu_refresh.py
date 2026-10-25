@@ -99,8 +99,8 @@ class RefreshCase(unittest.TestCase):
         patcher = mock.patch.dict(os.environ, {}, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
-        for name in ("OPENALEX_API_KEY", "BAIDU_SCHOLAR_API_KEY"):
-            os.environ.pop(name, None)
+        os.environ.pop("BAIDU_SCHOLAR_API_KEY", None)
+        os.environ["OPENALEX_API_KEY"] = "test-openalex-key-0000"  # OpenAlex is only searched with a key
         sleeper = mock.patch("time.sleep")
         sleeper.start()
         self.addCleanup(sleeper.stop)

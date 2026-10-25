@@ -248,7 +248,7 @@ class ServiceTests(ServiceCase):
         self.assertEqual(status["baidu_scholar"], {"needs_key": True, "key": "required", "configured": False, "status_kind": None,
                                                    "used_today": 0, "daily_cap": 40, "key_url": status["baidu_scholar"]["key_url"]})
         self.assertTrue(status["baidu_scholar"]["key_url"].startswith("https://"))
-        self.assertEqual((status["openalex"]["needs_key"], status["openalex"]["key"], status["openalex"]["used_today"]), (False, "optional", None))
+        self.assertEqual((status["openalex"]["needs_key"], status["openalex"]["key"], status["openalex"]["used_today"]), (True, "required", None))
         app.save_source_key("baidu_scholar", BAIDU)
         self.assertTrue(app.sources_status()["baidu_scholar"]["configured"])
         self.assertNotIn(BAIDU, json.dumps(app.sources_status()))

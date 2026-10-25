@@ -121,7 +121,7 @@ class SourceInfoTests(AdapterCase):
 
     def test_key_requirements_and_the_baidu_cap(self):
         by_id = {info.id: info for info in self.source_adapters.all_infos()}
-        self.assertEqual([by_id[i].key for i in ("arxiv", "openalex", "baidu_scholar")], ["none", "optional", "required"])
+        self.assertEqual([by_id[i].key for i in ("arxiv", "openalex", "baidu_scholar")], ["none", "required", "required"])
         self.assertEqual(by_id["baidu_scholar"].daily_cap, 40)
         self.assertIn("zh", by_id["baidu_scholar"].serves_languages)
         self.assertEqual(by_id["baidu_scholar"].query_scripts, ("cjk", "latin"))
@@ -611,7 +611,7 @@ class OpenAlexAdapterTests(AdapterCase):
         fake = FakeUrlopen(json.dumps({"results": []}).encode())
         client = self.client(key="saved-openalex-key-0000")
         self.assertEqual(client.info.id, "openalex")
-        self.assertEqual(client.info.key, "optional")
+        self.assertEqual(client.info.key, "required")
         with mock.patch.object(self.sources.urllib.request, "urlopen", fake):
             result = client.verify(api_key="typed-openalex-key-1111")
         self.assertTrue(result["ok"])

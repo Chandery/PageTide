@@ -348,7 +348,7 @@ app.store.close()
         # A new query policy avoids the just-populated success cache.
         with mock.patch.object(sources.urllib.request,'urlopen',side_effect=urllib.error.URLError('fixture outage')) as fetch, mock.patch.object(sources.time,'sleep'):
             result=self.app.refresh_candidates(project_id=self.pid,from_date='2025-01-01')
-        self.assertEqual(fetch.call_count,2)  # the source's existing two-attempt bound
+        self.assertEqual(fetch.call_count,3)  # the source's two-attempt bound, plus one arXiv request once OpenAlex is down
         self.assertEqual(result['errors'][0]['kind'],'network_error')
         self.assertTrue(all(e['kind']=='skipped' for e in result['errors'][1:]))
 
