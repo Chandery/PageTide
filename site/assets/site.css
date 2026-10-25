@@ -80,8 +80,7 @@ p { margin: 0 0 1em; }
 .hero h1 { font-size: clamp(2.5rem, 1.4rem + 4.4vw, 4.25rem); font-weight: 600; line-height: 1.04; letter-spacing: -.035em;
   max-width: 20ch; margin: 0 auto 22px; text-wrap: balance; }
 .hero h1 em { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 1.06em; letter-spacing: -.012em; }
-:lang(zh) .hero h1 { max-width: 9.5em; line-height: 1.2; letter-spacing: -.01em; }
-:lang(zh) .hero h1 em { font-style: normal; font-weight: 600; font-size: 1em; letter-spacing: 0; }
+:lang(zh) .hero h1 { line-height: 1.22; letter-spacing: .04em; padding-left: .04em; }
 .sub { font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--muted); max-width: 34em; margin: 0 auto 30px; text-wrap: balance; }
 .cta-buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .cta .btn { padding: 14px 28px; font-size: 1rem; }
