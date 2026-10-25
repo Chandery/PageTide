@@ -1,4 +1,4 @@
-/* Motion for the homepage: scroll reveal, number count-up, feature showcase, hero tilt and glow.
+/* Motion for the homepage: scroll reveal, feature showcase, hero tilt and glow.
    Plain JS, no libraries. Everything is skipped under prefers-reduced-motion; nothing here is needed to read the page. */
 (function (root, factory) {
   var api = factory();
@@ -6,12 +6,6 @@
   else { root.PTFx = api; if (typeof document !== "undefined") api.init(); }
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-
-  /* "22 MB" at t=0.5 -> "11 MB"; every integer in the text is scaled, so "2 × 2" counts both. t in [0,1]; never decreases. */
-  function countText(text, t) {
-    return String(text).replace(/\d+/g, function (n) { return String(Math.round(parseInt(n, 10) * t)); });
-  }
-  function ease(t) { return 1 - Math.pow(1 - t, 3); }
 
   function init() {
     var doc = document, html = doc.documentElement;
@@ -22,7 +16,7 @@
     var narrow = window.matchMedia("(max-width: 640px)").matches;
 
     /* Scroll reveal: fade in and rise, siblings one after another. The class is removed afterwards so hover effects work. */
-    var targets = doc.querySelectorAll(".section-head, .profile, .stories-wrap, .showcase, .why-card, .num-group, .num, .video, " +
+    var targets = doc.querySelectorAll(".section-head, .profile, .stories-wrap, .showcase, .why-card, .num, .video, " +
       ".dl-card, .first-launch, .req-cols .card, .contrib-card");
     var seen = new Map();
     Array.prototype.forEach.call(targets, function (el) {
@@ -37,28 +31,12 @@
         var el = e.target;
         io.unobserve(el);
         el.classList.add("in");
-        if (el.classList.contains("num")) countUp(el.querySelector(".num-v"));
         setTimeout(function () { el.classList.remove("reveal", "in"); el.style.removeProperty("--d"); }, 1100);
       });
     }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
     Array.prototype.forEach.call(doc.querySelectorAll(".reveal"), function (el) {
-      if (el.classList.contains("num")) { var v = el.querySelector(".num-v"); if (/\d/.test(v.textContent)) { v.setAttribute("data-final", v.textContent); v.textContent = countText(v.textContent, 0); } }
       io.observe(el);
     });
-
-    function countUp(v) {
-      var final = v && v.getAttribute("data-final");
-      if (!final) return;
-      var start = null, dur = 1000;
-      v.setAttribute("aria-label", final);
-      function step(ts) {
-        if (start === null) start = ts;
-        var t = Math.min(1, (ts - start) / dur);
-        v.textContent = countText(final, ease(t));
-        if (t < 1) requestAnimationFrame(step); else v.textContent = final;
-      }
-      requestAnimationFrame(step);
-    }
 
     /* Feature showcase: pick a feature to change the big screenshot; it also advances by itself while visible and not hovered. */
     var show = doc.getElementById("showcase");
@@ -113,5 +91,5 @@
     }
   }
 
-  return { countText: countText, ease: ease, init: init };
+  return { init: init };
 });

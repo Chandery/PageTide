@@ -134,19 +134,3 @@ test("architecture hints", () => {
   assert.strictEqual(P.archKind(""), "unknown");
   assert.strictEqual(P.archKind(undefined), "unknown");
 });
-
-test("count-up text only grows and ends on the real value", () => {
-  const F = require("./assets/fx.js");
-  for (const text of ["22 MB", "3", "5", "2 × 2", "Zero"]) {
-    let prev = F.countText(text, 0);
-    for (let i = 1; i <= 20; i++) {
-      const cur = F.countText(text, F.ease(i / 20));
-      const nums = (s) => (s.match(/\d+/g) || []).map(Number);
-      nums(cur).forEach((n, k) => assert.ok(n >= nums(prev)[k], `${text}: ${prev} -> ${cur}`));
-      prev = cur;
-    }
-    assert.strictEqual(prev, text);
-  }
-  assert.strictEqual(F.countText("22 MB", 0), "0 MB");
-  assert.strictEqual(F.countText("Zero", 0.3), "Zero");
-});

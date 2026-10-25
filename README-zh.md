@@ -29,7 +29,7 @@
 
 </div>
 
-https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
+<p align="center"><a href="https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-final-cover-first.mp4"><strong>▶ 40 秒看懂 PageTide</strong></a></p>
 
 <p align="center"><sub>配乐：Pumpupthemind</sub></p>
 
@@ -39,8 +39,10 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-zh-dark.svg">
-  <img src="docs/assets/readme/numbers-zh-light.svg" alt="PageTide 数字：排序零 token、零账号、一次 AI 调用速览五篇、22 MB 安装包；3 个数据源、5 种导入方式、3 种建项目方式、2 个平台 × 2 种语言" width="880">
+  <img src="docs/assets/readme/numbers-zh-light.svg" alt="PageTide 数字说话：排序论文、学习画像所用的模型 token 为 0；账号、服务器和遥测为 0；Apple Silicon Mac 安装包 24 MB，Windows 版 17 MB；3 个开放论文来源：arXiv、OpenAlex、百度学术" width="880">
 </picture>
+
+<sub>排序在你的电脑上完成，不用 AI。安装包大小以当前发布版为准。</sub>
 
 ## 功能
 
@@ -117,8 +119,8 @@ https://github.com/user-attachments/assets/dbc5161f-7600-46f8-909a-9c377fb33406
 
 | 平台 | 文件 |
 | --- | --- |
-| macOS（Apple Silicon） | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 22 MB |
-| macOS（Intel） | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) |
+| macOS（Apple Silicon） | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 24 MB |
+| macOS（Intel） | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 26 MB |
 | Windows（x64） | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
 
 <details>

@@ -93,51 +93,32 @@
     "footnote": "<a href=\"#fnref-papers\" aria-label=\"回到正文\">1</a> 据 OpenAlex 统计，2026 年 9 月发表的期刊论文共 626,339 篇，平均每天约 20,900 篇（2026-10-25 查询）。数据来源：<a href=\"https://openalex.org\" rel=\"noopener\">OpenAlex</a>。"
   },
   "numbers": {
-    "title": "删繁就简，海纳百川。",
-    "less_title": "↓ 删繁就简",
-    "more_title": "↑ 海纳百川",
-    "more_note": "潮水仍在上涨",
-    "less": [
+    "title": "数字说话",
+    "items": [
       {
-        "v": "零",
-        "t": "排序和学习画像，不消耗一个模型 token"
+        "v": "0",
+        "t": "排序论文、学习画像所用的模型 token"
       },
       {
-        "v": "零",
-        "t": "不用注册账号，没有服务器，不收集数据"
+        "v": "0",
+        "t": "账号、服务器和遥测"
       },
       {
-        "v": "一次",
-        "t": "AI 调用，最多速览 20 篇推荐"
+        "v": "24",
+        "u": "MB",
+        "t": "Apple Silicon Mac 安装包，Windows 版 17 MB"
       },
       {
-        "v": "24 MB",
-        "t": "macOS 安装包（Windows 版 17 MB）"
+        "v": "3",
+        "t": "开放论文来源：arXiv、OpenAlex、百度学术"
       }
     ],
-    "more": [
-      {
-        "v": "3",
-        "t": "个开放论文来源：arXiv、OpenAlex、百度学术"
-      },
-      {
-        "v": "5",
-        "t": "种导入方式：PDF、文件夹、BibTeX、RIS、CSL JSON"
-      },
-      {
-        "v": "3",
-        "t": "种建项目的方式：快速创建、AI 引导、手动创建"
-      },
-      {
-        "v": "2 × 2",
-        "t": "两个平台、两种语言：macOS 与 Windows，中文与英文"
-      }
-    ]
+    "foot": "排序在你的电脑上完成，不用 AI。安装包大小以当前发布版为准。"
   },
   "watch": {
-    "title": "30 秒看懂 PageTide",
-    "label": "PageTide 宣传片（30 秒）",
-    "fallback": "你的浏览器播放不了这个视频，可以<a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-x30-cover-first.mp4\">下载下来看</a>。",
+    "title": "40 秒看懂 PageTide",
+    "label": "PageTide 宣传片（40 秒）",
+    "fallback": "你的浏览器播放不了这个视频，可以<a href=\"https://imgs-chan-1329526870.cos.ap-beijing.myqcloud.com/pagetide-final-cover-first.mp4\">下载下来看</a>。",
     "credit": "配乐：Pumpupthemind"
   },
   "get": {

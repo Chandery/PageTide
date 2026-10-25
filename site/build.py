@@ -201,9 +201,9 @@ def build(date):
                        for n, it in enumerate(t["features"]["items"]))
         ctx["features_html"] = ('<div class="feat-list">%s</div><div class="stage"><div class="caps">%s</div><div class="window">%s</div></div>'
                                 % ("".join(feats), caps, "".join(panels)))
-        for kind in ("less", "more"):
-            ctx["numbers_%s_html" % kind] = "".join('<li class="num card"><span class="num-v">%s</span><span class="num-t">%s</span></li>'
-                                                    % (esc(n["v"]), esc(n["t"])) for n in t["numbers"][kind])
+        ctx["numbers_html"] = "".join('<li class="num"><span class="num-v">%s%s</span><span class="num-t">%s</span></li>'
+                                      % (esc(n["v"]), '<span class="num-u">%s</span>' % esc(n["u"]) if n.get("u") else "", esc(n["t"]))
+                                      for n in t["numbers"]["items"])
         ctx["keys_html"] = "".join("<li><strong>%s</strong> %s</li>" % (k["name"], k["note"]) for k in t["get"]["keys"])
         banner = ""
         if lang == "en":

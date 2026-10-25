@@ -1,44 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="880" height="350" viewBox="0 0 880 350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif" role="img" aria-label="PageTide by the numbers">
-<text x="2" y="22" font-size="15" font-weight="700" fill="#1a7f37">↓ Less is more</text>
-<rect x="1.0" y="34" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="1.0" y="34" width="4" height="132" rx="2" fill="#1a7f37"/>
-<text x="21.0" y="86" font-size="38" font-weight="800" fill="#1a7f37" letter-spacing="-0.5">Zero</text>
-<text x="21.0" y="118" font-size="13.5" fill="#1f2328">model tokens to rank papers</text>
-<text x="21.0" y="138" font-size="13.5" fill="#59636e">and learn your profile</text>
-<rect x="223.5" y="34" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="223.5" y="34" width="4" height="132" rx="2" fill="#1a7f37"/>
-<text x="243.5" y="86" font-size="38" font-weight="800" fill="#1a7f37" letter-spacing="-0.5">Zero</text>
-<text x="243.5" y="118" font-size="13.5" fill="#1f2328">accounts, servers</text>
-<text x="243.5" y="138" font-size="13.5" fill="#59636e">or telemetry</text>
-<rect x="446.0" y="34" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="446.0" y="34" width="4" height="132" rx="2" fill="#1a7f37"/>
-<text x="466.0" y="86" font-size="38" font-weight="800" fill="#1a7f37" letter-spacing="-0.5">Single</text>
-<text x="466.0" y="118" font-size="13.5" fill="#1f2328">AI call previews</text>
-<text x="466.0" y="138" font-size="13.5" fill="#59636e">five picks at once</text>
-<rect x="668.5" y="34" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="668.5" y="34" width="4" height="132" rx="2" fill="#1a7f37"/>
-<text x="688.5" y="86" font-size="38" font-weight="800" fill="#1a7f37" letter-spacing="-0.5">22 MB</text>
-<text x="688.5" y="118" font-size="13.5" fill="#1f2328">download on macOS</text>
-<text x="688.5" y="138" font-size="13.5" fill="#59636e">(17 MB on Windows)</text>
-<text x="2" y="206" font-size="15" font-weight="700" fill="#086ef5">↑ More for you<tspan font-weight="400" fill="#59636e">  ·  and growing with every release</tspan></text>
-<rect x="1.0" y="218" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="1.0" y="218" width="4" height="132" rx="2" fill="#086ef5"/>
-<text x="21.0" y="270" font-size="38" font-weight="800" fill="#086ef5" letter-spacing="-0.5">3</text>
-<text x="21.0" y="302" font-size="13.5" fill="#1f2328">open sources: arXiv,</text>
-<text x="21.0" y="322" font-size="13.5" fill="#59636e">OpenAlex, Baidu Scholar</text>
-<rect x="223.5" y="218" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="223.5" y="218" width="4" height="132" rx="2" fill="#086ef5"/>
-<text x="243.5" y="270" font-size="38" font-weight="800" fill="#086ef5" letter-spacing="-0.5">5</text>
-<text x="243.5" y="302" font-size="13.5" fill="#1f2328">ways to import: PDFs,</text>
-<text x="243.5" y="322" font-size="13.5" fill="#59636e">folders, BibTeX, RIS, CSL</text>
-<rect x="446.0" y="218" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="446.0" y="218" width="4" height="132" rx="2" fill="#086ef5"/>
-<text x="466.0" y="270" font-size="38" font-weight="800" fill="#086ef5" letter-spacing="-0.5">3</text>
-<text x="466.0" y="302" font-size="13.5" fill="#1f2328">ways to start a project:</text>
-<text x="466.0" y="322" font-size="13.5" fill="#59636e">quick, AI-guided, manual</text>
-<rect x="668.5" y="218" width="210.5" height="132" rx="12" fill="#f6f8fa" stroke="#d0d7de"/>
-<rect x="668.5" y="218" width="4" height="132" rx="2" fill="#086ef5"/>
-<text x="688.5" y="270" font-size="38" font-weight="800" fill="#086ef5" letter-spacing="-0.5">2 × 2</text>
-<text x="688.5" y="302" font-size="13.5" fill="#1f2328">platforms × languages:</text>
-<text x="688.5" y="322" font-size="13.5" fill="#59636e">macOS, Windows · EN, 中文</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="156" viewBox="0 0 880 156" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif" role="img" aria-label="PageTide by the numbers">
+<rect x="0" y="0" width="880" height="1" fill="#d0d7de"/>
+<rect x="0" y="155" width="880" height="1" fill="#d0d7de"/>
+<text x="24" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">0</text>
+<text x="24" y="108" font-size="14" fill="#59636e">model tokens to rank papers</text>
+<text x="24" y="129" font-size="14" fill="#59636e">and learn your profile</text>
+<rect x="220" y="1" width="1" height="154" fill="#e4e8ec"/>
+<text x="244" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">0</text>
+<text x="244" y="108" font-size="14" fill="#59636e">accounts, servers</text>
+<text x="244" y="129" font-size="14" fill="#59636e">or telemetry</text>
+<rect x="440" y="1" width="1" height="154" fill="#e4e8ec"/>
+<text x="464" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">24<tspan dx="5" font-size="22" fill="#59636e" letter-spacing="0">MB</tspan></text>
+<text x="464" y="108" font-size="14" fill="#59636e">download on Apple Silicon</text>
+<text x="464" y="129" font-size="14" fill="#59636e">Macs, 17 MB on Windows</text>
+<rect x="660" y="1" width="1" height="154" fill="#e4e8ec"/>
+<text x="684" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">3</text>
+<text x="684" y="108" font-size="14" fill="#59636e">open paper sources: arXiv,</text>
+<text x="684" y="129" font-size="14" fill="#59636e">OpenAlex and Baidu Scholar</text>
 </svg>
