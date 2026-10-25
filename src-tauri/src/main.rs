@@ -210,6 +210,59 @@ async fn save_export(window: WebviewWindow, session: State<'_, DesktopSession>, 
     }).await.map_err(|e| e.to_string())?
 }
 
+/// Native folder chooser, modal to the main window. Returns the chosen absolute path, or None if cancelled.
+/// macOS runs NSOpenPanel on the main thread (as save_export does); Windows runs rfd on a blocking worker.
+#[cfg(not(windows))]
+#[tauri::command]
+fn pick_folder(window: WebviewWindow, session: State<'_, DesktopSession>, title: String) -> Result<Option<String>, String> {
+    owned_page(&window, &session)?;
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::MainThreadMarker;
+        use objc2_app_kit::{NSOpenPanel, NSModalResponseOK, NSModalResponseCancel};
+        use objc2_foundation::NSString;
+        let main = MainThreadMarker::new().ok_or("Folder dialog requires the main thread")?;
+        let panel = NSOpenPanel::openPanel(main);
+        panel.setCanChooseDirectories(true);
+        panel.setCanChooseFiles(false);
+        panel.setCanCreateDirectories(true);
+        panel.setAllowsMultipleSelection(false);
+        panel.setTitle(Some(&NSString::from_str(&title)));
+        panel.setMessage(Some(&NSString::from_str(&title)));
+        let response = panel.runModal();
+        if response == NSModalResponseCancel { return Ok(None); }
+        if response != NSModalResponseOK { return Err("Folder dialog failed to open".into()); }
+        let path = panel.URL().and_then(|url| url.path()).ok_or("Missing chosen folder")?.to_string();
+        return Ok(Some(path));
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = title;
+        Err("Folder chooser is currently supported on macOS and Windows".into())
+    }
+}
+
+#[cfg(windows)]
+#[tauri::command]
+async fn pick_folder(window: WebviewWindow, session: State<'_, DesktopSession>, title: String) -> Result<Option<String>, String> {
+    owned_page(&window, &session)?;
+    tauri::async_runtime::spawn_blocking(move || -> Result<Option<String>, String> {
+        let chosen = rfd::FileDialog::new().set_parent(&window).set_title(&title).pick_folder();
+        Ok(chosen.map(|path| path.to_string_lossy().to_string()))
+    }).await.map_err(|e| e.to_string())?
+}
+
+/// Restart into a fresh process (e.g. after the data folder changed): lift the quit guards, stop the backend, relaunch.
+#[tauri::command]
+fn relaunch(window: WebviewWindow, session: State<'_, DesktopSession>, app: tauri::AppHandle) -> Result<(), String> {
+    owned_page(&window, &session)?;
+    session.quitting.store(true, Ordering::SeqCst);
+    if let Some(process) = app.try_state::<PythonProcess>() {
+        process.stop();
+    }
+    app.restart()
+}
+
 #[tauri::command]
 fn complete_quit(window: WebviewWindow, session: State<'_, DesktopSession>, app: tauri::AppHandle) -> Result<(), String> {
     owned_page(&window, &session)?;
@@ -386,7 +439,7 @@ fn main() {
         }
     }));
     let result = builder
-        .invoke_handler(tauri::generate_handler![save_export, complete_quit])
+        .invoke_handler(tauri::generate_handler![save_export, complete_quit, pick_folder, relaunch])
         .on_menu_event(|handle, event| {
             if event.id().as_ref() == GUARDED_QUIT {
                 prepare_quit(handle);
@@ -401,10 +454,10 @@ fn main() {
             install_guarded_quit_menu(app)?;
             #[cfg(target_os = "macos")]
             install_native_quit_guard(app)?;
-            // Grant only our two app commands, only to this instance's random loopback origin.
+            // Grant only our app commands, only to this instance's random loopback origin.
             let capability = serde_json::json!({"identifier":"owned-desktop-session", "local":false,
                 "windows":["main"], "remote":{"urls":[format!("{}/*", exact_origin)]},
-                "permissions":["allow-save-export", "allow-complete-quit"]}).to_string();
+                "permissions":["allow-save-export", "allow-complete-quit", "allow-pick-folder", "allow-relaunch"]}).to_string();
             app.add_capability(capability.as_str())?;
             app.manage(process);
             #[cfg(windows)]

@@ -286,7 +286,8 @@
       <div class="card">
         <div class="field stack">
           <label for="dataDir">数据目录</label>
-          <div class="control"><input type="text" id="dataDir" value="读取中…" readonly></div>
+          <div class="control"><input type="text" id="dataDir" value="读取中…" readonly><button type="button" id="moveDataBtn" hidden>更改…</button></div>
+          <div id="dataDirStatus" data-pt-status role="status" aria-live="polite" aria-atomic="true"></div>
         </div>
         <div class="field stack actions-row">
           <div class="control">
@@ -491,7 +492,7 @@
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
       $('#timePreference').value  = settings.timePreference  || 'all';
 
-      try { const res=await fetch('/api/data-location'); if(!res.ok)throw new Error(); const data=await res.json(); $('#dataDir').value=data.data_dir; } catch { $('#dataDir').value='无法读取'; }
+      await loadLocation();
       await loadGateway();
     }
 
@@ -684,6 +685,59 @@
         window.PTDialogs.notice(`打不开新手指引：${e.message}`,{target:$('#settingsStatus'),kind:'error'});
         button.disabled=false;
       }
+    };
+
+    // Data folder: choose a folder, copy the library there (the old folder stays as it was), restart into it.
+    const MOVE_WORDS = {invalid:'找不到这个文件夹', not_found:'找不到这个文件夹', same:'这就是现在的数据目录',
+      inside_current:'不能选当前数据目录里面的文件夹', not_writable:'这个文件夹不能写入', occupied:'这个文件夹里已有名为 PageTide 的其他内容',
+      busy:'还有任务在运行，请稍后再试', copy_failed:'复制没有完成，原来的论文库没有改动', moving:'正在移动中', fixed:'数据目录由环境变量指定，不能在这里更改'};
+    const tauri = () => window.__TAURI_INTERNALS__;
+    async function loadLocation() {
+      try {
+        const res=await fetch('/api/data-location'); if(!res.ok)throw new Error(); const data=await res.json();
+        $('#dataDir').value=data.data_dir;
+        $('#moveDataBtn').hidden=!data.movable;
+        if(data.missing)window.PTDialogs.notice(`找不到数据目录 ${data.missing}，这次用的是原来的位置`,{target:$('#dataDirStatus'),kind:'error'});
+        return data;
+      } catch { $('#dataDir').value='无法读取'; return null; }
+    }
+    async function chooseFolder() {
+      if (tauri()) return await tauri().invoke('pick_folder', {title: window.PTi18n?.t('选择新的数据目录') || '选择新的数据目录'});
+      return window.prompt(window.PTi18n?.t('新的数据目录（完整路径）') || '新的数据目录（完整路径）') || null;   // a source run in a browser
+    }
+    async function postLocation(body) {
+      const res=await fetch('/api/data-location',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok || data.ok===false)throw new Error(MOVE_WORDS[data.reason]||'没能更改数据目录');
+      return data;
+    }
+    $('#moveDataBtn').onclick = async () => {
+      const button=$('#moveDataBtn'), target=$('#dataDirStatus');
+      if(button.disabled)return;
+      button.disabled=true;
+      try {
+        const chosen=await chooseFolder();
+        if(!chosen)return;
+        const plan=await postLocation({action:'inspect', path:chosen});
+        const question = plan.kind==='library'
+          ? `${plan.target} 里已经有一个 PageTide 论文库。切换后会使用它，当前的论文库不会搬过去，也不会被改动。继续吗？`
+          : `把论文库复制到 ${plan.target}？复制完成后 PageTide 会重新启动。原来的文件夹会保留，确认没问题后可以自己删除。`;
+        if(!await window.PTDialogs.confirm(question))return;
+        await postLocation({action:'move', path:chosen});
+        let move;
+        for(;;) {
+          await new Promise(r=>setTimeout(r,400));
+          move=(await (await fetch('/api/data-location')).json()).move||{};
+          if(move.state!=='running')break;
+          const share=move.total?Math.floor(100*move.done/move.total):0;
+          window.PTDialogs.notice(`正在复制… ${share}%`,{target});
+        }
+        if(move.state!=='done')throw new Error(MOVE_WORDS[move.reason]||'没能更改数据目录');
+        window.PTDialogs.notice(`数据目录已改为 ${move.result.data_dir}，正在重新启动…`,{target,kind:'success'});
+        if(tauri())await tauri().invoke('relaunch');
+        else window.PTDialogs.notice(`数据目录已改为 ${move.result.data_dir}，重新启动 PageTide 后生效`,{target,kind:'success'});
+      } catch(e) { window.PTDialogs.notice(e.message||'没能更改数据目录',{target,kind:'error'}); }
+      finally { button.disabled=false; }
     };
 
     loadSettings();

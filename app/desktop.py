@@ -7,7 +7,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import platform_compat, updater
+from . import data_location, platform_compat, updater
 from .server import build_server, clean_legacy_default_project, stop_organization_workers
 
 
@@ -96,6 +96,23 @@ def on_parent_gone(httpd):
     httpd.shutdown()
 
 
+def choose_data_root(environ):
+    """The library folder for this start, recorded in `environ` for the settings page: PAGETIDE_DATA_SOURCE is "env"
+    (PAGETIDE_DATA chose it; the page cannot move it), "default" or "moved" (data_location's pointer in the default
+    folder); PAGETIDE_DATA_MISSING names a moved-to folder that was not found this time."""
+    configured = environ.get("PAGETIDE_DATA")
+    default = platform_compat.default_data_dir(environ)
+    if configured:
+        root, source, missing = Path(configured).expanduser().resolve(), "env", None
+    else:
+        root, missing = data_location.resolve(default)
+        source = "default" if root == default else "moved"
+    environ.update(PAGETIDE_DATA_SOURCE=source, PAGETIDE_DEFAULT_DATA=str(default))
+    if missing:
+        environ["PAGETIDE_DATA_MISSING"] = missing
+    return root
+
+
 def main():
     platform_compat.force_utf8_std_streams()
     platform_compat.add_bundled_ca_certificates()
@@ -103,9 +120,7 @@ def main():
         from .organization_worker import main as run_worker
         return run_worker(sys.argv[2:])
     resources = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
-    configured_data = os.environ.get("PAGETIDE_DATA")
-    root = (Path(configured_data).expanduser().resolve() if configured_data else
-            platform_compat.default_data_dir())
+    root = choose_data_root(os.environ)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     (root / "app").mkdir(exist_ok=True)
     shutil.copyfile(resources / "app" / "budget.json", root / "app" / "budget.json")

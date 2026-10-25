@@ -47,7 +47,9 @@ cargo tauri build --bundles app
 
 正式版由 CI 用 `PAGETIDE_RELEASE=1` 编译；没有这个变量编出来的都是开发版：外壳给后端设 `PAGETIDE_CHANNEL=dev`，后端改用开发目录，窗口标题是 “PageTide Dev”，应用内更新关闭（否则开发版会把自己换成正式版并打开日常数据）。这样同一台电脑上开发调试和日常使用互不影响。源码直接运行的服务（`python3 -m app.server`）和命令行仍默认用仓库里的 `.local/app`。
 
-环境变量 `PAGETIDE_DATA` 可覆盖（两系统、两种构建都一样）。卸载应用不会删除数据目录（Windows 的数据目录刻意不与安装目录 `%LOCALAPPDATA%\PageTide` 同名）。
+设置页“存储与导出”可以把论文库搬到别的文件夹（`app/data_location.py`）：复制并校验后，在上表的默认目录里写一个 `location.json` 指向新位置，然后重启应用；原文件夹原样保留，由用户确认后自己删除。选中的文件夹里已有 PageTide 论文库时直接改用它，不覆盖。新位置下次启动时找不到（如移动硬盘没接上），应用回到默认目录并在设置页提示。
+
+环境变量 `PAGETIDE_DATA` 可覆盖（两系统、两种构建都一样）。用这个变量指定时，设置页不能更改数据目录。卸载应用不会删除数据目录（Windows 的数据目录刻意不与安装目录 `%LOCALAPPDATA%\PageTide` 同名）。
 
 ## Windows 上没有验证的部分
 

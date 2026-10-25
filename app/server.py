@@ -23,7 +23,7 @@ from http.cookies import SimpleCookie
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import creation, demo, maintenance, onboarding, updater
+from . import creation, data_location, demo, maintenance, onboarding, updater
 from .organization import Conflict as OrganizationConflict
 from .language import language
 from .service import App, NoProject
@@ -190,6 +190,60 @@ def _job_start(name, fn):
                                     traceback=traceback.format_exc()[-800:])
     threading.Thread(target=runner, daemon=True).start()
     return dict(JOBS[job_id])
+
+
+# Moving the library to another folder (data_location): one move at a time, progress for the settings page.
+MOVE = {"state": "idle"}
+MOVE_LOCK = threading.Lock()
+
+
+def _location(current):
+    """Where the library is, the default folder, whether the page may move it, and the last move's progress."""
+    root = Path(current).resolve()
+    source = os.environ.get("PAGETIDE_DATA_SOURCE")
+    with MOVE_LOCK:
+        move = dict(MOVE)
+    return {"data_dir": str(root), "pdf_dir": str(root / "pdfs"), "cache_dir": str(root / "cache"),
+            "default_dir": os.environ.get("PAGETIDE_DEFAULT_DATA"), "moved": source == "moved",
+            "movable": source in ("default", "moved"), "missing": os.environ.get("PAGETIDE_DATA_MISSING"), "move": move}
+
+
+def _busy():
+    """Work that writes to the library in the background; a move waits until none is running."""
+    with JOBS_LOCK:
+        if any(job["state"] == "running" for job in JOBS.values()):
+            return True
+    with IMPORT_WORKERS_LOCK:
+        if any(thread.is_alive() for thread, _ in IMPORT_WORKERS.values()):
+            return True
+    return bool(maintenance._RUNNING)
+
+
+def _move_start(current, chosen):
+    current, default = Path(current).resolve(), os.environ.get("PAGETIDE_DEFAULT_DATA")
+    with MOVE_LOCK:
+        if MOVE.get("state") == "running":
+            return {"ok": False, "reason": "moving"}
+        MOVE.clear(); MOVE.update(state="running", done=0, total=0)
+
+    def progress(done, total):
+        with MOVE_LOCK:
+            MOVE.update(done=done, total=total)
+
+    def run():
+        try:
+            result = data_location.move(current, chosen, default, progress)
+            outcome = {"state": "done", "result": result}
+        except data_location.MoveError as exc:
+            print(f"PageTide move failed: {exc.reason}: {exc}", file=sys.stderr)
+            outcome = {"state": "failed", "reason": exc.reason}
+        except Exception as exc:  # the old folder is untouched; say so and keep the details in the log
+            traceback.print_exc()
+            outcome = {"state": "failed", "reason": "copy_failed"}
+        with MOVE_LOCK:
+            MOVE.update(outcome)
+    threading.Thread(target=run, daemon=True).start()
+    return {"ok": True}
 
 
 def _job_get(job_id):
@@ -744,8 +798,7 @@ class Handler(BaseHTTPRequestHandler):
             except (OSError, ValueError, sqlite3.Error) as exc:
                 self._json({'error': '结构化数据导出失败：' + str(exc)}, 500)
         elif route == "/api/data-location":
-            root = Path(self._data()).resolve()
-            self._json({'data_dir': str(root), 'pdf_dir': str(root / 'pdfs'), 'cache_dir': str(root / 'cache')})
+            self._json(_location(self._data()))
         elif route == "/api/qa/session":
             from .reader_context import session, history
             app = self._app(); key = (query.get('key') or [''])[0]
@@ -784,7 +837,7 @@ class Handler(BaseHTTPRequestHandler):
         # the demo project is checked once it is parsed (below).
         if (route == "/api/seeds/pdf" or route.startswith("/api/import/")) and not self._demo_check("POST", route):
             return
-        if route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test", "/api/source-test"):
+        if route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test", "/api/source-test", "/api/data-location"):
             # These routes mutate the local library, the learning map or store a credential: also cap the body.
             limit = {"/api/organization": 2_000_000, "/api/route": 1_000_000}.get(route, 8_000)
             try:
@@ -956,6 +1009,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({'error': str(exc)}, 409)
             except (ValueError, TypeError) as exc:
                 return self._json({"error": str(exc)}, 400)
+        elif route == "/api/data-location":
+            place = _location(self._data())
+            if not place["movable"]:
+                return self._json({"ok": False, "reason": "fixed"}, 409)
+            try:
+                if body.get("action") == "inspect":
+                    return self._json({"ok": True, **data_location.inspect(place["data_dir"], body.get("path"))})
+                if body.get("action") == "move":
+                    if _busy():
+                        return self._json({"ok": False, "reason": "busy"}, 409)
+                    data_location.inspect(place["data_dir"], body.get("path"))
+                    started = _move_start(place["data_dir"], body.get("path"))
+                    return self._json(started, 200 if started["ok"] else 409)
+            except data_location.MoveError as exc:
+                return self._json({"ok": False, "reason": exc.reason}, 400)
+            return self._json({"error": "unknown action"}, 400)
         elif route == "/api/refresh":
             include_distractors = bool(body.get("distractors"))
             pages = int(body.get("pages", 1))
