@@ -38,8 +38,8 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 ## 数字说话
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-zh-dark.svg">
-  <img src="docs/assets/readme/numbers-zh-light.svg" alt="PageTide 数字说话：排序论文、学习画像所用的模型 token 为 0；账号、服务器和遥测为 0；Apple Silicon Mac 安装包 24 MB，Windows 版 17 MB；3 个开放论文来源：arXiv、OpenAlex、百度学术" width="880">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-band-zh-dark.svg">
+  <img src="docs/assets/readme/numbers-band-zh-light.svg" alt="PageTide 数字说话：排序论文、学习画像所用的模型 token 为 0；账号、服务器和遥测为 0；Apple Silicon Mac 安装包 24 MB，Windows 版 17 MB；3 个开放论文来源：arXiv、OpenAlex、百度学术" width="880">
 </picture>
 
 <sub>排序在你的电脑上完成，不用 AI。安装包大小以当前发布版为准。</sub>

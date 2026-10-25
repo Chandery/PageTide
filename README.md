@@ -38,8 +38,8 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 ## By the numbers
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-en-dark.svg">
-  <img src="docs/assets/readme/numbers-en-light.svg" alt="PageTide by the numbers: 0 model tokens to rank papers and learn your profile; 0 accounts, servers or telemetry; 24 MB download on Apple Silicon Macs, 17 MB on Windows; 3 open paper sources: arXiv, OpenAlex and Baidu Scholar" width="880">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-band-en-dark.svg">
+  <img src="docs/assets/readme/numbers-band-en-light.svg" alt="PageTide by the numbers: 0 model tokens to rank papers and learn your profile; 0 accounts, servers or telemetry; 24 MB download on Apple Silicon Macs, 17 MB on Windows; 3 open paper sources: arXiv, OpenAlex and Baidu Scholar" width="880">
 </picture>
 
 <sub>Ranking runs on your computer, without AI. Sizes are the current release downloads.</sub>
