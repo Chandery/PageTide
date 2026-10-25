@@ -41,7 +41,7 @@ def abstract_text(inverted):
     return " ".join(word for _, word in positions)
 
 
-SOURCE_PAGE_DOMAINS = {"baidu_scholar": "baidu.com", "baidu_web": "xueshu.baidu.com"}   # a source's own pages: the only hosts its links may point to
+SOURCE_PAGE_DOMAINS = {"baidu_scholar": "baidu.com", "baidu_web": "xueshu.baidu.com", "cnki": "kns.cnki.net"}   # a source's own pages: the only hosts its links may point to
 
 
 def page_url(value, domain, upgrade=False):

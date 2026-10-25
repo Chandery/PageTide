@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import creation, eligibility, guidance_contract, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, paper_language, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
-from . import baidu_scholar, baidu_web, source_adapters, source_keys
+from . import baidu_scholar, baidu_web, cnki, source_adapters, source_keys
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -89,7 +89,8 @@ class App:
                          "baidu_scholar": baidu_scholar.BaiduScholar(self.data / "cache" / "baidu_scholar", self.store.path,
                                                                      api_key=source_keys.load(self.data, "baidu_scholar")),
                          "baidu_web": baidu_web.BaiduWeb(self.data / "cache" / "baidu_web", self.store.path,
-                                                         api_key=source_keys.load(self.data, "baidu_web"))}
+                                                         api_key=source_keys.load(self.data, "baidu_web")),
+                         "cnki": cnki.Cnki()}
         self.pdf_fetcher = pdf_fetch.shared_fetcher(self.data / "pdfs")
         self.gateway = Gateway(root=self.root, data_dir=self.data)
         self.projects = ProjectManager(self.store)
@@ -2273,9 +2274,20 @@ class App:
             found, error = [], {"kind": getattr(exc, "kind", "error"), "message": str(exc)[-200:]}
         baidu_papers, baidu_problem = self._baidu_search(query, since=None if all_years else window_start(CREATION_WINDOW_YEARS),
                                                          languages=languages, require_zh=True, web_per_page=12)
+        items, total = self._merge_guidance_candidates(session_id, draft, query, [*found, *baidu_papers])
+        result = {"query": query, "items": items, "total": total, "error": error}
+        if baidu_problem:
+            result["baidu"] = {"kind": baidu_problem}
+        if self.cnki_wanted(query, languages, require_zh=True):
+            result["cnki_ask"] = True        # the desktop page searches this query in its CNKI window and posts what it found
+        return result
+
+    def _merge_guidance_candidates(self, session_id, draft, query, papers):
+        """Merge one query's papers into the session's candidate list and store it: (items for the page, candidates in total).
+        One item per paper, whichever source found it; a paper found again only gains the other source's page and the query."""
         known = {p["key"]: p for p in draft["candidates"] if isinstance(p, dict) and p.get("key")}
         touched = {}          # key -> whether this call found it first; one item per paper, whichever source found it
-        for paper in [*found, *baidu_papers]:
+        for paper in papers:
             if not paper.get("key"):
                 continue
             entry = known.get(paper["key"])
@@ -2297,10 +2309,7 @@ class App:
                  for key, new in touched.items()]
         draft["candidates"] = list(known.values())
         self.store.update_guidance_session(session_id, draft=draft)
-        result = {"query": query, "items": items, "total": len(known), "error": error}
-        if baidu_problem:
-            result["baidu"] = {"kind": baidu_problem}
-        return result
+        return items, len(known)
 
     def guidance_preview(self, session_id, draft=None, languages=None):
         """All queries at once (kept for callers that do not stream); the page uses guidance_search."""
@@ -2346,7 +2355,10 @@ class App:
         use up the day's allowance."""
         result = creation.search_seeds(self.source, query)      # validates the query first
         papers, problem = self._baidu_search(re.sub(r"\s+", " ", str(query)).strip(), per_page=8) if typed else ([], None)
-        return creation.merge_baidu(result, str(query), papers, problem) if papers or problem else result
+        result = creation.merge_baidu(result, str(query), papers, problem) if papers or problem else result
+        if typed and self.cnki_wanted(str(query)):
+            result = {**result, "cnki_ask": True}     # a typed Chinese title is also searched in the desktop app's CNKI window
+        return result
 
     def import_pdf(self, data, filename=""):
         return creation.import_pdf(self.data, data, filename)
@@ -3087,6 +3099,110 @@ class App:
         floor = int(str(from_date)[:4]) if from_date and str(from_date)[:4].isdigit() else None
         return [p for p in papers if not floor or not p.get("published") or int(str(p["published"])[:4]) >= floor]
 
+    # ------------------------------------------------------------------ 知网 (CNKI), ADR 0045
+    # The server never contacts CNKI. The main page asks for a plan, the desktop app's CNKI window searches, and what it read
+    # comes back here as untrusted page text (app/cnki.py validates every field).
+
+    def cnki_plan(self, project_id):
+        """What the CNKI window should search for one project's refresh: at most cnki.KEYWORDS Chinese keywords, the CNKI ids
+        already in the library (their detail pages are not opened again), the cap on new papers and the time window. Not
+        enabled (with a reason_code) when the switch is off, the project does not accept Chinese papers, it is a learning-map
+        project (that refresh plans its own searches, like Baidu) or it has no Chinese keywords."""
+        base = {"enabled": False, "queries": [], "known": [], "max_new": cnki.MAX_NEW_PER_REFRESH, "since": None}
+        if not user_settings.cnki(self.data):
+            return {**base, "reason_code": "sources_disabled"}
+        project = self.projects.get_project(project_id)
+        if not project:
+            raise LookupError("项目不存在")
+        policy = project["language_policy"]
+        if policy["status"] != "ready" or "zh" not in policy["allowed_languages"]:
+            return {**base, "reason_code": "language_not_allowed"}
+        if self._route_state(project_id):
+            return {**base, "reason_code": "route"}
+        keywords = [k for k in self._project_keywords(project_id) if has_cjk(k)][:cnki.KEYWORDS]
+        if not keywords:
+            return {**base, "reason_code": "no_keywords"}
+        since = user_settings.since(self.data, default=window_start(FEED_WINDOW_YEARS))
+        return {**base, "enabled": True, "queries": keywords, "known": cnki.known_ids(self.store), "since": since}
+
+    def cnki_ingest(self, project_id, items, problem=None):
+        """Papers the CNKI window read for one project's refresh, added to the library and the project.
+
+        Only while cnki_plan would run for the project. Items are validated (cnki.papers_from_items, at most cnki.MAX_ITEMS
+        per request; the page sends a long run in several requests). Papers from the future or before the time window are
+        left out. A paper the library already has under another key with the same title (a Baidu paper, say) is not added
+        again: it only gains the CNKI page and the project link. A paper CNKI reported before keeps its stored abstract (the
+        window does not reopen known detail pages). `problem` is how the window's run ended, if it failed; it is reported, and
+        what was read before it is kept."""
+        plan = self.cnki_plan(project_id)
+        if not plan["enabled"]:
+            raise ValueError("这个项目没有启用知网")
+        problem = cnki.problem_of(problem)
+        papers = self._not_older_than(cnki.papers_from_items(items), plan["since"])
+        today = self.batch_day()
+        papers = [p for p in papers if not p.get("published") or p["published"] <= today]
+        marks = {}
+        for key, title in self.store.conn.execute("SELECT key, title FROM papers"):
+            mark = baidu_web.title_mark(title)
+            if mark:
+                marks.setdefault(mark, (key, title))
+        source_policy = user_settings.source_policy(self.data)
+        rows = []
+        for paper in papers:
+            mark = baidu_web.title_mark(paper["title"])
+            twin = marks.get(mark) if mark else None
+            if twin and twin[0] != paper["key"]:
+                rows.append({"key": twin[0], "title": twin[1], "oa": paper["oa"], "group_name": "field", "project_id": project_id})
+                continue
+            if not source_policy.allows(paper):
+                continue
+            rows.append({**paper, "project_id": project_id})
+            if mark:
+                marks[mark] = (paper["key"], paper["title"])
+        stats = {}
+        added = self.store.upsert_papers(rows, stats=stats)
+        result = {"fetched": len(papers), "added": added, "new_to_project": stats["linked"],
+                  "new_recommendable": self.new_recommendable(project_id, stats["linked_keys"]), "problem": problem}
+        self.store.set_setting("cnki_last_" + project_id, {"at": now(), "fetched": len(papers), "added": added,
+                                                           "new_to_project": stats["linked"], "problem": problem})
+        return result
+
+    def cnki_wanted(self, text, languages=None, require_zh=False):
+        """Whether the page should ask the CNKI window about `text` in project creation: the switch is on, the text has Chinese
+        characters and (for candidates) 中文 is ticked. The same rule as Baidu's; checked again when the results come back."""
+        if not user_settings.cnki(self.data) or not has_cjk(text):
+            return False
+        return not require_zh or "zh" in guidance_contract.language_codes(languages)
+
+    def cnki_guidance(self, session_id, query, items, problem=None, languages=None):
+        """Creation candidates the CNKI window found for ONE query, merged into the session's candidate list like guidance_search
+        (at most cnki.GUIDANCE_PER_QUERY). `problem` comes back as `cnki` for the page's short status."""
+        session = self.store.guidance_session(session_id)
+        if not session or session["status"] != "draft":
+            raise ValueError("引导会话不存在或已结束")
+        query = re.sub(r"\s+", " ", str(query or "")).strip()[:180]
+        if not query or not self.cnki_wanted(query, languages, require_zh=True):
+            raise ValueError("这条检索式不需要知网")
+        draft = self._bounded_guidance_draft(session["draft"])
+        papers = cnki.papers_from_items(items)[:cnki.GUIDANCE_PER_QUERY]
+        items_out, total = self._merge_guidance_candidates(session_id, draft, query, papers)
+        result = {"query": query, "items": items_out, "total": total, "error": None}
+        problem = cnki.problem_of(problem)
+        if problem:
+            result["cnki"] = {"kind": problem}
+        return result
+
+    def cnki_seeds(self, query, items, problem=None):
+        """Seed-search hits the CNKI window found for a typed Chinese title (at most cnki.SEED_PER_QUERY), remembered so one can
+        be added as a seed by its `cnki:` key. The page posts the chosen hit again once its detail page is read; the remembered
+        paper then carries the abstract."""
+        query = re.sub(r"\s+", " ", str(query or "")).strip()
+        if not 3 <= len(query) <= 200 or not self.cnki_wanted(query):
+            raise ValueError("这个标题不需要知网")
+        papers = cnki.papers_from_items(items, group="seed")[:cnki.SEED_PER_QUERY]
+        return creation.merge_baidu({"status": "empty", "items": []}, query, papers, cnki.problem_of(problem),
+                                    limit=cnki.SEED_PER_QUERY, label="cnki", by_key=True)
+
     def _enrich_from_openalex(self, papers, errors):
         """One batch lookup (at most 50 DOIs, public metadata) for papers a source reported without PDF links or a language.
         OpenAlex's id, arXiv id, open-access facts (merged with the source's page) and language are added; the title and the
@@ -3126,7 +3242,8 @@ class App:
         errors = []
         source_policy = user_settings.source_policy(self.data)
         arxiv, general = source_policy.arxiv, source_policy.general
-        if not arxiv and not general and not source_policy.baidu and not source_policy.baidu_web:
+        if not arxiv and not general and not source_policy.baidu and not source_policy.baidu_web and not source_policy.cnki:
+            # 知网 counts as on: its part runs afterwards in the desktop app's CNKI window (cnki_plan / cnki_ingest).
             return {"fetched":0,"added":0,"new_to_project":0,"new_recommendable":0,"field":0,"errors":[],"reason_code":"sources_disabled"}
         openalex_on = arxiv or general
         source_options = {} if arxiv and general else {"source_arxiv":arxiv,"source_openalex":general}

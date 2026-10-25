@@ -25,6 +25,7 @@ _DOI_URL = re.compile(r"https?://(?:dx\.)?doi\.org/(10\.\d{4,9}/\S+)", re.I)
 _OPENALEX = re.compile(r"(?:https?://openalex\.org/)?(W\d+)", re.I)
 _PDF_ID = re.compile(r"[0-9a-f]{64}")
 _BAIDU = re.compile(r"baidu:[A-Za-z0-9_.:-]{1,120}")
+_CNKI = re.compile(r"cnki:[A-Z]{2,8}:[A-Za-z0-9_.-]{1,64}")      # a 知网 hit the person saw in the seed search (ADR 0045)
 
 # Resolved papers are remembered between the lookup and the project creation request, so a seed the
 # user already saw resolve is not fetched (and rate-limited) a second time. The App object is rebuilt
@@ -40,7 +41,7 @@ def parse_seed(text):
     """(identifier for OpenAlex, arXiv id or None, dedupe key) or ValueError for free text."""
     seed = str(text or "").strip()
     seed = re.sub(r"^doi:\s*", "", seed, flags=re.I).rstrip(".,;")
-    if _BAIDU.fullmatch(seed):
+    if _BAIDU.fullmatch(seed) or _CNKI.fullmatch(seed):
         return seed, None, seed
     match = _ARXIV.fullmatch(seed) or _ARXIV_URL.fullmatch(seed)
     if match:
@@ -99,11 +100,11 @@ def fetch_seed_paper(client, identifier, arxiv_id=None):
 
     A `baidu:` identifier is a Baidu Scholar hit the person saw in the seed search; a DOI OpenAlex does not know falls back to
     the same remembered hit."""
-    if identifier.startswith("baidu:"):
+    if identifier.startswith(("baidu:", "cnki:")):
         paper = _remembered_baidu(identifier)
         if paper:
             return paper
-        raise SourceError("Baidu Scholar hit is no longer remembered; search for it again", "not_found")
+        raise SourceError("This search hit is no longer remembered; search for it again", "not_found")
     paper = _cached(identifier)
     if paper:
         return paper
@@ -150,11 +151,13 @@ def seed_rank(query, title):
     return 3 if found == wanted else 2 if found.startswith(wanted) else 1 if wanted in found else 0
 
 
-def merge_baidu(result, query, papers=(), problem=None, limit=12):
+def merge_baidu(result, query, papers=(), problem=None, limit=12, label="baidu", by_key=False):
     """A seed-search result with Baidu Scholar hits added. `papers` are Baidu hits (remembered so they can be added as seeds),
-    `problem` the kind of a Baidu failure, which is reported beside the hits and never fails the search. Hits are ordered by
-    how well the title matches the query, keeping each source's own order within a rank; a hit OpenAlex already has (same key
-    or same title) is not repeated. Baidu hits make the status ok even when OpenAlex failed or found nothing."""
+    `problem` the kind of a Baidu failure, which is reported beside the hits (under `label`) and never fails the search. Hits
+    are ordered by how well the title matches the query, keeping each source's own order within a rank; a hit OpenAlex already
+    has (same key or same title) is not repeated. Baidu hits make the status ok even when OpenAlex failed or found nothing.
+    知网 hits use the same merge with `label` "cnki" and `by_key`: their seed id is always their own key, so adding one never
+    sends its DOI to OpenAlex (owner, 2026-10-26)."""
     items = list(result.get("items") or [])
     seen = {i.get("key") for i in items} | {title_key(i.get("title")) for i in items} - {""}      # an empty title mark never merges papers
     for paper in papers:
@@ -164,7 +167,7 @@ def merge_baidu(result, query, papers=(), problem=None, limit=12):
             continue
         remember_baidu(paper)
         seen.update({paper["key"], mark} - {""})
-        view["seed_id"] = paper.get("doi") or paper["key"]
+        view["seed_id"] = paper["key"] if by_key else paper.get("doi") or paper["key"]
         items.append(view)
     items.sort(key=lambda i: -seed_rank(query, i.get("title")))
     out = dict(result)
@@ -172,7 +175,7 @@ def merge_baidu(result, query, papers=(), problem=None, limit=12):
         out.update(status="ok", items=items[:limit])
         out.pop("error", None)
     if problem:
-        out["baidu"] = {"kind": problem}
+        out[label] = {"kind": problem}
     return out
 
 

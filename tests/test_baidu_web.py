@@ -115,9 +115,9 @@ class WebCase(unittest.TestCase):
 
 
 class InfoTests(WebCase):
-    def test_the_source_is_registered_last_and_shares_the_key_of_baidu_scholar(self):
+    def test_the_source_is_registered_after_baidu_scholar_and_shares_its_key(self):
         infos = {i.id: i for i in self.source_adapters.all_infos()}
-        self.assertEqual(list(infos), ["arxiv", "openalex", "baidu_scholar", "baidu_web"])
+        self.assertEqual(list(infos), ["arxiv", "openalex", "baidu_scholar", "baidu_web", "cnki"])
         web, scholar = infos["baidu_web"], infos["baidu_scholar"]
         self.assertEqual((web.key, web.daily_cap, web.serves_languages, web.query_scripts), ("required", 40, ("zh",), ("cjk",)))
         self.assertEqual(web.key_shared_with, "baidu_scholar")

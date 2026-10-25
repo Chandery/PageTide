@@ -60,7 +60,7 @@ def validate(values):
             v=values[key]
             if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or not low<=v<=high or (integer and int(v)!=v):
                 raise ValueError(f'{key} must be between {low} and {high}')
-    for key in ('sourceArxiv','sourceOpenAlex','sourceBaiduScholar','sourceBaiduWeb','baiduScholarConfirmed','routeBeta','autoCheckUpdates'):
+    for key in ('sourceArxiv','sourceOpenAlex','sourceBaiduScholar','sourceBaiduWeb','baiduScholarConfirmed','sourceCnki','cnkiConfirmed','routeBeta','autoCheckUpdates'):
         if key in values and not isinstance(values[key],bool):raise ValueError(f'{key} must be boolean')
     for key,allowed in {'theme':('light','dark','auto'),'language':('zh-CN','en-US'),'timePreference':('recent','month','all'),'updateFrequency':('daily','weekly','manual'),'apiProvider':('deepseek',)}.items():
         if key in values and values[key] not in allowed:raise ValueError(f'Invalid {key}')
@@ -80,6 +80,11 @@ def baidu_web(data_dir):
     return read(data_dir).get('sourceBaiduWeb') is True
 
 
+def cnki(data_dir):
+    """知网 (searched in the desktop app's CNKI window, ADR 0045) is off until the user switches it on."""
+    return read(data_dir).get('sourceCnki') is True
+
+
 def recency_filter(data_dir):
     """The search_recency_filter of the Baidu web search: only a time window the owner chose ("recent" = 7 days = week, "month");
     "all", no choice or anything else means no filter (recency is then a ranking weight, never a cut-off)."""
@@ -89,22 +94,30 @@ def recency_filter(data_dir):
 class SourcePolicy:
     """Which sources the user has switched on, and the one rule that says whether a paper may be shown or recommended."""
 
-    def __init__(self,arxiv,general,baidu,baidu_web=False):
-        self.arxiv,self.general,self.baidu,self.baidu_web=arxiv,general,baidu,baidu_web
+    def __init__(self,arxiv,general,baidu,baidu_web=False,cnki=False):
+        self.arxiv,self.general,self.baidu,self.baidu_web,self.cnki=arxiv,general,baidu,baidu_web,cnki
 
     @staticmethod
     def is_arxiv(paper):
         return bool(paper.get('arxiv_id')) or 'arxiv' in str(paper.get('source') or '').casefold()
 
     @staticmethod
-    def baidu_reporters(paper):
-        """Which Baidu sources reported the paper: the sources listed in its open-access facts (`via`); a `baidu:` key with none
-        listed is the older Baidu Scholar form. Empty when Baidu did not report it."""
+    def reporters(paper):
+        """Which page-reporting sources (the Baidu sources, 知网) reported the paper: those listed in its open-access facts
+        (`via`); a `baidu:` key with none listed is the older Baidu Scholar form, a `cnki:` key with none listed is 知网. Empty
+        when none of them reported it."""
         from .source_adapters import paper_oa
         via=paper_oa(paper).get('via') or []
-        found={name for name in ('baidu_scholar','baidu_web') if name in via}
-        if not found and str(paper.get('key') or '').startswith('baidu:'):found={'baidu_scholar'}
+        found={name for name in ('baidu_scholar','baidu_web','cnki') if name in via}
+        key=str(paper.get('key') or '')
+        if not found and key.startswith('baidu:'):found={'baidu_scholar'}
+        if not found and key.startswith('cnki:'):found={'cnki'}
         return found
+
+    @staticmethod
+    def baidu_reporters(paper):
+        """Which Baidu sources reported the paper. Empty when Baidu did not report it."""
+        return SourcePolicy.reporters(paper)-{'cnki'}
 
     @staticmethod
     def from_baidu(paper):
@@ -112,18 +125,19 @@ class SourcePolicy:
         return bool(SourcePolicy.baidu_reporters(paper))
 
     def allows(self,paper):
-        """arXiv papers follow the arXiv switch; a paper only Baidu reported follows the switch of the Baidu source(s) that reported
-        it (either, when both did); one both OpenAlex and Baidu reported is allowed while either of its sources is on; the rest
-        follow the journals-and-conferences switch."""
+        """arXiv papers follow the arXiv switch; a paper only Baidu or 知网 reported follows the switch of the source(s) that
+        reported it (any of them, when several did); one OpenAlex also reported is allowed while any of its sources is on; the
+        rest follow the journals-and-conferences switch."""
         if self.is_arxiv(paper):return self.arxiv
-        reporters=self.baidu_reporters(paper)
+        reporters=self.reporters(paper)
         if not reporters:return self.general
-        return bool(paper.get('openalex_id') and self.general) or ('baidu_scholar' in reporters and self.baidu) or ('baidu_web' in reporters and self.baidu_web)
+        return (bool(paper.get('openalex_id') and self.general) or ('baidu_scholar' in reporters and self.baidu)
+                or ('baidu_web' in reporters and self.baidu_web) or ('cnki' in reporters and self.cnki))
 
 
 def source_policy(data_dir):
     arxiv,general=sources(data_dir)
-    return SourcePolicy(arxiv,general,baidu_scholar(data_dir),baidu_web(data_dir))
+    return SourcePolicy(arxiv,general,baidu_scholar(data_dir),baidu_web(data_dir),cnki(data_dir))
 
 
 def source_allowed(data_dir,paper):

@@ -739,6 +739,11 @@ class Handler(BaseHTTPRequestHandler):
             self._import_get(route, query)
         elif route.startswith("/api/jobs/"):
             self._json(_job_get(route[len("/api/jobs/"):]))
+        elif route == "/api/cnki/plan":
+            # What the desktop app's CNKI window should search for one project's refresh (ADR 0045).
+            if not requested_project:
+                return self._json({"error": "缺少项目"}, 400)
+            self._json(self._app().cnki_plan(requested_project))
         elif route == "/api/library":
             app = self._app()
             project_id = query.get("project_id", [None])[0]
@@ -852,9 +857,12 @@ class Handler(BaseHTTPRequestHandler):
         # the demo project is checked once it is parsed (below).
         if (route == "/api/seeds/pdf" or route.startswith("/api/import/")) and not self._demo_check("POST", route):
             return
-        if route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test", "/api/source-test", "/api/data-location"):
-            # These routes mutate the local library, the learning map or store a credential: also cap the body.
-            limit = {"/api/organization": 2_000_000, "/api/route": 1_000_000}.get(route, 8_000)
+        cnki_route = route in ("/api/cnki/ingest", "/api/cnki/seeds") or (
+            route.startswith("/api/project-guidance/sessions/") and route.endswith("/cnki"))
+        if cnki_route or route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test", "/api/source-test", "/api/data-location"):
+            # These routes mutate the local library, the learning map or store a credential: also cap the body. The CNKI routes
+            # carry page text the CNKI window read (at most cnki.MAX_ITEMS papers with full abstracts per request).
+            limit = 2_000_000 if cnki_route else {"/api/organization": 2_000_000, "/api/route": 1_000_000}.get(route, 8_000)
             try:
                 length = int(self.headers.get("Content-Length") or 0)
             except ValueError:
@@ -975,6 +983,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"project_id": project_id, "paper_key": paper_key, "added": True})
             except (ValueError, TypeError, sqlite3.IntegrityError) as exc:
                 return self._json({"error": str(exc)}, 400)
+        elif route == "/api/cnki/ingest":
+            try:
+                if set(body) - {"project_id", "items", "problem"} or not isinstance(body.get("project_id"), str):
+                    raise ValueError("知网结果请求无效")
+                self._json(app.cnki_ingest(body["project_id"], body.get("items") or [], body.get("problem")))
+            except LookupError as exc:
+                return self._json({"error": str(exc)}, 404)
+            except (ValueError, TypeError) as exc:
+                return self._json({"error": str(exc)}, 400)
+        elif route == "/api/cnki/seeds":
+            try:
+                if set(body) - {"query", "items", "problem"}:
+                    raise ValueError("知网结果请求无效")
+                self._json(app.cnki_seeds(body.get("query"), body.get("items") or [], body.get("problem")))
+            except (ValueError, TypeError) as exc:
+                return self._json({"error": str(exc)}, 400)
         elif route in ("/api/seeds/resolve", "/api/seeds/search"):
             try:
                 if route.endswith("resolve"):
@@ -1005,6 +1029,11 @@ class Handler(BaseHTTPRequestHandler):
                 elif action == "preview":
                     chosen = {"languages": body["languages"]} if "languages" in body else {}
                     self._json(app.guidance_preview(session_id, body.get("draft"), **chosen))
+                elif action == "cnki":
+                    if set(body) - {"query", "items", "problem", "languages"}:
+                        raise ValueError("知网结果请求无效")
+                    self._json(app.cnki_guidance(session_id, body.get("query"), body.get("items") or [], body.get("problem"),
+                                                 languages=body.get("languages")))
                 elif action == "route":
                     if 'brief' in body:
                         if set(body) - {'brief', 'regenerate', 'dry_run'}:

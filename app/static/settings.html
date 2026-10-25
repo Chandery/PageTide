@@ -236,6 +236,10 @@
           </div>
         </div>
         <div class="field">
+          <label for="sourceCnki">知网</label>
+          <div class="control"><input type="checkbox" id="sourceCnki" class="switch"></div>
+        </div>
+        <div class="field">
           <label for="updateFrequency">更新频率</label>
           <div class="control">
             <select id="updateFrequency">
@@ -337,6 +341,7 @@
     const sourceTest = {openalex:{busy:false, epoch:0}, baidu_scholar:{busy:false, epoch:0}};
     let sourceInfo = {};
     let baiduConfirmed = false;
+    let cnkiConfirmed = false;
 
     function sourceBaseWord(info) {
       if (!info) return '';
@@ -493,6 +498,11 @@
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
       $('#sourceBaiduWeb').checked = settings.sourceBaiduWeb === true;
       baiduConfirmed = settings.baiduScholarConfirmed === true;
+      $('#sourceCnki').checked = settings.sourceCnki === true;
+      cnkiConfirmed = settings.cnkiConfirmed === true;
+      // 知网 is searched only in the desktop app's own CNKI window (ADR 0045): from a source run there is none.
+      $('#sourceCnki').disabled = !window.__TAURI_INTERNALS__ && !$('#sourceCnki').checked;
+      $('#sourceCnki').title = window.__TAURI_INTERNALS__ ? '' : '只在桌面应用里可用';
       $('#updateFrequency').value = settings.updateFrequency || 'daily';
       $('#timePreference').value  = settings.timePreference  || 'all';
 
@@ -564,6 +574,8 @@
         sourceOpenAlex: $('#sourceOpenAlex').checked,
         sourceBaiduWeb: $('#sourceBaiduWeb').checked && baiduConfirmed,
         baiduScholarConfirmed: baiduConfirmed,
+        sourceCnki:     $('#sourceCnki').checked && cnkiConfirmed,
+        cnkiConfirmed:  cnkiConfirmed,
         updateFrequency: $('#updateFrequency').value,
         timePreference:  $('#timePreference').value,
       };
@@ -616,6 +628,14 @@
       const box = $('#sourceBaiduWeb');
       if (!box.checked || baiduConfirmed) return;
       if (await window.PTDialogs.confirm('开启后，含中文的关键词会通过百度搜索发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
+      else box.checked = false;
+    };
+
+    // Chinese keywords go to CNKI from the app's own CNKI window: one question, the first time the switch is turned on.
+    $('#sourceCnki').onchange = async () => {
+      const box = $('#sourceCnki');
+      if (!box.checked || cnkiConfirmed) return;
+      if (await window.PTDialogs.confirm('开启后，含中文的关键词会在应用里的知网窗口中检索。第一次检索时知网会要求滑一次拼图。继续吗？')) cnkiConfirmed = true;
       else box.checked = false;
     };
 

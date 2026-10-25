@@ -73,7 +73,8 @@ def all_infos():
     """Every registered source, in the order the settings page lists them."""
     from .baidu_scholar import BAIDU_SCHOLAR_INFO
     from .baidu_web import BAIDU_WEB_INFO
-    return (ARXIV_INFO, OPENALEX_INFO, BAIDU_SCHOLAR_INFO, BAIDU_WEB_INFO)
+    from .cnki import CNKI_INFO
+    return (ARXIV_INFO, OPENALEX_INFO, BAIDU_SCHOLAR_INFO, BAIDU_WEB_INFO, CNKI_INFO)
 
 
 def info(source_id):
@@ -194,7 +195,7 @@ def openalex_routes(paper):
     return routes
 
 
-PAGE_LABELS = {"baidu_scholar": "百度学术", "baidu_web": "百度学术"}   # label of a source's own page; the reader chooses its words by kind
+PAGE_LABELS = {"baidu_scholar": "百度学术", "baidu_web": "百度学术", "cnki": "知网"}   # label of a source's own page; the reader chooses its words by kind
 
 
 def _doi_url(value):

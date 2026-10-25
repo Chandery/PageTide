@@ -95,9 +95,9 @@ class AdapterCase(unittest.TestCase):
 
 
 class SourceInfoTests(AdapterCase):
-    def test_registered_sources_are_the_four_the_settings_page_shows(self):
+    def test_registered_sources_are_the_five_the_settings_page_shows(self):
         ids = [info.id for info in self.source_adapters.all_infos()]
-        self.assertEqual(ids, ["arxiv", "openalex", "baidu_scholar", "baidu_web"])
+        self.assertEqual(ids, ["arxiv", "openalex", "baidu_scholar", "baidu_web", "cnki"])
 
     def test_every_source_info_is_complete(self):
         register = ROOT / "harness" / "sources.json"   # a local process file, absent from the repository
