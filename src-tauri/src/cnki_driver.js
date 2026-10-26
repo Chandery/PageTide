@@ -180,10 +180,30 @@
     location.href = SEARCH;
   }
 
+  // Reaches a paper's detail page the way a person does: search its title, then follow its own link in the results (a fresh
+  // link, from a results page). Opening a stored detail link cold brought CNKI's puzzle on almost every paper (2026-10-26);
+  // detail pages reached from results pages in the same session did not.
+  async function viaResults(target, cursor) {
+    const input = await until(() => document.querySelector('input.search-input'), 15000);
+    if (!input) { location.href = SEARCH; return; }
+    const state = await gridChange(() => {
+      input.value = target.title || '';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      document.querySelector('input.search-btn').click();
+    });
+    if (state === 'puzzle') { if (await waitForPerson()) location.reload(); return; }
+    const row = state === 'rows' && rowsOnPage().find(r => r.dbname.toUpperCase() === String(target.dbname || '').toUpperCase()
+                                                          && r.filename === target.filename);
+    await report({cursor: {...cursor, via: true}, event: 'progress'});
+    await pause();
+    location.href = row ? row.url : target.url;          // not in the results: the stored link after all
+  }
+
   // One paper's detail page: the full abstract (after 更多), keywords and DOI.
   async function detail(job, cursor) {
     const target = cursor.queue[0];
     if (!target) { await report({cursor, event: 'done'}); return; }
+    if (!cursor.via && target.title) return viaResults(target, cursor);
     if (!location.pathname.startsWith('/kcms')) {
       // The stored link may have expired and lead elsewhere: a few tries, never an endless loop.
       if ((cursor.tries || 0) >= 2) throw new Error('detail page not reached');

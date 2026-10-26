@@ -296,9 +296,11 @@ fn apply_clock(run: &mut Run, on_puzzle: bool) -> Option<String> {
             trace("past the puzzle without word from the page: restarting the step");
             run.state = "running"; run.verify_since = None; run.was_on_puzzle_page = false; run.left_puzzle_at = None;
             run.last_seen = now;
-            let detail = run.cursor.get("phase").and_then(Value::as_str) == Some("detail");
+            // A detail page is only opened directly once the page script reached it through the results (`via`).
+            let reached = run.cursor.get("phase").and_then(Value::as_str) == Some("detail")
+                && run.cursor.get("via").and_then(Value::as_bool) == Some(true);
             Some(run.cursor.get("queue").and_then(|q| q.get(0)).and_then(|t| t.get("url")).and_then(Value::as_str)
-                .filter(|_| detail).unwrap_or(SEARCH_URL).to_string())
+                .filter(|_| reached).unwrap_or(SEARCH_URL).to_string())
         }
     }
 }
@@ -333,7 +335,7 @@ pub async fn cnki_start(window: WebviewWindow, session: State<'_, DesktopSession
             (restart.map_or(After::Nothing, After::Restart), None)
         } else {
             let detail = job["mode"] == "detail";
-            let first = if detail { job["targets"][0]["url"].as_str().unwrap_or(SEARCH_URL).to_string() } else { SEARCH_URL.to_string() };
+            let first = SEARCH_URL.to_string();      // a detail job also starts from the search page (see the page script's viaResults)
             let cursor = if detail { json!({"phase": "detail", "q": 0, "queue": job["targets"]}) }
                          else { json!({"phase": "search", "q": 0, "queue": []}) };
             let now = Instant::now();
