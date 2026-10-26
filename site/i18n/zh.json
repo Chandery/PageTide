@@ -58,7 +58,7 @@
       "remove": "移除 {tag}",
       "matched": "命中",
       "nothing": "画像里的词都没命中，先按原顺序显示。",
-      "unmatched": "演示库里没有论文提到“{tags}”。实际应用会实时检索 arXiv、OpenAlex 和百度学术。",
+      "unmatched": "演示库里没有论文提到“{tags}”。实际应用会实时检索 arXiv、OpenAlex 和知网。",
       "announce": "排序已更新：{list}",
       "reset_done": "画像已恢复默认：{list}",
       "added": "已加入“{tag}”。",
@@ -111,7 +111,7 @@
       },
       {
         "v": "3",
-        "t": "开放论文来源：arXiv、OpenAlex、百度学术"
+        "t": "论文来源：arXiv、OpenAlex、知网"
       }
     ],
     "foot": "排序全在本机完成，不用 AI。安装包大小以当前版本为准。"
@@ -156,8 +156,8 @@
         "note": "补充期刊和会议论文。可选。"
       },
       {
-        "name": "百度学术",
-        "note": "检索中文论文，需要百度千帆的密钥。"
+        "name": "知网",
+        "note": "在桌面应用里检索中文论文。默认关闭，无需密钥；可能要你滑一下拼图，PDF 需要自己下载。"
       },
       {
         "name": "arXiv",

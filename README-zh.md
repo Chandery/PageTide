@@ -33,13 +33,13 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 <p align="center"><sub>配乐：Pumpupthemind</sub></p>
 
-**别再刷论文列表了。每天早上，只看贴合你研究的那几篇。** PageTide 每天早上检索 arXiv、OpenAlex 和百度学术，按一份你能看懂、能修改的研究画像给结果排序，再把你收藏的论文收进属于你自己的论文库。排序在你的电脑上完成，不用 AI；AI 负责讲清每篇推荐、回答你的问题。
+**别再刷论文列表了。每天早上，只看贴合你研究的那几篇。** PageTide 每天早上检索 arXiv、OpenAlex，以及你开启后的知网，按一份你能看懂、能修改的研究画像给结果排序，再把你收藏的论文收进属于你自己的论文库。排序在你的电脑上完成，不用 AI；AI 负责讲清每篇推荐、回答你的问题。
 
 ## 数字说话
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-band-zh-dark.svg">
-  <img src="docs/assets/readme/numbers-band-zh-light.svg" alt="PageTide 数字说话：排序论文、学习画像所用的模型 token 为 0；账号、服务器和遥测为 0；Apple Silicon Mac 安装包 25 MB，Windows 版 17 MB；3 个开放论文来源：arXiv、OpenAlex、百度学术" width="880">
+  <img src="docs/assets/readme/numbers-band-zh-light.svg" alt="PageTide 数字说话：排序论文、学习画像所用的模型 token 为 0；账号、服务器和遥测为 0；Apple Silicon Mac 安装包 25 MB，Windows 版 17 MB；3 个论文来源：arXiv、OpenAlex、知网" width="880">
 </picture>
 
 <sub>排序在你的电脑上完成，不用 AI。安装包大小以当前发布版为准。</sub>
@@ -87,14 +87,14 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 ## 接入服务
 
-开箱即可使用 arXiv。想要更多数据源和 AI 功能，填入你自己的密钥即可。全部可选，都在 **设置** 里。
+开箱即可使用 arXiv。想要更多数据源和 AI 功能，填入你自己的密钥，或打开知网即可。全部可选，都在 **设置** 里。
 
 | 服务 | 用来做什么 | 密钥 | 去哪里获取 |
 | --- | --- | --- | --- |
 | **DeepSeek** | AI 速览、追问、划词翻译、AI 引导建项目、AI 分类建议 | 需要你自己的 API 密钥 | [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
 | **arXiv** | 每天的新预印本 | 不需要 | 无 |
 | **OpenAlex** | 期刊与会议论文 | 可选。免费密钥让每日额度提高约 10 倍（1000 提高到 10000 点） | [OpenAlex 密钥说明](https://help.openalex.org/api-reference/authentication) |
-| **百度学术** | 中文论文（设置里显示为“百度搜索”） | 需要你自己的百度千帆（Qianfan）密钥；PageTide 对它自限每天 40 次检索 | [千帆控制台](https://console.bce.baidu.com/qianfan/ais/console/apiKey) |
+| **知网**（桌面应用） | 中文论文。默认关闭，在设置 → 数据源里打开。应用在自己的隐藏窗口里检索知网，每个项目最多用 3 个中文关键词，每次刷新每个项目最多 100 篇新论文。知网弹出滑块拼图时，窗口会出现，请你自己滑一下；PageTide 从不自动通过。知网的 PDF 需要你自己下载。 | 不需要 | 无 |
 
 > [!NOTE]
 > 所有密钥都由你自己在设置里填写。密钥保存在 PageTide 数据文件夹里的本地文件中，不写进设置文件，每个密钥只发给它所属的服务。PageTide 没有自己的服务器。
@@ -159,7 +159,7 @@ PageTide 是独立开源项目，没有购买付费的代码签名证书，所�
 <details>
 <summary><b>能找中文论文吗？</b></summary>
 
-能。创建项目时勾选“中文”作为论文语言，再为百度学术填入千帆密钥；也可以只用 OpenAlex。
+能。创建项目时勾选“中文”作为论文语言，再在设置 → 数据源里打开知网；也可以只用 OpenAlex。知网偶尔会要你滑一下拼图，它的 PDF 需要你自己下载。
 
 </details>
 
@@ -182,7 +182,7 @@ PageTide 会自己检查更新并弹出提示，也可以在设置里点“检�
 
 ## 致谢
 
-Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、百度学术、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[KaTeX](https://katex.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。宣传视频配乐来自 Pumpupthemind。
+Thank you to arXiv for use of its open access interoperability. PageTide 还使用了 [OpenAlex](https://openalex.org)、[知网](https://www.cnki.net)、[Tauri](https://tauri.app)、[pdf.js](https://mozilla.github.io/pdf.js/)、[Cytoscape.js](https://js.cytoscape.org)、[KaTeX](https://katex.org)、[NetworkX](https://networkx.org) 和 [Lucide](https://lucide.dev)。宣传视频配乐来自 Pumpupthemind。
 
 ## 许可证
 

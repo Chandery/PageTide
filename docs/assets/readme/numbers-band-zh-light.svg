@@ -13,6 +13,6 @@
 <text x="464" y="129" font-size="14" fill="#59636e">Windows 版 17 MB</text>
 <rect x="660" y="1" width="1" height="154" fill="#e4e8ec"/>
 <text x="684" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">3</text>
-<text x="684" y="108" font-size="14" fill="#59636e">开放论文来源：arXiv、</text>
-<text x="684" y="129" font-size="14" fill="#59636e">OpenAlex、百度学术</text>
+<text x="684" y="108" font-size="14" fill="#59636e">论文来源：arXiv、</text>
+<text x="684" y="129" font-size="14" fill="#59636e">OpenAlex、知网</text>
 </svg>

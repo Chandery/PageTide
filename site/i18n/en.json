@@ -58,7 +58,7 @@
       "remove": "Remove {tag}",
       "matched": "Matched",
       "nothing": "Nothing matches the profile, so the papers are in library order.",
-      "unmatched": "No paper in this demo library mentions “{tags}”. The app searches arXiv, OpenAlex and Baidu Scholar for real.",
+      "unmatched": "No paper in this demo library mentions “{tags}”. The app searches arXiv, OpenAlex and CNKI for real.",
       "announce": "Ranking updated. {list}",
       "reset_done": "Profile reset. {list}",
       "added": "Added {tag}.",
@@ -111,7 +111,7 @@
       },
       {
         "v": "3",
-        "t": "open paper sources: arXiv, OpenAlex and Baidu Scholar"
+        "t": "paper sources: arXiv, OpenAlex and CNKI"
       }
     ],
     "foot": "Ranking runs on your computer, without AI. Sizes are the current release downloads."
@@ -156,8 +156,8 @@
         "note": "for a wider paper source. Optional."
       },
       {
-        "name": "Baidu Scholar",
-        "note": "needs a Qianfan key."
+        "name": "CNKI",
+        "note": "for Chinese papers, in the desktop app. Off by default; needs no key. You may be asked to slide a puzzle, and you download PDFs yourself."
       },
       {
         "name": "arXiv",

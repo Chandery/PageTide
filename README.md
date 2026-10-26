@@ -33,13 +33,13 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 <p align="center"><sub>Music by Pumpupthemind</sub></p>
 
-**Stop scrolling feeds. Start the day with papers that fit your research.** PageTide searches arXiv, OpenAlex and Baidu Scholar every morning, ranks what it finds against a research profile you can read and edit, and keeps the papers you save in a library of your own. Ranking runs on your computer without AI; AI explains your picks and answers your questions.
+**Stop scrolling feeds. Start the day with papers that fit your research.** PageTide searches arXiv, OpenAlex and, if you switch it on, CNKI every morning, ranks what it finds against a research profile you can read and edit, and keeps the papers you save in a library of your own. Ranking runs on your computer without AI; AI explains your picks and answers your questions.
 
 ## By the numbers
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/numbers-band-en-dark.svg">
-  <img src="docs/assets/readme/numbers-band-en-light.svg" alt="PageTide by the numbers: 0 model tokens to rank papers and learn your profile; 0 accounts, servers or telemetry; 25 MB download on Apple Silicon Macs, 17 MB on Windows; 3 open paper sources: arXiv, OpenAlex and Baidu Scholar" width="880">
+  <img src="docs/assets/readme/numbers-band-en-light.svg" alt="PageTide by the numbers: 0 model tokens to rank papers and learn your profile; 0 accounts, servers or telemetry; 25 MB download on Apple Silicon Macs, 17 MB on Windows; 3 paper sources: arXiv, OpenAlex and CNKI" width="880">
 </picture>
 
 <sub>Ranking runs on your computer, without AI. Sizes are the current release downloads.</sub>
@@ -87,14 +87,14 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 ## Connect your services
 
-PageTide works out of the box on arXiv. Add your own keys to switch on more sources and the AI features. Everything is optional and lives in **Settings**.
+PageTide works out of the box on arXiv. Add your own keys, or switch on CNKI, for more sources and the AI features. Everything is optional and lives in **Settings**.
 
 | Service | Used for | Key | Get one |
 | --- | --- | --- | --- |
 | **DeepSeek** | AI previews, follow-up questions, selection translation, AI-guided project setup, category suggestions | Your own API key | [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
 | **arXiv** | New preprints every day | None needed | n/a |
 | **OpenAlex** | Journal and conference papers | Optional. A free key raises the daily allowance about 10 times (1,000 to 10,000 credits) | [OpenAlex API keys](https://help.openalex.org/api-reference/authentication) |
-| **Baidu Scholar** | Chinese-language papers (listed as "Baidu Search" in Settings) | Your own Baidu Qianfan key; PageTide limits itself to 40 searches a day on it | [Qianfan console](https://console.bce.baidu.com/qianfan/ais/console/apiKey) |
+| **CNKI** (desktop app) | Chinese-language papers. Off by default; switch it on in Settings → Sources. The app searches CNKI in its own hidden window with up to 3 Chinese keywords per project, at most 100 new papers per project per refresh. If CNKI shows its slider puzzle, the window opens for you to slide it; PageTide never solves it for you. Download PDFs from CNKI yourself. | None needed | n/a |
 
 > [!NOTE]
 > You type every key into Settings yourself. Keys are saved in a local file inside PageTide's data folder, never in the settings file, and each key is sent only to the service it belongs to. There is no PageTide server.
@@ -159,7 +159,7 @@ You pay DeepSeek directly, at DeepSeek's prices, with your own key. PageTide sen
 <details>
 <summary><b>Can I use Chinese-language papers?</b></summary>
 
-Yes. Tick Chinese as a paper language when you create a project and add a Qianfan key for Baidu Scholar, or just use OpenAlex.
+Yes. Tick Chinese as a paper language when you create a project and switch on CNKI in Settings → Sources, or just use OpenAlex. CNKI may ask you to slide a puzzle now and then, and you download its PDFs yourself.
 
 </details>
 
@@ -182,7 +182,7 @@ If PageTide saves you time, a star on GitHub helps other researchers find it.
 
 ## Acknowledgments
 
-Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), Baidu Scholar, [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [KaTeX](https://katex.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev). Promo video music by Pumpupthemind.
+Thank you to arXiv for use of its open access interoperability. PageTide also builds on [OpenAlex](https://openalex.org), [CNKI](https://www.cnki.net), [Tauri](https://tauri.app), [pdf.js](https://mozilla.github.io/pdf.js/), [Cytoscape.js](https://js.cytoscape.org), [KaTeX](https://katex.org), [NetworkX](https://networkx.org) and [Lucide](https://lucide.dev). Promo video music by Pumpupthemind.
 
 ## License
 
