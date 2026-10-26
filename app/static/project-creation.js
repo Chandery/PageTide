@@ -209,8 +209,9 @@ const meta = (p) => {
   return [names, p.published, p.source].filter(Boolean).join(' · ');
 };
 
-const PDF_BADGES = {direct: '直链 PDF', page: '仅原文页', none: '无 PDF 来源'};
-const pdfBadge = (status) => `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}">${PDF_BADGES[status] || PDF_BADGES.none}</span>`;
+const PDF_BADGES = {direct: '直链 PDF', page: 'PDF 在原文页', none: '无 PDF 来源'};
+const PDF_TIPS = {page: 'PageTide 拿不到这篇的 PDF 文件，原文页面上有。在那里下载后拖进阅读器即可。'};
+const pdfBadge = (status) => `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}"${PDF_TIPS[status] ? ` title="${PDF_TIPS[status]}"` : ''}>${PDF_BADGES[status] || PDF_BADGES.none}</span>`;
 
 // Papers from 知网 (ADR 0045) carry its own key (cnki:…) and get the same label as on the home page.
 function candidateCard(paper, selected, onToggle) {

@@ -68,3 +68,35 @@ class StaticTypeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VersionTests(unittest.TestCase):
+    setUp = test_app_server.ServerSmokeTests.setUp
+
+    def version(self, env):
+        with mock.patch.dict("os.environ", env, clear=False):
+            for name in ("PAGETIDE_APP_VERSION", "PAGETIDE_CHANNEL"):
+                if name not in env:
+                    __import__("os").environ.pop(name, None)
+            with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/version", timeout=5) as response:
+                return __import__("json").loads(response.read())
+
+    def test_the_settings_page_gets_the_packaged_version_and_build_kind(self):
+        self.assertEqual(self.version({"PAGETIDE_APP_VERSION": "0.1.2"}), {"version": "0.1.2", "dev": False})
+        self.assertEqual(self.version({"PAGETIDE_APP_VERSION": "0.1.2", "PAGETIDE_CHANNEL": "dev"}), {"version": "0.1.2", "dev": True})
+        self.assertEqual(self.version({}), {"version": None, "dev": False})
+
+    def test_the_update_section_shows_it(self):
+        html = (STATIC / "settings.html").read_text(encoding="utf-8")
+        self.assertLess(html.index('id="appVersion"'), html.index('id="checkUpdateBtn"'))
+        self.assertIn("fetch('/api/version')", html)
+
+
+class PdfPageBadgeTests(unittest.TestCase):
+    def test_the_badge_states_where_the_pdf_is_and_the_tooltip_says_what_to_do(self):
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        self.assertIn("page: ['PDF 在原文页', 'PageTide 拿不到这篇的 PDF 文件，原文页面上有。在那里下载后拖进阅读器即可。']", html)
+        self.assertNotIn("仅原文页", html)
+        self.assertIn("status === 'page' ? 'external' : 'book'", html)
+        self.assertTrue((STATIC / "icons" / "external-link.svg").exists())
+        self.assertNotIn("手动下载", html[html.index("const PDF_BADGES"):html.index("const pdfBadge")])

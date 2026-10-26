@@ -36,7 +36,7 @@ test('a source page is named after its source: 知网 says where it opens, never
 test('one reason line, up to three page buttons with the first primary, one file control',()=>{
   const p=setup();p.show({ok:false,reason:'landing_page_only',pages:PAGES});
   const html=p.box.innerHTML;
-  assert.match(html,/只有原文页面，没有 PDF 直链。/);
+  assert.match(html,/这篇的 PDF 在原文页面上：打开原文页下载，再拖到这里。/);
   const links=[...html.matchAll(/<a class="([^"]*)" href="([^"]*)"[^>]*>([^<]*)<\/a>/g)];
   assert.deepEqual(links.map(m=>m[3]),['百度学术','原文页面','出版方']);
   assert.deepEqual(links.map(m=>m[2]),PAGES.map(x=>x.url));

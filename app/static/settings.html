@@ -255,6 +255,10 @@
       <h2>更新</h2>
       <div class="card">
         <div class="field">
+          <label>当前版本</label>
+          <div class="control"><span id="appVersion" data-no-i18n>…</span></div>
+        </div>
+        <div class="field">
           <label for="autoCheckUpdates">自动检查更新</label>
           <div class="control"><input type="checkbox" id="autoCheckUpdates" class="switch" checked></div>
         </div>
@@ -672,6 +676,16 @@
       } catch(e) {window.PTDialogs.notice(`清理失败：${e.message}`,{target,kind:'error'});}
       finally {button.disabled=false;}
     };
+
+    // The version this app is, shown above the update check: v0.1.2, with 开发版 for a local build; a source run has none.
+    (async () => {
+      const shown = $('#appVersion');
+      try {
+        const data = await (await fetch('/api/version')).json();
+        const dev = window.PTi18n?.t('开发版') || '开发版';
+        shown.textContent = data.version ? `v${data.version}${data.dev ? `（${dev}）` : ''}` : (window.PTi18n?.t('源码运行') || '源码运行');
+      } catch { shown.textContent = '—'; }
+    })();
 
     // "Check now" is an explicit request: it ignores the cache and the automatic-check switch.
     $('#checkUpdateBtn').onclick = async () => {

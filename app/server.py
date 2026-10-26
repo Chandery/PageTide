@@ -850,6 +850,10 @@ class Handler(BaseHTTPRequestHandler):
             app = self._app(); key = (query.get('key') or [''])[0]
             current = session(app.store, key, requested_project)
             self._json({'session': current, 'history': history(app.store, key, requested_project, current)})   # the same turns the model receives
+        elif route == "/api/version":
+            # The packaged version for the settings page; no network. A source run has none (the shell sets it).
+            self._json({"version": os.environ.get("PAGETIDE_APP_VERSION") or None,
+                        "dev": os.environ.get("PAGETIDE_CHANNEL") == "dev"})
         elif route == "/api/update":
             force = query.get("force", [""])[0] == "1"
             current = make_updater(getattr(self.server, "root", "."))

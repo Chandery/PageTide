@@ -217,7 +217,7 @@ class RouteAndPageTests(unittest.TestCase):
         self.assertIn("all_years", creation_js)
         self.assertIn("pdf_status", creation_js)
         self.assertIn("pdf_status", index)
-        for text in ("直链 PDF", "仅原文页", "无 PDF 来源"):
+        for text in ("直链 PDF", "PDF 在原文页", "无 PDF 来源"):
             self.assertIn(text, creation_js)
             self.assertIn(text, index)
 

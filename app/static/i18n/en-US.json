@@ -2789,6 +2789,12 @@
     "来源拒绝了应用下载（可能需要订阅或登录）。可以打开原文页面，在浏览器里下载后拖到这里。": "The source refused the app's download (it may need a subscription or login). Open the original page, download it in the browser and drop it here.",
     "这个网站只允许在浏览器里下载。打开原文页面，在页面上下载 PDF，再拖到这里。": "This site only allows downloads in a browser. Open the original page, download the PDF there and drop it here.",
     "连接失败": "connection failed",
-    "阅读器组件 pdf.js 没能载入（{0}）。可能被杀毒软件拦截或隔离：把 PageTide 加入信任，或重新安装后再试": "The reader component pdf.js could not be loaded ({0}). Antivirus software may have blocked or quarantined it: trust PageTide, or reinstall, and try again"
+    "阅读器组件 pdf.js 没能载入（{0}）。可能被杀毒软件拦截或隔离：把 PageTide 加入信任，或重新安装后再试": "The reader component pdf.js could not be loaded ({0}). Antivirus software may have blocked or quarantined it: trust PageTide, or reinstall, and try again",
+    "PDF 在原文页": "PDF on original page",
+    "PageTide 拿不到这篇的 PDF 文件，原文页面上有。在那里下载后拖进阅读器即可。": "PageTide cannot get this paper's PDF file; the original page has it. Download it there and drop it into the reader.",
+    "这篇的 PDF 在原文页面上：打开原文页下载，再拖到这里。": "This paper's PDF is on its original page: open it, download the PDF, then drop it here.",
+    "当前版本": "Version",
+    "开发版": "development build",
+    "源码运行": "run from source"
   }
 }

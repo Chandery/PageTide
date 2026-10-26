@@ -595,6 +595,7 @@
   .icon { display:inline-block; width:18px; height:18px; flex:0 0 18px; background:currentColor;
     mask:center / contain no-repeat; -webkit-mask:center / contain no-repeat; }
   .icon.book        { mask-image:url("/icons/book-open.svg");          -webkit-mask-image:url("/icons/book-open.svg"); }
+  .icon.external    { mask-image:url("/icons/external-link.svg");      -webkit-mask-image:url("/icons/external-link.svg"); }
   .icon.sparkles    { mask-image:url("/icons/sparkles.svg");           -webkit-mask-image:url("/icons/sparkles.svg"); }
   .icon.library     { mask-image:url("/icons/library.svg");            -webkit-mask-image:url("/icons/library.svg"); }
   .icon.profile     { mask-image:url("/icons/sliders-horizontal.svg"); -webkit-mask-image:url("/icons/sliders-horizontal.svg"); }
@@ -965,12 +966,14 @@ function routeBadge(c) {
 }
 const PDF_BADGES = {
   direct: ['直链 PDF', '可直接下载'],
-  page: ['仅原文页', '没有 PDF 直链'],
+  page: ['PDF 在原文页', 'PageTide 拿不到这篇的 PDF 文件，原文页面上有。在那里下载后拖进阅读器即可。'],
   none: ['无 PDF 来源', '可自行下载后附加'],
 };
 const pdfBadge = (status) => {
   const [text, tip] = PDF_BADGES[status] || PDF_BADGES.none;
-  return `<span class="pdf-tag pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}"><i class="icon book" aria-hidden="true"></i>${text}</span>`;
+  // The PDF lives elsewhere: an outward arrow, not a book; what to do is in the tooltip, not on the label (owner, 2026-10-26).
+  const icon = status === 'page' ? 'external' : 'book';
+  return `<span class="pdf-tag pdf-${PDF_BADGES[status] ? status : 'none'}" title="${tip}"><i class="icon ${icon}" aria-hidden="true"></i>${text}</span>`;
 };
 
 /* A collected exploration paper: offer, once, to let the AI judge whether it is a new direction. Nothing is sent until the button is clicked. */
@@ -1946,7 +1949,7 @@ document.addEventListener('focusin', event => {
 
 const PDF_REASONS = {
   no_oa_source: '没有找到可下载的 PDF 来源。',
-  landing_page_only: '只有原文页面，没有 PDF 直链。',
+  landing_page_only: '这篇的 PDF 在原文页面上：打开原文页下载，再拖到这里。',
   not_found: '来源上找不到这个文件。',
   paywalled_or_blocked: '来源拒绝了应用下载（可能需要订阅或登录）。可以打开原文页面，在浏览器里下载后拖到这里。',
   robots_disallowed: '来源不允许自动下载。',
