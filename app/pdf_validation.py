@@ -17,7 +17,10 @@ def _dictionary_fields(stream, offset, size, is_stream=False):
     """
     stream.seek(offset)
     carry, fields = b'', {}
-    stop = rb'>>\s*stream(?:\r\n|\r|\n)' if is_stream else rb'>>\s*startxref\b'
+    # A comment counts as whitespace in PDF (iText writes one between a trailer's >> and startxref: a Springer PDF was
+    # refused as "缺少索引字典结束信息", 2026-10-26).
+    gap = rb'(?:\s|%[^\r\n]*(?:\r\n|\r|\n))*'
+    stop = rb'>>' + gap + rb'stream(?:\r\n|\r|\n)' if is_stream else rb'>>' + gap + rb'startxref\b'
     while stream.tell() < size:
         chunk = stream.read(min(65536, size - stream.tell()))
         piece = carry + chunk
