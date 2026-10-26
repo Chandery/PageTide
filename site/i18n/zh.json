@@ -105,7 +105,7 @@
         "t": "账号、服务器和数据上报"
       },
       {
-        "v": "24",
+        "v": "25",
         "u": "MB",
         "t": "M 系列 Mac 安装包，Windows 版 17 MB"
       },
@@ -194,7 +194,7 @@
     "copied": "链接已复制，到 Mac 或 Windows 电脑上打开即可。",
     "copy_failed": "复制这个网址：",
     "note_mac_unknown": "适用于 M 系列芯片（M1 及以后）的 Mac。Intel 芯片请在下方下载 Intel 版。",
-    "note_mac_arm": "已识别为 M 系列芯片的 Mac · 24 MB",
+    "note_mac_arm": "已识别为 M 系列芯片的 Mac · 25 MB",
     "note_mac_intel": "已识别为 Intel 芯片的 Mac · 26 MB",
     "note_win": "Windows 64 位 · 17 MB · 第一次打开时点“更多信息 → 仍要运行”",
     "note_mobile": "PageTide 是桌面应用，支持 macOS 和 Windows。",

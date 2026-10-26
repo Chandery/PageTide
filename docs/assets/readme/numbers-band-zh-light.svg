@@ -8,7 +8,7 @@
 <text x="244" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">0</text>
 <text x="244" y="108" font-size="14" fill="#59636e">账号、服务器和遥测</text>
 <rect x="440" y="1" width="1" height="154" fill="#e4e8ec"/>
-<text x="464" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">24<tspan dx="5" font-size="22" fill="#59636e" letter-spacing="0">MB</tspan></text>
+<text x="464" y="74" font-size="50" font-weight="500" fill="#1f2328" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">25<tspan dx="5" font-size="22" fill="#59636e" letter-spacing="0">MB</tspan></text>
 <text x="464" y="108" font-size="14" fill="#59636e">Apple Silicon Mac 安装包，</text>
 <text x="464" y="129" font-size="14" fill="#59636e">Windows 版 17 MB</text>
 <rect x="660" y="1" width="1" height="154" fill="#e4e8ec"/>

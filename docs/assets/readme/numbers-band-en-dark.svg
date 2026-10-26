@@ -9,7 +9,7 @@
 <text x="244" y="108" font-size="14" fill="#9198a1">accounts, servers</text>
 <text x="244" y="129" font-size="14" fill="#9198a1">or telemetry</text>
 <rect x="440" y="1" width="1" height="154" fill="#2a3038"/>
-<text x="464" y="74" font-size="50" font-weight="500" fill="#f0f6fc" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">24<tspan dx="5" font-size="22" fill="#9198a1" letter-spacing="0">MB</tspan></text>
+<text x="464" y="74" font-size="50" font-weight="500" fill="#f0f6fc" letter-spacing="-1.6" style="font-variant-numeric:tabular-nums">25<tspan dx="5" font-size="22" fill="#9198a1" letter-spacing="0">MB</tspan></text>
 <text x="464" y="108" font-size="14" fill="#9198a1">download on Apple Silicon</text>
 <text x="464" y="129" font-size="14" fill="#9198a1">Macs, 17 MB on Windows</text>
 <rect x="660" y="1" width="1" height="154" fill="#2a3038"/>

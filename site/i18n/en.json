@@ -105,7 +105,7 @@
         "t": "accounts, servers or telemetry"
       },
       {
-        "v": "24",
+        "v": "25",
         "u": "MB",
         "t": "download on Apple Silicon Macs, 17 MB on Windows"
       },
@@ -194,7 +194,7 @@
     "copied": "Link copied. Open it on your Mac or PC.",
     "copy_failed": "Copy this address: ",
     "note_mac_unknown": "Apple Silicon (M1 or later). On an Intel Mac, get the Intel build below.",
-    "note_mac_arm": "Apple Silicon detected · 24 MB",
+    "note_mac_arm": "Apple Silicon detected · 25 MB",
     "note_mac_intel": "Intel Mac detected · 26 MB",
     "note_win": "Windows x64 · 17 MB · first launch needs “More info → Run anyway”",
     "note_mobile": "PageTide is a desktop app for macOS and Windows.",
