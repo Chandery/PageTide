@@ -1024,7 +1024,7 @@ function cardHTML(c, i) {
       ${c.pdf_status === 'page' ? pdfBadge(c.pdf_status) : ''}
       ${routeBadge(c)}
     </div>
-    <div class="abs">${c.abstract ? `<span data-no-i18n data-tex>${esc(c.abstract)}</span>` : '暂无摘要'}</div>
+    <div class="abs">${c.abstract ? `<span data-no-i18n data-tex>${esc(c.abstract)}</span>${c.abstract_partial ? '…' : ''}` : '暂无摘要'}</div>
     <div class="ai-slot">${aiSlot(c)}</div>
     ${c.judgeAsk ? judgeAskHTML(c) : ''}
     <div class="actions">
@@ -1306,26 +1306,40 @@ async function cnkiRefresh(projectId, attempt = 0) {
 // (a few seconds) and the full abstract replaces the snippet, in the library and in the open panel.
 async function cnkiFullAbstract(d, stillOpen) {
   if (!window.PTCnki?.available() || inDemo()) return;
-  const read = [];
-  const problem = await window.PTCnki.run({mode: 'detail', targets: [d.cnki.target]}, {
-    onItems: async (items) => { read.push(...items); },
-    onVerification: (asking) => { if (asking) toast('知网需要验证：请在弹出的知网窗口里滑一下拼图', 'warn', 8000); },
-  }).catch(() => 'unavailable');
-  // The line under the abstract says what happened; it goes away once the full text is in.
-  const status = (message) => {
+  // The line under the abstract says what is happening; it goes away once the full text is in.
+  const status = (message, working = false) => {
     const line = stillOpen() && $('#detail .cnki-full');
     if (!line) return;
-    if (message) { line.textContent = message; } else { line.remove(); }
+    if (!message) { line.remove(); return; }
+    line.replaceChildren();
+    if (working) { const spin = document.createElement('span'); spin.className = 'spin'; spin.setAttribute('aria-hidden', 'true'); line.append(spin); }
+    line.append(message);
   };
-  if (!read.length) {
-    status(problem === 'busy' ? '知网正在后台抓取，稍后再打开就能看到完整摘要' : '暂时读不到完整摘要，这里是知网的摘要片段');
-    return;
+  const read = [];
+  let problem = null;
+  // The CNKI window does one job at a time. While a refresh is fetching (about a minute), the read waits for it instead of
+  // giving up; it is stored even if the panel was closed meanwhile.
+  for (let attempt = 0; attempt < 100; attempt++) {
+    problem = await window.PTCnki.run({mode: 'detail', targets: [d.cnki.target]}, {
+      onItems: async (items) => { read.push(...items); },
+      onVerification: (asking) => { if (asking) toast('知网需要验证：请在弹出的知网窗口里滑一下拼图', 'warn', 8000); },
+    }).catch(() => 'unavailable');
+    if (problem !== 'busy' || read.length) break;
+    status('知网正在后台抓取，抓完就读取完整摘要…', true);
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
+  if (!read.length) { status('暂时读不到完整摘要，这里是知网的摘要片段'); return; }
   try {
     const r = await api('/api/cnki/abstract', {key: d.key, item: read[0]});
-    const box = $('#detail .abstract-text');
-    if (r.updated && stillOpen() && box) {
-      box.textContent = r.abstract; box.parentElement?.classList.remove('cut'); window.PTMath?.render?.(box);
+    if (r.updated) {
+      const card = state.cards?.find(c => c.key === d.key);            // the card and its hover preview lose their "…" too
+      if (card) {
+        card.abstract = r.abstract; card.abstract_partial = false;
+        const abs = document.querySelector(`.card[data-key="${CSS.escape(d.key)}"] .abs`);
+        if (abs) { abs.replaceChildren(Object.assign(document.createElement('span'), {textContent: r.abstract})); }
+      }
+      const box = $('#detail .abstract-text');
+      if (stillOpen() && box) { box.textContent = r.abstract; box.parentElement?.classList.remove('cut'); window.PTMath?.render?.(box); }
     }
     status(r.updated || !r.abstract_partial ? '' : '暂时读不到完整摘要，这里是知网的摘要片段');
   } catch (e) { status('暂时读不到完整摘要，这里是知网的摘要片段'); }
@@ -1561,7 +1575,8 @@ $('#preview').addEventListener('mouseleave', scheduleHide);
 function showPreview(card) {
   const c = state.cards.find(x => x.key === card.dataset.key); if (!c) return;
   const p = $('#preview');
-  p.innerHTML = `<h4 data-no-i18n data-tex>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n data-tex>${esc(c.abstract)}</span>` : '（无摘要）'}</div>`;
+  // A 知网 snippet ends with "…" (the full abstract is read when the paper is opened, not on hover).
+  p.innerHTML = `<h4 data-no-i18n data-tex>${esc(c.title)}</h4><div class="pabs">${c.abstract ? `<span data-no-i18n data-tex>${esc(c.abstract)}</span>${c.abstract_partial ? '…' : ''}` : '（无摘要）'}</div>`;
   p.style.left = '0px'; p.style.top = '0px';
   p.classList.add('show');
   const r = card.getBoundingClientRect();

@@ -2522,7 +2522,7 @@
     "知网：已加入 {0} 篇，后台继续处理…": "CNKI: {0} added, still working in the background…",
     "知网：后台处理中…": "CNKI: working in the background…",
     "正在从知网读取完整摘要…": "Reading the full abstract from CNKI…",
-    "知网正在后台抓取，稍后再打开就能看到完整摘要": "CNKI is busy fetching in the background; open this again later for the full abstract",
+    "知网正在后台抓取，抓完就读取完整摘要…": "CNKI is fetching in the background; the full abstract will be read right after…",
     "暂时读不到完整摘要，这里是知网的摘要片段": "The full abstract could not be read for now; this is CNKI's snippet",
     "知网：新加入 {0} 篇": "CNKI: {0} new papers",
     "知网：没有新论文": "CNKI: no new papers",

@@ -2927,6 +2927,7 @@ class App:
         for row in rows:
             items.append({
                 "key": row["key"], "title": row["title"], "abstract": row["abstract"] or "",
+                "abstract_partial": source_adapters.paper_oa(row).get("abstract_partial") is True,   # a 知网 snippet (ADR 0045)
                 "published": row["published"], "source": row["source"], "work_type": row.get("work_type"),
                 "doi": row["doi"], "arxiv_id": row["arxiv_id"], "saved_at": row["saved_at"],
                 "url": source_adapters.paper_url(row),
@@ -3853,6 +3854,8 @@ class App:
             cards.append({
                 "key": row["key"], "rank": row["rank"], "title": row["title"],
                 "abstract": row["abstract"], "published": row["published"], "source": row["source"], "work_type": row.get("work_type"),
+                # a 知网 snippet until the full abstract is read (ADR 0045): the page ends it with "…"
+                "abstract_partial": source_adapters.paper_oa(row).get("abstract_partial") is True,
                 "topic": row["topic"], "arxiv_id": row["arxiv_id"], "doi": row["doi"],
                 "url": source_adapters.paper_url(row),
                 "why": explanation["why"],
