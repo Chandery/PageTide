@@ -315,6 +315,9 @@ class ReviewFixTests(Case):
             result = self.app.download_pdf("cnki:CJFQ:JSJX202610001")
         self.assertEqual(asked, [])
         self.assertFalse(result["ok"] if isinstance(result, dict) else False)
+        # The reader offers the paper's 知网 page (named after its source, not "百度学术") for a download in the browser.
+        page = next(p for p in result["pages"] if p["kind"] == "source_page")
+        self.assertEqual((page["label"], page["url"]), ("知网", "https://kns.cnki.net/kcms2/article/abstract?v=enc1"))
 
     def test_two_cnki_entries_with_one_title_stay_two_papers(self):
         self.app.cnki_ingest(self.pid, [item(1)])

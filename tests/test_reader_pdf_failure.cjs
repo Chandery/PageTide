@@ -26,6 +26,13 @@ function setup({late=false,uploadStatus=200}={}){
 const drop=files=>({preventDefault(){this.prevented=true;},dataTransfer:{files}});
 const file=(name,type='application/pdf')=>({name,type});
 
+test('a source page is named after its source: 知网 says where it opens, never "百度学术"',()=>{
+  const p=setup();
+  p.show({ok:false,reason:'landing_page_only',pages:[{kind:'source_page',label:'知网',url:'https://kns.cnki.net/kcms2/article/abstract?v=x',needs_login:true}]});
+  assert.match(p.box.innerHTML,/>在知网打开<\/a>/);assert.doesNotMatch(p.box.innerHTML,/百度学术/);
+  p.show({ok:false,reason:'landing_page_only',pages:[{kind:'source_page',label:'某来源',url:'https://x.example/p',needs_login:true}]});
+  assert.match(p.box.innerHTML,/>来源页面<\/a>/);
+});
 test('one reason line, up to three page buttons with the first primary, one file control',()=>{
   const p=setup();p.show({ok:false,reason:'landing_page_only',pages:PAGES});
   const html=p.box.innerHTML;

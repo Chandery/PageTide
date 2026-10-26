@@ -1945,11 +1945,14 @@ const pdfReason = (code) => PDF_REASONS[code] || '无法获取 PDF。';
 // No PDF could be fetched: one short reason, up to three pages where the person can get the file (the first is the primary
 // button), and one control to pick a PDF; a PDF dropped anywhere on the area is attached the same way.
 function showPdfFailure(box, key, title, result, project, current = () => true) {
-  const labels = { source_page: '百度学术', landing: '原文页面', publisher_page: '出版方' };
+  // A source's own page is named after the source the server says it is (知网, 百度学术); the rest by kind.
+  const labels = { landing: '原文页面', publisher_page: '出版方' };
+  const SOURCE_NAMES = { '知网': '在知网打开', '百度学术': '百度学术' };
+  const label = (p) => p.kind === 'source_page' ? (SOURCE_NAMES[p.label] || '来源页面') : (labels[p.kind] || '原文页面');
   const offered = Array.isArray(result.pages) && result.pages.length ? result.pages
     : result.landing_page ? [{ kind: 'landing', url: result.landing_page }] : [];
   const links = offered.filter(p => p && typeof p.url === 'string' && p.url.startsWith('https://')).slice(0, 3)
-    .map((p, i) => `<a class="btn tiny${i ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${labels[p.kind] || '原文页面'}</a>`).join('');
+    .map((p, i) => `<a class="btn tiny${i ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${label(p)}</a>`).join('');
   box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
     <div class="pdf-fail-actions">${links}${project === 'pt-demo' ? '' : '<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label>'}</div>
     <div class="pdf-fail-note"></div></div>`;

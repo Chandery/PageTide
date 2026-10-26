@@ -4450,15 +4450,22 @@ class App:
         doi = _doi(paper.get("doi"))
         return f"https://doi.org/{doi}" if doi else None
 
-    _PAGE_LABELS = {"source_page": ("百度学术", "Baidu Scholar"), "landing": ("原文页面", "Paper page"), "publisher_page": ("出版方", "Publisher")}
+    _PAGE_LABELS = {"landing": ("原文页面", "Paper page"), "publisher_page": ("出版方", "Publisher")}
+    _SOURCE_PAGE_NAMES = {"知网": "CNKI", "百度学术": "Baidu Scholar"}      # a source page is named after its source
 
     def _failure_pages(self, paper):
         """Where a person can go to get the file when none could be fetched, in the order the reader offers them: the
-        source's own page (Baidu Scholar), OpenAlex's landing page, the publisher page behind the DOI."""
+        source's own page (知网 or Baidu Scholar, named after the source), OpenAlex's landing page, the publisher page behind
+        the DOI."""
         order = {"source_page": 0, "landing": 1, "publisher_page": 2}
         routes = sorted((r for r in source_adapters.pdf_routes(paper) if r["kind"] in order), key=lambda r: order[r["kind"]])
-        return [{"kind": r["kind"], "label": self._PAGE_LABELS[r["kind"]][1 if self.english() else 0], "url": r["url"],
-                 "needs_login": r["needs_login"]} for r in routes]
+
+        def label(route):
+            if route["kind"] == "source_page":
+                name = route.get("label") or "来源页面"
+                return self._SOURCE_PAGE_NAMES.get(name, "Source page") if self.english() else name
+            return self._PAGE_LABELS[route["kind"]][1 if self.english() else 0]
+        return [{"kind": r["kind"], "label": label(r), "url": r["url"], "needs_login": r["needs_login"]} for r in routes]
 
     def attach_pdf(self, paper_key, pdf_id):
         """Attach a PDF the user supplied (uploaded to imports/ first) to an existing paper.

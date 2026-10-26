@@ -2518,6 +2518,8 @@
     "测试中…": "Testing…",
     "百度搜索": "Baidu Search",
     "知网": "CNKI",
+    "在知网打开": "Open in CNKI",
+    "来源页面": "Source page",
     "知网需要验证：请在弹出的知网窗口里滑一下拼图": "CNKI wants a check: slide the puzzle in the CNKI window that just opened",
     "知网：已加入 {0} 篇，后台继续处理…": "CNKI: {0} added, still working in the background…",
     "知网：后台处理中…": "CNKI: working in the background…",
