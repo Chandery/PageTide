@@ -191,6 +191,7 @@ const meta = (p) => {
 const PDF_BADGES = {direct: '直链 PDF', page: '仅原文页', none: '无 PDF 来源'};
 const pdfBadge = (status) => `<span class="badge pdf-${PDF_BADGES[status] ? status : 'none'}">${PDF_BADGES[status] || PDF_BADGES.none}</span>`;
 
+// Papers from 知网 (ADR 0045) carry its own key (cnki:…) and get the same label as on the home page.
 function candidateCard(paper, selected, onToggle) {
   const el = document.createElement('div');
   el.className = 'cand' + (selected ? ' selected' : '');
@@ -200,8 +201,9 @@ function candidateCard(paper, selected, onToggle) {
     <div>
       <div class="title" data-no-i18n data-tex>${esc(paper.title)}</div>
       <div class="meta" data-no-i18n>${esc(meta(paper))}</div>
-      <div class="abstract" data-no-i18n data-tex>${hasAbstract ? esc(paper.abstract) : ''}</div>
+      <div class="abstract" data-no-i18n data-tex>${hasAbstract ? esc(paper.abstract) + (paper.abstract_partial ? '…' : '') : ''}</div>
       <div class="more">
+        ${String(paper.key || '').startsWith('cnki:') ? '<span class="src-cnki">知网</span>' : ''}
         ${hasAbstract ? '<button type="button" class="toggle">展开摘要</button>' : ''}
         ${paper.url ? `<a href="${esc(paper.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
         ${pdfBadge(paper.pdf_status)}
@@ -1036,8 +1038,8 @@ function seedHit(paper, cnkiItem = null, query = '') {
   const hit = document.createElement('div');
   hit.className = 'seed-hit';
   const added = () => seeds.some((s) => s.status !== 'failed' && s.paper && s.paper.key === paper.key);
-  hit.innerHTML = `<div class="title" data-no-i18n data-tex>${esc(paper.title)}</div><div class="meta" data-no-i18n>${esc(meta(paper))}</div>
-    <div class="abstract" data-no-i18n>${esc(paper.abstract || '')}</div><button type="button">添加</button>`;
+  hit.innerHTML = `<div class="title" data-no-i18n data-tex>${esc(paper.title)}</div><div class="meta"><span data-no-i18n>${esc(meta(paper))}</span> ${String(paper.key || '').startsWith('cnki:') ? '<span class="src-cnki">知网</span>' : ''}</div>
+    <div class="abstract" data-no-i18n>${esc(paper.abstract || '')}${paper.abstract && paper.abstract_partial ? '…' : ''}</div><button type="button">添加</button>`;
   const button = $('button', hit);
   button.onclick = async () => {
     if (added()) { seedRemoveByKey(paper.key); button.textContent = '添加'; return; }
@@ -1074,7 +1076,6 @@ async function seedSearchCnki(query, token, shown) {
     seen.add(paper.key); seen.add(mark);
     const source = raw.find((r) => `cnki:${String(r.dbname || '').toUpperCase()}:${r.filename}` === paper.key);
     seedHit(paper, source, query);
-    $('#seedSearchList').lastElementChild.querySelector('.meta')?.append(' · 知网');
   }
   if (problem) {
     const note = $('#seedSearchNotice');

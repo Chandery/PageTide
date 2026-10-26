@@ -138,6 +138,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .cand.open .abstract{display:block}
 .cand .more{display:flex;gap:calc(8px * var(--s));flex-wrap:wrap;align-items:center;margin-top:calc(3px * var(--s));font-size:calc(var(--fs-sm) * var(--s))}
 .cand .more a,.cand .more button{color:var(--muted)}
+.src-cnki{font-size:calc(var(--fs-xs) * var(--s));padding:calc(2px * var(--s)) calc(8px * var(--s));border-radius:999px;background:var(--src-cnki-soft);color:var(--src-cnki);font-weight:650}
 .cand .more button{border:0;background:transparent;padding:0;text-decoration:underline;font-size:calc(var(--fs-sm) * var(--s))}
 .tag{display:inline-block;padding:calc(1px * var(--s)) calc(8px * var(--s));border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:calc(var(--fs-xs) * var(--s));color:var(--muted)}
 .skeleton{height:92px;border-radius:var(--r-md);border:1px solid var(--line);background:linear-gradient(100deg,var(--base) 30%,var(--surface-3) 50%,var(--base) 70%);background-size:300% 100%;animation:shimmer 1.4s linear infinite}

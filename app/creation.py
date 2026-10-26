@@ -126,8 +126,10 @@ def paper_view(paper, abstract_limit=1200):
     """What the creation page may show about a paper; never the stored/private state."""
     arxiv_id, doi = paper.get("arxiv_id"), paper.get("doi") or ""
     url = source_adapters.paper_url(paper, doi_must_be_link=True)
+    oa = paper.get("oa") if isinstance(paper.get("oa"), dict) else source_adapters.paper_oa(paper)
     return {"key": paper.get("key"), "title": paper.get("title"),
             "abstract": (paper.get("abstract") or "")[:abstract_limit],
+            "abstract_partial": oa.get("abstract_partial") is True,      # a 知网 snippet (ADR 0045): the page ends it with "…"
             "published": paper.get("published"), "source": paper.get("source"),
             "authors": paper.get("authors") or [], "openalex_id": paper.get("openalex_id"),
             "doi": doi or None, "arxiv_id": arxiv_id, "url": url, "match_mode": paper.get("match_mode"),
