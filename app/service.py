@@ -7,8 +7,10 @@ import glob
 import hashlib
 import json
 import re
+import sys
 import threading
 import time
+import urllib.parse
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -4437,10 +4439,14 @@ class App:
                     continue
                 tried.add(candidate["url"])
                 try:
-                    got = self.pdf_fetcher.fetch(candidate["url"], pdf_fetch.stem_of(paper))
+                    got = self.pdf_fetcher.fetch(candidate["url"], pdf_fetch.stem_of(paper), user_requested=True)
                 except pdf_fetch.PdfFetchError as exc:
                     attempts.append({"url": candidate["url"], "source_kind": candidate["kind"],
                                      "reason": exc.kind, "detail": str(exc)[:200]})
+                    # One line in the local log (backend.log in the packaged app) so a failure can be told apart later:
+                    # the host and what went wrong, never the paper's title.
+                    print(f"PDF download failed: {urllib.parse.urlsplit(candidate['url']).hostname} {exc.kind}: "
+                          f"{str(exc)[:200]}", file=sys.stderr, flush=True)
                     continue
                 self.store.record_pdf(paper_key, got["path"], got["url"], sha256=got["sha256"],
                                       size=got["bytes"], source_kind=candidate["kind"], license=candidate["license"])

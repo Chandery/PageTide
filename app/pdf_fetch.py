@@ -1,8 +1,10 @@
 """Guarded, user-triggered PDF download from open-access sources.
 
 Zero model tokens. Only public URLs are requested, one paper at a time, and only because the user
-opened or asked for that paper. Nothing here bypasses a paywall or uses credentials: a refusal
-(403, robots.txt) is reported, not worked around.
+opened or asked for that paper. Nothing here bypasses a paywall or uses credentials: a refusal (403) is reported, not
+worked around. robots.txt rules automated crawling; a download the person asked for, one paper at a time, is the
+person's own action, as in a browser, and does not consult it (owner, 2026-10-26: IOP's robots.txt refuses every
+program, while the same PDF downloads from its page). An automated caller passes user_requested=False.
 """
 import hashlib
 import http.client
@@ -358,26 +360,28 @@ class Fetcher:
                     time.sleep(wait)
             self._last_request[authority] = time.monotonic()
 
-    def _redirect_gate(self, url):
-        """robots.txt and pacing for a redirect target, which may be a different host."""
-        if not self._robots_allow(url):
+    def _redirect_gate(self, url, user_requested=False):
+        """Pacing (and, for an automated fetch, robots.txt) for a redirect target, which may be a different host."""
+        if not user_requested and not self._robots_allow(url):
             raise PdfFetchError(f"robots.txt disallows {url}", "robots_disallowed")
         self._pace(_authority(urllib.parse.urlsplit(url)))
 
     # ------------------------------------------------------------------ fetch
-    def fetch(self, url, stem):
-        """Download one PDF; returns {path, sha256, bytes, url} or raises PdfFetchError."""
+    def fetch(self, url, stem, user_requested=False):
+        """Download one PDF; returns {path, sha256, bytes, url} or raises PdfFetchError. user_requested: the person asked
+        for this paper (see the module note), so robots.txt is not consulted; pacing and every other guard still apply."""
         url = iri_to_uri(url)
         parts = _require_public_https(url)
         authority = _authority(parts)
-        if not self._robots_allow(url):
+        if not user_requested and not self._robots_allow(url):
             raise PdfFetchError(f"robots.txt disallows {url}", "robots_disallowed")
+        gate = (lambda target: self._redirect_gate(target, user_requested=True)) if user_requested else self._redirect_gate
         last_error = None
         for attempt in range(2):  # one retry, only for rate limiting and server errors
             self._pace(authority)
             try:
                 request = urllib.request.Request(url, headers={"User-Agent": UA})
-                with _open(request, timeout=60, gate=self._redirect_gate) as response:
+                with _open(request, timeout=60, gate=gate) as response:
                     return self._save(response, url, stem)
             except urllib.error.HTTPError as exc:
                 if exc.code in (401, 403):

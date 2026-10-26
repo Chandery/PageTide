@@ -46,3 +46,11 @@
 3. **robots.txt 跳到 http**：以前整个下载失败，现在按“没有 robots.txt”处理（同 404），PDF 本身仍只走 https。
 
 修复后三处都下载成功。没有复现用户“不挂梯子就失败”的具体网络环境，用户那边是否就是这几类原因未核实。
+
+## 补充（2026-10-26）：用户点开的下载不再读 robots.txt
+
+owner 决定：“就是本人下载，不是爬。”阅读器里点开一篇论文触发的下载（`download_pdf` 是唯一调用方，只由 `/api/pdf/prepare`、`/api/pdf` 和命令行的显式下载调用）视为用户本人的操作，和在浏览器里下载一样，不读 robots.txt；每个主机的请求间隔、只走 https、只访问公网主机、60 MB 上限、校验是 PDF 都照旧。`Fetcher.fetch` 默认仍遵守 robots.txt，将来若有自动批量下载，必须用默认值。
+
+实测 IOP（`iopscience.iop.org`，robots.txt 对所有程序 `Disallow: /`）：跳过 robots.txt 后，PDF 链接把非浏览器程序转到 Radware 的人机验证页（`validate.perfdrive.com`），应用拿到的是网页不是 PDF，报 `not_pdf`。不伪装成浏览器、不绕过验证；阅读器对 `not_pdf` 改为说明“这个网站只允许在浏览器里下载”，引导打开原文页下载后拖入。
+
+下载失败时每个来源在本地日志（打包版的 `logs/backend.log`）写一行：主机、原因类型、简短说明，不含论文标题。

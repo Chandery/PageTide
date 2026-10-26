@@ -168,3 +168,52 @@ class ClassificationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UserRequestedTests(unittest.TestCase):
+    """A download the person asked for does not consult robots.txt (owner, 2026-10-26); an automated one still does."""
+
+    def fetch(self, user_requested):
+        calls, gates = [], []
+
+        def net(request, timeout=None, gate=None):
+            calls.append(request.full_url)
+            gates.append(gate)
+            if request.full_url.endswith("/robots.txt"):
+                class Robots:
+                    def read(self, n=-1):
+                        return b"User-agent: *\nDisallow: /\n"
+
+                    def __enter__(self):
+                        return self
+
+                    def __exit__(self, *a):
+                        return False
+                return Robots()
+            raise urllib.error.HTTPError(request.full_url, 404, "x", {}, None)
+        with tempfile.TemporaryDirectory() as root, mock.patch.object(pdf_fetch, "_open", net):
+            fetcher = pdf_fetch.Fetcher(root)
+            with self.assertRaises(pdf_fetch.PdfFetchError) as caught:
+                fetcher.fetch("https://iopscience.iop.org/article/10.1088/x/pdf", "a", user_requested=user_requested)
+            return caught.exception.kind, calls, gates, fetcher
+
+    def test_the_person_s_download_skips_robots_txt_and_reaches_the_pdf(self):
+        kind, calls, gates, fetcher = self.fetch(True)
+        self.assertEqual(kind, "not_found")
+        self.assertEqual(calls, ["https://iopscience.iop.org/article/10.1088/x/pdf"])
+        paced = []
+        with mock.patch.object(fetcher, "_pace", paced.append), \
+                mock.patch.object(fetcher, "_robots_allow", side_effect=AssertionError("robots consulted")):
+            gates[-1]("https://cdn.iop.org/x.pdf")                      # a redirect hop: paced, robots not consulted
+        self.assertEqual(paced, ["cdn.iop.org"])
+
+    def test_an_automated_fetch_still_obeys_robots_txt(self):
+        kind, calls, _, _ = self.fetch(False)
+        self.assertEqual((kind, calls), ("robots_disallowed", ["https://iopscience.iop.org/robots.txt"]))
+
+    def test_the_reader_s_download_is_marked_as_the_person_s_and_failures_are_logged(self):
+        source = (ROOT / "app" / "service.py").read_text(encoding="utf-8")
+        body = source[source.index("    def download_pdf("):source.index("    def _openalex_facts(")]
+        self.assertIn("fetch(candidate[\"url\"], pdf_fetch.stem_of(paper), user_requested=True)", body)
+        self.assertIn('print(f"PDF download failed: ', body)
+        self.assertNotIn("title", body[body.index("PDF download failed"):body.index("continue", body.index("PDF download failed"))])

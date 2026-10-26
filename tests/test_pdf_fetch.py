@@ -613,7 +613,7 @@ class ReviewFixTests(AppCase):
         mock.patch.object(pdf_fetch.time, "monotonic", lambda: clock[0]).start()
         return sleep
 
-    def test_every_request_gets_the_same_fetcher_so_pacing_and_robots_persist(self):
+    def test_every_request_gets_the_same_fetcher_so_pacing_persists(self):
         # The HTTP server builds a new App per request; a per-App fetcher would forget everything.
         other = App(root=str(self.root), data_dir=str(self.app.data))
         self.addCleanup(other.store.close)
@@ -626,7 +626,8 @@ class ReviewFixTests(AppCase):
             self.assertTrue(self.app.download_pdf("a")["ok"])
             self.assertTrue(other.download_pdf("b")["ok"])
         self.assertEqual([c.args[0] for c in sleep.call_args_list], [3.0])  # spaced across two App objects
-        self.assertEqual(sum(u.endswith("/robots.txt") for u in net.calls), 1)  # robots read once, not per request
+        # The reader's downloads are the person's own (owner, 2026-10-26): robots.txt is not read for them at all.
+        self.assertEqual(sum(u.endswith("/robots.txt") for u in net.calls), 0)
 
     def test_parallel_downloads_from_one_host_are_spaced(self):
         import threading
