@@ -2781,6 +2781,8 @@
     "还没有种子论文。要先按{0}查找论文，挑几篇添加为种子吗？这样推荐会更准。": "There are no seed papers yet. Search with {0} and add a few as seeds first? Recommendations will be more accurate.",
     "还没有种子论文。下面是按检索式找到的论文，挑几篇点“添加”，推荐会更准。": "There are no seed papers yet. Pick a few of the papers found below and click Add; recommendations will be more accurate.",
     "按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。": "The queries and keywords found no papers, so the new project will probably recommend nothing. Change the queries or keywords first.",
-    "去挑选": "Pick papers"
+    "去挑选": "Pick papers",
+    "勾选找到的论文，它们就成为种子论文，推荐会从它们学起。": "Tick the papers you find to make them seed papers; recommendations learn from seeds.",
+    "还没有种子论文。下面是按检索式找到的论文，勾选几篇，推荐会更准。": "There are no seed papers yet. Tick a few of the papers found below; recommendations will be more accurate."
   }
 }

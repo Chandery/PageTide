@@ -168,12 +168,6 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .dropzone:hover,.dropzone.over{border-color:var(--accent);background:var(--accent-soft)}
 .seed-search{margin-top:calc(12px * var(--s));border:1px solid var(--line);border-radius:var(--r-lg);padding:calc(12px * var(--s));background:var(--base)}
 .seed-search-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:calc(6px * var(--s))}
-.seed-hit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:calc(2px * var(--s)) calc(12px * var(--s));padding:calc(9px * var(--s)) 0;border-top:1px solid var(--line);animation:rise .2s var(--ease-out)}
-.seed-hit:first-of-type{border-top:0}
-.seed-hit .title{font-weight:600}
-.seed-hit .meta{color:var(--muted);font-size:calc(var(--fs-sm) * var(--s));grid-column:1}
-.seed-hit .abstract{font-size:calc(var(--fs-sm) * var(--s));color:var(--muted);grid-column:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.seed-hit button{grid-column:2;grid-row:1/3;align-self:center;padding:calc(6px * var(--s)) calc(12px * var(--s))}
 .seeds{list-style:none;margin:calc(12px * var(--s)) 0 0;padding:0;display:grid;gap:calc(8px * var(--s))}
 .seed{display:grid;grid-template-columns:22px 1fr auto;gap:calc(2px * var(--s)) calc(10px * var(--s));align-items:start;padding:calc(10px * var(--s)) calc(12px * var(--s));border:1px solid var(--line);border-radius:var(--r-md);background:var(--base);animation:rise .2s var(--ease-out)}
 .seed .state{grid-row:1/3;padding-top:calc(2px * var(--s));text-align:center}
@@ -192,8 +186,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .result .bad{color:var(--danger)}
 .result .good{color:var(--good)}
 
-@media(max-width:560px){.seed-hit{grid-template-columns:1fr}.seed-hit button{grid-column:1;grid-row:auto;justify-self:start;margin-top:calc(4px * var(--s))}}
-@media(max-width:860px){.modes,.grid,.split{grid-template-columns:1fr}.container{margin-top:calc(20px * var(--s))}.panel{padding:calc(16px * var(--s))}}
+@media(max-width:560px){@media(max-width:860px){.modes,.grid,.split{grid-template-columns:1fr}.container{margin-top:calc(20px * var(--s))}.panel{padding:calc(16px * var(--s))}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
 
 .map-layout{display:grid;grid-template-columns:minmax(0,1fr) calc(280px * var(--s));gap:calc(14px * var(--s));align-items:start}

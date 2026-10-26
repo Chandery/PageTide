@@ -74,7 +74,7 @@ function seedPage(result){
   const body=slice('async function openSeedSearch(query) {','const seedRemoveByKey');
   const ctx={$:(sel,root)=>root?{onclick:null,textContent:''}:node(sel),searchAct:{start(){},stop(){}},queued:fn=>fn(),
     post:async()=>result,seedFailure:r=>'失败：'+r.status,esc:x=>String(x??''),meta:()=>'meta',seeds:[],
-    document:{createElement:()=>({className:'',innerHTML:''})},seedNew:()=>({}),seedUpdate(){},seedRemoveByKey(){}};
+    document:{createElement:()=>({className:'',innerHTML:''})},seedNew:()=>({}),seedUpdate(){},seedRemoveByKey(){},candidateCard:p=>({dataset:{key:p.key}})};
   vm.createContext(ctx);vm.runInContext(notes+'\nlet searchToken=0;'+body+';globalThis.open=openSeedSearch;',ctx);
   return {node,list,open:q=>ctx.open(q)};
 }

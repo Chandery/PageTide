@@ -226,7 +226,7 @@ function candidateCard(paper, selected, onToggle) {
       <div class="more">
         ${String(paper.key || '').startsWith('cnki:') ? '<span class="src-cnki">知网</span>' : ''}
         ${paper.url ? `<a href="${esc(paper.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
-        ${pdfBadge(paper.pdf_status)}
+        ${paper.pdf_status ? pdfBadge(paper.pdf_status) : ''}
         <span class="tags"></span>
       </div>
     </div>`;
@@ -1125,24 +1125,21 @@ async function searchQueries() {
 }
 $('#manualSearch').onclick = () => searchQueries();
 
+// A found paper is the same card as a candidate in AI creation: ticking it adds it as a seed, unticking removes it.
+function seedTaken(key) { return seeds.some((s) => s.status !== 'failed' && ((s.paper && s.paper.key === key) || s.hitKey === key)); }
 function seedHit(paper, cnkiItem = null, query = '') {
-  const hit = document.createElement('div');
-  hit.className = 'seed-hit';
-  const added = () => seeds.some((s) => s.status !== 'failed' && s.paper && s.paper.key === paper.key);
-  hit.innerHTML = `<div class="title" data-no-i18n data-tex>${esc(paper.title)}</div><div class="meta"><span data-no-i18n>${esc(meta(paper))}</span> ${String(paper.key || '').startsWith('cnki:') ? '<span class="src-cnki">知网</span>' : ''}</div>
-    <div class="abstract" data-no-i18n>${esc(paper.abstract || '')}${paper.abstract && paper.abstract_partial ? '…' : ''}</div><button type="button">添加</button>`;
-  const button = $('button', hit);
-  button.onclick = async () => {
-    if (added()) { seedRemoveByKey(paper.key); button.textContent = '添加'; return; }
-    const item = seedNew('name', {input: paper.title});
-    button.textContent = '已添加';
+  const card = candidateCard(paper, seedTaken(paper.key), async (key, on) => {
+    if (!on) { seedRemoveByKey(key); return; }
+    if (seedTaken(key)) return;
+    const item = seedNew('name', {input: paper.title, hitKey: key});
     // A 知网 hit comes from the results list without its abstract: read its detail page first (a few seconds).
     const full = cnkiItem ? await seedCnkiDetail(item, cnkiItem, query) : null;
     if (seeds.includes(item)) seedUpdate(item, {status: 'resolved', paper: full || paper});
-  };
-  if (added()) button.textContent = '已添加';
-  $('#seedSearchList').appendChild(hit);
+  });
+  $('#seedSearchList').appendChild(card);
 }
+// The cards follow the seed list: a seed removed there is unticked here.
+function syncSeedHits() { $$('#seedSearchList .cand').forEach((card) => card.setSelected(seedTaken(card.dataset.key))); }
 
 // 知网 (desktop app only, ADR 0045): a typed Chinese title is also searched in the app's CNKI window, results list only.
 async function seedSearchCnki(query, token, shown) {
@@ -1189,7 +1186,7 @@ async function seedCnkiDetail(item, cnkiItem, query) {
     return (result.items || []).find((p) => p.key === `cnki:${String(read[0].dbname || '').toUpperCase()}:${read[0].filename}`) || null;
   } catch (error) { return null; }
 }
-const seedRemoveByKey = (key) => { const item = seeds.find((s) => s.paper && s.paper.key === key); if (item) seedRemove(item); };
+const seedRemoveByKey = (key) => { const item = seeds.find((s) => (s.paper && s.paper.key === key) || s.hitKey === key); if (item) seedRemove(item); };
 $('#seedSearchClose').onclick = () => { searchToken += 1; searchAct.stop(); $('#seedSearch').hidden = true; };
 
 /* ---- dropped PDFs */
@@ -1311,6 +1308,7 @@ function manualRefresh() {
   const ready = seeds.filter((s) => s.status === 'resolved').length;
   const keywords = seedKeywords.get().length + ($('#manualKeywords input').value.trim() ? 1 : 0);
   $('#manualSummary').textContent = working ? `${working} 个处理中` : '';
+  syncSeedHits();
   $('#manualCreate').disabled = !!working || !(keywords || ready);
   $('#manualCreate').title = working ? '请等处理完成' : (keywords || ready ? '' : '至少需要 1 个关键词或 1 篇种子论文');
 }
@@ -1327,7 +1325,7 @@ $('#manualCreate').onclick = async () => {
     const message = manualSearched < 0
       ? `还没有种子论文。要先按${basis}查找论文，挑几篇添加为种子吗？这样推荐会更准。`
       : manualSearched
-        ? '还没有种子论文。下面是按检索式找到的论文，挑几篇点“添加”，推荐会更准。'
+        ? '还没有种子论文。下面是按检索式找到的论文，勾选几篇，推荐会更准。'
         : '按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。';
     const choice = await window.PTDialogs.choose(message, manualSearched < 0
       ? [{label: '取消', value: null}, {label: '直接创建', value: 'create'}, {label: '查找论文', value: 'search'}]

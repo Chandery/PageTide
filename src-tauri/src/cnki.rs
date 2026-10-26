@@ -291,7 +291,10 @@ fn apply_clock(run: &mut Run, on_puzzle: bool) -> Option<String> {
     }
     match decide(run.state, now, run.started, run.last_seen, run.verify_since, run.left_puzzle_at) {
         Decision::Keep => None,
-        Decision::Fail(problem) => { run.state = "failed"; run.problem = Some(problem); None }
+        Decision::Fail(problem) => {
+            trace(&format!("run ended by the clock: {problem}"));
+            run.state = "failed"; run.problem = Some(problem); None
+        }
         Decision::Restart => {
             trace("past the puzzle without word from the page: restarting the step");
             run.state = "running"; run.verify_since = None; run.was_on_puzzle_page = false; run.left_puzzle_at = None;

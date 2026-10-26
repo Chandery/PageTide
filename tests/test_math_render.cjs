@@ -40,7 +40,7 @@ test('titles and abstracts are marked on every page that shows them, and those p
     '<h2 data-no-i18n data-tex>${esc(d.title)}</h2>', 'data-no-i18n data-tex>${esc(d.abstract)}</div>',
     '<h2 id="readerTitle" data-tex></h2>', 'id="petPaper" data-tex>']) assert.ok(index.includes(marked), marked);
   assert.doesNotMatch(index, /md\(d\.abstract\)/);                     // an abstract is not Markdown: its * and _ belong to formulas
-  for (const [file, count] of [['organization.js', 3], ['weekly-ui.js', 2], ['route-editor.js', 3], ['project-creation.js', 4], ['import.js', 2]])
+  for (const [file, count] of [['organization.js', 3], ['weekly-ui.js', 2], ['route-editor.js', 3], ['project-creation.js', 3], ['import.js', 2]])
     assert.equal((read(file).match(/data-tex/g) || []).length, count, file);
   for (const page of ['index.html', 'project_creation.html', 'weekly_report.html', 'route.html', 'import.html'])
     assert.match(read(page), /<script src="\/math\.js"><\/script>/, page);

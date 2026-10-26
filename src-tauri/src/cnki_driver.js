@@ -61,7 +61,20 @@
   }
 
   const grid = () => document.querySelector('.result-detail-list, .result-table-list');
-  const empty = () => /暂无数据|没有找到/.test(text(document.querySelector('#gridTable')));
+  // No result: CNKI's wording differs by page (a long query of several words showed none of the first two, 2026-10-26), so
+  // the result count is read as well.
+  const empty = () => {
+    if (/暂无数据|没有找到|抱歉/.test(text(document.querySelector('#gridTable, #ModuleSearchResult, .result-con')))) return true;
+    const count = document.querySelector('.pagerTitleCell em, #countPageDiv em');
+    return !!count && text(count).replace(/,/g, '') === '0';
+  };
+  // A query of several words can find nothing on CNKI where its first words do: drop the last word and search again, down
+  // to one word, at most MAX_RELAX times per query.
+  const MAX_RELAX = 3;
+  const shorter = (query, cursor) => {
+    const words = query.split(/\s+/).filter(Boolean);
+    return words.length > 1 && (cursor.relaxes || 0) < MAX_RELAX ? words.slice(0, -1).join(' ') : null;
+  };
 
   // Runs `act` and waits until the result grid was replaced (the old one is marked first) or says there is nothing.
   async function gridChange(act) {
@@ -114,7 +127,7 @@
       if (location.pathname !== '/kns8s/search') { location.href = SEARCH; return; }
       throw new Error('search box not found');
     }
-    const query = job.queries[cursor.q];
+    const query = cursor.relaxed || job.queries[cursor.q];
     let state;
     if (cursor.submitted !== cursor.q) {
       // Noted before the click: if submitting loads a new page, this script starts again there and only waits for the rows.
@@ -136,6 +149,18 @@
       }
     }
     if (state === 'puzzle') { if (await waitForPerson()) location.reload(); return; }
+    if (state !== 'rows') {
+      // Nothing for this query: try it with fewer words, or go on to the next query. Never a walk through empty tabs.
+      const fewer = shorter(query, cursor);
+      if (fewer) {
+        await report({cursor: {...cursor, submitted: null, retries: 0, relaxed: fewer, relaxes: (cursor.relaxes || 0) + 1},
+                      event: 'progress', message: `no result for "${query}": trying "${fewer}"`});
+        await pause();
+        location.href = SEARCH;
+        return;
+      }
+      return nextQuery(job, cursor, false, `no result for "${query}"`);
+    }
     // Every row in the time window is reported; the shell counts which are new (it alone knows the library) and says when the
     // run's cap is reached.
     let full = !!fresh.full;
@@ -171,11 +196,16 @@
         if (state === 'puzzle') { if (await waitForPerson()) location.reload(); return; }
         if (state !== 'rows') break;
       }
+      await report({event: 'progress', message: `${category} read`});     // a word to the shell while the run reads on
       await pause();
     }
-    const after = {...cursor, phase: 'search', q: cursor.q + 1, submitted: null, retries: 0};
-    if (after.q >= job.queries.length || full) { await report({cursor: after, event: 'done'}); return; }
-    await report({cursor: after, event: 'progress'});
+    return nextQuery(job, cursor, full);
+  }
+
+  async function nextQuery(job, cursor, full, message = '') {
+    const after = {...cursor, phase: 'search', q: cursor.q + 1, submitted: null, retries: 0, relaxed: null, relaxes: 0};
+    if (after.q >= job.queries.length || full) { await report({cursor: after, event: 'done', message}); return; }
+    await report({cursor: after, event: 'progress', message});
     await pause();
     location.href = SEARCH;
   }

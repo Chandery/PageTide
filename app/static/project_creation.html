@@ -87,7 +87,7 @@
     <textarea id="manualQueries" rows="2" placeholder="每行一条，例如：语法教学 国际中文教育"></textarea>
     <div class="query-actions">
       <button type="button" id="manualSearch">按检索式查找论文</button>
-      <span class="hint">找到的论文点“添加”就成为种子论文，推荐会从它们学起。</span>
+      <span class="hint">勾选找到的论文，它们就成为种子论文，推荐会从它们学起。</span>
     </div>
   </div>
 
@@ -106,7 +106,7 @@
       <div class="seed-search-head"><strong id="seedSearchTitle"></strong><button type="button" class="ghost small" id="seedSearchClose">关闭</button></div>
       <div class="activity" id="seedSearchActivity" role="status" aria-live="polite" hidden><span class="spinner" aria-hidden="true"></span><span class="act-text"></span><span class="act-time"></span></div>
       <div class="notice" id="seedSearchNotice" hidden></div>
-      <div id="seedSearchList"></div>
+      <div class="cands" id="seedSearchList"></div>
     </div>
     <ul class="seeds" id="seedList" aria-live="polite"></ul>
   </div>

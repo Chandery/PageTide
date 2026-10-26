@@ -273,3 +273,13 @@ test('candidate cards have no 展开摘要 button, only the link to the original
   assert.doesNotMatch(card, /展开摘要|收起摘要/);
   assert.match(card, /打开原文/);
 });
+
+test('manual creation shows found papers as the same checkbox cards as AI creation, kept in step with the seed list', () => {
+  const s = source();
+  const hit = s.slice(s.indexOf('function seedHit('), s.indexOf('function syncSeedHits('));
+  assert.match(hit, /candidateCard\(paper, seedTaken\(paper\.key\)/);
+  assert.match(hit, /if \(!on\) \{ seedRemoveByKey\(key\); return; \}/);
+  assert.doesNotMatch(hit, />添加<\/button>/);
+  assert.match(s.slice(s.indexOf('function manualRefresh('), s.indexOf("$('#manualCreate').onclick")), /syncSeedHits\(\)/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'app', 'static', 'project_creation.html'), 'utf8'), /class="cands" id="seedSearchList"/);
+});
