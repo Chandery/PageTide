@@ -10,6 +10,8 @@ import ipaddress
 import json
 import os
 import re
+import socket
+import ssl
 import tempfile
 import threading
 import time
@@ -35,7 +37,7 @@ ARXIV_PDF = "https://arxiv.org/pdf/{}"
 
 class PdfFetchError(RuntimeError):
     """kind: no_oa_source, invalid_url, robots_disallowed, not_found, paywalled_or_blocked,
-    rate_limited, not_pdf, too_large or network_error."""
+    rate_limited, not_pdf, too_large, certificate_error or network_error."""
 
     def __init__(self, message, kind):
         super().__init__(message)
@@ -93,15 +95,179 @@ class _Redirects(urllib.request.HTTPRedirectHandler):
         self.gate = gate
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        newurl = iri_to_uri(newurl)
         _require_public_https(newurl)
         if self.gate:
             self.gate(newurl)
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+def iri_to_uri(url):
+    """A link as a browser sends it: non-ASCII in the path or query percent-encoded (UTF-8), an international host in
+    its ASCII form. A publisher link such as .../download/129680071/lowqualitypdf/<Chinese title>.pdf was refused as
+    malformed while the browser opened it (2026-10-26). Characters already escaped stay as they are."""
+    try:
+        parts = urllib.parse.urlsplit(url)
+        host = parts.hostname or ""
+        if host and not host.isascii():
+            ascii_host = host.encode("idna").decode("ascii")
+            netloc = parts.netloc.replace(parts.hostname, ascii_host)
+        else:
+            netloc = parts.netloc
+    except (ValueError, UnicodeError):
+        return url
+    keep = "/%:@!$&'()*+,;=-._~?"
+    return urllib.parse.urlunsplit((parts.scheme, netloc, urllib.parse.quote(parts.path, safe=keep),
+                                    urllib.parse.quote(parts.query, safe=keep), urllib.parse.quote(parts.fragment, safe=keep)))
+
+
+# ------------------------------------------------------------------ incomplete certificate chains
+# Some sites send their own certificate without the intermediate that links it to a public root. Browsers fill the gap
+# by downloading that intermediate from the address in the certificate ("CA Issuers"); Python does not, so the app said
+# "network problem" where a browser downloaded the file (2026-10-26, www.jlakes.org). The same is done here, once per
+# host. Safe because the fetched certificates are only extra links: the chain must still end at a public root in the
+# trusted store, partial chains are not accepted, and a self-signed certificate fetched this way is never added.
+_ISSUER_MISSING = (20, 21)        # X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, _UNABLE_TO_VERIFY_LEAF_SIGNATURE
+_CHAIN_CONTEXTS = {}
+_CHAIN_LOCK = threading.Lock()
+MAX_ISSUER_BYTES = 64 * 1024
+
+
+def _issuer_missing(exc):
+    reason = getattr(exc, "reason", exc)
+    return isinstance(reason, ssl.SSLCertVerificationError) and getattr(reason, "verify_code", None) in _ISSUER_MISSING
+
+
+def _decode_cert(pem):
+    """The certificate's fields as ssl reports them (issuer, subject, caIssuers), or None."""
+    handle, path = tempfile.mkstemp(suffix=".pem")
+    try:
+        with os.fdopen(handle, "w", encoding="ascii", errors="replace") as out:
+            out.write(pem)
+        return ssl._ssl._test_decode_cert(path)   # noqa: SLF001 - the stdlib's own decoder; no third-party parser
+    except Exception:
+        return None
+    finally:
+        os.unlink(path)
+
+
+def _connect(host, port, timeout):
+    """A socket to host:port the way the download goes: through the system's https proxy when there is one (a proxy can
+    reach a different server of the same site, with a different certificate chain), else directly."""
+    proxy = urllib.request.getproxies().get("https")
+    if proxy and not urllib.request.proxy_bypass(host):
+        parts = urllib.parse.urlsplit(proxy if "://" in proxy else "http://" + proxy)
+        if parts.scheme == "http" and parts.hostname:
+            raw = socket.create_connection((parts.hostname, parts.port or 80), timeout=timeout)
+            try:
+                raw.sendall(f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode("ascii"))
+                answer = b""
+                while b"\r\n\r\n" not in answer and len(answer) < 8192:
+                    chunk = raw.recv(1024)
+                    if not chunk:
+                        break
+                    answer += chunk
+                if answer.split(b" ", 2)[1:2] != [b"200"]:
+                    raise OSError("proxy refused the tunnel")
+                return raw
+            except BaseException:
+                raw.close()
+                raise
+    return socket.create_connection((host, port), timeout=timeout)
+
+
+def _server_pem(host, port, timeout=15):
+    """The certificate a server presents, read without verifying it (only to find its issuer's address)."""
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    with _connect(host, port, timeout) as raw:
+        with context.wrap_socket(raw, server_hostname=host) as tls:
+            return ssl.DER_cert_to_PEM_cert(tls.getpeercert(binary_form=True))
+
+
+def _issuer_pem(url, timeout=15):
+    """A certificate from a "CA Issuers" address (http or https, public host), as PEM, or None."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme not in ("http", "https"):
+        return None
+    try:
+        _require_public_https(urllib.parse.urlunsplit(("https",) + tuple(parts[1:])))
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=timeout) as response:
+            data = response.read(MAX_ISSUER_BYTES + 1)
+    except (PdfFetchError, urllib.error.URLError, OSError, ValueError, http.client.HTTPException):
+        return None
+    if len(data) > MAX_ISSUER_BYTES:
+        return None
+    if data.lstrip().startswith(b"-----BEGIN CERTIFICATE-----"):
+        return data.decode("ascii", "replace")
+    try:
+        return ssl.DER_cert_to_PEM_cert(data)
+    except ValueError:
+        return None
+
+
+def chain_context(host, port, fetch_server=_server_pem, fetch_issuer=_issuer_pem):
+    """A TLS context that also knows the intermediates this host leaves out, or None when they cannot be found."""
+    key = (host, port)
+    with _CHAIN_LOCK:
+        if key in _CHAIN_CONTEXTS:
+            return _CHAIN_CONTEXTS[key]
+    try:
+        pem = fetch_server(host, port)
+    except (OSError, ssl.SSLError, ValueError):
+        return None
+    extra = []
+    for _ in range(3):                                          # leaf -> intermediate -> (another intermediate)
+        fields = _decode_cert(pem) or {}
+        addresses = [u for u in fields.get("caIssuers") or () if isinstance(u, str)]
+        issuer = next((found for found in map(fetch_issuer, addresses[:2]) if found), None)
+        if not issuer:
+            break
+        decoded = _decode_cert(issuer) or {}
+        if not decoded or decoded.get("issuer") == decoded.get("subject"):
+            break                                               # a self-signed certificate is never trusted this way
+        extra.append(issuer)
+        pem = issuer
+    if not extra:
+        return None
+    context = ssl.create_default_context()
+    partial = getattr(ssl, "VERIFY_X509_PARTIAL_CHAIN", 0x80000)   # OpenSSL X509_V_FLAG_PARTIAL_CHAIN (Python < 3.10 has no name)
+    context.verify_flags &= ~partial                            # an intermediate is a link, never an anchor
+    context.load_verify_locations(cadata="".join(extra))
+    with _CHAIN_LOCK:
+        _CHAIN_CONTEXTS[key] = context
+    return context
+
+
+class _ChainHandler(urllib.request.HTTPSHandler):
+    """https for every hop of a request, redirects included: a host that leaves out an intermediate certificate is tried
+    once more with it (see chain_context). The host is the real one, also behind a proxy's tunnel."""
+
+    def https_open(self, req):
+        target = getattr(req, "_tunnel_host", None) or req.host
+        parts = urllib.parse.urlsplit("//" + target)
+        key = (parts.hostname, parts.port or 443)
+        known = _CHAIN_CONTEXTS.get(key)
+        try:
+            return self.do_open(http.client.HTTPSConnection, req, context=known)
+        except urllib.error.URLError as exc:
+            if known is not None or not _issuer_missing(exc) or not parts.hostname:
+                raise
+            context = chain_context(*key)
+            if context is None:
+                raise
+            return self.do_open(http.client.HTTPSConnection, req, context=context)
+
+
 def _open(request, timeout=60, gate=None):
     """The single network seam (tests replace it)."""
-    return urllib.request.build_opener(_Redirects(gate)).open(request, timeout=timeout)
+    return urllib.request.build_opener(_Redirects(gate), _ChainHandler()).open(request, timeout=timeout)
+
+
+def _certificate_problem(exc):
+    reason = getattr(exc, "reason", exc)
+    return isinstance(reason, ssl.SSLCertVerificationError)
 
 
 def candidates(paper):
@@ -158,8 +324,13 @@ class Fetcher:
                     if exc.code == 429 or exc.code >= 500 or 300 <= exc.code < 400:
                         raise PdfFetchError(f"robots.txt unavailable for {authority} (HTTP {exc.code})", "network_error") from exc
                     parser.parse([])  # other 4xx: no robots.txt, so nothing is disallowed
+                except PdfFetchError as exc:
+                    if exc.kind != "invalid_url":
+                        raise
+                    parser.parse([])  # robots.txt moved off https (or off a public host): none is readable, as a 404
                 except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException, ValueError) as exc:
-                    raise PdfFetchError(f"robots.txt unreachable for {authority}: {exc}", "network_error") from exc
+                    kind = "certificate_error" if _certificate_problem(exc) else "network_error"
+                    raise PdfFetchError(f"robots.txt unreachable for {authority}: {exc}", kind) from exc
                 cached = self._robots[authority] = (parser, time.monotonic())
             return cached[0].can_fetch(ROBOTS_AGENT, url)
 
@@ -196,6 +367,7 @@ class Fetcher:
     # ------------------------------------------------------------------ fetch
     def fetch(self, url, stem):
         """Download one PDF; returns {path, sha256, bytes, url} or raises PdfFetchError."""
+        url = iri_to_uri(url)
         parts = _require_public_https(url)
         authority = _authority(parts)
         if not self._robots_allow(url):
@@ -219,6 +391,8 @@ class Fetcher:
             except (http.client.InvalidURL, ValueError) as exc:  # includes UnicodeError; retrying cannot help
                 raise PdfFetchError(f"malformed URL: {url}", "invalid_url") from exc
             except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+                if _certificate_problem(exc):          # retrying cannot help, and it is not the person's network
+                    raise PdfFetchError(f"{authority}: certificate not verifiable: {exc}", "certificate_error") from exc
                 last_error = PdfFetchError(f"{authority} unreachable: {exc}", "network_error")
                 if attempt == 0:
                     time.sleep(min(DEFAULT_GAP_SECONDS * 2, MAX_WAIT_SECONDS))

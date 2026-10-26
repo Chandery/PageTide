@@ -1946,7 +1946,8 @@ const PDF_REASONS = {
   rate_limited: '来源暂时限流，请稍后重试。',
   not_pdf: '来源返回的不是 PDF。',
   too_large: '文件太大，未下载。',
-  network_error: '网络不可用，请稍后重试。',
+  network_error: '连不上这个来源（网络不通，或来源暂时不可用），请稍后重试。',
+  certificate_error: '这个来源的安全证书无法核实，没有下载；可以打开原文页手动下载。',
   invalid_url: '来源链接不是 https，已拒绝。',
 };
 const pdfReason = (code) => PDF_REASONS[code] || '无法获取 PDF。';

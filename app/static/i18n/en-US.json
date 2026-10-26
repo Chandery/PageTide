@@ -2783,6 +2783,8 @@
     "按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。": "The queries and keywords found no papers, so the new project will probably recommend nothing. Change the queries or keywords first.",
     "去挑选": "Pick papers",
     "勾选找到的论文，它们就成为种子论文，推荐会从它们学起。": "Tick the papers you find to make them seed papers; recommendations learn from seeds.",
-    "还没有种子论文。下面是按检索式找到的论文，勾选几篇，推荐会更准。": "There are no seed papers yet. Tick a few of the papers found below; recommendations will be more accurate."
+    "还没有种子论文。下面是按检索式找到的论文，勾选几篇，推荐会更准。": "There are no seed papers yet. Tick a few of the papers found below; recommendations will be more accurate.",
+    "连不上这个来源（网络不通，或来源暂时不可用），请稍后重试。": "Could not reach this source (no network, or the source is down). Try again later.",
+    "这个来源的安全证书无法核实，没有下载；可以打开原文页手动下载。": "This source's security certificate could not be verified, so nothing was downloaded. You can open the original page and download it yourself."
   }
 }

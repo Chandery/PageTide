@@ -186,7 +186,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .result .bad{color:var(--danger)}
 .result .good{color:var(--good)}
 
-@media(max-width:560px){@media(max-width:860px){.modes,.grid,.split{grid-template-columns:1fr}.container{margin-top:calc(20px * var(--s))}.panel{padding:calc(16px * var(--s))}}
+@media(max-width:860px){.modes,.grid,.split{grid-template-columns:1fr}.container{margin-top:calc(20px * var(--s))}.panel{padding:calc(16px * var(--s))}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
 
 .map-layout{display:grid;grid-template-columns:minmax(0,1fr) calc(280px * var(--s));gap:calc(14px * var(--s));align-items:start}
