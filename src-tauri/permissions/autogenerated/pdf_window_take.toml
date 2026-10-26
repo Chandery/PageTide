@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pdf-window-take"
+description = "Enables the pdf_window_take command without any pre-configured scope."
+commands.allow = ["pdf_window_take"]
+
+[[permission]]
+identifier = "deny-pdf-window-take"
+description = "Denies the pdf_window_take command without any pre-configured scope."
+commands.deny = ["pdf_window_take"]

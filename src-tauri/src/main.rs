@@ -10,6 +10,7 @@ use std::{
 use tauri::{App, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, WebviewWindow, State, WindowEvent};
 
 mod cnki;
+mod pdf_window;
 
 const GUARDED_QUIT: &str = "pagetide-prepare-quit";
 
@@ -442,8 +443,11 @@ fn main() {
     }));
     let result = builder
         .manage(cnki::CnkiState::default())
+        .manage(pdf_window::PdfWindowState::default())
         .invoke_handler(tauri::generate_handler![save_export, complete_quit, pick_folder, relaunch,
-                                                 cnki::cnki_start, cnki::cnki_poll, cnki::cnki_cancel, cnki::cnki_next, cnki::cnki_report])
+                                                 cnki::cnki_start, cnki::cnki_poll, cnki::cnki_cancel, cnki::cnki_next, cnki::cnki_report,
+                                                 pdf_window::pdf_window_open, pdf_window::pdf_window_poll, pdf_window::pdf_window_take,
+                                                 pdf_window::pdf_window_cancel, pdf_window::pdf_window_chunk])
         .on_menu_event(|handle, event| {
             if event.id().as_ref() == GUARDED_QUIT {
                 prepare_quit(handle);
@@ -462,7 +466,8 @@ fn main() {
             let capability = serde_json::json!({"identifier":"owned-desktop-session", "local":false,
                 "windows":["main"], "remote":{"urls":[format!("{}/*", exact_origin)]},
                 "permissions":["allow-save-export", "allow-complete-quit", "allow-pick-folder", "allow-relaunch",
-                               "allow-cnki-start", "allow-cnki-poll", "allow-cnki-cancel"]}).to_string();
+                               "allow-cnki-start", "allow-cnki-poll", "allow-cnki-cancel",
+                               "allow-pdf-window-open", "allow-pdf-window-poll", "allow-pdf-window-take", "allow-pdf-window-cancel"]}).to_string();
             app.add_capability(capability.as_str())?;
             // The CNKI window (ADR 0045) gets exactly two commands, only on https://kns.cnki.net. CNKI's own scripts can call
             // them too: they carry untrusted page text, capped in cnki.rs and validated again by the server.
@@ -470,6 +475,12 @@ fn main() {
                 "remote":{"urls":[format!("https://{}/*", cnki::HOST)]},
                 "permissions":["allow-cnki-next", "allow-cnki-report"]}).to_string();
             app.add_capability(cnki_capability.as_str())?;
+            // The "download in the app" window (ADR 0047) gets one command on https pages: handing over a PDF it shows.
+            // Any page in that window can call it; pdf_window.rs caps it and the server validates the file.
+            let pdf_capability = serde_json::json!({"identifier":"pdf-download-window", "local":false, "windows":[pdf_window::LABEL],
+                "remote":{"urls":["https://*", "https://*/*"]},
+                "permissions":["allow-pdf-window-chunk"]}).to_string();
+            app.add_capability(pdf_capability.as_str())?;
             app.manage(process);
             #[cfg(windows)]
             let new_window_origin = origin.clone();
@@ -519,6 +530,10 @@ fn main() {
                     // Closing the 知网 window (ADR 0045) only hides it; it never quits the app.
                     api.prevent_close();
                     if let Some(cnki_window) = handle.get_webview_window(label) { cnki::on_close_requested(&cnki_window); }
+                }
+                RunEvent::WindowEvent { label, event: WindowEvent::CloseRequested { .. }, .. } if label == pdf_window::LABEL => {
+                    // The download window (ADR 0047) simply closes; the main page stops waiting for it.
+                    pdf_window::on_closed(handle);
                 }
                 RunEvent::WindowEvent { label, event: WindowEvent::CloseRequested { api, .. }, .. }
                     if label != cnki::LABEL && !handle.state::<DesktopSession>().quitting.load(Ordering::SeqCst) => {

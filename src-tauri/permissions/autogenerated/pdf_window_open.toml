@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pdf-window-open"
+description = "Enables the pdf_window_open command without any pre-configured scope."
+commands.allow = ["pdf_window_open"]
+
+[[permission]]
+identifier = "deny-pdf-window-open"
+description = "Denies the pdf_window_open command without any pre-configured scope."
+commands.deny = ["pdf_window_open"]

@@ -213,6 +213,36 @@
           "markdownDescription": "Enables the complete_quit command without any pre-configured scope."
         },
         {
+          "description": "Enables the pdf_window_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pdf-window-cancel",
+          "markdownDescription": "Enables the pdf_window_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the pdf_window_chunk command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pdf-window-chunk",
+          "markdownDescription": "Enables the pdf_window_chunk command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the pdf_window_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pdf-window-open",
+          "markdownDescription": "Enables the pdf_window_open command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the pdf_window_poll command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pdf-window-poll",
+          "markdownDescription": "Enables the pdf_window_poll command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the pdf_window_take command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-pdf-window-take",
+          "markdownDescription": "Enables the pdf_window_take command without any pre-configured scope."
+        },
+        {
           "description": "Enables the pick_folder command without any pre-configured scope.",
           "type": "string",
           "const": "allow-pick-folder",
@@ -265,6 +295,36 @@
           "type": "string",
           "const": "deny-complete-quit",
           "markdownDescription": "Denies the complete_quit command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pdf_window_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pdf-window-cancel",
+          "markdownDescription": "Denies the pdf_window_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pdf_window_chunk command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pdf-window-chunk",
+          "markdownDescription": "Denies the pdf_window_chunk command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pdf_window_open command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pdf-window-open",
+          "markdownDescription": "Denies the pdf_window_open command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pdf_window_poll command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pdf-window-poll",
+          "markdownDescription": "Denies the pdf_window_poll command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the pdf_window_take command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-pdf-window-take",
+          "markdownDescription": "Denies the pdf_window_take command without any pre-configured scope."
         },
         {
           "description": "Denies the pick_folder command without any pre-configured scope.",

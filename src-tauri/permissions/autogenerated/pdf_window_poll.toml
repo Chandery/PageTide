@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pdf-window-poll"
+description = "Enables the pdf_window_poll command without any pre-configured scope."
+commands.allow = ["pdf_window_poll"]
+
+[[permission]]
+identifier = "deny-pdf-window-poll"
+description = "Denies the pdf_window_poll command without any pre-configured scope."
+commands.deny = ["pdf_window_poll"]

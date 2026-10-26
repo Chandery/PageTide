@@ -1971,10 +1971,15 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
   const label = (p) => p.kind === 'source_page' ? (SOURCE_NAMES[p.label] || '来源页面') : (labels[p.kind] || '原文页面');
   const offered = Array.isArray(result.pages) && result.pages.length ? result.pages
     : result.landing_page ? [{ kind: 'landing', url: result.landing_page }] : [];
+  // 在应用里下载 (desktop app, ADR 0047): the paper's PDF link the app was refused, else its page, opened in a PageTide window
+  // where the person gets the PDF as in a browser; the window hands it over and it is attached like a dropped file.
+  const tried = (Array.isArray(result.attempts) ? result.attempts : []).map(a => a && a.url).filter(u => typeof u === 'string' && u.startsWith('https://'));
+  const inAppUrl = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ && project !== 'pt-demo'
+    ? tried[0] || (offered.find(p => p && typeof p.url === 'string' && p.url.startsWith('https://')) || {}).url : null;
   const links = offered.filter(p => p && typeof p.url === 'string' && p.url.startsWith('https://')).slice(0, 3)
-    .map((p, i) => `<a class="btn tiny${i ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${label(p)}</a>`).join('');
+    .map((p, i) => `<a class="btn tiny${i || inAppUrl ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${label(p)}</a>`).join('');
   box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
-    <div class="pdf-fail-actions">${links}${project === 'pt-demo' ? '' : '<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label>'}</div>
+    <div class="pdf-fail-actions">${inAppUrl ? '<button type="button" class="btn tiny primary" data-in-app>在应用里下载</button>' : ''}${links}${project === 'pt-demo' ? '' : '<label class="btn tiny">选择或拖入 PDF<input type="file" accept="application/pdf,.pdf" hidden></label>'}</div>
     <div class="pdf-fail-note"></div></div>`;
   const input = box.querySelector('input[type=file]') || document.createElement('input'), note = box.querySelector('.pdf-fail-note');
   const attach = async (file) => {
@@ -1992,6 +1997,29 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
     } catch (e) { note.textContent = `附加失败：${e.message}`; }
   };
   input.onchange = () => attach(input.files[0]);
+  const inApp = box.querySelector('[data-in-app]');
+  if (inApp) inApp.onclick = async () => {
+    const invoke = window.__TAURI_INTERNALS__.invoke;
+    inApp.disabled = true;
+    try { await invoke('pdf_window_open', { key, url: inAppUrl }); }
+    catch (e) { note.textContent = `没能打开下载窗口：${e}`; inApp.disabled = false; return; }
+    note.textContent = '已打开下载窗口：在那里打开这篇论文的 PDF（遇到验证就按页面提示完成），PDF 一出现就会自动加入。';
+    while (true) {
+      await new Promise(r => setTimeout(r, 1000));
+      if (!current()) { invoke('pdf_window_cancel').catch(() => {}); return; }     // the reader moved on: close the window
+      let status;
+      try { status = await invoke('pdf_window_poll'); } catch (e) { status = { state: 'failed' }; }
+      if (status.state === 'received' && status.key === key) {
+        const bytes = await invoke('pdf_window_take', { key });
+        return attach(new File([bytes], 'paper.pdf', { type: 'application/pdf' }));
+      }
+      if (status.state !== 'open') {
+        note.textContent = status.state === 'closed' ? '下载窗口已关闭，没有拿到 PDF。' : '没有拿到 PDF，可以再试一次，或在浏览器里下载后拖到这里。';
+        inApp.disabled = false;
+        return;
+      }
+    }
+  };
   box.ondragover = event => { event.preventDefault(); box.classList?.add('drop'); };
   box.ondragleave = () => box.classList?.remove('drop');
   box.ondrop = event => { event.preventDefault(); box.classList?.remove('drop'); return attach(event.dataTransfer?.files?.[0]); };

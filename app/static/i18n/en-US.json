@@ -2795,6 +2795,11 @@
     "这篇的 PDF 在原文页面上：打开原文页下载，再拖到这里。": "This paper's PDF is on its original page: open it, download the PDF, then drop it here.",
     "当前版本": "Version",
     "开发版": "development build",
-    "源码运行": "run from source"
+    "源码运行": "run from source",
+    "在应用里下载": "Download in the app",
+    "没能打开下载窗口：{0}": "Could not open the download window: {0}",
+    "已打开下载窗口：在那里打开这篇论文的 PDF（遇到验证就按页面提示完成），PDF 一出现就会自动加入。": "A download window is open: open this paper's PDF there (complete any check the page asks for). As soon as the PDF appears, it is added.",
+    "下载窗口已关闭，没有拿到 PDF。": "The download window was closed before a PDF arrived.",
+    "没有拿到 PDF，可以再试一次，或在浏览器里下载后拖到这里。": "No PDF arrived. Try again, or download it in your browser and drop it here."
   }
 }

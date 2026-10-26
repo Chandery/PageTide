@@ -11,17 +11,19 @@ const PAGES=[
   {kind:'landing',label:'原文页面',url:'https://repo.example.org/kg',needs_login:false},
   {kind:'publisher_page',label:'出版方',url:'https://doi.org/10.1234/kg',needs_login:true},
 ];
-function setup({late=false,uploadStatus=200}={}){
-  const input={files:[]},note={textContent:''},calls=[],opened=[];let current=true;
-  const box={innerHTML:'',classList:{add(){},remove(){},toggle(){}},querySelector:q=>q.includes('input')?input:note};
-  const ctx={encodeURIComponent,
+function setup({late=false,uploadStatus=200,invoke=null}={}){
+  const input={files:[]},note={textContent:''},calls=[],opened=[],button={disabled:false};let current=true;
+  const box={innerHTML:'',classList:{add(){},remove(){},toggle(){}},
+    querySelector:q=>q.includes('input')?input:q.includes('data-in-app')?(box.innerHTML.includes('data-in-app')?button:null):note};
+  const ctx={encodeURIComponent,window:invoke?{__TAURI_INTERNALS__:{invoke}}:{},setTimeout:f=>f(),
+    File:class{constructor(parts,name,opts){this.parts=parts;this.name=name;this.type=opts.type;}},
     api:async(url,body)=>{calls.push(['api',url,body]);return {ok:true};},
     fetch:async(url,init)=>{calls.push(['fetch',url,init.headers['X-Filename']]);if(late)current=false;
       return {ok:uploadStatus===200,status:uploadStatus,json:async()=>uploadStatus===200?{pdf_id:'public-id'}:{error:'bad file'}};},
     openReader:(...a)=>opened.push(a),console};
   vm.createContext(ctx);vm.runInContext(esc+'\n'+reasons+'\n'+failure,ctx);
   const show=result=>ctx.showPdfFailure(box,'k1','Title',result,'proj',()=>current);
-  return {box,input,note,calls,opened,show,ctx};
+  return {box,input,note,calls,opened,show,ctx,button,stop:()=>{current=false;}};
 }
 const drop=files=>({preventDefault(){this.prevented=true;},dataTransfer:{files}});
 const file=(name,type='application/pdf')=>({name,type});
@@ -102,4 +104,44 @@ test('a late reply for another paper does not reopen anything, for a drop as for
 test('opening the reader clears the drop handlers of an earlier failure',()=>{
   const open=source.slice(source.indexOf('async function openReader('),source.indexOf('async function openReader(')+1500);
   assert.match(open,/box\.ondragover\s*=\s*box\.ondrop\s*=\s*null/);
+});
+
+// 在应用里下载 (ADR 0047): in the desktop app the failure screen opens the refused PDF link in a PageTide window, waits
+// for the window to hand the PDF over, then attaches it like a dropped file.
+test('the desktop app offers 在应用里下载 first, at the PDF link the app was refused',async()=>{
+  const asked=[];let polls=0;
+  const p=setup({invoke:async(cmd,args)=>{asked.push([cmd,args]);
+    if(cmd==='pdf_window_poll')return ++polls<2?{state:'open'}:{state:'received',key:'k1'};
+    if(cmd==='pdf_window_take')return new Uint8Array([37,80,68,70,45]).buffer;return {opened:true};}});
+  p.show({ok:false,reason:'not_pdf',attempts:[{url:'https://iopscience.iop.org/article/x/pdf',reason:'not_pdf'}],pages:PAGES});
+  const html=p.box.innerHTML;
+  assert.match(html,/<button type="button" class="btn tiny primary" data-in-app>在应用里下载<\/button>/);
+  for(const m of html.matchAll(/<a class="([^"]*)"/g))assert.doesNotMatch(m[1],/primary/);   // one primary action only
+  await p.button.onclick();
+  assert.equal(JSON.stringify(asked[0]),JSON.stringify(['pdf_window_open',{key:'k1',url:'https://iopscience.iop.org/article/x/pdf'}]));
+  assert.deepEqual(asked.map(a=>a[0]),['pdf_window_open','pdf_window_poll','pdf_window_poll','pdf_window_take']);
+  assert.deepEqual(p.calls.map(c=>c[1]),['/api/seeds/pdf','/api/pdf/attach']);         // attached like a dropped file
+  assert.equal(p.opened.length,1);
+});
+test('without a refused PDF link it opens the paper page; closing the window says so and allows a retry',async()=>{
+  const asked=[];
+  const p=setup({invoke:async(cmd,args)=>{asked.push([cmd,args]);return cmd==='pdf_window_poll'?{state:'closed'}:{opened:true};}});
+  p.show({ok:false,reason:'landing_page_only',pages:PAGES});
+  await p.button.onclick();
+  assert.equal(asked[0][1].url,PAGES[0].url);
+  assert.match(p.note.textContent,/下载窗口已关闭/);
+  assert.equal(p.button.disabled,false);
+  assert.equal(p.calls.length,0);
+});
+test('leaving the paper closes the download window; the browser and the demo get no button',async()=>{
+  const asked=[];
+  const p=setup({invoke:async cmd=>{asked.push(cmd);return {state:'open'};}});
+  p.show({ok:false,reason:'not_pdf',attempts:[{url:'https://a.example/x.pdf'}],pages:PAGES});
+  const run=p.button.onclick();p.stop();await run;
+  assert.ok(asked.includes('pdf_window_cancel'));
+  const web=setup();web.show({ok:false,reason:'not_pdf',attempts:[{url:'https://a.example/x.pdf'}],pages:PAGES});
+  assert.doesNotMatch(web.box.innerHTML,/data-in-app/);
+  const demo=setup({invoke:async()=>({})});
+  demo.ctx.showPdfFailure(demo.box,'k1','T',{reason:'not_pdf',attempts:[{url:'https://a.example/x.pdf'}]},'pt-demo',()=>true);
+  assert.doesNotMatch(demo.box.innerHTML,/data-in-app/);
 });
