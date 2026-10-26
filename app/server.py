@@ -312,6 +312,24 @@ def _import_cancel(batch_id):
         return False
 
 
+
+# Content types for the app's own files, fixed here. On Windows, mimetypes reads the registry, and an installed program can
+# map .js or .mjs to text/plain (or leave .mjs unknown); WebView2 then refuses pdf.js, a JavaScript module, and the
+# reader fails with "Failed to fetch dynamically imported module .../pdf.min.mjs" (user report, 2026-10-26) while
+# classic scripts still run. Anything not listed falls back to mimetypes.
+STATIC_TYPES = {
+    ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml",
+    ".png": "image/png", ".woff2": "font/woff2", ".ttf": "font/ttf", ".pfb": "application/octet-stream",
+    ".wasm": "application/wasm", ".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8",
+    ".bib": "text/plain; charset=utf-8", ".ico": "image/x-icon", ".bcmap": "application/octet-stream",
+}
+
+
+def static_type(path):
+    suffix = Path(path).suffix.lower()
+    return STATIC_TYPES.get(suffix) or mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+
 class _CountedStream:
     """The request body, read at most `length` bytes; `remaining` says whether the caller left any unread."""
 
@@ -436,7 +454,7 @@ class Handler(BaseHTTPRequestHandler):
                 body,
             )
         self.send_response(200)
-        self.send_header("Content-Type", mimetypes.guess_type(str(target))[0] or "application/octet-stream")
+        self.send_header("Content-Type", static_type(target))
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
