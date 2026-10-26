@@ -490,7 +490,26 @@
 
       await loadLocation();
       await loadGateway();
+      savedState = formState();
     }
+
+    // Unsaved changes (owner, 2026-10-26: "设置里修改了但未保存就出去了的情况很多"): a snapshot of every field once loaded;
+    // leaving with a different one asks first. A key typed but not saved counts as a change (only whether one is typed is
+    // compared, never the key itself).
+    let savedState = null;
+    function formState() {
+      const fields = document.querySelectorAll ? document.querySelectorAll('.container input, .container select, .container textarea') : [];
+      return JSON.stringify([...(fields || [])]
+        .filter((el) => el.id && el.type !== 'file' && !el.readOnly)       // read-only ones (the data folder) change on their own
+        .map((el) => [el.id, el.type === 'checkbox' ? el.checked : el.type === 'password' ? !!el.value.trim() : el.value]));
+    }
+    const unsaved = () => savedState !== null && formState() !== savedState;
+    async function leave(href) {
+      if (unsaved() && !(await window.PTDialogs.confirm('设置有修改还没保存，离开会丢掉这些修改。仍然离开吗？'))) return;
+      savedState = null;
+      window.location.href = href;
+    }
+    window.onbeforeunload = (event) => { if (unsaved()) { event.preventDefault(); event.returnValue = ''; } };
 
     function renderUsage(data) {
       const u = data.usage || {};
@@ -579,6 +598,7 @@
         }
         if (newSettings.theme === 'auto') localStorage.removeItem('pt-mode');
         else localStorage.setItem('pt-mode', newSettings.theme);
+        savedState = null;                         // saved: leaving needs no question
         window.location.href = '/';
       } catch (e) {
         btn.disabled = false;
@@ -616,7 +636,9 @@
     };
 
     $('#saveBtn').onclick  = saveSettings;
-    $('#cancelBtn').onclick = () => window.location.href = '/';
+    $('#cancelBtn').onclick = () => leave('/');
+    const backLink = document.querySelector('.back-link');
+    if (backLink) backLink.onclick = (event) => { event.preventDefault(); leave('/'); };
     $('#testAiBtn').onclick = testAiConnection;
     $('#apiKey').oninput = () => invalidateAiTest('请重新测试');
 

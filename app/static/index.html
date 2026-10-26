@@ -42,8 +42,14 @@
                  background:var(--base); box-shadow:var(--sh-out-sm); display:flex; align-items:center; gap:8px;
                  transition:box-shadow .16s ease, transform .16s ease; user-select:none; }
   .project-btn:hover { background:var(--surface-2); }
-  .project-edit { font-size:var(--fs-sm); color:var(--muted); padding:6px 10px; border-radius:999px; text-decoration:none; white-space:nowrap; }
-  .project-edit:hover, .project-edit:focus-visible { color:var(--text); box-shadow:var(--sh-out-sm); }
+  /* Header actions beside the project switcher: icon + word pills like the tabs; 新建项目 is the one that stands out. */
+  .head-btn { display:inline-flex; align-items:center; gap:calc(6px * var(--s)); font-size:calc(var(--fs-sm) * var(--s)); font-weight:600;
+              color:var(--muted); padding:calc(7px * var(--s)) calc(13px * var(--s)); border-radius:999px; text-decoration:none; white-space:nowrap;
+              transition:background .15s var(--ease-out), color .15s var(--ease-out); }
+  .head-btn .icon { width:16px; height:16px; flex:0 0 16px; }
+  .head-btn:hover, .head-btn:focus-visible { color:var(--text); background:var(--surface-2); }
+  .head-btn.head-new { color:var(--accent-text); background:var(--accent-soft); }
+  .head-btn.head-new:hover, .head-btn.head-new:focus-visible { color:var(--accent-ink); background:var(--accent); }
   .project-btn .icon { font-size:var(--fs-md); }
   .project-btn kbd { font:var(--fs-xs)/1 -apple-system,BlinkMacSystemFont,sans-serif; color:var(--muted);
                      padding:3px 5px; border-radius:var(--r-sm); box-shadow:inset 0 0 0 1px var(--line-strong); }
@@ -600,6 +606,7 @@
   .icon.folder-open { mask-image:url("/icons/folder-open.svg");        -webkit-mask-image:url("/icons/folder-open.svg"); }
   .icon.chevron-down{ mask-image:url("/icons/chevron-down.svg");       -webkit-mask-image:url("/icons/chevron-down.svg"); }
   .icon.plus        { mask-image:url("/icons/plus.svg");               -webkit-mask-image:url("/icons/plus.svg"); }
+  .icon.help        { mask-image:url("/icons/circle-help.svg");        -webkit-mask-image:url("/icons/circle-help.svg"); }
   .icon.check       { mask-image:url("/icons/check.svg");              -webkit-mask-image:url("/icons/check.svg"); }
   .icon.pages       { mask-image:url("/icons/gallery-vertical-end.svg"); -webkit-mask-image:url("/icons/gallery-vertical-end.svg"); }
   .icon.outline     { mask-image:url("/icons/list-tree.svg");          -webkit-mask-image:url("/icons/list-tree.svg"); }
@@ -661,7 +668,7 @@
   /* — large screens: the steps (--s, --wrap) are defined in theme.css; the dense library page keeps --s:1 — */
   #organizationRoot { --s:1; }
   /* The demo project is read-only for the person's data: whatever would fetch, call a model, read a PDF or edit is simply not shown. */
-  html.pt-demo #btnRefresh, html.pt-demo #refreshRecord,
+  html.pt-demo #btnRefresh, html.pt-demo #refreshRecord, html.pt-demo #projectNew,
   html.pt-demo .ai-action, html.pt-demo .detail-projects,
   html.pt-demo #organizationRoot [data-action="suggest"],
   html.pt-demo #organizationRoot [data-action="export"], html.pt-demo #organizationRoot .org-notes,
@@ -688,8 +695,9 @@
     <i class="icon folder" aria-hidden="true"></i>
     <span id="currentProjectName">加载中...</span>
   </button>
-  <a class="project-edit" id="projectEdit" href="/project.html">管理项目</a>
-  <a class="project-edit" href="/guide.html">功能介绍</a>
+  <a class="head-btn head-new" id="projectNew" href="/project_creation.html"><i class="icon plus" aria-hidden="true"></i>新建项目</a>
+  <a class="head-btn" id="projectEdit" href="/project.html"><i class="icon folder" aria-hidden="true"></i>管理项目</a>
+  <a class="head-btn" href="/guide.html"><i class="icon help" aria-hidden="true"></i>功能介绍</a>
   <nav class="tabs" aria-label="主导航">
     <button class="tab active" data-view="today" aria-current="page"><i class="icon sparkles" aria-hidden="true"></i>今日</button>
     <button class="tab" data-view="library"><i class="icon library" aria-hidden="true"></i>论文库</button>

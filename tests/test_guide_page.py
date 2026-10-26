@@ -30,7 +30,7 @@ class GuidePageTests(unittest.TestCase):
 
     def test_home_links_to_it(self):
         home = (STATIC / "index.html").read_text(encoding="utf-8")
-        self.assertIn('href="/guide.html">功能介绍</a>', home)
+        self.assertRegex(home, r'href="/guide.html"><i class="icon help" aria-hidden="true"></i>功能介绍</a>')
 
     def test_every_toc_anchor_has_a_section(self):
         toc = re.search(r'<ul class="toc">(.*?)</ul>', self.html, re.S).group(1)

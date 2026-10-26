@@ -32,7 +32,7 @@
   </button>
 </div>
 
-<label class="import-after"><input type="checkbox" id="importAfter"><span>创建后导入我已有的论文库</span></label>
+<label class="import-after"><input type="checkbox" id="importAfter"><span class="import-after-text"><strong>创建后导入我已有的论文库</strong><small>PDF 文件夹或 Zotero 导出，建好项目后接着导入</small></span></label>
 
 <!-- ===================================================================== 快速创建 -->
 <section id="quickForm" class="panel" aria-label="快速创建">
@@ -78,11 +78,12 @@
 <section id="manualForm" class="panel" aria-label="手动创建">
   <div class="grid">
     <div class="field"><label for="manualName">项目名称</label><input id="manualName" maxlength="120" placeholder="例如：计算机视觉研究"></div>
-    <div class="field"><label for="manualKeywordsInput">关键词</label><div class="chip-input" id="manualKeywords"><span class="chips"></span><input id="manualKeywordsInput" placeholder="回车添加，例如：world models"></div></div>
+    <div class="field"><label for="manualKeywordsInput">关键词</label><p class="hint term-role">项目建好后，每天抓取新论文都按这些关键词去检索。</p><div class="chip-input" id="manualKeywords"><span class="chips"></span><input id="manualKeywordsInput" placeholder="回车添加，例如：world models"></div></div>
   </div>
 
   <div class="field">
     <label for="manualQueries">检索式 <span class="opt">（不用 AI）</span></label>
+    <p class="hint term-role">只在现在用来查找论文，你添加的论文成为种子；之后的抓取不用检索式。</p>
     <textarea id="manualQueries" rows="2" placeholder="每行一条，例如：语法教学 国际中文教育"></textarea>
     <div class="query-actions">
       <button type="button" id="manualSearch">按检索式查找论文</button>
@@ -125,11 +126,13 @@
 <div class="review">
   <section class="rv-block">
     <header><h3>关键词</h3></header>
+    <p class="hint term-role">项目建好后，每天抓取新论文都按这些关键词去检索。</p>
     <div class="chip-input" data-role="keywords"><span class="chips"></span><input placeholder="输入后回车添加"></div>
     <p class="hint" data-role="keywordHint" hidden>添加至少一个关键词后才能创建。</p>
   </section>
   <section class="rv-block">
     <header><h3>检索式</h3></header>
+    <p class="hint term-role">只在现在用来查找候选论文，你勾选的论文成为种子；之后的抓取不用检索式。</p>
     <textarea data-role="queries" rows="3" placeholder="例如：graph neural network node classification"></textarea>
   </section>
   <section class="rv-block" data-role="mapBlock" data-route-beta>

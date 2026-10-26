@@ -32,6 +32,7 @@ input[type=checkbox]:disabled{opacity:.5;cursor:default}
 .next-step{color:var(--accent-text);font-size:calc(var(--fs-sm) * var(--s));margin:calc(8px * var(--s)) 0}
 .query-actions{display:flex;align-items:center;gap:calc(10px * var(--s));flex-wrap:wrap;margin-top:calc(8px * var(--s))}
 .query-actions .hint{margin:0}
+.term-role{margin:calc(2px * var(--s)) 0 calc(8px * var(--s));color:var(--muted);font-size:calc(var(--fs-sm) * var(--s))}
 .field-note{color:var(--warn);font-size:calc(var(--fs-sm) * var(--s));margin:calc(8px * var(--s)) 0 0;white-space:normal}
 .field-note[hidden]{display:none}
 [aria-invalid="true"]{border-color:var(--danger)}
@@ -347,8 +348,15 @@ body.busy .map-detail button,body.busy .map-actions button{opacity:.6;pointer-ev
 .brief-field{display:block;margin:12px 0}.brief-field>span{display:block;font-size:calc(var(--fs-sm) * var(--s));margin-bottom:6px}.brief-field textarea{width:100%;box-sizing:border-box}.revision-table{border-collapse:collapse;width:100%;margin:12px 0}.revision-table th,.revision-table td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}.revision-table th{min-width:90px}
 
 /* ------------------------------------------------------------ import an existing library */
-.import-after{display:flex;gap:calc(8px * var(--s));align-items:flex-start;font-weight:400;margin:calc(4px * var(--s)) 0 0;cursor:pointer}
-.import-after input{width:auto;margin-top:calc(5px * var(--s))}
+/* "Import my library after creating": a selectable card like the mode cards above it, not a bare checkbox. */
+.import-after{display:flex;gap:calc(12px * var(--s));align-items:center;font-weight:400;margin:calc(14px * var(--s)) 0 calc(18px * var(--s));cursor:pointer;
+  padding:calc(12px * var(--s)) calc(16px * var(--s));border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface-1);
+  transition:border-color .15s var(--ease-out),background .15s var(--ease-out)}
+.import-after:hover{border-color:var(--line-strong)}
+.import-after:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.import-after-text{display:flex;flex-direction:column;gap:calc(2px * var(--s))}
+.import-after-text strong{font-weight:600;font-size:calc(var(--fs-md) * var(--s))}
+.import-after-text small{color:var(--muted);font-size:calc(var(--fs-sm) * var(--s))}
 .import-after-hint{margin:calc(2px * var(--s)) 0 calc(18px * var(--s)) calc(24px * var(--s))}
 
 .creation-quit-actions{flex-wrap:wrap}
