@@ -157,7 +157,7 @@ def main():
             digest=hashlib.sha256(url.encode()).hexdigest()[:16]
             number=int(digest[:8],16)
             payload={'results':[{'id':f'https://openalex.org/W{number}{i:02d}',
-                'title':f'Recall public study {number} {i}', 'publication_date':'2026-01-01',
+                'title':f'Recall topic public study {number} {i}', 'publication_date':'2026-01-01',
                 'language':'en','ids':{}} for i in range(50)]}
             (app.source.cache/(digest+'.json')).write_text(json.dumps(payload), encoding="utf-8")
             return payload
