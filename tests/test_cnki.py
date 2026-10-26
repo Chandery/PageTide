@@ -213,6 +213,15 @@ class IngestTests(Case):
         self.assertEqual(result["fetched"], 1)
         self.assertIsNotNone(self.paper("cnki:CJFQ:JSJX202610003"))
 
+    def test_cnki_papers_count_in_the_latest_refresh_record(self):
+        key = "last_refresh_result_" + self.pid
+        self.app.store.set_setting(key, {"at": "2026-10-26T05:20:00+00:00", "fetched": 0, "new_to_project": 0})
+        self.app.cnki_ingest(self.pid, [item(1), item(2)])
+        self.app.cnki_ingest(self.pid, [item(3)])
+        self.assertEqual(self.app.store.get_setting(key), {"at": "2026-10-26T05:20:00+00:00", "fetched": 3, "new_to_project": 3})
+        self.app.cnki_ingest(self.pid, [], problem="unavailable")                  # nothing read: the record stays
+        self.assertEqual(self.app.store.get_setting(key)["fetched"], 3)
+
     def test_the_problem_is_reported_and_what_was_read_is_kept(self):
         result = self.app.cnki_ingest(self.pid, [item(1)], problem="verification_needed")
         self.assertEqual((result["added"], result["problem"]), (1, "verification_needed"))

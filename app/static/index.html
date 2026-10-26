@@ -1213,6 +1213,9 @@ function refreshFailureText(kind) { return REFRESH_FAILURES[kind] || '上次抓�
 function renderMaintenance(m) {
   const note = $('#maintainNote'), line = $('#refreshRecord');
   if (!note || !m) return;
+  // While 知网 is still fetching, its own line is the one status: the record (OpenAlex/Baidu only so far) would say "0 new"
+  // beside it. 知网's counts are added to the record when it is done (App.cnki_ingest), and the page reloads then.
+  if (state.cnkiRunning) { if (line) line.hidden = true; return; }
   note.textContent = m.last_error ? refreshFailureText(m.last_error) : '';
   if (line) { line.textContent = refreshRecordText(m.last_refresh_result); line.hidden = !line.textContent; }
 }
@@ -1248,7 +1251,7 @@ async function autoMaintain() {
 // ------------------------------------------------------------- 知网 (CNKI), ADR 0045
 // After a refresh the desktop app also searches CNKI in its own window. Every batch it reads goes straight to the server, so
 // leaving or reloading the page loses nothing already read; a reloaded page picks the run up again (cnkiResume).
-let cnkiRunning = false;
+// state.cnkiRunning: a 知网 run is being followed by this page (renderMaintenance shows only its line meanwhile).
 async function cnkiIngest(projectId, items, problem) {
   let gained = 0;
   for (let i = 0; i < items.length || (i === 0 && problem); i += 100) {
@@ -1258,7 +1261,8 @@ async function cnkiIngest(projectId, items, problem) {
   return gained;
 }
 async function cnkiFollow(projectId, job, attempt = 0) {
-  cnkiRunning = true;
+  state.cnkiRunning = true;
+  if ($('#refreshRecord')) $('#refreshRecord').hidden = true;
   let busy = false;
   const note = $('#maintainNote');
   let gained = 0;
@@ -1274,14 +1278,14 @@ async function cnkiFollow(projectId, job, attempt = 0) {
     else if (!problem) toast(gained ? `知网：新加入 ${gained} 篇` : '知网：没有新论文', 'ok');
   } catch (e) { toast(`知网：${e.message}`, 'warn'); }
   finally {
-    cnkiRunning = false;
+    state.cnkiRunning = false;
     if (note) note.textContent = '';
     if (state.currentProject === projectId) await load().catch(() => {});
   }
   if (busy && attempt < 10) setTimeout(() => cnkiRefresh(projectId, attempt + 1), 20000);
 }
 async function cnkiRefresh(projectId, attempt = 0) {
-  if (!window.PTCnki?.available() || inDemo() || !projectId || cnkiRunning) return;
+  if (!window.PTCnki?.available() || inDemo() || !projectId || state.cnkiRunning) return;
   // Another CNKI job (a full abstract, a creation search) is running: try again shortly instead of skipping the day's part.
   const other = await window.PTCnki.current();
   if (other && (other.state === 'running' || other.state === 'verification')) {
@@ -1323,7 +1327,7 @@ async function cnkiFullAbstract(d, stillOpen) {
   } catch (e) { status('暂时读不到完整摘要，这里是知网的摘要片段'); }
 }
 async function cnkiResume() {
-  if (!window.PTCnki?.available() || inDemo() || cnkiRunning) return;
+  if (!window.PTCnki?.available() || inDemo() || state.cnkiRunning) return;
   const run = await window.PTCnki.current();
   const projectId = run?.tag?.startsWith('refresh:') ? run.tag.slice('refresh:'.length) : null;
   if (projectId) cnkiFollow(projectId, null);

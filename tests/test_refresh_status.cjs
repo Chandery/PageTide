@@ -51,13 +51,23 @@ test('a refresh that found nothing new still says how many it fetched', async ()
   const [message, kind] = await click({state:'done',result:{fetched:3,new_to_project:0,errors:[{kind:'network_error'}]}});
   assert.equal(message, '抓到 3 篇，没有新论文，部分查询未完成'); assert.equal(kind, 'warn');
 });
-function render(m) {
+function render(m, pageState = {}) {
   const els = {'#maintainNote': {textContent: ''}, '#refreshRecord': {hidden: true, textContent: ''}};
-  const context = vm.createContext({$: (s) => els[s]});
+  const context = vm.createContext({$: (s) => els[s], state: pageState});
   vm.runInContext(record, context);
   context.renderMaintenance(m);
   return els;
 }
+test('while 知网 is still fetching, only its line shows: no "0 new" record beside it', () => {
+  const at = new Date(2026, 9, 26, 13, 20).toISOString();
+  const els = {'#maintainNote': {textContent: '知网：后台处理中…'}, '#refreshRecord': {hidden: false, textContent: '最近抓取 …'}};
+  const context = vm.createContext({$: (s) => els[s], state: {cnkiRunning: true}});
+  vm.runInContext(record, context);
+  context.renderMaintenance({last_refresh_result: {at, fetched: 0, new_to_project: 0}});
+  assert.equal(els['#refreshRecord'].hidden, true);
+  assert.equal(els['#maintainNote'].textContent, '知网：后台处理中…');
+  assert.equal(render({last_refresh_result: {at, fetched: 0, new_to_project: 0}})['#refreshRecord'].hidden, false);
+});
 test('the line under the fetch button shows the last successful fetch, local time, and hides without a record', () => {
   const at = new Date(2026, 9, 23, 18, 44).toISOString();
   let els = render({last_refresh_result: {at, fetched: 33, new_to_project: 10}});

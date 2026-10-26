@@ -3193,6 +3193,13 @@ class App:
                   "new_recommendable": self.new_recommendable(project_id, stats["linked_keys"]), "problem": problem}
         self.store.set_setting("cnki_last_" + project_id, {"at": now(), "fetched": len(papers), "added": added,
                                                            "new_to_project": stats["linked"], "problem": problem})
+        # 知网 runs after the server's own sources: its papers count in the same "最近抓取" record, so the page never says
+        # "0 new" while 知网 added some.
+        record = self.store.get_setting("last_refresh_result_" + project_id)
+        if isinstance(record, dict) and (papers or stats["linked"]):
+            self.store.set_setting("last_refresh_result_" + project_id, {
+                **record, "fetched": int(record.get("fetched") or 0) + len(papers),
+                "new_to_project": int(record.get("new_to_project") or 0) + stats["linked"]})
         return result
 
     def cnki_abstract(self, key, item):
