@@ -2803,6 +2803,8 @@
     "没有拿到 PDF，可以再试一次，或在浏览器里下载后拖到这里。": "No PDF arrived. Try again, or download it in your browser and drop it here.",
     "有些网站在应用里拿不到 PDF：关掉下载窗口，点“原文页面”在浏览器里下载，再拖到这里或点“选择或拖入 PDF”。": "Some sites do not hand the PDF to the app: close the download window, click “Paper page” to download it in your browser, then drop it here or click “Choose or drop a PDF”.",
     "没有拿到 PDF，可以再试一次，或点“原文页面”在浏览器里下载后拖到这里。": "No PDF arrived. Try again, or click “Paper page”, download it in your browser and drop it here.",
-    "下载窗口已关闭，没有拿到 PDF。可以点“原文页面”在浏览器里下载，再拖到这里。": "The download window was closed before a PDF arrived. Click “Paper page”, download it in your browser and drop it here."
+    "下载窗口已关闭，没有拿到 PDF。可以点“原文页面”在浏览器里下载，再拖到这里。": "The download window was closed before a PDF arrived. Click “Paper page”, download it in your browser and drop it here.",
+    "外部打开": "Open externally",
+    "没能打开：{0}": "Could not open it: {0}"
   }
 }

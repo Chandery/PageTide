@@ -757,7 +757,7 @@
       <button class="tiny ghost" id="zoomIn" title="放大">+</button>
       <button class="tiny ghost" id="zoomFit" title="适应宽度">适宽</button>
     </div>
-    <button class="tiny" id="readerNative">浏览器打开</button>
+    <button class="tiny" id="readerNative">外部打开</button>
     <button class="tiny" id="readerAsk">对这篇提问</button>
   </div>
   <div class="rbody">
@@ -2055,12 +2055,13 @@ async function openReader(key, title, project = state.currentProject) {
   R.doc = null; R.pages = []; R.scale = null; R.fit = true; R.jobs = new Map(); R.current = 1;
   R.pendingZoom = null; R.renderedScale = null; R.zoomBase = null;
   let url = `/api/pdf/view?key=${encodeURIComponent(key)}` + (project === 'pt-demo' ? '&project_id=pt-demo' : '');   // the PDF is fetched by pdf.js, which sends no demo header
-  R.url = url; R.key = key; R.project = project; R.sha256 = null;
+  R.url = url; R.key = key; R.project = project; R.sha256 = null; R.path = null;
   R.loading = true; $('#petSend').disabled = true;
   let prepared = null;
   try { prepared = await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
   if (!current()) return;
   if (prepared?.sha256) { R.sha256 = prepared.sha256; url += '&sha256=' + encodeURIComponent(prepared.sha256); R.url = url; }
+  R.path = prepared?.ok ? prepared.path || null : null;
   if (prepared && prepared.ok === false) {
     showPdfFailure(box, key, title, prepared, project, current);
     $('#readerInfo').textContent = '无 PDF';
@@ -2675,7 +2676,14 @@ $('#zoomFit').onclick = async () => {
   $('#readerPages').classList.remove('zoomed');
   await layoutPages();
 };
-$('#readerNative').onclick = () => { if (R.url) window.open(R.url, '_blank'); };
+// 外部打开: in the desktop app the PDF file goes to the system's default PDF app (a browser could not open the app's own
+// PDF address, which needs its session; window.open did nothing there). A source run in a browser opens a tab as before.
+$('#readerNative').onclick = async () => {
+  const tauri = window.__TAURI_INTERNALS__;
+  if (tauri && R.path) {
+    try { await tauri.invoke('open_pdf_file', { path: R.path }); } catch (e) { toast(`没能打开：${e}`, 'warn'); }
+  } else if (R.url) window.open(R.url, '_blank');
+};
 // Re-fit the pages whenever the available width changes (panel docking, window resize).
 let resizeTimer = null;
 window.addEventListener('resize', () => {

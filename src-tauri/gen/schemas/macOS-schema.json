@@ -213,6 +213,12 @@
           "markdownDescription": "Enables the complete_quit command without any pre-configured scope."
         },
         {
+          "description": "Enables the open_pdf_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-open-pdf-file",
+          "markdownDescription": "Enables the open_pdf_file command without any pre-configured scope."
+        },
+        {
           "description": "Enables the pdf_window_cancel command without any pre-configured scope.",
           "type": "string",
           "const": "allow-pdf-window-cancel",
@@ -295,6 +301,12 @@
           "type": "string",
           "const": "deny-complete-quit",
           "markdownDescription": "Denies the complete_quit command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the open_pdf_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-open-pdf-file",
+          "markdownDescription": "Denies the open_pdf_file command without any pre-configured scope."
         },
         {
           "description": "Denies the pdf_window_cancel command without any pre-configured scope.",

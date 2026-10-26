@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-pdf-file"
+description = "Enables the open_pdf_file command without any pre-configured scope."
+commands.allow = ["open_pdf_file"]
+
+[[permission]]
+identifier = "deny-open-pdf-file"
+description = "Denies the open_pdf_file command without any pre-configured scope."
+commands.deny = ["open_pdf_file"]
