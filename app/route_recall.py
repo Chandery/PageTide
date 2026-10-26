@@ -128,8 +128,9 @@ def live_sources(state, signature, moment):
     return out
 
 
-def record(planned, state, results, observed_at):
-    """Persist only bounded pages and provenance of successful logical queries."""
+def record(planned, state, results, observed_at, keep=None):
+    """Persist only bounded pages and provenance of successful logical queries. Pages follow every result; provenance only
+    the papers in `keep` when given (the ones actually stored)."""
     state = state if isinstance(state, dict) else {}
     sources = live_sources(state, planned["signature"], observed_at)
     previous = state if state.get('pagination_signature') == planned['pagination_signature'] else {}
@@ -144,6 +145,8 @@ def record(planned, state, results, observed_at):
         entry["observed_at"] = observed_at
         for paper in papers[:query["per_page"]]:
             key = paper["key"]
+            if keep is not None and key not in keep:
+                continue
             kept = [e for e in sources.get(key, []) if (e.get("query"), e.get("order"), e.get('page_mode')) != (query["query"], query["order"], query['page_mode'])]
             sources.pop(key, None)
             sources[key] = (kept + [entry])[-MAX_PAPER_SOURCES:]

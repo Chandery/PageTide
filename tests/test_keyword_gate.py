@@ -47,6 +47,24 @@ class MatchingTests(unittest.TestCase):
             self.assertTrue(Gate([term]).matches({"title": text}), (term, text))
         self.assertFalse(Gate(["mouse"]).matches({"title": "mice"}))            # irregular forms are not guessed
 
+    def test_the_independent_review_cases(self):
+        """Found by the independent review (2026-10-26): Chinese next to English, prefixes too loose, -y plurals, spaced
+        Chinese terms, short words inside longer ones."""
+        cases = [(["transformer"], "基于Transformer的机器翻译", True), (["AI"], "generative models; the aim is", False),
+                 (["generative AI"], "Generative AI in class", True), (["art"], "this article", False),
+                 (["basis"], "based on data", False), (["thesis"], "these results", False), (["study"], "two studies", True),
+                 (["policy"], "policies", True), (["technology"], "technologies", True), (["汉语 语法"], "汉语的语法研究", True),
+                 (["Si 同质外延"], "analysis of 同质外延", False), (["Si 同质外延"], "Si同质外延生长", True),
+                 (["metal"], "meta-learning", False), (["species"], "spectral", False), (["social"], "society", False),
+                 (["crisis"], "crispr", False), (["genesis"], "genes", False), (["label"], "labelled data", True),
+                 (["computation"], "compute budget", True)]
+        for terms, text, expected in cases:
+            self.assertEqual(Gate(terms).matches({"title": text}), expected, (terms, text))
+
+    def test_an_archived_concept_is_no_longer_a_relation(self):
+        route = {"graph": {"concepts": [{"id": "c1", "name": "Foundations", "terms": ["foundations"], "state": "archived"}]}}
+        self.assertEqual(keyword_gate.route_terms(route), [])
+
     def test_an_english_paper_never_matches_a_project_with_only_chinese_terms(self):
         self.assertFalse(Gate(ZH).matches({"title": "Grammar teaching in Chinese as a second language"}))
 
@@ -121,3 +139,35 @@ class ServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewFixTests(unittest.TestCase):
+    """Wiring fixes from the independent review (2026-10-26)."""
+
+    def test_the_exploration_slot_is_offered_only_papers_with_a_project_keyword(self):
+        from unittest import mock
+        from app import route_batch
+        from app.service import App
+        app = mock.MagicMock()
+        app._project_keywords.return_value = ["语法教学"]
+        app._learning_scope.return_value = None
+        app.route_recall_sources.return_value = {}
+        app.batch_day.return_value = "2026-10-26"
+        pool = [{"key": "kw", "title": "语法教学的新方向"}, {"key": "concept_only", "title": "偏误分析"}]
+        with mock.patch.object(route_batch, "choose", return_value=[]) as choose:
+            App._route_pick(app, {"project_id": "p"}, pool, {}, {}, 5, 0)
+        self.assertEqual(choose.call_args.kwargs["explore_keys"], {"kw"})
+
+    def test_route_provenance_keeps_only_stored_papers_but_pages_follow_every_result(self):
+        from app import route_recall
+        query = {"query": "q", "kinds": ["explore"], "concepts": [], "origins": [], "page": 1, "order": "recent",
+                 "page_mode": "paged", "from_date": None, "to_date": None, "page_key": "k", "per_page": 2}
+        planned = {"signature": "s", "cursors": {}, "pagination_signature": "p", "queries": [query]}
+        out = route_recall.record(planned, {}, [(query, [{"key": "a"}, {"key": "b"}])], 1.0, keep={"a"})
+        self.assertEqual(set(out["sources"]), {"a"})
+        self.assertEqual(out["pages"]["k"], 2)                       # a full page moves on, dropped papers included
+
+    def test_the_ranking_experiment_s_distractors_are_not_gated(self):
+        source = (ROOT / "app" / "service.py").read_text(encoding="utf-8")
+        body = source[source.index("    def refresh_candidates("):source.index("    def ", source.index("    def refresh_candidates(") + 10)]
+        self.assertLess(body.index("papers, unrelated = gate.keep(list(field))"), body.index("extra, distractor_errors = self.source.distractors("))

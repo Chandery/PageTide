@@ -1536,9 +1536,12 @@ class App:
                     stats = {}
                     # Only papers that mention a project term or a concept's term are stored; the paging record still sees
                     # every result, so a page of unrelated papers moves the query on to its next page.
-                    kept, _ = self._keyword_gate(project_id).keep(list(papers.values()))
+                    kept, unrelated = self._keyword_gate(project_id).keep(list(papers.values()))
                     added = self.store.upsert_papers(kept, project_id=project_id, commit=False, stats=stats)
-                    updated = route_recall.record(planned, state, results, time.time())
+                    # Paging sees every result; the remembered provenance only the papers kept, so dropped ones cannot
+                    # push stored papers' sources out of its bounded list.
+                    kept_keys = {p['key'] for p in kept}
+                    updated = route_recall.record(planned, state, results, time.time(), keep=kept_keys)
                     updated['configuration'] = {'from_date': from_date, 'per_page': max(1, min(50, int(per_page)))}
                     self.store.conn.execute('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
                         ('route_recall_' + project_id, json.dumps(updated, ensure_ascii=False)))
@@ -1546,9 +1549,9 @@ class App:
                 except Exception:
                     self.store.conn.rollback()
                     raise
-            return {'fetched': len(papers), 'added': added, 'new_to_project': stats['linked'],
-                    'new_recommendable': self.new_recommendable(project_id, stats['linked_keys']), 'field': len(papers), 'errors': errors,
-                    'query_plan': planned['queries'], 'recall_signature': planned['signature']}
+            return {'fetched': len(kept), 'added': added, 'new_to_project': stats['linked'],
+                    'new_recommendable': self.new_recommendable(project_id, stats['linked_keys']), 'field': len(kept), 'errors': errors,
+                    'unrelated': unrelated, 'query_plan': planned['queries'], 'recall_signature': planned['signature']}
         finally:
             with self._RECALL_LOCK:
                 self._RECALL_BUSY.discard(scope)
@@ -1618,8 +1621,10 @@ class App:
     def _route_pick(self, route, pool, scored, vectors, limit, batch_index, directions=(), shown=None):
         """Choose bounded 3+1+1 roles; historical batch_index has no quota effect."""
         route={**route,'matching_scope':self._learning_scope(route['project_id'],route)}
+        keywords=keyword_gate.Gate(self._project_keywords(route['project_id']))   # exploration: project keywords only, no map terms
         return route_batch.choose(route,pool,scored,limit,directions,shown,self.route_recall_sources(route['project_id'],route=route),
-                                  recent_since=window_start(FEED_WINDOW_YEARS),today=self.batch_day(),evidence=route.get('_selection_evidence'))
+                                  recent_since=window_start(FEED_WINDOW_YEARS),today=self.batch_day(),evidence=route.get('_selection_evidence'),
+                                  explore_keys={p['key'] for p in pool if keywords.matches(p)})
 
     def batch_day(self):
         """Same local-calendar clock used by maintenance. Client dates cannot set the cap."""
@@ -3405,7 +3410,10 @@ class App:
         if not search:
             field = self._add_baidu_candidates(project_id, field, from_date, errors, source_policy)
             field = self._add_baidu_web_candidates(project_id, field, from_date, errors, source_policy)
-        papers = list(field)
+        # Only papers that mention a project term are kept (keyword_gate, owner 2026-10-26). The distractors added below are
+        # unrelated on purpose (the ranking experiment's baseline) and are not gated.
+        gate = self._keyword_gate(project_id)
+        papers, unrelated = gate.keep(list(field))
         if include_distractors and openalex_on:
             extra, distractor_errors = self.source.distractors(from_date=from_date, per_query=distractor_per_query)
             papers += extra
@@ -3414,11 +3422,7 @@ class App:
         # A fake/cached adapter must not evade the date and source policies.
         accepted, rejected = [], []
         today = self.batch_day()
-        gate, unrelated = self._keyword_gate(project_id), 0
         for paper in papers:
-            if not gate.matches(paper):          # mentions no project term: not stored (owner, 2026-10-26)
-                unrelated += 1
-                continue
             if str(paper.get('published') or '') > today:
                 rejected.append({'key':paper['key'],'published':paper.get('published'),'reason':'future_publication_date'})
                 continue

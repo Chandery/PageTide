@@ -138,7 +138,7 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         self.assertEqual(steered, "cand-a")
 
     def test_too_hard_never_steers_away(self):
-        pid = self.project(["photonic crystal waveguide epitaxial graphene substrate"])
+        pid = self.project(["photonic crystal waveguide", "epitaxial graphene substrate"])
         self.add(pid, "hard", "epitaxial graphene substrate", "epitaxial graphene substrate growth")
         self.add(pid, "cand-a", "photonic crystal waveguide design", "photonic crystal waveguide modes", published="2026-02-01")
         self.add(pid, "cand-b", "epitaxial graphene substrate growth", "epitaxial graphene substrate steps", published="2026-03-01")
@@ -148,6 +148,7 @@ class BatchUsesFeedbackTests(unittest.TestCase):
             keys = [c["key"] for c in self.app.build_batch(limit=3, project_id=pid, exclude_seen=False)["cards"]]
             return [k for k in keys if k.startswith("cand")]
         before = relative_order()
+        self.assertEqual(sorted(before), ["cand-a", "cand-b"])   # both candidates are really compared (review, 2026-10-26)
         self.app.record_feedback("hard", "too_hard", project_id=pid)
         self.assertEqual(relative_order(), before)  # difficulty is not disinterest
 

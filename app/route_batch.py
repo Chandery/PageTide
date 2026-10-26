@@ -20,7 +20,7 @@ def policy(completed=False):
 
 
 def choose(route, papers, scored, limit, directions=(), shown=None, sources=None,
-           recent_since=None, today=None, evidence=None):
+           recent_since=None, today=None, evidence=None, explore_keys=None):
     """[(paper_key, concept_id | None, kind, label | None)], at most five.
 
     Paths can repeat until explicitly answered; discoveries always need unseen
@@ -83,7 +83,8 @@ def choose(route, papers, scored, limit, directions=(), shown=None, sources=None
                         'observed_at':entry.get('observed_at')};break
         novel=public['query'] if public else None
         side=next((c for c in ids if c not in scope and route['progress'][c]['status']!='satisfied'),None)
-        if side or novel or key in toward:
+        # An exploration paper must still mention a project keyword (owner, 2026-10-26): `explore_keys`, when given.
+        if (side or novel or key in toward) and (explore_keys is None or key in explore_keys):
             explore[key]=side or (ids[0] if ids else None)
             labels[key]=toward.get(key) or novel
             if key in toward:
