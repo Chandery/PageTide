@@ -19,25 +19,32 @@ function next() {
   message.id = 'pt-confirm-message-' + sequence; message.textContent = text(request.message);
   dialog.setAttribute('aria-labelledby', title.id); dialog.setAttribute('aria-describedby', message.id);
   actions.className = 'pt-confirm-actions';
-  const cancel = document.createElement('button'), approve = document.createElement('button');
-  cancel.type = approve.type = 'button'; cancel.textContent = text('取消'); approve.textContent = text('确认');
-  approve.className = 'primary'; actions.append(cancel, approve); dialog.append(title, message, actions);
+  // A confirm has 取消 / 确认; a choice lists its own buttons (the last one is the suggested one) and answers with its value.
+  const buttons = (request.buttons || [{label: '取消', value: false}, {label: '确认', value: true}]).map((spec, index, all) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = text(spec.label);
+    if (index === all.length - 1) button.className = 'primary';
+    button.onclick = () => finish(spec.value);
+    return button;
+  });
+  const cancel = buttons[0], approve = buttons[buttons.length - 1];
+  actions.append(...buttons); dialog.append(title, message, actions);
   let finished = false;
   const finish = accepted => {
     if (finished) return;
     finished = true;
-    const result = accepted === true && valid(request);
+    const result = request.buttons ? (valid(request) ? accepted : request.dismissed) : accepted === true && valid(request);
     if (dialog.open) dialog.close();
     dialog.remove(); current = null;
     if (previous?.isConnected && !previous.inert && !previous.disabled) previous.focus();
     request.resolve(result); next();
   };
   current = dialog;
-  cancel.onclick = () => finish(false); approve.onclick = () => finish(true);
-  dialog.addEventListener('cancel', event => { event.preventDefault(); finish(false); });
-  dialog.addEventListener('close', () => finish(false));
+  const dismiss = () => finish(request.buttons ? request.dismissed : false);
+  dialog.addEventListener('cancel', event => { event.preventDefault(); dismiss(); });
+  dialog.addEventListener('close', dismiss);
   dialog.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish(false); }
+    if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); dismiss(); }
     else if (event.key === 'Tab') {
       const outside = !dialog.contains(document.activeElement);
       if ((event.shiftKey && (document.activeElement === cancel || outside)) || (!event.shiftKey && (document.activeElement === approve || outside))) {
@@ -51,6 +58,10 @@ function next() {
 function confirm(message, options = {}) {
   return new Promise(resolve => { queue.push({message, options, resolve}); next(); });
 }
+// buttons: [{label, value}], left to right; Escape or closing answers `dismissed` (null unless given).
+function choose(message, buttons, options = {}) {
+  return new Promise(resolve => { queue.push({message, buttons, dismissed: options.dismissed ?? null, options, resolve}); next(); });
+}
 function notice(message, options = {}) {
   let node = options.target;
   if (!node) {
@@ -63,5 +74,5 @@ function notice(message, options = {}) {
   node.textContent = text(message); node.hidden = false;
   return node;
 }
-window.PTDialogs = {confirm, notice, active: () => !!current};
+window.PTDialogs = {confirm, choose, notice, active: () => !!current};
 })();

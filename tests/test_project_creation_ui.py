@@ -61,8 +61,9 @@ class ProjectCreationUITests(unittest.TestCase):
     def test_candidates_stream_per_query_with_placeholders_and_details(self):
         self.assertIn("/search`", self.js)
         self.assertNotIn("/preview", self.js)
-        for marker in ("skeleton", "matched_queries", "展开摘要", "打开原文", "已找到", "OpenAlex 暂时不可用"):
+        for marker in ("skeleton", "matched_queries", "打开原文", "已找到", "OpenAlex 暂时不可用"):
             self.assertIn(marker, self.js)
+        self.assertNotIn("展开摘要", self.js)   # the owner dropped it: the card keeps only 打开原文
         # The model never selects: nothing starts ticked.
         self.assertIn("selected.has(paper.key)", self.js)
         self.assertNotIn("勾选后才会加入项目", self.html)

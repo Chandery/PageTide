@@ -198,24 +198,30 @@ test('with the beta learning map off, nothing the creation page shows names the 
   assert.match(visibleWithMapOff('<p data-route-beta>学习图 <b>x</b></p><p data-route-beta-off>关键词</p>'), /关键词/);
 });
 
-test('creating with no candidate found searches first and asks before making a project that will recommend nothing', async () => {
+test('creating with no candidate asks first: nothing is searched unless chosen, and creating anyway stays possible', async () => {
   const s = source();
   const start = s.indexOf("part('create').onclick = async () => {"), end = s.indexOf('\n  refresh();\n  return', start);
-  const slots = new Map(), part = name => { if (!slots.has(name)) slots.set(name, {querySelectorAll: () => [], checked: false}); return slots.get(name); };
-  let created = 0, searched = 0, asked = '', answer = false;
+  const slots = new Map(), part = name => { if (!slots.has(name)) slots.set(name, {querySelectorAll: () => [], checked: false, scrollIntoView() {}}); return slots.get(name); };
+  let created = 0, searched = 0, asked = '', answer = null, offered = [];
   const candidates = {size: 0};
-  const context = vm.createContext({part, candidates, searching: false, search: async () => { searched++; },
-    window: {PTDialogs: {confirm: async message => { asked = message; return answer; }}},
+  const context = vm.createContext({part, candidates, searching: false, searchedOnce: false, search: async () => { searched++; },
+    window: {PTDialogs: {choose: async (message, buttons) => { asked = message; offered = buttons.map(b => b.value); return answer; }}},
     $$: () => [], map: {graph: null, discarded: true, generating: false, checking: false, editing: null},
     R: {check: () => ({ok: true})}, busy: false, readCreationPolicy: () => ({allowed_languages: ['zh']}), refresh() {}, mapNotice() {},
     createAct: {start() {}, stop() {}, fail() {}}, mapPayload: () => null, draft: () => ({keywords: ['语法教学']}), selected: new Set(),
     onCreate: async () => { created++; }, readCreationBrief: () => ({goal: 'g'})});
   vm.runInContext(s.slice(start, end), context);
-  await part('create').onclick();
-  assert.equal(searched, 1);                                   // never searched: the search runs first
-  assert.match(asked, /没有找到任何论文/);
-  assert.equal(created, 0);                                    // "no" keeps the person on the page
-  answer = true; context.busy = false;
+  await part('create').onclick();                              // dismissed: nothing happens, nothing is searched
+  assert.match(asked, /还没有候选论文/);
+  assert.equal(JSON.stringify(offered), JSON.stringify([null, 'create', 'search']));
+  assert.equal(searched, 0); assert.equal(created, 0);
+  answer = 'search'; context.busy = false;
+  await part('create').onclick();                              // the person chose to search: search, do not create
+  assert.equal(searched, 1); assert.equal(created, 0);
+  context.searchedOnce = true; answer = 'back'; context.busy = false;
+  await part('create').onclick();                              // searched and found nothing: say so plainly
+  assert.match(asked, /没有找到任何论文/); assert.equal(created, 0);
+  answer = 'create'; context.busy = false;
   await part('create').onclick();
   assert.equal(created, 1);                                    // they may still create, knowingly
   candidates.size = 3; asked = ''; context.busy = false;
@@ -249,4 +255,21 @@ test('the finalize request carries the ticked languages and no discipline', asyn
   await context.finish({draft: {}, selectedKeys: [], route: null});
   assert.deepEqual(sent.language_policy, {allowed_languages: ['zh', 'en']});
   assert.equal('discipline' in sent.language_policy, false);
+});
+
+test('manual creation without seeds asks before searching, and a keyword still being typed counts', () => {
+  const s = source();
+  const body = s.slice(s.indexOf("$('#manualCreate').onclick"), s.indexOf("$('#manualName').addEventListener('input', manualRefresh);"));
+  assert.match(body, /PTDialogs\.choose\(/);
+  assert.doesNotMatch(body, /await searchQueries\(\);\n\s*const message/);            // never a search before the question
+  assert.match(body, /choice === 'search'\) \{.*await searchQueries\(\); return; \}/); // searching never also creates
+  assert.match(s, /seedKeywords\.get\(\)\.length \+ \(\$\('#manualKeywords input'\)\.value\.trim\(\) \? 1 : 0\)/);
+  assert.match(s, /\$\('#manualKeywords input'\)\.addEventListener\('input', manualRefresh\)/);
+});
+
+test('candidate cards have no 展开摘要 button, only the link to the original', () => {
+  const s = source();
+  const card = s.slice(s.indexOf('function candidateCard('), s.indexOf('const SEARCH_PROBLEMS'));
+  assert.doesNotMatch(card, /展开摘要|收起摘要/);
+  assert.match(card, /打开原文/);
 });

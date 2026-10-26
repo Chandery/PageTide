@@ -225,7 +225,6 @@ function candidateCard(paper, selected, onToggle) {
       <div class="abstract" data-no-i18n data-tex>${hasAbstract ? esc(paper.abstract) + (paper.abstract_partial ? '…' : '') : ''}</div>
       <div class="more">
         ${String(paper.key || '').startsWith('cnki:') ? '<span class="src-cnki">知网</span>' : ''}
-        ${hasAbstract ? '<button type="button" class="toggle">展开摘要</button>' : ''}
         ${paper.url ? `<a href="${esc(paper.url)}" target="_blank" rel="noreferrer">打开原文</a>` : ''}
         ${pdfBadge(paper.pdf_status)}
         <span class="tags"></span>
@@ -234,14 +233,9 @@ function candidateCard(paper, selected, onToggle) {
   const box = $('input', el);
   const toggle = (value) => { box.checked = value; el.classList.toggle('selected', value); onToggle(paper.key, value); };
   el.addEventListener('click', (event) => {
-    if (event.target.closest('a, .toggle')) return;
+    if (event.target.closest('a')) return;
     toggle(event.target === box ? box.checked : !box.checked);
   });
-  const more = $('.toggle', el);
-  if (more) more.onclick = () => {
-    const open = el.classList.toggle('open');
-    more.textContent = open ? '收起摘要' : '展开摘要';
-  };
   el.setTags = (queries) => {
     $('.tags', el).innerHTML = '';
   };
@@ -265,7 +259,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
   root.replaceChildren(view);
   const part = (role) => $(`[data-role="${role}"]`, view);
   const candidates = new Map(), selected = new Set();
-  let searching = false, busy = false;
+  let searching = false, busy = false, searchedOnce = false;
   const searchAct = makeActivity(part('searchActivity')), createAct = makeActivity(part('createActivity'));
   const keywords = makeChips(part('keywords'), () => refresh());
   if (createLabel) part('create').textContent = createLabel;
@@ -602,6 +596,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
         if (result.error.kind === 'unavailable') break;   // more queries only add waiting
       }
     }
+    searchedOnce = true;
     const cnkiProblem = cnkiQueries.length && window.PTCnki?.available() ? await searchCnki(cnkiQueries) : null;
     if (cnkiProblem) baiduProblem = [baiduProblem, window.PTCnki.problemText(cnkiProblem)].filter(Boolean).join(' ');
     searchAct.stop();
@@ -644,11 +639,16 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       part('mapBlock').scrollIntoView({behavior: 'smooth', block: 'center'}); part('mapStart').focus(); return;
     }
     if (map.graph && !readCreationBrief(part('mapBrief'))) return;
-    // A project nothing was found for will recommend nothing: search before creating if that was skipped, and say so plainly
-    // when the queries find no paper at all.
-    if (!candidates.size && !searching) await search();
-    if (!candidates.size && !(await window.PTDialogs.confirm(
-      '按这些检索式没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词，再查找一次。仍然创建吗？'))) return;
+    // No candidate paper: ask first. A project nothing was found for will recommend little; the person may still create it.
+    if (!candidates.size && !searching) {
+      const choice = await window.PTDialogs.choose(searchedOnce
+        ? '按这些检索式没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词，再查找一次。'
+        : '还没有候选论文。要先按检索式查找论文，挑几篇再创建吗？这样推荐会更准。', searchedOnce
+        ? [{label: '直接创建', value: 'create'}, {label: '去修改', value: 'back'}]
+        : [{label: '取消', value: null}, {label: '直接创建', value: 'create'}, {label: '查找论文', value: 'search'}]);
+      if (choice === 'search') { part('searchStatus').scrollIntoView({behavior: 'smooth', block: 'center'}); await search(); return; }
+      if (choice !== 'create') return;
+    }
     busy = true; refresh();
     part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
     createAct.start('正在创建项目…');
@@ -1309,7 +1309,7 @@ const manualAct = makeActivity($('#manualActivity'));
 function manualRefresh() {
   const working = seeds.filter((s) => s.status === 'working').length;
   const ready = seeds.filter((s) => s.status === 'resolved').length;
-  const keywords = seedKeywords.get().length;
+  const keywords = seedKeywords.get().length + ($('#manualKeywords input').value.trim() ? 1 : 0);
   $('#manualSummary').textContent = working ? `${working} 个处理中` : '';
   $('#manualCreate').disabled = !!working || !(keywords || ready);
   $('#manualCreate').title = working ? '请等处理完成' : (keywords || ready ? '' : '至少需要 1 个关键词或 1 篇种子论文');
@@ -1321,13 +1321,22 @@ $('#manualCreate').onclick = async () => {
   if (!validateCreationStart($('#manualName'))) return;
   const payload = seeds.filter((s) => s.status === 'resolved')
     .map((s) => (s.pdfId ? {identifier: seedIdentifier(s.paper), pdf_id: s.pdfId} : seedIdentifier(s.paper)));
-  // No seed paper: show what the queries (or keywords) find first, so the person can pick some, and warn when nothing is found.
+  // No seed paper: ask first. Nothing is searched unless the person chooses to; they may also create the project as it is.
   if (!payload.length) {
-    const found = manualSearched >= 0 ? manualSearched : await searchQueries();
-    const message = found
-      ? '还没有种子论文。上面是按检索式找到的论文，挑几篇点“添加”，推荐会更准。直接创建吗？'
-      : '按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。仍然创建吗？';
-    if (!(await window.PTDialogs.confirm(message))) return;
+    const basis = manualQueries().length ? '你写的检索式' : '你现在的关键词';
+    const message = manualSearched < 0
+      ? `还没有种子论文。要先按${basis}查找论文，挑几篇添加为种子吗？这样推荐会更准。`
+      : manualSearched
+        ? '还没有种子论文。下面是按检索式找到的论文，挑几篇点“添加”，推荐会更准。'
+        : '按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。';
+    const choice = await window.PTDialogs.choose(message, manualSearched < 0
+      ? [{label: '取消', value: null}, {label: '直接创建', value: 'create'}, {label: '查找论文', value: 'search'}]
+      : [{label: '直接创建', value: 'create'}, {label: manualSearched ? '去挑选' : '去修改', value: 'back'}]);
+    if (choice === 'search') { $('#manualQueries').scrollIntoView({behavior: 'smooth', block: 'start'}); await searchQueries(); return; }
+    if (choice !== 'create') {
+      if (choice === 'back') (manualSearched ? $('#seedSearch') : $('#manualQueries')).scrollIntoView({behavior: 'smooth', block: 'start'});
+      return;
+    }
   }
   $('#manualCreate').disabled = true;
   manualAct.start('正在创建项目…');
@@ -1350,6 +1359,7 @@ $('#manualCreate').onclick = async () => {
   $('#enterProject').onclick = () => { creationLeaving = true; location.href = go; };
 };
 $('#manualName').addEventListener('input', manualRefresh);
+$('#manualKeywords input').addEventListener('input', manualRefresh);
 manualRefresh();
 
 /* ------------------------------------------------------------------ unsubmitted creation drafts at exit */

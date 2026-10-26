@@ -2770,6 +2770,17 @@
     "没有找到论文。换个说法、减少限定词，或检查论文语言和数据源设置。": "No papers found. Rephrase, use fewer qualifiers, or check the paper languages and sources.",
     "还没有种子论文。上面是按检索式找到的论文，挑几篇点“添加”，推荐会更准。直接创建吗？": "No seed papers yet. The papers found by your queries are above; adding a few makes recommendations better. Create now?",
     "按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。仍然创建吗？": "The queries and keywords found no papers, so the project will probably recommend nothing. Change them first. Create anyway?",
-    "中文论文来自知网：在应用里的知网窗口检索，第一次要滑一次拼图。": "Chinese papers come from CNKI: they are searched in the app’s CNKI window; the first search asks you to slide a puzzle once."
+    "中文论文来自知网：在应用里的知网窗口检索，第一次要滑一次拼图。": "Chinese papers come from CNKI: they are searched in the app’s CNKI window; the first search asks you to slide a puzzle once.",
+    "按这些检索式没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词，再查找一次。": "These queries found no papers, so the new project will probably recommend nothing. Change the queries or keywords and search again first.",
+    "还没有候选论文。要先按检索式查找论文，挑几篇再创建吗？这样推荐会更准。": "There are no candidate papers yet. Search with the queries and pick a few before you create the project? Recommendations will be more accurate.",
+    "直接创建": "Create anyway",
+    "去修改": "Edit first",
+    "查找论文": "Search papers",
+    "你写的检索式": "your queries",
+    "你现在的关键词": "your current keywords",
+    "还没有种子论文。要先按{0}查找论文，挑几篇添加为种子吗？这样推荐会更准。": "There are no seed papers yet. Search with {0} and add a few as seeds first? Recommendations will be more accurate.",
+    "还没有种子论文。下面是按检索式找到的论文，挑几篇点“添加”，推荐会更准。": "There are no seed papers yet. Pick a few of the papers found below and click Add; recommendations will be more accurate.",
+    "按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。": "The queries and keywords found no papers, so the new project will probably recommend nothing. Change the queries or keywords first.",
+    "去挑选": "Pick papers"
   }
 }

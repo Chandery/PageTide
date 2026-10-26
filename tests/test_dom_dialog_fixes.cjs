@@ -35,6 +35,13 @@ test('confirm queue is serialized, approval explicit, stale context never approv
  assert.equal(r.doc.body.children.filter(x=>x.open).length,1);current=false;r.buttons()[1].onclick();assert.equal(await p,true);assert.equal(await q,false);assert.equal(r.api.active(),false);
  const z=r.api.confirm('third',{valid:()=>current});assert.equal(await z,false);
 });
+test('choose answers with the clicked button value, Escape gives the dismissed value, and the last button is the suggested one',async()=>{
+ const r=runtime(),p=r.api.choose('No seeds yet',[{label:'取消',value:null},{label:'直接创建',value:'create'},{label:'查找论文',value:'search'}]);
+ const b=r.buttons();assert.equal(b.length,3);assert.equal(b[2].className,'primary');assert.equal(r.doc.activeElement,b[0]);
+ b[1].onclick();assert.equal(await p,'create');
+ const q=r.api.choose('again',[{label:'a',value:'a'},{label:'b',value:'b'}]);r.dialog().dispatch('cancel');assert.equal(await q,null);
+ let current=true;const z=r.api.choose('stale',[{label:'a',value:'a'}],{valid:()=>current});current=false;r.buttons()[0].onclick();assert.equal(await z,null);
+});
 test('confirmation keeps keyboard focus inside top dialog and notices persist accessibly',async()=>{
  const r=runtime(),p=r.api.confirm('<unsafe>');const [cancel,approve]=r.buttons();approve.focus();r.dialog().dispatch('keydown',{key:'Tab',shiftKey:false});assert.equal(r.doc.activeElement,cancel);
  cancel.focus();r.dialog().dispatch('keydown',{key:'Tab',shiftKey:true});assert.equal(r.doc.activeElement,approve);cancel.onclick();await p;
