@@ -8,6 +8,8 @@ import io
 import re
 from pathlib import Path
 
+TAIL_BYTES = 1024 * 1024   # where the end marker is looked for: appended data after %%EOF can be large
+
 
 def _dictionary_fields(stream, offset, size, is_stream=False):
     """Scan bounded chunks to the envelope end, retaining only needed fields.
@@ -72,9 +74,12 @@ def validate_pdf(source):
         head = stream.read(min(size, 1024))
         if not re.search(rb'%PDF-[12]\.\d', head):
             raise ValueError('这不是 PDF 文件')
-        stream.seek(max(0, size - 65536))
-        tail = stream.read(65536)
-        ends = list(re.finditer(rb'startxref\s+(\d+)\s+%%EOF\s*$', tail))
+        stream.seek(max(0, size - TAIL_BYTES))
+        tail = stream.read(TAIL_BYTES)
+        # The last startxref … %%EOF near the end. Bytes after %%EOF are tolerated, as PDF readers do: CNKI's PDFs carry
+        # some, and a valid paper downloaded from 知网 was refused as "不完整" (Windows report, 2026-10-27). A truncated file
+        # still fails: no end marker, or an index offset / root that does not hold.
+        ends = list(re.finditer(rb'startxref\s+(\d+)\s+%%EOF', tail))
         if not ends:
             raise ValueError('PDF 不完整或缺少有效结尾，请重新下载或选择完整文件')
         offset = int(ends[-1].group(1))

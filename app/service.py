@@ -4539,7 +4539,14 @@ class App:
                 name = route.get("label") or "来源页面"
                 return self._SOURCE_PAGE_NAMES.get(name, "Source page") if self.english() else name
             return self._PAGE_LABELS[route["kind"]][1 if self.english() else 0]
-        return [{"kind": r["kind"], "label": label(r), "url": r["url"], "needs_login": r["needs_login"]} for r in routes]
+        # One button per name: a 知网 paper can carry two 知网 links, which showed as two 在知网打开 (2026-10-27).
+        pages, named = [], set()
+        for r in routes:
+            if label(r) in named:
+                continue
+            named.add(label(r))
+            pages.append({"kind": r["kind"], "label": label(r), "url": r["url"], "needs_login": r["needs_login"]})
+        return pages
 
     def attach_pdf(self, paper_key, pdf_id):
         """Attach a PDF the user supplied (uploaded to imports/ first) to an existing paper.

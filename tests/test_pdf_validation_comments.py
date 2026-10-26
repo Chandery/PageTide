@@ -20,6 +20,15 @@ class CommentTests(unittest.TestCase):
         pdf = minimal_pdf("x").replace(b">>\nstartxref", b">>\r\n% one\r\n%two\r\n startxref")
         self.assertTrue(validate_pdf(pdf))
 
+    def test_bytes_after_eof_are_tolerated_like_pdf_readers_do(self):
+        for extra in (b"\x00" * 64, b"CNKI-watermark-data\r\n", b"%%EOF\n" + b"x" * 300):
+            self.assertTrue(validate_pdf(minimal_pdf("x") + extra))
+
+    def test_a_file_cut_before_its_end_marker_is_still_refused(self):
+        pdf = minimal_pdf("x")
+        with self.assertRaises(ValueError):
+            validate_pdf(pdf[: pdf.rindex(b"startxref")])
+
     def test_a_truncated_trailer_is_still_refused(self):
         pdf = minimal_pdf("x").replace(b"/Root 1 0 R >>\nstartxref", b"/Root 1 0 R\nstartxref")
         with self.assertRaises(ValueError):

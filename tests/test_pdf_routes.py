@@ -200,6 +200,15 @@ class DownloadTests(AppCase):
         self.assertEqual(result["reason"], "landing_page_only")
         self.assertEqual({p["label"] for p in result["pages"]}, {"百度学术", "原文页面", "出版方"})
 
+    def test_two_pages_of_one_source_give_one_button(self):
+        # A 知网 paper with two 知网 links showed 在知网打开 twice (2026-10-27): one button per name, the first link.
+        routes = [{"kind": "source_page", "label": "知网", "url": "https://kns.cnki.net/kcms2/article/abstract?v=a", "needs_login": True},
+                  {"kind": "source_page", "label": "知网", "url": "https://kns.cnki.net/kcms2/article/abstract?v=b", "needs_login": True},
+                  {"kind": "publisher_page", "label": "", "url": DOI, "needs_login": True}]
+        with mock.patch("app.service.source_adapters.pdf_routes", return_value=routes):
+            pages = self.app._failure_pages({"key": "cnki:CJFD:X"})
+        self.assertEqual([p["url"] for p in pages], ["https://kns.cnki.net/kcms2/article/abstract?v=a", DOI])
+
     def test_a_failed_download_keeps_its_own_reason_and_still_lists_pages(self):
         self.baidu_only()
         url = "https://repo.example.org/kg.pdf"
