@@ -32,7 +32,10 @@ const DRIVER: &str = include_str!("cnki_driver.js");
 const VERIFY_WAIT: Duration = Duration::from_secs(300);      // the person has five minutes to slide the puzzle
 const STALL: Duration = Duration::from_secs(120);            // no word from the page for this long: CNKI changed or hung
 const RUN_LIMIT: Duration = Duration::from_secs(20 * 60);    // a refresh reads a few results pages; this is far beyond it
-const LEFT_PUZZLE: Duration = Duration::from_secs(5);        // past the puzzle page with no word from the script for this long
+// Left the puzzle page this long ago with no word from the script since: start the step again. Counted from leaving the page,
+// never from the puzzle's start: the page CNKI opens after a pass (…search?captchaId=…) completes the pass while it loads, and
+// leaving it early makes CNKI ask again (seen 2026-10-26: the puzzle came back in a loop).
+const LEFT_PUZZLE: Duration = Duration::from_secs(10);
 
 const MAX_QUERIES: usize = 3;
 const MAX_QUERY_CHARS: usize = 80;
@@ -67,6 +70,7 @@ struct Run {
     last_seen: Instant,
     verify_since: Option<Instant>,
     was_on_puzzle_page: bool,     // the last "verification" came from CNKI's /verify page (not an in-page slider)
+    left_puzzle_at: Option<Instant>,   // when the shell first saw the window off that page
     dropped: u64,
 }
 
@@ -75,7 +79,7 @@ struct Run {
 enum Decision { Keep, Restart, Fail(&'static str) }
 
 fn decide(state: &str, now: Instant, started: Instant, last_seen: Instant, verify_since: Option<Instant>,
-          was_on_puzzle_page: bool, on_puzzle_page_now: bool) -> Decision {
+          left_puzzle_at: Option<Instant>) -> Decision {
     if state != "running" && state != "verification" {
         return Decision::Keep;
     }
@@ -86,9 +90,9 @@ fn decide(state: &str, now: Instant, started: Instant, last_seen: Instant, verif
         if verify_since.is_some_and(|t| now.duration_since(t) > VERIFY_WAIT) {
             return Decision::Fail("verification_needed");
         }
-        // CNKI's /verify page leaves by itself once the person passes it. Only then, if the page script stays silent, the
-        // shell starts the step again; an in-page slider keeps waiting for the person.
-        if was_on_puzzle_page && !on_puzzle_page_now && now.duration_since(last_seen) > LEFT_PUZZLE {
+        // CNKI's /verify page leaves by itself once the person passes it (`left_puzzle_at`, see apply_clock). Only if the
+        // page script then stays silent for LEFT_PUZZLE does the shell start the step again; an in-page slider never sets it.
+        if left_puzzle_at.is_some_and(|t| now.duration_since(t) > LEFT_PUZZLE) && now.duration_since(last_seen) > LEFT_PUZZLE {
             return Decision::Restart;
         }
         return Decision::Keep;
@@ -279,12 +283,19 @@ fn puzzle_now(app: &AppHandle) -> bool {
 /// Applies the run's clock (see `decide`) to the run only. On a restart it returns where the window should go.
 fn apply_clock(run: &mut Run, on_puzzle: bool) -> Option<String> {
     let now = Instant::now();
-    match decide(run.state, now, run.started, run.last_seen, run.verify_since, run.was_on_puzzle_page, on_puzzle) {
+    // Leaving CNKI's /verify page after a puzzle it showed: noted once, so the wait counts from then (see LEFT_PUZZLE).
+    if run.state == "verification" && run.was_on_puzzle_page && !on_puzzle {
+        run.left_puzzle_at.get_or_insert(now);
+    } else {
+        run.left_puzzle_at = None;
+    }
+    match decide(run.state, now, run.started, run.last_seen, run.verify_since, run.left_puzzle_at) {
         Decision::Keep => None,
         Decision::Fail(problem) => { run.state = "failed"; run.problem = Some(problem); None }
         Decision::Restart => {
             trace("past the puzzle without word from the page: restarting the step");
-            run.state = "running"; run.verify_since = None; run.was_on_puzzle_page = false; run.last_seen = now;
+            run.state = "running"; run.verify_since = None; run.was_on_puzzle_page = false; run.left_puzzle_at = None;
+            run.last_seen = now;
             let detail = run.cursor.get("phase").and_then(Value::as_str) == Some("detail");
             Some(run.cursor.get("queue").and_then(|q| q.get(0)).and_then(|t| t.get("url")).and_then(Value::as_str)
                 .filter(|_| detail).unwrap_or(SEARCH_URL).to_string())
@@ -327,7 +338,7 @@ pub async fn cnki_start(window: WebviewWindow, session: State<'_, DesktopSession
                          else { json!({"phase": "search", "q": 0, "queue": []}) };
             let now = Instant::now();
             *run = Some(Run { job, tag, known, seen: HashSet::new(), fresh: 0, max_new, cursor, items: Vec::new(), state: "running",
-                              problem: None, started: now, last_seen: now, verify_since: None, was_on_puzzle_page: false, dropped: 0 });
+                              problem: None, started: now, last_seen: now, verify_since: None, was_on_puzzle_page: false, left_puzzle_at: None, dropped: 0 });
             (After::Nothing, Some(first))
         }
     };
@@ -455,7 +466,7 @@ fn record_report(run: &mut Run, payload: &serde_json::Map<String, Value>, from_p
             }
         }
         Some("verified") | Some("progress") if run.state == "verification" => {
-            run.state = "running"; run.verify_since = None; run.was_on_puzzle_page = false;
+            run.state = "running"; run.verify_since = None; run.was_on_puzzle_page = false; run.left_puzzle_at = None;
             after = After::Hide;
         }
         Some("done") => { run.state = "done"; }
@@ -483,33 +494,38 @@ mod tests {
     #[test]
     fn a_silent_running_page_fails_after_the_stall_limit() {
         let t = Instant::now();
-        assert_eq!(decide("running", at(t, 100), t, t, None, false, false), Decision::Keep);
-        assert_eq!(decide("running", at(t, 121), t, t, None, false, false), Decision::Fail("unavailable"));
+        assert_eq!(decide("running", at(t, 100), t, t, None, None), Decision::Keep);
+        assert_eq!(decide("running", at(t, 121), t, t, None, None), Decision::Fail("unavailable"));
     }
 
     #[test]
     fn an_in_page_slider_waits_for_the_person_and_never_restarts() {
         let t = Instant::now();
         // reported from a search page (not /verify): the window is not on /verify, yet nothing restarts
-        assert_eq!(decide("verification", at(t, 60), t, t, Some(t), false, false), Decision::Keep);
-        assert_eq!(decide("verification", at(t, 301), t, t, Some(t), false, false), Decision::Fail("verification_needed"));
+        assert_eq!(decide("verification", at(t, 60), t, t, Some(t), None), Decision::Keep);
+        assert_eq!(decide("verification", at(t, 301), t, t, Some(t), None), Decision::Fail("verification_needed"));
     }
 
     #[test]
     fn leaving_the_puzzle_page_restarts_only_after_the_script_stays_silent() {
         let t = Instant::now();
-        assert_eq!(decide("verification", at(t, 3), t, t, Some(t), true, false), Decision::Keep);
-        assert_eq!(decide("verification", at(t, 6), t, t, Some(t), true, false), Decision::Restart);
-        assert_eq!(decide("verification", at(t, 60), t, t, Some(t), true, true), Decision::Keep);     // still on /verify
+        assert_eq!(decide("verification", at(t, 60), t, t, Some(t), None), Decision::Keep);           // still on /verify
+        // Regression (2026-10-26): the puzzle showed at 0 s, the person passed it at 60 s. At 61 s CNKI's captchaId page is
+        // still loading and completing the pass: the shell must not navigate away (it did, and the puzzle looped).
+        let left = Some(at(t, 60));
+        assert_eq!(decide("verification", at(t, 61), t, t, Some(t), left), Decision::Keep);
+        assert_eq!(decide("verification", at(t, 71), t, t, Some(t), left), Decision::Restart);
+        // The script spoke after leaving: it is working, nothing to restart.
+        assert_eq!(decide("verification", at(t, 72), t, at(t, 65), Some(t), left), Decision::Keep);
     }
 
     #[test]
     fn every_run_ends_at_the_run_limit_even_while_waiting_for_the_puzzle() {
         let t = Instant::now();
         let late = at(t, 20 * 60 + 1);
-        assert_eq!(decide("verification", late, t, late, Some(late), false, true), Decision::Fail("unavailable"));
-        assert_eq!(decide("running", late, t, late, None, false, false), Decision::Fail("unavailable"));
-        assert_eq!(decide("done", late, t, t, None, false, false), Decision::Keep);
+        assert_eq!(decide("verification", late, t, late, Some(late), None), Decision::Fail("unavailable"));
+        assert_eq!(decide("running", late, t, late, None, None), Decision::Fail("unavailable"));
+        assert_eq!(decide("done", late, t, t, None, None), Decision::Keep);
     }
 
     #[test]
@@ -525,7 +541,7 @@ mod tests {
         let (job, tag, known, _) = checked_job(&json!({"mode": mode, "queries": ["q"], "known": ["CJFQ:K"]})).unwrap();
         let now = Instant::now();
         Run { job, tag, known, seen: HashSet::new(), fresh: 0, max_new, cursor: json!({}), items: vec![], state: "running",
-              problem: None, started: now, last_seen: now, verify_since: None, was_on_puzzle_page: false, dropped: 0 }
+              problem: None, started: now, last_seen: now, verify_since: None, was_on_puzzle_page: false, left_puzzle_at: None, dropped: 0 }
     }
 
     fn report(run: &mut Run, payload: Value, from_puzzle_page: bool) -> (Value, After) {
@@ -560,7 +576,7 @@ mod tests {
         let now = Instant::now();
         let mut run = Run { job, tag, known, seen: HashSet::new(), fresh: 0, max_new, cursor: json!({}), items: vec![],
                             state: "running", problem: None, started: now, last_seen: now, verify_since: None,
-                            was_on_puzzle_page: false, dropped: 0 };
+                            was_on_puzzle_page: false, left_puzzle_at: None, dropped: 0 };
         assert!(count_item(&mut run, &json!({"dbname": "CJFQ", "filename": "A"})));
         assert!(!count_item(&mut run, &json!({"dbname": "cjfq", "filename": "A"})));     // the same paper again
         assert!(!count_item(&mut run, &json!({"dbname": "CJFQ", "filename": "K"})));     // already in the library
