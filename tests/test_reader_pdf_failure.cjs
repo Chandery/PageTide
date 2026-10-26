@@ -108,7 +108,7 @@ test('opening the reader clears the drop handlers of an earlier failure',()=>{
 
 // 在应用里下载 (ADR 0047): in the desktop app the failure screen opens the refused PDF link in a PageTide window, waits
 // for the window to hand the PDF over, then attaches it like a dropped file.
-test('the desktop app offers 在应用里下载 first, at the PDF link the app was refused',async()=>{
+test('the desktop app offers 在应用里下载 first, at the paper page (the refused PDF link only without one)',async()=>{
   const asked=[];let polls=0;
   const p=setup({invoke:async(cmd,args)=>{asked.push([cmd,args]);
     if(cmd==='pdf_window_poll')return ++polls<2?{state:'open'}:{state:'received',key:'k1'};
@@ -118,12 +118,17 @@ test('the desktop app offers 在应用里下载 first, at the PDF link the app w
   assert.match(html,/<button type="button" class="btn tiny primary" data-in-app>在应用里下载<\/button>/);
   for(const m of html.matchAll(/<a class="([^"]*)"/g))assert.doesNotMatch(m[1],/primary/);   // one primary action only
   await p.button.onclick();
-  assert.equal(JSON.stringify(asked[0]),JSON.stringify(['pdf_window_open',{key:'k1',url:'https://iopscience.iop.org/article/x/pdf'}]));
+  assert.equal(JSON.stringify(asked[0]),JSON.stringify(['pdf_window_open',{key:'k1',url:PAGES[0].url}]));
+  const bare=setup({invoke:async(cmd)=>cmd==='pdf_window_poll'?{state:'closed'}:{opened:true}});const opened=[];
+  bare.ctx.window.__TAURI_INTERNALS__.invoke=async(cmd,args)=>{opened.push([cmd,args]);return cmd==='pdf_window_poll'?{state:'closed'}:{};};
+  bare.show({ok:false,reason:'not_pdf',attempts:[{url:'https://iopscience.iop.org/article/x/pdf',reason:'not_pdf'}],pages:[]});
+  await bare.button.onclick();
+  assert.equal(opened[0][1].url,'https://iopscience.iop.org/article/x/pdf');
   assert.deepEqual(asked.map(a=>a[0]),['pdf_window_open','pdf_window_poll','pdf_window_poll','pdf_window_take']);
   assert.deepEqual(p.calls.map(c=>c[1]),['/api/seeds/pdf','/api/pdf/attach']);         // attached like a dropped file
   assert.equal(p.opened.length,1);
 });
-test('without a refused PDF link it opens the paper page; closing the window says so and allows a retry',async()=>{
+test('closing the window says so and allows a retry',async()=>{
   const asked=[];
   const p=setup({invoke:async(cmd,args)=>{asked.push([cmd,args]);return cmd==='pdf_window_poll'?{state:'closed'}:{opened:true};}});
   p.show({ok:false,reason:'landing_page_only',pages:PAGES});

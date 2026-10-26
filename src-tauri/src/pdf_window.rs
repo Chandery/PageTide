@@ -58,14 +58,30 @@ pub fn allowed_navigation(url: &Url) -> bool {
     let Some(host) = url.host_str() else { return false };
     let host = host.trim_start_matches('[').trim_end_matches(']').trim_end_matches('.').to_ascii_lowercase();
     if let Ok(ip) = host.parse::<std::net::IpAddr>() {
-        return match ip {
-            std::net::IpAddr::V4(ip) => !(ip.is_loopback() || ip.is_private() || ip.is_link_local() || ip.is_unspecified()),
-            std::net::IpAddr::V6(ip) => !(ip.is_loopback() || ip.is_unspecified() || (ip.segments()[0] & 0xfe00) == 0xfc00
-                                          || (ip.segments()[0] & 0xffc0) == 0xfe80),
-        };
+        return public_ip(ip);
     }
-    host.contains('.') && host != "localhost" && !host.ends_with(".local") && !host.ends_with(".localhost")
-        && !host.ends_with(".internal")
+    host.contains('.') && host != "localhost"
+        && ![".local", ".localhost", ".internal", ".lan", ".home.arpa"].iter().any(|suffix| host.ends_with(suffix))
+}
+
+/// A public address: not loopback, private, link-local, shared (100.64/10), unspecified, multicast or broadcast; an
+/// IPv4-mapped IPv6 address is judged as its IPv4 address, and the NAT64 prefix is refused.
+fn public_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(ip) => {
+            let [a, b, ..] = ip.octets();
+            !(ip.is_loopback() || ip.is_private() || ip.is_link_local() || ip.is_unspecified() || ip.is_multicast()
+              || ip.is_broadcast() || a == 0 || (a == 100 && (64..128).contains(&b)))
+        }
+        std::net::IpAddr::V6(ip) => match ip.to_ipv4_mapped() {
+            Some(v4) => public_ip(std::net::IpAddr::V4(v4)),
+            None => {
+                let first = ip.segments()[0];
+                !(ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() || (first & 0xfe00) == 0xfc00
+                  || (first & 0xffc0) == 0xfe80 || (first == 0x64 && ip.segments()[1] == 0xff9b))
+            }
+        },
+    }
 }
 
 /// Standard base64 (the page's btoa); None for anything else.
@@ -117,8 +133,17 @@ fn download_window(app: &AppHandle) -> Result<WebviewWindow, String> {
     let builder = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(blank))
         .title("PageTide · 在应用里下载 PDF")
         .inner_size(1100.0, 860.0)
+        .initialization_script(if RELEASE_BUILD { "" } else { "window.__pageTideDebug = true;" })
         .initialization_script(SCRIPT)
+        .on_document_title_changed(|_, title| {
+            if let Some(message) = title.strip_prefix("pagetide-debug: ") { trace(&format!("page says: {message}")); }
+        })
         .data_store_identifier(if RELEASE_BUILD { STORE_RELEASE } else { STORE_DEV })
+        .on_page_load(|window, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                trace(&format!("page loaded in {}: {}", window.label(), payload.url().as_str().chars().take(160).collect::<String>()));
+            }
+        })
         .on_navigation(|url: &Url| {
             let ok = allowed_navigation(url);
             if !ok { trace(&format!("navigation refused: {}", url.as_str().chars().take(160).collect::<String>())); }
@@ -128,7 +153,8 @@ fn download_window(app: &AppHandle) -> Result<WebviewWindow, String> {
         .on_new_window({
             let app = app.clone();
             move |url, _| {
-                if allowed_navigation(&url) {
+                // Only an https page: a page that first opens an empty window (window.open('')) must not blank this one.
+                if url.scheme() == "https" && allowed_navigation(&url) {
                     let app = app.clone();
                     let _ = app.clone().run_on_main_thread(move || {
                         if let Some(window) = app.get_webview_window(LABEL) { let _ = window.navigate(url); }
@@ -140,28 +166,45 @@ fn download_window(app: &AppHandle) -> Result<WebviewWindow, String> {
         .on_download({
             let app = app.clone();
             move |_, event| match event {
+                // A file the site offers as a download (Windows' PDF viewer saves this way; so does a viewer's own
+                // download button, often as a blob: address). Only from a permitted address, one at a time, while the
+                // window waits for this paper's PDF (independent review, 2026-10-26).
                 tauri::webview::DownloadEvent::Requested { url, destination } => {
+                    let permitted = allowed_navigation(&url) || matches!(url.scheme(), "blob" | "data");
                     let path = download_path();
-                    trace(&format!("download requested from {}", url.host_str().unwrap_or("-")));
-                    *destination = path.clone();
-                    if let Ok(mut job) = app.state::<PdfWindowState>().0.lock() {
-                        match job.as_mut() {
-                            Some(job) if job.state == "open" => job.download_to = Some(path),
-                            _ => return false,      // no job: nothing is downloaded
+                    let state = app.state::<PdfWindowState>();
+                    let Ok(mut guard) = state.0.lock() else { return false };
+                    match guard.as_mut() {
+                        Some(job) if permitted && job.state == "open" && job.download_to.is_none() => {
+                            trace(&format!("download requested from {}", url.host_str().unwrap_or(url.scheme())));
+                            job.download_to = Some(path.clone());
+                            *destination = path;
+                            true
                         }
+                        _ => false,
                     }
-                    true
                 }
                 tauri::webview::DownloadEvent::Finished { url, path, success } => {
-                    let state = app.state::<PdfWindowState>();
-                    let Ok(mut guard) = state.0.lock() else { return true };
-                    let Some(job) = guard.as_mut() else { return true };
-                    let file = path.or_else(|| job.download_to.take());
-                    if let Some(file) = file {
-                        let read = if success { std::fs::read(&file).ok() } else { None };
-                        let _ = std::fs::remove_file(&file);
-                        if let Some(bytes) = read {
-                            accept(job, bytes, url.host_str().map(str::to_string));
+                    // The file is always removed; it is read outside the lock, only if it is not too large, and it is
+                    // accepted only while the job still waits for a PDF.
+                    let recorded = app.state::<PdfWindowState>().0.lock().ok().and_then(|mut guard| guard.as_mut()
+                        .and_then(|job| job.download_to.take()));
+                    let Some(file) = path.or(recorded) else {
+                        trace("download finished but no destination was recorded");
+                        return true;
+                    };
+                    let small = std::fs::metadata(&file).map(|m| m.len() as usize <= MAX_BYTES).unwrap_or(false);
+                    let read = if success && small { std::fs::read(&file).ok() } else { None };
+                    let _ = std::fs::remove_file(&file);
+                    let Some(bytes) = read else {
+                        trace(&format!("download finished without an acceptable file (success: {success}, size ok: {small})"));
+                        return true;
+                    };
+                    let size = bytes.len();
+                    if let Ok(mut guard) = app.state::<PdfWindowState>().0.lock() {
+                        if let Some(job) = guard.as_mut().filter(|job| job.state == "open") {
+                            let ok = accept(job, bytes, url.host_str().map(str::to_string));
+                            trace(&format!("download finished: {size} bytes, {}", if ok { "accepted" } else { "refused" }));
                         }
                     }
                     true
@@ -245,10 +288,15 @@ pub fn pdf_window_take(window: WebviewWindow, session: State<'_, DesktopSession>
 
 #[tauri::command]
 pub fn pdf_window_cancel(window: WebviewWindow, session: State<'_, DesktopSession>, state: State<'_, PdfWindowState>,
-                         app: AppHandle) -> Result<(), String> {
+                         app: AppHandle, key: Option<String>) -> Result<(), String> {
     owned_page(&window, &session)?;
-    if let Ok(mut job) = state.0.lock() { *job = None; }
-    close_window(&app);
+    // With a key, only that paper's job: a reader that moved on never closes the window opened for the next paper.
+    let ended = state.0.lock().map(|mut job| {
+        let mine = job.as_ref().is_some_and(|j| key.as_deref().map_or(true, |k| j.key == k));
+        if mine { *job = None; }
+        mine
+    }).unwrap_or(false);
+    if ended { close_window(&app); }
     Ok(())
 }
 
@@ -303,6 +351,16 @@ mod tests {
 
     fn job() -> Job {
         Job { key: "k".into(), state: "open", bytes: Vec::new(), expected: 0, started: Instant::now(), download_to: None, from: None }
+    }
+
+    #[test]
+    fn local_addresses_in_other_spellings_are_refused() {
+        for bad in ["https://[::ffff:127.0.0.1]/x", "https://[::ffff:192.168.1.2]/x", "https://[64:ff9b::7f00:1]/x",
+                    "https://0.1.2.3/x", "https://100.64.0.1/x", "https://224.0.0.1/x", "https://255.255.255.255/x",
+                    "https://router.lan/x", "https://nas.home.arpa/x", "https://2130706433/x", "https://127.1/x"] {
+            assert!(!allowed_navigation(&bad.parse().unwrap()), "{bad}");
+        }
+        assert!(allowed_navigation(&"https://[2606:4700::1]/a.pdf".parse().unwrap()));
     }
 
     #[test]

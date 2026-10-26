@@ -1971,11 +1971,12 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
   const label = (p) => p.kind === 'source_page' ? (SOURCE_NAMES[p.label] || '来源页面') : (labels[p.kind] || '原文页面');
   const offered = Array.isArray(result.pages) && result.pages.length ? result.pages
     : result.landing_page ? [{ kind: 'landing', url: result.landing_page }] : [];
-  // 在应用里下载 (desktop app, ADR 0047): the paper's PDF link the app was refused, else its page, opened in a PageTide window
-  // where the person gets the PDF as in a browser; the window hands it over and it is attached like a dropped file.
+  // 在应用里下载 (desktop app, ADR 0047): the paper's page, else the PDF link the app was refused, opened in a PageTide window
+  // where the person gets the PDF as in a browser; the window hands it over and it is attached like a dropped file. The page
+  // comes first: WebKit runs no script in some PDF documents, while from the article page the PDF can always be read.
   const tried = (Array.isArray(result.attempts) ? result.attempts : []).map(a => a && a.url).filter(u => typeof u === 'string' && u.startsWith('https://'));
   const inAppUrl = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ && project !== 'pt-demo'
-    ? tried[0] || (offered.find(p => p && typeof p.url === 'string' && p.url.startsWith('https://')) || {}).url : null;
+    ? (offered.find(p => p && typeof p.url === 'string' && p.url.startsWith('https://')) || {}).url || tried[0] : null;
   const links = offered.filter(p => p && typeof p.url === 'string' && p.url.startsWith('https://')).slice(0, 3)
     .map((p, i) => `<a class="btn tiny${i || inAppUrl ? '' : ' primary'}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${label(p)}</a>`).join('');
   box.innerHTML = `<div class="rload pdf-fail"><div>${esc(pdfReason(result.reason))}</div>
@@ -2004,17 +2005,23 @@ function showPdfFailure(box, key, title, result, project, current = () => true) 
     try { await invoke('pdf_window_open', { key, url: inAppUrl }); }
     catch (e) { note.textContent = `没能打开下载窗口：${e}`; inApp.disabled = false; return; }
     note.textContent = '已打开下载窗口：在那里打开这篇论文的 PDF（遇到验证就按页面提示完成），PDF 一出现就会自动加入。';
+    // Some sites never hand the PDF over (WebKit runs no script in some PDF documents): after a while, say how to do it by hand.
+    const MANUAL = '有些网站在应用里拿不到 PDF：关掉下载窗口，点“原文页面”在浏览器里下载，再拖到这里或点“选择或拖入 PDF”。';
+    let waited = 0;
     while (true) {
       await new Promise(r => setTimeout(r, 1000));
-      if (!current()) { invoke('pdf_window_cancel').catch(() => {}); return; }     // the reader moved on: close the window
+      if ((waited += 1) === 20) note.textContent = MANUAL;
+      if (!current()) { invoke('pdf_window_cancel', { key }).catch(() => {}); return; }     // the reader moved on: close its window
       let status;
       try { status = await invoke('pdf_window_poll'); } catch (e) { status = { state: 'failed' }; }
       if (status.state === 'received' && status.key === key) {
-        const bytes = await invoke('pdf_window_take', { key });
+        let bytes;
+        try { bytes = await invoke('pdf_window_take', { key }); }
+        catch (e) { note.textContent = '没有拿到 PDF，可以再试一次，或点“原文页面”在浏览器里下载后拖到这里。'; inApp.disabled = false; return; }
         return attach(new File([bytes], 'paper.pdf', { type: 'application/pdf' }));
       }
       if (status.state !== 'open') {
-        note.textContent = status.state === 'closed' ? '下载窗口已关闭，没有拿到 PDF。' : '没有拿到 PDF，可以再试一次，或在浏览器里下载后拖到这里。';
+        note.textContent = status.state === 'closed' ? '下载窗口已关闭，没有拿到 PDF。可以点“原文页面”在浏览器里下载，再拖到这里。' : '没有拿到 PDF，可以再试一次，或点“原文页面”在浏览器里下载后拖到这里。';
         inApp.disabled = false;
         return;
       }
