@@ -43,9 +43,21 @@
   async function waitForPerson() {
     await report({event: 'verification'});
     if (location.pathname.startsWith('/verify')) return false;        // a pass reloads a search page: start again there
-    await until(() => !puzzle(), 300000, 1000);
+    const passed = await until(() => !puzzle(), 300000, 1000);
+    if (!passed) return false;                                         // nobody slid it: the shell ends the run at its limit
     await report({event: 'verified'});
     return true;
+  }
+
+  // Newest first: the time window below relies on it (CNKI's default, made sure of here).
+  async function newestFirst() {
+    for (let i = 0; i < 2; i++) {
+      const byDate = document.querySelector('#orderList li#PT');
+      if (!byDate || (byDate.classList.contains('cur') && byDate.classList.contains('DESC'))) return 'rows';
+      const state = await gridChange(() => byDate.click());
+      if (state !== 'rows') return state;
+    }
+    return 'rows';
   }
 
   const grid = () => document.querySelector('.result-detail-list, .result-table-list');
@@ -96,7 +108,7 @@
     }).filter(Boolean);
   }
 
-  async function search(job, cursor) {
+  async function search(job, cursor, fresh) {
     const input = await until(() => document.querySelector('input.search-input'), 15000);
     if (!input) {
       if (location.pathname !== '/kns8s/search') { location.href = SEARCH; return; }
@@ -124,16 +136,17 @@
       }
     }
     if (state === 'puzzle') { if (await waitForPerson()) location.reload(); return; }
-    const want = job.mode === 'refresh' ? job.max_new : job.per_query;
-    let found = cursor.new || 0;            // new papers (refresh) or hits (other searches) reported so far in this run
-    const knownIds = new Set(job.known || []);
+    // Every row in the time window is reported; the shell counts which are new (it alone knows the library) and says when the
+    // run's cap is reached.
+    let full = !!fresh.full;
     const seen = new Set();
     for (const category of job.categories) {
-      if (found >= want) break;
+      if (full) break;
       const tab = document.querySelector(`a[name="classify"][resource="${category}"]`);
       if (!tab) continue;
       state = await gridChange(() => tab.click());
       if (state === 'rows') state = await detailView();
+      if (state === 'rows') state = await newestFirst();
       if (state === 'puzzle') { if (await waitForPerson()) location.reload(); return; }
       if (state !== 'rows') continue;
       for (let page = 1; page <= PAGES_PER_CATEGORY; page++) {
@@ -143,17 +156,16 @@
           const id = `${row.dbname}:${row.filename}`;
           if (seen.has(id)) continue;
           seen.add(id);
-          if (job.since && row.date && row.date.slice(0, 10) < job.since) { older = true; break; }   // newest first
-          if (job.mode === 'refresh' && knownIds.has(id)) { batch.push(row); continue; }      // links it to this project
-          if (found >= want) break;
+          if (job.since && row.date && row.date.slice(0, 10) < job.since) { older = true; continue; }
           batch.push(row);
-          found += 1;
         }
         // Reported page by page: the app stores (and can recommend) each page while the next one loads.
-        for (let i = 0; i < batch.length; i += 25) await report({items: batch.slice(i, i + 25), event: 'progress'});
-        await report({cursor: {...cursor, new: found}, event: 'progress'});
+        for (let i = 0; i < batch.length && !full; i += 25) {
+          const answer = await report({items: batch.slice(i, i + 25), event: 'progress'});
+          full = !!(answer && answer.full);
+        }
         const next = document.querySelector('#PageNext');
-        if (older || !next || found >= want || page === PAGES_PER_CATEGORY) break;
+        if (older || !next || full || page === PAGES_PER_CATEGORY) break;
         await pause();
         state = await gridChange(() => next.click());
         if (state === 'puzzle') { if (await waitForPerson()) location.reload(); return; }
@@ -161,8 +173,8 @@
       }
       await pause();
     }
-    const after = {...cursor, phase: 'search', q: cursor.q + 1, new: found, submitted: null, retries: 0};
-    if (after.q >= job.queries.length || found >= want) { await report({cursor: after, event: 'done'}); return; }
+    const after = {...cursor, phase: 'search', q: cursor.q + 1, submitted: null, retries: 0};
+    if (after.q >= job.queries.length || full) { await report({cursor: after, event: 'done'}); return; }
     await report({cursor: after, event: 'progress'});
     await pause();
     location.href = SEARCH;
@@ -172,7 +184,13 @@
   async function detail(job, cursor) {
     const target = cursor.queue[0];
     if (!target) { await report({cursor, event: 'done'}); return; }
-    if (!location.pathname.startsWith('/kcms')) { location.href = target.url; return; }
+    if (!location.pathname.startsWith('/kcms')) {
+      // The stored link may have expired and lead elsewhere: a few tries, never an endless loop.
+      if ((cursor.tries || 0) >= 2) throw new Error('detail page not reached');
+      await report({cursor: {...cursor, tries: (cursor.tries || 0) + 1}, event: 'progress'});
+      location.href = target.url;
+      return;
+    }
     await until(() => document.querySelector('#paramdbcode, .wx-tit'));
     const more = document.querySelector('#ChDivSummaryMore');
     if (more && more.offsetParent !== null) {
@@ -202,9 +220,9 @@
     if (puzzle()) { if (await waitForPerson()) location.reload(); return; }
     const next = await invoke('cnki_next');
     if (!next || !next.job) return;
-    const job = next.job, cursor = next.cursor || {phase: 'search', q: 0, queue: [], new: 0};
+    const job = next.job, cursor = next.cursor || {phase: 'search', q: 0, queue: []};
     if (cursor.phase === 'detail') return detail(job, cursor);
-    return search(job, cursor);
+    return search(job, cursor, {full: (next.fresh || 0) >= job.max_new});
   }
 
   const start = () => run().catch(error => {

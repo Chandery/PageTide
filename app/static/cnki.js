@@ -17,10 +17,14 @@
   async function follow({onItems, onVerification, onProgress, limitMs = 50 * 60 * 1000} = {}) {
     let asking = false, problem = null;
     const end = Date.now() + limitMs;
+    const stop = async () => { try { await tauri().invoke('cnki_cancel'); } catch (e) { /* the shell ends it at its own limit */ } };
     while (Date.now() < end) {
       let poll;
       try { poll = await tauri().invoke('cnki_poll'); } catch (e) { return 'unavailable'; }
-      if (poll.items?.length && onItems) await onItems(poll.items);
+      // A batch the server refuses (e.g. 知网 was just switched off) ends the run: CNKI is not searched any further.
+      if (poll.items?.length && onItems) {
+        try { await onItems(poll.items); } catch (e) { await stop(); return 'unavailable'; }
+      }
       const waiting = poll.state === 'verification';
       if (waiting !== asking) { asking = waiting; onVerification?.(waiting); }
       onProgress?.(poll);
@@ -29,7 +33,7 @@
       if (poll.state === 'idle') return problem;
       await sleep(1000);
     }
-    try { await tauri().invoke('cnki_cancel'); } catch (e) { /* the shell ends it at its own limit */ }
+    await stop();
     return 'unavailable';
   }
 
@@ -50,9 +54,14 @@
     } catch (e) { return null; }
   }
 
+  async function cancel() {
+    if (!tauri()) return;
+    try { await tauri().invoke('cnki_cancel'); } catch (e) { /* nothing running */ }
+  }
+
   window.PTCnki = {
     available: () => !!tauri(),
-    run, follow, current,
+    run, follow, current, cancel,
     problemText: (kind) => (kind ? PROBLEMS[kind] || PROBLEMS.unavailable : ''),
   };
 })();

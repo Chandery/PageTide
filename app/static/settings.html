@@ -593,6 +593,10 @@
           body: JSON.stringify({settings: newSettings})
         });
         if (!saved.ok) throw new Error((await saved.json()).error || '保存失败');
+        // 知网 switched off: a run still going in the app's CNKI window stops now (ADR 0045).
+        if (!newSettings.sourceCnki && window.__TAURI_INTERNALS__) {
+          try { await window.__TAURI_INTERNALS__.invoke('cnki_cancel'); } catch (e) { /* nothing running */ }
+        }
         if (newSettings.theme === 'auto') localStorage.removeItem('pt-mode');
         else localStorage.setItem('pt-mode', newSettings.theme);
         window.location.href = '/';

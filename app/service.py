@@ -2979,8 +2979,8 @@ class App:
         if not match or not user_settings.cnki(self.data):
             return None
         oa = source_adapters.paper_oa(paper)
-        if oa.get("abstract_partial") is not True and eligibility.usable_abstract(paper.get("abstract")):
-            return None
+        if oa.get("abstract_partial") is not True and str(paper.get("abstract") or "").strip():
+            return None          # complete, even if short: not fetched again on every opening
         page = next((p["url"] for p in source_pages(oa) if p["source"] == cnki.SOURCE_ID), None)
         if not page:
             return None
@@ -3160,25 +3160,33 @@ class App:
         today = self.batch_day()
         papers = [p for p in papers if not p.get("published") or p["published"] <= today]
         marks = {}
-        for key, title in self.store.conn.execute("SELECT key, title FROM papers"):
+        for key, title, published in self.store.conn.execute("SELECT key, title, published FROM papers"):
             mark = baidu_web.title_mark(title)
             if mark:
-                marks.setdefault(mark, (key, title))
+                marks.setdefault(mark, (key, title, str(published or "")[:4]))
+        stored = {row[0] for row in self.store.conn.execute(
+            "SELECT key FROM papers WHERE key IN (%s)" % ",".join("?" * len(papers)), [p["key"] for p in papers])} if papers else set()
         source_policy = user_settings.source_policy(self.data)
         rows = []
         for paper in papers:
             mark = baidu_web.title_mark(paper["title"])
             twin = marks.get(mark) if mark else None
             if twin and twin[0] != paper["key"]:
-                rows.append({"key": twin[0], "title": twin[1], "oa": paper["oa"], "group_name": "field", "project_id": project_id})
-                continue
+                year = str(paper.get("published") or "")[:4]
+                # Another source's copy of this paper: same title and, when both are known, the same year. Two 知网 entries
+                # (a thesis and its journal version, say) stay two papers, as does a common title from another year.
+                if not cnki.is_key(twin[0]) and (not year or not twin[2] or year == twin[2]):
+                    oa = {k: v for k, v in paper["oa"].items() if k != "abstract_partial"}   # its abstract is not the snippet
+                    rows.append({"key": twin[0], "title": twin[1], "oa": oa, "group_name": "field", "project_id": project_id})
+                    continue
+                twin = None
             if not source_policy.allows(paper):
                 continue
-            if twin:      # already stored (its abstract is kept): a new snippet must not mark a full abstract as cut again
+            if paper["key"] in stored:   # its abstract is kept: a new snippet must not mark a full abstract as cut again
                 paper = {**paper, "oa": {k: v for k, v in paper["oa"].items() if k != "abstract_partial"}}
             rows.append({**paper, "project_id": project_id})
             if mark:
-                marks[mark] = (paper["key"], paper["title"])
+                marks.setdefault(mark, (paper["key"], paper["title"], str(paper.get("published") or "")[:4]))
         stats = {}
         added = self.store.upsert_papers(rows, stats=stats)
         result = {"fetched": len(papers), "added": added, "new_to_project": stats["linked"],
@@ -4393,9 +4401,11 @@ class App:
         done = run(pdf_fetch.candidates(paper))
         if done:
             return done
-        if not self._openalex_facts(paper) and (paper.get("openalex_id") or self._doi_url(paper)):
+        if (not self._openalex_facts(paper) and (paper.get("openalex_id") or self._doi_url(paper))
+                and not cnki.is_key(paper_key)):
             # Stored before open-access data was kept, or reported only by a source with no PDF links (Baidu Scholar): ask
-            # OpenAlex once (public metadata) by its id, else by the DOI. Its facts are merged with what is stored.
+            # OpenAlex once (public metadata) by its id, else by the DOI. Its facts are merged with what is stored. Never for a
+            # 知网 paper: its DOI is not sent to OpenAlex (owner, 2026-10-26); its PDF comes from the person's own browser.
             try:
                 report = slim(self.source.work(paper.get("openalex_id") or self._doi_url(paper)))
             except SourceError:

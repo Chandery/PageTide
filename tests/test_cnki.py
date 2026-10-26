@@ -296,6 +296,46 @@ class PartialAbstractTests(Case):
             self.app.cnki_abstract("cnki:CJFQ:JSJX202610001", item(1))
 
 
+class ReviewFixTests(Case):
+    """Defects found by the independent review (2026-10-26), kept fixed."""
+
+    def test_downloading_a_cnki_pdf_never_sends_its_doi_to_openalex(self):
+        self.app.cnki_ingest(self.pid, [item(1)])                     # stored with a DOI
+        asked = []
+        with mock.patch.object(self.app.source, "work", side_effect=lambda ident: asked.append(ident) or {}):
+            result = self.app.download_pdf("cnki:CJFQ:JSJX202610001")
+        self.assertEqual(asked, [])
+        self.assertFalse(result["ok"] if isinstance(result, dict) else False)
+
+    def test_two_cnki_entries_with_one_title_stay_two_papers(self):
+        self.app.cnki_ingest(self.pid, [item(1)])
+        thesis = item(2, dbname="CMFD", title="世界模型驱动的具身智能研究1", abstract="学位论文的摘要" * 5)
+        self.assertEqual(self.app.cnki_ingest(self.pid, [thesis])["added"], 1)
+        self.assertEqual(self.paper("cnki:CJFQ:JSJX202610001")["abstract"], ABSTRACT.strip())
+        self.assertIsNotNone(self.paper("cnki:CMFD:JSJX202610002"))
+
+    def test_a_same_title_paper_from_another_year_is_not_merged(self):
+        self.set_user_settings(self.app, sourceBaiduWeb=True)
+        self.app.store.upsert_papers([{"key": "baidu:old", "title": "世界模型驱动的具身智能研究1", "abstract": "旧文",
+                                       "published": "2019-01-01", "group_name": "field", "project_id": self.pid,
+                                       "oa": {"pages": [], "via": ["baidu_web"]}}])
+        self.assertEqual(self.app.cnki_ingest(self.pid, [item(1)])["added"], 1)
+        self.assertEqual(json.loads(self.paper("baidu:old")["oa_json"])["via"], ["baidu_web"])
+
+    def test_a_merged_paper_is_never_marked_as_cut(self):
+        self.set_user_settings(self.app, sourceBaiduWeb=True)
+        self.app.store.upsert_papers([{"key": "baidu:p1", "title": "世界模型驱动的具身智能研究1", "abstract": "百度的完整摘要",
+                                       "published": "2026-03-01", "group_name": "field", "project_id": self.pid,
+                                       "oa": {"pages": [], "via": ["baidu_web"]}}])
+        self.app.cnki_ingest(self.pid, [item(1, abstract="片段...", abstract_partial=True)])
+        self.assertNotIn("abstract_partial", json.loads(self.paper("baidu:p1")["oa_json"]))
+        self.assertNotIn("cnki", self.app.paper_detail("baidu:p1", self.pid))
+
+    def test_a_short_complete_abstract_is_not_fetched_again(self):
+        self.app.cnki_ingest(self.pid, [item(1, abstract="很短")])
+        self.assertNotIn("cnki", self.app.paper_detail("cnki:CJFQ:JSJX202610001", self.pid))
+
+
 class CreationTests(Case):
     def session(self):
         return self.app.create_guidance_session("世界模型", "了解世界模型", "ai_guided")["id"]
@@ -395,10 +435,10 @@ class ShellTests(unittest.TestCase):
 
     def test_each_command_checks_its_own_window(self):
         for command in ("cnki_start", "cnki_poll", "cnki_cancel"):
-            body = self.cnki[self.cnki.index(f"pub fn {command}("):][:500]
+            body = self.cnki[self.cnki.index(f"fn {command}("):][:500]
             self.assertIn("owned_page(&window, &session)?;", body, command)
         for command in ("cnki_next", "cnki_report"):
-            body = self.cnki[self.cnki.index(f"pub fn {command}("):][:300]
+            body = self.cnki[self.cnki.index(f"fn {command}("):][:300]
             self.assertIn("cnki_page(&window)?;", body, command)
         check = self.cnki[self.cnki.index("fn cnki_page("):][:400]
         self.assertIn("window.label() != LABEL", check)
@@ -415,8 +455,20 @@ class ShellTests(unittest.TestCase):
             self.assertIn(part, built)
         self.assertNotIn("open_external", self.cnki)
 
+    def test_no_window_call_is_made_while_the_run_lock_is_held(self):
+        # A window call off the main thread waits for the main thread, which may be waiting for this lock: a hang.
+        for function in ("fn apply_clock(", "fn record_report(", "fn decide(", "fn count_item("):
+            body = self.cnki[self.cnki.index(function):]
+            body = body[:body.index("\n}\n")]
+            for call in (".url()", ".show()", ".hide()", ".navigate(", "show(&", "on_puzzle_page("):
+                self.assertNotIn(call, body, f"{function} {call}")
+        start = self.cnki[self.cnki.index("pub async fn cnki_start("):]
+        locked = start[start.index("state.0.lock()"):start.index("act(&app, after);")]
+        for call in (".url()", ".show()", ".hide()", ".navigate(", "cnki_window(", "puzzle_now("):
+            self.assertNotIn(call, locked, f"cnki_start holds the lock around {call}")
+
     def test_reports_are_capped(self):
-        for limit in ("MAX_ITEMS_PER_REPORT: usize = 30", "MAX_ITEM_BYTES: usize = 32 * 1024", "MAX_CURSOR_BYTES: usize = 256 * 1024",
+        for limit in ("MAX_ITEMS_PER_REPORT: usize = 30", "MAX_ITEM_BYTES: usize = 32 * 1024", "MAX_CURSOR_BYTES: usize = 64 * 1024",
                       "MAX_BUFFERED: usize = 600", "MAX_NEW: u64 = 100", "MAX_QUERIES: usize = 3", "VERIFY_WAIT: Duration = Duration::from_secs(300)"):
             self.assertIn(limit, self.cnki)
 

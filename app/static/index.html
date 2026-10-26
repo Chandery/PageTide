@@ -1257,8 +1257,9 @@ async function cnkiIngest(projectId, items, problem) {
   }
   return gained;
 }
-async function cnkiFollow(projectId, job) {
+async function cnkiFollow(projectId, job, attempt = 0) {
   cnkiRunning = true;
+  let busy = false;
   const note = $('#maintainNote');
   let gained = 0;
   const handlers = {
@@ -1268,6 +1269,7 @@ async function cnkiFollow(projectId, job) {
   };
   try {
     const problem = job ? await window.PTCnki.run(job, handlers) : await window.PTCnki.follow(handlers);
+    busy = problem === 'busy' && !!job;           // another job started in between: try again, never skip the day's part
     if (problem && problem !== 'busy') { await cnkiIngest(projectId, [], problem).catch(() => {}); toast(window.PTCnki.problemText(problem), 'warn'); }
     else if (!problem) toast(gained ? `知网：新加入 ${gained} 篇` : '知网：没有新论文', 'ok');
   } catch (e) { toast(`知网：${e.message}`, 'warn'); }
@@ -1276,14 +1278,21 @@ async function cnkiFollow(projectId, job) {
     if (note) note.textContent = '';
     if (state.currentProject === projectId) await load().catch(() => {});
   }
+  if (busy && attempt < 10) setTimeout(() => cnkiRefresh(projectId, attempt + 1), 20000);
 }
-async function cnkiRefresh(projectId) {
+async function cnkiRefresh(projectId, attempt = 0) {
   if (!window.PTCnki?.available() || inDemo() || !projectId || cnkiRunning) return;
+  // Another CNKI job (a full abstract, a creation search) is running: try again shortly instead of skipping the day's part.
+  const other = await window.PTCnki.current();
+  if (other && (other.state === 'running' || other.state === 'verification')) {
+    if (attempt < 10) setTimeout(() => cnkiRefresh(projectId, attempt + 1), 20000);
+    return;
+  }
   let plan;
   try { plan = await api(`/api/cnki/plan?project_id=${encodeURIComponent(projectId)}`); } catch (e) { return; }
   if (!plan.enabled) return;
   cnkiFollow(projectId, {mode: 'refresh', tag: 'refresh:' + projectId, queries: plan.queries, known: plan.known,
-                         since: plan.since, max_new: plan.max_new});
+                         since: plan.since, max_new: plan.max_new}, attempt);
 }
 // A 知网 paper was stored with CNKI's results-page snippet. When the person opens it, the CNKI window reads its detail page
 // (a few seconds) and the full abstract replaces the snippet, in the library and in the open panel.
