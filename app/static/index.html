@@ -1284,19 +1284,23 @@ async function cnkiFollow(projectId, job, attempt = 0) {
   }
   if (busy && attempt < 10) setTimeout(() => cnkiRefresh(projectId, attempt + 1), 20000);
 }
+// Starts the 知网 part of a refresh without waiting for it. True when 知网 will report on this refresh itself (it started, is
+// already running, or will retry shortly): the caller then leaves the result toast to it.
 async function cnkiRefresh(projectId, attempt = 0) {
-  if (!window.PTCnki?.available() || inDemo() || !projectId || state.cnkiRunning) return;
+  if (!window.PTCnki?.available() || inDemo() || !projectId) return false;
+  if (state.cnkiRunning) return true;
+  let plan;
+  try { plan = await api(`/api/cnki/plan?project_id=${encodeURIComponent(projectId)}`); } catch (e) { return false; }
+  if (!plan.enabled) return false;
   // Another CNKI job (a full abstract, a creation search) is running: try again shortly instead of skipping the day's part.
   const other = await window.PTCnki.current();
   if (other && (other.state === 'running' || other.state === 'verification')) {
     if (attempt < 10) setTimeout(() => cnkiRefresh(projectId, attempt + 1), 20000);
-    return;
+    return attempt < 10;
   }
-  let plan;
-  try { plan = await api(`/api/cnki/plan?project_id=${encodeURIComponent(projectId)}`); } catch (e) { return; }
-  if (!plan.enabled) return;
   cnkiFollow(projectId, {mode: 'refresh', tag: 'refresh:' + projectId, queries: plan.queries, known: plan.known,
                          since: plan.since, max_new: plan.max_new}, attempt);
+  return true;
 }
 // A 知网 paper was stored with CNKI's results-page snippet. When the person opens it, the CNKI window reads its detail page
 // (a few seconds) and the full abstract replaces the snippet, in the library and in the open panel.
@@ -1425,6 +1429,9 @@ $('#btnRefresh').onclick = async () => {
     toast('正在抓取…', 'warn');
     let r;
     for (let i = 0; i < 90; i++) { r = await api(`/api/jobs/${job.id}`); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
+    // The 知网 part starts now; when it reports on this refresh itself, an empty result of the server's sources is not
+    // announced ("0 new" while 知网 is still fetching would contradict it).
+    const cnkiReports = r.state !== 'running' && r.result?.reason_code !== 'refresh_running' ? await cnkiRefresh(state.currentProject) : false;
     if (r.state === 'running') toast('抓取仍在进行', 'warn');
     else if (r.state === 'failed') toast(`抓取失败：${r.error}`, 'err');
     else {
@@ -1432,10 +1439,10 @@ $('#btnRefresh').onclick = async () => {
       if (q.reason_code === 'refresh_running') toast('已有抓取在运行', 'warn');
       else if (q.reason_code === 'route_recall_changed') toast('学习图已变化，请重新抓取', 'warn');
       else if (q.reason_code === 'sources_disabled') toast('数据源都已关闭', 'warn');
+      else if (cnkiReports && !(q.fetched > 0) && !q.errors?.length) { /* 知网's own line and toast report this refresh */ }
       else toast(`${(q.new_recommendable || 0) > 0 && state.maintenance?.batch_today ? fetchedHint(q.fetched || 0, q.new_to_project || 0, $('#btnDaily').textContent) : fetchedText(q.fetched || 0, q.new_to_project || 0)}${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
     }
     await load();
-    if (r.state !== 'running' && r.result?.reason_code !== 'refresh_running') cnkiRefresh(state.currentProject);
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
   finally { b.disabled = false; b.textContent = '抓取新论文'; }
 };

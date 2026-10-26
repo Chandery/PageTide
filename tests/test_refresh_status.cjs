@@ -8,13 +8,13 @@ const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), '
 const handler = html.slice(html.indexOf("$('#btnRefresh').onclick ="), html.indexOf("function selectView("));
 const record = html.slice(html.indexOf('function fetchedText'), html.indexOf('function renderEligibility'));
 const cnkiAfter = [];       // projects the 知网 part (ADR 0045) was started for after a manual refresh
-async function click(job, {batchToday, label = '生成今日推荐'} = {}) {
+async function click(job, {batchToday, label = '生成今日推荐', cnkiReports = false} = {}) {
   const button = {}, daily = {textContent: label}, notices = [], calls = [];
   cnkiAfter.length = 0;
   const context = vm.createContext({$: (s) => s === '#btnDaily' ? daily : button, state: {currentProject: 'p', maintenance: {batch_today: !!batchToday}},
     api: async (url, body) => {calls.push([url, body]); return url === '/api/refresh' ? {id: 'job-1'} : job;},
     toast: (message, kind) => notices.push([message, kind]), load: async () => {},
-    cnkiRefresh: (projectId) => { cnkiAfter.push(projectId); },
+    cnkiRefresh: async (projectId) => { cnkiAfter.push(projectId); return cnkiReports; },
     setTimeout: callback => callback()});
   vm.runInContext(record, context);
   vm.runInContext(handler, context);
@@ -23,6 +23,15 @@ async function click(job, {batchToday, label = '生成今日推荐'} = {}) {
   assert.equal(calls[0][1].project_id, 'p');
   return notices.at(-1);
 }
+test('when 知网 reports the refresh itself, an empty result of the other sources is not announced', async () => {
+  const empty = {state:'done', result:{fetched:0, new_to_project:0, errors:[]}};
+  assert.deepEqual(await click(empty, {cnkiReports: true}), ['正在抓取…', 'warn']);          // no "0 new" toast
+  assert.deepEqual(await click(empty), ['抓到 0 篇，没有新论文', 'ok']);                     // no 知网: said as before
+  assert.deepEqual(await click({state:'done', result:{fetched:5, new_to_project:2, errors:[]}}, {cnkiReports: true}),
+                   ['抓到 5 篇，新 2 篇', 'ok']);                                            // other sources found some
+  assert.match((await click({state:'done', result:{fetched:0, new_to_project:0, errors:[{kind:'network_error'}]}},
+                            {cnkiReports: true}))[0], /部分查询未完成/);                       // a problem is still said
+});
 test('the 知网 part starts after a finished refresh, never while one runs or is already running', async () => {
   await click({state:'done', result:{fetched:3, new_to_project:1, errors:[]}});
   assert.deepEqual(cnkiAfter, ['p']);
