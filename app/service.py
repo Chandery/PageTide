@@ -7,6 +7,7 @@ import glob
 import hashlib
 import json
 import re
+import sqlite3
 import sys
 import threading
 import time
@@ -17,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import creation, eligibility, guidance_contract, growthproposal, learning_scope, maintenance, operation_lock, openalex_key, paper_language, pathgraph, pathgrowth, pdf_fetch, ranking, user_settings, routeplan, route_recall, route_batch, route_revision
-from . import baidu_scholar, baidu_web, cnki, source_adapters, source_keys
+from . import baidu_scholar, baidu_web, cnki, keyword_gate, source_adapters, source_keys
 from .db import Store, collapse_feedback, now
 from .gateway import Gateway
 from .language import language
@@ -1533,7 +1534,10 @@ class App:
                         self.store.conn.rollback()
                         return {'fetched': 0, 'added': 0, 'new_to_project': 0, 'new_recommendable': 0, 'field': 0, 'errors': [{'kind': 'changed', 'error': 'Route recall inputs changed; refresh again'}], 'reason_code': 'route_recall_changed'}
                     stats = {}
-                    added = self.store.upsert_papers(list(papers.values()), project_id=project_id, commit=False, stats=stats)
+                    # Only papers that mention a project term or a concept's term are stored; the paging record still sees
+                    # every result, so a page of unrelated papers moves the query on to its next page.
+                    kept, _ = self._keyword_gate(project_id).keep(list(papers.values()))
+                    added = self.store.upsert_papers(kept, project_id=project_id, commit=False, stats=stats)
                     updated = route_recall.record(planned, state, results, time.time())
                     updated['configuration'] = {'from_date': from_date, 'per_page': max(1, min(50, int(per_page)))}
                     self.store.conn.execute('INSERT INTO settings(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
@@ -3040,6 +3044,14 @@ class App:
                 return english[:3]
         return keywords[:3]
 
+    def _keyword_gate(self, project_id):
+        """The project's relevance rule (keyword_gate): its keywords and, with a learning map, its concepts' search terms."""
+        try:
+            _, route = read_route(self.store.conn, project_id)
+        except (sqlite3.Error, ValueError):
+            route = None
+        return keyword_gate.Gate(self._project_keywords(project_id) + keyword_gate.route_terms(route))
+
     def _project_keywords(self, project_id):
         row = self.store.conn.execute("SELECT keywords FROM projects WHERE id=?", (project_id,)).fetchone()
         try:
@@ -3199,6 +3211,7 @@ class App:
             raise ValueError("这个项目没有启用知网")
         problem = cnki.problem_of(problem)
         papers = self._not_older_than(cnki.papers_from_items(items), plan["since"])
+        papers, _ = self._keyword_gate(project_id).keep(papers)        # 知网's 主题 search is fuzzy too (keyword_gate)
         today = self.batch_day()
         papers = [p for p in papers if not p.get("published") or p["published"] <= today]
         marks = {}
@@ -3401,7 +3414,11 @@ class App:
         # A fake/cached adapter must not evade the date and source policies.
         accepted, rejected = [], []
         today = self.batch_day()
+        gate, unrelated = self._keyword_gate(project_id), 0
         for paper in papers:
+            if not gate.matches(paper):          # mentions no project term: not stored (owner, 2026-10-26)
+                unrelated += 1
+                continue
             if str(paper.get('published') or '') > today:
                 rejected.append({'key':paper['key'],'published':paper.get('published'),'reason':'future_publication_date'})
                 continue
@@ -3417,7 +3434,8 @@ class App:
         stats = {}
         added = self.store.upsert_papers(papers, stats=stats)
         return {"fetched": len(papers), "added": added, "new_to_project": stats["linked"],
-                "new_recommendable": self.new_recommendable(project_id, stats["linked_keys"]), "field": len(papers), "errors": errors, "rejected_publications": rejected}
+                "new_recommendable": self.new_recommendable(project_id, stats["linked_keys"]), "field": len(papers), "errors": errors,
+                "rejected_publications": rejected, "unrelated": unrelated}
 
     def import_candidates(self, path, project_id=None):
         """Load a frozen candidate JSON (e.g. from the DATA-01 experiments) for offline/dev use."""
@@ -3563,6 +3581,12 @@ class App:
             if not retrieval_only and paper['_eligibility']['eligible'] and not paper['_task_scope']['compatible']:
                 paper['_eligibility'] = {**paper['_eligibility'], 'eligible': False, 'reason': 'fixed_scope_conflict'}
         eligibility.defer_verification(scope, first_deferred)
+        if not retrieval_only:
+            # Papers already stored before the rule existed are kept, never recommended (owner, 2026-10-26).
+            gate = self._keyword_gate(project_id)
+            for paper in papers:
+                if paper['_eligibility']['eligible'] and not gate.matches(paper):
+                    paper['_eligibility'] = {**paper['_eligibility'], 'eligible': False, 'reason': 'no_keyword_match'}
         return papers
 
     def _create_eligible_batch(self, run_date, keys, project_id, policy, papers, route=None, selection_context=None, completed_day=None, verification_budget=None, matching_scope=None, route_evidence=None):

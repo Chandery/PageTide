@@ -48,7 +48,7 @@ def scholar_answer(*items):
 
 
 def scholar_item(paper_id, title, year=2026):
-    return {"paperId": paper_id, "title": title, "abstract": "这是一段足够长的中文摘要内容，用来测试合并。", "doi": "", "keyword": "测试", "publishYear": year,
+    return {"paperId": paper_id, "title": title, "abstract": "这是一段足够长的中文摘要内容，讲知识图谱，用来测试合并。", "doi": "", "keyword": "测试", "publishYear": year,
             "publishInfo": {"journalName": "期刊"}, "url": "https://xueshu.baidu.com/usercenter/paper/show?paperid=" + paper_id}
 
 
@@ -56,7 +56,7 @@ def web_answer(*items):
     refs = []
     for paper_id, title, date in items:
         refs.append({"id": 1, "url": "https://xueshu.baidu.com/usercenter/paper/show?paperid=" + paper_id, "title": title + " ", "date": date, "type": "web",
-                     "content": f"{title} 来自 掌桥科研  喜欢0 阅读量: 4 作者: 张三 摘要: 这是一段足够长的中文摘要内容，用来测试合并。 关键词: 测试 "})
+                     "content": f"{title} 来自 掌桥科研  喜欢0 阅读量: 4 作者: 张三 摘要: 这是一段足够长的中文摘要内容，讲知识图谱，用来测试合并。 关键词: 测试 "})
     return json.dumps({"request_id": "r", "references": refs}, ensure_ascii=False).encode()
 
 
@@ -459,16 +459,16 @@ class EligibilityTests(FeedCase):
         self.assertEqual((verdict["eligible"], verdict["reason"]), (False, "language_not_allowed"))
 
     def test_a_web_paper_without_an_abstract_is_not_eligible(self):
-        self.net.web_answer = json.dumps({"references": [{"url": "https://xueshu.baidu.com/usercenter/paper/show?paperid=na1", "title": "只有标题的中文论文题目",
-                                                          "date": "2026-10-19 00:00:00", "content": "只有标题的中文论文题目 来自 掌桥科研  喜欢0 阅读量: 4"}]}, ensure_ascii=False).encode()
+        self.net.web_answer = json.dumps({"references": [{"url": "https://xueshu.baidu.com/usercenter/paper/show?paperid=na1", "title": "知识图谱只有标题的中文论文题目",
+                                                          "date": "2026-10-19 00:00:00", "content": "知识图谱只有标题的中文论文题目 来自 掌桥科研  喜欢0 阅读量: 4"}]}, ensure_ascii=False).encode()
         self.refresh()
         verdict = self.pool()["baidu:na1"]
         self.assertEqual((verdict["eligible"], verdict["reason"]), (False, "no_readable_content"))
 
     def test_a_web_paper_without_a_page_has_no_pdf_source(self):
-        self.net.web_answer = web_answer(("np1", "没有任何链接的中文论文题目", "2026-10-19 00:00:00")).replace(b"https://xueshu.baidu.com/usercenter/paper/show?paperid=np1", b"")
+        self.net.web_answer = web_answer(("np1", "知识图谱没有任何链接的中文论文题目", "2026-10-19 00:00:00")).replace(b"https://xueshu.baidu.com/usercenter/paper/show?paperid=np1", b"")
         self.refresh()
-        row = self.app.store.conn.execute("SELECT key FROM papers WHERE title LIKE '没有任何链接%'").fetchone()
+        row = self.app.store.conn.execute("SELECT key FROM papers WHERE title LIKE '%没有任何链接%'").fetchone()
         verdict = self.pool()[row[0]]
         self.assertEqual((verdict["eligible"], verdict["reason"]), (False, "no_pdf_source"))
 

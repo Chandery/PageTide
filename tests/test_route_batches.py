@@ -17,7 +17,7 @@ class BatchTests(Fixture):
         self.enable(mastered=['Crystal basics'] + (['Epitaxy','Doping','Defects'] if completed else []))
         if watched: self.app.route_watch(self.pid,self.cid['Crystal basics'],True)
         for i in range(path): self.paper('p'+str(i),'Epitaxy methods '+str(i),'epitaxy epitaxial growth methods')
-        for i in range(explore): self.paper('x'+str(i),'Photonic calibration '+str(i),'photonic calibration instruments')
+        for i in range(explore): self.paper('x'+str(i),'Crystal growth and photonic calibration '+str(i),'photonic calibration instruments')
         if explore:
             # Exploration is a sourced, visibly matching clue, not an unmatched filler.
             patcher=mock.patch.object(self.app,'route_recall_sources',return_value={

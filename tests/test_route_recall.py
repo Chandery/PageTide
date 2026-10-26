@@ -178,7 +178,7 @@ class RefreshTests(Fixture):
         calls = []
         def topic(query, **options):
             calls.append((query, options))
-            return [{"key": "shared", "title": "Public paper", "abstract": "A useful abstract", "language": "en"}]
+            return [{"key": "shared", "title": "Public paper on crystal growth", "abstract": "A useful abstract", "language": "en"}]
         with mock.patch.object(self.app.source, "discover_topic", side_effect=topic), mock.patch.object(self.app.source, "discover", side_effect=AssertionError("no ordinary fallback")):
             result = self.app.refresh_candidates(project_id=self.pid, **kwargs)
         return calls, result
@@ -219,7 +219,7 @@ class RefreshTests(Fixture):
         self.enable()
         def fetch(query, **options):
             self.app.route_mode(self.pid, "off")
-            return [{"key": "stale", "title": "Public paper", "abstract": "Useful"}]
+            return [{"key": "stale", "title": "Public paper on crystal growth", "abstract": "Useful"}]
         with mock.patch.object(self.app.source, "discover_topic", side_effect=fetch):
             out = self.app.refresh_candidates(project_id=self.pid)
         self.assertEqual(out["reason_code"], "route_recall_changed")
@@ -252,7 +252,7 @@ class RefreshTests(Fixture):
     def test_layout_edits_preserve_sources_and_paging_but_route_edits_expire_them(self):
         self.enable()
         def full(query, **options):
-            return [{'key':str(i), 'title':'Public study '+str(i)} for i in range(options['per_page'])]
+            return [{'key':str(i), 'title':'Public study of crystal growth '+str(i)} for i in range(options['per_page'])]
         with mock.patch.object(self.app.source, 'discover_topic', side_effect=full):
             self.app.refresh_candidates(project_id=self.pid, per_page=2)
         before = self.app.store.get_setting('route_recall_'+self.pid)
@@ -274,7 +274,7 @@ import json,sys
 from app.service import App
 app=App(root=sys.argv[1],data_dir=sys.argv[2])
 app.gateway.call=lambda *a,**k: (_ for _ in ()).throw(AssertionError('no model'))
-app.source.discover_topic=lambda *a,**k:[{'key':'child','title':'Child public study'}]
+app.source.discover_topic=lambda *a,**k:[{'key':'child','title':'Child public study of crystal growth'}]
 result=app.refresh_candidates(project_id=sys.argv[3])
 assert result['fetched']==1,result
 app.store.close()

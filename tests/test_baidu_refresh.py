@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 FIXTURES = ROOT / "tests" / "fixtures" / "baidu_scholar"
 KEY = "bce-v3/ALTAK-dummyDummy0000/dummydummydummydummy0000"
-KEYWORDS = ["知识图谱", "信息抽取", "本体构建", "数字人文", "knowledge graph"]
+KEYWORDS = ["知识图谱", "信息抽取", "本体构建", "数字人文", "knowledge graph", "年份未知", "链接指向其他站点"]
 DOI_1 = "https://doi.org/10.1234/kg.2024.001"
 DOI_4 = "https://doi.org/10.5555/other.4"
 
@@ -443,7 +443,7 @@ class EligibilityTests(RefreshCase):
 
     def test_a_baidu_paper_still_needs_an_abstract(self):
         self.net.baidu_answer = json.dumps({"code": "0", "data": [
-            {"paperId": "na1", "title": "只有标题的中文论文题目", "abstract": "", "doi": "", "keyword": "kg", "publishYear": 2024,
+            {"paperId": "na1", "title": "知识图谱只有标题的中文论文题目", "abstract": "", "doi": "", "keyword": "kg", "publishYear": 2024,
              "publishInfo": {"journalName": "J"}, "url": "https://xueshu.baidu.com/p/na1"}]}).encode()
         self.refresh()
         verdict = self.pool()["baidu:na1"]
@@ -451,7 +451,7 @@ class EligibilityTests(RefreshCase):
 
     def test_a_baidu_paper_with_no_page_has_no_pdf_source(self):
         self.net.baidu_answer = json.dumps({"code": "0", "data": [
-            {"paperId": "np1", "title": "没有任何链接的中文论文题目", "abstract": "这是一段足够长的中文摘要内容。", "doi": "", "keyword": "kg",
+            {"paperId": "np1", "title": "知识图谱没有任何链接的中文论文题目", "abstract": "这是一段足够长的中文摘要内容。", "doi": "", "keyword": "kg",
              "publishYear": 2024, "publishInfo": {"journalName": "J"}, "url": ""}]}).encode()
         self.refresh()
         verdict = self.pool()["baidu:np1"]
@@ -459,7 +459,7 @@ class EligibilityTests(RefreshCase):
 
     def test_a_bare_doi_is_not_a_pdf_source(self):
         self.net.baidu_answer = json.dumps({"code": "0", "data": [
-            {"paperId": "bd1", "title": "只有编号的中文论文题目", "abstract": "这是一段足够长的中文摘要内容。", "doi": "10.9999/bare.1",
+            {"paperId": "bd1", "title": "知识图谱只有编号的中文论文题目", "abstract": "这是一段足够长的中文摘要内容。", "doi": "10.9999/bare.1",
              "keyword": "kg", "publishYear": 2024, "publishInfo": {"journalName": "J"}, "url": ""}]}).encode()
         self.net.openalex_doi_results = []
         self.refresh()

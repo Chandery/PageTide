@@ -70,17 +70,32 @@ class DiscoverTopicTests(unittest.TestCase):
         with mock.patch.object(sources.urllib.request, "urlopen", router):
             return self.client.discover_topic(query, **kw)
 
-    def test_chinese_query_uses_relevance_search_without_arxiv_or_title_only_restrictions(self):
-        router = Router([("search=半导体生长", [work(1, "介电/半导体复合薄膜生长控制")])])
+    def test_a_chinese_query_asks_for_the_exact_phrase_never_a_fuzzy_search(self):
+        # OpenAlex's relevance search matched single characters: 0 of the newest 25 for 语法教学 mentioned it (2026-10-26).
+        router = Router([('title_and_abstract.search:"半导体生长"', [work(1, "半导体生长的界面控制")])])
         papers = self.run_topic(router, "半导体生长")
         self.assertEqual(len(papers), 1)
         sent = router.filters()
-        self.assertEqual(len(sent), 1)
-        self.assertEqual(sent[0]["search"], "半导体生长")
+        self.assertEqual(len(sent), 1)                                 # no fuzzy top-up, however few were found
+        self.assertIn('title_and_abstract.search:"半导体生长"', sent[0]["filter"])
+        self.assertNotIn("search", sent[0])
         self.assertNotIn(sources.ARXIV_SOURCE_ID, json.dumps(sent))
-        self.assertNotIn("title.search", json.dumps(sent))
-        self.assertNotIn("from_publication_date", json.dumps(sent))  # no recency bound for a Chinese topic
-        self.assertEqual(papers[0]["match_mode"], "relevance")
+        self.assertNotIn("from_publication_date", json.dumps(sent))   # no recency bound for a Chinese topic
+        self.assertEqual(papers[0]["match_mode"], "strict")
+
+    def test_every_word_of_a_chinese_query_is_required_and_the_last_is_dropped_when_nothing_is_found(self):
+        router = Router([('title_and_abstract.search:"国际中文教育",title_and_abstract.search:"语法教学法",type', [work(2, "国际中文教育中的语法教学法")])])
+        papers = self.run_topic(router, "国际中文教育 语法教学法 课堂设计")
+        sent = [f["filter"] for f in router.filters()]
+        self.assertEqual(len(sent), 2)                                 # all three words, then the first two
+        self.assertIn('title_and_abstract.search:"课堂设计"', sent[0])
+        self.assertNotIn("课堂设计", sent[1])
+        self.assertEqual(len(papers), 1)
+
+    def test_a_chinese_query_that_finds_nothing_stays_empty(self):
+        router = Router([])
+        self.assertEqual(self.run_topic(router, "高硼硅玻璃"), [])
+        self.assertTrue(all("search" not in f for f in router.filters()))
 
     def test_english_query_matches_title_and_abstract_in_any_source_ranked_by_relevance(self):
         router = Router([("title_and_abstract.search:semiconductor crystal growth", [work(n) for n in range(1, 6)])])

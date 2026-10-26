@@ -411,7 +411,7 @@ class ServiceDegradeTests(unittest.TestCase):
         self.assertEqual(len(self.app.cards(project_id=self.project)), 1)
 
     def test_a_card_level_triage_sends_only_the_chosen_cards_and_saves_only_their_summaries(self):
-        self.app.store.upsert_papers([{"key": "p2", "title": "Other Planning Paper", "abstract": "other",
+        self.app.store.upsert_papers([{"key": "p2", "title": "Other Planning Paper", "abstract": "other work on a world model",
                                        "published": "2026-08-02"}], project_id=self.project)
         english_papers(self.app, self.project)
         cards = self.app.build_batch(project_id=self.project)["cards"]

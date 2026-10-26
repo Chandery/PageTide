@@ -124,7 +124,7 @@ class BatchUsesFeedbackTests(unittest.TestCase):
         self.app.store.upsert_papers([{"key": key, "title": title, "abstract": abstract, "published": published}], project_id=pid)
 
     def test_a_useful_and_an_irrelevant_paper_steer_the_next_batch(self):
-        pid = self.project(["photonic crystal waveguide epitaxial graphene substrate"])  # an even mix of two directions
+        pid = self.project(["photonic crystal waveguide", "epitaxial graphene substrate"])  # an even mix of two directions
         self.add(pid, "liked", "photonic crystal waveguide", "photonic crystal waveguide fabrication")
         self.add(pid, "disliked", "epitaxial graphene substrate", "epitaxial graphene substrate growth")
         self.add(pid, "cand-a", "photonic crystal waveguide design", "photonic crystal waveguide modes", published="2026-02-01")

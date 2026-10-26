@@ -188,12 +188,13 @@ class BatchTests(Fixture):
         self.public_sources={}
         for i in range(4):
             key='sourced_explore'+str(i)
-            self.paper(key,'Photonic nanowire growth calibration '+str(i),'photonics nanowires calibration',published=f'2026-05-0{i+1}')
+            self.paper(key,'Crystal growth for photonic nanowire calibration '+str(i),'photonics nanowires calibration',published=f'2026-05-0{i+1}')
             self.public_sources[key]=[{'kinds':['explore'],'query':'photonics nanowires','observed_at':1}]
         patcher=mock.patch.object(self.app,'route_recall_sources',side_effect=lambda *a,**k:self.public_sources)
         patcher.start();self.addCleanup(patcher.stop)
 
     def test_a_project_without_a_map_gets_the_same_batch_as_before_and_no_labels(self):
+        self.app.projects.update_project(self.pid, keywords=["crystal growth", "crystal lattice"])   # a map-less project is gated by its keywords alone
         legacy = self.batch()
         self.assertTrue(all(c.get("route") is None and c["mode"] == "sparse" for c in legacy))
         self.assertEqual(len(legacy), 5)
@@ -342,7 +343,7 @@ class BatchTests(Fixture):
         self.enable(mastered=["Crystal basics"])
         self.paper("understood_one", "Crystal lattice reconstruction notes", "lattice crystal lattice")   # a concept the reader already understood
         self.paper("locked_one", "Dislocation defects revisited", "dislocation defects")                     # a concept that is still locked
-        self.paper("new_one", "Photonic nanowire arrays", "photonics nanowires")                            # matches nothing on the map
+        self.paper("new_one", "Crystal growth of photonic nanowire arrays", "photonics nanowires")                            # matches nothing on the map
         self.public_sources['new_one']=[{'kinds':['explore'],'query':'photonics nanowires','observed_at':1}]
         explored = []
         for _ in range(6):

@@ -22,6 +22,7 @@ GAP_SECONDS = 2.0
 KEYED_GAP_SECONDS = 0.3  # with an API key the allowance is 10x and the limit is 100 requests/second
 ALLOWED_DISCOVERY_TYPES = ("article", "preprint", "review", "conference-paper")
 STRICT_MIN_RESULTS = 3          # fewer strict matches than this are topped up by a relevance search
+MAX_CJK_RELAX = 2       # a Chinese query of several words that finds nothing drops its last word, at most this often
 SEARCH_TTL_SECONDS = 24 * 3600  # search results older than this are refetched (the old copy is used if offline)
 WORK_TTL_SECONDS = 7 * 24 * 3600  # open-access status changes over time
 _CJK = re.compile(r"[\u3400-\u9fff\uf900-\ufaff]")
@@ -436,8 +437,8 @@ class OpenAlex:
         English phrases are matched against title AND abstract (every word must appear), in any source
         (journals as well as arXiv). order="relevance" ranks those matches by OpenAlex relevance (project
         creation: the user is choosing); order="recent" sorts them newest first (the daily feed). When fewer
-        than STRICT_MIN_RESULTS match, a broader search tops them up, still date-sorted for recent order. A phrase containing Chinese
-        goes straight to relevance search, since title matching on an English-titled index finds nothing.
+        than STRICT_MIN_RESULTS match, a broader search tops them up, still date-sorted for recent order. A query containing
+        Chinese asks for each of its words as an exact phrase and is never topped up (see the note in the code).
         Each paper carries match_mode ("strict" or "relevance"). No date bound unless asked.
         """
         text = clean_query(query)
@@ -468,7 +469,24 @@ class OpenAlex:
                 seen.update({paper["key"], title})
                 papers.append({**paper, "match_mode": mode})
 
-        if not has_cjk(text):
+        if has_cjk(text):
+            # OpenAlex's relevance search splits Chinese into single characters: of the newest 25 results for 语法教学,
+            # 二语习得 or 汉语语法, none mentioned the term; asked for the exact phrase, 21-25 of 25 did (measured with the
+            # owner's key, 2026-10-26). So each word of a Chinese query is an exact phrase, all required (a repeated filter is
+            # an AND); when that finds nothing, the last word is dropped, at most MAX_CJK_RELAX times. No fuzzy fallback.
+            phrases = [w.replace('"', "") for w in text.split() if w.replace('"', "")]
+            for _ in range(MAX_CJK_RELAX + 1):
+                params = {"filter": ",".join([*(f'title_and_abstract.search:"{w}"' for w in phrases), *base]),
+                          "per-page": per_page, "mailto": MAILTO}
+                if page > 1:
+                    params["page"] = int(page)
+                if order == "recent":
+                    params["sort"] = "publication_date:desc"
+                add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "strict")
+                if papers or len(phrases) == 1 or page > 1:
+                    break
+                phrases = phrases[:-1]
+        else:
             params = {"filter": ",".join([f"title_and_abstract.search:{text}", *base]), "per-page": per_page, "mailto": MAILTO}
             if page > 1:
                 params["page"] = int(page)
@@ -477,7 +495,7 @@ class OpenAlex:
             else:
                 params["search"] = text
             add(self._fetch(f"{API}?{urllib.parse.urlencode(params)}", ttl=SEARCH_TTL_SECONDS).get("results", []), "strict")
-        if len(papers) < min(STRICT_MIN_RESULTS, per_page):
+        if len(papers) < min(STRICT_MIN_RESULTS, per_page) and not has_cjk(text):
             params = {"search": text, "filter": ",".join(base), "per-page": per_page, "mailto": MAILTO}
             if page > 1:
                 params["page"] = int(page)

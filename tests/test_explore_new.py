@@ -31,7 +31,7 @@ class Fixture(unittest.TestCase):
         from recommendation_fixtures import legacy_recommendation_settings
         legacy_recommendation_settings(self.app, route_beta=True)
         self.addCleanup(self.app.store.close)
-        self.pid = self.app.create_project("Crystals", "manual", ["epitaxy"])["project_id"]
+        self.pid = self.app.create_project("Crystals", "manual", ["epitaxy", "thin films", "quantum dots"])["project_id"]
         self.app.route_save(self.pid, plan=PLAN)
         for i in range(8):   # papers of the readable concept: the route has plenty to show
             self.add(f"cb{i}", f"Crystal growth and lattice basics {i}", "crystal growth lattice", f"journal-{i % 3}")

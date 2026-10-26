@@ -12,6 +12,7 @@ from app.service import App
 class FullLocalFlowTests(Fixture):
     def test_single_project_language_batch_feedback_undo_watch_revision_restart_restore(self):
         self.app.set_project_language(self.pid, "stem", ["en"])
+        self.app.projects.update_project(self.pid, keywords=["epitaxy", "photonic calibration"])   # the exploration papers must still mention a project keyword
         public={f'x{i}':[{'query':'photonic calibration','kinds':['explore'],'observed_at':date.today().isoformat()}] for i in range(6)}
         with mock.patch.object(self.app.gateway, "call", side_effect=AssertionError("no model calls")), \
                 mock.patch.object(self.app.source, "_fetch", side_effect=AssertionError("no source calls")), \

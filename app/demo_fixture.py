@@ -56,11 +56,11 @@ PAPERS = [
        'sentences follow each other. The pre-trained model is then fine-tuned with one small extra layer and improves '
        'a wide range of language understanding benchmarks, including question answering and inference.', "candidate"),
     _p("2001.08361", "Scaling Laws for Neural Language Models", "2020-01-23", ["Jared Kaplan", "Sam McCandlish", "Tom Henighan"],
-       'The loss of a language model follows smooth power laws in model size, dataset size and training compute, over '
+       'The loss of a Transformer language model follows smooth power laws in model size, dataset size and training compute, over '
        'many orders of magnitude. Other architectural details matter little. The fitted laws suggest how to split a '
        'fixed compute budget, and that larger models are more sample efficient.', "candidate"),
     _p("2005.14165", "Language Models are Few-Shot Learners", "2020-05-28", ["Tom B. Brown", "Benjamin Mann", "Nick Ryder"],
-       'Scaling a language model to 175 billion parameters lets it perform many tasks from a few examples given in the'
+       'Scaling a Transformer language model to 175 billion parameters lets it perform many tasks from a few examples given in the'
        ' prompt, with no gradient update. The paper evaluates this few-shot ability on translation, question '
        'answering, arithmetic and more, and also discusses where it fails and the risks of such a model.', "candidate"),
     _p("2010.11929", "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale", "2020-10-22",

@@ -34,7 +34,7 @@ class Base(unittest.TestCase):
         self.app = App(root=str(root), data_dir=str(root / "data"))
         legacy_recommendation_settings(self.app)
         self.addCleanup(self.app.store.close)
-        self.pid = self.app.create_project("古汉语", "manual", ["汉语"])["project_id"]
+        self.pid = self.app.create_project("古汉语", "manual", ["汉语", "world model"])["project_id"]
         self.app.set_project_language(self.pid, None, self.allowed)
 
     def add(self, key, language="en", title=TITLE, abstract=ABSTRACT):

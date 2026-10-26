@@ -42,7 +42,7 @@ class CoreChainTests(unittest.TestCase):
         from recommendation_fixtures import legacy_recommendation_settings
         legacy_recommendation_settings(self.app, route_beta=False)
         self.a = self.app.create_project("A", "manual", ["world model", "planning"])["project_id"]
-        self.b = self.app.create_project("B", "manual", ["protein"])["project_id"]
+        self.b = self.app.create_project("B", "manual", ["protein", "world model"])["project_id"]
         for pid in (self.a, self.b):
             self.app.store.upsert_papers([{"key": k, "title": t, "abstract": ab, "published": f"2026-08-0{i + 1}",
                                            "project_id": pid} for i, (k, t, ab) in enumerate(PAPERS)])
@@ -71,6 +71,7 @@ class CoreChainTests(unittest.TestCase):
         self.assertEqual(self.app.store.conn.execute("SELECT COUNT(*) FROM pdfs").fetchone()[0], 0)
 
     def test_repeat_exposure_and_feedback_exclusion(self):
+        self.app.projects.update_project(self.a, keywords=["world model", "planning", "transformers", "chemistry"])   # every synthetic paper mentions one
         english_papers(self.app, self.a)
         first = [c["key"] for c in self.app.build_batch(limit=3, project_id=self.a)["cards"]]
         self.app.record_feedback(first[0], "useful", project_id=self.a)
