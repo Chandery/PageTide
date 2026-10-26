@@ -2787,6 +2787,8 @@
     "连不上这个来源（网络不通，或来源暂时不可用），请稍后重试。": "Could not reach this source (no network, or the source is down). Try again later.",
     "这个来源的安全证书无法核实，没有下载；可以打开原文页手动下载。": "This source's security certificate could not be verified, so nothing was downloaded. You can open the original page and download it yourself.",
     "来源拒绝了应用下载（可能需要订阅或登录）。可以打开原文页面，在浏览器里下载后拖到这里。": "The source refused the app's download (it may need a subscription or login). Open the original page, download it in the browser and drop it here.",
-    "这个网站只允许在浏览器里下载。打开原文页面，在页面上下载 PDF，再拖到这里。": "This site only allows downloads in a browser. Open the original page, download the PDF there and drop it here."
+    "这个网站只允许在浏览器里下载。打开原文页面，在页面上下载 PDF，再拖到这里。": "This site only allows downloads in a browser. Open the original page, download the PDF there and drop it here.",
+    "连接失败": "connection failed",
+    "阅读器组件 pdf.js 没能载入（{0}）。可能被杀毒软件拦截或隔离：把 PageTide 加入信任，或重新安装后再试": "The reader component pdf.js could not be loaded ({0}). Antivirus software may have blocked or quarantined it: trust PageTide, or reinstall, and try again"
   }
 }

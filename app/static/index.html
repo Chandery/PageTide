@@ -1883,7 +1883,14 @@ function setReference(text, page) {
 let pdfjs = null;
 async function lib() {
   if (pdfjs) return pdfjs;
-  pdfjs = await import('/vendor/pdfjs/pdf.min.mjs');
+  try { pdfjs = await import('/vendor/pdfjs/pdf.min.mjs'); }
+  catch (e) {
+    // The browser only says "Failed to fetch dynamically imported module". Ask the app's own server once more and say what
+    // it answered, so a report tells a missing or blocked file (antivirus) from anything else (Windows report, 2026-10-26).
+    let seen = '连接失败';
+    try { const r = await fetch('/vendor/pdfjs/pdf.min.mjs', { cache: 'no-store' }); seen = `HTTP ${r.status} ${r.headers.get('content-type') || ''}`.trim(); } catch (_) { /* stays 连接失败 */ }
+    throw new Error(`阅读器组件 pdf.js 没能载入（${seen}）。可能被杀毒软件拦截或隔离：把 PageTide 加入信任，或重新安装后再试`);
+  }
   pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
   return pdfjs;
 }

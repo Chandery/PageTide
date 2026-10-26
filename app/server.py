@@ -440,9 +440,17 @@ class Handler(BaseHTTPRequestHandler):
     def _static(self, path):
         target = (STATIC / ("index.html" if path in ("/", "") else path.lstrip("/"))).resolve()
         if not str(target).startswith(str(STATIC)) or not target.is_file():
+            # In the log (backend.log in the packaged app): a file of the app's own that is gone, e.g. quarantined by
+            # antivirus, shows up here instead of only as a vague error in the page.
+            print(f"static file missing: {path[:200]}", file=sys.stderr, flush=True)
             self.send_error(404)
             return
-        body = target.read_bytes()
+        try:
+            body = target.read_bytes()
+        except OSError as exc:              # present but unreadable (locked by a scanner, no permission)
+            print(f"static file unreadable: {path[:200]}: {exc}", file=sys.stderr, flush=True)
+            self.send_error(503)
+            return
         if target.suffix == ".html":
             body = re.sub(rb"(<head(?:\s[^>]*)?>)", lambda m: m.group(1) + I18N_SCRIPTS + self._route_beta_head(), body, count=1)
             # Inject a cache-buster on every local JS/CSS URL so WKWebView

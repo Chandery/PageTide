@@ -7,6 +7,7 @@ simulated by making mimetypes say text/plain for everything.
 """
 import sys
 import unittest
+import urllib.error
 import urllib.request
 from pathlib import Path
 from unittest import mock
@@ -43,6 +44,26 @@ class StaticTypeTests(unittest.TestCase):
         with mock.patch.object(server.mimetypes, "guess_type", return_value=("image/webp", None)):
             self.assertEqual(server.static_type("x.webp"), "image/webp")
         self.assertEqual(server.static_type("X.MJS"), "text/javascript; charset=utf-8")
+
+    def test_a_missing_or_unreadable_file_is_logged_and_answered_plainly(self):
+        import io
+        from contextlib import redirect_stderr
+        log = io.StringIO()
+        with redirect_stderr(log):
+            with self.assertRaises(urllib.error.HTTPError) as missing:
+                self.served_type("/vendor/pdfjs/not-there.mjs")
+            with mock.patch.object(server.Path, "read_bytes", side_effect=PermissionError("locked by a scanner")):
+                with self.assertRaises(urllib.error.HTTPError) as locked:
+                    self.served_type("/vendor/pdfjs/pdf.min.mjs")
+        self.assertEqual((missing.exception.code, locked.exception.code), (404, 503))
+        self.assertIn("static file missing: /vendor/pdfjs/not-there.mjs", log.getvalue())
+        self.assertIn("static file unreadable: /vendor/pdfjs/pdf.min.mjs: locked by a scanner", log.getvalue())
+
+    def test_the_reader_says_what_the_server_answered_when_pdfjs_does_not_load(self):
+        html = (STATIC / "index.html").read_text(encoding="utf-8")
+        loader = html[html.index("async function lib()"):html.index("const R = {")]
+        self.assertIn("fetch('/vendor/pdfjs/pdf.min.mjs', { cache: 'no-store' })", loader)
+        self.assertIn("阅读器组件 pdf.js 没能载入（${seen}）", loader)
 
 
 if __name__ == "__main__":
