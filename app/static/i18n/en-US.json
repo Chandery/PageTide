@@ -2805,6 +2805,11 @@
     "没有拿到 PDF，可以再试一次，或点“原文页面”在浏览器里下载后拖到这里。": "No PDF arrived. Try again, or click “Paper page”, download it in your browser and drop it here.",
     "下载窗口已关闭，没有拿到 PDF。可以点“原文页面”在浏览器里下载，再拖到这里。": "The download window was closed before a PDF arrived. Click “Paper page”, download it in your browser and drop it here.",
     "外部打开": "Open externally",
-    "没能打开：{0}": "Could not open it: {0}"
+    "没能打开：{0}": "Could not open it: {0}",
+    "在文件夹中显示": "Show in folder",
+    "移出论文库": "Remove from library",
+    "没能打开文件夹：{error}": "Could not open the folder: {error}",
+    "把这篇论文移出「{project}」的论文库？PDF 和笔记会保留。": "Remove this paper from the library of “{project}”? The PDF and notes are kept.",
+    "把这篇论文移出论文库？PDF 和笔记会保留。": "Remove this paper from the library? The PDF and notes are kept."
   }
 }

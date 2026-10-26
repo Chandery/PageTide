@@ -261,6 +261,12 @@
           "markdownDescription": "Enables the relaunch command without any pre-configured scope."
         },
         {
+          "description": "Enables the reveal_pdf_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-reveal-pdf-file",
+          "markdownDescription": "Enables the reveal_pdf_file command without any pre-configured scope."
+        },
+        {
           "description": "Enables the save_export command without any pre-configured scope.",
           "type": "string",
           "const": "allow-save-export",
@@ -349,6 +355,12 @@
           "type": "string",
           "const": "deny-relaunch",
           "markdownDescription": "Denies the relaunch command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the reveal_pdf_file command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-reveal-pdf-file",
+          "markdownDescription": "Denies the reveal_pdf_file command without any pre-configured scope."
         },
         {
           "description": "Denies the save_export command without any pre-configured scope.",

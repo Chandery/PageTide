@@ -53,6 +53,12 @@ class SnapshotPdfStateTests(unittest.TestCase):
         self.assertEqual(states["page"], "page")
         self.assertEqual(states["none"], "none")
 
+    def test_only_a_pdf_on_disk_carries_its_path_for_show_in_folder(self):
+        items = {p["key"]: p for p in self.org.snapshot()["items"]}
+        self.assertTrue(items["local"]["pdf_path"].endswith(".pdf"))
+        self.assertNotIn("pdf_path", items["gone"])
+        self.assertNotIn("pdf_path", items["arx"])
+
     def test_a_recorded_pdf_whose_file_is_gone_falls_back_to_what_the_source_allows(self):
         self.assertEqual(self.pdf_states()["gone"], "direct")            # it has an arXiv id, so it can be downloaded again
 

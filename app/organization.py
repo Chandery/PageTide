@@ -342,6 +342,8 @@ class Organization:
             # local = archived and the file is still there; otherwise what a legal source allows (direct/page/none).
             path = archived_pdfs.get(key)
             paper["pdf"] = "local" if path and os.path.isfile(path) else pdf_availability(paper.get("arxiv_id"), paper.get("oa_json"))
+            if paper["pdf"] == "local":
+                paper["pdf_path"] = path          # for 在文件夹中显示 (the library page, desktop app)
             if not (paper.get("arxiv_id") or paper.get("doi") or paper.get("openalex_id")):
                 link = paper_url(paper)        # only a source page (Baidu Scholar) can link such a paper; the page derives the rest
                 if link:

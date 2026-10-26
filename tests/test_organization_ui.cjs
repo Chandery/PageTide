@@ -29,6 +29,7 @@ function fixture(api = async () => { throw new Error('Unexpected API call'); }, 
     return vm.runInContext("cytoscape({headless:true,elements:JSON.parse(JSON.stringify(elements)),layout:{name:'preset'}})",context);
   };
   ui.S.root = { querySelector: () => null };
+  ui.context = context;
   return ui;
 }
 function snapshot(extra = {}) {
@@ -1328,4 +1329,40 @@ test('the left directory hides exactly the categories the review leaves out (sha
     const shown = c.directions.map(d => d.id).filter(id => !hidden.has(id));
     assert.deepEqual(shown, c.shown, c.name);
   }
+});
+
+// 移出论文库 (2026-10-27): a saved paper could not be removed from the library page. In one project's view it leaves that
+// project's library; in "all" every project that saved it. Nothing happens without a yes.
+test('移出论文库 removes the paper from the project in view, or from every project in "all", after a yes', async () => {
+  const calls = [];
+  const ui = fixture(async (url, body) => { calls.push([url, body]); throw new Error('stop after the calls'); });
+  ui.accept(snapshot({items:[{key:'shared',title:'Shared',projects:['cs','materials']}], projects:[{id:'cs',name:'CS'},{id:'materials',name:'Materials'}]}));
+  let answer = false, asked = '';
+  ui.context.window.PTDialogs = { confirm: async q => { asked = q; return answer; } };
+  ui.S.scope = 'cs';
+  await ui.handle('unsave', {dataset:{key:'shared'}});
+  assert.equal(calls.length, 0);                                       // no yes, no change
+  assert.match(asked, /「CS」的论文库/);
+  answer = true;
+  try { await ui.handle('unsave', {dataset:{key:'shared'}}); } catch (error) { /* refreshing needs the server */ }
+  assert.equal(JSON.stringify(calls[0]), JSON.stringify(['/api/unsave', {key:'shared', project_id:'cs'}]));
+  calls.length = 0; ui.S.scope = 'all';
+  ui.setAPI(async (url, body) => { calls.push([url, body]); return {}; });
+  try { await ui.handle('unsave', {dataset:{key:'shared'}}); } catch (error) { /* refreshing needs the DOM */ }
+  assert.deepEqual(calls.filter(c => c[0] === '/api/unsave').map(c => c[1].project_id), ['cs', 'materials']);
+});
+
+test('在文件夹中显示 is offered only for a PDF on disk in the desktop app, and asks the shell to reveal that file', async () => {
+  const ui = fixture();
+  ui.accept(snapshot({items:[{key:'p',title:'P',pdf:'local',pdf_path:'/lib/pdfs/p.pdf',projects:['cs']},{key:'q',title:'Q',pdf:'direct',projects:['cs']}]}));
+  const asked = [];
+  ui.context.window.__TAURI_INTERNALS__ = { invoke: async (cmd, args) => { asked.push([cmd, args]); } };
+  const paper = key => ui.S.snapshot.items.find(i => i.key === key);
+  assert.match(ui.detailHTML(paper('p')), /data-action="reveal-pdf"/);
+  assert.doesNotMatch(ui.detailHTML(paper('q')), /data-action="reveal-pdf"/);
+  await ui.handle('reveal-pdf', {dataset:{key:'p'}});
+  assert.equal(JSON.stringify(asked), JSON.stringify([['reveal_pdf_file', {path:'/lib/pdfs/p.pdf'}]]));
+  delete ui.context.window.__TAURI_INTERNALS__;
+  assert.doesNotMatch(ui.detailHTML(paper('p')), /data-action="reveal-pdf"/);   // a browser has no folder to show
+  assert.match(ui.detailHTML(paper('p')), /data-action="unsave"/);
 });

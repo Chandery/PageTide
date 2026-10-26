@@ -469,7 +469,7 @@
     const meta = [String(p.published || '').slice(0, 4), p.source].filter(Boolean);
     const canRead = typeof window.PT.openReader === 'function', noSource = p.pdf === 'none', url = paperURL(p);
     const readTitle = !canRead ? '阅读器尚未加载，请刷新' : noSource ? '无 PDF 来源' : '阅读 PDF';
-    return `<div class="org-section-head org-pane-head">${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title" data-tex>${h(p.title)}</h2><div class="org-detail-meta">${meta.map(v => `<span>${h(v)}</span>`).join('')}</div>${detailCategoriesHTML(p)}${noteHTML(p, draft, editing)}<details class="org-abstract"><summary>摘要</summary>${p.abstract ? `<p data-no-i18n data-tex>${h(p.abstract)}</p>` : '<div>暂无摘要</div>'}${inDemoPage() && p.arxiv_id ? `<div class="org-demo-note">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${encodeURIComponent(String(p.arxiv_id))}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</details><div class="org-reading-tools"><button type="button" data-action="read" data-key="${h(p.key)}" ${canRead && !noSource ? '' : 'disabled'} title="${h(readTitle)}"><img class="org-icon" src="/icons/org/book-open.svg" width="16" height="16" alt="">阅读 PDF</button>${url ? `<a href="${h(url)}" target="_blank" rel="noopener noreferrer">打开论文</a>` : ''}</div>${ai}${context}<section class="org-detail-projects" aria-label="所属项目"><span>所属项目</span><div class="org-projects">${projectTags(p)}</div></section>`;
+    return `<div class="org-section-head org-pane-head">${button('detail-close', '关闭详情', '&#215;')}</div><h2 class="org-detail-title" data-tex>${h(p.title)}</h2><div class="org-detail-meta">${meta.map(v => `<span>${h(v)}</span>`).join('')}</div>${detailCategoriesHTML(p)}${noteHTML(p, draft, editing)}<details class="org-abstract"><summary>摘要</summary>${p.abstract ? `<p data-no-i18n data-tex>${h(p.abstract)}</p>` : '<div>暂无摘要</div>'}${inDemoPage() && p.arxiv_id ? `<div class="org-demo-note">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${encodeURIComponent(String(p.arxiv_id))}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</details><div class="org-reading-tools"><button type="button" data-action="read" data-key="${h(p.key)}" ${canRead && !noSource ? '' : 'disabled'} title="${h(readTitle)}"><img class="org-icon" src="/icons/org/book-open.svg" width="16" height="16" alt="">阅读 PDF</button>${url ? `<a href="${h(url)}" target="_blank" rel="noopener noreferrer">打开论文</a>` : ''}${p.pdf === 'local' && p.pdf_path && window.__TAURI_INTERNALS__ ? `<button type="button" data-action="reveal-pdf" data-key="${h(p.key)}">在文件夹中显示</button>` : ''}${inDemoPage() ? '' : `<button type="button" class="org-danger" data-action="unsave" data-key="${h(p.key)}">移出论文库</button>`}</div>${ai}${context}<section class="org-detail-projects" aria-label="所属项目"><span>所属项目</span><div class="org-projects">${projectTags(p)}</div></section>`;
   }
   function renderDetail() {
     const panel = $('.org-detail'), p = item(S.key);
@@ -1449,6 +1449,29 @@
         if (b.dataset.project !== (S.scope === 'all' ? currentProject() : S.scope) || b.dataset.key !== S.key) break;
         await invalidateLearning(b.dataset.key, true); break;
       case 'read': { const p = item(b.dataset.key); if (p) await openLibraryReader(p); break; }
+      case 'reveal-pdf': {
+        // The PDF file in Finder / File Explorer (desktop app): where a downloaded or attached PDF is kept.
+        const p = item(b.dataset.key);
+        if (p?.pdf_path && window.__TAURI_INTERNALS__) {
+          try { await window.__TAURI_INTERNALS__.invoke('reveal_pdf_file', { path: p.pdf_path }); }
+          catch (error) { report(new Error(systemLabel('没能打开文件夹：{error}', {error: String(error)}))); }
+        }
+        break;
+      }
+      case 'unsave': {
+        // 移出论文库: the project in view, or in "all" every project that saved it. The PDF and notes stay.
+        const p = item(b.dataset.key);
+        if (!p) break;
+        const targets = S.scope !== 'all' ? [S.scope] : owners(p).length ? owners(p) : [null];
+        const name = S.scope !== 'all' ? (S.snapshot?.projects || []).find(x => x.id === S.scope)?.name : null;
+        const question = name ? systemLabel('把这篇论文移出「{project}」的论文库？PDF 和笔记会保留。', {project: name})
+          : systemLabel('把这篇论文移出论文库？PDF 和笔记会保留。');
+        if (!(await window.PTDialogs.confirm(question))) break;
+        for (const project of targets) await window.PT.api('/api/unsave', { key: p.key, ...(project ? { project_id: project } : {}) });
+        S.key = null;
+        await refresh();
+        break;
+      }
       case 'select': selectPaper(b.dataset.key); break;
       case 'detail-close': S.navigationToken++; S.key = null; renderDetail(); renderList(); renderSidebar(); filterGraph(); S.cy?.resize(); if (S.focus.startsWith('paper')) { S.focus = 'all'; if (S.mode === 'graph') renderGraph(false); else renderFocus(); } break;
       case 'direction-new': editDirection(); break;

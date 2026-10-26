@@ -278,6 +278,30 @@ fn open_pdf_file(window: WebviewWindow, session: State<'_, DesktopSession>, path
     Ok(())
 }
 
+/// The library's 在文件夹中显示: Finder / File Explorer with the PDF file selected. Only an existing file ending in .pdf.
+#[tauri::command]
+fn reveal_pdf_file(window: WebviewWindow, session: State<'_, DesktopSession>, path: String) -> Result<(), String> {
+    owned_page(&window, &session)?;
+    let file = std::fs::canonicalize(&path).map_err(|_| "PDF file not found")?;
+    let is_pdf = file.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("pdf"));
+    if !file.is_file() || !is_pdf {
+        return Err("Not a PDF file".into());
+    }
+    #[cfg(target_os = "macos")]
+    Command::new("/usr/bin/open").arg("-R").arg(&file).spawn().map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // explorer wants `/select,"<path>"` as one argument, quoted itself (a canonical path has no quote in it).
+        let system = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        let explorer = std::path::Path::new(&system).join("explorer.exe");
+        let shown = file.display().to_string();
+        let shown = shown.strip_prefix(r"\\?\").unwrap_or(&shown).to_string();   // canonicalize's verbatim prefix
+        Command::new(explorer).raw_arg(format!("/select,\"{shown}\"")).spawn().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Restart into a fresh process (e.g. after the data folder changed): lift the quit guards, stop the backend, relaunch.
 #[tauri::command]
 fn relaunch(window: WebviewWindow, session: State<'_, DesktopSession>, app: tauri::AppHandle) -> Result<(), String> {
@@ -467,7 +491,7 @@ fn main() {
     let result = builder
         .manage(cnki::CnkiState::default())
         .manage(pdf_window::PdfWindowState::default())
-        .invoke_handler(tauri::generate_handler![save_export, complete_quit, pick_folder, relaunch, open_pdf_file,
+        .invoke_handler(tauri::generate_handler![save_export, complete_quit, pick_folder, relaunch, open_pdf_file, reveal_pdf_file,
                                                  cnki::cnki_start, cnki::cnki_poll, cnki::cnki_cancel, cnki::cnki_next, cnki::cnki_report,
                                                  pdf_window::pdf_window_open, pdf_window::pdf_window_poll, pdf_window::pdf_window_take,
                                                  pdf_window::pdf_window_cancel, pdf_window::pdf_window_chunk])
@@ -488,7 +512,7 @@ fn main() {
             // Grant only our app commands, only to this instance's random loopback origin.
             let capability = serde_json::json!({"identifier":"owned-desktop-session", "local":false,
                 "windows":["main"], "remote":{"urls":[format!("{}/*", exact_origin)]},
-                "permissions":["allow-save-export", "allow-complete-quit", "allow-pick-folder", "allow-relaunch", "allow-open-pdf-file",
+                "permissions":["allow-save-export", "allow-complete-quit", "allow-pick-folder", "allow-relaunch", "allow-open-pdf-file", "allow-reveal-pdf-file",
                                "allow-cnki-start", "allow-cnki-poll", "allow-cnki-cancel",
                                "allow-pdf-window-open", "allow-pdf-window-poll", "allow-pdf-window-take", "allow-pdf-window-cancel"]}).to_string();
             app.add_capability(capability.as_str())?;

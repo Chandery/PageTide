@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reveal-pdf-file"
+description = "Enables the reveal_pdf_file command without any pre-configured scope."
+commands.allow = ["reveal_pdf_file"]
+
+[[permission]]
+identifier = "deny-reveal-pdf-file"
+description = "Denies the reveal_pdf_file command without any pre-configured scope."
+commands.deny = ["reveal_pdf_file"]
