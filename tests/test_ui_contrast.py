@@ -116,6 +116,7 @@ class ContrastTests(unittest.TestCase):
                 (f"bad on {surface}", "bad", surface),
                 (f"ai-text on {surface}", "ai-text", surface),
                 (f"mark-text on {surface}", "mark-text", surface),
+                (f"src-cnki on {surface}", "src-cnki", surface),       # the 知网 source label
             ]
         pairs.append(("accent-ink on accent fill", "accent-ink", "accent"))
         for name, fg, bg in pairs:

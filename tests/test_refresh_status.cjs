@@ -7,11 +7,14 @@ const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../app/static/index.html'), 'utf8');
 const handler = html.slice(html.indexOf("$('#btnRefresh').onclick ="), html.indexOf("function selectView("));
 const record = html.slice(html.indexOf('function fetchedText'), html.indexOf('function renderEligibility'));
+const cnkiAfter = [];       // projects the 知网 part (ADR 0045) was started for after a manual refresh
 async function click(job, {batchToday, label = '生成今日推荐'} = {}) {
   const button = {}, daily = {textContent: label}, notices = [], calls = [];
+  cnkiAfter.length = 0;
   const context = vm.createContext({$: (s) => s === '#btnDaily' ? daily : button, state: {currentProject: 'p', maintenance: {batch_today: !!batchToday}},
     api: async (url, body) => {calls.push([url, body]); return url === '/api/refresh' ? {id: 'job-1'} : job;},
     toast: (message, kind) => notices.push([message, kind]), load: async () => {},
+    cnkiRefresh: (projectId) => { cnkiAfter.push(projectId); },
     setTimeout: callback => callback()});
   vm.runInContext(record, context);
   vm.runInContext(handler, context);
@@ -20,6 +23,16 @@ async function click(job, {batchToday, label = '生成今日推荐'} = {}) {
   assert.equal(calls[0][1].project_id, 'p');
   return notices.at(-1);
 }
+test('the 知网 part starts after a finished refresh, never while one runs or is already running', async () => {
+  await click({state:'done', result:{fetched:3, new_to_project:1, errors:[]}});
+  assert.deepEqual(cnkiAfter, ['p']);
+  await click({state:'failed', error:'fixture failure'});
+  assert.deepEqual(cnkiAfter, ['p']);               // the server's sources failing does not stop 知网
+  await click({state:'running'});
+  assert.deepEqual(cnkiAfter, []);
+  await click({state:'done', result:{reason_code:'refresh_running', errors:[]}});
+  assert.deepEqual(cnkiAfter, []);
+});
 test('refresh messages preserve changed, busy, failure and incomplete job states', async () => {
   for (const [job, match] of [
     [{state:'done', result:{reason_code:'route_recall_changed', errors:[{kind:'changed'}]}}, /学习图已变化/],

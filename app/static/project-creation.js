@@ -531,6 +531,28 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     el.hidden = !message; el.textContent = message || ''; el.classList.toggle('error', isError);
   };
 
+  // 知网 (desktop app only, ADR 0045): every query the server marked `cnki_ask` is searched in the app's CNKI window. Each
+  // candidate needs its detail page for the abstract, so this takes a few seconds per paper; candidates appear as they come.
+  async function searchCnki(cnkiQueries) {
+    let found = null;
+    for (let i = 0; i < cnkiQueries.length; i += 1) {
+      searchAct.start(`正在从知网查找（${i + 1}/${cnkiQueries.length}）`);
+      try {
+        found = await window.PTCnki.run({mode: 'guidance', queries: [cnkiQueries[i]]}, {
+          onItems: async (items) => {
+            const result = await post(`/api/project-guidance/sessions/${sessionId()}/cnki`,
+              {query: cnkiQueries[i], items, languages: policyEditor.selected()});
+            addCandidates(result.items);
+            part('searchStatus').textContent = `已找到 ${candidates.size} 篇…`;
+          },
+          onVerification: (asking) => notice(asking ? '知网需要验证：请在弹出的知网窗口里滑一下拼图' : '', false),
+        });
+      } catch (error) { found = 'unavailable'; }
+      if (found && found !== 'verification_needed') break;      // busy or broken: more queries only add waiting
+    }
+    return found;
+  }
+
   async function search() {
     if (searching || !sessionId()) return;
     const d = draft();
@@ -541,6 +563,7 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
     const before = candidates.size;
     if (!candidates.size) skeletons(3);
     let problem = null, baiduProblem = '';
+    const cnkiQueries = [];
     for (let i = 0; i < queries.length; i += 1) {
       searchAct.start(`正在查找（${i + 1}/${queries.length}）`);
       part('searchStatus').textContent = candidates.size ? `已找到 ${candidates.size} 篇…` : '查找中…';
@@ -550,11 +573,14 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       } catch (error) { problem = {kind: 'request', message: error.message}; break; }
       addCandidates(result.items);
       baiduProblem = baiduProblem || baiduNote(result);
+      if (result.cnki_ask) cnkiQueries.push(queries[i]);
       if (result.error) {
         problem = result.error;
         if (result.error.kind === 'unavailable') break;   // more queries only add waiting
       }
     }
+    const cnkiProblem = cnkiQueries.length && window.PTCnki?.available() ? await searchCnki(cnkiQueries) : null;
+    if (cnkiProblem) baiduProblem = [baiduProblem, window.PTCnki.problemText(cnkiProblem)].filter(Boolean).join(' ');
     searchAct.stop();
     $$('.skeleton', part('cands')).forEach((el) => el.remove());
     searching = false;
@@ -1002,22 +1028,73 @@ async function openSeedSearch(query) {
     notice.hidden = false; notice.classList.toggle('error', !!result.items.length ? false : result.status !== 'empty');
     notice.textContent = [result.items.length ? '' : result.status === 'empty' ? '没有找到' : seedFailure(result), baiduProblem].filter(Boolean).join(' ');
   }
-  for (const paper of result.items) {
-    const hit = document.createElement('div');
-    hit.className = 'seed-hit';
-    const added = () => seeds.some((s) => s.status !== 'failed' && s.paper && s.paper.key === paper.key);
-    hit.innerHTML = `<div class="title" data-no-i18n data-tex>${esc(paper.title)}</div><div class="meta" data-no-i18n>${esc(meta(paper))}</div>
-      <div class="abstract" data-no-i18n>${esc(paper.abstract || '')}</div><button type="button">添加</button>`;
-    const button = $('button', hit);
-    button.onclick = () => {
-      if (added()) { seedRemoveByKey(paper.key); button.textContent = '添加'; return; }
-      const item = seedNew('name', {input: paper.title});
-      seedUpdate(item, {status: 'resolved', paper});
-      button.textContent = '已添加';
-    };
-    if (added()) button.textContent = '已添加';
-    $('#seedSearchList').appendChild(hit);
+  for (const paper of result.items) seedHit(paper);
+  if (result.cnki_ask && window.PTCnki?.available()) await seedSearchCnki(query, token, result.items);
+}
+
+function seedHit(paper, cnkiItem = null, query = '') {
+  const hit = document.createElement('div');
+  hit.className = 'seed-hit';
+  const added = () => seeds.some((s) => s.status !== 'failed' && s.paper && s.paper.key === paper.key);
+  hit.innerHTML = `<div class="title" data-no-i18n data-tex>${esc(paper.title)}</div><div class="meta" data-no-i18n>${esc(meta(paper))}</div>
+    <div class="abstract" data-no-i18n>${esc(paper.abstract || '')}</div><button type="button">添加</button>`;
+  const button = $('button', hit);
+  button.onclick = async () => {
+    if (added()) { seedRemoveByKey(paper.key); button.textContent = '添加'; return; }
+    const item = seedNew('name', {input: paper.title});
+    button.textContent = '已添加';
+    // A 知网 hit comes from the results list without its abstract: read its detail page first (a few seconds).
+    const full = cnkiItem ? await seedCnkiDetail(item, cnkiItem, query) : null;
+    if (seeds.includes(item)) seedUpdate(item, {status: 'resolved', paper: full || paper});
+  };
+  if (added()) button.textContent = '已添加';
+  $('#seedSearchList').appendChild(hit);
+}
+
+// 知网 (desktop app only, ADR 0045): a typed Chinese title is also searched in the app's CNKI window, results list only.
+async function seedSearchCnki(query, token, shown) {
+  searchAct.start('正在从知网检索…');
+  const raw = [];
+  let hits = [];
+  const problem = await window.PTCnki.run({mode: 'seed', queries: [query]}, {
+    onItems: async (items) => { raw.push(...items); },
+    onVerification: (asking) => { if (asking) seedHint('知网需要验证：请在弹出的知网窗口里滑一下拼图'); },
+  }).catch(() => 'unavailable');
+  if (raw.length || problem) {
+    try { hits = (await post('/api/cnki/seeds', {query, items: raw, ...(problem ? {problem} : {})})).items || []; }
+    catch (error) { hits = []; }
   }
+  if (token !== searchToken) return;
+  searchAct.stop();
+  seedHint('');
+  const seen = new Set(shown.flatMap((p) => [p.key, (p.title || '').replace(/[\W_]+/gu, '').toLowerCase()]));
+  for (const paper of hits) {
+    const mark = (paper.title || '').replace(/[\W_]+/gu, '').toLowerCase();
+    if (seen.has(paper.key) || (mark && seen.has(mark))) continue;
+    seen.add(paper.key); seen.add(mark);
+    const source = raw.find((r) => `cnki:${String(r.dbname || '').toUpperCase()}:${r.filename}` === paper.key);
+    seedHit(paper, source, query);
+    $('#seedSearchList').lastElementChild.querySelector('.meta')?.append(' · 知网');
+  }
+  if (problem) {
+    const note = $('#seedSearchNotice');
+    note.hidden = false;
+    note.textContent = [note.textContent, window.PTCnki.problemText(problem)].filter(Boolean).join(' ');
+  }
+}
+
+async function seedCnkiDetail(item, cnkiItem, query) {
+  seedUpdate(item, {status: 'working', stage: '正在从知网读取摘要…'});
+  const read = [];
+  const problem = await window.PTCnki.run({mode: 'detail', targets: [cnkiItem]}, {
+    onItems: async (items) => { read.push(...items); },
+    onVerification: (asking) => { if (asking) seedUpdate(item, {stage: '知网需要验证：请在弹出的知网窗口里滑一下拼图'}); },
+  }).catch(() => 'unavailable');
+  if (!read.length) { if (problem) seedHint(window.PTCnki.problemText(problem)); return null; }
+  try {
+    const result = await post('/api/cnki/seeds', {query, items: read.slice(0, 1)});   // remembered again, now with the abstract
+    return (result.items || []).find((p) => p.key === `cnki:${String(read[0].dbname || '').toUpperCase()}:${read[0].filename}`) || null;
+  } catch (error) { return null; }
 }
 const seedRemoveByKey = (key) => { const item = seeds.find((s) => s.paper && s.paper.key === key); if (item) seedRemove(item); };
 $('#seedSearchClose').onclick = () => { searchToken += 1; searchAct.stop(); $('#seedSearch').hidden = true; };

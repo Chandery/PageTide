@@ -21,7 +21,7 @@ PACK = STATIC / "i18n" / "en-US.json"
 # Not UI text: figure-intent.js holds Chinese only inside question-matching regexes.
 FILES = ["index.html", "settings.html", "project_creation.html", "weekly_report.html",
          "paper-context.js", "dialogs.js", "creation-quit.js", "i18n.js",
-         "organization.js", "profile-ui.js", "project-switcher.js", "project-creation.js", "route-editor.js", "route-detail.js", "weekly-ui.js", "route-graph.js", "route.html", "route-page.js", "project.html", "project-page.js", "paper-policy.js", "reader-source.js", "pdf-hints.js", "import.html", "import.js", "import-files.js", "update-banner.js", "tour.js", "feedback-marks.js"]
+         "organization.js", "profile-ui.js", "project-switcher.js", "project-creation.js", "route-editor.js", "route-detail.js", "weekly-ui.js", "route-graph.js", "route.html", "route-page.js", "project.html", "project-page.js", "paper-policy.js", "reader-source.js", "pdf-hints.js", "import.html", "import.js", "import-files.js", "update-banner.js", "tour.js", "feedback-marks.js", "cnki.js"]
 CJK = re.compile(r"[㐀-鿿！-～　-〿]")
 HAN = re.compile(r"[㐀-鿿]")
 TAG = re.compile(r"<[^<>]*>")

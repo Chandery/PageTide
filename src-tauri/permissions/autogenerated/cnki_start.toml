@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cnki-start"
+description = "Enables the cnki_start command without any pre-configured scope."
+commands.allow = ["cnki_start"]
+
+[[permission]]
+identifier = "deny-cnki-start"
+description = "Denies the cnki_start command without any pre-configured scope."
+commands.deny = ["cnki_start"]

@@ -82,7 +82,7 @@ class ItemValidationTests(unittest.TestCase):
         self.assertEqual((paper["published"], paper["doi"], paper["topic"]), ("2026-10-20", "10.16383/j.aas.c260081", "世界模型"))
         self.assertEqual(paper["abstract"], ABSTRACT.strip())
         self.assertEqual(paper["oa"], {"pages": [{"source": "cnki", "url": "https://kns.cnki.net/kcms2/article/abstract?v=enc1"}],
-                                       "via": ["cnki"]})
+                                       "via": ["cnki"], "abstract_partial": False})
         self.assertEqual(paper["authors"], [])                    # authors and journal are not stored
         self.assertNotIn("metadata_language", paper)
         self.assertIsNone(paper["openalex_id"])
@@ -99,7 +99,7 @@ class ItemValidationTests(unittest.TestCase):
                     "https://user@kns.cnki.net/", "https://kns.cnki.net\\@evil.example/", "javascript:alert(1)"):
             with self.subTest(url):
                 paper = self.cnki.paper_from_item(item(url=url))
-                self.assertEqual(paper["oa"], {"pages": [], "via": ["cnki"]})
+                self.assertEqual(paper["oa"], {"pages": [], "via": ["cnki"], "abstract_partial": False})
 
     def test_lengths_are_capped_and_dates_normalised(self):
         paper = self.cnki.paper_from_item(item(title="题" * 900, abstract="摘" * 20000, keywords=["词" * 100] * 30, date="2026-3"))
@@ -229,6 +229,73 @@ class IngestTests(Case):
         self.assertEqual((result["fetched"], result["errors"]), (0, []))
 
 
+SNIPPET = "自动驾驶作为具身智能的关键应用方向,正经历从模块化结构向端到端框架的深刻变革..."
+
+
+class PartialAbstractTests(Case):
+    """Refreshes read results pages only (CNKI's snippet); the full abstract comes when the person opens the paper."""
+
+    def snippet_item(self, n=1, **over):
+        return item(n, abstract=SNIPPET, abstract_partial=True, doi="", **over)
+
+    def test_a_snippet_is_stored_without_its_dots_and_marked_partial(self):
+        self.app.cnki_ingest(self.pid, [self.snippet_item()])
+        stored = self.paper("cnki:CJFQ:JSJX202610001")
+        self.assertEqual(stored["abstract"], SNIPPET[:-3])
+        self.assertTrue(json.loads(stored["oa_json"])["abstract_partial"])
+        from app import cnki
+        self.assertTrue(cnki.paper_from_item(item(abstract="摘要到这里……"))["oa"]["abstract_partial"])   # dots alone say "cut"
+        self.assertFalse(cnki.paper_from_item(item())["oa"]["abstract_partial"])
+
+    def test_a_snippet_is_enough_to_be_recommendable(self):
+        from app import eligibility
+        self.app.cnki_ingest(self.pid, [self.snippet_item()])
+        self.assertTrue(eligibility.usable_abstract(self.paper("cnki:CJFQ:JSJX202610001")["abstract"]))
+
+    def test_the_detail_offers_the_cnki_page_while_the_abstract_is_partial(self):
+        self.app.cnki_ingest(self.pid, [self.snippet_item()])
+        detail = self.app.paper_detail("cnki:CJFQ:JSJX202610001", self.pid)
+        self.assertEqual(detail["cnki"], {"abstract_partial": True, "target": {
+            "url": "https://kns.cnki.net/kcms2/article/abstract?v=enc1", "dbname": "CJFQ", "filename": "JSJX202610001",
+            "title": "世界模型驱动的具身智能研究1"}})
+        self.set_user_settings(self.app, sourceCnki=False)
+        self.assertNotIn("cnki", self.app.paper_detail("cnki:CJFQ:JSJX202610001", self.pid))
+
+    def test_the_full_abstract_replaces_the_snippet_once(self):
+        self.app.cnki_ingest(self.pid, [self.snippet_item()])
+        result = self.app.cnki_abstract("cnki:CJFQ:JSJX202610001", item(1))
+        self.assertEqual((result["updated"], result["abstract"]), (True, ABSTRACT.strip()))
+        stored = self.paper("cnki:CJFQ:JSJX202610001")
+        self.assertEqual((stored["abstract"], stored["doi"]), (ABSTRACT.strip(), "10.16383/j.aas.c260081"))
+        self.assertFalse(json.loads(stored["oa_json"])["abstract_partial"])
+        self.assertNotIn("cnki", self.app.paper_detail("cnki:CJFQ:JSJX202610001", self.pid))
+        again = self.app.cnki_abstract("cnki:CJFQ:JSJX202610001", item(1, abstract="另一段更长的文字" * 200))
+        self.assertFalse(again["updated"])                                    # a complete abstract is never overwritten
+        self.app.cnki_ingest(self.pid, [self.snippet_item()])                 # the next refresh reports the snippet again
+        self.assertFalse(json.loads(self.paper("cnki:CJFQ:JSJX202610001")["oa_json"])["abstract_partial"])
+        self.assertEqual(self.paper("cnki:CJFQ:JSJX202610001")["abstract"], ABSTRACT.strip())
+
+    def test_a_cut_shorter_or_mismatched_abstract_changes_nothing(self):
+        self.app.cnki_ingest(self.pid, [self.snippet_item()])
+        for name, key, payload in (("still cut", "cnki:CJFQ:JSJX202610001", item(1, abstract=ABSTRACT + "......")),
+                                   ("shorter", "cnki:CJFQ:JSJX202610001", item(1, abstract="短")),):
+            with self.subTest(name):
+                self.assertFalse(self.app.cnki_abstract(key, payload)["updated"])
+        with self.assertRaises(ValueError):
+            self.app.cnki_abstract("cnki:CJFQ:JSJX202610001", item(2))      # another paper's page
+        with self.assertRaises(ValueError):
+            self.app.cnki_abstract("baidu:x", item(1))
+        with self.assertRaises(LookupError):
+            self.app.cnki_abstract("cnki:CJFQ:JSJX202610099", item(99))
+        self.assertEqual(self.paper("cnki:CJFQ:JSJX202610001")["abstract"], SNIPPET[:-3])
+
+    def test_the_full_abstract_needs_the_switch(self):
+        self.app.cnki_ingest(self.pid, [self.snippet_item()])
+        self.set_user_settings(self.app, sourceCnki=False)
+        with self.assertRaises(ValueError):
+            self.app.cnki_abstract("cnki:CJFQ:JSJX202610001", item(1))
+
+
 class CreationTests(Case):
     def session(self):
         return self.app.create_guidance_session("世界模型", "了解世界模型", "ai_guided")["id"]
@@ -301,6 +368,63 @@ class ServerTests(unittest.TestCase):
         for method, route in (("GET", "/api/cnki/plan"), ("POST", "/api/cnki/ingest"), ("POST", "/api/cnki/seeds"),
                               ("POST", "/api/project-guidance/sessions/x/cnki")):
             self.assertFalse(demo.allowed(method, route, {}), route)
+
+
+class ShellTests(unittest.TestCase):
+    """The desktop shell's 知网 window (src-tauri/src/cnki.rs): IPC is a critical boundary, so its shape is pinned here."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.main = (ROOT / "src-tauri" / "src" / "main.rs").read_text(encoding="utf-8")
+        cls.cnki = (ROOT / "src-tauri" / "src" / "cnki.rs").read_text(encoding="utf-8")
+        cls.driver = (ROOT / "src-tauri" / "src" / "cnki_driver.js").read_text(encoding="utf-8")
+        cls.build = (ROOT / "src-tauri" / "build.rs").read_text(encoding="utf-8")
+
+    def test_the_cnki_window_gets_exactly_two_commands_and_only_on_kns_cnki_net(self):
+        grant = self.main[self.main.index('"identifier":"cnki-window"'):][:400]
+        self.assertIn('"windows":[cnki::LABEL]', grant)
+        self.assertIn('format!("https://{}/*", cnki::HOST)', grant)
+        self.assertIn('"permissions":["allow-cnki-next", "allow-cnki-report"]', grant)
+        self.assertIn('pub const HOST: &str = "kns.cnki.net";', self.cnki)
+        main_grant = self.main[self.main.index('"identifier":"owned-desktop-session"'):][:500]
+        self.assertIn('"windows":["main"]', main_grant)
+        self.assertNotIn("cnki-next", main_grant)
+        self.assertNotIn("cnki-report", main_grant)
+        for command in ("cnki_start", "cnki_poll", "cnki_cancel", "cnki_next", "cnki_report"):
+            self.assertIn(f'"{command}"', self.build)
+
+    def test_each_command_checks_its_own_window(self):
+        for command in ("cnki_start", "cnki_poll", "cnki_cancel"):
+            body = self.cnki[self.cnki.index(f"pub fn {command}("):][:500]
+            self.assertIn("owned_page(&window, &session)?;", body, command)
+        for command in ("cnki_next", "cnki_report"):
+            body = self.cnki[self.cnki.index(f"pub fn {command}("):][:300]
+            self.assertIn("cnki_page(&window)?;", body, command)
+        check = self.cnki[self.cnki.index("fn cnki_page("):][:400]
+        self.assertIn("window.label() != LABEL", check)
+        self.assertIn('url.scheme() != "https"', check)
+
+    def test_the_window_navigates_only_on_kns_cnki_net_and_never_opens_the_browser(self):
+        guard = self.cnki[self.cnki.index("pub fn allowed_navigation"):][:300]
+        self.assertIn('url.scheme() == "https" && url.host_str() == Some(HOST) && url.port().is_none()', guard)
+        built = self.cnki[self.cnki.index("let builder = WebviewWindowBuilder::new(app, LABEL"):][:2200]
+        for part in (".visible(false)", "NewWindowResponse::Deny", ".data_store_identifier(", ".initialization_script(DRIVER)",
+                     # CNKI sends a passed puzzle to http://kns.cnki.net/…: opened over https, never allowed as http
+                     'url.scheme() == "http" && url.host_str() == Some(HOST) && url.port().is_none()',
+                     'secure.set_scheme("https")', "return false;", "allowed_navigation(url)"):
+            self.assertIn(part, built)
+        self.assertNotIn("open_external", self.cnki)
+
+    def test_reports_are_capped(self):
+        for limit in ("MAX_ITEMS_PER_REPORT: usize = 30", "MAX_ITEM_BYTES: usize = 32 * 1024", "MAX_CURSOR_BYTES: usize = 256 * 1024",
+                      "MAX_BUFFERED: usize = 600", "MAX_NEW: u64 = 100", "MAX_QUERIES: usize = 3", "VERIFY_WAIT: Duration = Duration::from_secs(300)"):
+            self.assertIn(limit, self.cnki)
+
+    def test_the_page_script_never_solves_the_puzzle(self):
+        self.assertIn("if (window.top !== window || window.__pageTideCnki) return;", self.driver)
+        self.assertNotIn("verify-api", self.driver)
+        self.assertNotRegex(self.driver, r"(?i)pointJson|captchaType|slide\w*\(")
+        self.assertIn("report({event: 'verification'})", self.driver)
 
 
 if __name__ == "__main__":

@@ -857,7 +857,7 @@ class Handler(BaseHTTPRequestHandler):
         # the demo project is checked once it is parsed (below).
         if (route == "/api/seeds/pdf" or route.startswith("/api/import/")) and not self._demo_check("POST", route):
             return
-        cnki_route = route in ("/api/cnki/ingest", "/api/cnki/seeds") or (
+        cnki_route = route in ("/api/cnki/ingest", "/api/cnki/seeds", "/api/cnki/abstract") or (
             route.startswith("/api/project-guidance/sessions/") and route.endswith("/cnki"))
         if cnki_route or route in ("/api/organization", "/api/settings", "/api/route", "/api/ai-test", "/api/source-test", "/api/data-location"):
             # These routes mutate the local library, the learning map or store a credential: also cap the body. The CNKI routes
@@ -988,6 +988,15 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body) - {"project_id", "items", "problem"} or not isinstance(body.get("project_id"), str):
                     raise ValueError("知网结果请求无效")
                 self._json(app.cnki_ingest(body["project_id"], body.get("items") or [], body.get("problem")))
+            except LookupError as exc:
+                return self._json({"error": str(exc)}, 404)
+            except (ValueError, TypeError) as exc:
+                return self._json({"error": str(exc)}, 400)
+        elif route == "/api/cnki/abstract":
+            try:
+                if set(body) - {"key", "item"} or not isinstance(body.get("key"), str) or not isinstance(body.get("item"), dict):
+                    raise ValueError("知网摘要请求无效")
+                self._json(app.cnki_abstract(body["key"], body["item"]))
             except LookupError as exc:
                 return self._json({"error": str(exc)}, 404)
             except (ValueError, TypeError) as exc:

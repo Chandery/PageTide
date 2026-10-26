@@ -145,6 +145,8 @@
   .badge { font-size:calc(var(--fs-xs) * var(--s)); padding:calc(3px * var(--s)) calc(10px * var(--s)); border-radius:999px; box-shadow:var(--sh-in-sm); color:var(--muted); }
   .badge.ai { color:var(--ai-text); }
   .badge.saved { color:var(--good); }
+  .src-cnki { font-size:calc(var(--fs-xs) * var(--s)); padding:calc(3px * var(--s)) calc(10px * var(--s)); border-radius:999px;
+              background:var(--src-cnki-soft); color:var(--src-cnki); font-weight:650; }
   .route-panel { margin-top:calc(16px * var(--s)); padding:calc(18px * var(--s)) calc(22px * var(--s)); border:0; box-shadow:var(--sh-1); border-radius:var(--r-lg); background:var(--surface-1);
     display:grid; gap:calc(14px * var(--s)); font-size:calc(var(--fs-sm) * var(--s)); line-height:1.6; }
   .route-panel[hidden], #maintainNote:empty, #eligibilityNote:empty, #triageFailure[hidden] { display:none; }
@@ -236,6 +238,8 @@
   .detail-ai { margin:0 0 calc(24px * var(--s)); padding:calc(14px * var(--s)) calc(15px * var(--s)); border:1px solid var(--line); border-radius:var(--r-md); background:var(--surface-2); }
   .detail-ai .ai-line { box-shadow:none; padding:0; background:transparent; }
   .detail-ai .sub { margin-top:calc(7px * var(--s)); line-height:1.55; }
+  .cnki-full { display:flex; align-items:center; gap:calc(7px * var(--s)); margin-top:calc(7px * var(--s)); }
+  .full.cut .abstract-text::after { content:"…"; }   /* a 知网 snippet until its full abstract is read */
   @media (prefers-reduced-motion: reduce) { #detail.detail-page .detail-scrim, #detail.detail-page .detail-panel { transition:none; } }
   .page-inner { max-width:800px; margin:0 auto; padding:calc(28px * var(--s)); background:var(--base);
                 box-shadow:var(--sh-out); border-radius:var(--r-lg); }
@@ -804,6 +808,7 @@
 <script src="/reader-textfit.js"></script>
 <script src="/reader-page.js"></script>
 <script src="/save-file.js"></script>
+<script src="/cnki.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const state = { triagingKeys:new Set(), aiFailures:{}, view:'today', cards:[], summaries:{}, profile:null, stats:null, insights:null, triaging:false, version:'?',
@@ -1014,6 +1019,7 @@ function cardHTML(c, i) {
     <h3><button class="paper-title" data-no-i18n data-tex>${esc(c.title)}</button></h3>
     <div class="meta">
       <span>${esc(c.published || '')}</span><span>${esc(c.source || '')}</span>
+      ${String(c.key || '').startsWith('cnki:') ? '<span class="src-cnki">知网</span>' : ''}
       ${c.work_type ? `<span>${esc(workTypeLabel(c.work_type))}</span>` : ''}
       ${c.pdf_status === 'page' ? pdfBadge(c.pdf_status) : ''}
       ${routeBadge(c)}
@@ -1235,7 +1241,83 @@ async function autoMaintain() {
     for (let i = 0; i < 120; i++) { job = await api(`/api/jobs/${r.job.id}`); if (job.state !== 'running') break; await new Promise(x => setTimeout(x, 1000)); }
     if (job.state === 'failed') toast(`自动更新失败：${job.error}`, 'warn');
     await load();
+    cnkiRefresh(state.currentProject);
   } catch (e) { renderMaintenance(state.maintenance); }
+}
+
+// ------------------------------------------------------------- 知网 (CNKI), ADR 0045
+// After a refresh the desktop app also searches CNKI in its own window. Every batch it reads goes straight to the server, so
+// leaving or reloading the page loses nothing already read; a reloaded page picks the run up again (cnkiResume).
+let cnkiRunning = false;
+async function cnkiIngest(projectId, items, problem) {
+  let gained = 0;
+  for (let i = 0; i < items.length || (i === 0 && problem); i += 100) {
+    const r = await api('/api/cnki/ingest', {project_id: projectId, items: items.slice(i, i + 100), ...(problem ? {problem} : {})});
+    gained += r.new_to_project || 0;
+  }
+  return gained;
+}
+async function cnkiFollow(projectId, job) {
+  cnkiRunning = true;
+  const note = $('#maintainNote');
+  let gained = 0;
+  const handlers = {
+    onItems: async (items) => { gained += await cnkiIngest(projectId, items); },
+    onVerification: (asking) => { if (asking) toast('知网需要验证：请在弹出的知网窗口里滑一下拼图', 'warn', 8000); },
+    onProgress: (poll) => { if (note && poll.state !== 'done') note.textContent = gained ? `知网：已加入 ${gained} 篇，后台继续处理…` : '知网：后台处理中…'; },
+  };
+  try {
+    const problem = job ? await window.PTCnki.run(job, handlers) : await window.PTCnki.follow(handlers);
+    if (problem && problem !== 'busy') { await cnkiIngest(projectId, [], problem).catch(() => {}); toast(window.PTCnki.problemText(problem), 'warn'); }
+    else if (!problem) toast(gained ? `知网：新加入 ${gained} 篇` : '知网：没有新论文', 'ok');
+  } catch (e) { toast(`知网：${e.message}`, 'warn'); }
+  finally {
+    cnkiRunning = false;
+    if (note) note.textContent = '';
+    if (state.currentProject === projectId) await load().catch(() => {});
+  }
+}
+async function cnkiRefresh(projectId) {
+  if (!window.PTCnki?.available() || inDemo() || !projectId || cnkiRunning) return;
+  let plan;
+  try { plan = await api(`/api/cnki/plan?project_id=${encodeURIComponent(projectId)}`); } catch (e) { return; }
+  if (!plan.enabled) return;
+  cnkiFollow(projectId, {mode: 'refresh', tag: 'refresh:' + projectId, queries: plan.queries, known: plan.known,
+                         since: plan.since, max_new: plan.max_new});
+}
+// A 知网 paper was stored with CNKI's results-page snippet. When the person opens it, the CNKI window reads its detail page
+// (a few seconds) and the full abstract replaces the snippet, in the library and in the open panel.
+async function cnkiFullAbstract(d, stillOpen) {
+  if (!window.PTCnki?.available() || inDemo()) return;
+  const read = [];
+  const problem = await window.PTCnki.run({mode: 'detail', targets: [d.cnki.target]}, {
+    onItems: async (items) => { read.push(...items); },
+    onVerification: (asking) => { if (asking) toast('知网需要验证：请在弹出的知网窗口里滑一下拼图', 'warn', 8000); },
+  }).catch(() => 'unavailable');
+  // The line under the abstract says what happened; it goes away once the full text is in.
+  const status = (message) => {
+    const line = stillOpen() && $('#detail .cnki-full');
+    if (!line) return;
+    if (message) { line.textContent = message; } else { line.remove(); }
+  };
+  if (!read.length) {
+    status(problem === 'busy' ? '知网正在后台抓取，稍后再打开就能看到完整摘要' : '暂时读不到完整摘要，这里是知网的摘要片段');
+    return;
+  }
+  try {
+    const r = await api('/api/cnki/abstract', {key: d.key, item: read[0]});
+    const box = $('#detail .abstract-text');
+    if (r.updated && stillOpen() && box) {
+      box.textContent = r.abstract; box.parentElement?.classList.remove('cut'); window.PTMath?.render?.(box);
+    }
+    status(r.updated || !r.abstract_partial ? '' : '暂时读不到完整摘要，这里是知网的摘要片段');
+  } catch (e) { status('暂时读不到完整摘要，这里是知网的摘要片段'); }
+}
+async function cnkiResume() {
+  if (!window.PTCnki?.available() || inDemo() || cnkiRunning) return;
+  const run = await window.PTCnki.current();
+  const projectId = run?.tag?.startsWith('refresh:') ? run.tag.slice('refresh:'.length) : null;
+  if (projectId) cnkiFollow(projectId, null);
 }
 async function refreshStats() {   // the counts in the top bar follow a save made while the library page is open
   const params = state.currentProject ? `?project_id=${state.currentProject}` : '';
@@ -1340,6 +1422,7 @@ $('#btnRefresh').onclick = async () => {
       else toast(`${(q.new_recommendable || 0) > 0 && state.maintenance?.batch_today ? fetchedHint(q.fetched || 0, q.new_to_project || 0, $('#btnDaily').textContent) : fetchedText(q.fetched || 0, q.new_to_project || 0)}${q.errors?.length ? '，部分查询未完成' : ''}`, q.errors?.length ? 'warn' : 'ok');
     }
     await load();
+    if (r.state !== 'running' && r.result?.reason_code !== 'refresh_running') cnkiRefresh(state.currentProject);
   } catch (e) { toast(`抓取失败：${e.message}`, 'err'); }
   finally { b.disabled = false; b.textContent = '抓取新论文'; }
 };
@@ -1494,7 +1577,7 @@ async function openDetail(key) {
         <div class="detail-head"><span></span><button class="detail-close ghost" id="backBtn" aria-label="关闭论文详情">×</button></div>
         <h2 data-no-i18n data-tex>${esc(d.title)}</h2>
         <div class="detail-meta">
-          ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}
+          ${d.published ? `<span>${esc(d.published)}</span>` : ''}${d.source ? `<span>${esc(d.source)}</span>` : ''}${String(d.key || '').startsWith('cnki:') ? '<span class="src-cnki">知网</span>' : ''}
           ${d.work_type ? `<span>${esc(workTypeLabel(d.work_type))}</span>` : ''}
         </div>
         <div class="detail-actions">
@@ -1519,9 +1602,10 @@ async function openDetail(key) {
         ${window.PTPaperContext.html(d.context, d.key)}
         ${s ? `<section class="detail-ai"><div class="ai-line"><b>${s.model === 'demo' ? 'AI 速览 · 演示' : 'AI 速览'}</b> <span data-no-i18n>${md(s.one_liner || '')}</span>
           <div class="sub"><span class="ai-label">相关：</span><span data-no-i18n>${esc(s.why_relevant || '')}</span>${s.caution ? ` · <span class="ai-label">注意：</span><span data-no-i18n>${esc(s.caution)}</span>` : ''}</div></div></section>` : ''}
-        ${d.abstract ? `<section class="detail-section"><div class="full"><div class="abstract-text" data-no-i18n data-tex>${esc(d.abstract)}</div></div>${inDemo() && d.arxiv_id ? `<div class="sub">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${esc(d.arxiv_id)}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</section>` : ''}
+        ${d.abstract || d.cnki?.abstract_partial ? `<section class="detail-section"><div class="full${d.cnki?.abstract_partial && d.abstract ? ' cut' : ''}"><div class="abstract-text" data-no-i18n data-tex>${esc(d.abstract)}</div></div>${d.cnki?.abstract_partial && window.PTCnki?.available() ? `<div class="sub cnki-full" role="status" aria-live="polite"><span class="spin" aria-hidden="true"></span>正在从知网读取完整摘要…</div>` : ''}${inDemo() && d.arxiv_id ? `<div class="sub">演示用的改写摘要，原文见 <a href="https://arxiv.org/abs/${esc(d.arxiv_id)}" target="_blank" rel="noopener">arXiv</a></div>` : ''}</section>` : ''}
       </aside>`;
     $('#detail').classList.remove('hidden');
+    if (d.cnki?.abstract_partial) cnkiFullAbstract(d, current);
     const close = closeDetail;
     $('#backBtn').onclick = close;
     $('.detail-scrim').onclick = close;
@@ -1648,6 +1732,7 @@ document.addEventListener('scroll', hidePreview, { passive: true });
     // ?view=profile / ?view=library opens that tab (the weekly report's "返回画像" link uses it)
     const wanted = new URLSearchParams(window.location.search).get('view');
     if (wanted === 'profile' || wanted === 'library') document.querySelector(`.tab[data-view="${wanted}"]`)?.click();
+    cnkiResume();
     autoMaintain();
     window.PTTour.boot('index', {
       selectView: (view) => selectView(view),

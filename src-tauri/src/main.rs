@@ -9,6 +9,8 @@ use std::{
 };
 use tauri::{App, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder, WebviewWindow, State, WindowEvent};
 
+mod cnki;
+
 const GUARDED_QUIT: &str = "pagetide-prepare-quit";
 
 #[cfg(windows)]
@@ -439,7 +441,9 @@ fn main() {
         }
     }));
     let result = builder
-        .invoke_handler(tauri::generate_handler![save_export, complete_quit, pick_folder, relaunch])
+        .manage(cnki::CnkiState::default())
+        .invoke_handler(tauri::generate_handler![save_export, complete_quit, pick_folder, relaunch,
+                                                 cnki::cnki_start, cnki::cnki_poll, cnki::cnki_cancel, cnki::cnki_next, cnki::cnki_report])
         .on_menu_event(|handle, event| {
             if event.id().as_ref() == GUARDED_QUIT {
                 prepare_quit(handle);
@@ -457,8 +461,15 @@ fn main() {
             // Grant only our app commands, only to this instance's random loopback origin.
             let capability = serde_json::json!({"identifier":"owned-desktop-session", "local":false,
                 "windows":["main"], "remote":{"urls":[format!("{}/*", exact_origin)]},
-                "permissions":["allow-save-export", "allow-complete-quit", "allow-pick-folder", "allow-relaunch"]}).to_string();
+                "permissions":["allow-save-export", "allow-complete-quit", "allow-pick-folder", "allow-relaunch",
+                               "allow-cnki-start", "allow-cnki-poll", "allow-cnki-cancel"]}).to_string();
             app.add_capability(capability.as_str())?;
+            // The CNKI window (ADR 0045) gets exactly two commands, only on https://kns.cnki.net. CNKI's own scripts can call
+            // them too: they carry untrusted page text, capped in cnki.rs and validated again by the server.
+            let cnki_capability = serde_json::json!({"identifier":"cnki-window", "local":false, "windows":[cnki::LABEL],
+                "remote":{"urls":[format!("https://{}/*", cnki::HOST)]},
+                "permissions":["allow-cnki-next", "allow-cnki-report"]}).to_string();
+            app.add_capability(cnki_capability.as_str())?;
             app.manage(process);
             #[cfg(windows)]
             let new_window_origin = origin.clone();
@@ -504,7 +515,13 @@ fn main() {
                     api.prevent_exit(); prepare_quit(handle);
                 }
                 RunEvent::WindowEvent { label, event: WindowEvent::CloseRequested { api, .. }, .. }
-                    if !handle.state::<DesktopSession>().quitting.load(Ordering::SeqCst) => {
+                    if label == cnki::LABEL && !handle.state::<DesktopSession>().quitting.load(Ordering::SeqCst) => {
+                    // Closing the 知网 window (ADR 0045) only hides it; it never quits the app.
+                    api.prevent_close();
+                    if let Some(cnki_window) = handle.get_webview_window(label) { cnki::on_close_requested(&cnki_window); }
+                }
+                RunEvent::WindowEvent { label, event: WindowEvent::CloseRequested { api, .. }, .. }
+                    if label != cnki::LABEL && !handle.state::<DesktopSession>().quitting.load(Ordering::SeqCst) => {
                     api.prevent_close();
                     // cfg! (not #[cfg]) so the Windows branch is type-checked on macOS builds too.
                     if cfg!(windows) {

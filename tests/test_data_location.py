@@ -317,7 +317,7 @@ class WiringTests(unittest.TestCase):
         self.assertIn("action:'remove-previous'", page)
         self.assertIn("这一步不能撤销", page)                                                # the old copy goes only after a yes
         rust = (self.ROOT / "src-tauri/src/main.rs").read_text()
-        self.assertIn("generate_handler![save_export, complete_quit, pick_folder, relaunch]", rust)
+        self.assertIn("generate_handler![save_export, complete_quit, pick_folder, relaunch,", rust)   # then the 知网 window's commands
         self.assertIn('"allow-pick-folder", "allow-relaunch"', rust)
         self.assertIn('"pick_folder", "relaunch"', (self.ROOT / "src-tauri/build.rs").read_text())
 

@@ -70,7 +70,12 @@ class TrayTests(unittest.TestCase):
     def test_windows_close_hides_to_the_tray_and_quit_stays_guarded(self):
         rust = (ROOT / "src-tauri" / "src" / "main.rs").read_text()
         self.assertIn('features = ["tray-icon"]', (ROOT / "src-tauri" / "Cargo.toml").read_text())
-        close = rust[rust.index("WindowEvent::CloseRequested"):][:600]
+        first = rust[rust.index("WindowEvent::CloseRequested"):]
+        cnki = first[:first.index("RunEvent::WindowEvent")]                      # the 知网 window (ADR 0045) only hides
+        self.assertIn("if label == cnki::LABEL", cnki)
+        self.assertIn("cnki::on_close_requested", cnki)
+        self.assertNotIn("prepare_quit", cnki)
+        close = rust[rust.index("if label != cnki::LABEL"):][:600]
         self.assertIn("if cfg!(windows)", close)
         self.assertIn("hide_to_tray(&window)", close)
         self.assertIn("prepare_quit(handle)", close)      # macOS keeps the guarded quit

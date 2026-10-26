@@ -12,6 +12,7 @@
   --mark:#0a6bef; --mark-text:#0057d1;   /* saved state, active marker, "Dig" in the wordmark: the same blue as --accent */
   --good:#1b6e42; --bad:#b9261a; --warn:#855500;
   --ai:#aab1bd; --ai-text:#4b5563;       /* AI text stays neutral; it is labelled, not coloured */
+  --src-cnki:#b4361f; --src-cnki-soft:rgba(180,54,31,.10);   /* the 知网 source label: its own colour, never the accent (that means "on") */
   --display:"SF Pro Display","SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans GB",system-ui,sans-serif;
   /* Type: seven steps, each about 1.2× the last. Use them as calc(var(--fs-sm) * var(--s)) on pages that scale. */
   --fs-xs:11px; --fs-sm:13px; --fs-md:15px; --fs-lg:18px; --fs-xl:22px; --fs-2xl:28px; --fs-3xl:34px;
@@ -33,6 +34,7 @@ html[data-mode="dark"] {
   --surface-1:#17181c; --surface-2:#212228; --surface-3:#2b2d34;
   --accent:#1f6feb; --accent-ink:#ffffff; --accent-text:#5ba3ff;
   --accent-soft:rgba(91,163,255,.14);
+  --src-cnki:#ff8a65; --src-cnki-soft:rgba(255,138,101,.14);
   --mark:#3b86f5; --mark-text:#5ba3ff;
   --good:#7fd1a0; --bad:#ff8f84; --warn:#e8bd6a;
   --ai:#4d5461; --ai-text:#c3c9d3;

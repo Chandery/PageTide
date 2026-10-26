@@ -26,13 +26,14 @@ MAX_ITEMS = 120              # items one request may carry
 KNOWN_LIMIT = 5000           # CNKI ids handed to the window so it skips detail pages it already read
 
 # What the CNKI window reports when a step fails (the shell and page use the same words), plus the shared source kinds.
-PROBLEMS = ("verification_needed", "unavailable", "network_error", "desktop_only", "bad_response")
+PROBLEMS = ("verification_needed", "unavailable", "network_error", "desktop_only", "bad_response", "busy")
 
 _DBNAME = re.compile(r"[A-Z]{2,8}")
 _FILENAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 _KEY = re.compile(r"cnki:([A-Z]{2,8}):([A-Za-z0-9_.-]{1,64})")
 _DATE = re.compile(r"(\d{4})(?:-(\d{1,2})(?:-(\d{1,2}))?)?")
 _SPACE = re.compile(r"\s+")
+_CUT = re.compile(r"\s*(?:\.{3,}|…+)\s*$")         # how CNKI ends a cut abstract ("..." on results pages, "......" on details)
 
 CNKI_INFO = SourceInfo(
     id=SOURCE_ID, label="知网", provider="中国知网（在应用内的知网窗口里检索）", key="none",
@@ -88,14 +89,20 @@ def paper_from_item(item, group="field"):
     keywords = [k for k in (_text(k, 60).rstrip(";；") for k in (item.get("keywords") or [])[:12] if isinstance(k, str)) if k] \
         if isinstance(item.get("keywords"), list) else []
     link = page(item.get("url"))
+    abstract = _text(item.get("abstract"), 8000)
+    partial = item.get("abstract_partial") is True or bool(_CUT.search(abstract))
+    abstract = _CUT.sub("", abstract).strip() or None
     return {
         "key": key, "openalex_id": None, "doi": _doi(item.get("doi")), "arxiv_id": None,
-        "title": title, "abstract": _text(item.get("abstract"), 8000) or None, "published": _date(item.get("date")),
+        "title": title, "abstract": abstract, "published": _date(item.get("date")),
         "source": None, "topic": keywords[0] if keywords else None,
         "authors": [],          # not stored: the papers table has no place for them
         "group_name": group,
         # `via` is always there, also without a page: it is what makes the CNKI switch govern the paper (SourcePolicy).
-        "oa": {"pages": [{"source": SOURCE_ID, "url": link}] if link else [], "via": [SOURCE_ID]},
+        # `abstract_partial`: the abstract is CNKI's snippet from a results page (cut, without the "..."); the full one is read
+        # from the detail page when the person opens the paper (App.cnki_abstract).
+        "oa": {"pages": [{"source": SOURCE_ID, "url": link}] if link else [], "via": [SOURCE_ID],
+               "abstract_partial": bool(abstract and partial)},
         # No metadata_language key: CNKI reports none, and a stored one must not be overwritten.
     }
 

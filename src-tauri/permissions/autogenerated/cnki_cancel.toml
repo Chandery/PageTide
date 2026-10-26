@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cnki-cancel"
+description = "Enables the cnki_cancel command without any pre-configured scope."
+commands.allow = ["cnki_cancel"]
+
+[[permission]]
+identifier = "deny-cnki-cancel"
+description = "Denies the cnki_cancel command without any pre-configured scope."
+commands.deny = ["cnki_cancel"]

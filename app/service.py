@@ -21,7 +21,7 @@ from .gateway import Gateway
 from .language import language
 from .organization import Conflict, Organization, read_route, route_detail as read_route_detail, paper_context
 from .project import ProjectManager
-from .sources import OA_FIELDS, OpenAlex, SourceError, fetch_seed_work, has_cjk, merge_oa, pdf_availability, resolve_seed, slim, window_start
+from .sources import OA_FIELDS, OpenAlex, SourceError, fetch_seed_work, has_cjk, merge_oa, pdf_availability, resolve_seed, slim, source_pages, window_start
 
 ACTIONS = ("useful", "irrelevant", "understood", "too_hard")
 INTEREST_ACTIONS = {"useful", "irrelevant"}
@@ -2966,8 +2966,26 @@ class App:
             "has_pdf": self.pdf_path(key) is not None,
             'language': self._paper_language(language_row, digest=checked_digest, verification_budget=budget),
         }
+        cnki_full = self._cnki_full_abstract_target(paper)
+        if cnki_full:
+            result["cnki"] = cnki_full
         self._check_matching_rows_current([context_row])
         return result
+
+    def _cnki_full_abstract_target(self, paper):
+        """For a 知网 paper whose abstract is still the results-page snippet: what the desktop page needs to have the CNKI window
+        read the full abstract (ADR 0045), else None. Only while the 知网 switch is on and the paper has a CNKI page."""
+        match = re.fullmatch(r"cnki:([A-Z]{2,8}):([A-Za-z0-9_.-]{1,64})", str(paper.get("key") or ""))
+        if not match or not user_settings.cnki(self.data):
+            return None
+        oa = source_adapters.paper_oa(paper)
+        if oa.get("abstract_partial") is not True and eligibility.usable_abstract(paper.get("abstract")):
+            return None
+        page = next((p["url"] for p in source_pages(oa) if p["source"] == cnki.SOURCE_ID), None)
+        if not page:
+            return None
+        return {"abstract_partial": True,
+                "target": {"url": page, "dbname": match.group(1), "filename": match.group(2), "title": paper.get("title")}}
 
     def _feed_keywords(self, project_id):
         """The (up to three) keywords the daily feed asks OpenAlex for: the first three, but the first English ones when the
@@ -3156,6 +3174,8 @@ class App:
                 continue
             if not source_policy.allows(paper):
                 continue
+            if twin:      # already stored (its abstract is kept): a new snippet must not mark a full abstract as cut again
+                paper = {**paper, "oa": {k: v for k, v in paper["oa"].items() if k != "abstract_partial"}}
             rows.append({**paper, "project_id": project_id})
             if mark:
                 marks[mark] = (paper["key"], paper["title"])
@@ -3166,6 +3186,39 @@ class App:
         self.store.set_setting("cnki_last_" + project_id, {"at": now(), "fetched": len(papers), "added": added,
                                                            "new_to_project": stats["linked"], "problem": problem})
         return result
+
+    def cnki_abstract(self, key, item):
+        """The full abstract of one 知网 paper, read from its detail page by the CNKI window when the person opened the paper.
+
+        It replaces only a stored abstract that is CNKI's cut snippet (`abstract_partial` in its open-access facts) or missing,
+        and only with a longer, complete one for the same key; a complete abstract is never overwritten. A blank DOI is filled.
+        Needs the 知网 switch on (the window read the page because the person opened the paper)."""
+        if not user_settings.cnki(self.data):
+            raise ValueError("知网没有打开")
+        if not cnki.is_key(key):
+            raise ValueError("不是知网论文")
+        paper = cnki.paper_from_item(item)
+        if not paper or paper["key"] != key:
+            raise ValueError("知网结果与论文不符")
+        stored = self.store.paper(key)
+        if not stored:
+            raise LookupError("论文不存在")
+        try:
+            facts = json.loads(stored.get("oa_json") or "null")
+        except ValueError:
+            facts = None
+        facts = facts if isinstance(facts, dict) else {}
+        current, full = stored.get("abstract") or "", paper["abstract"] or ""
+        replaceable = facts.get("abstract_partial") is True or not eligibility.usable_abstract(current)
+        if not full or paper["oa"]["abstract_partial"] or not replaceable or len(full) < len(current):
+            return {"updated": False, "abstract": current, "abstract_partial": facts.get("abstract_partial") is True}
+        merged = merge_oa(facts, {**paper["oa"], "abstract_partial": False})
+        self.store.conn.execute("UPDATE papers SET abstract=?, oa_json=? WHERE key=?",
+                                (full, json.dumps(merged, ensure_ascii=False), key))
+        if paper.get("doi"):
+            self.store.conn.execute("UPDATE papers SET doi=? WHERE key=? AND (doi IS NULL OR doi='')", (paper["doi"], key))
+        self.store.conn.commit()
+        return {"updated": True, "abstract": full, "abstract_partial": False}
 
     def cnki_wanted(self, text, languages=None, require_zh=False):
         """Whether the page should ask the CNKI window about `text` in project creation: the switch is on, the text has Chinese

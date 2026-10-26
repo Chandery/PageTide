@@ -177,6 +177,36 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the cnki_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cnki-cancel",
+          "markdownDescription": "Enables the cnki_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the cnki_next command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cnki-next",
+          "markdownDescription": "Enables the cnki_next command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the cnki_poll command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cnki-poll",
+          "markdownDescription": "Enables the cnki_poll command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the cnki_report command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cnki-report",
+          "markdownDescription": "Enables the cnki_report command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the cnki_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-cnki-start",
+          "markdownDescription": "Enables the cnki_start command without any pre-configured scope."
+        },
+        {
           "description": "Enables the complete_quit command without any pre-configured scope.",
           "type": "string",
           "const": "allow-complete-quit",
@@ -199,6 +229,36 @@
           "type": "string",
           "const": "allow-save-export",
           "markdownDescription": "Enables the save_export command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cnki_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cnki-cancel",
+          "markdownDescription": "Denies the cnki_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cnki_next command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cnki-next",
+          "markdownDescription": "Denies the cnki_next command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cnki_poll command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cnki-poll",
+          "markdownDescription": "Denies the cnki_poll command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cnki_report command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cnki-report",
+          "markdownDescription": "Denies the cnki_report command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the cnki_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-cnki-start",
+          "markdownDescription": "Denies the cnki_start command without any pre-configured scope."
         },
         {
           "description": "Denies the complete_quit command without any pre-configured scope.",

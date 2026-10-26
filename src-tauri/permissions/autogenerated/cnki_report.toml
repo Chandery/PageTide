@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cnki-report"
+description = "Enables the cnki_report command without any pre-configured scope."
+commands.allow = ["cnki_report"]
+
+[[permission]]
+identifier = "deny-cnki-report"
+description = "Denies the cnki_report command without any pre-configured scope."
+commands.deny = ["cnki_report"]

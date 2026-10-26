@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cnki-next"
+description = "Enables the cnki_next command without any pre-configured scope."
+commands.allow = ["cnki_next"]
+
+[[permission]]
+identifier = "deny-cnki-next"
+description = "Denies the cnki_next command without any pre-configured scope."
+commands.deny = ["cnki_next"]
