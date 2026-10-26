@@ -53,9 +53,10 @@ class SettingsTests(unittest.TestCase):
         self.assertNotIn('class="ghost"', html)
         self.assertRegex(html, r"button \{[^}]*border: 1px solid var\(--line-strong\)")
         self.assertNotIn('class="inline"', html)
-        for box in ("aiEnabled", "autoCheckUpdates", "routeBeta", "sourceArxiv", "sourceOpenAlex", "sourceBaiduWeb"):
+        for box in ("aiEnabled", "autoCheckUpdates", "routeBeta", "sourceArxiv", "sourceOpenAlex", "sourceCnki"):
             self.assertRegex(html, rf'<input type="checkbox" id="{box}" class="switch"')
             self.assertIn(f'<label for="{box}">', html)
+        self.assertNotIn("sourceBaiduWeb", html)   # the Baidu search row is gone (owner, 2026-10-26: 知网 replaces it)
 
 
 class ReadmeTests(unittest.TestCase):

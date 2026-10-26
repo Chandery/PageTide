@@ -351,7 +351,10 @@ class BaiduScholarNotOfferedTests(unittest.TestCase):
         self.assertFalse(user_settings.BAIDU_SCHOLAR_OFFERED)
         self.write(sourceBaiduScholar=True, sourceBaiduWeb=True)
         self.assertFalse(user_settings.baidu_scholar(self.data))
-        self.assertTrue(user_settings.baidu_web(self.data))             # the Baidu search is a separate switch and is untouched
+        self.assertFalse(user_settings.BAIDU_WEB_OFFERED)
+        self.assertFalse(user_settings.baidu_web(self.data))            # the Baidu search is not offered either (owner, 2026-10-26: 知网 replaces it)
+        self.assertFalse(user_settings.source_policy(self.data).baidu_web)   # so refresh and creation never use it
+        self.assertEqual(json.loads((self.data / "settings.json").read_text())["sourceBaiduWeb"], True)   # stored data is not deleted
         self.assertEqual(json.loads((self.data / "settings.json").read_text())["sourceBaiduScholar"], True)   # stored data is not deleted
 
     def test_a_paper_only_baidu_scholar_reported_is_not_allowed_by_the_stored_switch(self):

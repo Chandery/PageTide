@@ -70,14 +70,17 @@ def validate(values):
 BAIDU_SCHOLAR_OFFERED=False   # the Baidu Scholar interface is not offered (owner, 2026-10-24: only the Baidu search exists): no switch, and a stored sourceBaiduScholar is ignored
 
 
+BAIDU_WEB_OFFERED=False   # the Baidu AI Search is not offered (owner, 2026-10-26: 知网 replaces it): no switch, and a stored sourceBaiduWeb is ignored
+
+
 def baidu_scholar(data_dir):
     """Baidu Scholar interface: never on while it is not offered, whatever an older settings.json still says. The stored value is left alone."""
     return BAIDU_SCHOLAR_OFFERED and read(data_dir).get('sourceBaiduScholar') is True
 
 
 def baidu_web(data_dir):
-    """Baidu AI Search on xueshu.baidu.com (same data as Baidu Scholar, same Qianfan key) is off until the user switches it on."""
-    return read(data_dir).get('sourceBaiduWeb') is True
+    """Baidu AI Search on xueshu.baidu.com: never on while it is not offered, whatever an older settings.json still says. The stored value is left alone."""
+    return BAIDU_WEB_OFFERED and read(data_dir).get('sourceBaiduWeb') is True
 
 
 def cnki(data_dir):

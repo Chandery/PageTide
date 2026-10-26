@@ -2160,9 +2160,13 @@ class App:
                                                         new(model['keywords'], draft['user_keywords'], draft['removed_keywords']),
                                                         chosen_languages),
                                                     guidance_contract.MAX_KEYWORDS)
+                # A Chinese phrase made in place of English ones comes from the model's own keywords of this turn first: the
+                # settled list starts with the person's keywords, which never change, so the phrase never changed either.
+                model_zh = [k for k in new(model['keywords'], draft['user_keywords'], draft['removed_keywords'])
+                            if guidance_contract.has_chinese(k)]
                 suggestions = guidance_contract.vet_queries(
                     new(model['search_queries'], draft['user_queries'], draft['removed_queries']),
-                    chosen_languages, prose, keywords)
+                    chosen_languages, prose, model_zh + [k for k in keywords if k not in model_zh])
                 queries = guidance_contract.settle(page_queries, draft['user_queries'], draft['removed_queries'],
                                                    suggestions, guidance_contract.MAX_QUERIES)
                 queries = queries or guidance_contract.clean_queries([], keywords, prose + draft['removed_queries'], chosen_languages)
@@ -2973,6 +2977,41 @@ class App:
         self._check_matching_rows_current([context_row])
         return result
 
+    # Why today's recommendations came out empty, as one plain sentence that says what to do (owner, 2026-10-26: "很多地方边界没做
+    # 好而导致进去推荐不出论文"). Keyed by the most common reason the candidates were excluded; no reason code is shown.
+    _EMPTY_HINTS = {
+        'language_not_allowed': ('候选论文的语言都不是这个项目选的论文语言：到项目设置里调整论文语言，或换成对应语言的关键词再抓取。',
+                                 'The candidates are not in the paper languages this project accepts: change the languages in the project settings, or use keywords in those languages and fetch again.'),
+        'language_unknown': ('候选论文的语言无法确认：换个关键词再抓取，或在项目设置里多选一种论文语言。',
+                             'The candidates\' language could not be confirmed: fetch with other keywords, or accept another paper language in the project settings.'),
+        'title_language_unverified': ('候选论文的语言无法确认：换个关键词再抓取，或在项目设置里多选一种论文语言。',
+                                      'The candidates\' language could not be confirmed: fetch with other keywords, or accept another paper language in the project settings.'),
+        'source_disabled': ('候选论文的来源在设置里关着：到 设置 → 数据源 打开它，再抓取。',
+                            'The candidates\' source is switched off: turn it on in Settings → Sources and fetch again.'),
+        'no_readable_content': ('候选论文都没有可读的摘要：换个关键词再抓取，或导入你手上的 PDF。',
+                                'None of the candidates has a readable abstract: fetch with other keywords, or import PDFs you have.'),
+        'no_pdf_source': ('候选论文都找不到可读的来源：换个关键词再抓取。',
+                          'No readable source was found for the candidates: fetch with other keywords.'),
+    }
+
+    def _empty_pool_reason(self, papers, counts):
+        """The sentence for an empty batch outside a learning map: nothing fetched yet, every candidate excluded (the most
+        common reason, said plainly), or everything already seen or rated."""
+        english = self.english()
+        if not papers:
+            return ('This project has no candidates yet: click Fetch new papers. If nothing comes, check the keywords, the paper '
+                    'languages and the sources in Settings.' if english else
+                    '这个项目还没有候选论文：先点「抓取新论文」。如果抓不到，检查关键词、论文语言和 设置 → 数据源。')
+        if counts and sum(counts.values()) >= len(papers):
+            most = max(counts, key=counts.get)
+            hint = self._EMPTY_HINTS.get(most)
+            if hint:
+                return hint[1 if english else 0]
+            return ('None of the candidates fits this project: fetch with other keywords.' if english
+                    else '候选论文都不符合这个项目的条件：换个关键词再抓取。')
+        return ('Every paper that can be recommended was already shown or rated: click Fetch new papers for new ones.' if english
+                else '能推荐的论文都已看过或反馈过：点「抓取新论文」获取新的。')
+
     def _cnki_full_abstract_target(self, paper):
         """For a 知网 paper whose abstract is still the results-page snippet: what the desktop page needs to have the CNKI window
         read the full abstract (ADR 0045), else None. Only while the 知网 switch is on and the paper has a CNKI page."""
@@ -3712,7 +3751,8 @@ class App:
                                     if self.english() else f"还没看过、也没反馈过的论文只剩 {len(pool)} 篇")}
 
         if not pool:
-            reason = ('No eligible candidates in the learning map' if self.english() else '学习图里没有符合条件的候选论文') if route else (('No eligible candidates' if self.english() else '没有符合条件的候选论文') if counts else ('No new candidates' if self.english() else '没有新的候选论文'))
+            reason = (('No eligible candidates in the learning map' if self.english() else '学习图里没有符合条件的候选论文') if route
+                      else self._empty_pool_reason(papers, counts))
             return {"batch_id": None, "cards": [], "reason": reason,"reason_code":"route_no_candidates" if route else "no_candidates", "shortfall": shortfall, 'eligibility': snapshot}
 
         # The profile is learned from labelled and seed papers, which the pool by definition excludes

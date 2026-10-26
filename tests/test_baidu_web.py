@@ -1076,13 +1076,18 @@ class DocsTests(WebCase):
 # adapter itself, so the offer is switched on for this module only.
 _OFFER_SCHOLAR = __import__("unittest.mock", fromlist=["patch"]).patch.object(
     __import__("app.user_settings", fromlist=["x"]), "BAIDU_SCHOLAR_OFFERED", True)
+# The Baidu search is not offered either (owner, 2026-10-26: 知网 replaces it); same treatment.
+_OFFER_WEB = __import__("unittest.mock", fromlist=["patch"]).patch.object(
+    __import__("app.user_settings", fromlist=["x"]), "BAIDU_WEB_OFFERED", True)
 
 
 def setUpModule():
     _OFFER_SCHOLAR.start()
+    _OFFER_WEB.start()
 
 
 def tearDownModule():
+    _OFFER_WEB.stop()
     _OFFER_SCHOLAR.stop()
 
 

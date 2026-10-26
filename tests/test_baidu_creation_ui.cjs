@@ -97,5 +97,6 @@ test('only a title the person typed goes to Baidu: the automatic search over tit
   const body=slice('async function pdfProcess(','function addPdfFiles');
   assert.match(body,/typed: false/);
   const typed=source.match(/post\('\/api\/seeds\/search', \{query(?:: title)?\}\)/g)||[];
-  assert.equal(typed.length,2);                                       // the seed box and the help row's retry, both typed by the person
+  // the seed box, the help row's retry and the manual mode's 检索式 search: all typed by the person
+  assert.equal(typed.length,3);
 });

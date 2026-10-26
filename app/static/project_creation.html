@@ -82,6 +82,15 @@
   </div>
 
   <div class="field">
+    <label for="manualQueries">检索式 <span class="opt">（不用 AI）</span></label>
+    <textarea id="manualQueries" rows="2" placeholder="每行一条，例如：语法教学 国际中文教育"></textarea>
+    <div class="query-actions">
+      <button type="button" id="manualSearch">按检索式查找论文</button>
+      <span class="hint">找到的论文点“添加”就成为种子论文，推荐会从它们学起。</span>
+    </div>
+  </div>
+
+  <div class="field">
     <label for="seedInput">种子论文 <span class="opt">（可选）</span></label>
     <div class="seed-add">
       <input id="seedInput" placeholder="DOI / arXiv 编号 / 链接，或论文名称" autocomplete="off">

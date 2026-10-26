@@ -198,6 +198,30 @@ test('with the beta learning map off, nothing the creation page shows names the 
   assert.match(visibleWithMapOff('<p data-route-beta>学习图 <b>x</b></p><p data-route-beta-off>关键词</p>'), /关键词/);
 });
 
+test('creating with no candidate found searches first and asks before making a project that will recommend nothing', async () => {
+  const s = source();
+  const start = s.indexOf("part('create').onclick = async () => {"), end = s.indexOf('\n  refresh();\n  return', start);
+  const slots = new Map(), part = name => { if (!slots.has(name)) slots.set(name, {querySelectorAll: () => [], checked: false}); return slots.get(name); };
+  let created = 0, searched = 0, asked = '', answer = false;
+  const candidates = {size: 0};
+  const context = vm.createContext({part, candidates, searching: false, search: async () => { searched++; },
+    window: {PTDialogs: {confirm: async message => { asked = message; return answer; }}},
+    $$: () => [], map: {graph: null, discarded: true, generating: false, checking: false, editing: null},
+    R: {check: () => ({ok: true})}, busy: false, readCreationPolicy: () => ({allowed_languages: ['zh']}), refresh() {}, mapNotice() {},
+    createAct: {start() {}, stop() {}, fail() {}}, mapPayload: () => null, draft: () => ({keywords: ['语法教学']}), selected: new Set(),
+    onCreate: async () => { created++; }, readCreationBrief: () => ({goal: 'g'})});
+  vm.runInContext(s.slice(start, end), context);
+  await part('create').onclick();
+  assert.equal(searched, 1);                                   // never searched: the search runs first
+  assert.match(asked, /没有找到任何论文/);
+  assert.equal(created, 0);                                    // "no" keeps the person on the page
+  answer = true; context.busy = false;
+  await part('create').onclick();
+  assert.equal(created, 1);                                    // they may still create, knowingly
+  candidates.size = 3; asked = ''; context.busy = false;
+  await part('create').onclick();
+  assert.equal(asked, '');                                     // papers found: no question
+});
 test('with the beta map off the review starts without a map, create needs none, and the draft is not marked changed', async () => {
   const s = source();
   assert.match(s, /discarded: window\.PAGETIDE_ROUTE_BETA === false/);
@@ -205,7 +229,7 @@ test('with the beta map off the review starts without a map, create needs none, 
   assert.ok(start >= 0 && end > start);
   const slots = new Map(), part = name => { if (!slots.has(name)) slots.set(name, {querySelectorAll: () => [], checked: false}); return slots.get(name); };
   let received;
-  const context = vm.createContext({part, $$: () => [], map: {graph: null, discarded: true, generating: false, checking: false, editing: null},
+  const context = vm.createContext({part, candidates: {size: 1}, searching: false, $$: () => [], map: {graph: null, discarded: true, generating: false, checking: false, editing: null},
     R: {check: () => ({ok: true})}, busy: false, readCreationPolicy: () => ({allowed_languages: ['zh']}), refresh() {}, mapNotice() {},
     createAct: {start() {}, stop() {}, fail() {}}, mapPayload: () => null, draft: () => ({keywords: ['world model']}), selected: new Set(),
     onCreate: async payload => { received = plain(payload); }, readCreationBrief: () => ({goal: 'g'})});

@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="/favicon.png">
+<title>功能介绍 · PageTide</title>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+<main class="guide">
+<a class="back" href="/">← 返回主页</a>
+<h1>功能介绍</h1>
+<p class="lead">从建项目到每天读论文，按顺序走一遍。</p>
+<nav aria-label="目录"><ul class="toc">
+<li><a href="#start">创建项目</a></li>
+<li><a href="#daily">每日推荐</a></li>
+<li><a href="#feedback">反馈与画像</a></li>
+<li><a href="#reading">阅读与提问</a></li>
+<li><a href="#library">论文库与导入</a></li>
+<li><a href="#map">学习图</a></li>
+<li><a href="#weekly">周报</a></li>
+<li><a href="#settings">数据源与设置</a></li>
+<li><a href="#privacy">隐私</a></li>
+</ul></nav>
+
+<section id="start">
+<h2>创建项目</h2>
+<p class="for">一个项目对应一个研究方向，推荐和画像都跟着项目走。</p>
+<ol>
+<li>在顶部点项目名，再点「新建项目」的加号。</li>
+<li>选一种方式：「快速创建」用一句话说清目标；「AI 引导」和助手对话，逐步完善；「手动创建」不用 AI，自己填关键词。</li>
+<li>可以添加「种子论文」：粘贴 DOI、arXiv 编号、链接或论文名称，点「添加」；也可以把论文 PDF 拖进来。</li>
+<li>确认关键词和「检索式」，选好「论文语言」（中文、英文至少选一种）。</li>
+<li>点「按检索式查找论文」，从候选论文里勾选合适的，再点「创建项目」。</li>
+</ol>
+<p class="tip">已经有论文库的话，勾选「创建后导入我已有的论文库」，建好后直接进入导入。</p>
+</section>
+
+<section id="daily">
+<h2>每日推荐</h2>
+<p class="for">每天从新论文里挑出贴合你研究的几篇。</p>
+<ol>
+<li>在「今日」页点「抓取新论文」，取回最新的论文。</li>
+<li>点「生成今日推荐」，按你的画像排出今天要看的论文。</li>
+<li>卡片上点「AI 速览」，用一句话了解这篇讲什么、和你有什么关系。</li>
+<li>想看全文，点「阅读 PDF」。</li>
+</ol>
+<p class="tip">排序在你的电脑上完成，不用 AI。只有点「AI 速览」才会调用 AI，而且只发送这一篇的标题和摘要。</p>
+</section>
+
+<section id="feedback">
+<h2>反馈与画像</h2>
+<p class="for">你点的每个按钮都会让画像更准，画像随时能看、能改。</p>
+<ol>
+<li>喜欢的论文点「收藏」，它会进入论文库。</li>
+<li>不想再看这类内容，点「不感兴趣」。</li>
+<li>方向对但读不懂，点「太难」。</li>
+<li>点顶部的「画像」，查看兴趣词项和「反馈历史」，每条反馈都能「撤销」。</li>
+<li>在「修正画像」里可以固定关键词、冻结画像，或恢复默认。</li>
+</ol>
+<p class="tip">不点任何按钮不算不喜欢，「太难」也不算不喜欢。</p>
+</section>
+
+<section id="reading">
+<h2>阅读与提问</h2>
+<p class="for">在 PageTide 里读 PDF，不懂的句子当场问。</p>
+<ol>
+<li>在卡片或论文库里点「阅读 PDF」。</li>
+<li>选中不懂的句子，点「翻译」直接看译文，或点「追问」。</li>
+<li>输入问题，点「发送」，回答显示在页面旁边。</li>
+<li>也可以不选句子，点「对这篇提问」整体发问。</li>
+</ol>
+<p class="tip">没有开放获取的 PDF 时，会给出原文页面的链接。在自己的浏览器里下载后，点「选择或拖入 PDF」放回来就能读。</p>
+</section>
+
+<section id="library">
+<h2>论文库与导入</h2>
+<p class="for">收藏的论文都在这里，也可以把已有的论文库带进来。</p>
+<ol>
+<li>点顶部的「论文库」，用「列表」或「图谱」查看，用搜索框查找论文或笔记。</li>
+<li>点「整理分类」，让 AI 给出分类建议，你确认后才会生效，也能撤销。</li>
+<li>点「导入论文」，选择 PDF 文件或文件夹，也可以把它们拖进来。</li>
+<li>从 Zotero 导入：在 Zotero 里右键分类，选「导出分类…」，选 BibTeX 或 RIS 并勾选「导出文件」，再选择导出的文件夹。</li>
+<li>确认预览后点「导入到论文库」。</li>
+</ol>
+<p class="tip">勾选「把子文件夹整理成分类」，文件夹结构会变成分类。</p>
+</section>
+
+<section id="map">
+<h2>学习图</h2>
+<p class="for">把要学的概念连成一张图，推荐会照着它来。</p>
+<ol>
+<li>打开「设置」，在「实验功能」里打开「打开学习图模式（beta）」，点「保存设置」。</li>
+<li>在项目页点「打开学习图」。</li>
+<li>点「让 AI 起草一张」或「自己搭一张」，用「添加概念」补充。</li>
+<li>改完点「保存修改」，再在「按学习图推荐」和「热点模式」之间选择。</li>
+</ol>
+<p class="tip">默认关闭。不打开时，推荐只按画像排序。</p>
+</section>
+
+<section id="weekly">
+<h2>周报</h2>
+<p class="for">回头看这一周收藏了什么、跳过了什么、哪些方向在变强。</p>
+<ol>
+<li>点顶部的「画像」。</li>
+<li>找到「本周动向」，点「完整周报」。</li>
+<li>点周报里的条目，可以查看来源明细。</li>
+</ol>
+</section>
+
+<section id="settings">
+<h2>数据源与设置</h2>
+<p class="for">决定论文从哪里来、多久更新一次。</p>
+<ol>
+<li>点主页右上角的齿轮，打开「设置」。</li>
+<li>在「数据源」里选择「arXiv」「期刊与会议论文」（OpenAlex）和「知网」。</li>
+<li>想用 AI 功能，在「API 配置」里打开「启用 AI」，填入你自己的 DeepSeek「API 密钥」，点「测试 AI」；没有密钥就点「获取」。</li>
+<li>在「更新频率」选每天、每周或手动，在「时间偏好」选论文的时间范围。</li>
+<li>改完点「保存设置」。</li>
+</ol>
+<p class="tip">知网只在桌面应用里可用。第一次检索会请你滑动一次拼图；摘要在你打开论文时读全；知网的下载在你自己的浏览器里完成，再拖回 PageTide。</p>
+<p class="tip">期刊与会议论文可以不填密钥；填入免费密钥后，每日额度更高。</p>
+</section>
+
+<section id="privacy">
+<h2>隐私</h2>
+<p class="for">论文、画像和笔记只保存在你的电脑上。</p>
+<ol>
+<li>没有账号，也没有遥测和云同步。</li>
+<li>检索时只发送关键词、标题或论文标识符，不发送画像、笔记和论文库。</li>
+<li>AI 功能只在你点击时调用，每次只发送完成这件事需要的那部分内容。</li>
+</ol>
+</section>
+</main>
+</body>
+</html>

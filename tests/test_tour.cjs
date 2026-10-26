@@ -63,10 +63,10 @@ test('the import steps: the library button, then the import page (sample, start,
   T.setStorage(null);
 });
 
-test('the Baidu step names the Baidu search, not Baidu Scholar', () => {
+test('the last settings step points at the 知网 switch (it replaced the Baidu search)', () => {
   const s4 = T.STEPS.find(s => s.id === 's4');
-  assert.equal(s4.text, '中文论文可用百度搜索，需要千帆密钥。'); assert.equal(s4.target, '#baiduScholarKey');
-  assert.doesNotMatch(s4.text, /百度学术/);
+  assert.equal(s4.text, '中文论文来自知网：在应用里的知网窗口检索，第一次要滑一次拼图。'); assert.equal(s4.target, '#sourceCnki');
+  assert.doesNotMatch(s4.text, /百度/);
   assert.match(T.STEPS.find(s => s.id === 's2').text, /获取/);
 });
 
@@ -160,7 +160,7 @@ test('real selectors: the ones this tour depends on exist in the pages', () => {
   for (const id of ['projectBtn', 'projectEdit', 'settingsBtn', 'btnDaily', 'cards', 'organizationRoot', 'view-profile']) assert.match(index, new RegExp('id="' + id + '"'));
   assert.match(index, /data-view="library"/); assert.match(index, /id="readerPages"/); assert.match(index, /id="petSend"/); assert.match(index, /id="readerBack"/);
   assert.match(index, /data-sel="ask"/); assert.match(index, /data-read="\$\{esc\(c\.key\)\}"/); assert.match(index, /data-view="profile"/); assert.match(index, /data-fb="\$\{saved/);
-  for (const id of ['apiKey', 'openalexKey', 'baiduScholarKey']) assert.match(settings, new RegExp('id="' + id + '"'));
+  for (const id of ['apiKey', 'openalexKey', 'sourceCnki']) assert.match(settings, new RegExp('id="' + id + '"'));
   assert.match(settings, /class="[^"]*\bsection\b/); assert.match(settings, /class="[^"]*\bsource-row\b/);
   assert.match(creation, /class="modes"/); assert.match(weekly, /id="weeklyContent"/);
   const imp = read('import.html'); for (const id of ['demoSampleBtn', 'start', 'commit', 'toLibrary']) assert.match(imp, new RegExp('id="' + id + '"'));

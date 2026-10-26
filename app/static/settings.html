@@ -224,17 +224,6 @@
             <a id="openalexKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
           </div>
         </div>
-        <div class="field source-row">
-          <label for="sourceBaiduWeb">百度搜索</label>
-          <div class="control"><input type="checkbox" id="sourceBaiduWeb" class="switch"></div>
-          <div class="source-key">
-            <input type="password" id="baiduScholarKey" placeholder="密钥" aria-label="百度搜索密钥" autocomplete="off">
-            <span id="baiduScholarKeyStatus" class="source-state" data-pt-status role="status" aria-live="polite" aria-atomic="true"></span>
-            <button type="button" id="testBaiduScholarBtn">测试</button>
-            <button type="button" id="clearBaiduScholarKeyBtn" hidden>清除</button>
-            <a id="baiduScholarKeyLink" href="#" target="_blank" rel="noopener noreferrer" hidden>获取</a>
-          </div>
-        </div>
         <div class="field">
           <label for="sourceCnki">知网</label>
           <div class="control"><input type="checkbox" id="sourceCnki" class="switch"></div>
@@ -331,16 +320,12 @@
     // never text from the server, so a provider message or a key cannot reach the page.
     const SOURCE_ROWS = {
       openalex: {key:'#openalexKey', status:'#openalexKeyStatus', test:'#testOpenalexBtn', clear:'#clearOpenalexKeyBtn', link:'#openalexKeyLink'},
-      // The key line of the Baidu row holds the Qianfan key. Its status word and its 测试 button are about the Baidu search (source
-      // baidu_web). The Baidu Scholar interface is not offered any more (no switch; the server ignores an old stored value).
-      baidu_scholar: {key:'#baiduScholarKey', status:'#baiduScholarKeyStatus', test:'#testBaiduScholarBtn', clear:'#clearBaiduScholarKeyBtn', link:'#baiduScholarKeyLink', source:'baidu_web'},
     };
     const sourceOf = (id) => SOURCE_ROWS[id].source || id;       // the source whose state a row shows and whose test its button runs
     const SOURCE_WORDS = {ok:'可用', auth_required:'密钥无效', quota_exhausted:'今日额度已用完', network_error:'无法连接',
       unavailable:'服务暂不可用', bad_response:'返回无法识别', invalid_input:'请求无效', not_found:'没有结果'};
-    const sourceTest = {openalex:{busy:false, epoch:0}, baidu_scholar:{busy:false, epoch:0}};
+    const sourceTest = {openalex:{busy:false, epoch:0}};
     let sourceInfo = {};
-    let baiduConfirmed = false;
     let cnkiConfirmed = false;
 
     function sourceBaseWord(info) {
@@ -488,7 +473,6 @@
       $('#apiProvider').value    = settings.apiProvider    || 'deepseek';
       $('#apiKey').value         = '';
       $('#openalexKey').value    = '';
-      $('#baiduScholarKey').value = '';
       $('#recommendCount').value = settings.recommendCount ?? 5;
       $('#decayWindow').value    = settings.decayWindow    ?? 30;
       $('#newPaperBoost').value  = settings.newPaperBoost  ?? 0.5;
@@ -496,8 +480,6 @@
       $('#autoCheckUpdates').checked = settings.autoCheckUpdates !== false;
       $('#sourceArxiv').checked  = settings.sourceArxiv   !== false;
       $('#sourceOpenAlex').checked = settings.sourceOpenAlex !== false;
-      $('#sourceBaiduWeb').checked = settings.sourceBaiduWeb === true;
-      baiduConfirmed = settings.baiduScholarConfirmed === true;
       $('#sourceCnki').checked = settings.sourceCnki === true;
       cnkiConfirmed = settings.cnkiConfirmed === true;
       // 知网 is searched only in the desktop app's own CNKI window (ADR 0045): from a source run there is none.
@@ -572,8 +554,6 @@
         autoCheckUpdates: $('#autoCheckUpdates').checked,
         sourceArxiv:    $('#sourceArxiv').checked,
         sourceOpenAlex: $('#sourceOpenAlex').checked,
-        sourceBaiduWeb: $('#sourceBaiduWeb').checked && baiduConfirmed,
-        baiduScholarConfirmed: baiduConfirmed,
         sourceCnki:     $('#sourceCnki').checked && cnkiConfirmed,
         cnkiConfirmed:  cnkiConfirmed,
         updateFrequency: $('#updateFrequency').value,
@@ -626,14 +606,6 @@
         finally { button.disabled = false; }
       };
     }
-
-    // Chinese keywords go to Baidu with the user's own key: one question, the first time the switch is turned on.
-    $('#sourceBaiduWeb').onchange = async () => {
-      const box = $('#sourceBaiduWeb');
-      if (!box.checked || baiduConfirmed) return;
-      if (await window.PTDialogs.confirm('开启后，含中文的关键词会通过百度搜索发给百度学术（使用你自己的密钥）。继续吗？')) baiduConfirmed = true;
-      else box.checked = false;
-    };
 
     // Chinese keywords go to CNKI from the app's own CNKI window: one question, the first time the switch is turned on.
     $('#sourceCnki').onchange = async () => {

@@ -1,0 +1,16 @@
+body{margin:0;background:var(--base);color:var(--text);font:var(--fs-md)/1.7 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;font-size:calc(var(--fs-md) * var(--s))}
+.guide{max-width:calc(760px * var(--s));margin:0 auto;padding:calc(40px * var(--s)) calc(24px * var(--s)) calc(96px * var(--s))}
+.back{display:inline-block;color:var(--muted);text-decoration:none;font-size:calc(var(--fs-sm) * var(--s));margin-bottom:calc(24px * var(--s))}
+.back:hover,.back:focus-visible{color:var(--text)}
+.guide h1{font-family:var(--display);font-size:calc(var(--fs-2xl) * var(--s));font-weight:700;margin:0 0 calc(8px * var(--s))}
+.lead{color:var(--muted);margin:0 0 calc(32px * var(--s))}
+.toc{display:flex;flex-wrap:wrap;gap:calc(4px * var(--s)) calc(8px * var(--s));margin:0 0 calc(56px * var(--s));padding:0;list-style:none}
+.toc a{display:block;padding:calc(4px * var(--s)) calc(12px * var(--s));border-radius:999px;color:var(--muted);text-decoration:none;font-size:calc(var(--fs-sm) * var(--s))}
+.toc a:hover,.toc a:focus-visible{color:var(--accent-text);background:var(--accent-soft)}
+.guide section{margin:0 0 calc(56px * var(--s));scroll-margin-top:calc(24px * var(--s))}
+.guide h2{font-family:var(--display);font-size:calc(var(--fs-xl) * var(--s));font-weight:650;margin:0 0 calc(6px * var(--s))}
+.for{margin:0 0 calc(14px * var(--s));color:var(--muted)}
+.guide ol{margin:0 0 calc(14px * var(--s));padding-left:calc(22px * var(--s))}
+.guide li{margin:calc(6px * var(--s)) 0}
+.guide li::marker{color:var(--muted)}
+.tip{margin:0 0 calc(8px * var(--s));padding:calc(10px * var(--s)) calc(14px * var(--s));border-left:2px solid var(--line-strong);color:var(--muted);font-size:calc(var(--fs-sm) * var(--s))}

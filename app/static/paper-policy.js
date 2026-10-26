@@ -11,7 +11,9 @@
     if (!allowed.length || !allowed.every(known)) throw new Error('请至少选择一种论文语言');
     return {allowed_languages: [...new Set(allowed)]};
   }
-  function mount(container, initial) {
+  // `options.onChange(selected)` runs after the person ticks or unticks a language; `note(text)` shows one quiet line under
+  // the boxes (for example that a ticked language has no source switched on), `note('')` hides it.
+  function mount(container, initial, options = {}) {
     const doc = container.ownerDocument;
     const fieldset = doc.createElement('fieldset');
     // A heading inside the card, like the other cards' titles (a legend would sit on the fieldset's border).
@@ -19,19 +21,22 @@
     fieldset.setAttribute('aria-labelledby', heading.id);
     const choices = doc.createElement('div'); choices.className = 'paper-language-choices';
     const error = doc.createElement('p'); error.className = 'field-error'; error.setAttribute('role', 'alert'); error.hidden = true;
+    const hint = doc.createElement('p'); hint.className = 'field-note'; hint.setAttribute('role', 'status'); hint.hidden = true;
     let boxes = [];
     function fail(message, focus = true) {
       error.textContent = message || ''; error.hidden = !message;
       boxes.forEach(box => { if (message) box.setAttribute('aria-invalid', 'true'); else box.removeAttribute('aria-invalid'); });
       if (message && focus && boxes[0]) { boxes[0].scrollIntoView({behavior: 'smooth', block: 'center'}); boxes[0].focus({preventScroll: true}); }
     }
+    function note(text) { hint.textContent = text || ''; hint.hidden = !text; }
     function row(code) {
       const label = doc.createElement('label'), box = doc.createElement('input');
-      box.type = 'checkbox'; box.value = code; box.onchange = () => fail('');
+      box.type = 'checkbox'; box.value = code;
+      box.onchange = () => { fail(''); if (typeof options.onChange === 'function') options.onChange(selected()); };
       label.append(box, doc.createTextNode(languages[code])); choices.append(label);
       return box;
     }
-    fieldset.append(heading, choices, error); container.replaceChildren(fieldset);
+    fieldset.append(heading, choices, error, hint); container.replaceChildren(fieldset);
     container.classList.add('paper-language-editor');
     const selected = () => boxes.filter(box => box.checked).map(box => box.value);
     function set(value) {
@@ -42,7 +47,7 @@
       fail('');
     }
     set(initial);
-    return {read: () => validate({allowed_languages: selected()}), selected, set, error: fail,
+    return {read: () => validate({allowed_languages: selected()}), selected, set, error: fail, note,
       disabled: value => { fieldset.disabled = !!value; }};
   }
   function label(value) {

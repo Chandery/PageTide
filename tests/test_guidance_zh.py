@@ -187,6 +187,19 @@ class TurnTests(unittest.TestCase):
         self.assertEqual(out['session']['draft']['search_queries'], ['上古汉语 汉语历史语言学'])
         self.assertEqual(out['session']['draft']['keywords'], ZH_KEYWORDS)
 
+    def test_the_chinese_query_follows_the_models_new_keywords_not_the_persons_fixed_ones(self):
+        # Regression (2026-10-26, owner: "AI 引导对话过程中检索式都不咋变"): with 中文 alone ticked and only English phrases from
+        # the model, the Chinese phrase was always built from the person's own keywords, which lead the list and never change.
+        self.quick(reply(['上古汉语', '出土文献'], ['上古汉语 出土文献']), mode='ai_guided')
+        session = self.app.guidance_session_view(self.sid)
+        page = {'keywords': ['我的词', '上古汉语', '出土文献'], 'search_queries': session['draft']['search_queries']}
+        with mock.patch.object(self.app.gateway, 'call', return_value=reply(['战国楚简', '古文字学'], ['Chu bamboo slips'])):
+            out = self.app.guidance_turn(session['id'], '只看楚简', languages=['zh'], base=session['draft']['revision'],
+                                         draft_edits=page)
+        query = out['session']['draft']['search_queries'][0]
+        self.assertIn('战国楚简', query)
+        self.assertNotIn('我的词', query)
+
     def test_a_later_turn_with_no_usable_queries_keeps_the_earlier_chinese_queries(self):
         self.quick(reply(ZH_KEYWORDS, ['上古汉语 出土文献', '汉语历史音韵学']), mode='ai_guided')
         for queries in ([], [''], ['你想研究哪个朝代？']):
@@ -287,13 +300,18 @@ class FeedKeywordTests(Case):
 # adapter itself, so the offer is switched on for this module only.
 _OFFER_SCHOLAR = __import__("unittest.mock", fromlist=["patch"]).patch.object(
     __import__("app.user_settings", fromlist=["x"]), "BAIDU_SCHOLAR_OFFERED", True)
+# The Baidu search is not offered either (owner, 2026-10-26: 知网 replaces it); same treatment.
+_OFFER_WEB = __import__("unittest.mock", fromlist=["patch"]).patch.object(
+    __import__("app.user_settings", fromlist=["x"]), "BAIDU_WEB_OFFERED", True)
 
 
 def setUpModule():
     _OFFER_SCHOLAR.start()
+    _OFFER_WEB.start()
 
 
 def tearDownModule():
+    _OFFER_WEB.stop()
     _OFFER_SCHOLAR.stop()
 
 

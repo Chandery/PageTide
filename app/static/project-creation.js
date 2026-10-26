@@ -11,7 +11,28 @@ const PDF = window.PTCreationPdf;
 const AI_WAIT = 90;           // the gateway gives up after this many seconds
 const MAX_PATH = 8;
 const SESSION_KEY = 'pt-guidance-session';
-const policyEditor = PaperPolicy.mount($('#creationPaperPolicy'));
+const policyEditor = PaperPolicy.mount($('#creationPaperPolicy'), undefined, {onChange: (selected) => languageNote(selected)});
+
+// A ticked language needs a source that is switched on, or the project will find no papers in it: 中文 comes from 知网
+// (desktop app only, ADR 0045), 英文 from arXiv and 期刊与会议论文. Said under the language boxes, before anything is made.
+let sourceSettings = null;
+function languageNote(selected) {
+  if (!sourceSettings) return;
+  const notes = [];
+  if (selected.includes('zh') && (sourceSettings.sourceCnki !== true || !window.__TAURI_INTERNALS__)) {
+    notes.push(window.__TAURI_INTERNALS__
+      ? '勾选了中文：中文论文来自知网，但设置里的「知网」还没打开，这样搜不到中文论文。请到 设置 → 数据源 打开它。'
+      : '勾选了中文：中文论文来自知网，只在桌面应用里能用，这里搜不到中文论文。');
+  }
+  if (selected.includes('en') && sourceSettings.sourceArxiv === false && sourceSettings.sourceOpenAlex === false) {
+    notes.push('勾选了英文：arXiv 和「期刊与会议论文」都关着，这样搜不到英文论文。');
+  }
+  policyEditor.note(notes.join(' '));
+}
+fetch('/api/user_settings').then((r) => r.json()).then((body) => {
+  sourceSettings = body.settings || {};
+  languageNote(policyEditor.selected());
+}).catch(() => { /* no note without the settings */ });
 
 let creationPending = 0, creationLeaving = false;
 async function api(path, options = {}) {
@@ -623,6 +644,11 @@ function makeReview(root, {sessionId, onCreate, createLabel}) {
       part('mapBlock').scrollIntoView({behavior: 'smooth', block: 'center'}); part('mapStart').focus(); return;
     }
     if (map.graph && !readCreationBrief(part('mapBrief'))) return;
+    // A project nothing was found for will recommend nothing: search before creating if that was skipped, and say so plainly
+    // when the queries find no paper at all.
+    if (!candidates.size && !searching) await search();
+    if (!candidates.size && !(await window.PTDialogs.confirm(
+      '按这些检索式没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词，再查找一次。仍然创建吗？'))) return;
     busy = true; refresh();
     part('mapBrief').querySelectorAll('textarea').forEach(el => { el.disabled = true; });
     createAct.start('正在创建项目…');
@@ -827,9 +853,13 @@ function renderChat(live) {
   chat.scrollTop = chat.scrollHeight;
   $('#guideSend').disabled = guidedBusy;
   const question = $('#guideQuestion'), draft = session.draft || {};
-  question.hidden = !(draft.next_question || draft.summary);
+  question.hidden = !(draft.next_question || draft.summary || draft.ready);
+  // When the draft can be confirmed, say what comes next: the papers on the right, then 确认并创建项目.
+  const nextStep = draft.ready
+    ? '<p class="next-step">方向已基本确定：右侧已按检索式找了候选论文，勾选想要的，再点「确认并创建项目」。也可以继续聊来调整，或改检索式后点「按检索式查找论文」。</p>'
+    : '';
   question.innerHTML = `${draft.summary ? `<p class="hint"><b>目前确认：</b><span data-no-i18n>${esc(draft.summary)}</span></p>` : ''}
-    ${draft.next_question ? `<p data-no-i18n>${esc(draft.next_question)}</p>` : ''}`;
+    ${draft.next_question ? `<p data-no-i18n>${esc(draft.next_question)}</p>` : ''}${nextStep}`;
   for (const choice of Array.isArray(draft.choices) ? draft.choices.slice(0, 3) : []) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'ghost small';
     button.textContent = choice; button.setAttribute('data-no-i18n', ''); button.disabled = guidedBusy;
@@ -877,8 +907,18 @@ async function guidedTurn({message = '', retry = false} = {}) {
   review.setDraft(session.draft, {flashNew: true});
   setComposer(true);
   renderChat(result);
+  // Once the assistant says the draft can be confirmed, the candidate papers are looked up for the person (no model call):
+  // once per set of queries and languages, so a further turn that changes nothing does not search again.
+  const draft = session.draft || {};
+  const signature = JSON.stringify([draft.search_queries || [], policyEditor.selected()]);
+  if (draft.ready && result.mode === 'ai' && signature !== guidedSearched) {
+    guidedSearched = signature;
+    await review.search();
+    renderChat(null);
+  }
   return true;
 }
+let guidedSearched = '';
 
 function openGuidedWorkspace() {
   $('#guidedStart').hidden = true; $('#guidedWork').hidden = false;
@@ -1034,6 +1074,57 @@ async function openSeedSearch(query) {
   if (result.cnki_ask && window.PTCnki?.available()) await seedSearchCnki(query, token, result.items);
 }
 
+/* ---- manual creation: search papers by query (no AI); a paper the person adds becomes a seed */
+const manualQueries = () => $('#manualQueries').value.split('\n').map((q) => q.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 5);
+let manualSearched = -1;            // papers the last query search found (-1: none run since the queries last changed)
+$('#manualQueries').oninput = () => { manualSearched = -1; };
+// Returns how many papers were found.
+async function searchQueries() {
+  const queries = manualQueries();
+  if (!queries.length) {
+    const words = seedKeywords.get();
+    if (!words.length) { seedHint('先写一条检索式，或添加关键词'); $('#manualQueries').focus(); return 0; }
+    $('#manualQueries').value = words.slice(0, 3).join(' ');
+    return searchQueries();
+  }
+  const token = ++searchToken;
+  $('#seedSearch').hidden = false;
+  $('#seedSearchTitle').textContent = '按检索式找到的论文';
+  $('#seedSearchList').innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
+  const notice = $('#seedSearchNotice');
+  notice.hidden = true; notice.textContent = ''; notice.classList.remove('error');
+  const shown = [], problems = [];
+  let first = true;
+  for (const query of queries) {
+    searchAct.start(`正在检索“${query}”…`);
+    let result;
+    try { result = await queued(() => post('/api/seeds/search', {query})); }
+    catch (error) { result = {status: 'failed', error: error.message, items: []}; }
+    if (token !== searchToken) return;
+    if (first) { $('#seedSearchList').innerHTML = ''; first = false; }
+    const marks = new Set(shown.flatMap((p) => [p.key, (p.title || '').replace(/[\W_]+/gu, '').toLowerCase()]));
+    for (const paper of result.items || []) {
+      const mark = (paper.title || '').replace(/[\W_]+/gu, '').toLowerCase();
+      if (marks.has(paper.key) || (mark && marks.has(mark))) continue;
+      marks.add(paper.key); marks.add(mark); shown.push(paper); seedHit(paper);
+    }
+    if (result.status !== 'ok' && result.status !== 'empty') problems.push(seedFailure(result));
+    if (result.cnki_ask && window.PTCnki?.available()) await seedSearchCnki(query, token, shown);
+    if (token !== searchToken) return;
+  }
+  searchAct.stop();
+  // Nothing found is said plainly: a project made from nothing will have little to recommend.
+  if (!shown.length) {
+    notice.hidden = false; notice.classList.add('error');
+    notice.textContent = ['没有找到论文。换个说法、减少限定词，或检查论文语言和数据源设置。', ...new Set(problems)].filter(Boolean).join(' ');
+  } else if (problems.length && !notice.textContent) {
+    notice.hidden = false; notice.textContent = [...new Set(problems)].join(' ');
+  }
+  manualSearched = shown.length;
+  return shown.length;
+}
+$('#manualSearch').onclick = () => searchQueries();
+
 function seedHit(paper, cnkiItem = null, query = '') {
   const hit = document.createElement('div');
   hit.className = 'seed-hit';
@@ -1074,6 +1165,7 @@ async function seedSearchCnki(query, token, shown) {
     const mark = (paper.title || '').replace(/[\W_]+/gu, '').toLowerCase();
     if (seen.has(paper.key) || (mark && seen.has(mark))) continue;
     seen.add(paper.key); seen.add(mark);
+    shown.push(paper);                          // a later query of the same search does not show it twice
     const source = raw.find((r) => `cnki:${String(r.dbname || '').toUpperCase()}:${r.filename}` === paper.key);
     seedHit(paper, source, query);
   }
@@ -1229,6 +1321,14 @@ $('#manualCreate').onclick = async () => {
   if (!validateCreationStart($('#manualName'))) return;
   const payload = seeds.filter((s) => s.status === 'resolved')
     .map((s) => (s.pdfId ? {identifier: seedIdentifier(s.paper), pdf_id: s.pdfId} : seedIdentifier(s.paper)));
+  // No seed paper: show what the queries (or keywords) find first, so the person can pick some, and warn when nothing is found.
+  if (!payload.length) {
+    const found = manualSearched >= 0 ? manualSearched : await searchQueries();
+    const message = found
+      ? '还没有种子论文。上面是按检索式找到的论文，挑几篇点“添加”，推荐会更准。直接创建吗？'
+      : '按检索式和关键词没有找到任何论文，建好的项目很可能推荐不出论文。建议先改检索式或关键词。仍然创建吗？';
+    if (!(await window.PTDialogs.confirm(message))) return;
+  }
   $('#manualCreate').disabled = true;
   manualAct.start('正在创建项目…');
   let result;
