@@ -107,7 +107,7 @@
       {
         "v": "25",
         "u": "MB",
-        "t": "download on Apple Silicon Macs, 17 MB on Windows"
+        "t": "download on Apple Silicon Macs, 18 MB on Windows"
       },
       {
         "v": "3",
@@ -195,8 +195,8 @@
     "copy_failed": "Copy this address: ",
     "note_mac_unknown": "Apple Silicon (M1 or later). On an Intel Mac, get the Intel build below.",
     "note_mac_arm": "Apple Silicon detected · 25 MB",
-    "note_mac_intel": "Intel Mac detected · 26 MB",
-    "note_win": "Windows x64 · 17 MB · first launch needs “More info → Run anyway”",
+    "note_mac_intel": "Intel Mac detected · 27 MB",
+    "note_win": "Windows x64 · 18 MB · first launch needs “More info → Run anyway”",
     "note_mobile": "PageTide is a desktop app for macOS and Windows.",
     "other_os": "Also available for {other}.",
     "mac": "macOS",
@@ -231,7 +231,7 @@
         "img": "reader-ask",
         "alt": "The PDF reader with a highlighted sentence and an answer to a follow-up question beside the page.",
         "title": "Highlight, ask, understand",
-        "body": "Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.",
+        "body": "Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page. Click a citation to jump to it, look up a word like in a dictionary, and link your notes with @.",
         "icon": "book-open"
       },
       {

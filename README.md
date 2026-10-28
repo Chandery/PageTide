@@ -52,7 +52,7 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 **A library that connects itself.** Saved papers become a list and a graph of related work. Open-access PDFs are archived locally. AI can suggest categories, but nothing changes until you confirm, and every change can be undone.
 
-**Highlight. Ask. Understand.** Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page.
+**Highlight. Ask. Understand.** Read the PDF inside PageTide, select a sentence, then translate it or ask about it. The answer appears beside the page. Click a citation to jump to it, look up a word like in a dictionary, and link your notes with @.
 
 **Bring what you have.** Import PDF files or folders (subfolders become categories), or a Zotero collection exported as BibTeX or RIS.
 
@@ -120,8 +120,8 @@ PageTide works out of the box on arXiv. Add your own keys, or switch on CNKI, fo
 | Platform | File |
 | --- | --- |
 | macOS (Apple Silicon) | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 25 MB |
-| macOS (Intel) | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 26 MB |
-| Windows (x64) | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
+| macOS (Intel) | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 27 MB |
+| Windows (x64) | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 18 MB |
 
 <details>
 <summary>First launch: the app is not signed</summary>

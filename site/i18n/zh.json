@@ -107,7 +107,7 @@
       {
         "v": "25",
         "u": "MB",
-        "t": "M 系列 Mac 安装包，Windows 版 17 MB"
+        "t": "M 系列 Mac 安装包，Windows 版 18 MB"
       },
       {
         "v": "3",
@@ -195,8 +195,8 @@
     "copy_failed": "复制这个网址：",
     "note_mac_unknown": "适用于 M 系列芯片（M1 及以后）的 Mac。Intel 芯片请在下方下载 Intel 版。",
     "note_mac_arm": "已识别为 M 系列芯片的 Mac · 25 MB",
-    "note_mac_intel": "已识别为 Intel 芯片的 Mac · 26 MB",
-    "note_win": "Windows 64 位 · 17 MB · 第一次打开时点“更多信息 → 仍要运行”",
+    "note_mac_intel": "已识别为 Intel 芯片的 Mac · 27 MB",
+    "note_win": "Windows 64 位 · 18 MB · 第一次打开时点“更多信息 → 仍要运行”",
     "note_mobile": "PageTide 是桌面应用，支持 macOS 和 Windows。",
     "other_os": "也有 {other} 版。",
     "mac": "macOS",
@@ -231,7 +231,7 @@
         "img": "reader-ask",
         "alt": "PDF 阅读器：选中一句话，页面旁边给出对追问的回答。",
         "title": "划一句，问一句",
-        "body": "在 PageTide 里直接读 PDF。看不懂的句子，选中就能翻译或追问，答案显示在页面旁边。",
+        "body": "在 PageTide 里直接读 PDF。看不懂的句子，选中就能翻译或追问，答案显示在页面旁边。点引用直接跳过去，单词像查词典一样看，笔记之间可以用 @ 互相引用。",
         "icon": "book-open"
       },
       {

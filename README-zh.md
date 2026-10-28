@@ -52,7 +52,7 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 
 **会自己连起来的论文库。** 收藏的论文自动整理成列表和关联图谱，开放获取的 PDF 会下载到本地归档。AI 可以建议分类，但要你确认才会生效，每次改动都能撤销。
 
-**划一句，问一句，读明白。** 在 PageTide 里直接读 PDF，选中看不懂的句子，翻译或追问，回答就出现在页面旁边。
+**划一句，问一句，读明白。** 在 PageTide 里直接读 PDF，选中看不懂的句子，翻译或追问，回答就出现在页面旁边。点引用直接跳过去，单词像查词典一样看，笔记之间可以用 @ 互相引用。
 
 **已有的论文直接带过来。** 导入 PDF 文件或整个文件夹（子文件夹自动变成分类），或从 Zotero 导出的 BibTeX、RIS。
 
@@ -120,8 +120,8 @@ https://github.com/user-attachments/assets/f112d8d3-b9d1-4974-911c-ac7c90770422
 | 平台 | 文件 |
 | --- | --- |
 | macOS（Apple Silicon） | [`PageTide-macos-arm64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 25 MB |
-| macOS（Intel） | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 26 MB |
-| Windows（x64） | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 17 MB |
+| macOS（Intel） | [`PageTide-macos-x64.zip`](https://github.com/Chandery/PageTide/releases/latest) · 27 MB |
+| Windows（x64） | [`PageTide_<version>_x64-setup.exe`](https://github.com/Chandery/PageTide/releases/latest) · 18 MB |
 
 <details>
 <summary>首次打开：应用未签名</summary>
