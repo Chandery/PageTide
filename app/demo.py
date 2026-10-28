@@ -177,7 +177,7 @@ class DemoApp(App):
                 "demo": True, "model": DEMO_MODEL, "usage": None, "usd": 0, "usage_unknown": False,
                 "usage_reserved": False, "reservation": None}
 
-    def translate(self, text, dry_run=False):
+    def translate(self, text, dry_run=False, context=None):   # the demo answers are pre-written; no sentence needed
         text = (text or "").strip()
         if not text:
             return {"ok": False, "degraded": True, "reason": "empty selection"}

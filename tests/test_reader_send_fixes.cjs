@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 const html=fs.readFileSync('app/static/index.html','utf8');
-const source=html.slice(html.indexOf('async function ask(question)'),html.indexOf('async function translate(text, rect)'));
+const source=html.slice(html.indexOf('async function ask(question)'),html.indexOf('/* A looked-up word, laid out like the system dictionary'));
 function fixture(reply = {ok:false,reason:"AI disabled"}) {
   const sent=[], notices=[], messages=[];
   const pet={key:'a',project:'cs',epoch:1,title:'A',selection:'A quote',selPage:1,busy:false,attachPage:false,session:'session',sessionPromise:Promise.resolve(),referenceIdentity:{key:'a',project_id:'cs',pdf_sha256:'a'.repeat(64),kind:'pdf'}};

@@ -1296,7 +1296,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({'error': '论文不属于当前项目'}, 400)
             self._json({'session': new_session(app.store, key, project)})
         elif route == "/api/translate":
-            self._json(app.translate(body.get("text") or "", dry_run=bool(body.get("dry_run"))))
+            self._json(app.translate(body.get("text") or "", dry_run=bool(body.get("dry_run")),
+                                     context=body.get("context")))
         elif route == "/api/detail":
             # POST body avoids URL-encoding issues entirely; the UI uses this first.
             app = self._app()

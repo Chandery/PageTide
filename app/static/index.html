@@ -289,7 +289,17 @@
   .reader .rload { margin:auto; color:var(--muted); font-size:var(--fs-sm); display:flex; gap:10px; align-items:center; }
   .reader .rload.pdf-fail { flex-direction:column; text-align:center; max-width:480px; line-height:1.6; }
   .reader .pdf-fail-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-  .reader .rbody { flex:1; display:flex; min-height:0; }
+  .reader .rbody { flex:1; display:flex; min-height:0; position:relative; }
+  /* The PDF's own links (citations, section references, web addresses): invisible boxes over the text, like pdf.js. */
+  .reader .linkLayer { position:absolute; inset:0; pointer-events:none; }
+  /* The link's own letters turn blue, like a link on a web page: a blue block blended with "lighten" colours the dark
+     letters under it and leaves the white paper white (no wash, no box). A long vertical block (arXiv's side stamp)
+     stays plain. */
+  .reader .linkLayer a { position:absolute; pointer-events:auto; background:#2b62c9; mix-blend-mode:lighten; }
+  .reader .linkLayer a:hover { background:#123f9c; }
+  .reader .linkLayer a.plain { background:transparent; mix-blend-mode:normal; }
+  .reader #linkBack { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); z-index:3; box-shadow:var(--sh-out); }
+  .reader #linkBack[hidden] { display:none; }
   /* Sidebar: one pill switch (the app's .seg look), then a quiet list. Plain text weight; only the current item is blue. */
   .reader .rside { width:224px; background:var(--base); border-right:1px solid var(--line); display:none; flex-direction:column; }
   .reader.side .rside { display:flex; }
@@ -396,6 +406,15 @@
   #transPop.show { display:block; animation:pop .16s ease both; }
   #transPop .tlabel { font-size:var(--fs-xs); color:var(--muted); margin-bottom:6px; }
   #transPop .tbody { font-size:var(--fs-sm); line-height:1.7; max-height:34vh; overflow:auto; }
+  #transPop .whead { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 12px; margin-bottom:6px; }
+  #transPop .wword { font-family:Georgia, "Times New Roman", serif; font-size:1.45em; font-weight:700; }
+  #transPop .wipa { color:var(--muted); }
+  #transPop .wlab { font-size:var(--fs-xs); }
+  #transPop .wsep { display:inline-block; width:10px; }
+  #transPop .wsenses { margin:0; padding-left:1.4em; }
+  #transPop .wsenses li { margin:2px 0; }
+  #transPop .wpos { color:var(--muted); font-style:italic; margin-right:6px; }
+  #transPop .where { margin-top:10px; padding-top:8px; border-top:1px solid var(--line); }
   /* Header and composer keep their size; only the log scrolls, and it never collapses under a long quote. */
   .petpanel > header, .pcompose { flex:0 0 auto; }
   .plog { flex:1 1 auto; min-height:140px; overflow:auto; padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
@@ -772,6 +791,7 @@
       <div class="rpane" id="readerNotes" role="tabpanel" aria-labelledby="tabNotes" hidden></div>
     </aside>
     <div class="pages" id="readerPages"></div>
+    <button class="tiny" id="linkBack" type="button" hidden title="回到点击链接前的位置">↩ 返回原处</button>
   </div>
 </div>
 
@@ -815,6 +835,8 @@
 <script src="/reader-identity.js"></script>
 <script src="/reader-selection.js"></script>
 <script src="/reader-notes.js"></script>
+<script src="/reader-links.js"></script>
+<script src="/reader-word.js"></script>
 <script src="/reader-textfit.js"></script>
 <script src="/reader-page.js"></script>
 <script src="/save-file.js"></script>
@@ -2056,6 +2078,7 @@ async function openReader(key, title, project = state.currentProject) {
   R.pendingZoom = null; R.renderedScale = null; R.zoomBase = null;
   let url = `/api/pdf/view?key=${encodeURIComponent(key)}` + (project === 'pt-demo' ? '&project_id=pt-demo' : '');   // the PDF is fetched by pdf.js, which sends no demo header
   R.url = url; R.key = key; R.project = project; R.sha256 = null; R.path = null;
+  hideLinkBack();   // a way back belongs to the paper it was made in
   R.loading = true; $('#petSend').disabled = true;
   let prepared = null;
   try { prepared = await api('/api/pdf/prepare', { key }); } catch (e) { /* the render step reports the real failure */ }
@@ -2295,7 +2318,9 @@ function renderPage(n, root = document, jobs = R.jobs) {
     const textLayer = new L.TextLayer({ textContentSource: textContent, container: textDiv, viewport: vp });
     await textLayer.render();
     window.PTReaderTextFit?.apply(textLayer.textDivs, textContent.items, textContent.styles);   // text over the printed letters
+    try { window.PTReaderTextFit?.refine(textLayer.textDivs, canvas); } catch (e) { /* the even spacing stays */ }   // each word on its printed place
     drawNotes(pageDiv, n);
+    try { drawLinks(pageDiv, await page.getAnnotations({ intent: 'display' }), vp); } catch (e) { /* a page whose links cannot be read still reads */ }
     window.PTReaderSelection?.current?.repaint();   // a page rebuilt at a new zoom keeps the selection drawn where the text now is
     return true;
   })().catch((e) => { toast(`第 ${n} 页渲染失败：${e.message}`, 'err'); return false; });
@@ -2468,6 +2493,42 @@ async function buildOutline(doc, current) {
   pane.appendChild(tree);
   markOutline();
 }
+/* The PDF's links: a citation or reference jumps inside the paper (返回原处 goes back), a web address opens outside. */
+function drawLinks(pageDiv, annotations, vp) {
+  pageDiv.querySelector(':scope > .linkLayer')?.remove();
+  const boxes = PTReaderLinks.linkBoxes(annotations, (rect) => vp.convertToViewportRectangle(rect));
+  if (!boxes.length) return;
+  const layer = document.createElement('div');
+  layer.className = 'linkLayer';
+  for (const b of boxes) {
+    const a = document.createElement('a');
+    a.style.cssText = `left:${b.left}px;top:${b.top}px;width:${b.width}px;height:${b.height}px`;
+    a.draggable = false;
+    if (b.height > 2 * b.width && b.height > 60) a.className = 'plain';   // a tall side stamp is not tinted
+    if (b.url) { a.href = b.url; a.target = '_blank'; a.rel = 'noreferrer'; a.title = b.url; }
+    else { a.href = '#'; a.onclick = (e) => { e.preventDefault(); followLink(b.dest); }; }
+    layer.appendChild(a);
+  }
+  pageDiv.appendChild(layer);
+}
+let linkBack = null;
+async function followLink(dest) {
+  const doc = R.doc, box = $('#readerPages');
+  const to = await PTReaderLinks.resolve(doc, dest, PTReaderNotes.destTop);
+  if (R.doc !== doc) return;
+  if (!to) { toast('没找到这个链接指向的位置', 'warn'); return; }
+  const from = currentAnchor(box.scrollTop);
+  linkBack = { page: from.page, fraction: from.within / from.height };
+  goToPlace(to.page, to.top);
+  $('#linkBack').hidden = false;
+}
+function hideLinkBack() { linkBack = null; $('#linkBack').hidden = true; }
+$('#linkBack').onclick = () => {
+  const back = linkBack, box = $('#readerPages');
+  hideLinkBack();
+  const wrap = back && box.querySelector(`.pgwrap[data-n="${back.page}"]`);
+  if (wrap) box.scrollTo({ top: Math.max(0, contentTopOf(wrap, box) + back.fraction * wrap.offsetHeight), behavior: 'smooth' });
+};
 function goToPlace(page, top) {
   const box = $('#readerPages'), pg = box.querySelector(`.pgwrap[data-n="${page}"] .pg`);
   if (!pg) return;
@@ -2695,7 +2756,7 @@ window.addEventListener('resize', () => {
 window.PT.openReader = openReader;
 
 /* --------------------------------------------------------- selection bar */
-let selText = '', selRect = null, selPage = null;
+let selText = '', selRect = null, selPage = null, selContext = '';
 function hideSel() { $('#selbar').classList.remove('show'); }
 window.PTReaderSelection?.install($('#reader'));   // draw the PDF selection one box per line
 function showSel(rect, text) {
@@ -2713,6 +2774,7 @@ document.addEventListener('mouseup', (e) => {
   const zone = e.target.closest && (e.target.closest('#readerPages') || e.target.closest('#detail'));
   if (!text || !zone) { hideSel(); return; }
   selRect = sel.getRangeAt(0).getBoundingClientRect();
+  selContext = window.PTReaderWord?.contextFor(sel.getRangeAt(0), text) || '';   // a looked-up word's sentence
   const start = sel.anchorNode && (sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement);
   selPage = Number(start?.closest?.('.pgwrap')?.dataset.n) || null;
   selBoxes = selPage && R.doc && R.sha256 ? selectionBoxes() : [];   // captured now: clicking the bar may drop the selection
@@ -2894,7 +2956,19 @@ async function ask(question) {
   } catch (e) { thinking.remove(); if (current()) { addMsg('sys', `失败：${e.message}`); keepSwitch(); } }
   finally { pet.busy = false; $('#petSend').disabled = Boolean(R.loading); }
 }
-async function translate(text, rect) {
+/* A looked-up word, laid out like the system dictionary: the word and its pronunciations, numbered meanings by part of
+   speech, then what it means in this sentence. */
+function wordEntry(e) {   // the interface labels are translated with the interface; the model's words are not
+  const sounds = [['英', e.uk], ['美', e.us]].filter(([, ipa]) => ipa)
+    .map(([label, ipa]) => `<span class="wlab">${label}</span> <span data-no-i18n>${esc(ipa)}</span>`).join('<span class="wsep"></span>');
+  const senses = (e.senses || []).map((s) => `<li>${s.pos ? `<span class="wpos" data-no-i18n>${esc(s.pos)}</span>` : ''}<span data-no-i18n>${esc(s.meaning)}</span></li>`).join('');
+  return `<div class="wentry">
+      <div class="whead"><b class="wword" data-no-i18n>${esc(e.word)}</b>${sounds ? `<span class="wipa">${sounds}</span>` : ''}</div>
+      ${senses ? `<ol class="wsenses">${senses}</ol>` : ''}
+      ${e.here ? `<div class="where"><div class="tlabel">在这里</div><div data-no-i18n>${esc(e.here)}</div></div>` : ''}
+    </div>`;
+}
+async function translate(text, rect, context = '') {
   const pop = $('#transPop');
   const epoch = pet.epoch;
   transAnchor = rect;
@@ -2902,11 +2976,11 @@ async function translate(text, rect) {
   pop.classList.add('show');
   placeTransPop(rect);
   try {
-    const r = await api('/api/translate', { text });
+    const r = await api('/api/translate', context ? { text, context } : { text });
     if (epoch !== pet.epoch || !pop.classList.contains('show')) return;
     pop.innerHTML = `<div class="tlabel">${r.demo ? '划词翻译 · 演示' : '划词翻译'}</div>
-      <div class="tbody"${r.ok ? ' data-no-i18n' : ''}>${
-      r.ok ? window.PT.md(r.translation) : esc(aiFailure(r.reason))}</div>
+      <div class="tbody"${r.ok && r.kind !== 'word' ? ' data-no-i18n' : ''}>${
+      !r.ok ? esc(aiFailure(r.reason)) : r.kind === 'word' && r.entry ? wordEntry(r.entry) : window.PT.md(r.translation)}</div>
       <div class="row" style="margin-top:10px">
         <button class="tiny" id="transCopy">复制</button>
         <button class="tiny ghost" id="transClose">关闭</button></div>`;
@@ -3099,7 +3173,7 @@ $('#readerAsk').onclick = () => { openPet(); $('#petInput').focus(); };
 $('#selbar').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-sel]');
   if (!btn) return;
-  const text = selText, rect = selRect, page = selPage, boxes = selBoxes;
+  const text = selText, rect = selRect, page = selPage, boxes = selBoxes, context = selContext;
   hideSel();
   if (btn.dataset.sel === 'clear') { window.getSelection()?.removeAllRanges(); return; }
   if (btn.dataset.sel === 'highlight' || btn.dataset.sel === 'note') {
@@ -3107,7 +3181,7 @@ $('#selbar').addEventListener('click', (e) => {
     createNote(btn.dataset.color || 'yellow', boxes, text, rect, btn.dataset.sel === 'note');
     return;
   }
-  if (btn.dataset.sel === 'translate') translate(text, rect);
+  if (btn.dataset.sel === 'translate') translate(text, rect, context);
   else {
     setReference(text, page); openPet();
     // The demo's answers are pre-written: the question is filled in so that sending it is the next (and only) step.

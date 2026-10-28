@@ -2810,6 +2810,12 @@
     "移出论文库": "Remove from library",
     "没能打开文件夹：{error}": "Could not open the folder: {error}",
     "把这篇论文移出「{project}」的论文库？PDF 和笔记会保留。": "Remove this paper from the library of “{project}”? The PDF and notes are kept.",
-    "把这篇论文移出论文库？PDF 和笔记会保留。": "Remove this paper from the library? The PDF and notes are kept."
+    "把这篇论文移出论文库？PDF 和笔记会保留。": "Remove this paper from the library? The PDF and notes are kept.",
+    "英": "UK",
+    "美": "US",
+    "在这里": "Here",
+    "↩ 返回原处": "↩ Back",
+    "回到点击链接前的位置": "Back to where you clicked the link",
+    "没找到这个链接指向的位置": "Could not find where this link points"
   }
 }

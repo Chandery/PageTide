@@ -160,7 +160,7 @@
         "selection_and_context": 800,
         "framing_and_margin": 150
       },
-      "scope": "translation or explanation of the user's selection, sent whole (no length cap since 2026-10-22); never whole-page OCR",
+      "scope": "translation or explanation of the user's selection, sent whole (no length cap since 2026-10-22); a one-to-three-word selection is looked up as a dictionary entry with the sentence it was selected from (at most 400 characters, 2026-10-28); never whole-page OCR",
       "conversation": true
     },
     "query_expand": {
