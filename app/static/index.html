@@ -336,11 +336,14 @@
   .reader .rempty { font-size:var(--fs-sm); line-height:1.6; color:var(--muted); padding:14px 6px; text-align:center; }
   /* Notes: one card per highlight, in reading order. */
   .reader .nlist { display:flex; flex-direction:column; gap:8px; padding-top:4px; }
-  .reader .nitem { display:block; width:100%; text-align:left; padding:8px 10px 8px 12px; border:0; border-radius:var(--r-md);
+  .reader .nitem { display:flex; align-items:flex-start; gap:8px; width:100%; text-align:left; padding:8px 10px 8px 12px; border:0; border-radius:var(--r-md);
                    background:var(--surface-1); box-shadow:var(--sh-1), inset 3px 0 0 var(--c, #ffd400); color:var(--text);
                    font-weight:400; white-space:normal; transform:none; }
   .reader .nitem:hover { background:var(--surface-1); box-shadow:var(--sh-2), inset 3px 0 0 var(--c, #ffd400); transform:none; }
   .reader .nitem.on { box-shadow:0 0 0 1.5px var(--accent), inset 3px 0 0 var(--c, #ffd400); }
+  .reader .nitem .nb { flex:1; min-width:0; }
+  .reader .nitem .nn { margin-top:1px; }
+  .reader .nitem .nmn { color:var(--accent); font-weight:600; }
   .reader .nitem .nq { font-size:var(--fs-sm); line-height:1.5; color:var(--muted); display:-webkit-box; -webkit-line-clamp:3;
                        -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
   .reader .nitem .nc { font-size:var(--fs-sm); line-height:1.5; margin-top:5px; white-space:pre-wrap; display:-webkit-box;
@@ -373,6 +376,32 @@
   #notePop .nfoot .sw[aria-pressed="true"] { box-shadow:0 0 0 2px var(--base), 0 0 0 3.5px var(--c, #ffd400); }
   #notePop .ncolors { display:flex; gap:8px; padding-left:2px; }
   #notePop .nfoot .grow { flex:1; }
+  /* @ other notes: typed into the text as @3; a picker above the footer lists the notes by number. */
+  .nn { flex:none; display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; box-sizing:border-box;
+        border-radius:999px; background:var(--surface-2); color:var(--muted); font-size:var(--fs-xs); font-variant-numeric:tabular-nums; }
+  #notePop .nnum { display:flex; align-items:center; }
+  #notePop .nmrow .cd { flex:none; width:8px; height:8px; border-radius:50%; background:var(--c, #ffd400); }
+  #notePop .nmrow { border:0; background:none; box-shadow:none; transform:none; min-height:0; height:auto; margin:0;
+                    font:inherit; color:inherit; cursor:pointer; text-align:left; }
+  #notePop .nmpick { position:absolute; left:8px; right:8px; bottom:56px; z-index:2; display:flex; flex-direction:column; gap:6px; padding:8px;
+                     border-radius:var(--r-md); background:var(--base); box-shadow:var(--sh-out); }
+  #notePop .nmpick[hidden] { display:none; }
+  #notePop .nmpick input { width:100%; box-sizing:border-box; padding:5px 8px; font:inherit; font-size:var(--fs-sm); border-radius:var(--r-sm); }
+  #notePop .nmlist { max-height:210px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
+  #notePop .nmrow { display:flex; align-items:center; gap:8px; width:100%; padding:6px 8px; border-radius:var(--r-sm); font-size:var(--fs-sm); }
+  #notePop .nmrow:hover, #notePop .nmrow:focus-visible { background:var(--surface-2); }
+  #notePop .nmrow .nmt { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #notePop .nmrow .nmp { flex:none; font-size:var(--fs-xs); color:var(--muted); }
+  #notePop .nmempty { padding:8px; font-size:var(--fs-sm); color:var(--muted); text-align:center; }
+  /* The arrows in the 笔记 list: quiet until you point at a note, then its own arrows come forward. */
+  .reader .nlist { position:relative; }
+  .reader .nmsvg { position:absolute; left:0; top:0; pointer-events:none; overflow:visible; color:var(--muted); }
+  .reader .nmsvg .mg { opacity:.5; transition:opacity .12s, color .12s; }
+  .reader .nmsvg .ml { fill:none; stroke:currentColor; stroke-width:1.2; stroke-linecap:round; }
+  .reader .nmsvg .md, .reader .nmsvg .mh { fill:currentColor; stroke:none; }
+  .reader .nmsvg .mg.hot { opacity:1; color:var(--accent); }
+  .reader .nmsvg .mg.hot .ml { stroke-width:1.8; }
+  .reader .nlist.mhot .mg:not(.hot) { opacity:.16; }
   #notePop #noteDelete:hover { color:var(--bad); }
   .reader .rside .thumb { cursor:pointer; border-radius:var(--r-sm); overflow:hidden; background:#fff;
                           box-shadow:var(--sh-2); outline:2px solid transparent; }
@@ -815,7 +844,7 @@
 </div>
 <div id="selbar"><span class="pdf-only"><button class="sw" data-sel="highlight" data-color="yellow" style="--c:#ffd400" title="高亮" aria-label="黄色高亮"></button><button class="sw" data-sel="highlight" data-color="red" style="--c:#ff6666" title="高亮" aria-label="红色高亮"></button><button class="sw" data-sel="highlight" data-color="green" style="--c:#5fb236" title="高亮" aria-label="绿色高亮"></button><button class="sw" data-sel="highlight" data-color="blue" style="--c:#2ea8e5" title="高亮" aria-label="蓝色高亮"></button><button class="sw" data-sel="highlight" data-color="purple" style="--c:#a28ae5" title="高亮" aria-label="紫色高亮"></button><button class="tiny" data-sel="note">笔记</button><i class="sep"></i></span><button class="tiny" data-sel="translate">翻译</button><button class="tiny" data-sel="ask">追问</button><button class="tiny ghost" data-sel="clear" title="取消选择">✕</button></div>
 <div id="transPop"></div>
-<div id="notePop" role="dialog" aria-label="笔记"><div class="nquote" data-no-i18n></div><textarea id="noteText" rows="3" placeholder="写笔记…" aria-label="笔记"></textarea><div class="nfoot"><span class="ncolors"></span><span class="grow"></span><button class="tiny ghost" id="noteDelete">删除</button><button class="tiny" id="noteDone">完成</button></div></div>
+<div id="notePop" role="dialog" aria-label="笔记"><div class="nnum"><span class="nn" id="noteNum" data-no-i18n></span></div><div class="nquote" data-no-i18n></div><textarea id="noteText" rows="3" placeholder="写笔记… 输入 @ 可引用其他笔记" aria-label="笔记"></textarea><div class="nfoot"><span class="ncolors"></span><button class="tiny ghost" id="noteAt" type="button" title="@ 另一条笔记" aria-label="@ 另一条笔记" aria-haspopup="listbox">@</button><span class="grow"></span><button class="tiny ghost" id="noteDelete">删除</button><button class="tiny" id="noteDone">完成</button></div><div class="nmpick" id="notePicker" hidden><input id="notePickQ" type="search" placeholder="搜索笔记" aria-label="搜索笔记"><div class="nmlist" id="notePickList" role="listbox"></div></div></div>
 
 <div id="preview"></div>
 <div id="detail" class="page detail-page hidden"></div>
@@ -836,6 +865,7 @@
 <script src="/reader-selection.js"></script>
 <script src="/reader-notes.js"></script>
 <script src="/reader-links.js"></script>
+<script src="/reader-mentions.js"></script>
 <script src="/reader-word.js"></script>
 <script src="/reader-textfit.js"></script>
 <script src="/reader-page.js"></script>
@@ -2449,6 +2479,7 @@ function showSideTab(tab) {
   $('#readerOutline').hidden = tab !== 'outline';
   $('#readerNotes').hidden = tab !== 'notes';
   if (tab === 'outline') markOutline(true);
+  if (tab === 'notes') listNotes();   // the arrows are measured, which needs the list on screen
 }
 $('#readerSide .rtabs').addEventListener('click', (e) => { const b = e.target.closest('[role=tab]'); if (b) showSideTab(b.dataset.tab); });
 $('#readerSide .rtabs').addEventListener('keydown', (e) => {
@@ -2591,28 +2622,79 @@ function redrawNotes() {
 function listNotes() {
   const pane = $('#readerNotes');
   if (!R.doc) { pane.innerHTML = ''; return; }
-  const notes = PTReaderNotes.readingOrder(R.notes || []);
+  const notes = PTReaderNotes.readingOrder(R.notes || []), nums = PTReaderMentions.numbering(notes);
   if (!notes.length) { pane.innerHTML = '<div class="rempty">选中文字后可以高亮或写笔记</div>'; return; }
   const list = document.createElement('div');
   list.className = 'nlist';
+  const cards = [];
   for (const a of notes) {
     const item = document.createElement('button');
     item.type = 'button'; item.className = 'nitem' + (noteOpen?.id === a.id ? ' on' : '');
     item.style.setProperty('--c', NOTE_COLORS[a.color] || NOTE_COLORS.yellow);
-    const quote = document.createElement('div'), page = document.createElement('div');
+    const quote = document.createElement('div'), page = document.createElement('div'), body = document.createElement('div'), num = document.createElement('span');
+    body.className = 'nb'; num.className = 'nn'; num.textContent = nums.numberOf.get(a.id); num.setAttribute('data-no-i18n', '');
     quote.className = 'nq'; quote.textContent = a.quote; quote.setAttribute('data-no-i18n', '');
     page.className = 'np'; page.textContent = `第 ${a.page} 页`;
-    if (a.quote) item.appendChild(quote);
+    if (a.quote) body.appendChild(quote);
     if (a.comment.trim()) {
       const comment = document.createElement('div');
-      comment.className = 'nc'; comment.textContent = a.comment; comment.setAttribute('data-no-i18n', '');
-      item.appendChild(comment);
+      comment.className = 'nc'; comment.setAttribute('data-no-i18n', '');
+      for (const seg of PTReaderMentions.segments(a.comment, nums.numberOf)) {   // "@3" in the text is the note's current number
+        if (seg.n) { const at = document.createElement('span'); at.className = 'nmn'; at.textContent = '@' + seg.n; comment.appendChild(at); }
+        else comment.append(seg.text);
+      }
+      body.appendChild(comment);
     }
-    item.appendChild(page);
+    body.appendChild(page);
+    item.append(num, body);
     item.onclick = () => showNote(a);
-    list.appendChild(item);
+    item.onmouseenter = item.onfocus = () => hotMentions(list, a.id);
+    item.onmouseleave = item.onblur = () => hotMentions(list, noteOpen?.id);
+    list.appendChild(item); cards.push([a, item]);
   }
   pane.replaceChildren(list);
+  drawMentions(list, cards);
+}
+/* Arrows from a note to the notes it @s, in a gutter on the cards' left (geometry: reader-mentions.js). The gutter takes
+   its width from the lanes needed, which can change how the cards wrap, so it is measured again until it settles. */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function drawMentions(list, cards) {
+  if (!cards.some(([a]) => (a.mentions || []).length) || $('#readerNotes').hidden || !list.offsetHeight) return;
+  const applied = () => parseFloat(list.style.paddingLeft) || 0;
+  const measure = (minWidth) => {
+    const boxes = {};
+    for (const [a, el] of cards) boxes[a.id] = { top: el.offsetTop, bottom: el.offsetTop + el.offsetHeight };
+    return PTReaderMentions.arrows(cards.map(([a]) => a), boxes, minWidth);
+  };
+  let res = measure(0), widest = 0;
+  for (let pass = 0; pass < 3 && res.width !== applied(); pass++) {
+    widest = Math.max(widest, res.width);
+    list.style.paddingLeft = `${res.width}px`;
+    res = measure(0);
+  }
+  if (res.width !== applied()) { list.style.paddingLeft = `${widest}px`; res = measure(widest); }   // did not settle: keep the widest
+  if (!res.width) return;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'nmsvg'); svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('width', res.width); svg.setAttribute('height', list.offsetHeight);
+  const make = (tag, attrs) => { const el = document.createElementNS(SVG_NS, tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); return el; };
+  for (const g of res.groups) {
+    const shape = PTReaderMentions.shape(g, res.width);
+    const el = make('g', { class: 'mg', 'data-src': g.src, 'data-t': g.targets.map((t) => t.id).join(' ') });
+    el.append(make('path', { class: 'ml', d: shape.d }), make('circle', { class: 'md', cx: shape.dot.cx, cy: shape.dot.cy, r: 2.4 }),
+              ...shape.heads.map((points) => make('polygon', { class: 'mh', points })));
+    svg.appendChild(el);
+  }
+  list.appendChild(svg);
+  hotMentions(list, noteOpen?.id);
+}
+function hotMentions(list, id) {   // only the arrows this note sends come forward (not those pointing at it); the others step back
+  let any = false;
+  for (const g of list.querySelectorAll('.mg')) {
+    const on = Boolean(id) && g.dataset.src === id;
+    g.classList.toggle('hot', on); any = any || on;
+  }
+  list.classList.toggle('mhot', any);
 }
 function showNote(note) {
   const first = note.rects.find((r) => r.p === note.page) || note.rects[0];
@@ -2660,15 +2742,19 @@ async function createNote(color, boxes, quote, rect, edit) {
   } catch (e) { toast('没能保存高亮：' + e.message, 'err'); }
 }
 async function saveNote(note, change) {
-  const before = { comment: note.comment, color: note.color };
+  const before = { comment: note.comment, color: note.color, mentions: note.mentions };
+  if ('comment' in change) change.mentions = PTReaderMentions.ids(change.comment).filter((id) => id !== note.id && noteById(id));
   Object.assign(note, change); redrawNotes();
-  try { Object.assign(note, await api('/api/annotations', { op: 'update', id: note.id, ...change, ...demoBody() })); }
+  const { mentions, ...send } = change;   // the server works the arrows out from the text itself
+  try { Object.assign(note, await api('/api/annotations', { op: 'update', id: note.id, ...send, ...demoBody() })); }
   catch (e) { Object.assign(note, before); toast('笔记没能保存：' + e.message, 'err'); }
   redrawNotes();
 }
-function flushNote() {
+function flushNote() {   // the text box shows "@3"; what is saved holds a reference to the note
   clearTimeout(noteTimer); noteTimer = null;
-  if (noteOpen && $('#noteText').value !== noteOpen.comment) saveNote(noteOpen, { comment: $('#noteText').value });
+  if (!noteOpen) return;
+  const text = PTReaderMentions.fromEditable($('#noteText').value, noteNumbers().idOf, noteOpen.id);
+  if (text !== noteOpen.comment) saveNote(noteOpen, { comment: text });
 }
 function openNote(note, rect) {
   if (noteOpen && noteOpen.id !== note.id) flushNote();
@@ -2676,7 +2762,10 @@ function openNote(note, rect) {
   const pop = $('#notePop'), quote = pop.querySelector('.nquote');
   pop.style.setProperty('--c', NOTE_COLORS[note.color] || NOTE_COLORS.yellow);
   quote.textContent = note.quote || ''; quote.hidden = !note.quote;
-  $('#noteText').value = note.comment || '';
+  const nums = noteNumbers();
+  $('#noteNum').textContent = nums.numberOf.get(note.id) || '';
+  $('#noteText').value = PTReaderMentions.toEditable(note.comment, nums.numberOf);
+  closePicker();
   pop.querySelector('.ncolors').innerHTML = Object.entries(NOTE_COLORS).map(([name, c]) =>
     `<button type="button" class="sw" data-color="${name}" style="--c:${c}" aria-pressed="${name === note.color}" title="${COLOR_LABEL[name]}" aria-label="${COLOR_LABEL[name]}"></button>`).join('');
   pop.classList.add('show');
@@ -2689,9 +2778,63 @@ function openNote(note, rect) {
 function closeNote() {
   if (!noteOpen) return;
   flushNote(); noteOpen = null;
+  closePicker();
   $('#notePop').classList.remove('show');
   redrawNotes();
 }
+/* @ other notes: written into the text as "@3" (the note's number, top to bottom); typing @ or the @ button offers the notes. */
+const noteNumbers = () => PTReaderMentions.numbering(PTReaderNotes.readingOrder(R.notes || []));
+function noteById(id) { return (R.notes || []).find((a) => a.id === id); }
+let pickRange = null, pickTyped = false;
+function closePicker() { $('#notePicker').hidden = true; $('#noteAt').setAttribute('aria-expanded', 'false'); }
+function fillPicker() {
+  const list = $('#notePickList'), nums = noteNumbers();
+  const found = PTReaderMentions.candidates(PTReaderNotes.readingOrder(R.notes || []), noteOpen?.id, [], $('#notePickQ').value);
+  list.replaceChildren();
+  if (!found.length) { const none = document.createElement('div'); none.className = 'nmempty'; none.textContent = '没有可 @ 的笔记'; list.appendChild(none); return; }
+  for (const a of found) {
+    const row = document.createElement('button'), num = document.createElement('span'), dot = document.createElement('i'), text = document.createElement('span'), page = document.createElement('span');
+    row.type = 'button'; row.className = 'nmrow'; row.setAttribute('role', 'option'); row.dataset.id = a.id;
+    row.style.setProperty('--c', NOTE_COLORS[a.color] || NOTE_COLORS.yellow);
+    num.className = 'nn'; num.textContent = nums.numberOf.get(a.id); num.setAttribute('data-no-i18n', '');
+    dot.className = 'cd'; text.className = 'nmt'; page.className = 'nmp';
+    text.textContent = PTReaderMentions.label(a, 60) || '—'; text.setAttribute('data-no-i18n', '');
+    page.textContent = `第 ${a.page} 页`;
+    row.append(num, dot, text, page); list.appendChild(row);
+  }
+}
+function openPicker(typed) {   // typed: the @ was just typed in the text and is replaced by the choice
+  if (!noteOpen) return;
+  const t = $('#noteText');
+  pickRange = { start: t.selectionStart, end: t.selectionEnd }; pickTyped = typed;
+  $('#notePickQ').value = ''; fillPicker();
+  $('#notePicker').hidden = false; $('#noteAt').setAttribute('aria-expanded', 'true');
+  $('#notePickQ').focus();
+}
+$('#noteAt').onclick = () => { if ($('#notePicker').hidden) openPicker(false); else closePicker(); };
+$('#noteText').addEventListener('input', (e) => {   // an @ typed at the start or after a space or punctuation offers the notes
+  if (e.inputType !== 'insertText' || e.data !== '@' || e.isComposing) return;
+  const t = $('#noteText'), at = t.selectionStart;
+  if (at === t.selectionEnd && (at < 2 || /[^\w@]/.test(t.value[at - 2]))) openPicker(true);
+});
+$('#notePickQ').addEventListener('input', fillPicker);
+$('#notePickQ').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('#notePickList .nmrow')?.click(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); $('#notePickList .nmrow')?.focus(); }
+});
+$('#notePickList').addEventListener('click', (e) => {
+  const row = e.target.closest('.nmrow');
+  if (!row || !noteOpen) return;
+  const n = noteNumbers().numberOf.get(row.dataset.id), t = $('#noteText');
+  closePicker();
+  const done = PTReaderMentions.insertMention(t.value, pickRange.start, pickRange.end, n, pickTyped);
+  t.value = done.value; t.focus(); t.setSelectionRange(done.caret, done.caret);
+  t.dispatchEvent(new Event('input'));   // starts the save
+});
+$('#notePop').addEventListener('mousedown', (e) => { if (!e.target.closest('#notePicker, #noteAt')) closePicker(); });
+$('#notePop').addEventListener('keydown', (e) => {   // Esc closes the picker first; the reader's own Esc then sees it handled
+  if (e.key === 'Escape' && !e.isComposing && !$('#notePicker').hidden) { e.preventDefault(); closePicker(); $('#noteAt').focus(); }
+});
 $('#noteText').addEventListener('input', () => { clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 600); });
 $('#noteDone').onclick = () => { closeNote(); (readerControls()[0] || $('#reader')).focus(); };
 $('#notePop .ncolors').addEventListener('click', (e) => {
@@ -2709,6 +2852,10 @@ $('#noteDelete').onclick = async () => {
   try { await api('/api/annotations', { op: 'delete', id: note.id, ...demoBody() }); }
   catch (e) { toast('没能删除：' + e.message, 'err'); return; }
   R.notes = R.notes.filter((a) => a.id !== note.id);
+  for (const a of R.notes) {   // the server did the same: a reference to it becomes a marker
+    a.mentions = (a.mentions || []).filter((id) => id !== note.id);
+    a.comment = a.comment.split(`@[${note.id}]`).join(PTReaderMentions.GONE);
+  }
   if (noteOpen === note) { noteOpen = null; $('#notePop').classList.remove('show'); }
   redrawNotes();
 };

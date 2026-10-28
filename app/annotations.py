@@ -4,6 +4,11 @@ An annotation belongs to one PDF file version (paper key + the file's SHA-256), 
 file's pages. Boxes are stored as fractions of the page (0..1), so they survive any zoom. A newer file version of the same
 paper does not show the old version's annotations, and they are kept, never rewritten. The text is the person's own:
 nothing here is sent to a model. The table is created on first use (no numbered migration: see migrations-shared-real-db).
+
+A note can @ other notes of the same file version, inside its own text: the text holds `@[<annotation id>]` where the reader
+shows "@3" (the note's number in reading order, so numbers can change while the references stay right). `mentions` is the
+list of ids found in the text, kept for drawing the arrows; it is always derived from the text. Deleting a note turns the
+references to it in other notes into "@✕" and drops it from their lists.
 """
 import json
 import re
@@ -30,8 +35,11 @@ MAX_RECTS = 400
 MAX_QUOTE = 5000
 MAX_COMMENT = 20000
 MAX_PAGE = 100000
+MAX_MENTIONS = 30
 _SHA = re.compile(r"[0-9a-f]{64}")
 _ID = re.compile(r"[0-9a-f]{32}")
+_MENTION = re.compile(r"@\[([0-9a-f]{32})\]")
+GONE = "@✕"
 
 
 def _now():
@@ -41,11 +49,24 @@ def _now():
 def ensure(store):
     with store._lock:
         store.conn.executescript(SCHEMA)
+        columns = {row["name"] for row in store.conn.execute("PRAGMA table_info(annotations)")}
+        if "mentions" not in columns:   # added later than the table: a lazily added column, like the table itself
+            store.conn.execute("ALTER TABLE annotations ADD COLUMN mentions TEXT NOT NULL DEFAULT '[]'")
+            store.conn.commit()
 
 
 def _row(row):
     return {"id": row["id"], "page": row["page"], "rects": json.loads(row["rects"]), "quote": row["quote"],
-            "comment": row["comment"], "color": row["color"], "created_at": row["created_at"], "updated_at": row["updated_at"]}
+            "comment": row["comment"], "color": row["color"], "mentions": _ids(row["mentions"]),
+            "created_at": row["created_at"], "updated_at": row["updated_at"]}
+
+
+def _ids(raw):
+    try:
+        value = json.loads(raw or "[]")
+    except ValueError:
+        return []
+    return [i for i in value if isinstance(i, str)] if isinstance(value, list) else []
 
 
 def _current_sha(store, key):
@@ -130,18 +151,36 @@ def _find(store, annotation_id):
     return row
 
 
+def _mentioned(store, comment, row):
+    """The notes a text @s: ids written as @[id] that are other notes of the same paper and file version, once each."""
+    out = []
+    for item in _MENTION.findall(comment):
+        if item == row["id"] or item in out or len(out) >= MAX_MENTIONS:
+            continue
+        if store.conn.execute("SELECT 1 FROM annotations WHERE id=? AND paper_key=? AND pdf_sha256=?",
+                              (item, row["paper_key"], row["pdf_sha256"])).fetchone():
+            out.append(item)
+    return out
+
+
 def update(store, annotation_id, comment=None, color=None):
     row = _find(store, annotation_id)
     comment = row["comment"] if comment is None else _text(comment, MAX_COMMENT, "笔记")
     color = row["color"] if color is None else _color(color)
+    mentioned = _ids(row["mentions"]) if comment == row["comment"] else _mentioned(store, comment, row)
     with store._lock, store.conn:
-        store.conn.execute("UPDATE annotations SET comment=?, color=?, updated_at=? WHERE id=?",
-                           (comment, color, _now(), annotation_id))
+        store.conn.execute("UPDATE annotations SET comment=?, color=?, mentions=?, updated_at=? WHERE id=?",
+                           (comment, color, json.dumps(mentioned), _now(), annotation_id))
     return _row(store.conn.execute("SELECT * FROM annotations WHERE id=?", (annotation_id,)).fetchone())
 
 
 def delete(store, annotation_id):
-    _find(store, annotation_id)
+    row = _find(store, annotation_id)
     with store._lock, store.conn:
+        for other in store.conn.execute("SELECT id, comment, mentions FROM annotations WHERE paper_key=? AND pdf_sha256=? AND comment LIKE ?",
+                                        (row["paper_key"], row["pdf_sha256"], f"%@[{annotation_id}]%")).fetchall():
+            kept = [i for i in _ids(other["mentions"]) if i != annotation_id]
+            store.conn.execute("UPDATE annotations SET comment=?, mentions=? WHERE id=?",
+                               (other["comment"].replace(f"@[{annotation_id}]", GONE), json.dumps(kept), other["id"]))
         store.conn.execute("DELETE FROM annotations WHERE id=?", (annotation_id,))
     return {"id": annotation_id, "deleted": True}

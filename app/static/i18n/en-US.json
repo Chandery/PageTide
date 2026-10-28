@@ -2816,6 +2816,10 @@
     "在这里": "Here",
     "↩ 返回原处": "↩ Back",
     "回到点击链接前的位置": "Back to where you clicked the link",
-    "没找到这个链接指向的位置": "Could not find where this link points"
+    "没找到这个链接指向的位置": "Could not find where this link points",
+    "@ 另一条笔记": "Mention another note",
+    "搜索笔记": "Search notes",
+    "没有可 @ 的笔记": "No other notes to mention",
+    "写笔记… 输入 @ 可引用其他笔记": "Write a note… Type @ to mention another note"
   }
 }
